@@ -65,7 +65,7 @@ const useIsDesktop = () => {
   return desktop;
 };
 
-export default function VesselMapPage({ embedded = false, placingItem: placingItemProp = null, placingDefect: placingDefectProp = null, placingStorage: placingStorageProp = null, onPlaced: onPlacedProp, onClose: onCloseProp } = {}) {
+export default function VesselMapPage({ embedded = false, placingItem: placingItemProp = null, placingDefect: placingDefectProp = null, placingStorage: placingStorageProp = null, initialScanId = null, onPlaced: onPlacedProp, onClose: onCloseProp } = {}) {
   const navigate = useNavigate();
   const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
@@ -74,7 +74,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
 
   const [scans, setScans] = useState([]);
   const [scansLoading, setScansLoading] = useState(true);
-  const [selectedScanId, setSelectedScanId] = useState(null);
+  const [selectedScanId, setSelectedScanId] = useState(initialScanId || null);
   const [signedUrl, setSignedUrl] = useState(null);
   const [signError, setSignError] = useState(null);
   const [hotspots, setHotspots] = useState([]);
@@ -126,6 +126,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     const id = q.get('placeStorage');
     return id ? { name: q.get('placeStorageName') || 'a storage locker' } : null;
   });
+  const [storagePlaced, setStoragePlaced] = useState(false);
   const isDesktop = useIsDesktop();
   const placementMode = mode === 'pin';
   // The defect pin dropped in this placement session (null until dropped) — lets
@@ -523,7 +524,13 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
         trail: containerTrail || [], pin: data,
       });
       const label = data.label || placingStorage.name;
-      if (embedded) { onPlacedProp?.({ locationId: res?.nodeId || null, name: label }); onCloseProp?.(); }
+      onPlacedProp?.({ locationId: res?.nodeId || null, name: label });
+      // Don't close: keep the map open so the crew can make this a container
+      // ("opens a photo of the inside") and drop drawer pins inside. Opening the
+      // inspector surfaces the container toggle. They close when done.
+      setStoragePlaced(true);
+      setSelectedHotspot(data);
+      setJustCreatedId(data.id);
       return;
     }
     setSelectedHotspot(data);
@@ -1062,8 +1069,17 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
 
                 {placingStorage && (
                   <div className="vm-placing-bar">
-                    <span className="vm-placing-text">Placing <strong>{placingStorage.name}</strong> — open the room, investigate, then tap <strong>Add hotspot</strong>, drop a pin in the cupboard and <strong>Place pin</strong>.</span>
-                    <button className="vm-placing-cancel" onClick={() => onCloseProp?.()}>Cancel</button>
+                    {!storagePlaced ? (
+                      <>
+                        <span className="vm-placing-text">Placing <strong>{placingStorage.name}</strong> — investigate, tap <strong>Add hotspot</strong>, drop a pin on the cupboard, then <strong>Place pin</strong>.</span>
+                        <button className="vm-placing-cancel" onClick={() => onCloseProp?.()}>Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="vm-placing-text">Saved to the wardrobe. Want drawers? Toggle <strong>“Opens a photo of the inside”</strong> on this pin and drop a pin per drawer — or you're done.</span>
+                        <button className="vm-placing-done" onClick={() => onCloseProp?.()}>Done</button>
+                      </>
+                    )}
                   </div>
                 )}
 

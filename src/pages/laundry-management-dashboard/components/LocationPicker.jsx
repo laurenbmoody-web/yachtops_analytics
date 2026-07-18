@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { getAllDecks, getAllZones, getAllSpaces } from '../../locations-management-settings/utils/locationsHierarchyStorage';
+import DeckPlanPicker from './DeckPlanPicker';
 import MapPickerModal from '../../vessel-map/components/MapPickerModal';
 import './locationPicker.css';
 
@@ -12,6 +13,7 @@ const LocationPicker = ({ value, valueLabel = '', onChange, placeName = 'Storage
   const [query, setQuery] = useState(valueLabel || '');
   const [open, setOpen] = useState(false);
   const [showPlan, setShowPlan] = useState(false);
+  const [scanPlace, setScanPlace] = useState(null); // scan id to open in the 3D picker
 
   useEffect(() => { setQuery(valueLabel || ''); }, [valueLabel]);
 
@@ -70,12 +72,26 @@ const LocationPicker = ({ value, valueLabel = '', onChange, placeName = 'Storage
           ))}
         </div>
       )}
-      <button type="button" className="lp-onmap" onClick={() => setShowPlan(true)}><Icon name="Map" size={14} /> Pick on the vessel map</button>
+      <button type="button" className="lp-onmap" onClick={() => setShowPlan(true)}><Icon name="Map" size={14} /> Pick on the deck plan</button>
       {showPlan && (
-        <MapPickerModal
-          placingStorage={{ name: placeName }}
-          onPlaced={(res) => { if (res?.locationId) { onChange?.({ id: res.locationId, name: res.name || placeName, label: res.name || placeName }); setQuery(res.name || placeName); } setShowPlan(false); }}
+        <DeckPlanPicker
+          selectedId={value}
+          onSelect={(space) => {
+            setShowPlan(false);
+            if (space?.scan?.id) { setScanPlace(space.scan.id); return; }
+            // Room has no 3-D scan — fall back to the room itself as the location.
+            onChange?.({ id: space.id, name: space.name, label: space.name });
+            setQuery(space.name);
+          }}
           onClose={() => setShowPlan(false)}
+        />
+      )}
+      {scanPlace && (
+        <MapPickerModal
+          initialScanId={scanPlace}
+          placingStorage={{ name: placeName }}
+          onPlaced={(res) => { if (res?.locationId) { onChange?.({ id: res.locationId, name: res.name || placeName, label: res.name || placeName }); setQuery(res.name || placeName); } }}
+          onClose={() => setScanPlace(null)}
         />
       )}
     </div>

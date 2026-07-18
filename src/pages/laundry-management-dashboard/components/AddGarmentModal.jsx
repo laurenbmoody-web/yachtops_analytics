@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
+import DeckPlanPicker from './DeckPlanPicker';
 import MapPickerModal from '../../vessel-map/components/MapPickerModal';
 import { createWardrobe } from '../utils/laundryWardrobes';
 import { createLaundryItem, LaundryStatus, availableLaundryTags, formatLaundryTag } from '../utils/laundryStorage';
@@ -27,6 +28,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
   const [wlist, setWlist] = useState(wardrobes);
   const [wardrobeId, setWardrobeId] = useState(defaultWardrobeId || wardrobes[0]?.id || '');
   const [showPlan, setShowPlan] = useState(false);
+  const [scanPlace, setScanPlace] = useState(null);
   const [guestId, setGuestId] = useState('');
   const [staysOnboard, setStaysOnboard] = useState(true); // helper default: resident garments usually stay
   const [photo, setPhoto] = useState('');
@@ -149,7 +151,17 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
         </div>
       </div>
     </div>
-    {showPlan && <MapPickerModal placingStorage={{ name: 'Wardrobe' }} onPlaced={onPlanPick} onClose={() => setShowPlan(false)} />}
+    {showPlan && (
+      <DeckPlanPicker
+        onSelect={(space) => {
+          setShowPlan(false);
+          if (space?.scan?.id) { setScanPlace(space.scan.id); return; }
+          onPlanPick({ locationId: space.id, name: space.name });
+        }}
+        onClose={() => setShowPlan(false)}
+      />
+    )}
+    {scanPlace && <MapPickerModal initialScanId={scanPlace} placingStorage={{ name: 'Wardrobe' }} onPlaced={onPlanPick} onClose={() => setScanPlace(null)} />}
     </>
   );
 };
