@@ -1441,8 +1441,8 @@ const Routes = () => {
         <Route path="/provisioning/:boardId/orders/:orderId" element={<ProtectedRoute><SupplierOrderPage /></ProtectedRoute>} />
 
         {/* Accounts */}
-        <Route path="/accounts" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF', 'HOD']}><Accounts /></ProtectedRoute>} />
-        <Route path="/accounts/ledger" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF', 'HOD']}><Ledger /></ProtectedRoute>} />
+        <Route path="/accounts" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><Accounts /></ProtectedRoute>} />
+        <Route path="/accounts/ledger" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><Ledger /></ProtectedRoute>} />
         
         {/* Logs/Deliveries */}
         <Route path="/logs-deliveries" element={<ProtectedRoute><LogsDeliveries /></ProtectedRoute>} />
