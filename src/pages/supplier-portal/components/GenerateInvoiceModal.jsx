@@ -297,6 +297,17 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
         <span><strong>Heads up.</strong> {DISCLAIMER}</span>
       </div>
 
+      {/* Soft nudge: a VAT-registered supplier should carry their number on the
+          invoice. Non-blocking — plenty of suppliers aren't registered. */}
+      {!supplier?.vat_number && (
+        <div className="gi-note">
+          <span>
+            No {taxName} number on file. If you're {taxName}-registered, add it under
+            Tax &amp; invoicing settings so it prints on the invoice.
+          </span>
+        </div>
+      )}
+
       {error && <div className="gi-alert">{error}</div>}
 
       {/* Bonded supply — mutually exclusive with reverse charge (both zero-rate). */}
