@@ -133,6 +133,10 @@ export function isInvoicingReady(supplier) {
   if (!supplier?.business_country)          missing.push('country');
   if (!supplier?.business_address_line1)    missing.push('address');
   if (!supplier?.business_city)             missing.push('city');
+  // A registered tax number is mandatory on a compliant VAT/TVA/IVA invoice —
+  // it identifies the issuer and is required even on zero-rated (bonded /
+  // reverse-charge) supplies.
+  if (!supplier?.vat_number)                missing.push('VAT number');
   // Categories are ready if explicitly enabled, or (unset) the country preset
   // supplies defaults, or they've added custom ones — matching the default in
   // getEffectiveCategoriesForSupplier.

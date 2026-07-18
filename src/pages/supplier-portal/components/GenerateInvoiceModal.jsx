@@ -50,6 +50,8 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
   const [profileError, setProfileError] = useState(null);
 
   const [bondedSupply, setBondedSupply] = useState(false);
+  const [reverseCharge, setReverseCharge] = useState(false);
+  const [discountPct, setDiscountPct] = useState(0);
   const [issueDate, setIssueDate] = useState(todayIso());
   const [paymentTermsDays, setPaymentTermsDays] = useState(30);
   const [notes, setNotes] = useState('');
@@ -99,6 +101,8 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
   useEffect(() => {
     if (!open) return;
     setBondedSupply(false);
+    setReverseCharge(false);
+    setDiscountPct(0);
     setIssueDate(todayIso());
     setNotes('');
     setError(null);
@@ -122,37 +126,44 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
   }, [items]);
 
   // ─── Live totals ────────────────────────────────────────────────────────
+  // bonded OR reverse-charge zero-rate every line; an invoice-level discount
+  // comes off the net before VAT (VAT is charged on the discounted base).
+  const zeroRated = bondedSupply || reverseCharge;
+  const discFactor = 1 - Math.max(0, Math.min(100, Number(discountPct) || 0)) / 100;
   const computed = useMemo(() => {
-    if (!items) return { lines: [], subtotal: 0, vatTotal: 0, total: 0, breakdown: [] };
+    if (!items) return { lines: [], subtotal: 0, discountAmount: 0, vatTotal: 0, total: 0, breakdown: [] };
     const lines = items.map((it) => {
-      const catKey = bondedSupply ? 'bonded' : (lineCategories[it.id] || 'standard');
+      const catKey = bondedSupply ? 'bonded' : reverseCharge ? 'reverse_charge' : (lineCategories[it.id] || 'standard');
       const cat = categories.find((c) => c.key === catKey);
-      const rate = bondedSupply ? 0 : (cat?.rate ?? 0);
-      const label = bondedSupply ? 'Bonded supply' : (cat?.label || 'Standard');
+      const rate = zeroRated ? 0 : (cat?.rate ?? 0);
+      const label = bondedSupply ? 'Bonded supply' : reverseCharge ? 'Reverse charge' : (cat?.label || 'Standard');
       const qty = Number(it.quantity) || 0;
       const price = Number(it.agreed_price ?? it.unit_price) || 0;
       const taxable = qty * price;
-      const vat = taxable * rate / 100;
-      return { item: it, catKey, rate, label, taxable, vat, total: taxable + vat };
+      const discountedNet = taxable * discFactor;
+      const vat = discountedNet * rate / 100;
+      return { item: it, catKey, rate, label, taxable, discountedNet, vat, total: discountedNet + vat };
     });
     const subtotal = lines.reduce((s, l) => s + l.taxable, 0);
+    const discountedNet = lines.reduce((s, l) => s + l.discountedNet, 0);
+    const discountAmount = subtotal - discountedNet;
     const vatTotal = lines.reduce((s, l) => s + l.vat, 0);
-    const total = subtotal + vatTotal;
+    const total = discountedNet + vatTotal;
 
-    // Per-rate breakdown for the totals card.
+    // Per-rate breakdown for the totals card (taxable = discounted base).
     const buckets = new Map();
     for (const l of lines) {
       const key = `${l.catKey}:${l.rate}`;
       const existing = buckets.get(key);
       if (existing) {
-        existing.taxable += l.taxable;
+        existing.taxable += l.discountedNet;
         existing.vat += l.vat;
       } else {
-        buckets.set(key, { catKey: l.catKey, label: l.label, rate: l.rate, taxable: l.taxable, vat: l.vat });
+        buckets.set(key, { catKey: l.catKey, label: l.label, rate: l.rate, taxable: l.discountedNet, vat: l.vat });
       }
     }
-    return { lines, subtotal, vatTotal, total, breakdown: Array.from(buckets.values()) };
-  }, [items, lineCategories, categories, bondedSupply]);
+    return { lines, subtotal, discountAmount, vatTotal, total, breakdown: Array.from(buckets.values()) };
+  }, [items, lineCategories, categories, bondedSupply, reverseCharge, zeroRated, discFactor]);
 
   // ─── Submit ────────────────────────────────────────────────────────────
   const handleGenerate = async () => {
@@ -174,6 +185,8 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
         payment_terms_days: Number(paymentTermsDays) || 30,
         notes: notes || null,
         bonded_supply: bondedSupply,
+        reverse_charge: reverseCharge,
+        discount_pct: Number(discountPct) || 0,
         tax_name: taxName,
       });
       onGenerated?.(result);
@@ -286,18 +299,34 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
 
       {error && <div className="gi-alert">{error}</div>}
 
-      {/* Bonded supply */}
+      {/* Bonded supply — mutually exclusive with reverse charge (both zero-rate). */}
       <label className={`gi-toggle${bondedSupply ? ' on' : ''}`}>
         <input
           type="checkbox"
           checked={bondedSupply}
-          onChange={(e) => setBondedSupply(e.target.checked)}
+          onChange={(e) => { setBondedSupply(e.target.checked); if (e.target.checked) setReverseCharge(false); }}
         />
         <div>
           <div className="gi-toggle-title">Bonded yacht supply (zero-rate)</div>
           <div className="gi-toggle-sub">
             Forces every line to 0% {taxName}. Use for supplies under temporary admission /
             yacht-in-transit / customs-bonded supply rules.
+          </div>
+        </div>
+      </label>
+
+      {/* Reverse charge */}
+      <label className={`gi-toggle${reverseCharge ? ' on' : ''}`}>
+        <input
+          type="checkbox"
+          checked={reverseCharge}
+          onChange={(e) => { setReverseCharge(e.target.checked); if (e.target.checked) setBondedSupply(false); }}
+        />
+        <div>
+          <div className="gi-toggle-title">Reverse charge (customer accounts for {taxName})</div>
+          <div className="gi-toggle-sub">
+            Zero-rates every line and prints a reverse-charge statement. Use for cross-border
+            B2B supplies where the customer self-accounts for {taxName}.
           </div>
         </div>
       </label>
@@ -319,7 +348,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
                 className="gi-select gi-select-sm"
                 value={lineCategories[it.id] || ''}
                 onChange={(e) => setLineCategories((prev) => ({ ...prev, [it.id]: e.target.value }))}
-                disabled={bondedSupply}
+                disabled={zeroRated}
               >
                 {categories.map((c) => (
                   <option key={c.key} value={c.key}>{c.label} ({c.rate}%)</option>
@@ -346,6 +375,15 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
           />
           <div className="gi-field-hint">Due {fmtDMY(dueDate)}</div>
         </div>
+        <div className="gi-field">
+          <label className="gi-field-lab">Discount (%)</label>
+          <input
+            type="number" min="0" max="100" step="0.5" className="gi-input"
+            value={discountPct}
+            onChange={(e) => setDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+          />
+          <div className="gi-field-hint">Applied to the net before {taxName}.</div>
+        </div>
       </div>
 
       {/* Notes */}
@@ -367,6 +405,12 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
           <span>Subtotal</span>
           <span>{fmtMoney(computed.subtotal, currency)}</span>
         </div>
+        {computed.discountAmount > 0 && (
+          <div className="gi-totals-row">
+            <span>Discount ({Number(discountPct).toFixed(discountPct % 1 ? 1 : 0)}%)</span>
+            <span>− {fmtMoney(computed.discountAmount, currency)}</span>
+          </div>
+        )}
         {computed.breakdown.length === 0 ? (
           <div className="gi-totals-row"><span>{taxName} (0%)</span><span>{fmtMoney(0, currency)}</span></div>
         ) : computed.breakdown.length === 1 ? (
