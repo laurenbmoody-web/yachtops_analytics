@@ -1,7 +1,8 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- 20260718180000_laundry_garment_fields.sql
--- (renumbered from 20260718170000 to resolve a version collision with the
---  financial-accounts migration added on the same timestamp)
+-- 20260718180001_laundry_garment_fields.sql
+-- (renumbered again to 180001 — 180000 collided with 20260718180000_create_budgets,
+--  causing a schema_migrations PK clash that blocked the whole migration push.
+--  DDL is idempotent, so re-applying under the unique version is a safe no-op.)
 --
 -- Garment attributes for the Owner wardrobe catalogue: a clothing type/category
 -- and a value/price (so the catalogue can filter by type and sort by price).
