@@ -25,9 +25,11 @@ const fmtAgo = (iso) => {
 };
 const fmtDue = (iso) => (iso ? new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 
-const LaundryItemRow = ({ item, onUpdate, onOpen }) => {
+const LaundryItemRow = ({ item, onUpdate, onOpen, onAdvance }) => {
   const handleStatusUpdate = async (e, newStatus) => {
     e?.stopPropagation?.();
+    // Prefer the parent's advance handler (offline-aware); fall back to a direct write.
+    if (onAdvance) { await onAdvance(item, newStatus); return; }
     await updateLaundryStatus(item?.id, newStatus);
     onUpdate?.();
   };
