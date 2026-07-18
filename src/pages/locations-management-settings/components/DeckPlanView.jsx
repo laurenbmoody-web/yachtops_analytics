@@ -9,7 +9,7 @@
 //            doorway; links render as lines on the plan (vessel_space_links).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, getSpaceLinks, addSpaceLink, removeSpaceLink } from '../utils/locationsLayoutStorage';
+import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck } from '../utils/locationsLayoutStorage';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
@@ -52,6 +52,9 @@ const smoothClosed = (pts) => {
     return { x: p.x, y: p.y, h1: { x: p.x - tx, y: p.y - ty }, h2: { x: p.x + tx, y: p.y + ty } };
   });
 };
+
+// Loose room-name key for matching AI-read labels to the crew's existing rooms.
+const normName = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 // Box aspect of a deck's crop, in true pixels (undistorted).
 const boxAspectOf = (crop, dims) => (crop.w * dims.w) / (crop.h * dims.h) || 3;
@@ -133,6 +136,9 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
   const [traceMode, setTraceMode] = useState(false);
   const [tracing, setTracing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } in progress
   const [smooth, setSmooth] = useState(true); // curve the outline through the points on finish
+  const [detecting, setDetecting] = useState(null); // deckId with an AI detect in flight
+  const [proposals, setProposals] = useState(null); // { deckId, items:[{name,matchedSpaceId,points,confidence}], unmatched:[] }
+  const [detectError, setDetectError] = useState(null); // { deckId, message } | null
   const traceStartRef = useRef(false); // swallow the click that selected the room (no stray node)
   const fileRef = useRef(null);
   const planRefs = useRef({}); // deckId -> plan element (for drop hit-testing)
@@ -322,6 +328,89 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
     addTraceNode(x, y);
   };
 
+  // ── AI room detection ─────────────────────────────────────────────────────
+  // Crop the deck's band out of the shared GA image into a base64 JPEG (in the
+  // same 0..1 deck-crop space the plan uses), so the model reads just this deck.
+  const cropDeckToBase64 = (crop) => new Promise((resolve, reject) => {
+    if (!crop || !layout?.gaImageUrl) { reject(new Error('No deck image to read.')); return; }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const sx = crop.x * img.naturalWidth;
+      const sy = crop.y * img.naturalHeight;
+      const sw = Math.max(1, crop.w * img.naturalWidth);
+      const sh = Math.max(1, crop.h * img.naturalHeight);
+      const scale = Math.min(1, 1600 / Math.max(sw, sh)); // cap the long edge — plenty for OCR
+      const cw = Math.max(1, Math.round(sw * scale));
+      const ch = Math.max(1, Math.round(sh * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = cw; canvas.height = ch;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
+      try { resolve(canvas.toDataURL('image/jpeg', 0.85).split(',')[1]); } catch (e) { reject(e); }
+    };
+    img.onerror = () => reject(new Error('Could not load the drawing.'));
+    img.src = layout.gaImageUrl;
+  });
+
+  // Match an AI-read label to one of this deck's existing rooms: exact key first,
+  // then a contained-name fallback ("Master" ↔ "Master Cabin"). One room each.
+  const matchSpaceId = (name, spaces, used) => {
+    const k = normName(name);
+    if (!k) return null;
+    let s = spaces.find((sp) => normName(sp.name) === k && !used.has(sp.id));
+    if (!s && k.length >= 4) {
+      s = spaces.find((sp) => {
+        if (used.has(sp.id)) return false;
+        const n = normName(sp.name);
+        return n.length >= 4 && (n.includes(k) || k.includes(n));
+      });
+    }
+    return s?.id || null;
+  };
+
+  const detectRooms = async (deck) => {
+    const crop = cropOf(deck);
+    if (!crop || !gaDims || detecting) return;
+    setDetectError(null);
+    setProposals(null);
+    setTracing(null);
+    setDetecting(deck.id);
+    try {
+      const imageBase64 = await cropDeckToBase64(crop);
+      const spaces = spacesOf(deck);
+      const rooms = await autotraceDeck({ imageBase64, deckName: deck.name, roomNames: spaces.map((s) => s.name) });
+      const used = new Set();
+      const items = [];
+      const unmatched = [];
+      rooms.forEach((r) => {
+        const sid = matchSpaceId(r.name, spaces, used);
+        if (sid) { used.add(sid); items.push({ name: r.name, matchedSpaceId: sid, points: r.points, confidence: r.confidence }); }
+        else unmatched.push(r.name);
+      });
+      if (!items.length && !unmatched.length) { setDetectError({ deckId: deck.id, message: 'No rooms could be read from this deck. Try reframing it tighter around the plan.' }); return; }
+      setProposals({ deckId: deck.id, items, unmatched });
+    } catch (err) {
+      console.error('[deck-plan] detect error:', err);
+      setDetectError({ deckId: deck.id, message: err?.message || 'Could not detect rooms on this deck.' });
+    } finally {
+      setDetecting(null);
+    }
+  };
+
+  // Land the matched proposals as traced outlines (smoothed like a hand trace),
+  // anchoring each room's point/label at the outline centre.
+  const applyProposals = () => {
+    if (!proposals) return;
+    proposals.items.forEach((it) => {
+      const nodes = smooth ? smoothClosed(it.points) : it.points;
+      saveShape(it.matchedSpaceId, { closed: true, nodes });
+      const c = centroidOf(it.points);
+      if (c) applyPos(it.matchedSpaceId, c.x, c.y);
+    });
+    setProposals(null);
+  };
+
   if (loading) return <div className="dp-loading">Loading the layout…</div>;
 
   const hidden = (
@@ -365,6 +454,7 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
         // Links whose both endpoints are placed on THIS deck (drawable as lines).
         const posById = Object.fromEntries(placed.map((s) => [s.id, posOf(s)]));
         const deckLinks = links.filter((l) => posById[l.a] && posById[l.b]);
+        const deckProps = proposals?.deckId === deck.id ? proposals : null;
         return (
           <div className="dp-deck" key={deck.id}>
             <div className="dp-deckhdr">
@@ -389,6 +479,17 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
                 >
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l8 5v8l-8 5-8-5V8z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><circle cx="12" cy="3" r="1.4" fill="currentColor" /><circle cx="20" cy="8" r="1.4" fill="currentColor" /><circle cx="4" cy="8" r="1.4" fill="currentColor" /></svg>
                   <span className="dp-linkbtn-label">{traceMode ? 'Done tracing' : 'Trace rooms'}</span>
+                </button>
+              )}
+              {crop && gaDims && (
+                <button
+                  className="dp-linkbtn dp-aibtn"
+                  onClick={() => detectRooms(deck)}
+                  disabled={detecting === deck.id}
+                  title="Let Claude read this deck and propose room outlines"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M18.5 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /></svg>
+                  <span className="dp-linkbtn-label">{detecting === deck.id ? 'Reading plan…' : 'Detect rooms'}</span>
                 </button>
               )}
               {/* When unframed, the big "Frame this deck" box below is the single
@@ -421,6 +522,28 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
               </div>
             )}
 
+            {detectError?.deckId === deck.id && !deckProps && (
+              <p className="dp-error">{detectError.message}</p>
+            )}
+
+            {deckProps && (
+              <div className="dp-tracehint dp-ai-review">
+                <span>
+                  <b className="dp-ai-spark">✦ AI</b> read <b>{deckProps.items.length + deckProps.unmatched.length}</b> room{deckProps.items.length + deckProps.unmatched.length === 1 ? '' : 's'} —{' '}
+                  <b>{deckProps.items.length}</b> matched your list.
+                  {deckProps.unmatched.length > 0 && <span className="dp-ai-unmatched"> Couldn’t match: {deckProps.unmatched.join(', ')}.</span>}
+                </span>
+                <span className="dp-spring" />
+                <button
+                  className={`dp-smooth-toggle ${smooth ? 'is-on' : ''}`}
+                  onClick={() => setSmooth((v) => !v)}
+                  title="Curve the outlines through the points (off = straight edges)"
+                >{smooth ? 'Curved' : 'Straight'}</button>
+                <button className="lg-btn-primary sm" disabled={!deckProps.items.length} onClick={applyProposals}>Apply {deckProps.items.length || ''} outline{deckProps.items.length === 1 ? '' : 's'}</button>
+                <button className="lg-btn sm" onClick={() => setProposals(null)}>Discard</button>
+              </div>
+            )}
+
             {crop && gaDims ? (
               <>
                 <div
@@ -447,6 +570,16 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
                     {tracing && tracing.deckId === deck.id && tracing.nodes.length > 0 && (
                       <polyline className="dp-trace-line" points={tracing.nodes.map((n) => `${(n.x * 100).toFixed(2)},${(n.y * 100).toFixed(2)}`).join(' ')} />
                     )}
+                    {/* AI proposal outlines — dashed, awaiting Apply. */}
+                    {deckProps && deckProps.items.map((it) => {
+                      const d = shapeToPath({ closed: true, nodes: smooth ? smoothClosed(it.points) : it.points });
+                      return (
+                        <g key={it.matchedSpaceId}>
+                          <path className="dp-shape-halo" d={d} />
+                          <path className="dp-proposal" d={d} />
+                        </g>
+                      );
+                    })}
                   </svg>
                   {deckLinks.length > 0 && (
                     <svg className="dp-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -478,6 +611,16 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
                       >
                         <span className="dp-pin-label">{s.name}</span>
                       </div>
+                    );
+                  })}
+                  {/* AI proposal labels at each outline's centre. */}
+                  {deckProps && deckProps.items.map((it) => {
+                    const c = centroidOf(it.points);
+                    if (!c) return null;
+                    return (
+                      <span key={it.matchedSpaceId} className="dp-proposal-label" style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%` }}>
+                        ✦ {it.name}
+                      </span>
                     );
                   })}
                   {/* In-progress trace node dots (round; on top of the outline). */}
