@@ -70,6 +70,14 @@ export const setSpacePosition = async (spaceId, x, y) => {
   if (error) throw error;
 };
 
+// Room outline traced on its deck plan — { closed, nodes:[{x,y,h1?,h2?}] } in
+// 0..1 deck-crop space, or null to clear the shape (keeping the point).
+export const setSpaceShape = async (spaceId, shape) => {
+  const { error } = await supabase.from('vessel_locations')
+    .update({ plan_shape: shape }).eq('id', spaceId);
+  if (error) throw error;
+};
+
 // Doorway links between rooms (undirected). Stored canonically a < b.
 const orderPair = (a, b) => (a < b ? [a, b] : [b, a]);
 
