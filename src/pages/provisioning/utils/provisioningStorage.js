@@ -782,6 +782,42 @@ export const receiveItems = async (updates) => {
   return updated;
 };
 
+/**
+ * Crew "Mark received" for a whole order. Marks every board line on the order's
+ * list as received (quantity_received = quantity_ordered), which the receive
+ * cascade already rolls up to supplier_orders.status='received' — then stamps
+ * supplier_orders.delivered_at (the cascade only sets status). Returns the
+ * updated order row.
+ */
+export const markSupplierOrderReceived = async (orderId) => {
+  const { data: order, error: oErr } = await supabase
+    ?.from('supplier_orders')
+    ?.select('id, list_id')
+    ?.eq('id', orderId)
+    ?.single();
+  if (oErr) throw oErr;
+
+  if (order?.list_id) {
+    const { data: items } = await supabase
+      ?.from('provisioning_items')
+      ?.select('id, quantity_ordered, status')
+      ?.eq('list_id', order.list_id);
+    const updates = (items || [])
+      .filter((it) => !['received', 'returned'].includes(it.status))
+      .map((it) => ({ id: it.id, quantity_received: it.quantity_ordered || 0, status: 'received' }));
+    if (updates.length) await receiveItems(updates);
+  }
+
+  const { data: updated, error: uErr } = await supabase
+    ?.from('supplier_orders')
+    ?.update({ status: 'received', delivered_at: new Date().toISOString() })
+    ?.eq('id', orderId)
+    ?.select()
+    ?.single();
+  if (uErr) throw uErr;
+  return updated;
+};
+
 // ── Suppliers ─────────────────────────────────────────────────────────────────
 //
 // Sprint 9c.3 Phase 8 (Batch 1 — read repoint): the legacy
