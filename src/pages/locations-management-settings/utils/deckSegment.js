@@ -154,7 +154,12 @@ function maskContour(mask, W, H, bbox, eps) {
   const contour = mooreBoundary(m, bw, bh);
   if (!contour || contour.length < 4) return null;
   const diag = Math.hypot(bw, bh);
-  const simp = rdpClosed(contour, Math.max(2, diag * (eps ?? 0.012)));
+  // Rooms are simple shapes — simplify hard, and if it's still busy (a merged /
+  // concave region), simplify harder so it comes out clean, not a jagged blob.
+  const base = eps ?? 0.022;
+  let simp = rdpClosed(contour, Math.max(2, diag * base));
+  if (simp.length > 24) simp = rdpClosed(contour, Math.max(3, diag * base * 2));
+  if (simp.length > 40) simp = rdpClosed(contour, Math.max(4, diag * base * 3.5));
   if (simp.length < 3) return null;
   return simp.map((p) => ({ x: (minx + p.x) / W, y: (miny + p.y) / H }));
 }
@@ -170,7 +175,7 @@ export function regionContour(seg, region, opts = {}) {
       if (label[i] === region.id) mask[i] = 1;
     }
   }
-  return maskContour(mask, W, H, bbox, opts.eps ?? 0.012);
+  return maskContour(mask, W, H, bbox, opts.eps);
 }
 
 // A room's outline: the seed's region PLUS its small satellite sub-regions
@@ -221,5 +226,5 @@ export function roomOutline(seg, region, claimed, opts = {}) {
     maxx: Math.min(W - 1, maxx + segDil + 1),
     maxy: Math.min(H - 1, maxy + segDil + 1),
   };
-  return maskContour(bridged, W, H, bbox, opts.eps ?? 0.012);
+  return maskContour(bridged, W, H, bbox, opts.eps);
 }
