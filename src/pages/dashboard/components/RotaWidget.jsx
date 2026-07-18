@@ -144,7 +144,10 @@ const RotaWidget = () => {
   const me = useMemo(() => members.find((m) => m.userId && m.userId === user?.id) || null, [members, user?.id]);
   const myShifts = (me && shiftsByMember.get(me.id)) || [];
   const myToday = spanForDay(myShifts, todayStr);
-  const myTomorrow = spanForDay(myShifts, addDays(todayStr, 1));
+  const tmrwStr = addDays(todayStr, 1);
+  const myTomorrow = spanForDay(myShifts, tmrwStr);
+  const tmrwDt = new Date(`${tmrwStr}T00:00:00`);
+  const tomorrowLabel = `${WD[tmrwDt.getDay()]} ${tmrwDt.getDate()}`;
   const myReport = useMemo(() => assessMlc({
     dayShifts: myShifts.filter((s) => s.date === todayStr),
     weekShifts: myShifts.filter((s) => s.date > addDays(todayStr, -7) && s.date <= todayStr),
@@ -283,15 +286,22 @@ const RotaWidget = () => {
             </>
           )}
 
-          {/* Chief: own-department rest compliance */}
-          {view === 'chief' && chiefRows.length > 0 && (
+          {/* Chief: own next shift (personal) then department compliance */}
+          {view === 'chief' && (
             <>
-              <div className="rw-tmrw" style={{ marginTop: 16 }}>
-                <span className="rw-d">Tomorrow · {myTomorrow ? '' : 'rest'}</span>
-                {myTomorrow && (
+              <div className="rw-seclab">Tomorrow</div>
+              <div className="rw-tmrw">
+                <span className="rw-d">{tomorrowLabel}</span>
+                {myTomorrow ? (
                   <span className="rw-mini"><span className="rw-mt">{myTomorrow.start}</span><span className="rw-ar"><ArrowSvg w={30} /></span><span className="rw-mt">{myTomorrow.end}</span></span>
+                ) : (
+                  <span className="rw-d">Rest day</span>
                 )}
               </div>
+            </>
+          )}
+          {view === 'chief' && chiefRows.length > 0 && (
+            <>
               <div className="rw-divider" />
               <div className="rw-seclab">{me?.department} · rest compliance</div>
               <div className="rw-grid-hd"><span className="rw-h">Crew</span>{days.map((d, i) => <span key={d}>{WD1[new Date(`${d}T00:00:00`).getDay()]}</span>)}<span /></div>
@@ -309,15 +319,22 @@ const RotaWidget = () => {
             </>
           )}
 
-          {/* Command: rest compliance by department */}
-          {view === 'command' && deptRows.length > 0 && (
+          {/* Command: own next shift (personal) then by-department compliance */}
+          {view === 'command' && (
             <>
-              <div className="rw-tmrw" style={{ marginTop: 16 }}>
-                <span className="rw-d">Tomorrow · {myTomorrow ? '' : 'rest'}</span>
-                {myTomorrow && (
+              <div className="rw-seclab">Tomorrow</div>
+              <div className="rw-tmrw">
+                <span className="rw-d">{tomorrowLabel}</span>
+                {myTomorrow ? (
                   <span className="rw-mini"><span className="rw-mt">{myTomorrow.start}</span><span className="rw-ar"><ArrowSvg w={30} /></span><span className="rw-mt">{myTomorrow.end}</span></span>
+                ) : (
+                  <span className="rw-d">Rest day</span>
                 )}
               </div>
+            </>
+          )}
+          {view === 'command' && deptRows.length > 0 && (
+            <>
               <div className="rw-divider" />
               <div className="rw-seclab">Rest compliance · by department</div>
               <div className="rw-grid-hd"><span className="rw-h">Dept</span>{days.map((d) => <span key={d}>{WD1[new Date(`${d}T00:00:00`).getDay()]}</span>)}<span /></div>
