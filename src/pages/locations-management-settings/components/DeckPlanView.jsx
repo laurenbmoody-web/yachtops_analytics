@@ -482,10 +482,10 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   };
 
   // ── AI room detection ─────────────────────────────────────────────────────
-  // Crop the deck's band out of the shared GA image into a canvas (in the same
-  // 0..1 deck-crop space the plan uses). Returns the base64 JPEG to read AND the
-  // pixels, so the same image both feeds the model and drives the wall-tracing.
-  const cropDeckImage = (crop) => new Promise((resolve, reject) => {
+  // Load the GA once, render the deck's band to a high-res canvas for the pixel
+  // tracing, and hand back a cropSub() that cuts any sub-strip [x0,x1] of the
+  // deck to a model JPEG — so a long deck can be read in strips for precision.
+  const prepareDeck = (crop) => new Promise((resolve, reject) => {
     if (!crop || !layout?.gaImageUrl) { reject(new Error('No deck image to read.')); return; }
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -494,18 +494,29 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       const sy = crop.y * img.naturalHeight;
       const sw = Math.max(1, crop.w * img.naturalWidth);
       const sh = Math.max(1, crop.h * img.naturalHeight);
-      const scale = Math.min(1, 1600 / Math.max(sw, sh)); // cap the long edge — plenty for OCR + tracing
-      const cw = Math.max(1, Math.round(sw * scale));
-      const ch = Math.max(1, Math.round(sh * scale));
+      // High-res trace canvas → imageData for the flood-fill (walls hold better).
+      const tScale = Math.min(1, 2800 / Math.max(sw, sh));
+      const cw = Math.max(1, Math.round(sw * tScale));
+      const ch = Math.max(1, Math.round(sh * tScale));
       const canvas = document.createElement('canvas');
       canvas.width = cw; canvas.height = ch;
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cw, ch);
-      try {
-        const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
-        const imageData = ctx.getImageData(0, 0, cw, ch);
-        resolve({ base64, imageData });
-      } catch (e) { reject(e); }
+      let imageData;
+      try { imageData = ctx.getImageData(0, 0, cw, ch); } catch (e) { reject(e); return; }
+      // Crop deck sub-strip [x0,x1] (0..1 within the deck), full height, to a
+      // model JPEG. A narrow strip fills the model's frame → more pixels per room.
+      const cropSub = (x0, x1, cap = 1568) => {
+        const ssx = (crop.x + x0 * crop.w) * img.naturalWidth;
+        const ssw = Math.max(1, (x1 - x0) * crop.w * img.naturalWidth);
+        const scale = Math.min(1, cap / Math.max(ssw, sh));
+        const w = Math.max(1, Math.round(ssw * scale));
+        const h = Math.max(1, Math.round(sh * scale));
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, ssx, sy, ssw, sh, 0, 0, w, h);
+        return c.toDataURL('image/jpeg', 0.85).split(',')[1];
+      };
+      resolve({ imageData, cropSub });
     };
     img.onerror = () => reject(new Error('Could not load the drawing.'));
     img.src = layout.gaImageUrl;
@@ -535,9 +546,44 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     setTracing(null);
     setDetecting(deck.id);
     try {
-      const { base64, imageData } = await cropDeckImage(crop);
+      const { imageData, cropSub } = await prepareDeck(crop);
       const spaces = spacesOf(deck);
-      const rooms = await autotraceDeck({ imageBase64: base64, deckName: deck.name, roomNames: spaces.map((s) => s.name) });
+      const names = spaces.map((s) => s.name);
+      // Long/dense decks: read in overlapping strips so the model can pinpoint
+      // each packed cabin, instead of squinting at the whole thin deck at once.
+      const aspect = (crop.w * gaDims.w) / (crop.h * gaDims.h) || 3;
+      const segN = Math.max(1, Math.min(4, Math.round(aspect / 2.6)));
+      let rooms;
+      if (segN <= 1) {
+        rooms = await autotraceDeck({ imageBase64: cropSub(0, 1), deckName: deck.name, roomNames: names });
+      } else {
+        const ov = 0.06;
+        const segs = [];
+        for (let k = 0; k < segN; k += 1) segs.push([Math.max(0, k / segN - ov), Math.min(1, (k + 1) / segN + ov)]);
+        const perSeg = await Promise.all(segs.map(([a, b]) =>
+          autotraceDeck({ imageBase64: cropSub(a, b), deckName: deck.name, roomNames: names })
+            .then((rs) => rs.map((r) => ({ r, a, b })))
+            .catch(() => [])));
+        // Remap each strip's seed/bbox back to full-deck 0..1; dedupe by name,
+        // keeping the reading whose seed sits most centrally in its strip.
+        const byName = new Map();
+        perSeg.flat().forEach(({ r, a, b }) => {
+          if (!r.seed) return;
+          const wdt = b - a;
+          const central = Math.min(r.seed.x, 1 - r.seed.x); // within-strip centrality
+          const key = normName(r.name);
+          const cur = byName.get(key);
+          if (cur && cur.central >= central) return;
+          byName.set(key, {
+            name: r.name,
+            confidence: r.confidence,
+            central,
+            seed: { x: a + r.seed.x * wdt, y: r.seed.y },
+            bbox: r.bbox ? { x: a + r.bbox.x * wdt, y: r.bbox.y, w: r.bbox.w * wdt, h: r.bbox.h } : null,
+          });
+        });
+        rooms = [...byName.values()];
+      }
       if (!rooms.length) { setDetectError({ deckId: deck.id, message: 'No rooms could be read from this deck. Try reframing it tighter around the plan.' }); return; }
       const used = new Set();
       const items = rooms.map((r) => {
