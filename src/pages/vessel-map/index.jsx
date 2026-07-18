@@ -488,7 +488,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
       .insert({
         scan_id: selectedScan.id,
         tenant_id: activeTenantId,
-        label: placingDefect ? placingDefect.title : placingStorage ? placingStorage.name : '',
+        label: placingDefect ? placingDefect.title : '',
         layer,
         color: layerColor(layer),
         position: pos,
@@ -515,19 +515,14 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
       return;
     }
     if (placingStorage) {
-      // Mint the storage pin's location node (a vessel_locations child under the
-      // room) and hand it back so the wardrobe/garment homes to this cupboard.
-      const res = await resolvePinNode({
-        tenantId: activeTenantId, userId: user?.id ?? null,
-        rootSpaceId: selectedScan?.space_id || null, rootName: selectedScan?.name || null,
-        trail: containerTrail || [], pin: data,
-      });
-      const label = data.label || placingStorage.name;
-      onPlacedProp?.({ locationId: res?.nodeId || null, name: label });
-      // Don't close and don't open the inspector — keep the scene clear and drive
-      // the next step from an explicit banner ("Saved — add drawers / Done").
+      // Open the inspector so the crew names the cupboard themselves (no
+      // prefilled "Wardrobe"). Minting the location node + handing it back to the
+      // wardrobe is deferred to the banner's "Done" (finishPlacingStorage), so
+      // the typed name is the one that sticks.
       setStoragePin(data);
       setStoragePlaced(true);
+      setSelectedHotspot(data);
+      setJustCreatedId(data.id);
       return;
     }
     setSelectedHotspot(data);
@@ -542,6 +537,23 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     setPlacedPin(null);
     setMode('navigate');
   }, [embedded, onPlacedProp, onCloseProp]);
+
+  // Finish placing a storage locker: read the (now user-named) pin, mint its
+  // location node under the room, and hand it back so the wardrobe/garment homes
+  // to this cupboard. Falls back to the placing label if left unnamed.
+  const finishPlacingStorage = useCallback(async () => {
+    const pin = hotspots.find((h) => h.id === storagePin?.id) || storagePin;
+    if (pin) {
+      const res = await resolvePinNode({
+        tenantId: activeTenantId, userId: user?.id ?? null,
+        rootSpaceId: selectedScan?.space_id || null, rootName: selectedScan?.name || null,
+        trail: containerTrail || [], pin,
+      });
+      const label = (pin.label && pin.label.trim()) || placingStorage?.name || 'Storage locker';
+      onPlacedProp?.({ locationId: res?.nodeId || null, name: label });
+    }
+    onCloseProp?.();
+  }, [hotspots, storagePin, activeTenantId, user?.id, selectedScan?.space_id, selectedScan?.name, containerTrail, placingStorage, onPlacedProp, onCloseProp]);
 
   // ── Container interiors ─────────────────────────────────────────────────
   // Open a container's inside (its photo + child pins). Nested containers push
@@ -569,7 +581,9 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   const createChildPin = async (pos) => {
     const parent = containerTrail[containerTrail.length - 1];
     if (!parent || !selectedScan) return;
-    const layer = 'general';
+    // Inside a wardrobe, drawers/shelves default to a storage pin (matching the
+    // cupboard); the layer picker is still limited to Storage/Inventory there.
+    const layer = placingStorage ? 'storage' : 'general';
     const { data, error } = await supabase
       .from('scan_hotspots')
       .insert({
@@ -632,6 +646,9 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     const h = selectedHotspot;
     setSelectedHotspot(null);
     setJustCreatedId(null);
+    // Mid storage placement the pin IS the locker being placed — keep it even if
+    // still unnamed; the banner's Done finalises it.
+    if (placingStorage && h && storagePin && h.id === storagePin.id) return;
     if (h && !(h.label && h.label.trim())) {
       setHotspots((prev) => prev.filter((x) => x.id !== h.id));
       supabase.from('scan_hotspots').delete().eq('id', h.id)
@@ -1073,9 +1090,9 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                       </>
                     ) : (
                       <>
-                        <span className="vm-placing-text">✓ <strong>Saved</strong> to the wardrobe. Got drawers inside? Open it, add an inside photo, then a pin per drawer.</span>
+                        <span className="vm-placing-text">Pin dropped — <strong>name it</strong> in the panel. Got drawers inside? <strong>Add drawers</strong>. Then <strong>Done</strong>.</span>
                         <button className="vm-placing-drop" onClick={() => { if (storagePin) { setContainer(storagePin.id, true); setSelectedHotspot({ ...storagePin, is_container: true }); } }}>Add drawers</button>
-                        <button className="vm-placing-done" onClick={() => onCloseProp?.()}>Done</button>
+                        <button className="vm-placing-done" onClick={finishPlacingStorage}>Done</button>
                       </>
                     )}
                   </div>
@@ -1140,6 +1157,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   childCount={selectedHotspot ? hotspots.filter((h) => h.parent_id === selectedHotspot.id).length : 0}
                   autoFocusName={justCreatedId === selectedHotspot?.id}
                   raised={!!openContainer}
+                  allowedLayers={placingStorage ? ['storage', 'inventory'] : null}
                 />
 
                 {/* Defect pin → open its view modal directly (no drawer). Pin
@@ -1278,7 +1296,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                     )}
                     {canPlaceHotspots ? (
                       <div className="vm-swatch-row" role="radiogroup" aria-label="Category">
-                        {LAYERS.map((l) => {
+                        {LAYERS.filter((l) => !placingStorage || ['storage', 'inventory'].includes(l.key)).map((l) => {
                           const on = (selectedHotspot.layer || 'general') === l.key;
                           return (
                             <button key={l.key} type="button" role="radio" aria-checked={on} title={l.label}
@@ -1300,8 +1318,8 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                         <input type="checkbox" checked={!!selectedHotspot.is_container} onChange={(e) => setContainer(selectedHotspot.id, e.target.checked)} />
                         <span className="vm-ct-switch" aria-hidden="true" />
                         <span className="vm-ct-text">
-                          <span className="vm-ct-title">Other pins live inside this one</span>
-                          <span className="vm-ct-sub">{selectedHotspot.is_container ? 'Opens a photo of the inside where you place pins' : 'Off — just this one pin, nothing inside it'}</span>
+                          <span className="vm-ct-title">This one opens up (drawers, shelves, compartments)</span>
+                          <span className="vm-ct-sub">{selectedHotspot.is_container ? 'Add a photo of the inside, then drop a pin on each drawer or item' : 'Off — a single spot, with nothing pinned inside it'}</span>
                         </span>
                       </label>
                     )}
@@ -1344,7 +1362,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                           />
                         )}
                         {placingItem && !layerHoldsStock(selectedHotspot.layer) && (
-                          <p className="vm-pinitems-note">This pin type doesn’t hold stock — pick an <strong>Inventory</strong> or <strong>Safety</strong> pin.</p>
+                          <p className="vm-pinitems-note">This pin type doesn’t hold stock — pick an <strong>Inventory</strong>, <strong>Storage</strong> or <strong>Safety</strong> pin.</p>
                         )}
                       </>
                     )}
