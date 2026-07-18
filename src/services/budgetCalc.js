@@ -46,11 +46,18 @@ const metrics = (budgeted, actual, committed) => {
   };
 };
 
-// lines: [{ id, bucket, category, amount }]
+// lines: [{ id, bucket, category, amount, kind?, code?, notes? }]
 // actuals / committed: [{ category, amount }]  (amount already positive spend)
-export const computeVsActual = (lines, actuals, committed) => {
+// income: [{ category, amount }]  (positive money-IN, for revenue-kind lines)
+//
+// Expense lines draw actual from `actuals` + `committed`; revenue lines draw actual
+// from `income` (committed does not apply). `totals` remains the EXPENDITURE grand
+// total (Phase 1 behaviour); `revenueTotals` and `net` are added on top.
+export const computeVsActual = (lines, actuals, committed, income = []) => {
   const actualMap = aggregate(actuals);
   const committedMap = aggregate(committed);
+  const incomeMap = aggregate(income);
+  const kindOf = (l) => (l.kind === 'revenue' ? 'revenue' : 'expense');
 
   // First line to claim a category key owns its actual/committed (prevents double
   // counting if the same category is reused under two buckets).
@@ -67,10 +74,12 @@ export const computeVsActual = (lines, actuals, committed) => {
     if (!bucketMap.has(l.bucket)) { bucketMap.set(l.bucket, []); bucketOrder.push(l.bucket); }
     const key = normCat(l.category);
     const owns = ownerByKey.get(key) === l.id;
-    const a = owns ? (actualMap.get(key)?.amount || 0) : 0;
-    const c = owns ? (committedMap.get(key)?.amount || 0) : 0;
+    const isRevenue = kindOf(l) === 'revenue';
+    const a = owns ? ((isRevenue ? incomeMap : actualMap).get(key)?.amount || 0) : 0;
+    const c = owns && !isRevenue ? (committedMap.get(key)?.amount || 0) : 0;
     bucketMap.get(l.bucket).push({
-      id: l.id, bucket: l.bucket, category: l.category, ...metrics(l.amount, a, c),
+      id: l.id, bucket: l.bucket, category: l.category, code: l.code || null,
+      kind: kindOf(l), note: l.notes || null, ...metrics(l.amount, a, c),
     });
   });
 
@@ -81,12 +90,12 @@ export const computeVsActual = (lines, actuals, committed) => {
   const buckets = bucketOrder.map((bucket) => {
     const rows = bucketMap.get(bucket);
     const s = sumRows(rows);
-    return { bucket, lines: rows, subtotal: metrics(s.budgeted, s.actual, s.committed) };
+    return { bucket, kind: kindOf(rows[0]), lines: rows, subtotal: metrics(s.budgeted, s.actual, s.committed) };
   });
 
-  // Anything spent/committed against a category that no budget line claims -> Unbudgeted,
-  // so the grand total always reconciles to real spend.
-  const claimed = new Set(ownerByKey.keys());
+  // Expense categories claimed by an expense line (revenue lines don't claim spend).
+  const claimed = new Set();
+  (lines || []).forEach((l) => { if (kindOf(l) !== 'revenue') claimed.add(normCat(l.category)); });
   const unbudgetedRows = [];
   const addUnbudgeted = (map, field) => {
     map.forEach((v, key) => {
@@ -100,12 +109,20 @@ export const computeVsActual = (lines, actuals, committed) => {
   addUnbudgeted(committedMap, '_committed');
   const unbudgeted = unbudgetedRows.length
     ? {
-        lines: unbudgetedRows.map((r) => ({ bucket: 'Unbudgeted', category: r.category, ...metrics(0, r._actual, r._committed) })),
+        lines: unbudgetedRows.map((r) => ({ bucket: 'Unbudgeted', category: r.category, kind: 'expense', ...metrics(0, r._actual, r._committed) })),
         subtotal: (() => { const s = unbudgetedRows.reduce((acc, r) => ({ a: acc.a + r._actual, c: acc.c + r._committed }), { a: 0, c: 0 }); return metrics(0, s.a, s.c); })(),
       }
     : null;
 
-  const allRows = [...buckets.flatMap((b) => b.lines), ...(unbudgeted?.lines || [])];
-  const g = sumRows(allRows);
-  return { buckets, unbudgeted, totals: metrics(g.budgeted, g.actual, g.committed) };
+  const expenseRows = [...buckets.filter((b) => b.kind !== 'revenue').flatMap((b) => b.lines), ...(unbudgeted?.lines || [])];
+  const revenueRows = buckets.filter((b) => b.kind === 'revenue').flatMap((b) => b.lines);
+  const e = sumRows(expenseRows);
+  const r = sumRows(revenueRows);
+  const totals = metrics(e.budgeted, e.actual, e.committed);       // expenditure (Phase 1 compat)
+  const revenueTotals = metrics(r.budgeted, r.actual, r.committed);
+  const net = {
+    budgeted: Math.round((r.budgeted - e.budgeted) * 100) / 100,
+    actual: Math.round((r.actual - e.actual) * 100) / 100,
+  };
+  return { buckets, unbudgeted, totals, revenueTotals, net };
 };

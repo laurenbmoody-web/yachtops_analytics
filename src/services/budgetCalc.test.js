@@ -78,6 +78,41 @@ test('paid moves committed -> actual with no change to total spent', () => {
   assert.equal(gAfter.actual, 8000);
 });
 
+test('revenue lines draw actual from income; net = revenue - expenditure', () => {
+  const mixed = [
+    { id: 'r1', bucket: 'Revenue', kind: 'revenue', code: 'NCR', category: 'Net Charter Revenue', amount: 100000 },
+    { id: 'e1', bucket: 'Fuel', kind: 'expense', code: 'FLE', category: 'Fuel', amount: 20000 },
+  ];
+  const r = computeVsActual(
+    mixed,
+    [{ category: 'Fuel', amount: 12000 }],       // expense actual
+    [{ category: 'Fuel', amount: 3000 }],        // committed
+    [{ category: 'Net Charter Revenue', amount: 90000 }], // income
+  );
+  // expenditure totals only (Phase 1 compat) exclude revenue
+  assert.equal(r.totals.budgeted, 20000);
+  assert.equal(r.totals.actual, 12000);
+  assert.equal(r.revenueTotals.actual, 90000);
+  // revenue line's actual comes from income, not the expense actual map
+  const rev = r.buckets.find((b) => b.bucket === 'Revenue').lines[0];
+  assert.equal(rev.actual, 90000);
+  assert.equal(rev.committed, 0);
+  assert.equal(rev.code, 'NCR');
+  assert.equal(rev.kind, 'revenue');
+  // net actual = 90000 income - 12000 spend
+  assert.equal(r.net.actual, 78000);
+  assert.equal(r.net.budgeted, 80000);
+});
+
+test('income against a category with no revenue line does not leak into Unbudgeted expense', () => {
+  const r = computeVsActual(
+    [{ id: 'e1', bucket: 'Fuel', kind: 'expense', category: 'Fuel', amount: 100 }],
+    [], [], [{ category: 'Some Income', amount: 500 }],
+  );
+  assert.equal(r.unbudgeted, null); // income isn't expense spend
+  assert.equal(r.totals.actual, 0);
+});
+
 test('stateOf thresholds', () => {
   assert.equal(stateOf(100, 50), 'under');
   assert.equal(stateOf(100, 90), 'near');

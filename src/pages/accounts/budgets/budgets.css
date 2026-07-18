@@ -66,6 +66,8 @@
 .bg-row.is-over { box-shadow: inset 3px 0 0 0 #C65A1A; }
 .bg-row-cat { min-width: 0; }
 .bg-row-cat b { font-size: 14px; font-weight: 600; }
+.bg-code { display: inline-block; font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px; color: #8B8478; background: #F1EFEA; border-radius: 5px; padding: 1px 5px; margin-right: 8px; vertical-align: middle; }
+.bg-row-note { font-size: 11px; color: #8B8478; font-style: italic; margin-top: 3px; font-weight: 400; }
 .bg-fig { font-size: 13.5px; font-variant-numeric: tabular-nums; text-align: right; }
 .bg-fig.muted { color: #8B8478; }
 

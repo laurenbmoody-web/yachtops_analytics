@@ -7,7 +7,7 @@ import { computeVsActual } from './budgetCalc.js';
 
 const BUDGET_SELECT =
   'id, tenant_id, name, period_start, period_end, currency, status, notes, created_by, created_at, updated_at';
-const LINE_SELECT = 'id, budget_id, bucket, category, amount, notes, created_at, updated_at';
+const LINE_SELECT = 'id, budget_id, bucket, code, kind, category, amount, notes, created_at, updated_at';
 
 // "Committed" = money on order but not yet realised. An order is committed once it
 // leaves draft and until it is paid (paid posts to the ledger as Actual — Phase 0
@@ -89,12 +89,14 @@ export const listLines = async (budgetId) => {
 export const upsertLine = async (payload) => {
   if (payload.id) {
     const { data, error } = await supabase.from('budget_lines').update({
-      bucket: payload.bucket, category: payload.category, amount: payload.amount, notes: payload.notes || null,
+      bucket: payload.bucket, category: payload.category, code: payload.code || null,
+      kind: payload.kind || 'expense', amount: payload.amount, notes: payload.notes || null,
     }).eq('id', payload.id).select(LINE_SELECT).single();
     return { data, error };
   }
   const { data, error } = await supabase.from('budget_lines').insert({
     budget_id: payload.budget_id, bucket: payload.bucket, category: payload.category,
+    code: payload.code || null, kind: payload.kind || 'expense',
     amount: payload.amount ?? 0, notes: payload.notes || null,
   }).select(LINE_SELECT).single();
   return { data, error };
@@ -103,6 +105,21 @@ export const upsertLine = async (payload) => {
 export const deleteLine = async (id) => {
   const { error } = await supabase.from('budget_lines').delete().eq('id', id);
   return { error };
+};
+
+// Seed the standard yacht (MYBA) chart of accounts onto a budget. Idempotent —
+// existing (bucket, category) lines are left untouched (ON CONFLICT DO NOTHING).
+export const seedStandardTemplate = async (budgetId, chart) => {
+  const rows = (chart || []).map((c) => ({
+    budget_id: budgetId, bucket: c.bucket, category: c.category,
+    code: c.code || null, kind: c.kind || 'expense', amount: 0,
+  }));
+  if (!rows.length) return { data: null, error: null };
+  const { data, error } = await supabase
+    .from('budget_lines')
+    .upsert(rows, { onConflict: 'budget_id,bucket,category', ignoreDuplicates: true })
+    .select(LINE_SELECT);
+  return { data, error };
 };
 
 // ── Actual & committed (read-side aggregation) ──────────────────────────────────
@@ -118,6 +135,20 @@ const fetchActualByCategory = async (tenantId, from, to) => {
     .lt('amount', 0).neq('status', 'void');
   if (error) return { data: null, error };
   const rows = (data || []).map((t) => ({ category: t.category, amount: -Number(t.amount_base || 0) }));
+  return { data: rows, error: null };
+};
+
+// Income by category within the period: positive ledger amounts (money IN), for
+// the revenue-kind budget lines.
+const fetchIncomeByCategory = async (tenantId, from, to) => {
+  const { data, error } = await supabase
+    .from('ledger_transactions')
+    .select('category, amount_base, amount, status, txn_date')
+    .eq('tenant_id', tenantId)
+    .gte('txn_date', from).lte('txn_date', to)
+    .gt('amount', 0).neq('status', 'void');
+  if (error) return { data: null, error };
+  const rows = (data || []).map((t) => ({ category: t.category, amount: Number(t.amount_base || 0) }));
   return { data: rows, error: null };
 };
 
@@ -146,15 +177,17 @@ export const getBudgetVsActual = async (budgetId) => {
   const { data: budget, error: bErr } = await getBudget(budgetId);
   if (bErr) return { data: null, error: bErr };
 
-  const [{ data: lines, error: lErr }, actualRes, committedRes] = await Promise.all([
+  const [{ data: lines, error: lErr }, actualRes, committedRes, incomeRes] = await Promise.all([
     listLines(budgetId),
     fetchActualByCategory(budget.tenant_id, budget.period_start, budget.period_end),
     fetchCommittedByCategory(budget.tenant_id, budget.period_start, budget.period_end),
+    fetchIncomeByCategory(budget.tenant_id, budget.period_start, budget.period_end),
   ]);
   if (lErr) return { data: null, error: lErr };
   if (actualRes.error) return { data: null, error: actualRes.error };
   if (committedRes.error) return { data: null, error: committedRes.error };
+  if (incomeRes.error) return { data: null, error: incomeRes.error };
 
-  const view = computeVsActual(lines || [], actualRes.data, committedRes.data);
+  const view = computeVsActual(lines || [], actualRes.data, committedRes.data, incomeRes.data);
   return { data: { budget, ...view }, error: null };
 };
