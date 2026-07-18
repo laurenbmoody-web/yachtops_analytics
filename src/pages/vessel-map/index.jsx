@@ -32,7 +32,7 @@ import '../../styles/editorial-tokens.css';
 import './vessel-map.css';
 
 // A distinct icon per layer so pins/rows read by shape, not colour alone.
-const LAYER_ICON = { inventory: 'Box', defect: 'AlertTriangle', safety: 'ShieldCheck', job_helper: 'Briefcase', general: 'MapPin' };
+const LAYER_ICON = { inventory: 'Box', storage: 'Archive', defect: 'AlertTriangle', safety: 'ShieldCheck', job_helper: 'Briefcase', general: 'MapPin' };
 
 const SIGNED_URL_TTL = 60 * 60; // 1 hour — splat downloads are big but not that big
 
