@@ -65,7 +65,6 @@ const VesselDocRenewalsWidget = () => {
   const valid = ranked.filter((d) => d.st?.level === 'green');
   // Attention = expired + lapsing, most-overdue first.
   const attention = [...expired, ...lapsing].sort((a, b) => (a.st?.days ?? 0) - (b.st?.days ?? 0));
-  const allCurrent = !loading && !error && attention.length === 0;
 
   let statusText = 'All current';
   let attn = false;
@@ -111,12 +110,7 @@ const VesselDocRenewalsWidget = () => {
             </div>
           </div>
 
-          {allCurrent ? (
-            <div className="dr-clear">
-              <Icon name="ShieldCheck" size={18} />
-              {docs.length ? 'Everything in good standing' : 'No certificates tracked yet'}
-            </div>
-          ) : (
+          {attention.length > 0 && (
             <div className="dr-list">
               {attention.slice(0, 4).map((d) => (
                 <button type="button" key={d.id} className="dr-row" onClick={() => openDoc(d)} title={d.name}>
