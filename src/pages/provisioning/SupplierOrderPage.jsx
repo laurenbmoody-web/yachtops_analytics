@@ -17,6 +17,7 @@ import {
   fetchInvoiceSignedUrl,
   sendDeliveryNoteEmails,
   markInvoicePaid,
+  markSupplierOrderReceived,
   toggleSupplierOrderFavourite,
 } from './utils/provisioningStorage';
 import { showToast } from '../../utils/toast';
@@ -761,24 +762,34 @@ function primaryActionFor(status) {
   }
 }
 
-function FooterBar({ status, onBack }) {
+function FooterBar({ status, onBack, onMarkReceived, onReceiveOnBoard, receiveBusy, canReceiveOnBoard }) {
   const primary = primaryActionFor(status);
+  // "Mark received" is a real action once goods are on the way; before that the
+  // primary is just an informational label.
+  const canMarkReceived = status === 'out_for_delivery' || status === 'dispatched';
+  const notReceivedYet = !['received', 'invoiced', 'paid'].includes(status);
   return (
     <div className="editorial-footer-card">
       <button
         type="button"
         className="cargo-ribbon-btn cargo-ribbon-btn-primary"
-        disabled
-        title="Action wired in a later commit"
+        disabled={!canMarkReceived || receiveBusy}
+        title={canMarkReceived ? 'Mark the whole order as received' : undefined}
+        onClick={canMarkReceived ? onMarkReceived : undefined}
       >
-        {primary.label}
+        {receiveBusy ? 'Marking…' : primary.label}
       </button>
-      <button type="button" className="cargo-ribbon-btn" disabled title="Wired in Commit 3">
-        Receive items
-      </button>
-      <button type="button" className="cargo-ribbon-btn" disabled title="Wired in Commit 3">
-        Email supplier
-      </button>
+      {notReceivedYet && (
+        <button
+          type="button"
+          className="cargo-ribbon-btn"
+          disabled={!canReceiveOnBoard || receiveBusy}
+          title={canReceiveOnBoard ? 'Receive line-by-line on the board (partials, delivery note)' : 'No board linked'}
+          onClick={onReceiveOnBoard}
+        >
+          Receive on board
+        </button>
+      )}
       <span className="cargo-od-footer-spacer" />
       <button type="button" className="cargo-ribbon-btn" onClick={onBack}>
         Back to board
@@ -820,6 +831,7 @@ export default function SupplierOrderPage() {
   // Async row state.
   const [resendBusy, setResendBusy] = useState(false);
   const [markPaidBusy, setMarkPaidBusy] = useState(null); // invoiceId currently saving
+  const [receiveBusy, setReceiveBusy] = useState(false);  // marking the order received
 
   // Lift body bg to editorial cream while this page is mounted (mirrors
   // EditorialPageShell's behavior — we don't use the shell because its
@@ -971,6 +983,28 @@ export default function SupplierOrderPage() {
     if (boardId) navigate(`/provisioning/${boardId}`);
     else if (order?.list_id) navigate(`/provisioning/${order.list_id}`);
     else navigate('/provisioning/orders');
+  };
+
+  // Mark the whole order received — everything on its board arrived. For
+  // partial / discrepancy receipts, "Receive on board" opens the detailed flow.
+  const handleMarkReceived = useCallback(async () => {
+    if (!order?.id || receiveBusy) return;
+    if (!window.confirm('Mark this whole order as received? This marks every item on its board as delivered.')) return;
+    setReceiveBusy(true);
+    try {
+      const updated = await markSupplierOrderReceived(order.id);
+      setOrder((prev) => (prev ? { ...prev, status: 'received', delivered_at: updated?.delivered_at || new Date().toISOString() } : prev));
+      showToast('Order marked as received', 'success');
+    } catch (e) {
+      showToast(`Could not mark received: ${e.message || 'unknown error'}`, 'error');
+    } finally {
+      setReceiveBusy(false);
+    }
+  }, [order?.id, receiveBusy]);
+
+  // Open the order's board to receive line-by-line (partials, delivery note).
+  const handleReceiveOnBoard = () => {
+    if (order?.list_id) navigate(`/provisioning/${order.list_id}`);
   };
 
   // Resend the delivery-note signing email. force=true bypasses the
@@ -1211,7 +1245,14 @@ export default function SupplierOrderPage() {
           </div>
 
           {/* Action zone — in-flow card, slightly warmer cream tint. */}
-          <FooterBar status={order.status} onBack={handleBack} />
+          <FooterBar
+            status={order.status}
+            onBack={handleBack}
+            onMarkReceived={handleMarkReceived}
+            onReceiveOnBoard={handleReceiveOnBoard}
+            receiveBusy={receiveBusy}
+            canReceiveOnBoard={!!order.list_id}
+          />
         </div>
       </div>
 
