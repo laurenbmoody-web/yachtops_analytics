@@ -42,6 +42,21 @@ test('months outside the period are ignored', () => {
   assert.equal(r.buckets.find((b) => b.bucket === 'Fuel').lines[0].total, 0);
 });
 
+test('per-month budget targets flow through (line + subtotal + expense totals)', () => {
+  const seasonalLines = [
+    { id: 'l1', bucket: 'Guest Costs', category: 'Guest Food Stock', code: 'GFE', kind: 'expense',
+      amount: 5000, monthly: { '2026-01': 0, '2026-02': 5000 } },
+  ];
+  const r = computeMonthly(seasonalLines, [{ category: 'Guest Food Stock', amount: 1200, ym: '2026-02' }], [], months);
+  const line = r.buckets[0].lines[0];
+  assert.equal(line.budgetByMonth['2026-01'], 0);
+  assert.equal(line.budgetByMonth['2026-02'], 5000);
+  assert.equal(line.budgetTotal, 5000);
+  assert.equal(line.byMonth['2026-02'], 1200);      // actual still tracked
+  assert.equal(r.budgetExpenseByMonth['2026-02'], 5000);
+  assert.equal(r.budgetExpenseTotal, 5000);
+});
+
 test('monthsInPeriod within a calendar year', () => {
   const m = monthsInPeriod('2026-01-15', '2026-03-10');
   assert.deepEqual(m.map((x) => x.ym), ['2026-01', '2026-02', '2026-03']);

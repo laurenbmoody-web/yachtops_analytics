@@ -9,7 +9,7 @@ import { computeMonthly, monthsInPeriod } from './budgetMonthly.js';
 
 const BUDGET_SELECT =
   'id, tenant_id, name, period_start, period_end, currency, status, notes, created_by, created_at, updated_at';
-const LINE_SELECT = 'id, budget_id, bucket, code, kind, category, amount, notes, created_at, updated_at';
+const LINE_SELECT = 'id, budget_id, bucket, code, kind, category, amount, monthly, notes, created_at, updated_at';
 
 const normKey = (s) => String(s ?? '').trim().toLowerCase();
 
@@ -115,6 +115,18 @@ export const deleteLine = async (id) => {
 export const updateLineAmount = async (id, amount) => {
   const { data, error } = await supabase
     .from('budget_lines').update({ amount: Number(amount) || 0 })
+    .eq('id', id).select(LINE_SELECT).single();
+  return { data, error };
+};
+
+// Set a line's per-month budget targets. Zero/blank months are dropped from the map
+// so it stays tidy; the annual `amount` is kept in sync as the sum of the months.
+export const updateLineMonthly = async (id, monthlyMap) => {
+  const clean = {};
+  Object.entries(monthlyMap || {}).forEach(([ym, v]) => { const n = Number(v); if (n) clean[ym] = Math.round(n * 100) / 100; });
+  const amount = Math.round(Object.values(clean).reduce((s, v) => s + v, 0) * 100) / 100;
+  const { data, error } = await supabase
+    .from('budget_lines').update({ monthly: clean, amount })
     .eq('id', id).select(LINE_SELECT).single();
   return { data, error };
 };
