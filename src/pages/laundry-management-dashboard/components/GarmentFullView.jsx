@@ -17,7 +17,7 @@ const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day:
 // Full-view of one garment: big image, every attribute, inline edit, and the
 // per-item actions. Pack / move / launder / archive are delegated to the parent
 // (it owns the target pickers); edits save here.
-const GarmentFullView = ({ item, wardrobes = [], caseName = null, onClose, onChanged, onAction }) => {
+const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = null, onClose, onChanged, onAction }) => {
   const [edit, setEdit] = useState(false);
   const [draft, setDraft] = useState({
     description: item.description || '', garmentType: item.garmentType || '', colour: item.colour || '',
@@ -27,7 +27,8 @@ const GarmentFullView = ({ item, wardrobes = [], caseName = null, onClose, onCha
   const [busy, setBusy] = useState(false);
   const st = STATUS[item.status] || { label: item.status, cls: 'stored' };
   const photo = (Array.isArray(item.photos) && item.photos[0]) || item.photo || '';
-  const wardrobeName = wardrobes.find((w) => w.id === item.wardrobeId)?.name;
+  const home = wardrobes.find((w) => w.id === item.wardrobeId);
+  const homeLabel = home ? [home.name, home.locationName].filter(Boolean).join(' · ') : '—';
 
   const toggleTag = (t) => setDraft((d) => ({ ...d, tags: d.tags.includes(t) ? d.tags.filter((x) => x !== t) : [...d.tags, t] }));
 
@@ -61,13 +62,13 @@ const GarmentFullView = ({ item, wardrobes = [], caseName = null, onClose, onCha
               <div className="ow-full-meta">
                 {item.garmentType && <span className="ow-chip">{item.garmentType}</span>}
                 {item.colour && <span className="ow-chip subtle">{item.colour}</span>}
-                {item.garmentValue != null && <span className="ow-chip subtle">{money(item.garmentValue, item.garmentValueCurrency)}</span>}
+                {showValue && item.garmentValue != null && <span className="ow-chip subtle">{money(item.garmentValue, item.garmentValueCurrency)}</span>}
               </div>
               {Array.isArray(item.tags) && item.tags.length > 0 && (
                 <div className="ow-full-tags">{item.tags.map((t, i) => <span className="ow-care" key={i}>{formatLaundryTag(t)}</span>)}</div>
               )}
               <dl className="ow-full-dl">
-                <div><dt>Home</dt><dd>{wardrobeName || '—'}</dd></div>
+                <div><dt>Home</dt><dd>{homeLabel}</dd></div>
                 <div><dt>Added</dt><dd>{fmtDate(item.createdAt)}</dd></div>
               </dl>
             </>
@@ -80,7 +81,9 @@ const GarmentFullView = ({ item, wardrobes = [], caseName = null, onClose, onCha
                 <div><label className="ow-l">Colour</label><input className="ow-input" value={draft.colour} onChange={(e) => setDraft((d) => ({ ...d, colour: e.target.value }))} /></div>
               </div>
               <div className="ow-row2">
-                <div><label className="ow-l">Value</label><div className="ow-value"><div className="ow-select ow-cur"><select value={draft.garmentValueCurrency} onChange={(e) => setDraft((d) => ({ ...d, garmentValueCurrency: e.target.value }))}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div><input className="ow-input" type="number" min="0" step="0.01" value={draft.garmentValue} onChange={(e) => setDraft((d) => ({ ...d, garmentValue: e.target.value }))} /></div></div>
+                {showValue ? (
+                  <div><label className="ow-l">Value</label><div className="ow-value"><div className="ow-select ow-cur"><select value={draft.garmentValueCurrency} onChange={(e) => setDraft((d) => ({ ...d, garmentValueCurrency: e.target.value }))}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div><input className="ow-input" type="number" min="0" step="0.01" value={draft.garmentValue} onChange={(e) => setDraft((d) => ({ ...d, garmentValue: e.target.value }))} /></div></div>
+                ) : <div />}
                 <div><label className="ow-l">Wardrobe</label><div className="ow-select"><select value={draft.wardrobeId} onChange={(e) => setDraft((d) => ({ ...d, wardrobeId: e.target.value }))}>{wardrobes.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div></div>
               </div>
               <label className="ow-l">Care</label>

@@ -15,7 +15,7 @@ const fileToDataUrl = (file) => new Promise((res, rej) => {
 
 // Add a resident garment straight into a wardrobe. Created "Stored" (at rest in
 // its wardrobe) so it doesn't land in the active laundry list.
-const AddGarmentModal = ({ wardrobes = [], defaultWardrobeId = null, onClose, onCreated }) => {
+const AddGarmentModal = ({ wardrobes = [], defaultWardrobeId = null, showValue = true, onClose, onCreated }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState('');
   const [colour, setColour] = useState('');
@@ -84,13 +84,15 @@ const AddGarmentModal = ({ wardrobes = [], defaultWardrobeId = null, onClose, on
           </div>
 
           <div className="ow-row2">
-            <div>
-              <label className="ow-l">Value <span className="ow-opt">optional</span></label>
-              <div className="ow-value">
-                <div className="ow-select ow-cur"><select value={currency} onChange={(e) => setCurrency(e.target.value)}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
-                <input className="ow-input" type="number" min="0" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0.00" />
+            {showValue ? (
+              <div>
+                <label className="ow-l">Value <span className="ow-opt">optional</span></label>
+                <div className="ow-value">
+                  <div className="ow-select ow-cur"><select value={currency} onChange={(e) => setCurrency(e.target.value)}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+                  <input className="ow-input" type="number" min="0" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0.00" />
+                </div>
               </div>
-            </div>
+            ) : <div />}
             <div>
               <label className="ow-l">Wardrobe</label>
               <div className="ow-select"><select value={wardrobeId} onChange={(e) => setWardrobeId(e.target.value)}>{wardrobes.length === 0 && <option value="">No wardrobe yet</option>}{wardrobes.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>

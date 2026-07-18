@@ -26,17 +26,20 @@ const mapWardrobe = (r) => ({
   id: r.id,
   name: r.name || 'Wardrobe',
   location: r.location || '',
+  locationId: r.location_id || null,
+  locationName: r.vessel_location?.name || '',
   scope: r.scope || 'owner',
   notes: r.notes || '',
   createdByName: r.created_by_name || '',
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
+const SELECT = '*, vessel_location:vessel_locations(name)';
 
 export const loadWardrobes = async (scope = null) => {
   const tenantId = await getTenantId();
   if (!tenantId) return [];
-  let q = supabase.from('laundry_wardrobes').select('*').eq('tenant_id', tenantId).is('archived_at', null);
+  let q = supabase.from('laundry_wardrobes').select(SELECT).eq('tenant_id', tenantId).is('archived_at', null);
   if (scope) q = q.eq('scope', scope);
   const { data, error } = await q.order('created_at', { ascending: false });
   if (error) { console.error('[laundry-wardrobes] load failed', error); return []; }
@@ -45,12 +48,12 @@ export const loadWardrobes = async (scope = null) => {
 
 export const getWardrobeById = async (id) => {
   if (!id) return null;
-  const { data, error } = await supabase.from('laundry_wardrobes').select('*').eq('id', id).is('archived_at', null).maybeSingle();
+  const { data, error } = await supabase.from('laundry_wardrobes').select(SELECT).eq('id', id).is('archived_at', null).maybeSingle();
   if (error || !data) return null;
   return mapWardrobe(data);
 };
 
-export const createWardrobe = async ({ name, location, scope, notes } = {}) => {
+export const createWardrobe = async ({ name, location, locationId, scope, notes } = {}) => {
   const tenantId = await getTenantId();
   if (!tenantId) return null;
   const u = getCurrentUser();
@@ -59,21 +62,22 @@ export const createWardrobe = async ({ name, location, scope, notes } = {}) => {
     tenant_id: tenantId,
     name: (name || '').trim() || 'New wardrobe',
     location: (location || '').trim() || null,
+    location_id: locationId || null,
     scope: scope || 'owner',
     notes: (notes || '').trim() || null,
     created_by: auth?.user?.id || null,
     created_by_name: u?.fullName || u?.name || null,
   };
-  const { data, error } = await supabase.from('laundry_wardrobes').insert(payload).select('*').single();
+  const { data, error } = await supabase.from('laundry_wardrobes').insert(payload).select(SELECT).single();
   if (error) { console.error('[laundry-wardrobes] create failed', error); showToast('Could not create wardrobe', 'error'); return null; }
   return mapWardrobe(data);
 };
 
 export const updateWardrobe = async (id, updates) => {
-  const map = { name: 'name', location: 'location', scope: 'scope', notes: 'notes' };
+  const map = { name: 'name', location: 'location', locationId: 'location_id', scope: 'scope', notes: 'notes' };
   const patch = { updated_at: new Date().toISOString() };
   Object.entries(updates || {}).forEach(([k, v]) => { if (map[k]) patch[map[k]] = (typeof v === 'string' ? v.trim() : v) || null; });
-  const { data, error } = await supabase.from('laundry_wardrobes').update(patch).eq('id', id).select('*').single();
+  const { data, error } = await supabase.from('laundry_wardrobes').update(patch).eq('id', id).select(SELECT).single();
   if (error) { console.error('[laundry-wardrobes] update failed', error); showToast('Could not update wardrobe', 'error'); return null; }
   return mapWardrobe(data);
 };
