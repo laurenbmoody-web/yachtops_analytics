@@ -8,8 +8,16 @@ import { loadTrips } from '../../trips-management-dashboard/utils/tripStorage';
 import { getBoardStatusConfig } from '../../provisioning/data/statusConfig';
 import './provisioning-widget.css';
 
-const VISIBLE = 5; // active boards shown; the rest roll into "+N more"
+const VISIBLE = 3; // active boards shown; the rest roll into "+N more"
+const FETCH = 50;  // window pulled so the priority sort sees more than the top 3
 const ATTENTION = new Set(['pending_approval', 'partially_delivered', 'delivered_with_discrepancies']);
+
+// Priority order — boards needing a decision/action first; recency breaks ties.
+const PRIORITY = {
+  pending_approval: 0, delivered_with_discrepancies: 1, partially_delivered: 2,
+  partially_confirmed: 3, quote_received: 4, sent_to_supplier: 5, confirmed: 6, draft: 7, delivered: 8,
+};
+const rank = (s) => (PRIORITY[s] ?? 9);
 
 // Status dot colour — semantic (attention amber/red, done green, in-flight
 // terracotta), falling back to the board status config's own hex.
@@ -46,7 +54,7 @@ const ProvisioningWidget = () => {
         .eq('tenant_id', activeTenantId)
         .is('archived_at', null)
         .order('updated_at', { ascending: false })
-        .limit(VISIBLE);
+        .limit(FETCH);
       if (boardsRes.error) throw boardsRes.error;
 
       const trips = (await loadTrips()) || [];
@@ -85,7 +93,10 @@ const ProvisioningWidget = () => {
   }, [load]);
 
   const attentionCount = boards.filter((b) => ATTENTION.has(b.status)).length;
-  const moreCount = total - boards.length;
+  // Action-first ordering, then take the top few; the rest roll into "+N more".
+  const sorted = [...boards].sort((a, b) => rank(a.status) - rank(b.status) || new Date(b.updated_at) - new Date(a.updated_at));
+  const shown = sorted.slice(0, VISIBLE);
+  const moreCount = total - shown.length;
 
   let statusText = '';
   let statusAttention = false;
@@ -102,7 +113,6 @@ const ProvisioningWidget = () => {
           <h3 className="ce-title">Provisioning</h3>
           <p className={`ce-status${statusAttention ? ' is-attention' : ''}`}>{statusText}</p>
         </div>
-        <button type="button" onClick={() => navigate('/provisioning')} className="ce-link">View all</button>
       </div>
 
       {loading ? (
@@ -116,9 +126,9 @@ const ProvisioningWidget = () => {
         </div>
       ) : (
         <>
-          {boards.length > 0 ? (
+          {shown.length > 0 ? (
             <div className="prov-list">
-              {boards.map((b) => {
+              {shown.map((b) => {
                 const label = getBoardStatusConfig(b.status)?.label || b.status;
                 const canApprove = b.status === 'pending_approval' && isCommandChief;
                 return (
