@@ -623,7 +623,6 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       }).filter(Boolean);
       if (dropped) console.info(`[deck-plan] dropped ${dropped} room(s) with no usable region`);
       if (!items.length) { setDetectError({ deckId: deck.id, message: 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' }); return; }
-      if (offPlan) console.info(`[deck-plan] dropped ${offPlan} off-plan detection(s)`);
       setProposals({ deckId: deck.id, items });
     } catch (err) {
       console.error('[deck-plan] detect error:', err);
