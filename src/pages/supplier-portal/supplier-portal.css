@@ -1405,6 +1405,8 @@
   background: var(--card); border: 1px solid var(--line);
   border-radius: 12px; padding: 16px 22px; margin-bottom: 18px;
 }
+#sp-root .sod-driver.is-done { background: var(--ground); }
+#sp-root .sod-driver.is-done .sod-driver-head { align-items: center; }
 #sp-root .sod-driver-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 #sp-root .sod-driver-title {
   font-family: 'DM Serif Display', Georgia, serif;
