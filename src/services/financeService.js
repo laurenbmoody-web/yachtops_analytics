@@ -18,10 +18,10 @@ import {
 } from './financeCalc.js';
 
 const ACCOUNT_SELECT =
-  'id, tenant_id, vessel_id, name, kind, currency, opening_balance, is_active, notes, created_by, created_at, updated_at';
+  'id, tenant_id, name, kind, currency, opening_balance, is_active, notes, created_by, created_at, updated_at';
 
 const TXN_SELECT =
-  'id, tenant_id, vessel_id, account_id, txn_date, amount, currency, fx_rate, amount_base, ' +
+  'id, tenant_id, account_id, txn_date, amount, currency, fx_rate, amount_base, ' +
   'category, description, source, status, supplier_order_id, supplier_invoice_id, ' +
   'provisioning_item_id, defect_id, trip_id, crew_id, posting_group_id, created_by, created_at';
 
@@ -82,7 +82,6 @@ export const createAccount = async (payload) => {
     .from('financial_accounts')
     .insert({
       tenant_id: payload.tenant_id,
-      vessel_id: payload.vessel_id || null,
       name: payload.name,
       kind: payload.kind || 'bank',
       currency: payload.currency || 'EUR',
@@ -96,7 +95,7 @@ export const createAccount = async (payload) => {
 };
 
 export const updateAccount = async (id, patch) => {
-  const allowed = ['name', 'kind', 'currency', 'opening_balance', 'notes', 'vessel_id', 'is_active'];
+  const allowed = ['name', 'kind', 'currency', 'opening_balance', 'notes', 'is_active'];
   const clean = Object.fromEntries(Object.entries(patch || {}).filter(([k]) => allowed.includes(k)));
   const { data, error } = await supabase
     .from('financial_accounts')
@@ -111,7 +110,7 @@ export const deactivateAccount = async (id) => updateAccount(id, { is_active: fa
 
 // ── Transactions ──────────────────────────────────────────────────────────────
 
-// filters: { accountId, vesselId, source, category, from, to, search, needsAttention }
+// filters: { accountId, source, category, from, to, search, needsAttention }
 export const listTransactions = async (tenantId, filters = {}) => {
   if (!tenantId) return { data: null, error: new Error('No active tenant') };
 
@@ -121,7 +120,6 @@ export const listTransactions = async (tenantId, filters = {}) => {
     .eq('tenant_id', tenantId);
 
   if (filters.accountId) q = q.eq('account_id', filters.accountId);
-  if (filters.vesselId) q = q.eq('vessel_id', filters.vesselId);
   if (filters.source) q = q.eq('source', filters.source);
   if (filters.category) q = q.eq('category', filters.category);
   if (filters.from) q = q.gte('txn_date', filters.from);
@@ -146,7 +144,6 @@ export const createTransaction = async (payload) => {
     .from('ledger_transactions')
     .insert({
       tenant_id: payload.tenant_id,
-      vessel_id: payload.vessel_id || null,
       account_id: payload.account_id || null,
       txn_date: payload.txn_date || new Date().toISOString().slice(0, 10),
       amount,
@@ -185,19 +182,11 @@ export const voidTransaction = async (id) => {
 };
 
 // Assign an unreconciled/unassigned row (e.g. an auto-posted supplier invoice) to
-// an account. This also inherits the account's vessel attribution and marks the row
-// reconciled, clearing it from the "Needs attention" queue.
+// an account and mark it reconciled, clearing it from the "Needs attention" queue.
 export const assignTransactionAccount = async (id, accountId) => {
-  const { data: account, error: accErr } = await supabase
-    .from('financial_accounts')
-    .select('id, vessel_id')
-    .eq('id', accountId)
-    .single();
-  if (accErr) return { data: null, error: accErr };
-
   const { data, error } = await supabase
     .from('ledger_transactions')
-    .update({ account_id: accountId, vessel_id: account?.vessel_id || null, status: 'reconciled' })
+    .update({ account_id: accountId, status: 'reconciled' })
     .eq('id', id)
     .select(TXN_SELECT)
     .single();

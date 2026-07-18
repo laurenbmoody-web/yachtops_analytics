@@ -50,10 +50,10 @@ BEGIN
 
     IF v_gross <> 0 THEN
       INSERT INTO public.ledger_transactions
-        (tenant_id, vessel_id, account_id, txn_date, amount, currency, fx_rate, amount_base,
+        (tenant_id, account_id, txn_date, amount, currency, fx_rate, amount_base,
          category, description, source, status, supplier_order_id, supplier_invoice_id)
       VALUES
-        (NEW.tenant_id, NULL, NULL, COALESCE(NEW.paid_at::date, now()::date),
+        (NEW.tenant_id, NULL, COALESCE(NEW.paid_at::date, now()::date),
          -1 * v_gross, COALESCE(NEW.currency, 'EUR'), 1, -1 * v_gross,
          'provisioning', 'Auto: supplier invoice paid', 'supplier_invoice',
          'unreconciled', NEW.order_id, NEW.id);

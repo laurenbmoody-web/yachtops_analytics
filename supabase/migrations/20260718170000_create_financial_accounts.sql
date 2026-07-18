@@ -2,9 +2,10 @@
 -- financial_accounts: per-tenant bank / card / cash accounts, multi-currency.
 --
 -- Isolation is by tenant_id (matches every other module in this codebase, e.g.
--- provisioning per 20260325110000_fix_provisioning_use_tenant_id.sql). vessel_id is
--- an OPTIONAL attribution column (a tenant may own multiple vessels); it is never the
--- RLS boundary. RLS + updated_at-trigger pattern copied from the provisioning tables:
+-- provisioning per 20260325110000_fix_provisioning_use_tenant_id.sql). In this schema
+-- a vessel IS a tenant (public.vessels is keyed by tenant_id and has no id column),
+-- so tenant_id is the vessel identity — there is no separate vessel_id.
+-- RLS + updated_at-trigger pattern copied from the provisioning tables:
 --   * is_active_tenant_member(tenant_id, auth.uid()) SECURITY DEFINER (20260207150715)
 --   * DELETE restricted to permission_tier = 'COMMAND'
 -- id default gen_random_uuid() to match current migrations (20260715+).
@@ -15,7 +16,6 @@
 CREATE TABLE IF NOT EXISTS public.financial_accounts (
   id              uuid          DEFAULT gen_random_uuid() PRIMARY KEY,
   tenant_id       uuid          NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-  vessel_id       uuid          REFERENCES public.vessels(id) ON DELETE SET NULL,
   name            text          NOT NULL,
   kind            text          NOT NULL DEFAULT 'bank'
                                 CHECK (kind IN ('bank','card','cash')),
@@ -30,7 +30,6 @@ CREATE TABLE IF NOT EXISTS public.financial_accounts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_financial_accounts_tenant_id ON public.financial_accounts(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_financial_accounts_vessel_id ON public.financial_accounts(vessel_id);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- updated_at trigger (own function, per convention)

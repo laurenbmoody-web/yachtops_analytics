@@ -5,7 +5,7 @@
 -- amount is in the account's currency; amount_base is converted to the tenant's
 -- reporting currency via fx_rate (fx_rate = 1 when same currency).
 --
--- Isolation by tenant_id (matches the app). vessel_id is optional attribution.
+-- Isolation by tenant_id (matches the app; a vessel IS a tenant in this schema).
 -- Operational tags (supplier_order_id, supplier_invoice_id, provisioning_item_id,
 -- defect_id, trip_id, crew_id) are the integration moat — all nullable, set what
 -- applies. posting_group_id is reserved for a future double-entry layer (always NULL
@@ -14,7 +14,6 @@
 CREATE TABLE IF NOT EXISTS public.ledger_transactions (
   id             uuid          DEFAULT gen_random_uuid() PRIMARY KEY,
   tenant_id      uuid          NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
-  vessel_id      uuid          REFERENCES public.vessels(id) ON DELETE SET NULL,
   account_id     uuid          REFERENCES public.financial_accounts(id) ON DELETE SET NULL,
   txn_date       date          NOT NULL DEFAULT (now()::date),
   amount         numeric(14,2) NOT NULL,
@@ -47,7 +46,6 @@ CREATE TABLE IF NOT EXISTS public.ledger_transactions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ledger_transactions_tenant_id           ON public.ledger_transactions(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_ledger_transactions_vessel_id           ON public.ledger_transactions(vessel_id);
 CREATE INDEX IF NOT EXISTS idx_ledger_transactions_account_id          ON public.ledger_transactions(account_id);
 CREATE INDEX IF NOT EXISTS idx_ledger_transactions_txn_date            ON public.ledger_transactions(txn_date);
 CREATE INDEX IF NOT EXISTS idx_ledger_transactions_supplier_invoice_id ON public.ledger_transactions(supplier_invoice_id);
