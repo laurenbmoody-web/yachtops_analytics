@@ -178,7 +178,7 @@ export async function openTripReport(period, vessel, billing) {
     .cg-sub-row td.cg-amt { color: #1C1B3A; }
     .cg-grand { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; margin-top: 18px; padding-top: 12px; border-top: 2px solid #1C1B3A; break-inside: avoid; }
     .cg-grand span { font: 700 10px system-ui; letter-spacing: 0.06em; text-transform: uppercase; color: #1C1B3A; }
-    .cg-grand b { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; color: #C65A1A; }
+    .cg-grand b { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-weight: 700; font-size: 21px; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: #C65A1A; }
     .cg-note { font-size: 11px; color: #8B8478; margin-top: 8px; font-style: italic; }
     .foot { margin-top: 26px; padding-top: 12px; border-top: 1px solid #ECECEE; font-size: 11px; color: #AEB4C2; display: flex; align-items: center; justify-content: space-between; }
     .foot .cg { display: inline-flex; align-items: center; gap: 6px; }

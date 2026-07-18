@@ -65,7 +65,6 @@ const LaundryItemRow = ({ item, onUpdate, onOpen, onAdvance }) => {
           {overdue && <span className="lr-overdue"><Icon name="Clock" size={11} /> Overdue</span>}
           {item?.flag === 'damaged' && <span className="lr-cond dmg"><Icon name="AlertTriangle" size={11} /> Damaged</span>}
           {item?.flag === 'missing' && <span className="lr-cond mis"><Icon name="HelpCircle" size={11} /> Missing</span>}
-          {item?._billable && item?._charge != null && <span className="lr-charge" title="Charter charge (guest laundry)"><Icon name="Receipt" size={11} /> {money(item._charge, item._currency)}</span>}
         </div>
         <div className="lr-sub">
           <span className="lr-who"><span className={`lr-av ${kind}`}>{item?.avatarUrl ? <img src={item.avatarUrl} alt="" loading="lazy" decoding="async" /> : (kind === 'other' ? <Icon name="Package" size={13} /> : avInitials)}</span>{kind === 'unknown' ? 'Unknown' : kind === 'other' ? 'Other' : (item?.ownerName || 'Unassigned')}</span>
@@ -84,6 +83,8 @@ const LaundryItemRow = ({ item, onUpdate, onOpen, onAdvance }) => {
 
       {/* progress + quick action */}
       <div className="lr-right">
+        {item?._billable && item?._charge != null && <span className="lr-charge" title="Charter charge (guest laundry)"><Icon name="Receipt" size={11} /> {money(item._charge, item._currency)}</span>}
+        <div className="lr-rgrid">
         <div className="lr-step">
           <div className="lr-pips">
             <i className={step.idx >= 1 ? 'on' : ''} />
@@ -106,6 +107,7 @@ const LaundryItemRow = ({ item, onUpdate, onOpen, onAdvance }) => {
         {item?.status === LaundryStatus?.DELIVERED && (
           <span className="lr-act done"><Icon name="Check" size={14} /> Delivered</span>
         )}
+        </div>
       </div>
     </div>
   );
