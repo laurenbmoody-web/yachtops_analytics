@@ -72,7 +72,7 @@ function InteriorSection({ hotspot, tenantId, canManage, onInteriorPhoto, onOpen
             <span className="vm-interior-empty-ic" aria-hidden="true">＋</span>
             <span>
               <span className="vm-interior-empty-t">Add a photo of the inside</span>
-              <span className="vm-interior-empty-s">Then place a pin on each thing — items, defects, jobs. Their contents, links &amp; QR codes live on those pins.</span>
+              <span className="vm-interior-empty-s">Then drop a pin on each drawer, shelf or item inside. Whatever it holds — contents, links &amp; QR codes — lives on those pins.</span>
             </span>
           </div>
           {canManage && (
@@ -101,7 +101,7 @@ const fmtDate = (iso) => {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, onInteriorPhoto, onOpenInterior, childCount, autoFocusName, raised, user, tier, tenantId, names, onDetailSaved, scanSpaceId, scanName, containerTrail, onNodeResolved, placingItem, onPlaced }) {
+export default function Inspector({ hotspot, creatorName, canManage, onClose, onDelete, onAdjust, onRename, onRelayer, onToggleContainer, onInteriorPhoto, onOpenInterior, childCount, autoFocusName, raised, user, tier, tenantId, names, onDetailSaved, scanSpaceId, scanName, containerTrail, onNodeResolved, placingItem, onPlaced, allowedLayers = null }) {
   // The panel outlives the selection by one exit animation: `shown` holds
   // the last pin while `hotspot` goes null and the slide-out plays.
   const [shown, setShown] = useState(hotspot);
@@ -231,7 +231,7 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
             ) : (
               <>
                 <div className="vm-swatch-row" role="radiogroup" aria-label="Category">
-                  {LAYERS.map((l) => {
+                  {LAYERS.filter((l) => !allowedLayers || allowedLayers.includes(l.key)).map((l) => {
                     const on = (shown.layer || 'general') === l.key;
                     return (
                       <button
@@ -252,8 +252,8 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
                   <input type="checkbox" checked={!!shown.is_container} onChange={(e) => onToggleContainer?.(shown.id, e.target.checked)} />
                   <span className="vm-ct-switch" aria-hidden="true" />
                   <span className="vm-ct-text">
-                    <span className="vm-ct-title">Other pins live inside this one</span>
-                    <span className="vm-ct-sub">{shown.is_container ? 'Opens a photo of the inside where you place pins' : 'Off — just this one pin, nothing inside it'}</span>
+                    <span className="vm-ct-title">This one opens up (drawers, shelves, compartments)</span>
+                    <span className="vm-ct-sub">{shown.is_container ? 'Add a photo of the inside, then drop a pin on each drawer or item' : 'Off — a single spot, with nothing pinned inside it'}</span>
                   </span>
                 </label>
               </>
@@ -311,7 +311,7 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
               />
             )}
             {placingItem && !layerHoldsStock(shown.layer) && (
-              <p className="vm-pinitems-note">This pin type doesn’t hold stock — pick an <strong>Inventory</strong> or <strong>Safety</strong> pin.</p>
+              <p className="vm-pinitems-note">This pin type doesn’t hold stock — pick an <strong>Inventory</strong>, <strong>Storage</strong> or <strong>Safety</strong> pin.</p>
             )}
             {/* Defect pins: a compact summary here; the full defect opens wide. */}
             {shown.layer === 'defect' && !placingItem && (
