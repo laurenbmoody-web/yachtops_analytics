@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck } from '../utils/locationsLayoutStorage';
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace } from '../utils/locationsHierarchyStorage';
-import { traceRoom, bboxRect, simplifyClosed, regionInk } from '../utils/deckTrace';
+import { simplifyClosed } from '../utils/deckTrace';
 import { segmentDeck, regionAtPoint, regionContour } from '../utils/deckSegment';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
@@ -607,30 +607,21 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       const seg = segmentDeck(imageData);
       const usedRegions = new Set();
       const used = new Set();
-      let offPlan = 0;
+      let dropped = 0;
       const items = rooms.map((r) => {
-        let nodes = null;
+        // Region-only: outline the enclosed wall-region the seed lands in. If the
+        // seed doesn't hit a usable region (off the hull, or an area that didn't
+        // segment), the room is dropped rather than shown as a loose/floating box.
         const region = regionAtPoint(seg, r.seed.x, r.seed.y);
-        if (region && !usedRegions.has(region.id)) {
-          nodes = regionContour(seg, region);
-          if (nodes) usedRegions.add(region.id);
-        }
-        if (!nodes) {
-          // No usable region under the seed: flood-fill it, else the model's box —
-          // then guard against outlines that landed off the drawing (blank paper).
-          const traced = traceRoom(imageData, r.seed, r.bbox);
-          nodes = traced || bboxRect(r.bbox) || null;
-          if (!nodes) return null;
-          const xs = nodes.map((n) => n.x);
-          const ys = nodes.map((n) => n.y);
-          const nb = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
-          const seedBox = { x: r.seed.x - 0.028, y: r.seed.y - 0.06, w: 0.056, h: 0.12 };
-          if (regionInk(imageData, nb) < 0.025 || regionInk(imageData, seedBox) < 0.04) { offPlan += 1; return null; }
-        }
+        if (!region || usedRegions.has(region.id)) { dropped += 1; return null; }
+        const nodes = regionContour(seg, region);
+        if (!nodes) { dropped += 1; return null; }
+        usedRegions.add(region.id);
         const matchedSpaceId = matchSpaceId(r.name, spaces, used);
         if (matchedSpaceId) used.add(matchedSpaceId);
         return { name: r.name, matchedSpaceId, create: !matchedSpaceId, nodes, traced: true };
       }).filter(Boolean);
+      if (dropped) console.info(`[deck-plan] dropped ${dropped} room(s) with no usable region`);
       if (!items.length) { setDetectError({ deckId: deck.id, message: 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' }); return; }
       if (offPlan) console.info(`[deck-plan] dropped ${offPlan} off-plan detection(s)`);
       setProposals({ deckId: deck.id, items });
