@@ -859,6 +859,38 @@ const DriverStation = ({ order, canEdit, onUpdate }) => {
     advance(s);
   };
 
+  // Once delivered, the live controls are done — collapse to a compact "who +
+  // when" metadata line (a subtle Reopen stays for a mistaken "Delivered").
+  if (order.status === 'received' && assigned) {
+    const who = hasInternal ? order.driver_name : order.courier_name;
+    const when = order.delivered_at ? new Date(order.delivered_at) : null;
+    const whenTxt = when && !Number.isNaN(when.getTime())
+      ? `${when.toLocaleDateString(dateLocale(), { day: '2-digit', month: 'short' })} · ${when.toLocaleTimeString(dateLocale(), { hour: '2-digit', minute: '2-digit' })}`
+      : null;
+    return (
+      <div className="sod-driver is-done">
+        <div className="sod-driver-head">
+          <div>
+            <div className="sod-station-eyebrow">Delivered</div>
+            <div className="sod-driver-title">
+              {who}
+              <span className="sod-driver-badge">Delivered</span>
+            </div>
+            <div className="sod-driver-sub">
+              {hasInternal ? 'Delivered by your teammate' : 'Delivered by courier'}{whenTxt ? ` · ${whenTxt}` : ''}
+            </div>
+          </div>
+          {canEdit && hasInternal && (
+            <button type="button" className="sod-driver-clear" disabled={busy}
+              onClick={() => { if (window.confirm('Reopen this delivery? Use only to correct a mistaken “Delivered”.')) advance('arrived'); }}>
+              Reopen
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="sod-driver">
       <div className="sod-driver-head">
