@@ -1,9 +1,13 @@
 /* Cargo Accounts — guided "Start a budget" modal. Scoped under .bg-gc (portaled). */
+/* Flex column with a fixed head + name/period band, a single scrolling body, and a
+   sticky action bar — so the panel always fits the viewport and the Create button is
+   never clipped. */
 .bg-gc { background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
-  box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); padding: 24px 26px 22px;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+  box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); padding: 22px 26px 0;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  display: flex; flex-direction: column; overflow: hidden; }
 
-.bg-gc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.bg-gc-head { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .bg-gc-eyebrow { margin: 0 0 4px; font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #8B8478; }
 .bg-gc-title { margin: 0; font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 30px; line-height: 1; text-transform: uppercase; letter-spacing: -.4px; }
 .bg-gc-title em { font-style: italic; color: #C65A1A; text-transform: none; }
@@ -11,7 +15,19 @@
 .bg-gc-x:hover { color: #1C1B3A; background: #F0F1F5; }
 .bg-gc-sub { margin: 12px 0 0; font-size: 13px; color: #8B8478; max-width: 620px; }
 
-.bg-gc-cols { display: grid; grid-template-columns: 0.92fr 1.08fr; gap: 22px; margin-top: 20px; align-items: start; }
+/* Name + period band — prominent, up front. */
+.bg-gc-band { flex: 0 0 auto; display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; align-items: end;
+  margin-top: 16px; padding-bottom: 16px; border-bottom: 1px solid #EEF0F4; }
+@media (max-width: 700px) { .bg-gc-band { grid-template-columns: 1fr; } }
+.bg-gc-namewrap, .bg-gc-periodwrap { display: flex; flex-direction: column; gap: 7px; }
+.bg-gc-name { border: 0; border-bottom: 2px solid #E6E8EF; background: transparent; padding: 4px 2px 8px;
+  font-family: 'DM Serif Display', Georgia, serif; font-size: 27px; line-height: 1.1; color: #1C1B3A;
+  transition: border-color .15s; }
+.bg-gc-name:focus { outline: 0; border-bottom-color: #C65A1A; }
+.bg-gc-name::placeholder { color: #CFCABF; }
+
+.bg-gc-cols { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid;
+  grid-template-columns: 0.92fr 1.08fr; gap: 22px; padding: 18px 0 8px; align-items: start; }
 @media (max-width: 860px) { .bg-gc-cols { grid-template-columns: 1fr; } }
 
 /* left */
@@ -69,15 +85,30 @@
 .bg-gc-seg button { border: 0; background: none; padding: 7px 16px; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 600; color: #6B7280; cursor: pointer; }
 .bg-gc-seg button.on { background: #fff; color: #1C1B3A; box-shadow: 0 1px 3px rgba(28,27,58,.12); }
 
-.bg-gc-err { margin-top: 14px; font-size: 12.5px; color: #B14E16; background: #FBEFE9; border: 1px solid #F0D9CC; border-radius: 10px; padding: 9px 12px; }
-.bg-gc-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 18px; padding-top: 16px; border-top: 1px solid #EEF0F4; }
-.bg-gc-note { font-size: 11.5px; color: #AEB4C2; max-width: 230px; }
-.bg-gc-btn { border: 0; border-radius: 10px; padding: 12px 22px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; background: #C65A1A; color: #fff; box-shadow: 0 10px 22px -12px rgba(198,90,26,.7); white-space: nowrap; }
+/* Sticky action bar — pinned to the panel foot, always visible. */
+.bg-gc-actionbar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 14px 0; margin-top: 0; border-top: 1px solid #EEF0F4; background: #fff; }
+.bg-gc-err { font-size: 12.5px; color: #B14E16; font-weight: 600; }
+.bg-gc-note { font-size: 11.5px; color: #AEB4C2; }
+.bg-gc-btn { border: 0; border-radius: 10px; padding: 12px 24px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; background: #C65A1A; color: #fff; box-shadow: 0 10px 22px -12px rgba(198,90,26,.7); white-space: nowrap; }
 .bg-gc-btn:hover { background: #B14E16; }
 .bg-gc-btn:disabled { opacity: .6; cursor: default; }
 
+/* upload dropzone */
+.bg-gc-upload { margin-top: 12px; }
+.bg-gc-drop { display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center;
+  border: 1.5px dashed #E6C9B8; border-radius: 12px; padding: 20px 16px; cursor: pointer; background: #FDF7F3;
+  transition: .15s; }
+.bg-gc-drop:hover, .bg-gc-drop.is-over { border-color: #C65A1A; background: #FBEFE9; }
+.bg-gc-dropmain { font-size: 13px; font-weight: 600; color: #1C1B3A; margin-top: 3px; }
+.bg-gc-dropsub { font-size: 11px; color: #A08B7C; }
+.bg-gc-uploaderr { margin-top: 10px; font-size: 12px; color: #B14E16; background: #FBEFE9; border: 1px solid #F0D9CC; border-radius: 9px; padding: 8px 11px; }
+.bg-gc-uploadok { margin-top: 10px; font-size: 12px; color: #4B4A66; }
+.bg-gc-uploadok b { color: #3F7A52; }
+.bg-gc-unmatched { color: #8B8478; }
+
 /* right — live preview */
-.bg-gc-right { background: #F8FAFC; border: 1px solid #E6E8EF; border-radius: 14px; padding: 18px 20px; max-height: 560px; overflow-y: auto; }
+.bg-gc-right { background: #F8FAFC; border: 1px solid #E6E8EF; border-radius: 14px; padding: 18px 20px; }
 .bg-gc-phead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .bg-gc-ptitle { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; }
 .bg-gc-pnote { font-size: 11px; color: #8B8478; font-variant-numeric: tabular-nums; }
