@@ -183,6 +183,45 @@ export const getSeedSourceForPeriod = async (tenantId, chart, periodStart, perio
   return getSeedSource(tenantId, chart, from, to);
 };
 
+// Year-over-year drift for the "Suggest %" grounding: compares the two seasons before
+// the new period (P vs P-1), per resolved chart category, so the suggester can propose
+// each line's uplift from THIS vessel's own trend. Returns { byCat: { normCat: { recent,
+// prev, pct } }, recentYear, prevYear, hasTwoSeasons }.
+export const getYoyDrift = async (tenantId, chart, periodStart, periodEnd) => {
+  if (!tenantId) return { data: null, error: new Error('No active tenant') };
+  const p1 = priorPeriodOf(periodStart, periodEnd);   // most recent prior season (P)
+  const p2 = priorPeriodOf(p1.from, p1.to);           // the season before that (P-1)
+  const [recentRes, prevRes] = await Promise.all([
+    getSeedSource(tenantId, chart, p1.from, p1.to),
+    getSeedSource(tenantId, chart, p2.from, p2.to),
+  ]);
+  if (recentRes.error) return { data: null, error: recentRes.error };
+  if (prevRes.error) return { data: null, error: prevRes.error };
+
+  const agg = (rows) => {
+    const m = {};
+    (rows || []).forEach((r) => { const k = normKey(r.category); m[k] = (m[k] || 0) + Number(r.amount || 0); });
+    return m;
+  };
+  const recent = agg(recentRes.data?.rows);
+  const prev = agg(prevRes.data?.rows);
+  const byCat = {};
+  new Set([...Object.keys(recent), ...Object.keys(prev)]).forEach((k) => {
+    const rc = Math.round((recent[k] || 0) * 100) / 100;
+    const pv = Math.round((prev[k] || 0) * 100) / 100;
+    byCat[k] = { recent: rc, prev: pv, pct: pv > 0 ? ((rc - pv) / pv) * 100 : null };
+  });
+  return {
+    data: {
+      byCat,
+      recentYear: Number(String(p1.from).slice(0, 4)) || null,
+      prevYear: Number(String(p2.from).slice(0, 4)) || null,
+      hasTwoSeasons: Boolean(recentRes.data?.hasData && prevRes.data?.hasData),
+    },
+    error: null,
+  };
+};
+
 // Create a budget and, in one go, insert its lines (the MYBA chart, optionally seeded
 // with amounts + per-month shape + a per-line reason note). `lines` is the final
 // proposal the create screen previewed — [{ bucket, category, code, kind, amount,

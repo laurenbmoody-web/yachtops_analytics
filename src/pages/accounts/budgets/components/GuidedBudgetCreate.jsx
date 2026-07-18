@@ -10,7 +10,8 @@ import { datePlaceholder } from '../../../../utils/dateFormat';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../data/mybaChartOfAccounts';
 import { monthsInPeriod } from '../../../../services/budgetMonthly';
 import { computeSeed, normCat } from '../../../../services/budgetSeed';
-import { getSeedSourceForPeriod, createBudgetGuided } from '../../../../services/budgetService';
+import { computeSuggestions } from '../../../../services/budgetSuggest';
+import { getSeedSourceForPeriod, createBudgetGuided, getYoyDrift } from '../../../../services/budgetService';
 import './guided-create.css';
 
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -45,6 +46,8 @@ export default function GuidedBudgetCreate({ open, onClose, onCreated, tenantId 
   const [perLine, setPerLine] = useState({});        // { normCat: { uplift, reason } }
   const [seedSrc, setSeedSrc] = useState(null);
   const [loadingSrc, setLoadingSrc] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestNote, setSuggestNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -67,7 +70,7 @@ export default function GuidedBudgetCreate({ open, onClose, onCreated, tenantId 
     setPeriodKey('season-next'); setCustomStart(''); setCustomEnd('');
     setName(''); setNameEdited(false); setCurrency('EUR'); setChart('myba');
     setSeedMode('actuals'); setBaseline(5); setTarget(0); setPerLine({});
-    setSeedSrc(null); setBusy(false); setErr('');
+    setSeedSrc(null); setBusy(false); setErr(''); setSuggestNote(''); setSuggesting(false);
   }, [open]);
 
   // Pull last-season spend to seed from whenever the period changes.
@@ -102,6 +105,21 @@ export default function GuidedBudgetCreate({ open, onClose, onCreated, tenantId 
 
   const expenseCount = seed.lines.filter((l) => l.kind !== 'revenue').length;
   const setLine = (key, patch) => setPerLine((m) => ({ ...m, [key]: { ...m[key], ...patch } }));
+
+  // Grounded per-line suggestions: this vessel's own YoY trend where two seasons exist,
+  // curated category sensitivity otherwise. Fills the % and the reason for every line.
+  const runSuggest = async () => {
+    setSuggesting(true); setSuggestNote('');
+    const { data, error } = await getYoyDrift(tenantId, STANDARD_CHART_OF_ACCOUNTS, start, end);
+    if (error) { setSuggesting(false); setSuggestNote('Could not read history — try again.'); return; }
+    const sugg = computeSuggestions(STANDARD_CHART_OF_ACCOUNTS, data?.byCat || {}, { recentYear: data?.recentYear, prevYear: data?.prevYear });
+    setPerLine(sugg);
+    const fromHistory = Object.values(sugg).filter((s) => s.basis === 'history').length;
+    setSuggestNote(data?.hasTwoSeasons && fromHistory
+      ? `${fromHistory} lines from your ${data.prevYear}→${data.recentYear} trend, the rest from category norms — review each below.`
+      : 'Not enough history yet — suggested from category norms. Review each below.');
+    setSuggesting(false);
+  };
 
   if (!open) return null;
 
@@ -196,14 +214,26 @@ export default function GuidedBudgetCreate({ open, onClose, onCreated, tenantId 
                     <span className="bg-gc-od">{canSeed ? 'Every line pre-filled from what was really spent, seasonal shape carried across. Tune it per line on the right.' : 'No prior season in the ledger yet — available once you’ve run one.'}</span></span>
                 </button>
                 {effMode === 'actuals' && canSeed && (
-                  <div className="bg-gc-reveal">
-                    <div className="bg-gc-step">
-                      <button type="button" onClick={() => setBaseline((v) => Math.max(-25, v - 1))} aria-label="Less uplift">−</button>
-                      <span className="bg-gc-stepval">{baseline >= 0 ? '+' : ''}{baseline}%</span>
-                      <button type="button" onClick={() => setBaseline((v) => Math.min(50, v + 1))} aria-label="More uplift">+</button>
+                  <>
+                    <div className="bg-gc-reveal">
+                      <div className="bg-gc-step">
+                        <button type="button" onClick={() => setBaseline((v) => Math.max(-25, v - 1))} aria-label="Less uplift">−</button>
+                        <span className="bg-gc-stepval">{baseline >= 0 ? '+' : ''}{baseline}%</span>
+                        <button type="button" onClick={() => setBaseline((v) => Math.min(50, v + 1))} aria-label="More uplift">+</button>
+                      </div>
+                      <span className="bg-gc-steplab">baseline uplift · override any line on the right</span>
                     </div>
-                    <span className="bg-gc-steplab">baseline uplift · override any line on the right</span>
-                  </div>
+                    <div className="bg-gc-suggestrow">
+                      <button type="button" className="bg-gc-suggest" onClick={runSuggest} disabled={suggesting}>
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1l1.3 3.3L12.6 5l-2.6 2 1 3.4L8 8.7 5 10.4l1-3.4L3.4 5l3.3-.7L8 1z" /></svg>
+                        {suggesting ? 'Reading your history…' : 'Suggest per-line %'}
+                      </button>
+                      {Object.keys(perLine).length > 0 && (
+                        <button type="button" className="bg-gc-reset" onClick={() => { setPerLine({}); setSuggestNote(''); }}>Reset to baseline</button>
+                      )}
+                    </div>
+                    {suggestNote && <p className="bg-gc-suggestnote">{suggestNote}</p>}
+                  </>
                 )}
                 <button type="button" className={`bg-gc-opt${seedMode === 'target' && canSeed ? ' on' : ''}${!canSeed ? ' is-disabled' : ''}`}
                   onClick={() => canSeed && setSeedMode('target')} disabled={!canSeed}>
