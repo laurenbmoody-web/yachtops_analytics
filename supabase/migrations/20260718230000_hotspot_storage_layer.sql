@@ -1,5 +1,5 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- 20260718220000_hotspot_storage_layer.sql
+-- 20260718230000_hotspot_storage_layer.sql
 -- (renumbered from 20260718210000 to resolve a version collision with the
 --  vessels_billing_fields migration added on the same timestamp)
 --
