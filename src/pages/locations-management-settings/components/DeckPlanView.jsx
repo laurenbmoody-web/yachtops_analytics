@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck } from '../utils/locationsLayoutStorage';
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace } from '../utils/locationsHierarchyStorage';
-import { traceRoom, bboxRect, simplifyClosed } from '../utils/deckTrace';
+import { traceRoom, bboxRect, simplifyClosed, regionInk } from '../utils/deckTrace';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
@@ -586,16 +586,24 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       }
       if (!rooms.length) { setDetectError({ deckId: deck.id, message: 'No rooms could be read from this deck. Try reframing it tighter around the plan.' }); return; }
       const used = new Set();
+      let offPlan = 0;
       const items = rooms.map((r) => {
         // Real geometry: flood-fill the walls from the seed; fall back to the box.
         const traced = traceRoom(imageData, r.seed, r.bbox);
         const nodes = traced || bboxRect(r.bbox) || null;
         if (!nodes) return null;
+        // Reject outlines that landed on blank paper (off the hull / in a margin):
+        // real rooms are full of line-work, empty background is near-white.
+        const xs = nodes.map((n) => n.x);
+        const ys = nodes.map((n) => n.y);
+        const nb = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+        if (regionInk(imageData, nb) < 0.02) { offPlan += 1; return null; }
         const matchedSpaceId = matchSpaceId(r.name, spaces, used);
         if (matchedSpaceId) used.add(matchedSpaceId);
         return { name: r.name, matchedSpaceId, create: !matchedSpaceId, nodes, traced: !!traced };
       }).filter(Boolean);
-      if (!items.length) { setDetectError({ deckId: deck.id, message: 'Rooms were read but none could be outlined. Try reframing the deck.' }); return; }
+      if (!items.length) { setDetectError({ deckId: deck.id, message: 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' }); return; }
+      if (offPlan) console.info(`[deck-plan] dropped ${offPlan} off-plan detection(s)`);
       setProposals({ deckId: deck.id, items });
     } catch (err) {
       console.error('[deck-plan] detect error:', err);
