@@ -111,6 +111,7 @@ async function userFromJwt(authHeader: string): Promise<{ id: string; email: str
 interface InvoiceRenderInput {
   supplier: any;
   order: any;
+  vessel: any;   // buyer bill-to details (vessels row via order.tenant_id), may be null
   items: any[];   // each annotated with _effectiveRate, _lineTotal, _vatLabel
   invoiceNumber: string;
   issueDate: string;
@@ -191,6 +192,19 @@ function renderVatBreakdownRows(input: InvoiceRenderInput): string {
   `).join('');
 }
 
+// Unit column — respects catalogue case/pack structure when present, e.g.
+// pack_size 24 + unit_size "330ml" + pack_unit "bottle" → "24 × 330ml bottle".
+// Falls back to the order line's free-text unit for non-catalogue lines.
+function renderUnitCell(it: any, cat: any): string {
+  if (cat && (cat.unit_size || cat.pack_unit)) {
+    const base = [cat.unit_size, cat.pack_unit].filter(Boolean).map(escapeHtml).join(' ');
+    const size = Number(cat.pack_size);
+    if (size > 1) return `${size} × ${base}`;
+    if (base) return base;
+  }
+  return it.unit ? escapeHtml(it.unit) : '—';
+}
+
 function renderInvoiceHtml(input: InvoiceRenderInput): string {
   const cur = input.supplier.default_currency || 'EUR';
   const supplierName = escapeHtml(input.supplier.name || 'Supplier');
@@ -198,11 +212,26 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
   // from the country preset and passes it in via options.tax_name. Falls back
   // to "VAT" for countries without a registry entry.
   const taxNumberLabel = input.options.tax_name || 'VAT';
-  const billToName = escapeHtml(input.order.vessel_name || input.order.yacht_name || 'Vessel');
+  const v = input.vessel || {};
+  const billToName = escapeHtml(v.billing_legal_name || v.vessel_name || input.order.vessel_name || 'Vessel');
+  const billToAddress = v.billing_address ? escapeHtml(v.billing_address).replace(/\n/g, '<br/>') : '';
+  const billToVat = v.billing_vat_number ? escapeHtml(v.billing_vat_number) : '';
+  const billToReg = v.billing_reg_number ? escapeHtml(v.billing_reg_number) : '';
+  const billToEmail = v.billing_email ? escapeHtml(v.billing_email) : '';
+  const deliveryLine = [
+    input.order.delivery_port ? escapeHtml(input.order.delivery_port) : '',
+    fmtDate(input.order.delivery_date),
+  ].filter(Boolean).join(' · ');
   const isBonded = !!input.options.bonded_supply;
 
   const itemRows = input.items.map((it: any) => {
-    const qty = `${it.quantity ?? ''}${it.unit ? ' ' + escapeHtml(it.unit) : ''}`.trim();
+    const cat = it.catalogue_item || null;
+    // Qty is just the count; the pack/case structure lives in its own Unit
+    // column so the two aren't mashed together.
+    const qty = `${it.quantity ?? ''}`.trim() || '—';
+    const unitCell = renderUnitCell(it, cat);
+    const sku = cat?.sku ? escapeHtml(cat.sku) : '';
+    const category = cat?.category ? escapeHtml(cat.category) : '';
     const unitPrice = `${cur} ${fmtAmount(Number(it.agreed_price ?? it.unit_price) || 0)}`;
     const rate = `${(it._effectiveRate ?? 0).toFixed(1)}%`;
     const lineTotal = `${cur} ${fmtAmount(it._lineTotal ?? 0)}`;
@@ -210,9 +239,12 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
       <tr>
         <td class="desc">
           <div class="item-name">${escapeHtml(it.item_name || '')}</div>
+          ${category ? `<div class="item-cat">${category}</div>` : ''}
           ${it.notes ? `<div class="item-notes">${escapeHtml(it.notes)}</div>` : ''}
         </td>
+        <td class="sku mono">${sku || '—'}</td>
         <td class="num">${qty}</td>
+        <td class="unit">${unitCell}</td>
         <td class="num">${unitPrice}</td>
         <td class="num">${rate}</td>
         <td class="num">${lineTotal}</td>
@@ -307,6 +339,8 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
       font-size: 12px; color: #1C1B3A; line-height: 1.5;
     }
     .bill-to .block .body strong { font-weight: 700; }
+    .bill-to .block .bill-addr { font-size: 10.5px; color: #6B7280; line-height: 1.5; margin-top: 3px; }
+    .bill-to .block .bill-meta { font-size: 10px; color: #8B8478; margin-top: 3px; }
 
     /* Line items */
     table.lines {
@@ -329,8 +363,14 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
       text-align: right; font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
-    table.lines td.desc { width: 50%; }
+    table.lines td.desc, table.lines th.desc { width: 34%; }
+    table.lines td.sku, table.lines th.sku { width: 12%; font-size: 10px; color: #6B7280; white-space: nowrap; }
+    table.lines td.unit, table.lines th.unit { width: 16%; font-size: 10px; color: #4A4A63; }
     table.lines .item-name { font-weight: 600; color: #1C1B3A; }
+    table.lines .item-cat {
+      font-size: 8.5px; letter-spacing: 0.08em; text-transform: uppercase;
+      color: #C65A1A; margin-top: 2px; font-weight: 700;
+    }
     table.lines .item-notes {
       font-size: 10px; color: #8B8478; margin-top: 2px; line-height: 1.45;
     }
@@ -436,11 +476,15 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     <div class="block">
       <div class="heading">Bill to</div>
       <div class="body"><strong>${billToName}</strong></div>
-      ${input.order.delivery_port ? `<div class="body" style="color:#6B7280;font-size:10.5px;margin-top:2px">Delivery: ${escapeHtml(input.order.delivery_port)}</div>` : ''}
+      ${billToAddress ? `<div class="bill-addr">${billToAddress}</div>` : ''}
+      ${billToVat ? `<div class="bill-meta">${taxNumberLabel} no: ${billToVat}</div>` : ''}
+      ${billToReg ? `<div class="bill-meta">Company reg: ${billToReg}</div>` : ''}
+      ${billToEmail ? `<div class="bill-meta">${billToEmail}</div>` : ''}
     </div>
     <div class="block" style="text-align:right">
       <div class="heading">Order reference</div>
       <div class="body mono" style="font-size:11px">#${escapeHtml(String(input.order.id || '').slice(0, 8).toUpperCase())}</div>
+      ${deliveryLine ? `<div class="bill-meta" style="margin-top:6px">Delivery: ${deliveryLine}</div>` : ''}
     </div>
   </section>
 
@@ -448,7 +492,9 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     <thead>
       <tr>
         <th class="desc">Description</th>
+        <th class="sku">SKU</th>
         <th class="num">Qty</th>
+        <th class="unit">Unit</th>
         <th class="num">Unit price</th>
         <th class="num">VAT</th>
         <th class="num">Line total</th>
@@ -593,7 +639,7 @@ Deno.serve(async (req: Request) => {
 
     // 2) Fetch order + items
     const orders = await restGet<any[]>(
-      `supplier_orders?id=eq.${orderId}&select=*,supplier_order_items(*)`
+      `supplier_orders?id=eq.${orderId}&select=*,supplier_order_items(*,catalogue_item:catalogue_item_id(sku,category,pack_size,pack_unit,unit_size))`
     );
     const order = orders?.[0];
     if (!order) return jsonResponse({ error: 'Order not found' }, 404);
@@ -627,6 +673,16 @@ Deno.serve(async (req: Request) => {
     const supplier = profiles?.[0];
     if (!supplier) return jsonResponse({ error: 'Supplier profile not found' }, 404);
 
+    // Buyer bill-to details (vessels row via the order's tenant_id). Best-effort
+    // — a vessel with no billing profile just falls back to the vessel name.
+    let vessel: any = null;
+    if (order.tenant_id) {
+      const vessels = await restGet<any[]>(
+        `vessels?tenant_id=eq.${order.tenant_id}&select=vessel_name,billing_legal_name,billing_address,billing_vat_number,billing_reg_number,billing_email`
+      ).catch(() => []);
+      vessel = vessels?.[0] || null;
+    }
+
     // 4) Compute totals (server forces bonded → 0)
     const bonded = !!options.bonded_supply;
     const computed = computeLines(items, lines, bonded);
@@ -658,7 +714,7 @@ Deno.serve(async (req: Request) => {
       };
     });
     const html = renderInvoiceHtml({
-      supplier, order, items: annotatedItems, invoiceNumber,
+      supplier, order, vessel, items: annotatedItems, invoiceNumber,
       issueDate, dueDate,
       totals: { subtotal, total, vatTotal },
       vatBreakdown, options,

@@ -361,6 +361,17 @@ export default function VesselProfileStack(props) {
       ],
     },
     {
+      id: 'invoicing', title: 'Invoicing', sub: 'How suppliers bill this vessel — pulled onto their invoices',
+      icon: ico(<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2 2-1-1.6V3zM9 8h6M9 12h6M9 16h4" />),
+      fields: [
+        { field: 'billing_legal_name', label: 'Billed-to name', type: 'text', full: true, placeholder: 'Owning / management company' },
+        { field: 'billing_address', label: 'Billing address', type: 'textarea', full: true, placeholder: 'Add address' },
+        { field: 'billing_vat_number', label: 'VAT / tax number', type: 'text', placeholder: 'Add number' },
+        { field: 'billing_reg_number', label: 'Company reg', type: 'text', placeholder: 'Add reg number' },
+        { field: 'billing_email', label: 'Invoice email', type: 'text', full: true, placeholder: 'Where invoices are sent' },
+      ],
+    },
+    {
       id: 'ops', title: 'Operational profile', sub: 'Where she trades and who she carries',
       icon: ico(<><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20" /></>),
       fields: [
