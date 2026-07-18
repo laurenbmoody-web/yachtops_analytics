@@ -183,7 +183,12 @@ export async function openTripReport(period, vessel, billing) {
     .foot { margin-top: 26px; padding-top: 12px; border-top: 1px solid #ECECEE; font-size: 11px; color: #AEB4C2; display: flex; align-items: center; justify-content: space-between; }
     .foot .cg { display: inline-flex; align-items: center; gap: 6px; }
     .cargo-mark { height: 15px; opacity: 0.8; }
-    @media print { body { padding: 20px; } }
+    @media print {
+      body { padding: 20px 20px 52px; }
+      /* Pin the footer to the bottom of the page instead of letting it
+         flow onto an orphan page after the last person block. */
+      .foot { position: fixed; left: 20px; right: 20px; bottom: 14px; margin-top: 0; padding-top: 8px; background: #FFFFFF; }
+    }
   </style></head><body>
     ${letterhead(vessel)}
     <div class="titlerow">
