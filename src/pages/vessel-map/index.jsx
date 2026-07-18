@@ -1321,8 +1321,8 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                         <input type="checkbox" checked={!!selectedHotspot.is_container} onChange={(e) => setContainer(selectedHotspot.id, e.target.checked)} />
                         <span className="vm-ct-switch" aria-hidden="true" />
                         <span className="vm-ct-text">
-                          <span className="vm-ct-title">This one opens up (drawers, shelves, compartments)</span>
-                          <span className="vm-ct-sub">{selectedHotspot.is_container ? 'Add a photo of the inside, then drop a pin on each drawer or item' : 'Off — a single spot, with nothing pinned inside it'}</span>
+                          <span className="vm-ct-title">Has separate compartments inside</span>
+                          <span className="vm-ct-sub">{selectedHotspot.is_container ? 'Add a photo of the inside, then drop a pin on each drawer or shelf' : 'Off — one pin covers the whole thing'}</span>
                         </span>
                       </label>
                     )}
