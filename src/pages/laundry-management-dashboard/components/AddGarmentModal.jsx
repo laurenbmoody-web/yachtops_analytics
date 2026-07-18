@@ -15,7 +15,7 @@ const fileToDataUrl = (file) => new Promise((res, rej) => {
 
 // Add a resident garment straight into a wardrobe. Created "Stored" (at rest in
 // its wardrobe) so it doesn't land in the active laundry list.
-const AddGarmentModal = ({ wardrobes = [], defaultWardrobeId = null, showValue = true, onClose, onCreated }) => {
+const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null, showValue = true, onClose, onCreated }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState('');
   const [colour, setColour] = useState('');
@@ -23,6 +23,7 @@ const AddGarmentModal = ({ wardrobes = [], defaultWardrobeId = null, showValue =
   const [currency, setCurrency] = useState('EUR');
   const [tags, setTags] = useState([]);
   const [wardrobeId, setWardrobeId] = useState(defaultWardrobeId || wardrobes[0]?.id || '');
+  const [guestId, setGuestId] = useState('');
   const [photo, setPhoto] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -37,6 +38,7 @@ const AddGarmentModal = ({ wardrobes = [], defaultWardrobeId = null, showValue =
     if (!name.trim() || busy) return;
     setBusy(true);
     try {
+      const guest = guests.find((g) => g.id === guestId);
       const created = await createLaundryItem({
         description: name.trim(),
         garmentType: type || null,
@@ -46,8 +48,9 @@ const AddGarmentModal = ({ wardrobes = [], defaultWardrobeId = null, showValue =
         tags,
         photos: photo ? [photo] : [],
         wardrobeId: wardrobeId || null,
-        ownerType: 'other',
-        ownerName: 'Owner',
+        ...(guest
+          ? { ownerType: 'guest', ownerGuestId: guest.id, ownerName: guest.name || guest.fullName, ownerDisplayName: guest.name || guest.fullName }
+          : { ownerType: 'other', ownerName: 'Owner' }),
         status: LaundryStatus.STORED,
       });
       if (created) { onCreated?.(created); onClose?.(); }
@@ -98,6 +101,13 @@ const AddGarmentModal = ({ wardrobes = [], defaultWardrobeId = null, showValue =
               <div className="ow-select"><select value={wardrobeId} onChange={(e) => setWardrobeId(e.target.value)}>{wardrobes.length === 0 && <option value="">No wardrobe yet</option>}{wardrobes.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
             </div>
           </div>
+
+          {guests.length > 0 && (
+            <>
+              <label className="ow-l">Belongs to <span className="ow-opt">optional</span></label>
+              <div className="ow-select"><select value={guestId} onChange={(e) => setGuestId(e.target.value)}><option value="">Owner (unassigned)</option>{guests.map((g) => <option key={g.id} value={g.id}>{g.name || g.fullName || [g.firstName, g.lastName].filter(Boolean).join(' ') || 'Guest'}</option>)}</select></div>
+            </>
+          )}
 
           <label className="ow-l">Care</label>
           <div className="ow-tags">
