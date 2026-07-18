@@ -120,15 +120,20 @@ const ProvisioningWidget = () => {
             <div className="prov-list">
               {boards.map((b) => {
                 const label = getBoardStatusConfig(b.status)?.label || b.status;
+                const canApprove = b.status === 'pending_approval' && isCommandChief;
                 return (
-                  <button type="button" key={b.id} className="prov-row" onClick={() => navigate(`/provisioning/${b.id}`)} title={b.title}>
+                  <div key={b.id} className="prov-row">
                     <span className="prov-dot" style={{ background: dotColor(b.status) }} />
-                    <span className="prov-main">
-                      <span className="prov-t">{b.title}</span>
-                      <span className="prov-s">{label}{b.trip_name ? ` · ${b.trip_name}` : ''}</span>
-                    </span>
-                    <Icon name="ChevronRight" size={16} className="prov-chev" />
-                  </button>
+                    <div className="prov-main">
+                      <div className="prov-t" title={b.title}>{b.title}</div>
+                      <div className="prov-s">{label}{b.trip_name ? ` · ${b.trip_name}` : ''}</div>
+                    </div>
+                    {canApprove ? (
+                      <button type="button" className="prov-approve" onClick={() => navigate(`/provisioning/${b.id}`)}>Approve</button>
+                    ) : (
+                      <button type="button" className="prov-view" onClick={() => navigate(`/provisioning/${b.id}`)}>View</button>
+                    )}
+                  </div>
                 );
               })}
               {moreCount > 0 && (
