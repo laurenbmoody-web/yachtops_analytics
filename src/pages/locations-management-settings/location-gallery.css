@@ -223,18 +223,24 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 /* Traced room outlines + the in-progress trace. Non-scaling stroke so the
    preserveAspectRatio="none" stretch doesn't thicken/thin the lines. */
 .dp-shapes{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none;}
-.dp-shape{fill:rgba(107,114,128,.14);stroke:#6B7280;stroke-width:1.4;vector-effect:non-scaling-stroke;stroke-linejoin:round;}
-.dp-shape.is-scanned{fill:rgba(198,90,26,.14);stroke:var(--lg-terra);}
-.dp-trace-line{fill:rgba(198,90,26,.10);stroke:var(--lg-terra);stroke-width:1.6;stroke-dasharray:4 3;vector-effect:non-scaling-stroke;stroke-linejoin:round;}
+/* White halo behind + a bold coloured stroke so outlines pop on the busy GA. */
+.dp-shape-halo{fill:none;stroke:#fff;stroke-width:4.5;vector-effect:non-scaling-stroke;stroke-linejoin:round;opacity:.9;}
+.dp-shape{fill:rgba(58,57,96,.16);stroke:#3A3960;stroke-width:2.2;vector-effect:non-scaling-stroke;stroke-linejoin:round;}
+.dp-shape.is-scanned{fill:rgba(198,90,26,.18);stroke:var(--lg-terra);}
+.dp-trace-line{fill:rgba(198,90,26,.12);stroke:var(--lg-terra);stroke-width:2;stroke-dasharray:4 3;vector-effect:non-scaling-stroke;stroke-linejoin:round;}
 .dp-trace-dot{position:absolute;transform:translate(-50%,-50%);z-index:5;width:9px;height:9px;border-radius:50%;
   background:#fff;border:2px solid var(--lg-terra);box-shadow:0 1px 3px rgba(28,27,58,.4);pointer-events:none;}
-.dp-trace-dot.is-first{width:12px;height:12px;background:var(--lg-terra);border-color:#fff;}
+.dp-trace-dot.is-first{width:13px;height:13px;background:var(--lg-terra);border-color:#fff;}
 
 /* Trace-mode hint bar (mirrors dp-linkhint, with actions). */
 .dp-tracehint{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;
   font-family:var(--lg-sans);font-size:12.5px;color:var(--lg-muted);}
 .dp-tracehint em{font-style:normal;font-weight:600;color:var(--lg-ink);}
 .dp-chip.is-tracing{border-color:var(--lg-terra);color:var(--lg-terra);}
+/* Curved/Straight toggle for the outline being traced. */
+.dp-smooth-toggle{font-family:var(--lg-sans);font-size:11.5px;font-weight:600;color:var(--lg-muted);
+  background:#fff;border:1px solid var(--lg-hair,#E8E6DF);border-radius:999px;padding:5px 12px;cursor:pointer;}
+.dp-smooth-toggle.is-on{background:var(--lg-terra);border-color:var(--lg-terra);color:#fff;}
 
 /* Room markers on the plan (Phase 2): small constant-size dots so they don't
    crowd the drawing — terracotta = scanned, hollow = not yet. The room name
