@@ -64,6 +64,13 @@ const normName = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim
 const NAME_SYNONYMS = { master: 'owner', owners: 'owner', wc: 'head', toilet: 'head', bathroom: 'head', ensuite: 'head', salon: 'saloon', lounge: 'saloon', accomodation: 'accommodation', accom: 'accommodation' };
 const matchKey = (s) => normName(s).split(' ').map((w) => NAME_SYNONYMS[w] || w).join(' ').trim();
 
+// Words too generic to signal "same room" (every cabin shares "cabin"). Used to
+// decide when to even offer a reconcile row — only when two names share a real,
+// specific word, so the panel stays empty unless there's a genuine maybe-dup.
+const GENERIC_TOKENS = new Set(['room', 'cabin', 'space', 'area', 'deck', 'guest', 'crew', 'lower', 'upper', 'main', 'the', 'port', 'stbd', 'starboard']);
+const sigTokens = (s) => matchKey(s).split(' ').filter((t) => t.length >= 4 && !GENERIC_TOKENS.has(t));
+const namesSimilar = (a, b) => { const ta = new Set(sigTokens(a)); return sigTokens(b).some((t) => ta.has(t)); };
+
 // Box aspect of a deck's crop, in true pixels (undistorted).
 const boxAspectOf = (crop, dims) => (crop.w * dims.w) / (crop.h * dims.h) || 3;
 
@@ -604,7 +611,11 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         const xs = nodes.map((n) => n.x);
         const ys = nodes.map((n) => n.y);
         const nb = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
-        if (regionInk(imageData, nb) < 0.02) { offPlan += 1; return null; }
+        // Off the drawing? Two checks: the outline sits on blank paper, OR the
+        // seed the model pointed at is itself in a blank margin (the box may clip
+        // a bit of hull edge and pass the first check while floating off-deck).
+        const seedBox = { x: r.seed.x - 0.028, y: r.seed.y - 0.06, w: 0.056, h: 0.12 };
+        if (regionInk(imageData, nb) < 0.02 || regionInk(imageData, seedBox) < 0.03) { offPlan += 1; return null; }
         const matchedSpaceId = matchSpaceId(r.name, spaces, used);
         if (matchedSpaceId) used.add(matchedSpaceId);
         return { name: r.name, matchedSpaceId, create: !matchedSpaceId, nodes, traced: !!traced };
@@ -821,8 +832,14 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               const matchCount = total - newCount; // auto-matched + reconciled-to-existing
               const matchedIds = new Set(deckProps.items.filter((i) => i.matchedSpaceId).map((i) => i.matchedSpaceId));
               const baseCandidates = spaces.filter((s) => !shapeOf(s) && !matchedIds.has(s.id));
-              const newItems = deckProps.items.map((it, i) => ({ it, i })).filter(({ it }) => it.create);
-              const showReconcile = newItems.length > 0 && baseCandidates.length > 0;
+              // Only offer a reconcile row where a read name plausibly IS an existing
+              // room (shares a specific word) — otherwise it's genuinely new, no row.
+              const candidatesFor = (it, idx) => baseCandidates.filter((s) =>
+                namesSimilar(it.name, s.name) && !deckProps.items.some((o, oi) => oi !== idx && o.assignTo === s.id));
+              const reconcileItems = deckProps.items
+                .map((it, i) => ({ it, i, opts: candidatesFor(it, i) }))
+                .filter(({ it, opts }) => it.create && (opts.length > 0 || it.assignTo));
+              const showReconcile = reconcileItems.length > 0;
               return (
                 <>
                   <div className="dp-tracehint dp-ai-review">
@@ -843,20 +860,17 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   </div>
                   {showReconcile && (
                     <div className="dp-reconcile">
-                      <div className="dp-reconcile-hd">Read a name the crew set up differently? Map it to that room instead of creating a duplicate.</div>
+                      <div className="dp-reconcile-hd">These read names look like rooms you may already have — map any that match, or leave as new.</div>
                       <div className="dp-reconcile-rows">
-                        {newItems.map(({ it, i }) => {
-                          const opts = baseCandidates.filter((s) => !deckProps.items.some((o, oi) => oi !== i && o.assignTo === s.id));
-                          return (
-                            <label className="dp-reconcile-row" key={i}>
-                              <span className="dp-recon-name">✦ {it.name}</span>
-                              <select className="dp-recon-sel" value={it.assignTo || ''} onChange={(e) => setItemAssign(i, e.target.value || null)}>
-                                <option value="">Create new room</option>
-                                {opts.map((s) => <option key={s.id} value={s.id}>= {s.name}</option>)}
-                              </select>
-                            </label>
-                          );
-                        })}
+                        {reconcileItems.map(({ it, i, opts }) => (
+                          <label className="dp-reconcile-row" key={i}>
+                            <span className="dp-recon-name">✦ {it.name}</span>
+                            <select className="dp-recon-sel" value={it.assignTo || ''} onChange={(e) => setItemAssign(i, e.target.value || null)}>
+                              <option value="">Create new room</option>
+                              {opts.map((s) => <option key={s.id} value={s.id}>= {s.name}</option>)}
+                            </select>
+                          </label>
+                        ))}
                       </div>
                     </div>
                   )}
