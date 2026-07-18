@@ -82,7 +82,7 @@ const VesselDocRenewalsWidget = () => {
           <h3 className="ce-title">Document renewals</h3>
           <p className={`dr-status${attn ? ' att' : ''}`}>{statusText}</p>
         </div>
-        <button type="button" className="dr-vault" onClick={openVault}>Open vault →</button>
+        <button type="button" className="ce-link" onClick={openVault}>View all</button>
       </div>
 
       {loading ? (
