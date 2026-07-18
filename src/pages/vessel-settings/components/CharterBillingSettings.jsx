@@ -44,12 +44,16 @@ const CharterBillingSettings = ({ canEdit }) => {
   return (
     <div className="cbs">
       <p className="cbs-intro">
-        How guests’ personal laundry is charged on a <b>plus-expenses (MYBA)</b> charter. On an
-        <b> inclusive (CYBA)</b> charter nothing is billed, and crew &amp; ship’s-linen (“Other”) items are never charged.
-        Set a charter’s basis on the trip itself.
+        Charges that sit on top of the charter fee. More billable services will be added here as the
+        agreements are worked through — for now, <b>laundry</b>. A charter’s basis (inclusive vs plus-expenses)
+        is set on the trip itself; on an <b>inclusive (CYBA)</b> charter nothing is billed.
       </p>
 
       {readOnly && <div className="cbs-note">View-only — only Command can change billing settings.</div>}
+
+      <div className="cbs-cat">
+        <div className="cbs-cat-h"><Icon name="Shirt" size={16} /><span>Laundry</span></div>
+        <p className="cbs-sub">Guests’ personal laundry is billable at cost on a <b>plus-expenses (MYBA)</b> charter. Crew &amp; ship’s-linen (“Other”) items are never charged.</p>
 
       <fieldset className="cbs-fs" disabled={readOnly}>
         {/* Currency */}
@@ -116,6 +120,7 @@ const CharterBillingSettings = ({ canEdit }) => {
           </div>
         )}
       </fieldset>
+      </div>
 
       {!readOnly && (
         <div className="cbs-foot">
