@@ -2113,6 +2113,19 @@
   font-weight: 600;
 }
 .cargo-od-timeline-step.is-future .cargo-od-timeline-label { opacity: 0.45; }
+.cargo-od-timeline-eta {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 3px;
+  font-family: var(--font-sans);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--accent);
+  white-space: nowrap;
+}
 
 /* ── Documents (3 hairline-separated rows) ─────────────────── */
 
