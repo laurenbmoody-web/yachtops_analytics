@@ -218,6 +218,10 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
    room pins sit above it and may overhang the edges without being cut. */
 .dp-plan{position:relative;margin:0 auto;}
 .dp-plan.is-tracing{cursor:crosshair;}
+/* Focus mode: tracing/adjusting one room fades the other pins right back so the
+   work stands out (other outlines + doorway lines are removed in JSX). */
+.dp-plan.is-focus .dp-pin{opacity:.16;pointer-events:none;}
+.dp-plan.is-focus .dp-pin .dp-pin-label{display:none;}
 .dp-plan-bg{position:absolute;inset:0;border-radius:14px;border:1px solid var(--lg-hair);
   background-color:var(--lg-wash);box-shadow:var(--lg-sh-flat, 0 1px 2px rgba(28,27,58,.06));overflow:hidden;}
 

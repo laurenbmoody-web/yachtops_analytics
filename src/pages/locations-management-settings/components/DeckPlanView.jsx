@@ -583,6 +583,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         const posById = Object.fromEntries(placed.map((s) => [s.id, posOf(s)]));
         const deckLinks = links.filter((l) => posById[l.a] && posById[l.b]);
         const deckProps = proposals?.deckId === deck.id ? proposals : null;
+        // Focus mode: while tracing/adjusting a room on this deck, hide the other
+        // outlines + doorway lines and dim the other pins so the work stands out.
+        const focusMode = (tracing?.deckId === deck.id) || (editing?.deckId === deck.id);
         return (
           <div className="dp-deck" key={deck.id}>
             <div className="dp-deckhdr">
@@ -694,7 +697,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
             {crop && gaDims ? (
               <>
                 <div
-                  className={`dp-plan ${linkMode ? 'is-linking' : ''} ${traceMode ? 'is-tracing' : ''}`}
+                  className={`dp-plan ${linkMode ? 'is-linking' : ''} ${traceMode ? 'is-tracing' : ''} ${focusMode ? 'is-focus' : ''}`}
                   ref={(el) => { planRefs.current[deck.id] = el; }}
                   style={{ width: '100%', aspectRatio: String(boxAspectOf(crop, gaDims)) }}
                   onClick={(e) => onPlanClick(e, deck)}
@@ -702,7 +705,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   <div className="dp-plan-bg" style={cropBg(crop, layout.gaImageUrl)} />
                   {/* Traced room outlines + the in-progress trace preview. */}
                   <svg className="dp-shapes" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                    {placed.map((s) => {
+                    {!focusMode && placed.map((s) => {
                       if (editing?.spaceId === s.id) return null; // shown live below
                       const sh = shapeOf(s);
                       if (!sh) return null;
@@ -734,7 +737,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       );
                     })}
                   </svg>
-                  {deckLinks.length > 0 && (
+                  {!focusMode && deckLinks.length > 0 && (
                     <svg className="dp-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                       {deckLinks.map((l) => {
                         const a = posById[l.a]; const b = posById[l.b];
