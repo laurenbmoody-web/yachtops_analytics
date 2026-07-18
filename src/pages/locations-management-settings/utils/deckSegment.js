@@ -42,7 +42,7 @@ export function segmentDeck(imageData, opts = {}) {
   const wallLum = opts.wallLum ?? 150;
   const iters = opts.dilate ?? 2;
   const minArea = (opts.minAreaFrac ?? 0.0006) * N;
-  const maxArea = (opts.maxAreaFrac ?? 0.15) * N;
+  const hardMax = (opts.maxAreaFrac ?? 0.4) * N; // safety only — the outside is dropped by rank
 
   const wall0 = new Uint8Array(N);
   for (let i = 0; i < N; i += 1) if (lum(d, i * 4) < wallLum) wall0[i] = 1;
@@ -50,7 +50,7 @@ export function segmentDeck(imageData, opts = {}) {
 
   const label = new Int32Array(N); // 0 = wall / unlabelled
   const stack = [];
-  const regionById = new Map();
+  const cands = []; // regions >= minArea
   let id = 0;
   for (let s = 0; s < N; s += 1) {
     if (wall[s] || label[s]) continue;
@@ -77,7 +77,19 @@ export function segmentDeck(imageData, opts = {}) {
       if (y > 0 && !wall[p - W] && !label[p - W]) { label[p - W] = id; stack.push(p - W); }
       if (y < H - 1 && !wall[p + W] && !label[p + W]) { label[p + W] = id; stack.push(p + W); }
     }
-    if (area >= minArea && area <= maxArea) regionById.set(id, { id, area, minx, miny, maxx, maxy });
+    if (area >= minArea) cands.push({ id, area, minx, miny, maxx, maxy });
+  }
+  // The single biggest region is the outside-the-hull space — drop just that (and
+  // any second giant past the safety cap). Everything else, however large, is a
+  // real room (a big engine room must survive).
+  let outsideId = -1;
+  let outsideArea = -1;
+  for (const c of cands) if (c.area > outsideArea) { outsideArea = c.area; outsideId = c.id; }
+  const regionById = new Map();
+  for (const c of cands) {
+    if (c.id === outsideId) continue;
+    if (c.area > hardMax) continue;
+    regionById.set(c.id, c);
   }
   return { W, H, label, regionById };
 }

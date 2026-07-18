@@ -913,13 +913,16 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       const d = shapeToPath({ closed: true, nodes: editing.nodes });
                       return (<g><path className="dp-shape-halo" d={d} /><path className="dp-shape is-editing" d={d} /></g>);
                     })()}
-                    {/* AI proposal outlines — dashed, awaiting Apply. */}
+                    {/* AI proposal outlines — dashed, coloured by category (zone map). */}
                     {deckProps && deckProps.items.map((it, i) => {
                       const d = shapeToPath({ closed: true, nodes: aiSmooth ? smoothClosed(it.nodes) : it.nodes });
+                      const cat = it.matchedSpaceId
+                        ? categoryOf(spaces.find((s) => s.id === it.matchedSpaceId) || { id: it.matchedSpaceId, name: it.name })
+                        : normCategory(inferCategory(it.name));
                       return (
                         <g key={i}>
                           <path className="dp-shape-halo" d={d} />
-                          <path className={`dp-proposal ${it.create && !it.assignTo ? 'is-new' : ''}`} d={d} />
+                          <path className="dp-proposal" d={d} style={{ stroke: categoryColor(cat), fill: categoryFill(cat) }} />
                         </g>
                       );
                     })}
@@ -960,8 +963,11 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   {deckProps && deckProps.items.map((it, i) => {
                     const c = centroidOf(it.nodes);
                     if (!c) return null;
+                    const cat = it.matchedSpaceId
+                      ? categoryOf(spaces.find((s) => s.id === it.matchedSpaceId) || { id: it.matchedSpaceId, name: it.name })
+                      : normCategory(inferCategory(it.name));
                     return (
-                      <span key={i} className={`dp-proposal-label ${it.create && !it.assignTo ? 'is-new' : ''}`} style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%` }}>
+                      <span key={i} className="dp-proposal-label" style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%`, background: categoryColor(cat) }}>
                         ✦ {it.name}{it.create && !it.assignTo ? ' +' : ''}
                       </span>
                     );
