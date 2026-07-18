@@ -1,0 +1,48 @@
+.csh-page {
+  min-height: 100vh; background: #F3F1EC; color: #1C1B3A;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  display: flex; align-items: flex-start; justify-content: center; padding: 32px 18px 64px;
+}
+.csh-card {
+  width: 100%; max-width: 440px; background: #FFFFFF; border: 1px solid #ECEAE3;
+  border-radius: 16px; box-shadow: 0 24px 60px -24px rgba(28, 27, 58, 0.28);
+  padding: 26px 26px 24px; margin-top: 6vh;
+}
+.csh-brand { font: 800 15px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.22em; color: #1C1B3A; margin-bottom: 20px; }
+
+.csh-eyebrow { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #C65A1A; }
+.csh-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 30px; line-height: 1.05; margin: 4px 0 0; word-break: break-word; }
+.csh-lede { font-size: 14px; line-height: 1.55; color: #6B7280; margin: 12px 0 18px; }
+
+.csh-gate { display: flex; flex-direction: column; }
+.csh-label { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; margin-bottom: 6px; }
+.csh-input {
+  font: 400 15px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  background: #FAFAF8; border: 1px solid #E5E2DA; border-radius: 10px; padding: 12px 14px;
+}
+.csh-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }
+.csh-err { font-size: 13px; color: #C24632; background: #FBECEA; border: 1px solid #F5D9D4; border-radius: 9px; padding: 9px 12px; margin-top: 12px; }
+.csh-btn {
+  margin-top: 16px; font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer;
+  background: #C65A1A; color: #FFFFFF; border: none; border-radius: 10px; padding: 13px 18px; transition: 0.14s;
+}
+.csh-btn:hover:not(:disabled) { background: #B14E16; }
+.csh-btn:disabled { background: #E7C9B6; cursor: default; }
+
+.csh-contents { display: flex; flex-direction: column; }
+.csh-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; color: #6B7280; margin: 12px 0 18px; }
+.csh-meta b { color: #1C1B3A; }
+.csh-status { font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 999px; padding: 3px 9px; flex: none; }
+.csh-status.prog { color: #B7791F; background: #FBF1DF; }
+.csh-status.ready { color: #2F6E8F; background: #E9F1F5; }
+.csh-status.done { color: #2F7D5A; background: #E7F2EC; }
+
+.csh-list { list-style: none; margin: 0; padding: 0; }
+.csh-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F0F1F5; }
+.csh-item:last-child { border-bottom: none; }
+.csh-item-main { flex: 1; min-width: 0; }
+.csh-item-nm { display: block; font-size: 14px; font-weight: 600; color: #1C1B3A; }
+.csh-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.csh-tag { font: 700 8px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: #B7791F; background: #FBF1DF; border-radius: 999px; padding: 2px 7px; }
+.csh-empty { color: #8B8478; font-size: 14px; padding: 18px 0; }
+.csh-foot { margin-top: 20px; padding-top: 14px; border-top: 1px solid #F0F1F5; font-size: 11.5px; color: #AEB4C2; }

@@ -3,6 +3,7 @@ import Icon from '../../../components/AppIcon';
 import { loadCases, createCase, updateCase, archiveCase, getCaseById, CASE_FLOW, CaseStatusLabels } from '../utils/laundryCases';
 import { setLaundryItemsCase } from '../utils/laundryStorage';
 import { printCaseManifest } from '../utils/laundryLabels';
+import { createCaseShare } from '../utils/laundryCaseShare';
 import './laundryCases.css';
 
 const ownerText = (it) => {
@@ -24,6 +25,13 @@ const LaundryCasesModal = ({ onClose, items = [], initialCaseId = null, onChange
   const [newDest, setNewDest] = useState('');
   const [picking, setPicking] = useState(false);
   const [pickSel, setPickSel] = useState({});
+  // Guest share panel
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareSurname, setShareSurname] = useState('');
+  const [shareExpiry, setShareExpiry] = useState('charter'); // 'charter' (30d) | 'none'
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [copied, setCopied] = useState(false);
   // Local mirror of item→case so the UI updates instantly; parent reloads too.
   const [caseOf, setCaseOf] = useState(() => Object.fromEntries(items.map((i) => [i.id, i.caseId || null])));
   useEffect(() => { setCaseOf(Object.fromEntries(items.map((i) => [i.id, i.caseId || null]))); }, [items]);
@@ -49,6 +57,22 @@ const LaundryCasesModal = ({ onClose, items = [], initialCaseId = null, onChange
     setCaseOf((prev) => { const n = { ...prev }; ids.forEach((id) => { n[id] = caseId; }); return n; });
     await setLaundryItemsCase(ids, caseId);
     onChanged?.();
+  };
+
+  // Reset the share panel whenever the open case changes.
+  useEffect(() => { setShareOpen(false); setShareSurname(''); setShareLink(''); setCopied(false); setShareExpiry('charter'); }, [selId]);
+
+  const doShare = async () => {
+    if (!sel || !shareSurname.trim() || shareBusy) return;
+    setShareBusy(true); setShareLink(''); setCopied(false);
+    const expiresAt = shareExpiry === 'charter' ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null;
+    const res = await createCaseShare(sel.id, shareSurname.trim(), expiresAt);
+    setShareBusy(false);
+    if (res?.url) setShareLink(res.url);
+  };
+
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(shareLink); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* clipboard blocked */ }
   };
 
   const confirmPack = async () => {
@@ -158,6 +182,35 @@ const LaundryCasesModal = ({ onClose, items = [], initialCaseId = null, onChange
                 ))}
               </div>
             )}
+
+            <div className="lcm-share">
+              {!shareOpen ? (
+                <button type="button" className="lcm-mini" onClick={() => setShareOpen(true)}><Icon name="Share2" size={14} /> Share with guest</button>
+              ) : (
+                <div className="lcm-share-form">
+                  <div className="lcm-share-head"><Icon name="Share2" size={14} /> Guest link</div>
+                  <p className="lcm-share-hint">The guest opens the link and enters this surname to see what’s in the case. A leaked link alone shows nothing.</p>
+                  <label className="lcm-share-l">Surname (the gate)</label>
+                  <input className="lcm-input" value={shareSurname} onChange={(e) => setShareSurname(e.target.value)} placeholder="e.g. Moody" />
+                  <label className="lcm-share-l">Link expiry</label>
+                  <div className="lcm-share-exp">
+                    <button type="button" className={`lcm-flow-pill${shareExpiry === 'charter' ? ' on' : ''}`} onClick={() => setShareExpiry('charter')}>30 days</button>
+                    <button type="button" className={`lcm-flow-pill${shareExpiry === 'none' ? ' on' : ''}`} onClick={() => setShareExpiry('none')}>No expiry</button>
+                  </div>
+                  {shareLink ? (
+                    <div className="lcm-share-out">
+                      <input className="lcm-input" readOnly value={shareLink} onFocus={(e) => e.target.select()} />
+                      <button type="button" className="lcm-btn primary" onClick={copyLink}>{copied ? 'Copied' : 'Copy'}</button>
+                    </div>
+                  ) : (
+                    <div className="lcm-share-actions">
+                      <button type="button" className="lcm-btn ghost" onClick={() => setShareOpen(false)}>Cancel</button>
+                      <button type="button" className="lcm-btn primary" disabled={!shareSurname.trim() || shareBusy} onClick={doShare}>{shareBusy ? 'Creating…' : 'Create link'}</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <button type="button" className="lcm-danger" onClick={removeCase}><Icon name="Trash2" size={14} /> Remove case</button>
           </div>

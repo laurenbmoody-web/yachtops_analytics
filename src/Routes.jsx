@@ -28,6 +28,7 @@ import LocationsManagementSettings from './pages/locations-management-settings';
 import DefectsDashboard from './pages/defects';
 import LaundryManagementDashboard from './pages/laundry-management-dashboard';
 import LaundryCalendarHistoryView from './pages/laundry-calendar-history-view';
+import LaundryCaseShare from './pages/laundry-case-share';
 import TripsManagementDashboard from './pages/trips-management-dashboard';
 import TripDetailView from './pages/trip-detail-view-with-guest-allocation';
 import CrewRotaPage from './pages/crew-rota';
@@ -1194,6 +1195,7 @@ const Routes = () => {
         <Route path="/delivery-sign/:token" element={<DeliverySigningPage />} />
         <Route path="/drive/:token" element={<DriverTokenPage />} />
         <Route path="/sea-service/sign/:token" element={<SeaServiceSignPage />} />
+        <Route path="/case/:token" element={<LaundryCaseShare />} />
         <Route path="/invite-accept" element={<InviteAcceptPage />} />
         <Route path="/invite" element={<InviteRedirect />} />
         <Route path="/accept-invite" element={<InviteRedirect />} />

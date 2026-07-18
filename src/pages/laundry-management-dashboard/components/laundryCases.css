@@ -89,5 +89,15 @@
 .lcm-btn.ghost { background: #FFFFFF; color: #1C1B3A; border-color: #E5E2DA; }
 .lcm-btn.ghost:hover { background: #F6F5F2; }
 
+.lcm-share { border-top: 1px solid #F0F1F5; padding-top: 14px; }
+.lcm-share-form { display: flex; flex-direction: column; gap: 8px; border: 1px solid #ECEAE3; border-radius: 12px; padding: 14px; background: #FAFAF8; }
+.lcm-share-head { display: flex; align-items: center; gap: 6px; font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: #1C1B3A; }
+.lcm-share-hint { font-size: 12px; line-height: 1.5; color: #6B7280; margin: 0; }
+.lcm-share-l { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; margin-top: 4px; }
+.lcm-share-exp { display: flex; gap: 6px; }
+.lcm-share-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px; }
+.lcm-share-out { display: flex; gap: 8px; margin-top: 4px; }
+.lcm-share-out .lcm-input { flex: 1; font-size: 12px; }
+
 .lcm-danger { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; cursor: pointer; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C24632; background: none; border: none; padding: 8px 2px; margin-top: 4px; }
 .lcm-danger:hover { text-decoration: underline; }
