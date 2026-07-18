@@ -137,7 +137,9 @@ export function buildLogbook(trips, items, now = new Date()) {
     .map((t) => ({ id: t.id || t.supabaseId, name: t.name || 'Voyage', start: dateOnly(t.startDate), end: dateOnly(t.endDate), billingBasis: t.billingBasis || 'inclusive' }))
     .sort((a, b) => a.start - b.start);
 
-  const findTrip = (d) => good.find((t) => d >= t.start && d <= t.end) || null;
+  // On overlapping trips the most recently started charter wins (matches
+  // basisForItem in laundryBilling, so billing is consistent everywhere).
+  const findTrip = (d) => { const m = good.filter((t) => d >= t.start && d <= t.end); return m.length ? m[m.length - 1] : null; };
 
   // bucket items → voyage (trip) or off-charter (by month)
   const voyageItems = new Map(); // tripId -> items
