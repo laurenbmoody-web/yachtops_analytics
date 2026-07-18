@@ -14,25 +14,41 @@ const esc = (s) => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-// Deep link a scan resolves to. Encoded in the QR and parsed by parseScan().
+const laundryOrigin = () => (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+
+// Deep link an item label resolves to. Encoded in the QR and parsed below.
 export function scanUrlFor(id) {
-  const origin = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
-  return `${origin}/laundry-management-dashboard?scan=${encodeURIComponent(id)}`;
+  return `${laundryOrigin()}/laundry-management-dashboard?scan=${encodeURIComponent(id)}`;
+}
+
+// Deep link a case label resolves to.
+export function caseScanUrlFor(id) {
+  return `${laundryOrigin()}/laundry-management-dashboard?case=${encodeURIComponent(id)}`;
 }
 
 // Read a laundry item id out of a scanned value — accepts either the full
 // deep-link URL or a bare id, so a hand-typed code also works.
 export function parseScan(value) {
+  return parseScanTarget(value)?.id || null;
+}
+
+// Resolve a scanned value to its kind + id. A `case=` deep link is a case; a
+// `scan=` deep link (or a bare value) is an item.
+export function parseScanTarget(value) {
   if (!value) return null;
   const raw = String(value).trim();
   try {
     const u = new URL(raw);
+    const c = u.searchParams.get('case');
+    if (c) return { kind: 'case', id: c };
     const s = u.searchParams.get('scan');
-    if (s) return s;
+    if (s) return { kind: 'item', id: s };
   } catch { /* not a URL — fall through */ }
+  const cm = raw.match(/case=([^&\s]+)/);
+  if (cm) return { kind: 'case', id: decodeURIComponent(cm[1]) };
   const m = raw.match(/scan=([^&\s]+)/);
-  if (m) return decodeURIComponent(m[1]);
-  return raw; // treat as a bare id
+  if (m) return { kind: 'item', id: decodeURIComponent(m[1]) };
+  return { kind: 'item', id: raw }; // bare id → item
 }
 
 const makeQr = async (text) => {
@@ -121,5 +137,82 @@ export async function printLaundryLabels(items) {
     w.document.close();
     w.focus();
     setTimeout(() => { try { w.print(); } catch (e) { /* user can print manually */ } }, 350);
-  } catch (e) { /* window closed */ }
+  } catch (e) { /* user can print manually */ }
+}
+
+const CASE_CSS = `
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1C1B3A; margin: 0; padding: 28px 32px; background: #FFFFFF; }
+  .ch { display: flex; gap: 22px; align-items: flex-start; border-bottom: 2px solid #1C1B3A; padding-bottom: 18px; margin-bottom: 18px; }
+  .ch-qr { flex: none; width: 132px; height: 132px; border: 1px solid #ECEAE3; border-radius: 10px; padding: 7px; }
+  .ch-qr img { width: 100%; height: 100%; }
+  .ch-id { flex: 1; min-width: 0; }
+  .ch-eyebrow { font: 700 10px system-ui; letter-spacing: 0.14em; text-transform: uppercase; color: #C65A1A; }
+  .ch-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 32px; line-height: 1.02; margin: 4px 0 8px; word-break: break-word; }
+  .ch-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: #6B7280; }
+  .ch-meta b { color: #1C1B3A; font-weight: 700; }
+  .ch-status { font: 700 9px system-ui; letter-spacing: 0.08em; text-transform: uppercase; color: #C65A1A; background: #FBEFE9; border-radius: 999px; padding: 3px 10px; }
+  h2 { font: 700 9px system-ui; letter-spacing: 0.13em; text-transform: uppercase; color: #8B8478; margin: 0 0 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font: 700 8px system-ui; letter-spacing: 0.08em; text-transform: uppercase; color: #AEB4C2; text-align: left; padding: 4px 10px 6px 0; border-bottom: 1px solid #ECECEE; }
+  td { padding: 8px 10px 8px 0; font-size: 12.5px; border-bottom: 1px solid #F0F1F5; vertical-align: top; }
+  td.no { color: #C65A1A; font-weight: 700; width: 54px; }
+  td.own { color: #6B7280; width: 26%; }
+  td.cab { color: #6B7280; width: 20%; }
+  .dn { font-weight: 600; }
+  .empty { color: #AEB4C2; font-size: 13px; padding: 16px 0; }
+  .foot { margin-top: 22px; padding-top: 10px; border-top: 1px solid #ECECEE; font: 700 8px system-ui; letter-spacing: 0.1em; text-transform: uppercase; color: #AEB4C2; }
+  @media print { body { padding: 14mm; } }
+`;
+
+// Print a case: a big scannable case QR + a manifest of everything packed in it.
+export async function printCaseManifest(caseObj, items) {
+  if (!caseObj?.id) return;
+  const list = (items || []).filter(Boolean);
+  let w = null;
+  try {
+    w = window.open('', '_blank');
+    if (w) { w.document.open(); w.document.write('<!doctype html><meta charset="utf-8"><title>Case</title><body style="font-family:system-ui;padding:40px;color:#6B7280">Preparing case…</body>'); w.document.close(); }
+  } catch { /* popup blocked */ }
+
+  const qr = await makeQr(caseScanUrlFor(caseObj.id)).catch(() => '');
+  const rows = list.length
+    ? list.map((it, i) => `<tr>
+        <td class="no">${it.laundryNumber ? esc(it.laundryNumber) : String(i + 1)}</td>
+        <td><span class="dn">${esc(it.description || 'Laundry item')}</span>${it.colour ? ` · ${esc(it.colour)}` : ''}</td>
+        <td class="own">${esc(ownerLabel(it))}</td>
+        <td class="cab">${esc(it.area || '—')}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="4" class="empty">No items packed yet.</td></tr>`;
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Case — ${esc(caseObj.name)}</title><style>${CASE_CSS}</style></head><body>
+    <div class="ch">
+      <div class="ch-qr"><img src="${esc(qr)}" alt="scan case" /></div>
+      <div class="ch-id">
+        <div class="ch-eyebrow">Laundry case</div>
+        <div class="ch-name">${esc(caseObj.name)}</div>
+        <div class="ch-meta">
+          <span class="ch-status">${esc(caseObj.status || 'open')}</span>
+          ${caseObj.destination ? `<span>Bound for <b>${esc(caseObj.destination)}</b></span>` : ''}
+          <span><b>${list.length}</b> item${list.length === 1 ? '' : 's'}</span>
+        </div>
+      </div>
+    </div>
+    <h2>Manifest</h2>
+    <table>
+      <thead><tr><th>No.</th><th>Item</th><th>Owner</th><th>Cabin</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="foot">Cargo · Laundry case · Scan the code to open this case</div>
+  </body></html>`;
+
+  try {
+    if (!w) w = window.open('', '_blank');
+    if (!w) return;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { try { w.print(); } catch (e) { /* user can print manually */ } }, 350);
+  } catch (e) { /* user can print manually */ }
 }
