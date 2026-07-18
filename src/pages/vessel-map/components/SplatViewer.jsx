@@ -565,17 +565,24 @@ export default function SplatViewer({
       // Poster frame: render synchronously then read the canvas in the same
       // task — no preserveDrawingBuffer needed, no per-frame cost. Downscaled
       // to a ~480px JPEG for the manage list.
-      // `hidePins` blanks all pins/rings for one synchronous capture (a clean
+      // `hidePins` blanks pins/rings for one synchronous capture (a clean
       // location shot), then restores — pin visibility is instant, so this
-      // doesn't disturb the splat's depth sort (a camera *move* would, which is
-      // why the defect snapshot glides the target over frames rather than
-      // jumping, then captures here).
-      captureFrame: ({ width = 480, quality = 0.75, hidePins = false } = {}) => {
-        const pinObjs = [spriteGroup, pulseGroup, steadyRing, pulseRing];
-        const vis = hidePins ? pinObjs.map((o) => o.visible) : null;
-        if (hidePins) pinObjs.forEach((o) => { o.visible = false; });
+      // doesn't disturb the splat's depth sort (a camera *move* would). Pass
+      // `keepPinId` to leave ONE pin visible (the defect being closed), so the
+      // snapshot shows exactly which spot it refers to.
+      captureFrame: ({ width = 480, quality = 0.75, hidePins = false, keepPinId = null } = {}) => {
+        const restore = [];
+        if (hidePins) {
+          for (const child of spriteGroup.children) {
+            const keep = keepPinId && child.userData.hotspot?.id === keepPinId;
+            if (!keep && child.visible) { child.visible = false; restore.push(child); }
+          }
+          for (const o of [...pulseGroup.children, steadyRing, pulseRing]) {
+            if (o.visible) { o.visible = false; restore.push(o); }
+          }
+        }
         renderer.render(scene, camera);
-        if (hidePins) pinObjs.forEach((o, i) => { o.visible = vis[i]; });
+        restore.forEach((o) => { o.visible = true; });
         const src = renderer.domElement;
         if (!src.width || !src.height) return Promise.resolve(null);
         const w = Math.min(width, src.width);
