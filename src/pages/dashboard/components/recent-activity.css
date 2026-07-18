@@ -1,0 +1,18 @@
+/* Recent activity — editorial rebuild. Hairline rows, one typeface, an icon in
+   a soft semantic chip. Green = created/done, amber = changed, red = removed. */
+.ra{font-family:'Inter',system-ui,sans-serif;}
+.ra-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px;}
+.ra-list{display:flex;flex-direction:column;}
+.ra-row{display:flex;align-items:flex-start;gap:11px;padding:11px 0;border-bottom:1px solid #ECEDF3;}
+.ra-row:last-child{border-bottom:0;padding-bottom:2px;}
+.ra-ico{width:30px;height:30px;border-radius:9px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  background:#F3F4F8;color:#6B7280;}
+.ra-ico[data-kind="create"]{background:#EFF6F0;color:#3F7A52;}
+.ra-ico[data-kind="delete"]{background:#FDF1ED;color:#B23A2E;}
+.ra-ico[data-kind="update"]{background:#FBF3E4;color:#A8791C;}
+.ra-ico[data-kind="assign"]{background:#EEF1F8;color:#3B4A6B;}
+.ra-txt{min-width:0;flex:1;display:flex;flex-direction:column;}
+.ra-sum{font-size:12.5px;font-weight:500;color:#1C1B3A;line-height:1.4;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.ra-time{font-size:11px;color:#AEB4C2;margin-top:2px;}
+.ra-empty{font-size:13px;color:#8B8478;padding:22px 0;text-align:center;}
