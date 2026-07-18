@@ -9,6 +9,7 @@ import LaundryDetailModal from './components/LaundryDetailModal';
 import { FilterMenu, SortMenu } from './components/LaundryFilters';
 import { subscribeOffline, pendingOfflineItems, drainOfflineLaundry, isLaundryOffline, enqueueOfflineStatus, pendingStatusMap } from './utils/laundryOfflineQueue';
 import { attachBilling } from './utils/laundryBilling';
+import { canViewCost } from '../../utils/costPermissions';
 import { LaundryStatus, LaundryPriority, getTodayViewItems, loadAllLaundryItems, updateLaundryStatus, migrateLaundryItems, isNewDay, setLastLaundryDayKey, getTodayKey, manualResetDay, getLaundryBilling } from './utils/laundryStorage';
 import { turnaroundStats, fmtDur } from './utils/laundryStats';
 import { enrichWithAvatars } from './utils/laundryAvatars';
@@ -77,7 +78,9 @@ const LaundryManagementDashboard = () => {
   // (in its deps), so they're initialised when that runs.
   const [allTrips, setAllTrips] = useState([]);
   const [billingCfg, setBillingCfg] = useState(null);
-  useEffect(() => { loadTrips().then((t) => setAllTrips(t || [])).catch(() => {}); getLaundryBilling().then(setBillingCfg).catch(() => {}); }, []);
+  // Charges are commercial info: only load billing config for cost-authorised
+  // users (Command / Chief / HOD). Crew never see charge pills.
+  useEffect(() => { loadTrips().then((t) => setAllTrips(t || [])).catch(() => {}); if (canViewCost()) getLaundryBilling().then(setBillingCfg).catch(() => {}); }, []);
   const [, setGuests] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

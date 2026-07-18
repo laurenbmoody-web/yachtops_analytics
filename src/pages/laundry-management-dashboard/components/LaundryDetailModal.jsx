@@ -5,6 +5,7 @@ import ModalShell from '../../../components/ui/ModalShell';
 import { LaundryStatus, LaundryPriority, formatLaundryTag, updateLaundryStatus, updateLaundryItem, getLaundryEvents, getLaundryBilling } from '../utils/laundryStorage';
 import { isLaundryOffline, enqueueOfflineStatus } from '../utils/laundryOfflineQueue';
 import { money, suggestCharge, CUR_SYM } from '../utils/laundryBilling';
+import { canEditCost } from '../../../utils/costPermissions';
 import '../laundry.css';
 
 const EVENT_LABEL = { created: 'Added', ready: 'Marked ready', delivered: 'Delivered', reopened: 'Reopened', edited: 'Edited', updated: 'Updated' };
@@ -152,14 +153,18 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
         {item?._billable && (
           <div className="alm-section">
             <label className="alm-label">Charter charge <span className="alm-opt">guest laundry</span></label>
-            <div className="ldm-charge">
-              <span className="ldm-charge-cur">{CUR_SYM[billing?.currency] || '£'}</span>
-              <input type="number" min="0" step="0.01" className="alm-field" placeholder={billing ? suggestCharge(item, billing).toFixed(2) : '0.00'}
-                value={chargeDraft} onChange={(e) => setChargeDraft(e.target.value)} />
-              <button type="button" className="alm-btn outline" onClick={() => patch({ charge: chargeDraft === '' ? null : Number(chargeDraft) })}>Save</button>
-            </div>
+            {canEditCost() ? (
+              <div className="ldm-charge">
+                <span className="ldm-charge-cur">{CUR_SYM[billing?.currency] || '£'}</span>
+                <input type="number" min="0" step="0.01" className="alm-field" placeholder={billing ? suggestCharge(item, billing).toFixed(2) : '0.00'}
+                  value={chargeDraft} onChange={(e) => setChargeDraft(e.target.value)} />
+                <button type="button" className="alm-btn outline" onClick={() => patch({ charge: chargeDraft === '' ? null : Number(chargeDraft) })}>Save</button>
+              </div>
+            ) : (
+              <div className="ldm-charge-ro">{money(item?._charge != null ? item._charge : (item?.charge != null ? item.charge : suggestCharge(item, billing)), billing?.currency)}</div>
+            )}
             <div className="ldm-charge-hint">
-              {item?.charge != null ? `Set to ${money(item.charge, billing?.currency)}. ` : ''}
+              {canEditCost() && item?.charge != null ? `Set to ${money(item.charge, billing?.currency)}. ` : ''}
               Only billed on a plus-expenses (MYBA) charter{billing?.scope === 'shoreside' ? ', for shore-sent items — use the vendor’s invoice amount' : ''}.
             </div>
           </div>
