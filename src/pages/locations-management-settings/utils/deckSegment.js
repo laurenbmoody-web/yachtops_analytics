@@ -126,24 +126,74 @@ function fillHoles(m, bw, bh) {
   for (let i = 0; i < bw * bh; i += 1) if (!m[i] && !bg[i]) m[i] = 1;
 }
 
-// A region's outline → simplified nodes normalized 0..1 to the image, or null.
-export function regionContour(seg, region, opts = {}) {
-  const { W, label } = seg;
-  const { id, minx, miny, maxx, maxy } = region;
+// Simplified outline of an arbitrary mask, over a bbox window. Normalized 0..1.
+function maskContour(mask, W, H, bbox, eps) {
+  const { minx, miny, maxx, maxy } = bbox;
   const bw = maxx - minx + 1;
   const bh = maxy - miny + 1;
   if (bw < 3 || bh < 3) return null;
   const m = new Uint8Array(bw * bh);
   for (let y = 0; y < bh; y += 1) {
     for (let x = 0; x < bw; x += 1) {
-      if (label[(miny + y) * W + (minx + x)] === id) m[y * bw + x] = 1;
+      if (mask[(miny + y) * W + (minx + x)]) m[y * bw + x] = 1;
     }
   }
   fillHoles(m, bw, bh);
   const contour = mooreBoundary(m, bw, bh);
   if (!contour || contour.length < 4) return null;
   const diag = Math.hypot(bw, bh);
-  const simp = rdpClosed(contour, Math.max(2, diag * (opts.eps ?? 0.012)));
+  const simp = rdpClosed(contour, Math.max(2, diag * (eps ?? 0.012)));
   if (simp.length < 3) return null;
-  return simp.map((p) => ({ x: (minx + p.x) / seg.W, y: (miny + p.y) / seg.H }));
+  return simp.map((p) => ({ x: (minx + p.x) / W, y: (miny + p.y) / H }));
+}
+
+// A room's outline: the seed's region PLUS its small satellite sub-regions
+// (ensuite / wardrobe / WC, each cut off by one thin internal wall), so a cabin
+// comes out whole rather than as just its bed area. A satellite is absorbed only
+// if it's small relative to the main region and mostly within reach of it — big
+// neighbours (other cabins) and the corridor are never absorbed. `claimed` is the
+// set of every room's own region id, so one room never eats another's.
+export function roomOutline(seg, region, claimed, opts = {}) {
+  const { W, H, label, regionById } = seg;
+  const N = W * H;
+  const segDil = opts.segDilate ?? 2;
+  const main = new Uint8Array(N);
+  for (let i = 0; i < N; i += 1) if (label[i] === region.id) main[i] = 1;
+  const grown = dilate(main, W, H, 2 * segDil + 1);
+  const union = main.slice();
+  let minx = region.minx;
+  let miny = region.miny;
+  let maxx = region.maxx;
+  let maxy = region.maxy;
+  regionById.forEach((jr, jid) => {
+    if (jid === region.id || (claimed && claimed.has(jid))) return;
+    if (jr.area >= 0.35 * region.area) return; // only small sub-parts
+    let inside = 0;
+    for (let y = jr.miny; y <= jr.maxy; y += 1) {
+      for (let x = jr.minx; x <= jr.maxx; x += 1) {
+        const i = y * W + x;
+        if (label[i] === jid && grown[i]) inside += 1;
+      }
+    }
+    if (inside > 0.7 * jr.area) {
+      for (let y = jr.miny; y <= jr.maxy; y += 1) {
+        for (let x = jr.minx; x <= jr.maxx; x += 1) {
+          const i = y * W + x;
+          if (label[i] === jid) union[i] = 1;
+        }
+      }
+      if (jr.minx < minx) minx = jr.minx;
+      if (jr.maxx > maxx) maxx = jr.maxx;
+      if (jr.miny < miny) miny = jr.miny;
+      if (jr.maxy > maxy) maxy = jr.maxy;
+    }
+  });
+  const bridged = dilate(union, W, H, segDil); // close the thin internal walls
+  const bbox = {
+    minx: Math.max(0, minx - segDil - 1),
+    miny: Math.max(0, miny - segDil - 1),
+    maxx: Math.min(W - 1, maxx + segDil + 1),
+    maxy: Math.min(H - 1, maxy + segDil + 1),
+  };
+  return maskContour(bridged, W, H, bbox, opts.eps ?? 0.012);
 }
