@@ -8,12 +8,12 @@ import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
 import { useAuth } from '../../../contexts/AuthContext';
-import { getBudgetVsActual, updateBudget, closeBudget, upsertLine, deleteLine, seedStandardTemplate, updateLineAmount, setCategoryOverride } from '../../../services/budgetService';
+import { getBudgetVsActual, getBudgetMonthly, updateBudget, closeBudget, upsertLine, deleteLine, seedStandardTemplate, updateLineAmount, setCategoryOverride } from '../../../services/budgetService';
 import { formatMoney } from '../../../services/financeCalc';
 import BudgetFormModal from './components/BudgetFormModal';
 import LineFormModal from './components/LineFormModal';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from './data/mybaChartOfAccounts';
-import { exportBudgetXlsx } from './budgetExport';
+import { exportBudgetXlsx, exportBudgetMonthlyXlsx } from './budgetExport';
 import './budgets.css';
 
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -47,6 +47,8 @@ export default function BudgetDetail() {
   const [lineModal, setLineModal] = useState(null); // { line } or {} for new
   const [amtEdit, setAmtEdit] = useState(null);     // { id, value } inline amount edit
   const [addRow, setAddRow] = useState(null);       // { bucket, kind, category, amount } inline add
+  const [tab, setTab] = useState('summary');        // 'summary' | 'monthly'
+  const [monthly, setMonthly] = useState(null);
   const [toast, setToast] = useState('');
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
 
@@ -54,6 +56,9 @@ export default function BudgetDetail() {
     setLoading(true);
     const { data, error } = await getBudgetVsActual(id);
     if (!error && data) setView(data);
+    // Refresh the monthly matrix too so both tabs stay in step after edits.
+    const mr = await getBudgetMonthly(id);
+    if (!mr.error && mr.data) setMonthly(mr.data);
     setLoading(false);
   }, [id]);
 
@@ -217,6 +222,68 @@ export default function BudgetDetail() {
     );
   };
 
+  // ── Month-by-month view ────────────────────────────────────────────────────
+  const mfmt = (v) => (v ? new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 }).format(v) : '—');
+  const rankBucket = (b) => (b.kind === 'revenue' ? -1 : (STANDARD_BUCKET_ORDER.indexOf(b.bucket) === -1 ? 999 : STANDARD_BUCKET_ORDER.indexOf(b.bucket)));
+
+  const renderMonthly = () => {
+    if (!monthly) return <div className="bg-empty" style={{ marginTop: 20 }}><p>Loading…</p></div>;
+    const M = monthly.months || [];
+    if (!M.length) return <div className="bg-empty" style={{ marginTop: 20 }}><p>Set a valid period to see the month-by-month view.</p></div>;
+    const mBuckets = [...(monthly.buckets || [])].sort((a, b) => rankBucket(a) - rankBucket(b));
+    const cells = (byMonth) => M.map((m) => <td key={m.ym} className={`bg-mcell${byMonth[m.ym] < 0 ? ' bg-neg' : ''}`}>{mfmt(byMonth[m.ym])}</td>);
+    const totalCell = (v) => <td className={`bg-mcell bg-mcum${v < 0 ? ' bg-neg' : ''}`}>{mfmt(v)}</td>;
+
+    return (
+      <div className="bg-mwrap" style={{ marginTop: 18 }}>
+        <table className="bg-mtable">
+          <thead>
+            <tr>
+              <th className="bg-mcode">Code</th><th className="bg-mline">Line</th>
+              {M.map((m) => <th key={m.ym} className="bg-mcell">{m.label}</th>)}
+              <th className="bg-mcell bg-mcum">Cumulative</th>
+            </tr>
+          </thead>
+          <tbody>
+            {mBuckets.map((b) => (
+              <React.Fragment key={b.bucket}>
+                <tr className="bg-msection"><td colSpan={M.length + 3}>{b.bucket}</td></tr>
+                {b.lines.map((l) => (
+                  <tr key={l.id}>
+                    <td className="bg-mcode">{l.code || ''}</td>
+                    <td className="bg-mline">{l.category}</td>
+                    {cells(l.byMonth)}
+                    {totalCell(l.total)}
+                  </tr>
+                ))}
+                <tr className="bg-msubtotal">
+                  <td className="bg-mcode" /><td className="bg-mline">Total {b.bucket}</td>
+                  {cells(b.subtotalByMonth)}{totalCell(b.subtotalTotal)}
+                </tr>
+              </React.Fragment>
+            ))}
+            {monthly.other && (
+              <React.Fragment>
+                <tr className="bg-msection"><td colSpan={M.length + 3}>Other (uncategorised)</td></tr>
+                {monthly.other.lines.map((l, i) => (
+                  <tr key={`o-${i}`}><td className="bg-mcode" /><td className="bg-mline">{l.category}</td>{cells(l.byMonth)}{totalCell(l.total)}</tr>
+                ))}
+                <tr className="bg-msubtotal"><td className="bg-mcode" /><td className="bg-mline">Total other</td>{cells(monthly.other.subtotalByMonth)}{totalCell(monthly.other.subtotalTotal)}</tr>
+              </React.Fragment>
+            )}
+            {(monthly.revenueTotal !== 0) && (
+              <tr className="bg-mgrand"><td className="bg-mcode" /><td className="bg-mline">Total revenue</td>{cells(monthly.revenueByMonth)}{totalCell(monthly.revenueTotal)}</tr>
+            )}
+            <tr className="bg-mgrand"><td className="bg-mcode" /><td className="bg-mline">Total expenditure</td>{cells(monthly.expenseByMonth)}{totalCell(monthly.expenseTotal)}</tr>
+            {(monthly.revenueTotal !== 0) && (
+              <tr className="bg-mgrand bg-mnet"><td className="bg-mcode" /><td className="bg-mline">Net revenue (expenditure)</td>{cells(monthly.netByMonth)}{totalCell(monthly.netTotal)}</tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <>
       <Header />
@@ -243,7 +310,7 @@ export default function BudgetDetail() {
                 <div className="bg-titlerow">
                   <h1 className="bg-title">{budget.name}</h1>
                   <div className="bg-head-act">
-                    <button type="button" className="bg-btn bg-btn-ghost" onClick={() => exportBudgetXlsx(view)}>
+                    <button type="button" className="bg-btn bg-btn-ghost" onClick={() => (tab === 'monthly' && monthly ? exportBudgetMonthlyXlsx(monthly) : exportBudgetXlsx(view))}>
                       <Icon name="Download" size={15} /> Export
                     </button>
                     {canEdit && (
@@ -286,7 +353,23 @@ export default function BudgetDetail() {
               </div>
               <p className="bg-report-note">Figures reported in {cur}. Actual is live from the ledger; on-order is open supplier orders (VAT-exclusive), assumed same currency.</p>
 
-              {view.buckets.length === 0 && !view.unbudgeted ? (
+              <div className="bg-tabs">
+                <button type="button" className={`bg-tab${tab === 'summary' ? ' is-active' : ''}`} onClick={() => setTab('summary')}>Summary</button>
+                <button type="button" className={`bg-tab${tab === 'monthly' ? ' is-active' : ''}`} onClick={() => setTab('monthly')}>By month</button>
+              </div>
+
+              {canEdit && view.buckets.length === 0 && view.unbudgeted && (
+                <div className="bg-setup">
+                  <div className="bg-setup-msg"><b>No budget lines yet.</b> Load the standard yacht chart of accounts, or add your own — then this spend files itself against them.</div>
+                  <div className="bg-setup-act">
+                    <button type="button" className="bg-btn bg-btn-ghost" onClick={() => setLineModal({ line: null })}>Add line</button>
+                    <button type="button" className="bg-btn bg-btn-primary" onClick={loadTemplate}>Load standard template</button>
+                  </div>
+                </div>
+              )}
+
+              {tab === 'monthly' ? renderMonthly() : (
+              view.buckets.length === 0 && !view.unbudgeted ? (
                 <div className="bg-empty" style={{ marginTop: 20 }}>
                   <Icon name="ListTree" size={40} />
                   <p>No lines yet</p>
@@ -346,9 +429,15 @@ export default function BudgetDetail() {
                           <span className="bg-fig c-committed">{formatMoney(l.committed, cur)}</span>
                           <span className="bg-fig c-remaining bg-neg">{formatMoney(l.remaining, cur)}</span>
                           {canEdit ? (
-                            <select className="bg-assign" defaultValue="" onChange={(e) => { assignUnbudgeted(l.category, e.target.value); e.target.value = ''; }}>
+                            <select className="bg-assign" value=""
+                              onChange={(e) => {
+                                const v = e.target.value; e.target.value = '';
+                                if (v === '__new__') setLineModal({ line: { bucket: '', category: l.category, amount: 0 } });
+                                else if (v) assignUnbudgeted(l.category, v);
+                              }}>
                               <option value="" disabled>Assign to…</option>
                               {lineOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                              <option value="__new__">＋ New line…</option>
                             </select>
                           ) : <span className="bg-fig muted">review</span>}
                           <span />
@@ -385,7 +474,7 @@ export default function BudgetDetail() {
                     </div>
                   )}
                 </>
-              )}
+              ))}
             </>
           )}
         </div>
