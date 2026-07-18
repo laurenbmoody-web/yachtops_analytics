@@ -472,7 +472,7 @@ const LaundryManagementDashboard = () => {
                       </div>
                     )}
                     {!collapsed && g.items.map((item) => (
-                      <LaundryItemRow key={item?.id} item={item} onUpdate={loadLaundryItems} onOpen={setDetailItem} />
+                      <LaundryItemRow key={item?.id} item={item} onAdvance={handleAdvance} onUpdate={loadLaundryItems} onOpen={setDetailItem} />
                     ))}
                   </div>
                 );
