@@ -180,6 +180,60 @@ function LifecycleTimeline({ order }) {
   );
 }
 
+// Crew-facing "who's delivering this" panel. Reads the driver/courier fields
+// the supplier set (see 20260716830000). Internal driver → show the teammate's
+// name + a live status track; external courier → show the courier + a link out
+// to their own tracking. Rendered only once there's something to show.
+const DRV_LABELS = { assigned: 'Assigned', on_the_way: 'On the way', arrived: 'Arrived', delivered: 'Delivered' };
+const DRV_TRACK = ['assigned', 'on_the_way', 'arrived', 'delivered'];
+function TrackDelivery({ order }) {
+  const eta = fmtEta(order.delivery_eta);
+  const hasInternal = !!order.driver_name;
+  const hasExternal = !!order.courier_name;
+  if (!hasInternal && !hasExternal) return null;
+  return (
+    <div className="cargo-od-section">
+      <span className="cargo-od-section-label">Track <em>delivery</em>.</span>
+      <div className="cargo-od-track">
+        {hasInternal ? (
+          <>
+            <div className="cargo-od-track-head">
+              <div className="cargo-od-track-who">
+                <span className="cargo-od-track-name">{order.driver_name}</span>
+                <span className="cargo-od-track-sub">Delivering your order{eta ? ` · ${eta}` : ''}</span>
+              </div>
+              <span className="cargo-od-track-badge">{DRV_LABELS[order.driver_status] || 'Assigned'}</span>
+            </div>
+            <div className="cargo-od-track-rail" role="list" aria-label="Delivery progress">
+              {DRV_TRACK.map((s) => {
+                const idx = DRV_TRACK.indexOf(order.driver_status);
+                const here = DRV_TRACK.indexOf(s);
+                const cls = here < idx ? 'is-past' : here === idx ? 'is-current' : 'is-future';
+                return (
+                  <div key={s} className={`cargo-od-track-node ${cls}`} role="listitem">
+                    <span className="cargo-od-track-dot" aria-hidden="true" />
+                    <span className="cargo-od-track-step">{DRV_LABELS[s]}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        ) : (
+          <div className="cargo-od-track-head">
+            <div className="cargo-od-track-who">
+              <span className="cargo-od-track-name">{order.courier_name}</span>
+              <span className="cargo-od-track-sub">External courier{eta ? ` · ${eta}` : ''}</span>
+            </div>
+            {order.tracking_url && (
+              <a className="cargo-od-track-link" href={order.tracking_url} target="_blank" rel="noreferrer">Track delivery →</a>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // (SupplierInfoPopover removed in 9c.2 FIX 1 — the headline supplier name
 // now navigates straight to the supplier overview dashboard at
 // /provisioning/suppliers/:id, which superseded this pre-overview-page
@@ -1224,6 +1278,8 @@ export default function SupplierOrderPage() {
             <span className="cargo-od-section-label">Lifecycle.</span>
             <LifecycleTimeline order={order} />
           </div>
+
+          <TrackDelivery order={order} />
 
           <div className="editorial-section-card">
             <span className="cargo-od-section-label">

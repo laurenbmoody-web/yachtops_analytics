@@ -246,6 +246,73 @@ export const setOrderDelivery = async (orderId, status, etaISO) => {
   return data;
 };
 
+// ─── Driver tracking ─────────────────────────────────────────────────────────
+// Assign a supplier teammate as the driver (internal mode). Clears any external
+// courier. Denormalises the name so the crew can display it.
+export const assignInternalDriver = async (orderId, contact) => {
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .update({
+      driver_contact_id: contact.contact_id ?? contact.id ?? null,
+      driver_name: contact.name || null,
+      driver_status: 'assigned',
+      courier_name: null,
+      tracking_url: null,
+    })
+    .eq('id', orderId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// External courier mode — a third-party with their own tracking. Clears the
+// internal driver.
+export const setExternalCourier = async (orderId, { name, url }) => {
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .update({
+      courier_name: name?.trim() || null,
+      tracking_url: url?.trim() || null,
+      driver_contact_id: null,
+      driver_name: null,
+      driver_status: null,
+    })
+    .eq('id', orderId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// Advance the internal driver's status. Syncs the order lifecycle: on_the_way →
+// out_for_delivery, delivered → received (+ delivered_at).
+export const setDriverStatus = async (orderId, driverStatus) => {
+  const patch = { driver_status: driverStatus };
+  if (driverStatus === 'on_the_way') patch.status = 'out_for_delivery';
+  if (driverStatus === 'delivered') { patch.status = 'received'; patch.delivered_at = new Date().toISOString(); }
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .update(patch)
+    .eq('id', orderId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// Clear all driver/courier info from an order.
+export const clearDriver = async (orderId) => {
+  const { data, error } = await supabase
+    .from('supplier_orders')
+    .update({ driver_contact_id: null, driver_name: null, driver_status: null, courier_name: null, tracking_url: null })
+    .eq('id', orderId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
 // Post a system line into a thread (renders as a centred pill both sides).
 export const postSystemMessage = async (threadId, body) => {
   const { data: auth } = await supabase.auth.getUser();
