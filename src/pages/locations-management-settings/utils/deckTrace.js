@@ -232,6 +232,31 @@ export function simplifyClosed(nodes, eps = 0.012) {
   return out.length >= 3 ? out : pts;
 }
 
+// Fraction of "ink" pixels (darker than inkLum) inside a normalized bbox of the
+// image. Blank paper off the hull is almost pure white → ~0; a real room is full
+// of walls/furniture line-work → well above. Used to reject outlines the model
+// placed over empty background (floating above/beside the deck).
+export function regionInk(imageData, bbox, inkLum = 140) {
+  const W = imageData.width;
+  const H = imageData.height;
+  const d = imageData.data;
+  const x0 = Math.max(0, Math.floor(bbox.x * W));
+  const y0 = Math.max(0, Math.floor(bbox.y * H));
+  const x1 = Math.min(W, Math.ceil((bbox.x + bbox.w) * W));
+  const y1 = Math.min(H, Math.ceil((bbox.y + bbox.h) * H));
+  if (x1 - x0 < 2 || y1 - y0 < 2) return 0;
+  const step = Math.max(1, Math.floor(Math.min(x1 - x0, y1 - y0) / 60));
+  let ink = 0;
+  let tot = 0;
+  for (let y = y0; y < y1; y += step) {
+    for (let x = x0; x < x1; x += step) {
+      tot += 1;
+      if (lum(d, (y * W + x) * 4) < inkLum) ink += 1;
+    }
+  }
+  return tot ? ink / tot : 0;
+}
+
 // Fallback outline: the bbox as a rectangle (4 nodes), normalized 0..1.
 export function bboxRect(bbox) {
   if (!bbox) return null;
