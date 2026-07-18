@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { useTenant } from '../../../contexts/TenantContext';
 import { fetchVesselDocExpirySummary, fetchCrewDocExpirySummary, getExpiryStatus, formatDocDate } from '../../vessel-documents/vesselDocuments';
+import './doc-renewals.css';
 
-// A compact slice of the vault's "compliance ledger": a three-up RAG summary
-// and the soonest-expiring documents that need attention. Mirrors the full
-// ledger view inside the vault.
-const RAIL = { expired: '#9A2B12', red: '#8A5A12', amber: '#8A5A12' };
-
+// A compact slice of the vault's compliance ledger: a three-up RAG summary and
+// the soonest-expiring documents that need attention. Ship's papers and crew
+// certs together; each attention row deep-links to the document.
 const VesselDocRenewalsWidget = () => {
   const navigate = useNavigate();
   const { activeTenantId, currentTenantMember } = useTenant();
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   // Renewals span ship's papers and crew certificates — a Command/Chief concern.
   const tier = String(
@@ -24,112 +24,112 @@ const VesselDocRenewalsWidget = () => {
   ).toUpperCase();
   const canView = tier === 'COMMAND' || tier === 'CHIEF';
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      if (!activeTenantId || !canView) { setLoading(false); return; }
-      try {
-        // Ship's papers + crew certs together (crew rows are RLS-scoped to what
-        // the viewer may see — all shared crew for Command, own docs otherwise).
-        const [vessel, crew] = await Promise.all([
-          fetchVesselDocExpirySummary({ tenantId: activeTenantId }),
-          fetchCrewDocExpirySummary({ tenantId: activeTenantId }),
-        ]);
-        if (alive) setDocs([...(vessel || []), ...(crew || [])]);
-      } catch (err) {
-        console.error('[VesselDocRenewalsWidget] error:', err);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
+  const load = useCallback(async () => {
+    if (!activeTenantId || !canView) { setLoading(false); return; }
+    setError(false);
+    try {
+      const [vessel, crew] = await Promise.all([
+        fetchVesselDocExpirySummary({ tenantId: activeTenantId }),
+        fetchCrewDocExpirySummary({ tenantId: activeTenantId }),
+      ]);
+      setDocs([...(vessel || []), ...(crew || [])]);
+    } catch (err) {
+      console.error('[VesselDocRenewalsWidget] error:', err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [activeTenantId, canView]);
 
+  useEffect(() => { load(); }, [load]);
+
+  // Keep it honest — refetch when the crew returns to the tab (a cert may have
+  // been renewed in the vault meanwhile).
+  useEffect(() => {
+    const onFocus = () => { if (activeTenantId && canView) load(); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [load, activeTenantId, canView]);
+
   if (!canView) return null;
+
+  const openVault = () => navigate('/vessel-documents');
+  const openDoc = (d) => {
+    if (d.kind === 'crew' && d.userId) navigate(`/profile/${d.userId}?tab=documents`);
+    else openVault();
+  };
 
   const ranked = docs.map((d) => ({ ...d, st: getExpiryStatus(d.expiry_date) }));
   const expired = ranked.filter((d) => d.st?.level === 'expired');
   const lapsing = ranked.filter((d) => d.st?.level === 'red' || d.st?.level === 'amber');
   const valid = ranked.filter((d) => d.st?.level === 'green');
-  // Attention = expired + lapsing, soonest first (most-overdue at the top).
+  // Attention = expired + lapsing, most-overdue first.
   const attention = [...expired, ...lapsing].sort((a, b) => (a.st?.days ?? 0) - (b.st?.days ?? 0));
-  const allCurrent = !loading && attention.length === 0;
+  const allCurrent = !loading && !error && attention.length === 0;
 
   let statusText = 'All current';
-  let statusAttention = false;
-  if (loading) {
-    statusText = 'Loading…';
-  } else if (expired.length) {
-    statusText = `${expired.length} expired`;
-    statusAttention = true;
-  } else if (lapsing.length) {
-    statusText = `${lapsing.length} expiring soon`;
-    statusAttention = true;
-  } else if (docs.length) {
-    statusText = 'All current';
-  } else {
-    statusText = 'Nothing tracked yet';
-  }
-
-  const Stat = ({ n, label, bg, fg, border }) => (
-    <div className="rounded-xl px-3 py-3 text-center" style={{ background: bg, border: `1px solid ${border}` }}>
-      <div style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: '26px', lineHeight: 1, color: fg }}>
-        {loading ? '—' : n}
-      </div>
-      <div className="mt-1" style={{ fontSize: '9px', fontWeight: 700, letterSpacing: '0.6px', color: fg }}>{label}</div>
-    </div>
-  );
+  let attn = false;
+  if (loading) statusText = 'Loading…';
+  else if (error) statusText = 'Couldn’t load';
+  else if (expired.length) { statusText = `${expired.length} expired`; attn = true; }
+  else if (lapsing.length) { statusText = `${lapsing.length} expiring soon`; attn = true; }
+  else if (docs.length) statusText = 'All current';
+  else statusText = 'Nothing tracked yet';
 
   return (
-    <div className="ce-card rounded-xl p-5 cursor-pointer" onClick={() => navigate('/vessel-documents')}>
-      <div className="flex items-start justify-between mb-4">
+    <div className="ce-card dr rounded-xl p-5">
+      <div className="dr-head">
         <div>
           <h3 className="ce-title">Document renewals</h3>
-          <p className={`ce-status${statusAttention ? ' is-attention' : ''}`}>{statusText}</p>
+          <p className={`dr-status${attn ? ' att' : ''}`}>{statusText}</p>
         </div>
-        <span className="ce-link">Open vault</span>
+        <button type="button" className="dr-vault" onClick={openVault}>Open vault →</button>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-10"><LogoSpinner size={32} /></div>
+        <div className="dr-load"><LogoSpinner size={32} /></div>
+      ) : error ? (
+        <div className="dr-err">
+          <Icon name="AlertTriangle" size={16} />
+          Couldn’t load renewals.
+          <button type="button" className="dr-retry" onClick={load}>Retry</button>
+        </div>
       ) : (
         <>
-          <div className="grid grid-cols-3 gap-2.5 mb-4">
-            <Stat n={expired.length} label="EXPIRED" bg="#FDF1ED" fg="#9A2B12" border="#F3D9CF" />
-            <Stat n={lapsing.length} label="≤ 90 DAYS" bg="#FDF8EC" fg="#8A5A12" border="#F0E3C4" />
-            <Stat n={valid.length} label="CURRENT" bg="#fff" fg="#3F7A52" border="#ECEAE3" />
+          <div className="dr-stats">
+            <div className="dr-stat">
+              <div className={`dr-num${expired.length ? '' : ' zero'}`} data-sev={expired.length ? 'expired' : ''}>{expired.length}</div>
+              <div className="dr-lbl">Expired</div>
+            </div>
+            <div className="dr-stat">
+              <div className={`dr-num${lapsing.length ? '' : ' zero'}`} data-sev={lapsing.length ? 'amber' : ''}>{lapsing.length}</div>
+              <div className="dr-lbl">≤ 90 days</div>
+            </div>
+            <div className="dr-stat">
+              <div className="dr-num" data-sev="ok">{valid.length}</div>
+              <div className="dr-lbl">Current</div>
+            </div>
           </div>
 
           {allCurrent ? (
-            <div className="flex items-center gap-2.5 py-3 px-3 rounded-lg" style={{ background: '#E3EFE4' }}>
-              <Icon name="ShieldCheck" className="w-5 h-5" style={{ color: '#3F7A52' }} />
-              <span className="text-sm font-semibold" style={{ color: '#3F7A52' }}>
-                {docs.length ? 'Everything in good standing' : 'No certificates tracked yet'}
-              </span>
+            <div className="dr-clear">
+              <Icon name="ShieldCheck" size={18} />
+              {docs.length ? 'Everything in good standing' : 'No certificates tracked yet'}
             </div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="dr-list">
               {attention.slice(0, 4).map((d) => (
-                <div key={d.id} className="flex items-center gap-2.5 py-1.5">
-                  <span className="rounded-full" style={{ width: '4px', height: '26px', background: RAIL[d.st?.level] || '#AEB4C2', flex: '0 0 auto' }} />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-semibold truncate" style={{ color: '#1C1B3A' }} title={d.name}>{d.name}</div>
-                    <div className="text-[11px]" style={{ color: '#AEB4C2' }}>{formatDocDate(d.expiry_date)}</div>
-                  </div>
-                  <span
-                    className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap"
-                    style={d.st?.level === 'expired'
-                      ? { background: '#FBE4DC', color: '#9A2B12' }
-                      : { background: '#FBEFD9', color: '#8A5A12' }}
-                  >
-                    {d.st?.label}
+                <button type="button" key={d.id} className="dr-row" onClick={() => openDoc(d)} title={d.name}>
+                  <span className="dr-dot" data-sev={d.st?.level} />
+                  <span className="dr-main">
+                    <span className="dr-name">{d.name}</span>
+                    <span className="dr-date">Expires {formatDocDate(d.expiry_date)}</span>
                   </span>
-                </div>
+                  <span className="dr-when" data-sev={d.st?.level}>{d.st?.label}</span>
+                </button>
               ))}
               {attention.length > 4 && (
-                <div className="text-[11px] pt-1" style={{ color: '#8B8478' }}>
-                  +{attention.length - 4} more in the vault
-                </div>
+                <button type="button" className="dr-more" onClick={openVault}>+{attention.length - 4} more in the vault</button>
               )}
             </div>
           )}

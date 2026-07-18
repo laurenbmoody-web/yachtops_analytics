@@ -656,8 +656,8 @@ export async function fetchVesselDocExpirySummary({ tenantId = null } = {}) {
     .order('expiry_date', { ascending: true });
   if (tenantId) q = q.eq('tenant_id', tenantId);
   const { data, error } = await q;
-  if (error) { console.error('[vault] expiry summary failed', error); return []; }
-  return data || [];
+  if (error) { console.error('[vault] expiry summary failed', error); throw error; }
+  return (data || []).map((d) => ({ ...d, kind: 'vessel' }));
 }
 
 // Crew certificate/document expiries for a vessel's active crew — same shape as
@@ -680,6 +680,8 @@ export async function fetchCrewDocExpirySummary({ tenantId = null } = {}) {
   const names = {}; (profs || []).forEach((p) => { names[p.id] = p.full_name; });
   return docs.map((d) => ({
     id: `crew:${d.id}`,
+    kind: 'crew',
+    userId: d.user_id,
     name: `${names[d.user_id] || 'Crew'} — ${getDocTypeLabel(d.doc_type) || d.title || 'Document'}`,
     expiry_date: d.expiry_date,
   }));
