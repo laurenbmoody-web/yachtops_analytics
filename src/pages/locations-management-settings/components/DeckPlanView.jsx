@@ -13,6 +13,7 @@ import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpace
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace } from '../utils/locationsHierarchyStorage';
 import { traceRoom, bboxRect, simplifyClosed, regionInk } from '../utils/deckTrace';
+import { segmentDeck, regionAtPoint, regionContour } from '../utils/deckSegment';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
@@ -599,26 +600,37 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         rooms = [...byName.values()];
       }
       if (!rooms.length) { setDetectError({ deckId: deck.id, message: 'No rooms could be read from this deck. Try reframing it tighter around the plan.' }); return; }
+      // Segment the whole deck into enclosed wall-regions once — the accurate
+      // path: hang each read name on the region its seed falls in, so the outline
+      // is the true wall boundary (tolerant of a loose seed). Flood-fill/box only
+      // as a fallback when a seed doesn't land in a usable region.
+      const seg = segmentDeck(imageData);
+      const usedRegions = new Set();
       const used = new Set();
       let offPlan = 0;
       const items = rooms.map((r) => {
-        // Real geometry: flood-fill the walls from the seed; fall back to the box.
-        const traced = traceRoom(imageData, r.seed, r.bbox);
-        const nodes = traced || bboxRect(r.bbox) || null;
-        if (!nodes) return null;
-        // Reject outlines that landed on blank paper (off the hull / in a margin):
-        // real rooms are full of line-work, empty background is near-white.
-        const xs = nodes.map((n) => n.x);
-        const ys = nodes.map((n) => n.y);
-        const nb = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
-        // Off the drawing? Two checks: the outline sits on blank paper, OR the
-        // seed the model pointed at is itself in a blank margin (the box may clip
-        // a bit of hull edge and pass the first check while floating off-deck).
-        const seedBox = { x: r.seed.x - 0.028, y: r.seed.y - 0.06, w: 0.056, h: 0.12 };
-        if (regionInk(imageData, nb) < 0.02 || regionInk(imageData, seedBox) < 0.03) { offPlan += 1; return null; }
+        let nodes = null;
+        const region = regionAtPoint(seg, r.seed.x, r.seed.y);
+        if (region && !usedRegions.has(region.id)) {
+          nodes = regionContour(seg, region);
+          if (nodes) usedRegions.add(region.id);
+        }
+        if (!nodes) {
+          // Fallback: flood-fill the seed, else the model's box.
+          const traced = traceRoom(imageData, r.seed, r.bbox);
+          nodes = traced || bboxRect(r.bbox) || null;
+          if (!nodes) return null;
+          // Only the fallback path can land off the drawing — guard it (a real
+          // region is by definition on the plan).
+          const xs = nodes.map((n) => n.x);
+          const ys = nodes.map((n) => n.y);
+          const nb = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+          const seedBox = { x: r.seed.x - 0.028, y: r.seed.y - 0.06, w: 0.056, h: 0.12 };
+          if (regionInk(imageData, nb) < 0.02 || regionInk(imageData, seedBox) < 0.03) { offPlan += 1; return null; }
+        }
         const matchedSpaceId = matchSpaceId(r.name, spaces, used);
         if (matchedSpaceId) used.add(matchedSpaceId);
-        return { name: r.name, matchedSpaceId, create: !matchedSpaceId, nodes, traced: !!traced };
+        return { name: r.name, matchedSpaceId, create: !matchedSpaceId, nodes, traced: true };
       }).filter(Boolean);
       if (!items.length) { setDetectError({ deckId: deck.id, message: 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' }); return; }
       if (offPlan) console.info(`[deck-plan] dropped ${offPlan} off-plan detection(s)`);

@@ -8,14 +8,14 @@
 // it to clean corners (Douglas–Peucker). Coordinates come in and go out
 // normalized 0..1 to the deck-crop image — the same space plan_shape uses.
 
-const lum = (d, i) => d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
+export const lum = (d, i) => d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114;
 
 // 8-neighbours, clockwise from North. Used for boundary following.
 const CW = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
 const dirIndex = (dx, dy) => CW.findIndex((o) => o[0] === dx && o[1] === dy);
 
 // Moore-neighbour boundary trace of a binary blob → ordered pixel ring.
-function mooreBoundary(mask, W, H) {
+export function mooreBoundary(mask, W, H) {
   const fg = (x, y) => x >= 0 && y >= 0 && x < W && y < H && mask[y * W + x] === 1;
   let s = null;
   for (let y = 0; y < H && !s; y += 1) {
@@ -79,7 +79,7 @@ function rdp(pts, eps) {
 
 // Douglas–Peucker on a CLOSED ring — split at the point farthest from the first,
 // simplify each half, rejoin (drops the shared endpoints so the ring stays clean).
-function rdpClosed(ring, eps) {
+export function rdpClosed(ring, eps) {
   if (ring.length < 4) return ring.slice();
   let far = 0;
   let fd = -1;
