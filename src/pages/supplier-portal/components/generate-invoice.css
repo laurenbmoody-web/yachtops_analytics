@@ -2,6 +2,20 @@
    it inherits the supplier-portal theme tokens (incl. dark mode). Replaces the
    old boxed/coloured-banner inline styling. */
 
+/* Header + CTA — override the shared modal's uppercase-Inter title with an
+   editorial serif, and make the primary action terracotta. */
+#sp-root .gi-modal .sp-modal-head {
+  padding-top: 20px; border-bottom: 1px solid var(--line);
+}
+#sp-root .gi-modal .sp-modal-head h3 {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 23px; letter-spacing: 0;
+  text-transform: none; color: var(--fg);
+}
+#sp-root .gi-modal .sp-modal-close { font-size: 22px; }
+#sp-root .gi-modal .sp-btn-primary { background: var(--orange); border-color: var(--orange); }
+#sp-root .gi-modal .sp-btn-primary:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }
+
 #sp-root .gi-label {
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 9px; font-weight: 700; letter-spacing: 1px;
@@ -95,7 +109,7 @@
 }
 #sp-root .gi-grand-val {
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 24px; line-height: 1; color: var(--fg); font-variant-numeric: tabular-nums;
+  font-size: 24px; line-height: 1; color: var(--orange); font-variant-numeric: tabular-nums;
 }
 
 /* Setup-needed note */

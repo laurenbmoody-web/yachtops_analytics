@@ -477,10 +477,6 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
         <p>${escapeHtml(input.options.notes)}</p>` : ''}
     </section>` : ''}
 
-  <div class="disclaimer">
-    Tax rates shown are Cargo's best-effort defaults. Verify with your accountant before issuing real invoices.
-  </div>
-
   <div class="cargo-stamp">
     <img src="${CARGO_WORDMARK_URL}" alt=""/>
     <span>Generated with Cargo · cargotechnology.co.uk</span>

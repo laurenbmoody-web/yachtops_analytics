@@ -6,7 +6,7 @@ import React, { useEffect, useRef } from 'react';
  *  - Overlay click closes; inner click is stopped from propagating
  *  - On open, focus moves to the first focusable element in the body
  */
-export default function SupplierModal({ open, onClose, title, children, footer }) {
+export default function SupplierModal({ open, onClose, title, children, footer, className }) {
   const dialogRef = useRef(null);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export default function SupplierModal({ open, onClose, title, children, footer }
   return (
     <div className="sp-modal-overlay" onClick={onClose}>
       <div
-        className="sp-modal"
+        className={`sp-modal${className ? ` ${className}` : ''}`}
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
