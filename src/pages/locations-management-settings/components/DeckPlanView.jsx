@@ -144,6 +144,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [editing, setEditing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } adjusting an existing outline
   const [editSel, setEditSel] = useState(null); // index of the selected corner while editing
   const editDragRef = useRef(null); // node being dragged while editing
+  const snapTargetsRef = useRef([]); // other rooms' corners on this deck, to snap to
   const [smooth, setSmooth] = useState(true); // curve the outline through the points on finish
   const [detecting, setDetecting] = useState(null); // deckId with an AI detect in flight
   const [proposals, setProposals] = useState(null); // { deckId, items:[{name,matchedSpaceId,create,nodes,traced}] }
@@ -302,16 +303,60 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     traceStartRef.current = true;
     setTracing(null);
     setEditSel(null);
+    // Snap targets: every OTHER outlined room's corners on this deck, so shared
+    // walls meet cleanly. (Own neighbours handle straightening, added at drag.)
+    const targets = [];
+    spacesOf(deck).forEach((s) => {
+      if (s.id === space.id) return;
+      (shapeOf(s)?.nodes || []).forEach((n) => targets.push({ x: n.x, y: n.y }));
+    });
+    snapTargetsRef.current = targets;
     setEditing({ spaceId: space.id, deckId: deck.id, name: space.name, nodes: (sh?.nodes || []).map((n) => ({ x: n.x, y: n.y })) });
   };
+  // Drag a corner, snapping for clean lines: to a nearby other-room corner
+  // (shared walls join), else axis-align to a neighbour/other corner's x or y
+  // (walls go straight/flush). Hold Alt to move freely without snapping.
   const onEditNodeMove = useCallback((e) => {
     const d = editDragRef.current;
     if (!d) return;
     const rect = planRefs.current[d.deckId]?.getBoundingClientRect();
     if (!rect) return;
-    const x = clamp01((e.clientX - rect.left) / rect.width);
-    const y = clamp01((e.clientY - rect.top) / rect.height);
-    setEditing((ed) => (ed ? { ...ed, nodes: ed.nodes.map((n, i) => (i === d.index ? { x, y } : n)) } : ed));
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const free = e.altKey;
+    setEditing((ed) => {
+      if (!ed) return ed;
+      const n = ed.nodes.length;
+      const i = d.index;
+      const pxv = (nx) => nx * rect.width;
+      const pyv = (ny) => ny * rect.height;
+      let snapX = null;
+      let snapY = null;
+      if (!free) {
+        const targets = snapTargetsRef.current || [];
+        // 1) vertex snap — nearest other-room corner within ~11px
+        let best = null;
+        let bestD = 11;
+        for (const t of targets) {
+          const dd = Math.hypot(pxv(t.x) - mx, pyv(t.y) - my);
+          if (dd < bestD) { bestD = dd; best = t; }
+        }
+        if (best) { snapX = best.x; snapY = best.y; }
+        else {
+          // 2) axis-align x or y to a neighbour or another corner within ~7px
+          const prev = ed.nodes[(i - 1 + n) % n];
+          const next = ed.nodes[(i + 1) % n];
+          const AX = 7;
+          const xC = [prev.x, next.x, ...targets.map((t) => t.x)];
+          const yC = [prev.y, next.y, ...targets.map((t) => t.y)];
+          for (const c of xC) { if (Math.abs(pxv(c) - mx) < AX) { snapX = c; break; } }
+          for (const c of yC) { if (Math.abs(pyv(c) - my) < AX) { snapY = c; break; } }
+        }
+      }
+      const x = clamp01(snapX != null ? snapX : mx / rect.width);
+      const y = clamp01(snapY != null ? snapY : my / rect.height);
+      return { ...ed, nodes: ed.nodes.map((nd, idx) => (idx === i ? { x, y } : nd)) };
+    });
   }, []);
   const onEditNodeUp = useCallback(() => {
     editDragRef.current = null;
@@ -653,7 +698,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               <div className="dp-tracehint">
                 {editing && editing.deckId === deck.id ? (
                   <>
-                    <span>Adjusting <em>{editing.name}</em> — drag corners, <b>+</b> to add, click a corner then <b>Delete</b>. <b>{editing.nodes.length}</b> pts.</span>
+                    <span className="dp-adjhdr">Adjusting <em>{editing.name}</em> · <b>{editing.nodes.length}</b> pts <span className="dp-hint-faint" title="Drag a corner to move · click a + midpoint to add · click a corner then Delete/⌫ to remove · hold Alt to move without snapping">drag · + add · ⌫ remove</span></span>
                     <span className="dp-cat-pick" role="group" aria-label="Room category">
                       {(() => {
                         const eSpace = spaces.find((s) => s.id === editing.spaceId) || { id: editing.spaceId, name: editing.name };
@@ -661,12 +706,12 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                         return CATEGORIES.map((c) => (
                           <button
                             key={c.id}
-                            className={`dp-cat-swatch ${cur === c.id ? 'is-on' : ''}`}
-                            style={{ background: c.color }}
-                            title={c.label}
-                            aria-label={c.label}
+                            className={`dp-cat-chip ${cur === c.id ? 'is-on' : ''}`}
                             onClick={() => setCategory(editing.spaceId, c.id)}
-                          />
+                            title={`Colour this room as ${c.label}`}
+                          >
+                            <span className="dp-cat-dot" style={{ background: c.color }} />{c.label}
+                          </button>
                         ));
                       })()}
                     </span>
