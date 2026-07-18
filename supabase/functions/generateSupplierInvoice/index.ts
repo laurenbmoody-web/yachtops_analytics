@@ -217,8 +217,6 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
   const billToName = escapeHtml(v.billing_legal_name || input.order.vessel_name || 'Vessel');
   const billToAddress = v.billing_address ? escapeHtml(v.billing_address).replace(/\n/g, '<br/>') : '';
   const billToVat = v.billing_vat_number ? escapeHtml(v.billing_vat_number) : '';
-  const billToReg = v.billing_reg_number ? escapeHtml(v.billing_reg_number) : '';
-  const billToEmail = v.billing_email ? escapeHtml(v.billing_email) : '';
   const deliveryLine = [
     input.order.delivery_port ? escapeHtml(input.order.delivery_port) : '',
     fmtDate(input.order.delivery_date),
@@ -479,8 +477,6 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
       <div class="body"><strong>${billToName}</strong></div>
       ${billToAddress ? `<div class="bill-addr">${billToAddress}</div>` : ''}
       ${billToVat ? `<div class="bill-meta">${taxNumberLabel} no: ${billToVat}</div>` : ''}
-      ${billToReg ? `<div class="bill-meta">Company reg: ${billToReg}</div>` : ''}
-      ${billToEmail ? `<div class="bill-meta">${billToEmail}</div>` : ''}
     </div>
     <div class="block" style="text-align:right">
       <div class="heading">Order reference</div>
