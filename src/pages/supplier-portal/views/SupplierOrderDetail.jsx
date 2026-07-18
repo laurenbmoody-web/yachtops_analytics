@@ -813,6 +813,7 @@ const DoStation = ({ order, items, canEdit, onConfirmAll, onStartPicking, onGene
 // onward; the crew see the result in their order's Track delivery panel.
 const DRV_LABELS = { assigned: 'Assigned', on_the_way: 'On the way', arrived: 'Arrived', delivered: 'Delivered' };
 const DRV_FLOW = ['on_the_way', 'arrived', 'delivered'];
+const DRV_RANK = { assigned: 0, on_the_way: 1, arrived: 2, delivered: 3 };
 const DRIVER_STAGES = ['packed', 'dispatched', 'out_for_delivery', 'received'];
 const DriverStation = ({ order, canEdit, onUpdate }) => {
   const [open, setOpen] = useState(false);
@@ -846,6 +847,16 @@ const DriverStation = ({ order, canEdit, onUpdate }) => {
   const saveCourier = guard(() => setExternalCourier(order.id, { name: courierName, url: courierUrl }));
   const clear = guard(() => clearDriver(order.id));
 
+  // Forward taps just advance; tapping an earlier step is a mis-click
+  // correction — confirm first, then setDriverStatus reverts cleanly (clears
+  // delivered_at, rolls the order back) and the crew aren't re-pinged.
+  const onStep = (s) => {
+    if (s === order.driver_status) return;
+    const back = (DRV_RANK[s] ?? -1) < (DRV_RANK[order.driver_status] ?? -1);
+    if (back && !window.confirm(`Move this delivery back to “${DRV_LABELS[s]}”? Use this only to correct a mistaken update.`)) return;
+    advance(s);
+  };
+
   return (
     <div className="sod-driver">
       <div className="sod-driver-head">
@@ -875,7 +886,7 @@ const DriverStation = ({ order, canEdit, onUpdate }) => {
           {DRV_FLOW.map((s) => (
             <button key={s} type="button"
               className={`sod-driver-step${order.driver_status === s ? ' is-on' : ''}`}
-              disabled={busy} onClick={() => advance(s)}>{DRV_LABELS[s]}</button>
+              disabled={busy} onClick={() => onStep(s)}>{DRV_LABELS[s]}</button>
           ))}
         </div>
       )}
