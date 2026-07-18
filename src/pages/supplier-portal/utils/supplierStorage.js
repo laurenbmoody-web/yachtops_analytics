@@ -285,12 +285,22 @@ export const setExternalCourier = async (orderId, { name, url }) => {
   return data;
 };
 
-// Advance the internal driver's status. Syncs the order lifecycle: on_the_way →
-// out_for_delivery, delivered → received (+ delivered_at).
+// Set the internal driver's status. Syncs the order lifecycle both ways so a
+// mis-click can be cleanly corrected:
+//   delivered            → status='received'  + stamp delivered_at
+//   on_the_way / arrived → status='out_for_delivery' + clear delivered_at
+// (clearing delivered_at is what makes stepping back from 'delivered' clean).
+// The board cascade + crew-ping triggers handle the knock-on effects; the ping
+// only fires on forward progress, so a correction won't re-notify the crew.
 export const setDriverStatus = async (orderId, driverStatus) => {
   const patch = { driver_status: driverStatus };
-  if (driverStatus === 'on_the_way') patch.status = 'out_for_delivery';
-  if (driverStatus === 'delivered') { patch.status = 'received'; patch.delivered_at = new Date().toISOString(); }
+  if (driverStatus === 'delivered') {
+    patch.status = 'received';
+    patch.delivered_at = new Date().toISOString();
+  } else if (driverStatus === 'on_the_way' || driverStatus === 'arrived') {
+    patch.status = 'out_for_delivery';
+    patch.delivered_at = null;
+  }
   const { data, error } = await supabase
     .from('supplier_orders')
     .update(patch)
