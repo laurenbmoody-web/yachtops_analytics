@@ -5,17 +5,30 @@
 /* Wider than the default 480px so line-item names + quantities aren't clipped. */
 #sp-root .gi-modal { width: 640px; }
 
-/* Header + CTA — override the shared modal's uppercase-Inter title with an
-   editorial serif, and make the primary action terracotta. */
+/* Header + CTA — editorial masthead: a tracked-caps terracotta eyebrow over a
+   serif title, replacing the shared modal's uppercase-Inter heading. */
 #sp-root .gi-modal .sp-modal-head {
-  padding-top: 20px; border-bottom: 1px solid var(--line);
+  align-items: flex-start;
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid var(--line);
 }
 #sp-root .gi-modal .sp-modal-head h3 {
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-weight: 400; font-size: 23px; letter-spacing: 0;
+  font-weight: 400; font-size: 25px; line-height: 1.05; letter-spacing: 0;
   text-transform: none; color: var(--fg);
 }
-#sp-root .gi-modal .sp-modal-close { font-size: 22px; }
+#sp-root .gi-modal .sp-modal-head h3::before {
+  content: 'Invoice';
+  display: block;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+  color: var(--orange); margin-bottom: 7px;
+}
+#sp-root .gi-modal .sp-modal-close {
+  font-size: 20px; color: var(--muted); margin-top: 4px;
+  width: 26px; height: 26px; border-radius: 8px; line-height: 1;
+}
+#sp-root .gi-modal .sp-modal-close:hover { color: var(--fg); background: var(--ground); }
 #sp-root .gi-modal .sp-btn-primary { background: var(--orange); border-color: var(--orange); }
 #sp-root .gi-modal .sp-btn-primary:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }
 
