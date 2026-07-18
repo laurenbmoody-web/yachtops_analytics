@@ -7,16 +7,36 @@ import './recent-activity.css';
 
 const MAX = 6;
 
-// Icon + semantic tint from the action (and summary, which carries the verb).
-const actionMeta = (action = '', summary = '') => {
-  const a = `${action} ${summary}`.toUpperCase();
-  if (a.includes('DELETED') || a.includes('REMOVED') || a.includes('DECLINED')) return { icon: 'Trash2', kind: 'delete' };
-  if (a.includes('ASSIGNED')) return { icon: 'UserPlus', kind: 'assign' };
-  if (a.includes('COMPLETED') || a.includes('ACCEPTED') || a.includes('DELIVERED')) return { icon: 'Check', kind: 'create' };
-  if (a.includes('CREATED') || a.includes('ADDED')) return { icon: 'Plus', kind: 'create' };
-  if (a.includes('STOCK') || a.includes('QTY') || a.includes('QUANTITY') || a.includes('UPDATED') || a.includes('EDITED') || a.includes('CHANGED')) return { icon: 'Edit', kind: 'update' };
-  return { icon: 'Activity', kind: '' };
+// Icon reads the *subject* (which part of the app), so the feed varies by what
+// happened, not just whether it was a create.
+const MODULE_ICON = {
+  jobs: 'Briefcase', trips: 'Route', guests: 'Users', provisioning: 'ShoppingCart',
+  inventory: 'Package', preferences: 'Star', laundry: 'Shirt', calendar: 'CalendarDays',
+  sea_time: 'Clock', crew: 'UserRound', profile: 'UserRound', hor: 'Moon', defects: 'AlertTriangle',
 };
+const ENTITY_ICON = {
+  job: 'Briefcase', trip: 'Route', guest: 'Users', provisioning_list: 'ShoppingCart',
+  preference: 'Star', defect: 'AlertTriangle', crew_member: 'UserRound', crew_invite: 'UserPlus',
+  profile: 'UserRound', sea_service_entry: 'Clock', hor_entry: 'Moon', ops_event: 'CalendarDays',
+};
+const KIND_ICON = { create: 'Plus', update: 'Edit', delete: 'Trash2', assign: 'UserPlus' };
+
+// Colour tint reads the *action* — green = created/done, amber = changed,
+// red = removed, blue = assigned.
+const kindFor = (action = '', summary = '') => {
+  const a = `${action} ${summary}`.toUpperCase();
+  if (a.includes('DELETED') || a.includes('REMOVED') || a.includes('DECLINED')) return 'delete';
+  if (a.includes('ASSIGNED')) return 'assign';
+  if (a.includes('STOCK') || a.includes('QTY') || a.includes('QUANTITY') || a.includes('UPDATED') || a.includes('EDITED') || a.includes('CHANGED')) return 'update';
+  if (a.includes('CREATED') || a.includes('ADDED') || a.includes('COMPLETED') || a.includes('ACCEPTED') || a.includes('DELIVERED')) return 'create';
+  return '';
+};
+
+const iconFor = (module, entityType, kind) =>
+  MODULE_ICON[String(module || '').toLowerCase()]
+  || ENTITY_ICON[String(entityType || '').toLowerCase()]
+  || KIND_ICON[kind]
+  || 'Activity';
 
 // Collapse repeated events on the same entity — keep only the most recent (the
 // feed is newest-first). Events without an entity stay distinct.
@@ -70,10 +90,11 @@ const RecentActivityWidget = () => {
       {activities.length > 0 ? (
         <div className="ra-list">
           {activities.map((a, i) => {
-            const m = actionMeta(a?.action, a?.summary);
+            const kind = kindFor(a?.action, a?.summary);
+            const icon = iconFor(a?.module, a?.entityType, kind);
             return (
               <div key={a?.id || i} className="ra-row">
-                <span className="ra-ico" data-kind={m.kind}><Icon name={m.icon} size={15} /></span>
+                <span className="ra-ico" data-kind={kind}><Icon name={icon} size={15} /></span>
                 <span className="ra-txt">
                   <span className="ra-sum">{a?.summary}</span>
                   <span className="ra-time">{a?.createdAt ? formatDistanceToNow(new Date(a.createdAt), { addSuffix: true }) : ''}</span>
