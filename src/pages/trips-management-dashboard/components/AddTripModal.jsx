@@ -19,7 +19,8 @@ const AddTripModal = ({ isOpen, onClose, onSave, editingTrip, guests }) => {
     guestIds: [],
     activeGuestIds: [],
     tripType: TripType?.OWNER,
-    itinerarySummary: ''
+    itinerarySummary: '',
+    billingBasis: 'inclusive'
   });
   const [errors, setErrors] = useState({});
   const [guestSearchQuery, setGuestSearchQuery] = useState('');
@@ -35,7 +36,8 @@ const AddTripModal = ({ isOpen, onClose, onSave, editingTrip, guests }) => {
           guestIds: editingTrip?.guestIds || [],
           activeGuestIds: editingTrip?.activeGuestIds || [],
           tripType: editingTrip?.tripType || TripType?.OWNER,
-          itinerarySummary: editingTrip?.itinerarySummary || ''
+          itinerarySummary: editingTrip?.itinerarySummary || '',
+          billingBasis: editingTrip?.billingBasis || 'inclusive'
         });
       } else {
         setFormData({
@@ -46,7 +48,8 @@ const AddTripModal = ({ isOpen, onClose, onSave, editingTrip, guests }) => {
           guestIds: [],
           activeGuestIds: [],
           tripType: TripType?.OWNER,
-          itinerarySummary: ''
+          itinerarySummary: '',
+          billingBasis: 'inclusive'
         });
       }
       setErrors({});
@@ -214,6 +217,22 @@ const AddTripModal = ({ isOpen, onClose, onSave, editingTrip, guests }) => {
               onChange={(value) => handleChange('tripType', value)}
               placeholder="Select trip type"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Billing Basis
+            </label>
+            <Select
+              options={[
+                { value: 'inclusive', label: 'Inclusive (CYBA) — nothing billed' },
+                { value: 'plus_expenses', label: 'Plus expenses (MYBA) — guest laundry billable' }
+              ]}
+              value={formData?.billingBasis}
+              onChange={(value) => handleChange('billingBasis', value)}
+              placeholder="Select billing basis"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Whether guests’ personal laundry is charged. Set pricing in Vessel Settings → Charter Billing.</p>
           </div>
 
           <div>

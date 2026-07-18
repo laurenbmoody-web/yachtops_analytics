@@ -380,6 +380,7 @@ const mapSupabaseTripToLegacyShape = (row, lsTrip, { preferLs = false } = {}) =>
     tripType:          top?.tripType          ?? row?.trip_type         ?? null,
     startDate,
     endDate,
+    billingBasis:      top?.billingBasis       ?? row?.billing_basis     ?? 'inclusive',
     notes:             top?.notes             ?? row?.notes             ?? '',
     itinerarySummary:  top?.itinerarySummary  ?? row?.itinerary_summary ?? '',
 
@@ -444,7 +445,7 @@ export const loadTrips = async () => {
     const { data, error } = await supabase
       ?.from('trips')
       ?.select(`
-        id, tenant_id, name, trip_type, start_date, end_date,
+        id, tenant_id, name, trip_type, start_date, end_date, billing_basis,
         itinerary_summary, notes, created_by, created_at, updated_at,
         is_deleted, deleted_at, deleted_by_user_id, legacy_local_id,
         trip_guests ( guest_id, is_active_on_trip, added_at ),
@@ -574,6 +575,7 @@ export const createTrip = async (tripData) => {
             trip_type:         tripData?.tripType || TripType?.OWNER,
             start_date:        tripData?.startDate,
             end_date:          tripData?.endDate,
+            billing_basis:     tripData?.billingBasis || 'inclusive',
             itinerary_summary: tripData?.itinerarySummary || null,
             notes:             tripData?.notes || null,
             created_by:        currentUser?.id || null,
@@ -693,6 +695,7 @@ const SUPABASE_COLUMN_MAP = {
   tripType:         'trip_type',
   startDate:        'start_date',
   endDate:          'end_date',
+  billingBasis:     'billing_basis',
   notes:            'notes',
   itinerarySummary: 'itinerary_summary',
 };
