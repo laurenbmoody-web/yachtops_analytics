@@ -97,6 +97,9 @@ const ProvisioningWidget = () => {
   const sorted = [...boards].sort((a, b) => rank(a.status) - rank(b.status) || new Date(b.updated_at) - new Date(a.updated_at));
   const shown = sorted.slice(0, VISIBLE);
   const moreCount = total - shown.length;
+  // The link to the full board lives on "+N more" when it's shown; otherwise
+  // (3 or fewer boards) fall back to a header "View all".
+  const showViewAll = !loading && !error && total > 0 && moreCount === 0;
 
   let statusText = '';
   let statusAttention = false;
@@ -113,6 +116,9 @@ const ProvisioningWidget = () => {
           <h3 className="ce-title">Provisioning</h3>
           <p className={`ce-status${statusAttention ? ' is-attention' : ''}`}>{statusText}</p>
         </div>
+        {showViewAll && (
+          <button type="button" onClick={() => navigate('/provisioning')} className="ce-link">View all</button>
+        )}
       </div>
 
       {loading ? (
