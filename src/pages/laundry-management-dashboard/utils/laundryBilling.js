@@ -39,6 +39,28 @@ export function effectiveCharge(item, config) {
   return suggestCharge(item, config);
 }
 
+// Resolve a laundry item's charter (the trip whose dates contain it) → basis.
+export function basisForItem(item, trips) {
+  const when = new Date(item?.createdAt || item?.deliveredAt || Date.now());
+  const hit = (trips || []).find((t) => {
+    if (t?.isDeleted || !t?.startDate || !t?.endDate) return false;
+    const s = new Date(t.startDate); s.setHours(0, 0, 0, 0);
+    const e = new Date(t.endDate); e.setHours(23, 59, 59, 999);
+    return when >= s && when <= e;
+  });
+  return hit ? (hit.billingBasis || 'inclusive') : 'inclusive';
+}
+
+// Attach billing to items for the live log: _basis, _billable, _charge, _currency.
+export function attachBilling(items, trips, config) {
+  if (!config) return (items || []).map((it) => ({ ...it, _billable: false, _charge: null }));
+  return (items || []).map((it) => {
+    const basis = basisForItem(it, trips);
+    const billable = isBillable(it, basis, config);
+    return { ...it, _basis: basis, _billable: billable, _charge: billable ? effectiveCharge(it, config) : null, _currency: config.currency || 'EUR' };
+  });
+}
+
 // Roll up the billable guest items for a period into line items + total.
 export function billingSummary(items, basis, config) {
   const lines = (items || [])

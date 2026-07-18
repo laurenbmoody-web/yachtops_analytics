@@ -5,6 +5,7 @@ import Header from '../../components/navigation/Header';
 import { loadAllLaundryItems, getDeliveryCredits, getPhotoRetentionDays, setPhotoRetentionDays, getVesselBranding, getVesselTimezone, setVesselTimezone, getLaundryBilling } from '../laundry-management-dashboard/utils/laundryStorage';
 import { getCurrentUser } from '../../utils/authStorage';
 import { loadTrips } from '../trips-management-dashboard/utils/tripStorage';
+import { attachBilling } from '../laundry-management-dashboard/utils/laundryBilling';
 import { enrichWithAvatars, attachHandlers } from '../laundry-management-dashboard/utils/laundryAvatars';
 import { resolveLaundryPhotos } from '../laundry-management-dashboard/utils/laundryPhotos';
 import { buildLogbook, initials, rescopePeriod } from '../laundry-management-dashboard/utils/laundryLogbook';
@@ -417,6 +418,8 @@ const LaundryHistoryView = () => {
   useEffect(() => { getVesselBranding().then(setVessel).catch(() => {}); }, []);
   const [billing, setBilling] = useState(null);
   useEffect(() => { getLaundryBilling().then(setBilling).catch(() => {}); }, []);
+  const [allTrips, setAllTrips] = useState([]);
+  useEffect(() => { loadTrips().then((t) => setAllTrips(t || [])).catch(() => {}); }, []);
   const canManage = useMemo(() => { const t = (getCurrentUser()?.effectiveTier || getCurrentUser()?.tier || '').toUpperCase(); return t === 'COMMAND' || t === 'CHIEF'; }, []);
   useEffect(() => { if (canManage) getPhotoRetentionDays().then(setRetention).catch(() => {}); }, [canManage]);
   const saveRetention = async (v) => { setRetention(v); await setPhotoRetentionDays(v); };
@@ -427,8 +430,9 @@ const LaundryHistoryView = () => {
   // open a piece in the read view — sign its photos first so the hero renders
   const openItem = async (it) => {
     if (!it) return;
-    try { const [resolved] = await resolveLaundryPhotos([it]); setDetailItem(resolved || it); }
-    catch { setDetailItem(it); }
+    const enrich = (x) => attachBilling([x], allTrips, billing)[0] || x;
+    try { const [resolved] = await resolveLaundryPhotos([it]); setDetailItem(enrich(resolved || it)); }
+    catch { setDetailItem(enrich(it)); }
   };
 
   useEffect(() => {

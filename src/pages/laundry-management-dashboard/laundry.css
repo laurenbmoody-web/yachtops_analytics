@@ -769,6 +769,7 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .lc-ci-meta .ov, .lc-ci-meta .mis { color: #C24632; font-weight: 700; }
 .lc-ci-meta .dmg { color: #B7791F; font-weight: 700; }
 .lc-ci-meta .ash { color: #2F6E8F; font-weight: 700; }
+.lc-ci-meta .chg { color: #C65A1A; font-weight: 700; }
 .lc-stat { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 999px; padding: 3px 9px; flex: none; }
 .lc-stat.prog { color: #B7791F; background: #FBF3E2; }
 .lc-stat.ready { color: #2F6E8F; background: #E9F1F5; }
@@ -997,6 +998,8 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
 .ldm-charge-cur { font-size: 14px; color: #8B8478; }
 .ldm-charge .alm-field { flex: 1; }
 .ldm-charge-hint { font-size: 11.5px; color: #8B8478; margin-top: 6px; line-height: 1.5; }
+.lr-charge { display: inline-flex; align-items: center; gap: 3px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; background: #FBEFE9; border-radius: 999px; padding: 2px 8px; }
+.lr-charge svg { stroke: #C65A1A; }
 .lb-rday { border-bottom: 1px solid #F3F4F8; }
 .lb-rday:last-child { border-bottom: none; }
 .lb-rh { display: flex; align-items: center; gap: 9px; width: 100%; background: none; border: none; text-align: left; cursor: pointer; padding: 11px 0; font-family: inherit; transition: opacity 0.14s; }

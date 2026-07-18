@@ -8,7 +8,8 @@ import CabinView from './components/CabinView';
 import LaundryDetailModal from './components/LaundryDetailModal';
 import { FilterMenu, SortMenu } from './components/LaundryFilters';
 import { subscribeOffline, pendingOfflineItems, drainOfflineLaundry, isLaundryOffline, enqueueOfflineStatus, pendingStatusMap } from './utils/laundryOfflineQueue';
-import { LaundryStatus, LaundryPriority, getTodayViewItems, loadAllLaundryItems, updateLaundryStatus, migrateLaundryItems, isNewDay, setLastLaundryDayKey, getTodayKey, manualResetDay } from './utils/laundryStorage';
+import { attachBilling } from './utils/laundryBilling';
+import { LaundryStatus, LaundryPriority, getTodayViewItems, loadAllLaundryItems, updateLaundryStatus, migrateLaundryItems, isNewDay, setLastLaundryDayKey, getTodayKey, manualResetDay, getLaundryBilling } from './utils/laundryStorage';
 import { turnaroundStats, fmtDur } from './utils/laundryStats';
 import { enrichWithAvatars } from './utils/laundryAvatars';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
@@ -124,7 +125,7 @@ const LaundryManagementDashboard = () => {
   }, [tripId]);
 
   useEffect(() => {
-    let filtered = [...laundryItems];
+    let filtered = attachBilling(laundryItems, allTrips, billingCfg);
     if (statusFilter !== 'All') {
       const statusMap = {
         'In Progress': LaundryStatus?.IN_PROGRESS,
@@ -176,7 +177,7 @@ const LaundryManagementDashboard = () => {
       return sortBy === 'oldest' ? ts(a) - ts(b) : ts(b) - ts(a);
     });
     setFilteredItems(filtered);
-  }, [laundryItems, statusFilter, ownerFilter, attentionOnly, handlingFilter, searchQuery, sortBy, tripId, trip]);
+  }, [laundryItems, allTrips, billingCfg, statusFilter, ownerFilter, attentionOnly, handlingFilter, searchQuery, sortBy, tripId, trip]);
 
   const loadLaundryItems = async () => {
     const [{ openItems, deliveredToday }, all] = await Promise.all([getTodayViewItems(), loadAllLaundryItems()]);
@@ -200,6 +201,12 @@ const LaundryManagementDashboard = () => {
 
   // Keep the turnaround stats fed alongside the today view.
   useEffect(() => { loadAllLaundryItems().then(setAllItems).catch(() => {}); }, []);
+
+  // Charter billing context — resolve each item's charter basis so the log can
+  // show what's billable. (loadTrips is also used by the trip filter above.)
+  const [allTrips, setAllTrips] = useState([]);
+  const [billingCfg, setBillingCfg] = useState(null);
+  useEffect(() => { loadTrips().then((t) => setAllTrips(t || [])).catch(() => {}); getLaundryBilling().then(setBillingCfg).catch(() => {}); }, []);
 
   // Offline capture — show anything queued while offline, and replay it (then
   // refresh) the moment connectivity returns or the page loads with a backlog.
