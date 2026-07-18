@@ -213,7 +213,7 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
   // to "VAT" for countries without a registry entry.
   const taxNumberLabel = input.options.tax_name || 'VAT';
   const v = input.vessel || {};
-  const billToName = escapeHtml(v.billing_legal_name || v.vessel_name || input.order.vessel_name || 'Vessel');
+  const billToName = escapeHtml(v.billing_legal_name || input.order.vessel_name || 'Vessel');
   const billToAddress = v.billing_address ? escapeHtml(v.billing_address).replace(/\n/g, '<br/>') : '';
   const billToVat = v.billing_vat_number ? escapeHtml(v.billing_vat_number) : '';
   const billToReg = v.billing_reg_number ? escapeHtml(v.billing_reg_number) : '';
@@ -678,7 +678,7 @@ Deno.serve(async (req: Request) => {
     let vessel: any = null;
     if (order.tenant_id) {
       const vessels = await restGet<any[]>(
-        `vessels?tenant_id=eq.${order.tenant_id}&select=vessel_name,billing_legal_name,billing_address,billing_vat_number,billing_reg_number,billing_email`
+        `vessels?tenant_id=eq.${order.tenant_id}&select=billing_legal_name,billing_address,billing_vat_number,billing_reg_number,billing_email`
       ).catch(() => []);
       vessel = vessels?.[0] || null;
     }
