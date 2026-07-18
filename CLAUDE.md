@@ -24,8 +24,17 @@ an old-styled surface, bring it up to this system.
 - Navy ink (text/headings): `#1C1B3A`
 - Terracotta accent (primary actions, selected, emphasis): `#C65A1A` (hover `#B14E16`)
 - Muted text: `#8B8478` / `#6B7280`; faint: `#AEB4C2`
-- Soft borders / hairlines: `#ECEAE3`, `#E8E6DF`, `#E5E7EB`, `#F0F1F5`
-- Soft field bg: `#FAFAF8` / `#F6F5F2`; tinted terracotta pill bg: `#FBEFE9`
+- Soft borders / hairlines: `#E5E7EB`, `#EEF0F4`, `#F0F1F5` on page surfaces;
+  `#ECEAE3` is fine as the thin hairline on portaled modals/panels.
+- Soft field bg: `#FAFAF8`; tinted terracotta pill/chip bg: `#FBEFE9`
+- **Page canvas: `#F8FAFC`** ("clean maritime white", cool) — this is the ONLY
+  page background. Cards on it are `#FFFFFF` with a `#E5E7EB` border.
+
+**Never warm beige/cream backgrounds.** The app's canvas is cool (navy + maritime
+white + terracotta accent). Do NOT fill a page or card with a warm background
+(`#F7F6F3`, `#F4F1EA`, `#FAF8F4`, cream, beige) — it reads as a different product.
+`#FBEFE9` is fine only as the small terracotta accent tint on chips/icon badges,
+never as a page or card fill.
 
 **Type**
 - Headings: `'DM Serif Display', 'DM Serif Text', Georgia, serif`
@@ -50,6 +59,12 @@ an old-styled surface, bring it up to this system.
 - New top-level pages render the Cargo `<Header />`
   (`src/components/navigation/Header.jsx`) and clear the fixed 64px nav
   (`padding-top: ~92px` or `min-height: calc(100vh - 64px)`).
+- **Top-level pages are full-width** — the content wrap is `max-width: none;
+  width: 100%` with horizontal padding (`~40px`), NOT a narrow centered column.
+  Mirror `.lm-page` / `.lm-wrap` in `src/pages/laundry-management-dashboard/
+  laundry.css` (canvas `#F8FAFC`, `padding: 26px 40px 80px`).
+- Icons: use a real lucide icon that matches the concept (e.g. wardrobe →
+  `Shirt`, not a `DoorClosed`). Unknown names silently fall back to `HelpCircle`.
 - Portaled modals: scope styles under a short prefix class (the panel is outside
   the page tree). Co-locate a small `*.css` next to the component.
 

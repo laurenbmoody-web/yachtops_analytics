@@ -375,7 +375,7 @@ const LaundryManagementDashboard = () => {
                   </button>
                 )}
                 <button type="button" className="lm-icontip" data-tip="Wardrobe management" aria-label="Wardrobe management" onClick={() => navigate('/wardrobe-management')}>
-                  <Icon name="DoorClosed" size={18} />
+                  <Icon name="Shirt" size={18} />
                 </button>
                 <button type="button" className="lm-btn ghost" onClick={() => setShowScan(true)}>
                   <Icon name="QrCode" size={16} /> Scan
