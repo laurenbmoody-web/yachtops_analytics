@@ -310,7 +310,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
           return (
             <div key={it.id} className="gi-line">
               <div className="gi-line-name">
-                <b>{it.item_name}</b>
+                <span className="gi-line-title"><b>{it.item_name}</b></span>
                 <span className="gi-line-meta">
                   {it.quantity}{it.unit ? ' ' + it.unit : ''} · {fmtMoney(it.agreed_price ?? it.unit_price, currency)}
                 </span>

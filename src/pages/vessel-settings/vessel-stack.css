@@ -101,6 +101,7 @@
 .vs-f.full{grid-column:1/-1}
 .vs-fk{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--vs-muted);margin:0 0 6px;display:flex;align-items:center;gap:7px}
 .vs-fk .req{width:5px;height:5px;border-radius:50%;background:var(--vs-terra);flex:none}
+.vs-fk .vs-opt{font-size:8.5px;letter-spacing:.04em;text-transform:none;font-weight:600;color:var(--vs-faint,#AEB4C2)}
 .vs-fk .drv{margin-left:auto;font-size:8.5px;letter-spacing:.03em;text-transform:none;font-weight:600;color:var(--vs-terra);background:var(--vs-terra-tint);border-radius:999px;padding:2px 7px;white-space:nowrap}
 .vs-fvw{display:flex;align-items:center;gap:9px;min-height:26px}
 .vs-fv{font-family:inherit;font-size:15px;font-weight:500;color:var(--vs-ink);cursor:text;border:0;background:transparent;
