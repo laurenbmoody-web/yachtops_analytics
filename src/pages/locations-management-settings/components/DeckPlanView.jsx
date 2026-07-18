@@ -38,6 +38,21 @@ const centroidOf = (nodes = []) => {
   return { x: s.x / nodes.length, y: s.y / nodes.length };
 };
 
+// Catmull-Rom → cubic-Bézier handles for a CLOSED ring, so a traced outline
+// curves smoothly through the clicked points (hull walls read as curves, not
+// straight chords). Tension 1/6 is the standard uniform Catmull-Rom.
+const smoothClosed = (pts) => {
+  const n = pts.length;
+  if (n < 3) return pts.map((p) => ({ x: p.x, y: p.y }));
+  return pts.map((p, i) => {
+    const prev = pts[(i - 1 + n) % n];
+    const next = pts[(i + 1) % n];
+    const tx = (next.x - prev.x) / 6;
+    const ty = (next.y - prev.y) / 6;
+    return { x: p.x, y: p.y, h1: { x: p.x - tx, y: p.y - ty }, h2: { x: p.x + tx, y: p.y + ty } };
+  });
+};
+
 // Box aspect of a deck's crop, in true pixels (undistorted).
 const boxAspectOf = (crop, dims) => (crop.w * dims.w) / (crop.h * dims.h) || 3;
 
@@ -117,6 +132,8 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
   const [localShapes, setLocalShapes] = useState({}); // spaceId -> shape | null (override)
   const [traceMode, setTraceMode] = useState(false);
   const [tracing, setTracing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } in progress
+  const [smooth, setSmooth] = useState(true); // curve the outline through the points on finish
+  const traceStartRef = useRef(false); // swallow the click that selected the room (no stray node)
   const fileRef = useRef(null);
   const planRefs = useRef({}); // deckId -> plan element (for drop hit-testing)
   const movedRef = useRef(false);
@@ -225,16 +242,23 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
     setLocalShapes((p) => ({ ...p, [spaceId]: shape }));
     setSpaceShape(spaceId, shape).catch((err) => console.error('[deck-plan] save shape error:', err));
   };
-  const startTrace = (space, deck) => setTracing({ spaceId: space.id, deckId: deck.id, name: space.name, nodes: [] });
+  const startTrace = (space, deck) => { traceStartRef.current = true; setTracing({ spaceId: space.id, deckId: deck.id, name: space.name, nodes: [] }); };
   const addTraceNode = (x, y) => setTracing((t) => (t ? { ...t, nodes: [...t.nodes, { x, y }] } : t));
   const undoTraceNode = () => setTracing((t) => (t && t.nodes.length ? { ...t, nodes: t.nodes.slice(0, -1) } : t));
   const cancelTrace = () => setTracing(null);
   const finishTrace = () => {
-    if (!tracing || tracing.nodes.length < 3) return;
-    const shape = { closed: true, nodes: tracing.nodes };
-    saveShape(tracing.spaceId, shape);
-    // Anchor the room's point/label at the outline centroid.
-    const c = centroidOf(tracing.nodes);
+    if (!tracing || !tracing.nodes.length) return;
+    if (tracing.nodes.length < 3) {
+      // Points-only: place the room's point, no outline.
+      const p = tracing.nodes[0];
+      saveShape(tracing.spaceId, null);
+      applyPos(tracing.spaceId, p.x, p.y);
+      setTracing(null);
+      return;
+    }
+    const nodes = smooth ? smoothClosed(tracing.nodes) : tracing.nodes;
+    saveShape(tracing.spaceId, { closed: true, nodes });
+    const c = centroidOf(tracing.nodes); // anchor the point/label at the outline centre
     if (c) applyPos(tracing.spaceId, c.x, c.y);
     setTracing(null);
   };
@@ -284,6 +308,7 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
   // 0..1 space). Clicking near the first node closes + saves the shape.
   const onPlanClick = (e, deck) => {
     if (!traceMode || !tracing || tracing.deckId !== deck.id) return;
+    if (traceStartRef.current) { traceStartRef.current = false; return; } // the room-select click
     if (e.target.closest?.('.dp-pin')) return; // a pin click starts/switches tracing, not a node
     const rect = planRefs.current[deck.id]?.getBoundingClientRect();
     if (!rect) return;
@@ -381,7 +406,12 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
                   <>
                     <span>Tracing <em>{tracing.name}</em> — click to add points, click the first point to close. <b>{tracing.nodes.length}</b> pts.</span>
                     <span className="dp-spring" />
-                    <button className="lg-btn sm" disabled={tracing.nodes.length < 3} onClick={finishTrace}>Finish</button>
+                    <button
+                      className={`dp-smooth-toggle ${smooth ? 'is-on' : ''}`}
+                      onClick={() => setSmooth((v) => !v)}
+                      title="Curve the outline through the points (off = straight edges)"
+                    >{smooth ? 'Curved' : 'Straight'}</button>
+                    <button className="lg-btn sm" disabled={!tracing.nodes.length} onClick={finishTrace}>Finish</button>
                     <button className="lg-btn sm" disabled={!tracing.nodes.length} onClick={undoTraceNode}>Undo point</button>
                     <button className="lg-btn sm" onClick={cancelTrace}>Cancel</button>
                   </>
@@ -405,7 +435,14 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
                     {placed.map((s) => {
                       const sh = shapeOf(s);
                       if (!sh) return null;
-                      return <path key={s.id} className={`dp-shape ${isScanned(s) ? 'is-scanned' : 'is-empty'}`} d={shapeToPath(sh)} />;
+                      const d = shapeToPath(sh);
+                      // A white halo behind the coloured outline so it reads on the busy GA.
+                      return (
+                        <g key={s.id}>
+                          <path className="dp-shape-halo" d={d} />
+                          <path className={`dp-shape ${isScanned(s) ? 'is-scanned' : 'is-empty'}`} d={d} />
+                        </g>
+                      );
                     })}
                     {tracing && tracing.deckId === deck.id && tracing.nodes.length > 0 && (
                       <polyline className="dp-trace-line" points={tracing.nodes.map((n) => `${(n.x * 100).toFixed(2)},${(n.y * 100).toFixed(2)}`).join(' ')} />
@@ -427,6 +464,7 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
                     </svg>
                   )}
                   {placed.map((s) => {
+                    if (tracing?.spaceId === s.id) return null; // hide the pin of the room being traced
                     const p = posOf(s);
                     const scanned = isScanned(s);
                     const pending = pendingLink?.spaceId === s.id;
