@@ -7,9 +7,9 @@ import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { listBudgets, createBudget } from '../../../services/budgetService';
+import { listBudgets } from '../../../services/budgetService';
 import { formatMoney } from '../../../services/financeCalc';
-import BudgetFormModal from './components/BudgetFormModal';
+import GuidedBudgetCreate from './components/GuidedBudgetCreate';
 import './budgets.css';
 
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -41,10 +41,10 @@ export default function Budgets() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleSave = async (payload) => {
-    const res = await createBudget({ ...payload, tenant_id: activeTenantId });
-    if (!res.error && res.data) { await load(); flash('Budget created'); navigate(`/accounts/budgets/${res.data.id}`); }
-    return res;
+  const handleCreated = async (budget) => {
+    setModalOpen(false);
+    if (budget) { flash('Budget created'); navigate(`/accounts/budgets/${budget.id}`); }
+    else { await load(); }
   };
 
   return (
@@ -104,7 +104,7 @@ export default function Budgets() {
         {toast && <div className="bg-toast">{toast}</div>}
       </div>
 
-      <BudgetFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSave} />
+      <GuidedBudgetCreate open={modalOpen} onClose={() => setModalOpen(false)} onCreated={handleCreated} tenantId={activeTenantId} />
     </>
   );
 }

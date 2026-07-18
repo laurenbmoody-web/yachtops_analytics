@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabaseClient';
 import { computeVsActual } from './budgetCalc.js';
 import { classifySpend } from './budgetClassify.js';
 import { computeMonthly, monthsInPeriod } from './budgetMonthly.js';
+import { priorPeriodOf } from './budgetSeed.js';
 
 const BUDGET_SELECT =
   'id, tenant_id, name, period_start, period_end, currency, status, notes, created_by, created_at, updated_at';
@@ -144,6 +145,67 @@ export const seedStandardTemplate = async (budgetId, chart) => {
     .upsert(rows, { onConflict: 'budget_id,bucket,category', ignoreDuplicates: true })
     .select(LINE_SELECT);
   return { data, error };
+};
+
+// ── Guided create — seed a new budget from last season's actuals ────────────────
+
+// Prior-season spend, resolved onto a chart's categories, for seeding a new budget.
+// Returns dated rows [{ category (resolved), amount, ym }] the client feeds to
+// computeSeed so per-line uplift edits recompute instantly with no round-trip.
+export const getSeedSource = async (tenantId, chart, priorFrom, priorTo) => {
+  if (!tenantId) return { data: null, error: new Error('No active tenant') };
+  const [ledgerRes, ovRes] = await Promise.all([
+    supabase.from('ledger_transactions')
+      .select('category, amount, amount_base, status, txn_date')
+      .eq('tenant_id', tenantId)
+      .gte('txn_date', priorFrom).lte('txn_date', priorTo)
+      .lt('amount', 0).neq('status', 'void'),
+    listCategoryOverrides(tenantId),
+  ]);
+  if (ledgerRes.error) return { data: null, error: ledgerRes.error };
+
+  const lineCatSet = new Set((chart || []).map((c) => normKey(c.category)));
+  const resolve = buildResolver(ovRes.data, lineCatSet);
+  const rows = (ledgerRes.data || [])
+    .map((t) => ({
+      category: resolve({ category: t.category }),
+      amount: -Number(t.amount_base || 0),
+      ym: String(t.txn_date || '').slice(0, 7),
+    }))
+    .filter((r) => r.ym && r.amount);
+  const total = Math.round(rows.reduce((s, r) => s + r.amount, 0) * 100) / 100;
+  return { data: { rows, total, hasData: rows.length > 0, priorFrom, priorTo }, error: null };
+};
+
+// Convenience: seed source for the season one year before the given period.
+export const getSeedSourceForPeriod = async (tenantId, chart, periodStart, periodEnd) => {
+  const { from, to } = priorPeriodOf(periodStart, periodEnd);
+  return getSeedSource(tenantId, chart, from, to);
+};
+
+// Create a budget and, in one go, insert its lines (the MYBA chart, optionally seeded
+// with amounts + per-month shape + a per-line reason note). `lines` is the final
+// proposal the create screen previewed — [{ bucket, category, code, kind, amount,
+// monthly, reason }]. Blank-chart create passes no lines.
+export const createBudgetGuided = async ({ tenant_id, name, period_start, period_end, currency, lines }) => {
+  const { data: budget, error } = await createBudget({ tenant_id, name, period_start, period_end, currency });
+  if (error) return { data: null, error };
+  if (lines && lines.length) {
+    const rows = lines.map((l) => {
+      const monthly = {};
+      Object.entries(l.monthly || {}).forEach(([ym, v]) => { const n = Number(v); if (n) monthly[ym] = Math.round(n * 100) / 100; });
+      return {
+        budget_id: budget.id, bucket: l.bucket, category: l.category,
+        code: l.code || null, kind: l.kind || 'expense',
+        amount: Number(l.amount) || 0, monthly,
+        notes: (l.reason || l.notes || '').trim() || null,
+      };
+    });
+    const { error: lErr } = await supabase.from('budget_lines')
+      .upsert(rows, { onConflict: 'budget_id,bucket,category', ignoreDuplicates: false });
+    if (lErr) return { data: budget, error: lErr };
+  }
+  return { data: budget, error: null };
 };
 
 // ── Actual & committed (read-side aggregation) ──────────────────────────────────
