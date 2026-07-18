@@ -147,6 +147,20 @@ function maskContour(mask, W, H, bbox, eps) {
   return simp.map((p) => ({ x: (minx + p.x) / W, y: (miny + p.y) / H }));
 }
 
+// A single region's outline (no satellites) → simplified nodes 0..1, or null.
+export function regionContour(seg, region, opts = {}) {
+  const bbox = { minx: region.minx, miny: region.miny, maxx: region.maxx, maxy: region.maxy };
+  const { W, H, label } = seg;
+  const mask = new Uint8Array(W * H);
+  for (let y = region.miny; y <= region.maxy; y += 1) {
+    for (let x = region.minx; x <= region.maxx; x += 1) {
+      const i = y * W + x;
+      if (label[i] === region.id) mask[i] = 1;
+    }
+  }
+  return maskContour(mask, W, H, bbox, opts.eps ?? 0.012);
+}
+
 // A room's outline: the seed's region PLUS its small satellite sub-regions
 // (ensuite / wardrobe / WC, each cut off by one thin internal wall), so a cabin
 // comes out whole rather than as just its bed area. A satellite is absorbed only
