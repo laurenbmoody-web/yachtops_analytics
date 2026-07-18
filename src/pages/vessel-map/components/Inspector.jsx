@@ -6,7 +6,7 @@
 // Notes / List / Photos in PinPayload (notes, checklist, photo gallery).
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
-import { LAYERS, layerColor, layerLabel, layerHoldsStock } from '../layers';
+import { LAYERS, layerColor, layerLabel, layerHoldsStock, layerCanContain } from '../layers';
 import PinPayload from './PinPayload';
 import PinItems from './PinItems';
 import DefectPinSummary from './DefectPinSummary';
@@ -248,14 +248,19 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
                   })}
                   <span className="vm-swatch-name">{layerLabel(shown.layer)}</span>
                 </div>
-                <label className={`vm-ct${shown.is_container ? ' on' : ''}`}>
-                  <input type="checkbox" checked={!!shown.is_container} onChange={(e) => onToggleContainer?.(shown.id, e.target.checked)} />
-                  <span className="vm-ct-switch" aria-hidden="true" />
-                  <span className="vm-ct-text">
-                    <span className="vm-ct-title">This one opens up (drawers, shelves, compartments)</span>
-                    <span className="vm-ct-sub">{shown.is_container ? 'Add a photo of the inside, then drop a pin on each drawer or item' : 'Off — a single spot, with nothing pinned inside it'}</span>
-                  </span>
-                </label>
+                {/* Only enclosures (Storage cupboard / Inventory cabinet) open up
+                    into nested pins. Kept visible for an existing container even
+                    if its layer changed, so it can still be managed. */}
+                {(layerCanContain(shown.layer) || shown.is_container) && (
+                  <label className={`vm-ct${shown.is_container ? ' on' : ''}`}>
+                    <input type="checkbox" checked={!!shown.is_container} onChange={(e) => onToggleContainer?.(shown.id, e.target.checked)} />
+                    <span className="vm-ct-switch" aria-hidden="true" />
+                    <span className="vm-ct-text">
+                      <span className="vm-ct-title">This one opens up (drawers, shelves, compartments)</span>
+                      <span className="vm-ct-sub">{shown.is_container ? 'Add a photo of the inside, then drop a pin on each drawer or item' : 'Off — a single spot, with nothing pinned inside it'}</span>
+                    </span>
+                  </label>
+                )}
               </>
             )}
           </>

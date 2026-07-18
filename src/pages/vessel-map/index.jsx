@@ -22,7 +22,7 @@ import PinItems from './components/PinItems';
 import RoomPicker from './components/RoomPicker';
 import DefectModal from './components/DefectModal';
 import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
-import { LAYERS, layerColor, layerLabel, layerHoldsStock } from './layers';
+import { LAYERS, layerColor, layerLabel, layerHoldsStock, layerCanContain } from './layers';
 import Icon from '../../components/AppIcon';
 import { refreshScanThumb } from './utils/scanThumb';
 import { resolvePinNode } from './utils/placement';
@@ -1085,7 +1085,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   <div className="vm-placing-bar">
                     {!storagePlaced ? (
                       <>
-                        <span className="vm-placing-text">Placing <strong>{placingStorage.name}</strong> — look around, tap <strong>Add hotspot</strong>, then click the cupboard to drop the pin.</span>
+                        <span className="vm-placing-text">Pinning <strong>{placingStorage.name}</strong> — find it in the scan, tap <strong>Add hotspot</strong>, then click the cupboard to drop the pin.</span>
                         <button className="vm-placing-cancel" onClick={() => onCloseProp?.()}>Cancel</button>
                       </>
                     ) : (
@@ -1313,7 +1313,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                         {layerLabel(selectedHotspot.layer)}
                       </span>
                     )}
-                    {canPlaceHotspots && (
+                    {canPlaceHotspots && (layerCanContain(selectedHotspot.layer) || selectedHotspot.is_container) && (
                       <label className={`vm-ct${selectedHotspot.is_container ? ' on' : ''}`}>
                         <input type="checkbox" checked={!!selectedHotspot.is_container} onChange={(e) => setContainer(selectedHotspot.id, e.target.checked)} />
                         <span className="vm-ct-switch" aria-hidden="true" />
