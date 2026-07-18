@@ -133,7 +133,11 @@ function currentLifecycleIndex(order) {
     case 'received':          return 5;
     case 'out_for_delivery':  return 4;
     case 'dispatched':        return 3;
-    case 'confirmed':         return 2;
+    case 'confirmed':
+    case 'partially_confirmed':
+    case 'picking':           // supplier fulfilment stages — the vessel just
+    case 'packed':            // sees the order as Confirmed until it's dispatched
+      return 2;
     case 'sent': {
       const hasQuoted = items.some((i) => i.quote_status === 'quoted');
       return hasQuoted ? 1 : 0;

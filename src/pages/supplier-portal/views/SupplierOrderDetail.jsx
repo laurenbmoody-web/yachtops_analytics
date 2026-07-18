@@ -752,6 +752,10 @@ const DoStation = ({ order, items, canEdit, onConfirmAll, onStartPicking, onGene
     title = status === 'picking' ? 'Picking in progress' : 'Confirmed — ready to pick';
     hint = 'Count lines off the shelf — short picks carry a note to the yacht.';
     primary = { label: status === 'picking' ? 'Continue picking' : 'Start picking →', onClick: onStartPicking };
+  } else if (status === 'packed') {
+    title = <>Packed — ready to dispatch to <em>{port}</em></>;
+    hint = 'Send it on its way, then assign a driver from the order chat.';
+    primary = { label: 'Mark dispatched →', onClick: () => onAdvance('dispatched') };
   } else if (['dispatched', 'out_for_delivery'].includes(status)) {
     title = <>In transit to <em>{port}</em></>;
     hint = 'Mark delivered once the yacht signs for it.';

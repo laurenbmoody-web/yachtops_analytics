@@ -13,6 +13,10 @@ const STATUS_MAP = {
   draft:               { label: 'Draft',        cls: 'new' },
   sent:                { label: 'Sent',          cls: 'new' },
   confirmed:           { label: 'Confirmed',     cls: 'confirmed' },
+  picking:             { label: 'Picking',        cls: 'picking' },
+  packed:              { label: 'Packed',         cls: 'picking' },
+  dispatched:          { label: 'Dispatched',    cls: 'picking' },
+  out_for_delivery:    { label: 'Out for del.',   cls: 'picking' },
   // items
   pending:             { label: 'Pending',       cls: 'new' },
   unavailable:         { label: 'Unavailable',   cls: 'issues' },
