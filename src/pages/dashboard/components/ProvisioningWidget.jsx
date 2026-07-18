@@ -33,10 +33,10 @@ const ProvisioningWidget = () => {
       // we only fetch a handful of rows to display.
       const [pendingRes, attnRes] = await Promise.all([
         supabase.from('provisioning_lists').select('id, title, trip_id', { count: 'exact' })
-          .eq('vessel_id', activeTenantId).eq('status', 'pending_approval')
+          .eq('tenant_id', activeTenantId).eq('status', 'pending_approval')
           .order('created_at', { ascending: false }).limit(VISIBLE),
         supabase.from('provisioning_lists').select('id, title, status', { count: 'exact' })
-          .eq('vessel_id', activeTenantId).in('status', ['partially_delivered', 'delivered_with_discrepancies'])
+          .eq('tenant_id', activeTenantId).in('status', ['partially_delivered', 'delivered_with_discrepancies'])
           .order('updated_at', { ascending: false }).limit(VISIBLE),
       ]);
       if (pendingRes.error) throw pendingRes.error;
@@ -60,7 +60,7 @@ const ProvisioningWidget = () => {
       let unplanned = null;
       if (upcoming.length > 0) {
         const { data: allLists } = await supabase.from('provisioning_lists')
-          .select('trip_id').eq('vessel_id', activeTenantId).not('trip_id', 'is', null);
+          .select('trip_id').eq('tenant_id', activeTenantId).not('trip_id', 'is', null);
         const covered = new Set((allLists || []).map((l) => l.trip_id));
         const first = upcoming.find((t) => !covered.has(t.id));
         if (first) unplanned = { ...first, daysUntil: Math.ceil((new Date(first.startDate) - now) / 86400000) };
