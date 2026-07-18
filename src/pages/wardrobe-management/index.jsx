@@ -54,7 +54,7 @@ const WardrobeManagement = () => {
 
           <div className="wm-cards">
             <button type="button" className="wm-card" onClick={() => setShowWardrobes(true)}>
-              <span className="wm-card-ic"><Icon name="DoorClosed" size={26} /></span>
+              <span className="wm-card-ic"><Icon name="Shirt" size={26} /></span>
               <span className="wm-card-body">
                 <span className="wm-card-t">Owner</span>
                 <span className="wm-card-d">Resident garments that live on board, in their wardrobes. Pack, unpack, scan and view.</span>
