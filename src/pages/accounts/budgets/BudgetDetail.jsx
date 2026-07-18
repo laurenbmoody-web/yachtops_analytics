@@ -13,6 +13,7 @@ import { formatMoney } from '../../../services/financeCalc';
 import { stateOf } from '../../../services/budgetCalc';
 import BudgetFormModal from './components/BudgetFormModal';
 import LineFormModal from './components/LineFormModal';
+import AssignMenu from './components/AssignMenu';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from './data/mybaChartOfAccounts';
 import { exportBudgetXlsx, exportBudgetMonthlyXlsx } from './budgetExport';
 import './budgets.css';
@@ -309,16 +310,11 @@ export default function BudgetDetail() {
           <span className="bg-fig c-committed">{formatMoney(l.committed, cur)}</span>
           <span className="bg-fig c-remaining bg-neg">{formatMoney(l.remaining, cur)}</span>
           {canEdit ? (
-            <select className="bg-assign" value=""
-              onChange={(e) => {
-                const v = e.target.value; e.target.value = '';
-                if (v === '__new__') setLineModal({ line: { bucket: '', category: l.category, amount: 0 } });
-                else if (v) assignUnbudgeted(l.category, v);
-              }}>
-              <option value="" disabled>Assign to…</option>
-              {lineOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              <option value="__new__">＋ New line…</option>
-            </select>
+            <AssignMenu
+              options={lineOptions}
+              onSelect={(v) => assignUnbudgeted(l.category, v)}
+              onNew={() => setLineModal({ line: { bucket: '', category: l.category, amount: 0 } })}
+            />
           ) : <span className="bg-fig muted">review</span>}
           <span />
         </div>
@@ -450,6 +446,10 @@ export default function BudgetDetail() {
   };
 
   const sT = view ? summaryTotals() : { totals: {}, revenueTotals: {}, net: {} };
+  const hasRevenue = (sT.revenueTotals.budgeted || 0) > 0 || (sT.revenueTotals.actual || 0) > 0;
+  const kpiUsed = r2((sT.totals.actual || 0) + (sT.totals.committed || 0));
+  const kpiPct = (sT.totals.budgeted || 0) > 0 ? kpiUsed / sT.totals.budgeted : null;
+  const kpiState = stateOf(sT.totals.budgeted || 0, kpiUsed);
 
   return (
     <>
@@ -497,26 +497,23 @@ export default function BudgetDetail() {
                 </div>
               </div>
 
-              <div className="bg-sum">
-                {sT.revenueTotals.budgeted > 0 || sT.revenueTotals.actual > 0 ? (
-                  <>
-                    <div className="bg-s"><b className="bg-num bg-pos">{formatMoney(sT.revenueTotals.actual, cur)}</b><span>Revenue</span></div>
-                    <div className="bg-vr" />
-                  </>
-                ) : null}
-                <div className="bg-s"><b className="bg-num">{formatMoney(sT.totals.budgeted, cur)}</b><span>Budgeted (exp.)</span></div>
-                <div className="bg-vr" />
-                <div className="bg-s"><b className="bg-num">{formatMoney(sT.totals.actual, cur)}</b><span>Spent</span></div>
-                <div className="bg-vr" />
-                <div className="bg-s"><b className="bg-num">{formatMoney(sT.totals.committed, cur)}</b><span>On order</span></div>
-                <div className="bg-vr" />
-                <div className="bg-s"><b className={`bg-num ${sT.totals.remaining < 0 ? 'bg-neg' : ''}`}>{formatMoney(sT.totals.remaining, cur)}</b><span>Remaining</span></div>
-                {sT.revenueTotals.budgeted > 0 || sT.revenueTotals.actual > 0 ? (
-                  <>
-                    <div className="bg-vr" />
-                    <div className="bg-s"><b className={`bg-num ${sT.net.actual < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(sT.net.actual, cur)}</b><span>Net rev. (exp.)</span></div>
-                  </>
-                ) : null}
+              <div className="bg-kpis">
+                <div className={`bg-kpi bg-kpi-hero is-${kpiState}`}>
+                  <span className="bg-kpi-label">Budget used</span>
+                  <div className="bg-kpi-herorow">
+                    <b className="bg-kpi-big">{kpiPct == null ? '—' : `${Math.round(kpiPct * 100)}%`}</b>
+                    <span className={`bg-kpi-tag is-${sT.totals.remaining < 0 ? 'over' : 'ok'}`}>
+                      {sT.totals.remaining < 0 ? `${formatMoney(-sT.totals.remaining, cur)} over` : `${formatMoney(sT.totals.remaining, cur)} left`}
+                    </span>
+                  </div>
+                  <div className="bg-kpi-meter"><span className={`bg-kpi-fill is-${kpiState}`} style={{ width: `${kpiPct == null ? 0 : Math.min(100, Math.round(kpiPct * 100))}%` }} /></div>
+                  <span className="bg-kpi-sub">{formatMoney(kpiUsed, cur)} of {formatMoney(sT.totals.budgeted, cur)}{sT.totals.committed ? ` · incl. ${formatMoney(sT.totals.committed, cur)} on order` : ''}</span>
+                </div>
+                <div className="bg-kpi"><span className="bg-kpi-label">Spent</span><b className="bg-kpi-fig">{formatMoney(sT.totals.actual, cur)}</b><span className="bg-kpi-mini">actual, from the ledger</span></div>
+                <div className="bg-kpi"><span className="bg-kpi-label">On order</span><b className="bg-kpi-fig">{formatMoney(sT.totals.committed, cur)}</b><span className="bg-kpi-mini">open supplier orders</span></div>
+                <div className="bg-kpi"><span className="bg-kpi-label">Remaining</span><b className={`bg-kpi-fig ${sT.totals.remaining < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(sT.totals.remaining, cur)}</b><span className="bg-kpi-mini">budget − spent − on order</span></div>
+                {hasRevenue && <div className="bg-kpi"><span className="bg-kpi-label">Revenue</span><b className="bg-kpi-fig bg-pos">{formatMoney(sT.revenueTotals.actual, cur)}</b><span className="bg-kpi-mini">charter income</span></div>}
+                {hasRevenue && <div className="bg-kpi"><span className="bg-kpi-label">Net rev. (exp.)</span><b className={`bg-kpi-fig ${sT.net.actual < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(sT.net.actual, cur)}</b><span className="bg-kpi-mini">revenue − expenditure</span></div>}
               </div>
               <p className="bg-report-note">Figures reported in {cur}. Actual is live from the ledger; on-order is open supplier orders (VAT-exclusive), assumed same currency.</p>
 
