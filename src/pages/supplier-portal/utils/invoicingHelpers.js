@@ -77,7 +77,9 @@ export function suggestCategoryForItem(item, categories) {
   const name = String(item?.item_name || '').toLowerCase();
 
   const has = (k) => categories.some((c) => c.key === k);
-  if (has('alcohol')      && /(wine|champagne|magnum|bottle|spirit|gin|vodka|whisky|whiskey|rum|tequila|brandy|cognac|liqueur)/i.test(name)) return 'alcohol';
+  // NB: no generic 'bottle' keyword here — it misfires on water/soft-drink
+  // bottles (and alcohol is checked before non_alcoholic).
+  if (has('alcohol')      && /(wine|champagne|prosecco|magnum|spirit|gin|vodka|whisky|whiskey|rum|tequila|brandy|cognac|liqueur|beer|lager|ale|aperol|vermouth|sake)/i.test(name)) return 'alcohol';
   if (has('non_alcoholic') && /(juice|water|soda|lemonade|coke|tonic|mixer|soft drink)/i.test(name)) return 'non_alcoholic';
   if (has('food_prepared') && /(prepared|cooked|catered|hot|takeaway|ready|meal)/i.test(name)) return 'food_prepared';
   if (has('food')         && /(beef|wagyu|lamb|pork|fish|tuna|salmon|prawn|lobster|cheese|fruit|veg|salad|bread|pastry|grocery|produce|meat|seafood)/i.test(name)) return 'food';

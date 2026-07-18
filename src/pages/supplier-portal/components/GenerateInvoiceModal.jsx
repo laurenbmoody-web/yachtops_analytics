@@ -196,7 +196,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
   // Loading
   if (loadingSupplier) {
     return (
-      <SupplierModal open={open} onClose={onClose} title="Generate invoice">
+      <SupplierModal open={open} onClose={onClose} title="Generate invoice" className="gi-modal">
         <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--muted-strong)', fontSize: 13 }}>
           Loading invoicing settings…
         </div>
@@ -207,7 +207,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
   // Profile load failed
   if (profileError) {
     return (
-      <SupplierModal open={open} onClose={onClose} title="Generate invoice">
+      <SupplierModal open={open} onClose={onClose} title="Generate invoice" className="gi-modal">
         <div style={{ padding: '24px 0', color: 'var(--red)', fontSize: 13 }}>
           {profileError}
         </div>
@@ -223,7 +223,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
     };
     return (
       <SupplierModal
-        open={open} onClose={onClose} title="Generate invoice"
+        open={open} onClose={onClose} title="Generate invoice" className="gi-modal"
         footer={
           <>
             <button type="button" className="sp-btn sp-btn-secondary" onClick={onClose}>Cancel</button>
@@ -247,6 +247,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
       open={open}
       onClose={onClose}
       title="Generate invoice"
+      className="gi-modal"
       footer={
         <>
           <button type="button" className="sp-btn sp-btn-secondary" onClick={onClose} disabled={submitting}>
