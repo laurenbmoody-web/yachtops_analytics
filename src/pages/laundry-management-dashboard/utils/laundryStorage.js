@@ -196,6 +196,22 @@ export const setPhotoRetentionDays = async (days) => {
   return true;
 };
 
+// Vessel IANA timezone — anchors the daily laundry alert to 4pm vessel-local.
+export const getVesselTimezone = async () => {
+  const tenantId = await getTenantId();
+  if (!tenantId) return null;
+  const { data } = await supabase.from('vessels').select('timezone').eq('tenant_id', tenantId).maybeSingle();
+  return data?.timezone || null;
+};
+export const setVesselTimezone = async (tz) => {
+  const tenantId = await getTenantId();
+  if (!tenantId) return false;
+  const { error } = await supabase.from('vessels').update({ timezone: tz }).eq('tenant_id', tenantId);
+  if (error) { console.error('[laundry] timezone save failed', error); showToast('Could not save timezone', 'error'); return false; }
+  showToast('Alert timezone updated', 'success');
+  return true;
+};
+
 // Vessel identity for report letterheads (name, company, flag, port, IMO, logo).
 export const getVesselBranding = async () => {
   const tenantId = await getTenantId();
