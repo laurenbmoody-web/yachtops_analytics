@@ -13,7 +13,7 @@ import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpace
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace } from '../utils/locationsHierarchyStorage';
 import { traceRoom, bboxRect, simplifyClosed, regionInk } from '../utils/deckTrace';
-import { segmentDeck, regionAtPoint, roomOutline } from '../utils/deckSegment';
+import { segmentDeck, regionAtPoint, regionContour } from '../utils/deckSegment';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
@@ -605,30 +605,27 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       // is the true wall boundary (tolerant of a loose seed). Flood-fill/box only
       // as a fallback when a seed doesn't land in a usable region.
       const seg = segmentDeck(imageData);
-      // Resolve each room's region first, so a room never absorbs another's.
-      const resolved = rooms.map((r) => ({ r, region: regionAtPoint(seg, r.seed.x, r.seed.y) }));
-      const claimedMains = new Set(resolved.filter((x) => x.region).map((x) => x.region.id));
       const usedRegions = new Set();
       const used = new Set();
       let offPlan = 0;
-      const items = resolved.map(({ r, region }) => {
+      const items = rooms.map((r) => {
         let nodes = null;
+        const region = regionAtPoint(seg, r.seed.x, r.seed.y);
         if (region && !usedRegions.has(region.id)) {
-          nodes = roomOutline(seg, region, claimedMains);
+          nodes = regionContour(seg, region);
           if (nodes) usedRegions.add(region.id);
         }
         if (!nodes) {
-          // Fallback: flood-fill the seed, else the model's box.
+          // No usable region under the seed: flood-fill it, else the model's box —
+          // then guard against outlines that landed off the drawing (blank paper).
           const traced = traceRoom(imageData, r.seed, r.bbox);
           nodes = traced || bboxRect(r.bbox) || null;
           if (!nodes) return null;
-          // Only the fallback path can land off the drawing — guard it (a real
-          // region is by definition on the plan).
           const xs = nodes.map((n) => n.x);
           const ys = nodes.map((n) => n.y);
           const nb = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
           const seedBox = { x: r.seed.x - 0.028, y: r.seed.y - 0.06, w: 0.056, h: 0.12 };
-          if (regionInk(imageData, nb) < 0.02 || regionInk(imageData, seedBox) < 0.03) { offPlan += 1; return null; }
+          if (regionInk(imageData, nb) < 0.025 || regionInk(imageData, seedBox) < 0.04) { offPlan += 1; return null; }
         }
         const matchedSpaceId = matchSpaceId(r.name, spaces, used);
         if (matchedSpaceId) used.add(matchedSpaceId);
