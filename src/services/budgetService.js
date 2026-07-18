@@ -4,10 +4,13 @@
 
 import { supabase } from '../lib/supabaseClient';
 import { computeVsActual } from './budgetCalc.js';
+import { classifySpend } from './budgetClassify.js';
 
 const BUDGET_SELECT =
   'id, tenant_id, name, period_start, period_end, currency, status, notes, created_by, created_at, updated_at';
 const LINE_SELECT = 'id, budget_id, bucket, code, kind, category, amount, notes, created_at, updated_at';
+
+const normKey = (s) => String(s ?? '').trim().toLowerCase();
 
 // "Committed" = money on order but not yet realised. An order is committed once it
 // leaves draft and until it is paid (paid posts to the ledger as Actual — Phase 0
@@ -167,17 +170,84 @@ const fetchIncomeByCategory = async (tenantId, from, to) => {
 const fetchCommittedByCategory = async (tenantId, from, to) => {
   const { data, error } = await supabase
     .from('supplier_order_items')
-    .select('category, quantity, agreed_price, quoted_price, estimated_price, supplier_orders!inner(status, created_at, tenant_id)')
+    .select('category, department, quantity, agreed_price, quoted_price, estimated_price, ' +
+      'supplier_orders!inner(status, created_at, tenant_id, supplier_name, provisioning_lists:list_id(title, department, trip_id))')
     .eq('supplier_orders.tenant_id', tenantId)
     .not('supplier_orders.status', 'in', `(${NON_COMMITTED_STATUSES.join(',')})`)
     .gte('supplier_orders.created_at', from)
     .lt('supplier_orders.created_at', `${addDay(to)}T00:00:00Z`);
   if (error) return { data: null, error };
+
+  // Resolve trip name/type for the boards referenced, for the classifier's context.
+  const tripIds = [...new Set((data || [])
+    .map((it) => it.supplier_orders?.provisioning_lists?.trip_id).filter(Boolean))];
+  let tripsById = {};
+  if (tripIds.length) {
+    const { data: trips } = await supabase
+      .from('trips').select('id, name, trip_type').in('id', tripIds);
+    tripsById = Object.fromEntries((trips || []).map((t) => [t.id, t]));
+  }
+
   const rows = (data || []).map((it) => {
     const unit = Number(it.agreed_price ?? it.quoted_price ?? it.estimated_price) || 0;
-    return { category: it.category || 'Uncategorised', amount: unit * (Number(it.quantity) || 0) };
+    const board = it.supplier_orders?.provisioning_lists;
+    const trip = board?.trip_id ? tripsById[board.trip_id] : null;
+    return {
+      category: it.category || 'Uncategorised',
+      amount: unit * (Number(it.quantity) || 0),
+      department: it.department || board?.department || null,
+      boardTitle: board?.title || null,
+      tripName: trip?.name || null,
+      tripType: trip?.trip_type || null,
+    };
   });
   return { data: rows, error: null };
+};
+
+// ── Learned category mapping (source category -> budget line) ────────────────────
+
+export const listCategoryOverrides = async (tenantId) => {
+  const { data, error } = await supabase
+    .from('budget_category_map')
+    .select('source_category, bucket, category, code')
+    .eq('tenant_id', tenantId);
+  return { data, error };
+};
+
+export const setCategoryOverride = async (tenantId, sourceCategory, target) => {
+  const created_by = await currentUserId();
+  const { data, error } = await supabase
+    .from('budget_category_map')
+    .upsert({
+      tenant_id: tenantId,
+      source_category: normKey(sourceCategory),
+      bucket: target.bucket, category: target.category, code: target.code || null,
+      created_by,
+    }, { onConflict: 'tenant_id,source_category' })
+    .select('source_category, bucket, category, code')
+    .single();
+  return { data, error };
+};
+
+export const clearCategoryOverride = async (tenantId, sourceCategory) => {
+  const { error } = await supabase
+    .from('budget_category_map')
+    .delete().eq('tenant_id', tenantId).eq('source_category', normKey(sourceCategory));
+  return { error };
+};
+
+// Route a source spend item to a budget line category: learned override first, then
+// a HIGH-confidence classifier guess that lands on an existing line, else leave the
+// source category untouched so it surfaces in the Unbudgeted review queue.
+const buildResolver = (overrides, lineCatSet) => {
+  const map = new Map((overrides || []).map((o) => [normKey(o.source_category), o]));
+  return (item) => {
+    const ov = map.get(normKey(item.category));
+    if (ov && lineCatSet.has(normKey(ov.category))) return ov.category;
+    const s = classifySpend(item);
+    if (s && s.confidence === 'high' && lineCatSet.has(normKey(s.category))) return s.category;
+    return item.category;
+  };
 };
 
 // The core call: one budget's full vs-actual view.
@@ -185,17 +255,25 @@ export const getBudgetVsActual = async (budgetId) => {
   const { data: budget, error: bErr } = await getBudget(budgetId);
   if (bErr) return { data: null, error: bErr };
 
-  const [{ data: lines, error: lErr }, actualRes, committedRes, incomeRes] = await Promise.all([
+  const [{ data: lines, error: lErr }, actualRes, committedRes, incomeRes, ovRes] = await Promise.all([
     listLines(budgetId),
     fetchActualByCategory(budget.tenant_id, budget.period_start, budget.period_end),
     fetchCommittedByCategory(budget.tenant_id, budget.period_start, budget.period_end),
     fetchIncomeByCategory(budget.tenant_id, budget.period_start, budget.period_end),
+    listCategoryOverrides(budget.tenant_id),
   ]);
   if (lErr) return { data: null, error: lErr };
   if (actualRes.error) return { data: null, error: actualRes.error };
   if (committedRes.error) return { data: null, error: committedRes.error };
   if (incomeRes.error) return { data: null, error: incomeRes.error };
 
-  const view = computeVsActual(lines || [], actualRes.data, committedRes.data, incomeRes.data);
+  // Route source spend onto budget lines (learned map + confident classifier); the
+  // rest keeps its own category and lands in Unbudgeted for review.
+  const lineCatSet = new Set((lines || []).map((l) => normKey(l.category)));
+  const resolve = buildResolver(ovRes.data, lineCatSet);
+  const actualResolved = (actualRes.data || []).map((r) => ({ ...r, category: resolve(r) }));
+  const committedResolved = (committedRes.data || []).map((r) => ({ ...r, category: resolve(r) }));
+
+  const view = computeVsActual(lines || [], actualResolved, committedResolved, incomeRes.data);
   return { data: { budget, ...view }, error: null };
 };

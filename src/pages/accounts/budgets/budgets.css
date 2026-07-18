@@ -64,6 +64,19 @@
 .bg-cols .r, .bg-row .r { text-align: right; }
 .bg-row { padding: 12px 8px 12px 14px; border-bottom: 1px solid #EEF0F4; }
 .bg-row.is-over { box-shadow: inset 3px 0 0 0 #C65A1A; }
+
+/* Needs-review rows: a quiet pulsing terracotta edge so they stand out as the
+   month-end check list without shouting. */
+.bg-row.bg-review { animation: bg-review-pulse 1.9s ease-in-out infinite; border-radius: 8px; }
+@keyframes bg-review-pulse {
+  0%, 100% { box-shadow: inset 3px 0 0 0 #C65A1A, 0 0 0 0 rgba(198,90,26,0); }
+  50%      { box-shadow: inset 3px 0 0 0 #C65A1A, 0 0 0 3px rgba(198,90,26,0.14); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-row.bg-review { animation: none; box-shadow: inset 3px 0 0 0 #C65A1A; }
+}
+.bg-assign { font: inherit; font-size: 12.5px; color: #C65A1A; font-weight: 600; background: #FBEFE9; border: 1px solid #F0D9CC; border-radius: 8px; padding: 6px 8px; cursor: pointer; max-width: 100%; }
+.bg-assign:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 .bg-row-cat { min-width: 0; }
 .bg-row-cat b { font-size: 14px; font-weight: 600; }
 .bg-code { display: inline-block; font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px; color: #8B8478; background: #F1EFEA; border-radius: 5px; padding: 1px 5px; margin-right: 8px; vertical-align: middle; }
