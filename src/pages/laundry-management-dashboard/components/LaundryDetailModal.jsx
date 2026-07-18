@@ -51,7 +51,7 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
     try {
       const updated = await updateLaundryStatus(item.id, newStatus);
       // keep the already-signed photo URLs + avatar (status change doesn't touch them)
-      if (updated) setItem({ ...updated, photos: item.photos, photo: item.photo, avatarUrl });
+      if (updated) setItem({ ...updated, photos: item.photos, photo: item.photo, avatarUrl, _basis: item._basis, _billable: item._billable, _currency: item._currency, _charge: item._charge });
       loadEvents();
       onUpdated?.();
     } catch (e) {
@@ -60,10 +60,12 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
     }
   };
 
-  // apply an edit (flag / handling) and keep the signed photos + avatar
+  // apply an edit (flag / handling / charge) and keep the signed photos, avatar
+  // and the resolved billing context (so the charge field stays visible).
+  const keepBilling = () => ({ _basis: item._basis, _billable: item._billable, _currency: item._currency });
   const patch = async (fields) => {
     const updated = await updateLaundryItem(item.id, fields);
-    if (updated) setItem({ ...updated, photos: item.photos, photo: item.photo, avatarUrl });
+    if (updated) setItem({ ...updated, photos: item.photos, photo: item.photo, avatarUrl, ...keepBilling(), _charge: updated.charge != null ? Number(updated.charge) : item._charge });
     loadEvents();
     onUpdated?.();
   };
@@ -145,8 +147,9 @@ const LaundryDetailModal = ({ item: initial, onClose, onUpdated, onEdit }) => {
           )}
         </div>
 
-        {/* charter charge — guest personal laundry (billed on plus-expenses charters) */}
-        {kind === 'guest' && (
+        {/* charter charge — only shows for genuinely billable guest items
+            (plus-expenses charter + in scope; resolved when the item is enriched) */}
+        {item?._billable && (
           <div className="alm-section">
             <label className="alm-label">Charter charge <span className="alm-opt">guest laundry</span></label>
             <div className="ldm-charge">

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { LaundryStatus, LaundryPriority, formatLaundryTag } from '../utils/laundryStorage';
+import { money } from '../utils/laundryBilling';
 
 const statusRank = (s) =>(s === LaundryStatus?.IN_PROGRESS ? 0 : s === LaundryStatus?.READY_TO_DELIVER ? 1 : 2);
 const ownerKind = (t) => { const k = (t || 'unknown').toLowerCase(); return k === 'guest' ? 'guest' : k === 'crew' ? 'crew' : k === 'other' ? 'other' : 'unknown'; };
@@ -60,6 +61,7 @@ const CabinCard = ({ g, onBulkDeliver, onOpen, onAdvance }) => {
     if (it?.flag === 'missing') bits.push(<span key="mis" className="mis">Missing</span>);
     if (it?.flag === 'damaged') bits.push(<span key="dmg" className="dmg">Damaged</span>);
     if (it?.serviceLocation === 'shore') bits.push(<span key="ash" className="ash">Ashore</span>);
+    if (it?._billable && it?._charge != null) bits.push(<span key="chg" className="chg">{money(it._charge, it._currency)}</span>);
     (it?.tags || []).slice(0, 2).forEach((t, i) => bits.push(<span key={`t${i}`}>{formatLaundryTag(t)}</span>));
     if (it?.laundryNumber) bits.push(<span key="n">No. {it.laundryNumber}</span>);
     return (
