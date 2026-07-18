@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
 import { loadAllLaundryItems } from '../laundry-management-dashboard/utils/laundryStorage';
-import LaundryWardrobesModal from '../laundry-management-dashboard/components/LaundryWardrobesModal';
+import OwnerWardrobeView from '../laundry-management-dashboard/components/OwnerWardrobeView';
 import LaundryCasesModal from '../laundry-management-dashboard/components/LaundryCasesModal';
 import LaundryScanModal from '../laundry-management-dashboard/components/LaundryScanModal';
 import LaundryDetailModal from '../laundry-management-dashboard/components/LaundryDetailModal';
@@ -17,7 +17,7 @@ import './wardrobe.css';
 const WardrobeManagement = () => {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
-  const [showWardrobes, setShowWardrobes] = useState(false);
+  const [mode, setMode] = useState('hub'); // hub | owner
   const [showCases, setShowCases] = useState(false);
   const [showScan, setShowScan] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
@@ -47,40 +47,39 @@ const WardrobeManagement = () => {
             <span className="dot">●</span><span>Housekeeping</span>
             <span className="bar" /><span className="muted">Wardrobe management</span>
           </p>
-          <div className="wm-titlerow">
-            <h1 className="editorial-greeting">WARDROBE<span className="period">,</span> <em>managed</em><span className="period">.</span></h1>
-            <button type="button" className="lm-btn ghost" onClick={() => setShowScan(true)}><Icon name="QrCode" size={16} /> Scan</button>
-          </div>
+          {mode === 'hub' ? (
+            <>
+              <div className="wm-titlerow">
+                <h1 className="editorial-greeting">WARDROBE<span className="period">,</span> <em>managed</em><span className="period">.</span></h1>
+                <button type="button" className="lm-btn ghost" onClick={() => setShowScan(true)}><Icon name="QrCode" size={16} /> Scan</button>
+              </div>
 
-          <div className="wm-cards">
-            <button type="button" className="wm-card" onClick={() => setShowWardrobes(true)}>
-              <span className="wm-card-ic"><Icon name="Shirt" size={26} /></span>
-              <span className="wm-card-body">
-                <span className="wm-card-t">Owner</span>
-                <span className="wm-card-d">Resident garments that live on board, in their wardrobes. Pack, unpack, scan and view.</span>
-              </span>
-              <span className="wm-card-n">{ownerCount}<small>on board</small></span>
-            </button>
+              <div className="wm-cards">
+                <button type="button" className="wm-card" onClick={() => setMode('owner')}>
+                  <span className="wm-card-ic"><Icon name="Shirt" size={26} /></span>
+                  <span className="wm-card-body">
+                    <span className="wm-card-t">Owner</span>
+                    <span className="wm-card-d">Resident garments that live on board, in their wardrobes. Pack, unpack, scan and view.</span>
+                  </span>
+                  <span className="wm-card-n">{ownerCount}<small>on board</small></span>
+                </button>
 
-            <button type="button" className="wm-card" onClick={() => setShowCases(true)}>
-              <span className="wm-card-ic"><Icon name="Package" size={26} /></span>
-              <span className="wm-card-body">
-                <span className="wm-card-t">Charter</span>
-                <span className="wm-card-d">Guests’ cases for travel on and off the vessel. Pack, unpack, share a case with a guest.</span>
-              </span>
-              <span className="wm-card-n">{charterCount}<small>in cases</small></span>
-            </button>
-          </div>
+                <button type="button" className="wm-card" onClick={() => setShowCases(true)}>
+                  <span className="wm-card-ic"><Icon name="Package" size={26} /></span>
+                  <span className="wm-card-body">
+                    <span className="wm-card-t">Charter</span>
+                    <span className="wm-card-d">Guests’ cases for travel on and off the vessel. Pack, unpack, share a case with a guest.</span>
+                  </span>
+                  <span className="wm-card-n">{charterCount}<small>in cases</small></span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <OwnerWardrobeView onBack={() => { setMode('hub'); reload(); }} />
+          )}
         </div>
       </div>
 
-      {showWardrobes && (
-        <LaundryWardrobesModal
-          items={items} scope="owner" onChanged={reload}
-          onOpenItem={(it) => setDetailItem(it)}
-          onClose={() => setShowWardrobes(false)}
-        />
-      )}
       {showCases && (
         <LaundryCasesModal
           items={items} initialCaseId={casesInitialId} onChanged={reload}

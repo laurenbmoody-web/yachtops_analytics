@@ -15,7 +15,7 @@ import { uploadLaundryPhotos, resolveLaundryPhotos, deleteLaundryPhotos, isStore
 
 // Owner / status / priority enums (unchanged — values match stored strings).
 export const OwnerType = { GUEST: 'Guest', CREW: 'Crew', OTHER: 'Other' };
-export const LaundryStatus = { IN_PROGRESS: 'InProgress', READY_TO_DELIVER: 'ReadyToDeliver', DELIVERED: 'Delivered' };
+export const LaundryStatus = { IN_PROGRESS: 'InProgress', READY_TO_DELIVER: 'ReadyToDeliver', DELIVERED: 'Delivered', STORED: 'Stored' };
 export const LaundryPriority = { NORMAL: 'Normal', URGENT: 'Urgent' };
 
 // Care tags — stored as compact enum values, shown as human labels. Custom
@@ -76,6 +76,9 @@ const mapRow = (r) => ({
   charge: r.charge != null ? r.charge : null,
   caseId: r.case_id || null,
   wardrobeId: r.wardrobe_id || null,
+  garmentType: r.garment_type || '',
+  garmentValue: r.garment_value != null ? r.garment_value : null,
+  garmentValueCurrency: r.garment_value_currency || 'EUR',
 });
 
 // ── date helpers ─────────────────────────────────────────────────────────────
@@ -301,6 +304,29 @@ export const loadLaundryItemsByWardrobe = async (wardrobeId) => {
   return (data || []).map(mapRow);
 };
 
+// Bulk status change (e.g. send several garments to laundry at once).
+export const setLaundryItemsStatus = async (itemIds, status) => {
+  const ids = (itemIds || []).filter(Boolean);
+  if (!ids.length) return false;
+  const patch = { status, updated_at: new Date().toISOString() };
+  if (status === LaundryStatus.DELIVERED) patch.delivered_at = new Date().toISOString();
+  const { error } = await supabase.from('laundry_items').update(patch).in('id', ids);
+  if (error) { console.error('[laundry] bulk status failed', error); showToast('Could not update items', 'error'); return false; }
+  return true;
+};
+
+// Bulk archive (owner says "get rid"): sets archived_at so items drop out of
+// active views. Records survive for history.
+export const archiveLaundryItems = async (itemIds) => {
+  const ids = (itemIds || []).filter(Boolean);
+  if (!ids.length) return false;
+  const { error } = await supabase.from('laundry_items')
+    .update({ archived_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .in('id', ids);
+  if (error) { console.error('[laundry] bulk archive failed', error); showToast('Could not archive items', 'error'); return false; }
+  return true;
+};
+
 // Assign items to a wardrobe home (wardrobeId), or clear the home (null). Bulk.
 export const setLaundryItemsWardrobe = async (itemIds, wardrobeId) => {
   const ids = (itemIds || []).filter(Boolean);
@@ -442,11 +468,15 @@ export const createLaundryItem = async (itemData) => {
     photo: storedPhotos[0] || '',
     description: itemData?.description || '',
     priority: itemData?.priority || LaundryPriority.NORMAL,
-    status: LaundryStatus.IN_PROGRESS,
+    status: itemData?.status || LaundryStatus.IN_PROGRESS,
     tags: itemData?.tags || [],
     notes: itemData?.notes || '',
     trip_id: itemData?.tripId || null,
     needed_by: itemData?.neededBy || null,
+    wardrobe_id: itemData?.wardrobeId || null,
+    garment_type: itemData?.garmentType || null,
+    garment_value: (itemData?.garmentValue != null && itemData?.garmentValue !== '') ? Number(itemData.garmentValue) : null,
+    garment_value_currency: itemData?.garmentValueCurrency || null,
     created_by: authData?.user?.id || null,
     created_by_name: currentUser?.fullName || currentUser?.name || 'Unknown User',
   };
@@ -511,6 +541,7 @@ export const updateLaundryItem = async (itemId, updates) => {
     neededBy: 'needed_by', flag: 'flag', flagNote: 'flag_note',
     serviceLocation: 'service_location', vendor: 'vendor', sentAt: 'sent_at', expectedBack: 'expected_back',
     charge: 'charge', caseId: 'case_id', wardrobeId: 'wardrobe_id',
+    garmentType: 'garment_type', garmentValue: 'garment_value', garmentValueCurrency: 'garment_value_currency',
   };
   // Photos edited → upload any new data URLs to the bucket before saving.
   let up = updates || {};
