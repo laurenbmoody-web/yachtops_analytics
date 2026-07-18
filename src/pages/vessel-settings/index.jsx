@@ -14,6 +14,7 @@ import { AlertCircle, Edit2, Upload } from 'lucide-react';
 import LocationsManagementSettings from '../locations-management-settings';
 
 import RoleManagement from '../crew-management/components/RoleManagement';
+import CharterBillingSettings from './components/CharterBillingSettings';
 import { useAuth } from '../../contexts/AuthContext';
 import { logActivity } from '../../utils/activityStorage';
 import '../../styles/editorial.css';
@@ -511,6 +512,7 @@ const VesselSettings = () => {
     { id: 'location-management', label: 'Location Management', icon: 'MapPin' },
     { id: 'role-management', label: 'Role Management', icon: 'Users' },
     { id: 'provisioning-approval', label: 'Provisioning Approval', icon: 'CheckCircle' },
+    { id: 'charter-billing', label: 'Charter Billing', icon: 'Receipt' },
   ];
 
   const renderContent = () => {
@@ -540,6 +542,10 @@ const VesselSettings = () => {
     } else if (activeSection === 'provisioning-approval') {
       return (
         <ProvisioningApprovalSettings tenantId={vesselData?.id} />
+      );
+    } else if (activeSection === 'charter-billing') {
+      return (
+        <CharterBillingSettings canEdit={canEdit} />
       );
     }
   };

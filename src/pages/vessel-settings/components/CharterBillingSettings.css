@@ -1,0 +1,43 @@
+.cbs { max-width: 640px; font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
+.cbs-loading { color: #8B8478; font-size: 13px; }
+.cbs-intro { font-size: 13.5px; line-height: 1.55; color: #6B7280; margin: 0 0 18px; }
+.cbs-intro b { color: #1C1B3A; font-weight: 600; }
+.cbs-note { font-size: 12.5px; color: #B7791F; background: #FCF7EF; border: 1px solid #E8DBC9; border-radius: 10px; padding: 9px 12px; margin-bottom: 16px; }
+.cbs-fs { border: none; padding: 0; margin: 0; min-width: 0; }
+.cbs-fs[disabled] { opacity: 0.6; }
+
+.cbs-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 0; border-bottom: 1px solid #F0F1F5; }
+.cbs-label span { display: block; font-size: 14px; font-weight: 600; }
+.cbs-label small { display: block; font-size: 11.5px; color: #8B8478; margin-top: 2px; }
+
+.cbs-seg { display: inline-flex; background: #F6F5F2; border: 1px solid #ECEAE3; border-radius: 999px; padding: 3px; gap: 2px; flex: none; }
+.cbs-seg.wide button { padding: 7px 16px; }
+.cbs-seg button { border: none; background: none; font: 600 12.5px 'Inter', system-ui, sans-serif; color: #6B7280; padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+.cbs-seg button.on { background: #C65A1A; color: #FFFFFF; }
+
+.cbs-select select { font: 500 13px 'Inter', system-ui, sans-serif; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 10px; padding: 9px 12px; cursor: pointer; }
+.cbs-select select:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+
+.cbs-hint { font-size: 12px; color: #8B8478; margin: 8px 0 0; line-height: 1.5; }
+
+.cbs-money { display: inline-flex; align-items: center; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 10px; padding: 0 12px; flex: none; }
+.cbs-money.sm { padding: 0 10px; }
+.cbs-money:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.cbs-cur { color: #8B8478; font-size: 13px; }
+.cbs-money input { border: none; background: none; font: 500 13px 'Inter', system-ui, sans-serif; color: #1C1B3A; padding: 9px 4px 9px 6px; width: 92px; }
+.cbs-money.sm input { width: 74px; }
+.cbs-money input:focus { outline: none; }
+
+.cbs-pl { margin-top: 14px; border: 1px solid #ECEAE3; border-radius: 12px; padding: 12px; }
+.cbs-pl-head { display: grid; grid-template-columns: 1fr 120px 28px; gap: 10px; font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #AEB4C2; padding: 0 2px 8px; }
+.cbs-pl-row { display: grid; grid-template-columns: 1fr 120px 28px; gap: 10px; align-items: center; margin-bottom: 8px; }
+.cbs-pl-label { font: 500 13px 'Inter', system-ui, sans-serif; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 10px; padding: 9px 12px; }
+.cbs-pl-label:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.cbs-pl-x { border: none; background: none; color: #AEB4C2; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 8px; }
+.cbs-pl-x:hover { color: #C24632; background: #FBEFE9; }
+.cbs-pl-add { margin-top: 4px; display: inline-flex; align-items: center; gap: 5px; font: 600 12px 'Inter', system-ui, sans-serif; color: #C65A1A; background: none; border: none; cursor: pointer; padding: 4px 2px; }
+
+.cbs-foot { margin-top: 22px; }
+.cbs-save { font: 600 13px 'Inter', system-ui, sans-serif; color: #FFFFFF; background: #C65A1A; border: none; border-radius: 10px; padding: 11px 20px; cursor: pointer; }
+.cbs-save:hover { background: #B14E16; }
+.cbs-save:disabled { opacity: 0.5; cursor: default; }
