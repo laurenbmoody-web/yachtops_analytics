@@ -142,7 +142,36 @@
   font-weight: 600;
   color: var(--edp-navy);
   letter-spacing: 0.01em;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 8px;
+  transition: background 120ms ease, color 120ms ease;
 }
+.edp-month-label:hover { background: var(--edp-sand-soft); color: var(--edp-rust); }
+
+/* month / year quick-pick grids (click the header label to reach them) */
+.edp-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 6px 2px 2px;
+}
+.edp-picker-cell {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 9px;
+  padding: 11px 4px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--edp-navy);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.edp-picker-cell:hover { background: var(--edp-sand-soft); color: var(--edp-rust); }
+.edp-picker-cell.is-active { background: var(--edp-rust); color: #fff; }
 .edp-nav-btn {
   width: 26px;
   height: 26px;

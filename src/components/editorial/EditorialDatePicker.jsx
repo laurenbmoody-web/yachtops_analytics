@@ -34,10 +34,10 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallba
 import { createPortal } from 'react-dom';
 import {
   format, parse, isValid,
-  startOfMonth, endOfMonth, addMonths, subMonths,
+  startOfMonth, endOfMonth, addMonths, subMonths, addYears, subYears,
   startOfWeek, endOfWeek, eachDayOfInterval,
   isSameDay, isSameMonth, isToday,
-  addDays,
+  addDays, setMonth, setYear,
 } from 'date-fns';
 import useDismissable from '../ui/useDismissable';
 import { weekStartsOn, dateFnsFormat } from '../../utils/dateFormat';
@@ -122,6 +122,9 @@ const EditorialDatePicker = ({
   const [text, setText]                 = useState(formatDisplay(valueDate, displayFormat));
   const [viewMonth, setViewMonth]       = useState(() => valueDate || new Date());
   const [focusedDate, setFocusedDate]   = useState(() => valueDate || new Date());
+  // 'day' = the calendar grid; 'month' = the month picker; 'year' = the year grid.
+  // Clicking the header label steps day → month → year for quick long jumps.
+  const [pickMode, setPickMode]         = useState('day');
 
   const wrapperRef = useRef(null);
   const popoverRef = useRef(null);
@@ -148,6 +151,7 @@ const EditorialDatePicker = ({
     const seed = valueDate || new Date();
     setViewMonth(seed);
     setFocusedDate(seed);
+    setPickMode('day');
     setOpen(true);
     // Close any other open picker (e.g. the sibling From/To field).
     document.dispatchEvent(new CustomEvent(EDP_OPEN_EVENT, { detail: instanceIdRef.current }));
@@ -372,24 +376,61 @@ const EditorialDatePicker = ({
             <button
               type="button"
               className="edp-nav-btn"
-              onClick={() => setViewMonth(subMonths(viewMonth, 1))}
-              aria-label="Previous month"
+              onClick={() => setViewMonth(pickMode === 'year' ? subYears(viewMonth, 12) : pickMode === 'month' ? subYears(viewMonth, 1) : subMonths(viewMonth, 1))}
+              aria-label={pickMode === 'day' ? 'Previous month' : pickMode === 'month' ? 'Previous year' : 'Previous years'}
             >
               <ChevronLeft />
             </button>
-            <div className="edp-month-label" aria-live="polite">
-              {format(viewMonth, 'MMMM yyyy')}
-            </div>
+            <button
+              type="button"
+              className="edp-month-label"
+              aria-live="polite"
+              aria-label="Choose month and year"
+              onClick={() => setPickMode((m) => (m === 'day' ? 'month' : m === 'month' ? 'year' : 'day'))}
+            >
+              {pickMode === 'day' ? format(viewMonth, 'MMMM yyyy') : pickMode === 'month' ? format(viewMonth, 'yyyy') : `${viewMonth.getFullYear() - 5}–${viewMonth.getFullYear() + 6}`}
+            </button>
             <button
               type="button"
               className="edp-nav-btn"
-              onClick={() => setViewMonth(addMonths(viewMonth, 1))}
-              aria-label="Next month"
+              onClick={() => setViewMonth(pickMode === 'year' ? addYears(viewMonth, 12) : pickMode === 'month' ? addYears(viewMonth, 1) : addMonths(viewMonth, 1))}
+              aria-label={pickMode === 'day' ? 'Next month' : pickMode === 'month' ? 'Next year' : 'Next years'}
             >
               <ChevronRight />
             </button>
           </div>
 
+          {pickMode === 'month' ? (
+            <div className="edp-picker-grid" role="grid" aria-label="Pick a month">
+              {Array.from({ length: 12 }, (_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`edp-picker-cell${i === viewMonth.getMonth() ? ' is-active' : ''}`}
+                  onClick={() => { setViewMonth(setMonth(viewMonth, i)); setPickMode('day'); }}
+                >
+                  {format(setMonth(new Date(2000, 0, 1), i), 'MMM')}
+                </button>
+              ))}
+            </div>
+          ) : pickMode === 'year' ? (
+            <div className="edp-picker-grid" role="grid" aria-label="Pick a year">
+              {Array.from({ length: 12 }, (_, i) => {
+                const yr = viewMonth.getFullYear() - 5 + i;
+                return (
+                  <button
+                    key={yr}
+                    type="button"
+                    className={`edp-picker-cell${yr === viewMonth.getFullYear() ? ' is-active' : ''}`}
+                    onClick={() => { setViewMonth(setYear(viewMonth, yr)); setPickMode('month'); }}
+                  >
+                    {yr}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+          <>
           <div className="edp-weekdays" role="row">
             {weekdayLabels.map((wd, i) => (
               <div key={i} className="edp-weekday" role="columnheader">{wd}</div>
@@ -448,6 +489,8 @@ const EditorialDatePicker = ({
               );
             })}
           </div>
+          </>
+          )}
 
           <div className="edp-pop-foot">
             <button type="button" className="edp-foot-btn" onClick={handleToday}>Today</button>
