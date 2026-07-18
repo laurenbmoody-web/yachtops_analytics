@@ -3,58 +3,57 @@ import { Link } from 'react-router-dom';
 import { User, Briefcase } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
 
-// Brand tokens — mirror the admin NextUp card so this feels like one design system.
-const BRAND = { navy: '#1E3A5F', accent: '#00A8CC', mute: '#64748B' };
-const HEADING_FONT = "'Outfit', system-ui, sans-serif";
-const BODY_FONT    = "'Plus Jakarta Sans', system-ui, sans-serif";
-const PILL_FONT    = "'Archivo', system-ui, sans-serif";
+// Cargo editorial tokens — navy ink, terracotta accent, Inter / DM Serif.
+const BRAND = { ink: '#1C1B3A', terra: '#C65A1A', mute: '#6B7280', faint: '#8B8478' };
+const SERIF = "'DM Serif Display', Georgia, serif";
+const BODY  = "'Inter', system-ui, sans-serif";
 
-const WASH_CONTAINER = {
-  padding: '18px 22px',
-  borderRadius: 12,
-  background: 'linear-gradient(135deg, #F0F9FF 0%, #E0F2FE 100%)',
-  border: '1px solid #BAE6FD',
+const CARD = {
+  padding: '16px 18px',
+  borderRadius: 14,
+  background: '#FFFFFF',
+  border: '1px solid #ECEAE3',
+  boxShadow: '0 1px 2px rgba(28,27,58,0.04)',
 };
 
-// Shared row renderer — icon tile + optional eyebrow + title + CTA. Matches NextUp layout.
+// Shared row renderer — icon tile + optional eyebrow + title + CTA.
 const HybridRow = ({ icon: Icon, eyebrow, title, subtitle, ctaLabel, ctaHref }) => (
-  <div style={{ ...WASH_CONTAINER, display: 'flex', alignItems: 'center', gap: 16 }}>
+  <div style={{ ...CARD, display: 'flex', alignItems: 'center', gap: 14 }}>
     <div
       style={{
-        width: 44,
-        height: 44,
-        borderRadius: 10,
-        background: 'white',
+        width: 42,
+        height: 42,
+        borderRadius: 11,
+        background: '#F4F5F9',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         flexShrink: 0,
-        boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
       }}
     >
-      <Icon size={22} color={BRAND.navy} strokeWidth={2.2} />
+      <Icon size={20} color={BRAND.ink} strokeWidth={1.9} />
     </div>
     <div style={{ flex: 1, minWidth: 0 }}>
       {eyebrow && (
         <div
           style={{
-            fontSize: 10,
-            letterSpacing: '0.18em',
+            fontSize: 9,
+            letterSpacing: '0.12em',
             textTransform: 'uppercase',
-            color: BRAND.mute,
-            fontFamily: PILL_FONT,
-            fontWeight: 800,
+            color: BRAND.faint,
+            fontFamily: BODY,
+            fontWeight: 700,
             marginBottom: 2,
           }}
         >
           {eyebrow}
         </div>
       )}
-      <div style={{ fontSize: 16, fontWeight: 900, color: BRAND.navy, letterSpacing: '-0.01em', fontFamily: HEADING_FONT }}>
+      <div style={{ fontSize: 14.5, fontWeight: 600, color: BRAND.ink, fontFamily: BODY }}>
         {title}
       </div>
       {subtitle && (
-        <div style={{ fontSize: 12, color: BRAND.mute, fontFamily: BODY_FONT, marginTop: 2 }}>
+        <div style={{ fontSize: 12.5, color: BRAND.mute, fontFamily: BODY, marginTop: 2, lineHeight: 1.4 }}>
           {subtitle}
         </div>
       )}
@@ -63,15 +62,15 @@ const HybridRow = ({ icon: Icon, eyebrow, title, subtitle, ctaLabel, ctaHref }) 
       <Link
         to={ctaHref}
         style={{
-          background: BRAND.navy,
-          color: 'white',
-          padding: '10px 18px',
-          borderRadius: 8,
+          background: BRAND.terra,
+          color: '#fff',
+          padding: '9px 16px',
+          borderRadius: 10,
           fontSize: 13,
-          fontWeight: 800,
+          fontWeight: 600,
           textDecoration: 'none',
           whiteSpace: 'nowrap',
-          fontFamily: PILL_FONT,
+          fontFamily: BODY,
         }}
       >
         {ctaLabel}
@@ -181,11 +180,11 @@ const CrewDashboardCard = ({ userId, tenantId }) => {
       */}
 
       {!hasAnything && (
-        <div style={{ ...WASH_CONTAINER, textAlign: 'center' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: BRAND.navy, fontFamily: HEADING_FONT }}>
+        <div style={{ ...CARD, textAlign: 'center', padding: '22px 18px' }}>
+          <div style={{ fontSize: 19, color: BRAND.ink, fontFamily: SERIF }}>
             You're all caught up
           </div>
-          <div style={{ fontSize: 13, color: BRAND.mute, fontFamily: BODY_FONT, marginTop: 4 }}>
+          <div style={{ fontSize: 13, color: BRAND.mute, fontFamily: BODY, marginTop: 4 }}>
             Nothing needs your attention right now.
           </div>
         </div>

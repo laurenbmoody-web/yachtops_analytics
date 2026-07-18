@@ -22,25 +22,31 @@ const getTodayLocalRange = () => {
   };
 };
 
+// Restrained semantic palette (green = done/new, amber = changed, red = removed,
+// navy = neutral) — no rainbow.
+const C_OK = 'text-[#3F7A52]';
+const C_WARN = 'text-[#A8791C]';
+const C_BAD = 'text-[#B23A2E]';
+const C_INK = 'text-[#1C1B3A]';
 const ACTION_ICON_MAP = {
-  JOB_CREATED: { icon: 'Plus', color: 'text-blue-500' },
-  JOB_COMPLETED: { icon: 'CheckCircle', color: 'text-green-500' },
-  JOB_ASSIGNED: { icon: 'UserCheck', color: 'text-indigo-500' },
-  JOB_ACCEPTED: { icon: 'ThumbsUp', color: 'text-teal-500' },
-  JOB_DECLINED: { icon: 'ThumbsDown', color: 'text-red-400' },
-  JOB_EDITED: { icon: 'Edit2', color: 'text-amber-500' },
-  JOB_DUE_DATE_CHANGED: { icon: 'Calendar', color: 'text-amber-500' },
-  JOB_PRIORITY_CHANGED: { icon: 'AlertTriangle', color: 'text-orange-500' },
-  JOB_DELETED: { icon: 'Trash2', color: 'text-red-500' },
-  STOCK_ADJUSTED: { icon: 'Package', color: 'text-purple-500' },
-  STOCK_RECEIVED: { icon: 'PackagePlus', color: 'text-green-500' },
-  STOCK_CONSUMED: { icon: 'PackageMinus', color: 'text-orange-500' },
-  ITEM_CREATED: { icon: 'PlusSquare', color: 'text-blue-500' },
-  ITEM_UPDATED: { icon: 'RefreshCw', color: 'text-blue-400' },
-  DEFECT_CREATED: { icon: 'AlertCircle', color: 'text-red-500' },
-  DEFECT_CLOSED: { icon: 'CheckSquare', color: 'text-green-500' },
-  DEFECT_STATUS_CHANGED: { icon: 'Activity', color: 'text-amber-500' },
-  DEFAULT: { icon: 'Zap', color: 'text-muted-foreground' }
+  JOB_CREATED: { icon: 'Plus', color: C_OK },
+  JOB_COMPLETED: { icon: 'CheckCircle', color: C_OK },
+  JOB_ASSIGNED: { icon: 'UserCheck', color: C_INK },
+  JOB_ACCEPTED: { icon: 'ThumbsUp', color: C_OK },
+  JOB_DECLINED: { icon: 'ThumbsDown', color: C_BAD },
+  JOB_EDITED: { icon: 'Edit2', color: C_WARN },
+  JOB_DUE_DATE_CHANGED: { icon: 'Calendar', color: C_WARN },
+  JOB_PRIORITY_CHANGED: { icon: 'AlertTriangle', color: C_WARN },
+  JOB_DELETED: { icon: 'Trash2', color: C_BAD },
+  STOCK_ADJUSTED: { icon: 'Package', color: C_WARN },
+  STOCK_RECEIVED: { icon: 'PackagePlus', color: C_OK },
+  STOCK_CONSUMED: { icon: 'PackageMinus', color: C_WARN },
+  ITEM_CREATED: { icon: 'PlusSquare', color: C_OK },
+  ITEM_UPDATED: { icon: 'RefreshCw', color: C_WARN },
+  DEFECT_CREATED: { icon: 'AlertCircle', color: C_BAD },
+  DEFECT_CLOSED: { icon: 'CheckSquare', color: C_OK },
+  DEFECT_STATUS_CHANGED: { icon: 'Activity', color: C_WARN },
+  DEFAULT: { icon: 'Zap', color: 'text-[#8B95A5]' },
 };
 
 const getActionMeta = (action) => ACTION_ICON_MAP?.[action] || ACTION_ICON_MAP?.DEFAULT;
