@@ -167,6 +167,17 @@
 .bg-mgrand td { font-weight: 700; color: #1C1B3A; border-top: 2px solid #1C1B3A; background: #FCFCFD; }
 .bg-mgrand.bg-mnet td { border-top: 1px solid #E6E8EF; color: #C65A1A; }
 
+/* Month view mode bar (Budget / Actual / Variance) */
+.bg-mbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 16px 0 10px; }
+.bg-mbar-note { font-size: 11.5px; color: #8B8478; }
+.bg-mcell-edit { cursor: pointer; display: inline-block; border-radius: 5px; padding: 1px 5px; margin: -1px -5px; }
+.bg-mcell-edit:hover { background: #FBEFE9; box-shadow: inset 0 0 0 1px #F0D9CC; }
+.bg-minput { width: 76px; font: inherit; font-size: 12px; text-align: right; color: #1C1B3A; background: #fff; border: 1px solid #C65A1A; border-radius: 6px; padding: 3px 5px; box-shadow: 0 0 0 2px #FAECE7; }
+.bg-minput:focus { outline: none; }
+.bg-spread { margin-left: 8px; border: 0; background: none; padding: 0; cursor: pointer; font: inherit; font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #C65A1A; opacity: 0; }
+.bg-mtable tbody tr:hover .bg-spread { opacity: 0.7; }
+.bg-spread:hover { opacity: 1 !important; text-decoration: underline; }
+
 @media (max-width: 900px) {
   .bg-cols, .bg-row { grid-template-columns: 1.3fr 90px 90px 120px 30px; }
   .bg-cols .c-committed, .bg-row .c-committed, .bg-cols .c-remaining, .bg-row .c-remaining { display: none; }

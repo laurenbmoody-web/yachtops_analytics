@@ -31,6 +31,14 @@ const emptyRow = (months) => Object.fromEntries(months.map((mo) => [mo.ym, 0]));
 const sumRow = (byMonth) => r2(Object.values(byMonth).reduce((s, v) => s + num(v), 0));
 const addInto = (target, src) => { Object.keys(src).forEach((ym) => { target[ym] = r2(num(target[ym]) + num(src[ym])); }); };
 
+// Pull a line's per-month budget targets (jsonb map ym -> amount) onto the period.
+const budgetRow = (line, months) => {
+  const row = emptyRow(months);
+  const m = line.monthly || {};
+  months.forEach((mo) => { if (m[mo.ym] != null) row[mo.ym] = num(m[mo.ym]); });
+  return row;
+};
+
 export const computeMonthly = (lines, actuals, income, months) => {
   const actMap = byCatMonth(actuals);
   const incMap = byCatMonth(income);
@@ -49,14 +57,24 @@ export const computeMonthly = (lines, actuals, income, months) => {
     const src = (l.kind === 'revenue' ? incMap : actMap).get(k);
     const byMonth = emptyRow(months);
     if (owns && src) { src.forEach((v, ym) => { if (ym in byMonth) byMonth[ym] = v; }); claimed.add(k); }
-    bucketMap.get(l.bucket).lines.push({ id: l.id, code: l.code || null, category: l.category, byMonth, total: sumRow(byMonth) });
+    const budgetByMonth = budgetRow(l, months);
+    bucketMap.get(l.bucket).lines.push({
+      id: l.id, code: l.code || null, category: l.category, annual: num(l.amount),
+      byMonth, total: sumRow(byMonth),
+      budgetByMonth, budgetTotal: sumRow(budgetByMonth),
+    });
   });
 
   const buckets = bucketOrder.map((bucket) => {
     const b = bucketMap.get(bucket);
     const subtotalByMonth = emptyRow(months);
-    b.lines.forEach((ln) => addInto(subtotalByMonth, ln.byMonth));
-    return { bucket, kind: b.kind, lines: b.lines, subtotalByMonth, subtotalTotal: sumRow(subtotalByMonth) };
+    const budgetSubtotalByMonth = emptyRow(months);
+    b.lines.forEach((ln) => { addInto(subtotalByMonth, ln.byMonth); addInto(budgetSubtotalByMonth, ln.budgetByMonth); });
+    return {
+      bucket, kind: b.kind, lines: b.lines,
+      subtotalByMonth, subtotalTotal: sumRow(subtotalByMonth),
+      budgetSubtotalByMonth, budgetSubtotalTotal: sumRow(budgetSubtotalByMonth),
+    };
   });
 
   // Actuals with no owning expense line -> "Other" (the review/unbudgeted spend).
@@ -74,18 +92,27 @@ export const computeMonthly = (lines, actuals, income, months) => {
   })() : null;
 
   const expenseByMonth = emptyRow(months);
-  buckets.filter((b) => b.kind !== 'revenue').forEach((b) => addInto(expenseByMonth, b.subtotalByMonth));
+  const budgetExpenseByMonth = emptyRow(months);
+  buckets.filter((b) => b.kind !== 'revenue').forEach((b) => { addInto(expenseByMonth, b.subtotalByMonth); addInto(budgetExpenseByMonth, b.budgetSubtotalByMonth); });
   if (other) addInto(expenseByMonth, other.subtotalByMonth);
   const revenueByMonth = emptyRow(months);
-  buckets.filter((b) => b.kind === 'revenue').forEach((b) => addInto(revenueByMonth, b.subtotalByMonth));
+  const budgetRevenueByMonth = emptyRow(months);
+  buckets.filter((b) => b.kind === 'revenue').forEach((b) => { addInto(revenueByMonth, b.subtotalByMonth); addInto(budgetRevenueByMonth, b.budgetSubtotalByMonth); });
   const netByMonth = emptyRow(months);
-  months.forEach((mo) => { netByMonth[mo.ym] = r2(num(revenueByMonth[mo.ym]) - num(expenseByMonth[mo.ym])); });
+  const budgetNetByMonth = emptyRow(months);
+  months.forEach((mo) => {
+    netByMonth[mo.ym] = r2(num(revenueByMonth[mo.ym]) - num(expenseByMonth[mo.ym]));
+    budgetNetByMonth[mo.ym] = r2(num(budgetRevenueByMonth[mo.ym]) - num(budgetExpenseByMonth[mo.ym]));
+  });
 
   return {
     months, buckets, other,
     expenseByMonth, expenseTotal: sumRow(expenseByMonth),
     revenueByMonth, revenueTotal: sumRow(revenueByMonth),
     netByMonth, netTotal: sumRow(netByMonth),
+    budgetExpenseByMonth, budgetExpenseTotal: sumRow(budgetExpenseByMonth),
+    budgetRevenueByMonth, budgetRevenueTotal: sumRow(budgetRevenueByMonth),
+    budgetNetByMonth, budgetNetTotal: sumRow(budgetNetByMonth),
   };
 };
 

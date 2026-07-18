@@ -8,7 +8,7 @@ import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
 import { useAuth } from '../../../contexts/AuthContext';
-import { getBudgetVsActual, getBudgetMonthly, updateBudget, closeBudget, upsertLine, deleteLine, seedStandardTemplate, updateLineAmount, setCategoryOverride } from '../../../services/budgetService';
+import { getBudgetVsActual, getBudgetMonthly, updateBudget, closeBudget, upsertLine, deleteLine, seedStandardTemplate, updateLineAmount, updateLineMonthly, setCategoryOverride } from '../../../services/budgetService';
 import { formatMoney } from '../../../services/financeCalc';
 import BudgetFormModal from './components/BudgetFormModal';
 import LineFormModal from './components/LineFormModal';
@@ -49,6 +49,8 @@ export default function BudgetDetail() {
   const [addRow, setAddRow] = useState(null);       // { bucket, kind, category, amount } inline add
   const [tab, setTab] = useState('summary');        // 'summary' | 'monthly'
   const [monthly, setMonthly] = useState(null);
+  const [mMode, setMMode] = useState('budget');     // 'budget' | 'actual' | 'variance'
+  const [mEdit, setMEdit] = useState(null);         // { id, ym, value } editing a budget cell
   const [toast, setToast] = useState('');
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
 
@@ -226,61 +228,128 @@ export default function BudgetDetail() {
   const mfmt = (v) => (v ? new Intl.NumberFormat('en-GB', { maximumFractionDigits: 0 }).format(v) : '—');
   const rankBucket = (b) => (b.kind === 'revenue' ? -1 : (STANDARD_BUCKET_ORDER.indexOf(b.bucket) === -1 ? 999 : STANDARD_BUCKET_ORDER.indexOf(b.bucket)));
 
+  const minusRow = (a, b, months) => Object.fromEntries(months.map((m) => [m.ym, Math.round(((a[m.ym] || 0) - (b[m.ym] || 0)) * 100) / 100]));
+
+  const commitMonthCell = async (line, ym) => {
+    if (!mEdit) return;
+    const { value } = mEdit;
+    setMEdit(null);
+    const current = { ...line.budgetByMonth };
+    if (Number(value) === Number(current[ym] || 0)) return;
+    current[ym] = Number(value) || 0;
+    const res = await updateLineMonthly(line.id, current);
+    if (!res.error) { await load(); flash('Monthly budget saved'); }
+    else flash('Could not save');
+  };
+
+  const spreadEvenly = async (line, months) => {
+    const per = Math.round((Number(line.annual || 0) / months.length) * 100) / 100;
+    if (!per) { flash('Set an annual amount first, then spread'); return; }
+    const map = Object.fromEntries(months.map((m) => [m.ym, per]));
+    const res = await updateLineMonthly(line.id, map);
+    if (!res.error) { await load(); flash('Spread evenly across the period'); }
+  };
+
   const renderMonthly = () => {
     if (!monthly) return <div className="bg-empty" style={{ marginTop: 20 }}><p>Loading…</p></div>;
     const M = monthly.months || [];
     if (!M.length) return <div className="bg-empty" style={{ marginTop: 20 }}><p>Set a valid period to see the month-by-month view.</p></div>;
     const mBuckets = [...(monthly.buckets || [])].sort((a, b) => rankBucket(a) - rankBucket(b));
-    const cells = (byMonth) => M.map((m) => <td key={m.ym} className={`bg-mcell${byMonth[m.ym] < 0 ? ' bg-neg' : ''}`}>{mfmt(byMonth[m.ym])}</td>);
+    const editable = mMode === 'budget' && canEdit;
+
+    // Pick the matrix for the active mode.
+    const lineRow = (l) => mMode === 'actual' ? l.byMonth : mMode === 'budget' ? l.budgetByMonth : minusRow(l.budgetByMonth, l.byMonth, M);
+    const lineTot = (l) => mMode === 'actual' ? l.total : mMode === 'budget' ? l.budgetTotal : (l.budgetTotal - l.total);
+    const subRow = (b) => mMode === 'actual' ? b.subtotalByMonth : mMode === 'budget' ? b.budgetSubtotalByMonth : minusRow(b.budgetSubtotalByMonth, b.subtotalByMonth, M);
+    const subTot = (b) => mMode === 'actual' ? b.subtotalTotal : mMode === 'budget' ? b.budgetSubtotalTotal : (b.budgetSubtotalTotal - b.subtotalTotal);
+    const expRow = mMode === 'actual' ? monthly.expenseByMonth : mMode === 'budget' ? monthly.budgetExpenseByMonth : minusRow(monthly.budgetExpenseByMonth, monthly.expenseByMonth, M);
+    const revRow = mMode === 'actual' ? monthly.revenueByMonth : mMode === 'budget' ? monthly.budgetRevenueByMonth : minusRow(monthly.budgetRevenueByMonth, monthly.revenueByMonth, M);
+    const netRow = mMode === 'actual' ? monthly.netByMonth : mMode === 'budget' ? monthly.budgetNetByMonth : minusRow(monthly.budgetNetByMonth, monthly.netByMonth, M);
+    const expTot = mMode === 'actual' ? monthly.expenseTotal : mMode === 'budget' ? monthly.budgetExpenseTotal : (monthly.budgetExpenseTotal - monthly.expenseTotal);
+    const revTot = mMode === 'actual' ? monthly.revenueTotal : mMode === 'budget' ? monthly.budgetRevenueTotal : (monthly.budgetRevenueTotal - monthly.revenueTotal);
+    const netTot = mMode === 'actual' ? monthly.netTotal : mMode === 'budget' ? monthly.budgetNetTotal : (monthly.budgetNetTotal - monthly.netTotal);
+
+    const roCells = (byMonth) => M.map((m) => <td key={m.ym} className={`bg-mcell${byMonth[m.ym] < 0 ? ' bg-neg' : ''}`}>{mfmt(byMonth[m.ym])}</td>);
+    const editCells = (l) => M.map((m) => {
+      const on = mEdit && mEdit.id === l.id && mEdit.ym === m.ym;
+      return (
+        <td key={m.ym} className="bg-mcell">
+          {on ? (
+            <input className="bg-minput" type="number" step="0.01" autoFocus value={mEdit.value}
+              onChange={(e) => setMEdit({ ...mEdit, value: e.target.value })}
+              onBlur={() => commitMonthCell(l, m.ym)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } if (e.key === 'Escape') setMEdit(null); }} />
+          ) : (
+            <span className="bg-mcell-edit" onClick={() => setMEdit({ id: l.id, ym: m.ym, value: String(l.budgetByMonth[m.ym] || 0) })}>{mfmt(l.budgetByMonth[m.ym])}</span>
+          )}
+        </td>
+      );
+    });
     const totalCell = (v) => <td className={`bg-mcell bg-mcum${v < 0 ? ' bg-neg' : ''}`}>{mfmt(v)}</td>;
 
     return (
-      <div className="bg-mwrap" style={{ marginTop: 18 }}>
-        <table className="bg-mtable">
-          <thead>
-            <tr>
-              <th className="bg-mcode">Code</th><th className="bg-mline">Line</th>
-              {M.map((m) => <th key={m.ym} className="bg-mcell">{m.label}</th>)}
-              <th className="bg-mcell bg-mcum">Cumulative</th>
-            </tr>
-          </thead>
-          <tbody>
-            {mBuckets.map((b) => (
-              <React.Fragment key={b.bucket}>
-                <tr className="bg-msection"><td colSpan={M.length + 3}>{b.bucket}</td></tr>
-                {b.lines.map((l) => (
-                  <tr key={l.id}>
-                    <td className="bg-mcode">{l.code || ''}</td>
-                    <td className="bg-mline">{l.category}</td>
-                    {cells(l.byMonth)}
-                    {totalCell(l.total)}
+      <>
+        <div className="bg-mbar">
+          <div className="bg-tabs">
+            <button type="button" className={`bg-tab${mMode === 'budget' ? ' is-active' : ''}`} onClick={() => setMMode('budget')}>Budget</button>
+            <button type="button" className={`bg-tab${mMode === 'actual' ? ' is-active' : ''}`} onClick={() => setMMode('actual')}>Actual</button>
+            <button type="button" className={`bg-tab${mMode === 'variance' ? ' is-active' : ''}`} onClick={() => setMMode('variance')}>Variance</button>
+          </div>
+          <span className="bg-mbar-note">
+            {mMode === 'budget' ? (editable ? 'Click a month to set its target — plan seasonally (nil off-season, top-ups through the year).' : 'Per-month budget targets.')
+              : mMode === 'actual' ? 'Actual spend per month, live from the ledger.'
+              : 'Budget − actual. Terracotta = over budget that month.'}
+          </span>
+        </div>
+        <div className="bg-mwrap">
+          <table className="bg-mtable">
+            <thead>
+              <tr>
+                <th className="bg-mcode">Code</th><th className="bg-mline">Line</th>
+                {M.map((m) => <th key={m.ym} className="bg-mcell">{m.label}</th>)}
+                <th className="bg-mcell bg-mcum">Cumulative</th>
+              </tr>
+            </thead>
+            <tbody>
+              {mBuckets.map((b) => (
+                <React.Fragment key={b.bucket}>
+                  <tr className="bg-msection"><td colSpan={M.length + 3}>{b.bucket}</td></tr>
+                  {b.lines.map((l) => (
+                    <tr key={l.id}>
+                      <td className="bg-mcode">{l.code || ''}</td>
+                      <td className="bg-mline">
+                        {l.category}
+                        {editable && <button type="button" className="bg-spread" title="Spread the annual amount evenly across the period" onClick={() => spreadEvenly(l, M)}>spread</button>}
+                      </td>
+                      {editable ? editCells(l) : roCells(lineRow(l))}
+                      {totalCell(lineTot(l))}
+                    </tr>
+                  ))}
+                  <tr className="bg-msubtotal">
+                    <td className="bg-mcode" /><td className="bg-mline">Total {b.bucket}</td>
+                    {roCells(subRow(b))}{totalCell(subTot(b))}
                   </tr>
-                ))}
-                <tr className="bg-msubtotal">
-                  <td className="bg-mcode" /><td className="bg-mline">Total {b.bucket}</td>
-                  {cells(b.subtotalByMonth)}{totalCell(b.subtotalTotal)}
-                </tr>
-              </React.Fragment>
-            ))}
-            {monthly.other && (
-              <React.Fragment>
-                <tr className="bg-msection"><td colSpan={M.length + 3}>Other (uncategorised)</td></tr>
-                {monthly.other.lines.map((l, i) => (
-                  <tr key={`o-${i}`}><td className="bg-mcode" /><td className="bg-mline">{l.category}</td>{cells(l.byMonth)}{totalCell(l.total)}</tr>
-                ))}
-                <tr className="bg-msubtotal"><td className="bg-mcode" /><td className="bg-mline">Total other</td>{cells(monthly.other.subtotalByMonth)}{totalCell(monthly.other.subtotalTotal)}</tr>
-              </React.Fragment>
-            )}
-            {(monthly.revenueTotal !== 0) && (
-              <tr className="bg-mgrand"><td className="bg-mcode" /><td className="bg-mline">Total revenue</td>{cells(monthly.revenueByMonth)}{totalCell(monthly.revenueTotal)}</tr>
-            )}
-            <tr className="bg-mgrand"><td className="bg-mcode" /><td className="bg-mline">Total expenditure</td>{cells(monthly.expenseByMonth)}{totalCell(monthly.expenseTotal)}</tr>
-            {(monthly.revenueTotal !== 0) && (
-              <tr className="bg-mgrand bg-mnet"><td className="bg-mcode" /><td className="bg-mline">Net revenue (expenditure)</td>{cells(monthly.netByMonth)}{totalCell(monthly.netTotal)}</tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                </React.Fragment>
+              ))}
+              {monthly.other && mMode !== 'budget' && (
+                <React.Fragment>
+                  <tr className="bg-msection"><td colSpan={M.length + 3}>Other (uncategorised)</td></tr>
+                  {monthly.other.lines.map((l, i) => (
+                    <tr key={`o-${i}`}><td className="bg-mcode" /><td className="bg-mline">{l.category}</td>{roCells(mMode === 'variance' ? minusRow({}, l.byMonth, M) : l.byMonth)}{totalCell(mMode === 'variance' ? -l.total : l.total)}</tr>
+                  ))}
+                </React.Fragment>
+              )}
+              {(revTot !== 0 || monthly.budgetRevenueTotal !== 0) && (
+                <tr className="bg-mgrand"><td className="bg-mcode" /><td className="bg-mline">Total revenue</td>{roCells(revRow)}{totalCell(revTot)}</tr>
+              )}
+              <tr className="bg-mgrand"><td className="bg-mcode" /><td className="bg-mline">Total expenditure</td>{roCells(expRow)}{totalCell(expTot)}</tr>
+              {(revTot !== 0 || monthly.budgetRevenueTotal !== 0) && (
+                <tr className="bg-mgrand bg-mnet"><td className="bg-mcode" /><td className="bg-mline">Net revenue (expenditure)</td>{roCells(netRow)}{totalCell(netTot)}</tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </>
     );
   };
 
