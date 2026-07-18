@@ -290,6 +290,9 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     .supplier-block .tax-id {
       margin-top: 6px; font-size: 10.5px; color: #8B8478;
     }
+    .supplier-block .supplier-contact {
+      margin-top: 5px; font-size: 10.5px; color: #6B7280;
+    }
     .logo { max-height: 56px; max-width: 200px; display: block; margin-bottom: 8px; }
     .logo-fallback {
       font-family: 'DM Serif Display', Georgia, serif;
@@ -455,6 +458,8 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
       ${logoBlock}
       <div class="name">${supplierName}</div>
       <div>${renderAddress(input.supplier)}</div>
+      ${[input.supplier.contact_email, input.supplier.contact_phone].filter(Boolean).length
+        ? `<div class="supplier-contact">${[input.supplier.contact_email, input.supplier.contact_phone].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
       ${input.supplier.vat_number
         ? `<div class="tax-id">${taxNumberLabel}: ${escapeHtml(input.supplier.vat_number)}</div>` : ''}
       ${input.supplier.company_registration_number

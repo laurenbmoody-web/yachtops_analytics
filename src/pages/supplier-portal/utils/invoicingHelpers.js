@@ -80,11 +80,37 @@ export function getTaxNameForSupplier(supplier) {
  * category for every line. Easy to swap for a smarter version (or schema
  * field) later.
  */
+// A catalogue product's own category (free-text, Title-Case suggestions from
+// catalogueConstants) → VAT category key. This is a far more reliable signal
+// than guessing from the item name (brand names like "Veuve Clicquot" carry no
+// keyword). Keyed lower-case; anything not listed falls through to the name
+// heuristic / standard.
+const CATALOGUE_CATEGORY_TO_VAT = {
+  'alcohol & wine': 'alcohol',
+  'beverages': 'non_alcoholic',
+  'produce': 'food',
+  'meat & fish': 'food',
+  'dairy': 'food',
+  'bakery': 'food',
+  'dry goods': 'food',
+  'frozen': 'food',
+  'snacks & confectionery': 'food',
+};
+
 export function suggestCategoryForItem(item, categories) {
   if (!categories || categories.length === 0) return null;
-  const name = String(item?.item_name || '').toLowerCase();
-
   const has = (k) => categories.some((c) => c.key === k);
+
+  // Most reliable: the catalogue product's category (set once on the product),
+  // when the order line came from a catalogue item and the supplier has that
+  // VAT category enabled.
+  const catCat = String(item?.catalogue_item?.category || '').trim().toLowerCase();
+  if (catCat) {
+    const mapped = CATALOGUE_CATEGORY_TO_VAT[catCat];
+    if (mapped && has(mapped)) return mapped;
+  }
+
+  const name = String(item?.item_name || '').toLowerCase();
   // NB: no generic 'bottle' keyword here — it misfires on water/soft-drink
   // bottles (and alcohol is checked before non_alcoholic).
   if (has('alcohol')      && /(wine|champagne|prosecco|magnum|spirit|gin|vodka|whisky|whiskey|rum|tequila|brandy|cognac|liqueur|beer|lager|ale|aperol|vermouth|sake)/i.test(name)) return 'alcohol';
