@@ -24,6 +24,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
   const [tags, setTags] = useState([]);
   const [wardrobeId, setWardrobeId] = useState(defaultWardrobeId || wardrobes[0]?.id || '');
   const [guestId, setGuestId] = useState('');
+  const [staysOnboard, setStaysOnboard] = useState(true); // helper default: resident garments usually stay
   const [photo, setPhoto] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -48,6 +49,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
         tags,
         photos: photo ? [photo] : [],
         wardrobeId: wardrobeId || null,
+        staysOnboard,
         ...(guest
           ? { ownerType: 'guest', ownerGuestId: guest.id, ownerName: guest.name || guest.fullName, ownerDisplayName: guest.name || guest.fullName }
           : { ownerType: 'other', ownerName: 'Owner' }),
@@ -108,6 +110,11 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
               <div className="ow-select"><select value={guestId} onChange={(e) => setGuestId(e.target.value)}><option value="">Owner (unassigned)</option>{guests.map((g) => <option key={g.id} value={g.id}>{g.name || g.fullName || [g.firstName, g.lastName].filter(Boolean).join(' ') || 'Guest'}</option>)}</select></div>
             </>
           )}
+
+          <label className="ow-check-row">
+            <input type="checkbox" checked={staysOnboard} onChange={(e) => setStaysOnboard(e.target.checked)} />
+            <span><b>Usually stays on board</b> — a hint for crew; it can still be packed and sent anytime.</span>
+          </label>
 
           <label className="ow-l">Care</label>
           <div className="ow-tags">

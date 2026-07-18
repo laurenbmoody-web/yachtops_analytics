@@ -23,6 +23,7 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
     description: item.description || '', garmentType: item.garmentType || '', colour: item.colour || '',
     garmentValue: item.garmentValue ?? '', garmentValueCurrency: item.garmentValueCurrency || 'EUR',
     tags: Array.isArray(item.tags) ? item.tags : [], wardrobeId: item.wardrobeId || '',
+    staysOnboard: item.staysOnboard !== false,
   });
   const [busy, setBusy] = useState(false);
   const st = STATUS[item.status] || { label: item.status, cls: 'stored' };
@@ -37,7 +38,7 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
     const updated = await updateLaundryItem(item.id, {
       description: draft.description.trim(), garmentType: draft.garmentType || null, colour: draft.colour.trim(),
       garmentValue: draft.garmentValue === '' ? null : Number(draft.garmentValue), garmentValueCurrency: draft.garmentValueCurrency,
-      tags: draft.tags, wardrobeId: draft.wardrobeId || null,
+      tags: draft.tags, wardrobeId: draft.wardrobeId || null, staysOnboard: draft.staysOnboard,
     });
     setBusy(false);
     if (updated) { setEdit(false); onChanged?.(); }
@@ -63,6 +64,7 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
                 {item.garmentType && <span className="ow-chip">{item.garmentType}</span>}
                 {item.colour && <span className="ow-chip subtle">{item.colour}</span>}
                 {showValue && item.garmentValue != null && <span className="ow-chip subtle">{money(item.garmentValue, item.garmentValueCurrency)}</span>}
+                {item.staysOnboard && <span className="ow-chip stays"><Icon name="Anchor" size={11} /> Stays aboard</span>}
               </div>
               {Array.isArray(item.tags) && item.tags.length > 0 && (
                 <div className="ow-full-tags">{item.tags.map((t, i) => <span className="ow-care" key={i}>{formatLaundryTag(t)}</span>)}</div>
@@ -86,6 +88,10 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
                 ) : <div />}
                 <div><label className="ow-l">Wardrobe</label><div className="ow-select"><select value={draft.wardrobeId} onChange={(e) => setDraft((d) => ({ ...d, wardrobeId: e.target.value }))}>{wardrobes.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div></div>
               </div>
+              <label className="ow-check-row">
+                <input type="checkbox" checked={draft.staysOnboard} onChange={(e) => setDraft((d) => ({ ...d, staysOnboard: e.target.checked }))} />
+                <span><b>Usually stays on board</b> — a hint for crew; can still be packed anytime.</span>
+              </label>
               <label className="ow-l">Care</label>
               <div className="ow-tags">{availableLaundryTags.map((t) => <button type="button" key={t} className={`ow-tag${draft.tags.includes(t) ? ' on' : ''}`} onClick={() => toggleTag(t)}>{formatLaundryTag(t)}</button>)}</div>
             </div>
