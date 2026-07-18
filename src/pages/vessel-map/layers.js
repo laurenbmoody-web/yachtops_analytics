@@ -21,3 +21,9 @@ export const layerLabel = (key) => (BY_KEY[key] || BY_KEY.general).label;
 // holding garments and/or inventory); Safety too (a manifest of safety
 // equipment). Defects / Job helper / General are annotations, not storage.
 export const layerHoldsStock = (key) => key === 'inventory' || key === 'storage' || key === 'safety';
+
+// Which layers can physically open up into nested pins (drawers/shelves/
+// compartments) — only true enclosures: a Storage cupboard or an Inventory
+// cabinet/fridge. Everything else is a single spot, so the container toggle is
+// hidden for them.
+export const layerCanContain = (key) => key === 'inventory' || key === 'storage';
