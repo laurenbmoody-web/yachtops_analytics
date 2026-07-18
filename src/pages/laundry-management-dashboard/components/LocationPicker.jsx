@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { getAllDecks, getAllZones, getAllSpaces } from '../../locations-management-settings/utils/locationsHierarchyStorage';
-import DeckPlanPicker from './DeckPlanPicker';
+import MapPickerModal from '../../vessel-map/components/MapPickerModal';
 import './locationPicker.css';
 
 // Reusable "pick a vessel location" combobox — leaf spaces grouped under their
 // deck (the same shape the laundry intake uses). Value is the vessel_locations
 // id; onChange gets ({ id, name, label }) or (null) when cleared.
-const LocationPicker = ({ value, valueLabel = '', onChange, placeholder = 'Search deck, zone or cabin…' }) => {
+const LocationPicker = ({ value, valueLabel = '', onChange, placeName = 'Storage locker', placeholder = 'Search deck, zone or cabin…' }) => {
   const [locations, setLocations] = useState([]);
   const [query, setQuery] = useState(valueLabel || '');
   const [open, setOpen] = useState(false);
@@ -70,11 +70,11 @@ const LocationPicker = ({ value, valueLabel = '', onChange, placeholder = 'Searc
           ))}
         </div>
       )}
-      <button type="button" className="lp-onmap" onClick={() => setShowPlan(true)}><Icon name="Map" size={14} /> Pick on the deck plan</button>
+      <button type="button" className="lp-onmap" onClick={() => setShowPlan(true)}><Icon name="Map" size={14} /> Pick on the vessel map</button>
       {showPlan && (
-        <DeckPlanPicker
-          selectedId={value}
-          onSelect={(id, name) => { onChange?.({ id, name, label: name }); setQuery(name); setShowPlan(false); }}
+        <MapPickerModal
+          placingStorage={{ name: placeName }}
+          onPlaced={(res) => { if (res?.locationId) { onChange?.({ id: res.locationId, name: res.name || placeName, label: res.name || placeName }); setQuery(res.name || placeName); } setShowPlan(false); }}
           onClose={() => setShowPlan(false)}
         />
       )}

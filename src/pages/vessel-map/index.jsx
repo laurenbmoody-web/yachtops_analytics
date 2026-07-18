@@ -25,6 +25,7 @@ import useCanvasShortcuts from '../../hooks/useCanvasShortcuts';
 import { LAYERS, layerColor, layerLabel, layerHoldsStock } from './layers';
 import Icon from '../../components/AppIcon';
 import { refreshScanThumb } from './utils/scanThumb';
+import { resolvePinNode } from './utils/placement';
 import { fetchDefectMetaByHotspots, DefectPriority, DefectStatus, updateDefect } from '../defects/utils/defectsStorage';
 import { useDefectActor } from '../defects/utils/useDefectActor';
 import '../../styles/editorial.css';
@@ -64,7 +65,7 @@ const useIsDesktop = () => {
   return desktop;
 };
 
-export default function VesselMapPage({ embedded = false, placingItem: placingItemProp = null, placingDefect: placingDefectProp = null, onPlaced: onPlacedProp, onClose: onCloseProp } = {}) {
+export default function VesselMapPage({ embedded = false, placingItem: placingItemProp = null, placingDefect: placingDefectProp = null, placingStorage: placingStorageProp = null, onPlaced: onPlacedProp, onClose: onCloseProp } = {}) {
   const navigate = useNavigate();
   const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
@@ -115,6 +116,15 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     const q = new URLSearchParams(window.location.search);
     const id = q.get('placeDefect');
     return id ? { id, title: q.get('placeDefectTitle') || 'this defect' } : null;
+  });
+  // Placing a storage locker for a wardrobe/garment: navigate to the room, open
+  // its scan, investigate, then drop a "storage" pin. On placement we mint the
+  // pin's location node and hand it back so the wardrobe homes to that cupboard.
+  const [placingStorage] = useState(() => {
+    if (placingStorageProp) return placingStorageProp;
+    const q = new URLSearchParams(window.location.search);
+    const id = q.get('placeStorage');
+    return id ? { name: q.get('placeStorageName') || 'a storage locker' } : null;
   });
   const isDesktop = useIsDesktop();
   const placementMode = mode === 'pin';
@@ -461,7 +471,9 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
   // Desktop drops on click; mobile drops a pending pin to nudge, then commits.
   const placePending = (pos) => {
     setPendingPosition(pos);
-    if (isDesktop && pos && !adjusting) createDraftPin(pos);
+    // Storage placement stays deferred even on desktop — the user investigates
+    // (opens cupboards) and only commits via the explicit "Place pin" button.
+    if (isDesktop && pos && !adjusting && !placingStorage) createDraftPin(pos);
   };
 
   // Create a blank pin at pos and open it. Name is filled in the inspector;
@@ -470,13 +482,13 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
     if (!pos || !selectedScan) return;
     // Placing a defect from the dashboard quick-add: drop a defect pin and link
     // the already-logged defect to it, rather than opening a blank pin editor.
-    const layer = placingDefect ? 'defect' : 'general';
+    const layer = placingDefect ? 'defect' : placingStorage ? 'storage' : 'general';
     const { data, error } = await supabase
       .from('scan_hotspots')
       .insert({
         scan_id: selectedScan.id,
         tenant_id: activeTenantId,
-        label: placingDefect ? placingDefect.title : '',
+        label: placingDefect ? placingDefect.title : placingStorage ? placingStorage.name : '',
         layer,
         color: layerColor(layer),
         position: pos,
@@ -500,6 +512,18 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
       // the first tap; don't select it (that would open the defect modal).
       setPlacedPin(data);
       setMode('navigate');
+      return;
+    }
+    if (placingStorage) {
+      // Mint the storage pin's location node (a vessel_locations child under the
+      // room) and hand it back so the wardrobe/garment homes to this cupboard.
+      const res = await resolvePinNode({
+        tenantId: activeTenantId, userId: user?.id ?? null,
+        rootSpaceId: selectedScan?.space_id || null, rootName: selectedScan?.name || null,
+        trail: containerTrail || [], pin: data,
+      });
+      const label = data.label || placingStorage.name;
+      if (embedded) { onPlacedProp?.({ locationId: res?.nodeId || null, name: label }); onCloseProp?.(); }
       return;
     }
     setSelectedHotspot(data);
@@ -1033,6 +1057,13 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                         <button className="vm-placing-done" onClick={() => finishPlacingDefect(true)}>Done</button>
                       </>
                     )}
+                  </div>
+                )}
+
+                {placingStorage && (
+                  <div className="vm-placing-bar">
+                    <span className="vm-placing-text">Placing <strong>{placingStorage.name}</strong> — open the room, investigate, then tap <strong>Add hotspot</strong>, drop a pin in the cupboard and <strong>Place pin</strong>.</span>
+                    <button className="vm-placing-cancel" onClick={() => onCloseProp?.()}>Cancel</button>
                   </div>
                 )}
 
