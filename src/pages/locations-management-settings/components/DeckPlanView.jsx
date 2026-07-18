@@ -13,7 +13,7 @@ import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpace
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace } from '../utils/locationsHierarchyStorage';
 import { traceRoom, bboxRect, simplifyClosed, regionInk } from '../utils/deckTrace';
-import { segmentDeck, regionAtPoint, regionContour } from '../utils/deckSegment';
+import { segmentDeck, regionAtPoint, roomOutline } from '../utils/deckSegment';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
@@ -605,14 +605,16 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       // is the true wall boundary (tolerant of a loose seed). Flood-fill/box only
       // as a fallback when a seed doesn't land in a usable region.
       const seg = segmentDeck(imageData);
+      // Resolve each room's region first, so a room never absorbs another's.
+      const resolved = rooms.map((r) => ({ r, region: regionAtPoint(seg, r.seed.x, r.seed.y) }));
+      const claimedMains = new Set(resolved.filter((x) => x.region).map((x) => x.region.id));
       const usedRegions = new Set();
       const used = new Set();
       let offPlan = 0;
-      const items = rooms.map((r) => {
+      const items = resolved.map(({ r, region }) => {
         let nodes = null;
-        const region = regionAtPoint(seg, r.seed.x, r.seed.y);
         if (region && !usedRegions.has(region.id)) {
-          nodes = regionContour(seg, region);
+          nodes = roomOutline(seg, region, claimedMains);
           if (nodes) usedRegions.add(region.id);
         }
         if (!nodes) {
