@@ -1,0 +1,56 @@
+.lsc-overlay {
+  position: fixed; inset: 0; z-index: 1200;
+  background: rgba(28, 27, 58, 0.44);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  backdrop-filter: blur(2px);
+}
+.lsc-panel {
+  width: 100%; max-width: 420px; background: #FFFFFF;
+  border: 1px solid #ECEAE3; border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  padding: 20px; display: flex; flex-direction: column; gap: 16px;
+}
+.lsc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.lsc-eyebrow { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #C65A1A; }
+.lsc-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 24px; margin: 2px 0 0; color: #1C1B3A; }
+.lsc-x { background: none; border: none; cursor: pointer; color: #8B8478; padding: 4px; border-radius: 8px; display: grid; place-items: center; }
+.lsc-x:hover { background: #F6F5F2; color: #1C1B3A; }
+
+.lsc-stage {
+  border: 1px solid #ECEAE3; border-radius: 12px; background: #FAFAF8;
+  min-height: 220px; overflow: hidden; display: flex; align-items: center; justify-content: center;
+}
+.lsc-idle { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 26px; color: #AEB4C2; }
+.lsc-hint { margin: 0; font-size: 13px; line-height: 1.5; color: #6B7280; max-width: 30ch; }
+.lsc-camwrap { position: relative; width: 100%; height: 260px; background: #1C1B3A; }
+.lsc-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lsc-reticle {
+  position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%);
+  width: 150px; height: 150px; border: 2px solid rgba(255, 255, 255, 0.9); border-radius: 16px;
+  box-shadow: 0 0 0 9999px rgba(28, 27, 58, 0.28);
+}
+
+.lsc-err { font-size: 12.5px; color: #C24632; background: #FBECEA; border: 1px solid #F5D9D4; border-radius: 8px; padding: 8px 12px; }
+
+.lsc-actions { display: flex; gap: 10px; }
+.lsc-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer;
+  border-radius: 10px; padding: 10px 16px; border: 1px solid transparent; transition: 0.14s;
+}
+.lsc-btn.primary { background: #C65A1A; color: #FFFFFF; flex: 1; }
+.lsc-btn.primary:hover { background: #B14E16; }
+.lsc-btn.ghost { background: #FFFFFF; color: #1C1B3A; border-color: #E5E2DA; flex: 1; }
+.lsc-btn.ghost:hover { background: #F6F5F2; }
+.lsc-btn.outline { background: #FFFFFF; color: #C65A1A; border-color: #E5E2DA; }
+.lsc-btn.outline:hover:not(:disabled) { border-color: #C65A1A; background: #FBEFE9; }
+.lsc-btn.outline:disabled { color: #C7C3B8; cursor: default; }
+
+.lsc-manual { display: flex; flex-direction: column; gap: 7px; border-top: 1px solid #F0F1F5; padding-top: 14px; }
+.lsc-manual-l { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; }
+.lsc-manual-row { display: flex; gap: 8px; }
+.lsc-input {
+  flex: 1; font: 400 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  background: #FAFAF8; border: 1px solid #E5E2DA; border-radius: 10px; padding: 10px 12px;
+}
+.lsc-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }

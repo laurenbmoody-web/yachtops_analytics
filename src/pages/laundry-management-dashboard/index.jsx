@@ -6,7 +6,9 @@ import AddLaundryModal from './components/AddLaundryModal';
 import LaundryItemRow from './components/LaundryItemRow';
 import CabinView from './components/CabinView';
 import LaundryDetailModal from './components/LaundryDetailModal';
+import LaundryScanModal from './components/LaundryScanModal';
 import { FilterMenu, SortMenu } from './components/LaundryFilters';
+import { printLaundryLabels } from './utils/laundryLabels';
 import { subscribeOffline, pendingOfflineItems, drainOfflineLaundry, isLaundryOffline, enqueueOfflineStatus, pendingStatusMap } from './utils/laundryOfflineQueue';
 import { attachBilling } from './utils/laundryBilling';
 import { canViewCost } from '../../utils/costPermissions';
@@ -94,6 +96,7 @@ const LaundryManagementDashboard = () => {
   const [showResetModal, setShowResetModal] = useState(false);
   const [allItems, setAllItems] = useState([]);
   const [detailItem, setDetailItem] = useState(null);
+  const [showScan, setShowScan] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [showDeliveredList, setShowDeliveredList] = useState(false);
   const [viewMode, setViewMode] = useState(() => {
@@ -196,6 +199,34 @@ const LaundryManagementDashboard = () => {
     setLaundryItems(apply(today));
     setAllItems(apply(all));
   };
+
+  // Resolve a scanned/deep-linked label to its item and open it. Looks in the
+  // loaded set first, then falls back to a fresh fetch (the item may be from an
+  // earlier day or already delivered, so not in the today view).
+  const openScannedItem = async (id) => {
+    if (!id) return;
+    const local = [...laundryItems, ...allItems].find((i) => i && i.id === id);
+    if (local) { setDetailItem(local); return; }
+    try {
+      const all = await loadAllLaundryItems();
+      const found = (all || []).find((i) => i && i.id === id);
+      if (found) setDetailItem(found);
+      else window.alert('That label doesn’t match a laundry item on this vessel.');
+    } catch { window.alert('Couldn’t open that label — try again.'); }
+  };
+
+  // Deep link from a phone-camera scan: /laundry-management-dashboard?scan=<id>.
+  // Open the item once, then strip the param so it doesn't re-fire on refresh.
+  const scanHandledRef = React.useRef(false);
+  useEffect(() => {
+    if (scanHandledRef.current) return;
+    const params = new URLSearchParams(location.search);
+    const id = params.get('scan');
+    if (!id) return;
+    scanHandledRef.current = true;
+    openScannedItem(id);
+    navigate('/laundry-management-dashboard', { replace: true });
+  }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reflect a status change locally straight away (offline path — the server
   // write is queued, so we can't reload from it).
@@ -334,6 +365,14 @@ const LaundryManagementDashboard = () => {
                 {canReset && (
                   <button type="button" className="lm-btn ghost" onClick={() => setShowResetModal(true)}>
                     <Icon name="RotateCcw" size={16} /> Reset day
+                  </button>
+                )}
+                <button type="button" className="lm-btn ghost" onClick={() => setShowScan(true)}>
+                  <Icon name="QrCode" size={16} /> Scan
+                </button>
+                {filteredItems.length > 0 && (
+                  <button type="button" className="lm-btn ghost" onClick={() => printLaundryLabels(filteredItems)} title="Print QR labels for the items shown">
+                    <Icon name="Printer" size={16} /> Labels
                   </button>
                 )}
                 <button type="button" className="lm-btn ghost" onClick={() => navigate('/laundry-calendar-history-view')}>
@@ -493,6 +532,13 @@ const LaundryManagementDashboard = () => {
 
       {(showAddModal || editItem) && (
         <AddLaundryModal editItem={editItem} onClose={() => { setShowAddModal(false); setEditItem(null); }} onSuccess={handleAddSuccess} onSaved={() => loadLaundryItems()} />
+      )}
+
+      {showScan && (
+        <LaundryScanModal
+          onClose={() => setShowScan(false)}
+          onDetect={(id) => { setShowScan(false); openScannedItem(id); }}
+        />
       )}
 
       {detailItem && (
