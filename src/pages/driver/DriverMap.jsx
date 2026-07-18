@@ -59,6 +59,9 @@ export default function DriverMap({ order }) {
   const destMarkerRef = useRef(null);
   const routeRef = useRef(null);
   const destRef = useRef(null);
+  const dirServiceRef = useRef(null);
+  const lastDirRef = useRef(0);
+  const hasRoadRouteRef = useRef(false);
   const [ping, setPing] = useState(null);
   const [eta, setEta] = useState(null);
   const [failed, setFailed] = useState(false);
@@ -104,12 +107,13 @@ export default function DriverMap({ order }) {
     return () => { alive = false; };
   }, [ping, order.id]);
 
-  // Draw / move markers + route + estimate on every ping.
+  // Draw / move markers + route + ETA on every ping. Real road ETA + route via
+  // the Google Directions API (throttled), falling back to a straight-line
+  // estimate + line if Directions is unavailable or returns no route.
   useEffect(() => {
     const g = gRef.current, map = mapRef.current;
     const dest = destRef.current;
-    if (ping) setEta(estimate(ping, dest));
-    if (!g || !map || !ping) return;
+    if (!g || !map || !ping) { if (ping) setEta(estimate(ping, dest)); return; }
     const driverPos = { lat: ping.lat, lng: ping.lng };
 
     if (!driverMarkerRef.current) {
@@ -121,32 +125,60 @@ export default function DriverMap({ order }) {
       driverMarkerRef.current.setPosition(driverPos);
     }
 
-    if (dest) {
-      const destPos = { lat: dest.lat, lng: dest.lng };
-      if (!destMarkerRef.current) {
-        destMarkerRef.current = new g.Marker({
-          map, position: destPos, title: dest.name, zIndex: 2,
-          icon: { path: 'M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7z',
-            fillColor: '#1C1B3A', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 1.5,
-            scale: 1.5, anchor: new g.Point(12, 22) },
-        });
-      }
-      if (!routeRef.current) {
-        routeRef.current = new g.Polyline({
-          map, geodesic: true, strokeColor: '#C65A1A', strokeOpacity: 0.55, strokeWeight: 3,
-        });
-      }
+    if (!dest) { map.panTo(driverPos); return; }
+    const destPos = { lat: dest.lat, lng: dest.lng };
+
+    if (!destMarkerRef.current) {
+      destMarkerRef.current = new g.Marker({
+        map, position: destPos, title: dest.name, zIndex: 2,
+        icon: { path: 'M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7z',
+          fillColor: '#1C1B3A', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 1.5,
+          scale: 1.5, anchor: new g.Point(12, 22) },
+      });
+    }
+    if (!routeRef.current) {
+      routeRef.current = new g.Polyline({
+        map, geodesic: true, strokeColor: '#C65A1A', strokeOpacity: 0.6, strokeWeight: 3,
+      });
+    }
+
+    const drawStraight = () => {
       routeRef.current.setPath([driverPos, destPos]);
-      const b = new g.LatLngBounds();
-      b.extend(driverPos); b.extend(destPos);
-      map.fitBounds(b, 56);
+      const est = estimate(ping, dest);
+      setEta(est ? { ...est, approx: true } : null);
+      if (!hasRoadRouteRef.current) {
+        const b = new g.LatLngBounds(); b.extend(driverPos); b.extend(destPos);
+        map.fitBounds(b, 56);
+      }
+    };
+
+    const now = Date.now();
+    const dirDue = now - lastDirRef.current > 25000 || !hasRoadRouteRef.current;
+    if (g.DirectionsService && dirDue) {
+      lastDirRef.current = now;
+      const svc = dirServiceRef.current || (dirServiceRef.current = new g.DirectionsService());
+      svc.route({ origin: driverPos, destination: destPos, travelMode: g.TravelMode.DRIVING }, (res, status) => {
+        if (status === 'OK' && res.routes && res.routes[0]) {
+          const rt = res.routes[0];
+          const leg = rt.legs[0];
+          routeRef.current.setPath(rt.overview_path);
+          hasRoadRouteRef.current = true;
+          if (rt.bounds) map.fitBounds(rt.bounds, 56);
+          setEta({ mins: Math.max(1, Math.round(leg.duration.value / 60)), km: leg.distance.value / 1000, approx: false });
+        } else {
+          drawStraight();
+        }
+      });
+    } else if (!hasRoadRouteRef.current) {
+      drawStraight();
     } else {
-      map.panTo(driverPos);
+      // Road route already drawn; the marker moved. Keep the last real ETA until
+      // the next Directions refresh (avoids flip-flopping to a rough estimate).
     }
   }, [ping, order.driver_name]);
 
   const away = eta
-    ? (eta.mins < 1 ? 'Arriving now' : `≈ ${eta.mins} min away`)
+    ? (eta.mins < 1 ? 'Arriving now' : `${eta.approx ? '≈ ' : ''}${eta.mins} min away`)
     : null;
   const distTxt = eta ? `${eta.km < 10 ? eta.km.toFixed(1) : Math.round(eta.km)} km` : null;
 
