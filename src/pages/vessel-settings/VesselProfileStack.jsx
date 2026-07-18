@@ -156,6 +156,7 @@ function FieldRow({ cfg, value, canEdit, onSave, toast, focusField, onFocused })
       <p className="vs-fk">
         {cfg.req && <span className="req" title="Required" />}
         {cfg.label}
+        {cfg.opt && <span className="vs-opt">optional</span>}
         {cfg.info && <Info text={cfg.info} />}
         {cfg.drives && <span className="drv">→ {cfg.drives}</span>}
       </p>
@@ -366,8 +367,8 @@ export default function VesselProfileStack(props) {
       fields: [
         { field: 'billing_legal_name', label: 'Billed-to name', type: 'text', full: true, placeholder: 'Owning / management company' },
         { field: 'billing_address', label: 'Billing address', type: 'textarea', full: true, placeholder: 'Add address' },
-        { field: 'billing_vat_number', label: 'VAT / tax number', type: 'text', placeholder: 'Add number' },
-        { field: 'billing_reg_number', label: 'Company reg', type: 'text', placeholder: 'Add reg number' },
+        { field: 'billing_vat_number', label: 'VAT / tax number', type: 'text', opt: true, placeholder: 'Add number' },
+        { field: 'billing_reg_number', label: 'Company reg', type: 'text', opt: true, placeholder: 'Add reg number' },
         { field: 'billing_email', label: 'Invoice email', type: 'text', full: true, placeholder: 'Where invoices are sent' },
       ],
     },

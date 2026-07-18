@@ -2,6 +2,9 @@
    it inherits the supplier-portal theme tokens (incl. dark mode). Replaces the
    old boxed/coloured-banner inline styling. */
 
+/* Wider than the default 480px so line-item names + quantities aren't clipped. */
+#sp-root .gi-modal { width: 640px; }
+
 /* Header + CTA — override the shared modal's uppercase-Inter title with an
    editorial serif, and make the primary action terracotta. */
 #sp-root .gi-modal .sp-modal-head {
@@ -64,9 +67,10 @@
   padding: 11px 2px; border-bottom: 1px solid var(--line);
 }
 #sp-root .gi-line:last-child { border-bottom: 0; }
-#sp-root .gi-line-name { font-size: 13px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#sp-root .gi-line-name b { font-weight: 600; }
-#sp-root .gi-line-meta { color: var(--muted); font-weight: 400; margin-left: 7px; font-size: 12px; }
+#sp-root .gi-line-name { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+#sp-root .gi-line-title { font-size: 13px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#sp-root .gi-line-title b { font-weight: 600; }
+#sp-root .gi-line-meta { color: var(--muted); font-weight: 400; font-size: 11.5px; }
 #sp-root .gi-line-total { text-align: right; font-size: 13.5px; font-weight: 600; color: var(--fg); font-variant-numeric: tabular-nums; }
 
 /* Fields */
