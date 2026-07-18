@@ -2,7 +2,7 @@
 // Two-level editorial table: buckets -> breakdown lines, each with Budgeted / Actual
 // / Committed / Remaining and a % meter. Actual is live from the Phase 0 ledger,
 // Committed from open supplier orders. COMMAND edits lines.
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
@@ -10,6 +10,7 @@ import '../../../styles/editorial.css';
 import { useAuth } from '../../../contexts/AuthContext';
 import { getBudgetVsActual, getBudgetMonthly, updateBudget, closeBudget, upsertLine, deleteLine, seedStandardTemplate, updateLineAmount, updateLineMonthly, setCategoryOverride } from '../../../services/budgetService';
 import { formatMoney } from '../../../services/financeCalc';
+import { stateOf } from '../../../services/budgetCalc';
 import BudgetFormModal from './components/BudgetFormModal';
 import LineFormModal from './components/LineFormModal';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from './data/mybaChartOfAccounts';
@@ -23,6 +24,11 @@ const fmtDMY = (iso) => {
 };
 const STATUS_PILL = { draft: 'bg-pill-draft', active: 'bg-pill-active', closed: 'bg-pill-closed' };
 const DEFAULT_BUCKETS = ['Provisioning', 'Maintenance', 'Berthing', 'Fuel', 'Crew', 'Admin', 'Interior', 'Deck', 'Engineering'];
+const r2 = (n) => Math.round(n * 100) / 100;
+const metricsFor = (budgeted, actual, committed) => {
+  const spent = actual + committed;
+  return { budgeted, actual, committed, remaining: r2(budgeted - spent), pct: budgeted > 0 ? spent / budgeted : null, state: stateOf(budgeted, spent) };
+};
 
 const Meter = ({ pct, state, spent }) => {
   const width = pct == null ? (spent > 0 ? 100 : 0) : Math.min(100, Math.round(pct * 100));
@@ -45,23 +51,55 @@ export default function BudgetDetail() {
   const [view, setView] = useState(null);   // { budget, buckets, unbudgeted, totals }
   const [editBudget, setEditBudget] = useState(false);
   const [lineModal, setLineModal] = useState(null); // { line } or {} for new
-  const [amtEdit, setAmtEdit] = useState(null);     // { id, value } inline amount edit
   const [addRow, setAddRow] = useState(null);       // { bucket, kind, category, amount } inline add
   const [tab, setTab] = useState('summary');        // 'summary' | 'monthly'
   const [monthly, setMonthly] = useState(null);
   const [mMode, setMMode] = useState('budget');     // 'budget' | 'actual' | 'variance'
-  const [mEdit, setMEdit] = useState(null);         // { id, ym, value } editing a budget cell
   const [toast, setToast] = useState('');
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
 
+  // Draft budget values so month cells (and the summary Budgeted column) are real,
+  // tab-able inputs that persist on a debounce in the background — no per-cell save +
+  // refresh. Keyed `${lineId}` (summary annual) and `${lineId}:${ym}` (monthly).
+  const [drafts, setDrafts] = useState({});
+  const draftsRef = useRef({});
+  const saveTimers = useRef({});
+  const setDraft = (key, val) => {
+    draftsRef.current = { ...draftsRef.current, [key]: val };
+    setDrafts(draftsRef.current);
+  };
+
+  // Debounced background persistence. scheduleSave stashes a save thunk per key and
+  // fires it ~700ms after the last keystroke; flushSaves runs anything pending now
+  // (called before any reload so a mid-typing edit is never lost).
+  const pendingThunks = useRef({});
+  const scheduleSave = (key, thunk) => {
+    pendingThunks.current[key] = thunk;
+    clearTimeout(saveTimers.current[key]);
+    saveTimers.current[key] = setTimeout(() => {
+      const t = pendingThunks.current[key];
+      delete pendingThunks.current[key]; delete saveTimers.current[key];
+      if (t) t();
+    }, 700);
+  };
+  const flushSaves = async () => {
+    const thunks = Object.values(pendingThunks.current);
+    pendingThunks.current = {};
+    Object.values(saveTimers.current).forEach(clearTimeout);
+    saveTimers.current = {};
+    await Promise.all(thunks.map((t) => t()));
+  };
+
   // fetchAll(true) shows the mount spinner; refresh() (spinner=false) reconciles
-  // quietly after an edit so the page doesn't blank or jump — you keep your place
-  // and the remaining rows stay put while you work through them.
+  // quietly after an edit so the page doesn't blank or jump. Pending draft saves are
+  // flushed first, then drafts reset to the freshly-loaded server truth.
   const fetchAll = useCallback(async (spinner) => {
     if (spinner) setLoading(true);
+    await flushSaves();
     const [vs, mr] = await Promise.all([getBudgetVsActual(id), getBudgetMonthly(id)]);
     if (!vs.error && vs.data) setView(vs.data);
     if (!mr.error && mr.data) setMonthly(mr.data);
+    draftsRef.current = {}; setDrafts({});
     if (spinner) setLoading(false);
   }, [id]);
   const load = useCallback(() => fetchAll(true), [fetchAll]);
@@ -139,15 +177,38 @@ export default function BudgetDetail() {
     return list.sort((a, b) => rank(a) - rank(b));
   }, [view]);
 
-  const commitAmount = async () => {
-    if (!amtEdit) return;
-    const { id, value, original } = amtEdit;
-    setAmtEdit(null);
-    if (Number(value) === Number(original)) return;   // no change
-    const res = await updateLineAmount(id, value);
-    if (!res.error) { await refresh(); flash('Amount updated'); }
-    else flash('Could not update amount');
+  // Live (draft-aware) subtotals + grand totals for the summary view.
+  const effBucketSubtotal = (b) => {
+    let bud = 0; let act = 0; let com = 0;
+    b.lines.forEach((l) => { bud += effAnnual(l); act += l.actual; com += l.committed; });
+    return metricsFor(r2(bud), r2(act), r2(com));
   };
+  const summaryTotals = () => {
+    let eBud = 0; let eAct = 0; let eCom = 0; let rBud = 0; let rAct = 0; let rCom = 0;
+    orderedBuckets.forEach((b) => b.lines.forEach((l) => {
+      if (b.kind === 'revenue') { rBud += effAnnual(l); rAct += l.actual; rCom += l.committed; }
+      else { eBud += effAnnual(l); eAct += l.actual; eCom += l.committed; }
+    }));
+    (view?.unbudgeted?.lines || []).forEach((l) => { eAct += l.actual; eCom += l.committed; });
+    return {
+      totals: metricsFor(r2(eBud), r2(eAct), r2(eCom)),
+      revenueTotals: metricsFor(r2(rBud), r2(rAct), r2(rCom)),
+      net: { budgeted: r2(rBud - eBud), actual: r2(rAct - eAct) },
+    };
+  };
+
+  // Effective (draft-aware) budget values, so inputs and totals stay live while you
+  // tab through — the save happens quietly on a debounce, no refresh.
+  const effAnnual = (line) => { const d = draftsRef.current[line.id]; return d !== undefined ? (Number(d) || 0) : Number(line.budgeted || 0); };
+  const effMonth = (line, ym) => { const d = draftsRef.current[`${line.id}:${ym}`]; return d !== undefined ? (Number(d) || 0) : Number((line.budgetByMonth && line.budgetByMonth[ym]) || 0); };
+  const persistAnnual = (line) => updateLineAmount(line.id, effAnnual(line));
+  const persistMonthly = (line, months) => {
+    const map = {};
+    months.forEach((m) => { const v = effMonth(line, m.ym); if (v) map[m.ym] = v; });
+    return updateLineMonthly(line.id, map);
+  };
+  const editAnnual = (line, val) => { setDraft(line.id, val); scheduleSave(line.id, () => persistAnnual(line)); };
+  const editMonth = (line, ym, val, months) => { setDraft(`${line.id}:${ym}`, val); scheduleSave(`${line.id}:${ym}`, () => persistMonthly(line, months)); };
 
   const commitAdd = async () => {
     if (!addRow || !addRow.category.trim()) { setAddRow(null); return; }
@@ -165,33 +226,30 @@ export default function BudgetDetail() {
   } });
 
   const renderRow = (row, key) => {
-    const spent = row.actual + row.committed;
-    const editing = amtEdit?.id === row.id;
+    const m = row.id ? metricsFor(effAnnual(row), row.actual, row.committed) : row;
+    const spent = m.actual + m.committed;
+    const draftKey = row.id;
+    const val = draftKey != null && drafts[draftKey] !== undefined ? drafts[draftKey] : (row.budgeted ? String(row.budgeted) : '');
     return (
-      <div key={key} className={`bg-row${row.state === 'over' && row.kind !== 'revenue' ? ' is-over' : ''}`}>
+      <div key={key} className={`bg-row${m.state === 'over' && row.kind !== 'revenue' ? ' is-over' : ''}`}>
         <div className="bg-row-cat">
           <b>{row.code ? <span className="bg-code">{row.code}</span> : null}{row.category}</b>
           {row.note ? <div className="bg-row-note">{row.note}</div> : null}
         </div>
-        {editing ? (
+        {canEdit && row.id ? (
           <input
-            className="bg-inline-input bg-num" type="number" step="0.01" min="0" inputMode="decimal" autoFocus
-            value={amtEdit.value}
-            onChange={(e) => setAmtEdit({ ...amtEdit, value: e.target.value })}
-            onBlur={commitAmount}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } if (e.key === 'Escape') setAmtEdit(null); }}
+            className="bg-cellinput bg-num" type="number" step="0.01" min="0" inputMode="decimal"
+            value={val} placeholder="0"
+            onChange={(e) => editAnnual(row, e.target.value)}
+            onBlur={() => scheduleSave(row.id, () => persistAnnual(row))}
           />
         ) : (
-          <span
-            className={`bg-fig${canEdit && row.id ? ' bg-editable' : ''}`}
-            onClick={canEdit && row.id ? () => setAmtEdit({ id: row.id, value: String(row.budgeted), original: row.budgeted }) : undefined}
-            title={canEdit && row.id ? 'Click to edit' : undefined}
-          >{formatMoney(row.budgeted, cur)}</span>
+          <span className="bg-fig">{formatMoney(m.budgeted, cur)}</span>
         )}
-        <span className="bg-fig c-actual">{formatMoney(row.actual, cur)}</span>
-        <span className="bg-fig c-committed">{formatMoney(row.committed, cur)}</span>
-        <span className={`bg-fig c-remaining${row.remaining < 0 ? ' bg-neg' : ''}`}>{formatMoney(row.remaining, cur)}</span>
-        <Meter pct={row.pct} state={row.state} spent={spent} />
+        <span className="bg-fig c-actual">{formatMoney(m.actual, cur)}</span>
+        <span className="bg-fig c-committed">{formatMoney(m.committed, cur)}</span>
+        <span className={`bg-fig c-remaining${m.remaining < 0 ? ' bg-neg' : ''}`}>{formatMoney(m.remaining, cur)}</span>
+        <Meter pct={m.pct} state={m.state} spent={spent} />
         <span className="bg-row-act">
           {canEdit && row.id && (
             <button type="button" className="bg-icon-btn" onClick={() => openFullEdit(row)} aria-label="Edit line" title="Edit code, comment, delete">
@@ -274,18 +332,6 @@ export default function BudgetDetail() {
 
   const minusRow = (a, b, months) => Object.fromEntries(months.map((m) => [m.ym, Math.round(((a[m.ym] || 0) - (b[m.ym] || 0)) * 100) / 100]));
 
-  const commitMonthCell = async (line, ym) => {
-    if (!mEdit) return;
-    const { value } = mEdit;
-    setMEdit(null);
-    const current = { ...line.budgetByMonth };
-    if (Number(value) === Number(current[ym] || 0)) return;
-    current[ym] = Number(value) || 0;
-    const res = await updateLineMonthly(line.id, current);
-    if (!res.error) { await refresh(); flash('Monthly budget saved'); }
-    else flash('Could not save');
-  };
-
   const spreadEvenly = async (line, months) => {
     const per = Math.round((Number(line.annual || 0) / months.length) * 100) / 100;
     if (!per) { flash('Set an annual amount first, then spread'); return; }
@@ -301,31 +347,37 @@ export default function BudgetDetail() {
     const mBuckets = [...(monthly.buckets || [])].sort((a, b) => rankBucket(a) - rankBucket(b));
     const editable = mMode === 'budget' && canEdit;
 
+    // Draft-aware budget matrices, so per-month totals stay live as you tab/type.
+    const budRowOf = (lines) => Object.fromEntries(M.map((m) => [m.ym, r2(lines.reduce((s, l) => s + effMonth(l, m.ym), 0))]));
+    const budTotOf = (lines) => r2(lines.reduce((s, l) => s + M.reduce((ss, m) => ss + effMonth(l, m.ym), 0), 0));
+    const expLines = mBuckets.filter((b) => b.kind !== 'revenue').flatMap((b) => b.lines);
+    const revLines = mBuckets.filter((b) => b.kind === 'revenue').flatMap((b) => b.lines);
+    const budExpRow = budRowOf(expLines); const budRevRow = budRowOf(revLines);
+    const budNetRow = Object.fromEntries(M.map((m) => [m.ym, r2((budRevRow[m.ym] || 0) - (budExpRow[m.ym] || 0))]));
+
     // Pick the matrix for the active mode.
-    const lineRow = (l) => mMode === 'actual' ? l.byMonth : mMode === 'budget' ? l.budgetByMonth : minusRow(l.budgetByMonth, l.byMonth, M);
-    const lineTot = (l) => mMode === 'actual' ? l.total : mMode === 'budget' ? l.budgetTotal : (l.budgetTotal - l.total);
-    const subRow = (b) => mMode === 'actual' ? b.subtotalByMonth : mMode === 'budget' ? b.budgetSubtotalByMonth : minusRow(b.budgetSubtotalByMonth, b.subtotalByMonth, M);
-    const subTot = (b) => mMode === 'actual' ? b.subtotalTotal : mMode === 'budget' ? b.budgetSubtotalTotal : (b.budgetSubtotalTotal - b.subtotalTotal);
-    const expRow = mMode === 'actual' ? monthly.expenseByMonth : mMode === 'budget' ? monthly.budgetExpenseByMonth : minusRow(monthly.budgetExpenseByMonth, monthly.expenseByMonth, M);
-    const revRow = mMode === 'actual' ? monthly.revenueByMonth : mMode === 'budget' ? monthly.budgetRevenueByMonth : minusRow(monthly.budgetRevenueByMonth, monthly.revenueByMonth, M);
-    const netRow = mMode === 'actual' ? monthly.netByMonth : mMode === 'budget' ? monthly.budgetNetByMonth : minusRow(monthly.budgetNetByMonth, monthly.netByMonth, M);
-    const expTot = mMode === 'actual' ? monthly.expenseTotal : mMode === 'budget' ? monthly.budgetExpenseTotal : (monthly.budgetExpenseTotal - monthly.expenseTotal);
-    const revTot = mMode === 'actual' ? monthly.revenueTotal : mMode === 'budget' ? monthly.budgetRevenueTotal : (monthly.budgetRevenueTotal - monthly.revenueTotal);
-    const netTot = mMode === 'actual' ? monthly.netTotal : mMode === 'budget' ? monthly.budgetNetTotal : (monthly.budgetNetTotal - monthly.netTotal);
+    const lineRow = (l) => mMode === 'actual' ? l.byMonth : mMode === 'budget' ? budRowOf([l]) : minusRow(budRowOf([l]), l.byMonth, M);
+    const lineTot = (l) => mMode === 'actual' ? l.total : mMode === 'budget' ? budTotOf([l]) : (budTotOf([l]) - l.total);
+    const subRow = (b) => mMode === 'actual' ? b.subtotalByMonth : mMode === 'budget' ? budRowOf(b.lines) : minusRow(budRowOf(b.lines), b.subtotalByMonth, M);
+    const subTot = (b) => mMode === 'actual' ? b.subtotalTotal : mMode === 'budget' ? budTotOf(b.lines) : (budTotOf(b.lines) - b.subtotalTotal);
+    const expRow = mMode === 'actual' ? monthly.expenseByMonth : mMode === 'budget' ? budExpRow : minusRow(budExpRow, monthly.expenseByMonth, M);
+    const revRow = mMode === 'actual' ? monthly.revenueByMonth : mMode === 'budget' ? budRevRow : minusRow(budRevRow, monthly.revenueByMonth, M);
+    const netRow = mMode === 'actual' ? monthly.netByMonth : mMode === 'budget' ? budNetRow : minusRow(budNetRow, monthly.netByMonth, M);
+    const expTot = mMode === 'actual' ? monthly.expenseTotal : mMode === 'budget' ? budTotOf(expLines) : (budTotOf(expLines) - monthly.expenseTotal);
+    const revTot = mMode === 'actual' ? monthly.revenueTotal : mMode === 'budget' ? budTotOf(revLines) : (budTotOf(revLines) - monthly.revenueTotal);
+    const netTot = mMode === 'actual' ? monthly.netTotal : mMode === 'budget' ? r2(budTotOf(revLines) - budTotOf(expLines)) : r2((budTotOf(revLines) - budTotOf(expLines)) - monthly.netTotal);
 
     const roCells = (byMonth) => M.map((m) => <td key={m.ym} className={`bg-mcell${byMonth[m.ym] < 0 ? ' bg-neg' : ''}`}>{mfmt(byMonth[m.ym])}</td>);
+    // Budget mode: every month cell is a real, tab-able input that saves on a debounce.
     const editCells = (l) => M.map((m) => {
-      const on = mEdit && mEdit.id === l.id && mEdit.ym === m.ym;
+      const key = `${l.id}:${m.ym}`;
+      const val = drafts[key] !== undefined ? drafts[key] : (l.budgetByMonth[m.ym] ? String(l.budgetByMonth[m.ym]) : '');
       return (
         <td key={m.ym} className="bg-mcell">
-          {on ? (
-            <input className="bg-minput" type="number" step="0.01" autoFocus value={mEdit.value}
-              onChange={(e) => setMEdit({ ...mEdit, value: e.target.value })}
-              onBlur={() => commitMonthCell(l, m.ym)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } if (e.key === 'Escape') setMEdit(null); }} />
-          ) : (
-            <span className="bg-mcell-edit" onClick={() => setMEdit({ id: l.id, ym: m.ym, value: String(l.budgetByMonth[m.ym] || 0) })}>{mfmt(l.budgetByMonth[m.ym])}</span>
-          )}
+          <input className="bg-minput" type="number" step="0.01" min="0" inputMode="decimal" placeholder="0"
+            value={val}
+            onChange={(e) => editMonth(l, m.ym, e.target.value, M)}
+            onBlur={() => scheduleSave(key, () => persistMonthly(l, M))} />
         </td>
       );
     });
@@ -397,6 +449,8 @@ export default function BudgetDetail() {
     );
   };
 
+  const sT = view ? summaryTotals() : { totals: {}, revenueTotals: {}, net: {} };
+
   return (
     <>
       <Header />
@@ -444,23 +498,23 @@ export default function BudgetDetail() {
               </div>
 
               <div className="bg-sum">
-                {view.revenueTotals.budgeted > 0 || view.revenueTotals.actual > 0 ? (
+                {sT.revenueTotals.budgeted > 0 || sT.revenueTotals.actual > 0 ? (
                   <>
-                    <div className="bg-s"><b className="bg-num bg-pos">{formatMoney(view.revenueTotals.actual, cur)}</b><span>Revenue</span></div>
+                    <div className="bg-s"><b className="bg-num bg-pos">{formatMoney(sT.revenueTotals.actual, cur)}</b><span>Revenue</span></div>
                     <div className="bg-vr" />
                   </>
                 ) : null}
-                <div className="bg-s"><b className="bg-num">{formatMoney(view.totals.budgeted, cur)}</b><span>Budgeted (exp.)</span></div>
+                <div className="bg-s"><b className="bg-num">{formatMoney(sT.totals.budgeted, cur)}</b><span>Budgeted (exp.)</span></div>
                 <div className="bg-vr" />
-                <div className="bg-s"><b className="bg-num">{formatMoney(view.totals.actual, cur)}</b><span>Spent</span></div>
+                <div className="bg-s"><b className="bg-num">{formatMoney(sT.totals.actual, cur)}</b><span>Spent</span></div>
                 <div className="bg-vr" />
-                <div className="bg-s"><b className="bg-num">{formatMoney(view.totals.committed, cur)}</b><span>On order</span></div>
+                <div className="bg-s"><b className="bg-num">{formatMoney(sT.totals.committed, cur)}</b><span>On order</span></div>
                 <div className="bg-vr" />
-                <div className="bg-s"><b className={`bg-num ${view.totals.remaining < 0 ? 'bg-neg' : ''}`}>{formatMoney(view.totals.remaining, cur)}</b><span>Remaining</span></div>
-                {view.revenueTotals.budgeted > 0 || view.revenueTotals.actual > 0 ? (
+                <div className="bg-s"><b className={`bg-num ${sT.totals.remaining < 0 ? 'bg-neg' : ''}`}>{formatMoney(sT.totals.remaining, cur)}</b><span>Remaining</span></div>
+                {sT.revenueTotals.budgeted > 0 || sT.revenueTotals.actual > 0 ? (
                   <>
                     <div className="bg-vr" />
-                    <div className="bg-s"><b className={`bg-num ${view.net.actual < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(view.net.actual, cur)}</b><span>Net rev. (exp.)</span></div>
+                    <div className="bg-s"><b className={`bg-num ${sT.net.actual < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(sT.net.actual, cur)}</b><span>Net rev. (exp.)</span></div>
                   </>
                 ) : null}
               </div>
@@ -501,7 +555,7 @@ export default function BudgetDetail() {
                       <div className="bg-bucket-head">
                         <span className="bg-bucket-name">{b.bucket}</span>
                         <span className="bg-bucket-rule" />
-                        <span className="bg-bucket-meta">{formatMoney(b.subtotal.budgeted, cur)} budgeted</span>
+                        <span className="bg-bucket-meta">{formatMoney(effBucketSubtotal(b).budgeted, cur)} budgeted</span>
                       </div>
                       <div className="bg-cols">
                         <span>Line</span><span className="r">Budgeted</span><span className="r c-actual">Actual</span>
@@ -510,41 +564,41 @@ export default function BudgetDetail() {
                       {b.lines.map((l) => renderRow(l, l.id))}
                       <div className="bg-row bg-subtotal">
                         <div className="bg-row-cat"><b>{b.bucket} subtotal</b></div>
-                        <span className="bg-fig">{formatMoney(b.subtotal.budgeted, cur)}</span>
-                        <span className="bg-fig c-actual">{formatMoney(b.subtotal.actual, cur)}</span>
-                        <span className="bg-fig c-committed">{formatMoney(b.subtotal.committed, cur)}</span>
-                        <span className={`bg-fig c-remaining${b.subtotal.remaining < 0 ? ' bg-neg' : ''}`}>{formatMoney(b.subtotal.remaining, cur)}</span>
-                        <Meter pct={b.subtotal.pct} state={b.subtotal.state} spent={b.subtotal.actual + b.subtotal.committed} />
+                        <span className="bg-fig">{formatMoney(effBucketSubtotal(b).budgeted, cur)}</span>
+                        <span className="bg-fig c-actual">{formatMoney(effBucketSubtotal(b).actual, cur)}</span>
+                        <span className="bg-fig c-committed">{formatMoney(effBucketSubtotal(b).committed, cur)}</span>
+                        <span className={`bg-fig c-remaining${effBucketSubtotal(b).remaining < 0 ? ' bg-neg' : ''}`}>{formatMoney(effBucketSubtotal(b).remaining, cur)}</span>
+                        <Meter pct={effBucketSubtotal(b).pct} state={effBucketSubtotal(b).state} spent={effBucketSubtotal(b).actual + effBucketSubtotal(b).committed} />
                         <span />
                       </div>
                       {renderAddRow(b.bucket, b.kind)}
                     </div>
                   ))}
 
-                  {(view.revenueTotals.budgeted > 0 || view.revenueTotals.actual > 0) && (
+                  {(sT.revenueTotals.budgeted > 0 || sT.revenueTotals.actual > 0) && (
                     <div className="bg-row bg-grandtotal" style={{ borderTop: '1px solid #E6E8EF' }}>
                       <div className="bg-row-cat"><b>Total revenue</b></div>
-                      <span className="bg-fig">{formatMoney(view.revenueTotals.budgeted, cur)}</span>
-                      <span className="bg-fig c-actual bg-pos">{formatMoney(view.revenueTotals.actual, cur)}</span>
+                      <span className="bg-fig">{formatMoney(sT.revenueTotals.budgeted, cur)}</span>
+                      <span className="bg-fig c-actual bg-pos">{formatMoney(sT.revenueTotals.actual, cur)}</span>
                       <span className="bg-fig c-committed">—</span>
-                      <span className="bg-fig c-remaining">{formatMoney(view.revenueTotals.remaining, cur)}</span>
+                      <span className="bg-fig c-remaining">{formatMoney(sT.revenueTotals.remaining, cur)}</span>
                       <span /><span />
                     </div>
                   )}
                   <div className="bg-row bg-grandtotal">
                     <div className="bg-row-cat"><b>Total expenditure</b></div>
-                    <span className="bg-fig">{formatMoney(view.totals.budgeted, cur)}</span>
-                    <span className="bg-fig c-actual">{formatMoney(view.totals.actual, cur)}</span>
-                    <span className="bg-fig c-committed">{formatMoney(view.totals.committed, cur)}</span>
-                    <span className={`bg-fig c-remaining${view.totals.remaining < 0 ? ' bg-neg' : ''}`}>{formatMoney(view.totals.remaining, cur)}</span>
-                    <Meter pct={view.totals.pct} state={view.totals.state} spent={view.totals.actual + view.totals.committed} />
+                    <span className="bg-fig">{formatMoney(sT.totals.budgeted, cur)}</span>
+                    <span className="bg-fig c-actual">{formatMoney(sT.totals.actual, cur)}</span>
+                    <span className="bg-fig c-committed">{formatMoney(sT.totals.committed, cur)}</span>
+                    <span className={`bg-fig c-remaining${sT.totals.remaining < 0 ? ' bg-neg' : ''}`}>{formatMoney(sT.totals.remaining, cur)}</span>
+                    <Meter pct={sT.totals.pct} state={sT.totals.state} spent={sT.totals.actual + sT.totals.committed} />
                     <span />
                   </div>
-                  {(view.revenueTotals.budgeted > 0 || view.revenueTotals.actual > 0) && (
+                  {(sT.revenueTotals.budgeted > 0 || sT.revenueTotals.actual > 0) && (
                     <div className="bg-row bg-grandtotal">
                       <div className="bg-row-cat"><b>Net revenue (expenditure)</b></div>
-                      <span className="bg-fig">{formatMoney(view.net.budgeted, cur)}</span>
-                      <span className={`bg-fig c-actual ${view.net.actual < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(view.net.actual, cur)}</span>
+                      <span className="bg-fig">{formatMoney(sT.net.budgeted, cur)}</span>
+                      <span className={`bg-fig c-actual ${sT.net.actual < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(sT.net.actual, cur)}</span>
                       <span className="bg-fig c-committed" /><span className="bg-fig c-remaining" /><span /><span />
                     </div>
                   )}
