@@ -253,12 +253,11 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
     <div className="dp">
       {hidden}
       <div className="dp-toolbar">
-        <span className="dp-toolbar-note">Frame each deck, then drag its rooms onto the plan.</span>
         <div className="dp-legend" aria-hidden="true">
           <span className="dp-legend-item"><span className="dp-swatch is-scanned" /> Scanned</span>
           <span className="dp-legend-item"><span className="dp-swatch is-empty" /> Not scanned</span>
         </div>
-        <button className="lg-btn" onClick={() => fileRef.current?.click()} disabled={uploading}>{rendering ? 'Rendering PDF…' : uploading ? 'Uploading…' : 'Replace drawing'}</button>
+        <button className="lg-btn sm" onClick={() => fileRef.current?.click()} disabled={uploading}>{rendering ? 'Rendering PDF…' : uploading ? 'Uploading…' : 'Replace drawing'}</button>
       </div>
       {uploadError && <p className="dp-error">{uploadError}</p>}
 
@@ -286,7 +285,9 @@ export default function DeckPlanView({ decks = [], onAddScan }) {
                   <span className="dp-linkbtn-label">{linkMode ? 'Done linking' : 'Connect rooms'}</span>
                 </button>
               )}
-              <button className="lg-btn sm" onClick={() => setFramingDeck(deck)}>{crop ? 'Reframe' : 'Frame deck'}</button>
+              {/* When unframed, the big "Frame this deck" box below is the single
+                  call-to-action; only offer Reframe once it's framed. */}
+              {crop && <button className="lg-btn sm" onClick={() => setFramingDeck(deck)}>Reframe</button>}
             </div>
 
             {linkMode && crop && gaDims && (
