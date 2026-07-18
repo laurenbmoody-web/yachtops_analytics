@@ -1085,7 +1085,10 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   <div className="vm-placing-bar">
                     {!storagePlaced ? (
                       <>
-                        <span className="vm-placing-text">Pinning <strong>{placingStorage.name}</strong> — find it in the scan, tap <strong>Add hotspot</strong>, then click the cupboard to drop the pin.</span>
+                        <span className="vm-placing-text">
+                          Pinning <strong>{placingStorage.name}</strong> — {mode === 'pin' ? 'click the cupboard to drop the pin.' : 'orbit to the cupboard, then drop the pin.'}
+                        </span>
+                        {mode !== 'pin' && <button className="vm-placing-drop" onClick={() => setMode('pin')}>Drop pin</button>}
                         <button className="vm-placing-cancel" onClick={() => onCloseProp?.()}>Cancel</button>
                       </>
                     ) : (
