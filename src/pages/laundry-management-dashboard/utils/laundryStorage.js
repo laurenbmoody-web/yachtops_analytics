@@ -212,6 +212,24 @@ export const setVesselTimezone = async (tz) => {
   return true;
 };
 
+// Charter laundry billing config (vessel-level). See the migration for shape.
+export const DEFAULT_LAUNDRY_BILLING = { scope: 'shoreside', pricing: 'manual', flatRate: 0, currency: 'EUR', priceList: [] };
+export const getLaundryBilling = async () => {
+  const tenantId = await getTenantId();
+  if (!tenantId) return { ...DEFAULT_LAUNDRY_BILLING };
+  const { data } = await supabase.from('vessels').select('laundry_billing').eq('tenant_id', tenantId).maybeSingle();
+  return { ...DEFAULT_LAUNDRY_BILLING, ...(data?.laundry_billing || {}) };
+};
+export const setLaundryBilling = async (config) => {
+  const tenantId = await getTenantId();
+  if (!tenantId) return false;
+  const clean = { ...DEFAULT_LAUNDRY_BILLING, ...(config || {}) };
+  const { error } = await supabase.from('vessels').update({ laundry_billing: clean }).eq('tenant_id', tenantId);
+  if (error) { console.error('[laundry] billing save failed', error); showToast('Could not save billing settings', 'error'); return false; }
+  showToast('Charter billing settings saved', 'success');
+  return true;
+};
+
 // Vessel identity for report letterheads (name, company, flag, port, IMO, logo).
 export const getVesselBranding = async () => {
   const tenantId = await getTenantId();
