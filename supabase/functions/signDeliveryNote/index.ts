@@ -636,7 +636,11 @@ Deno.serve(async (req: Request) => {
     //    Sprint 9c will add a parallel supplier_signed_at; the rule
     //    becomes "advance only when both supplier_signed_at AND
     //    crew_signed_at are populated".
-    const newStatus = order.status === 'dispatched' ? 'delivered' : order.status;
+    // 'received' is the canonical delivered state in the supplier_orders
+    // lifecycle CHECK (there is no 'delivered' order status — that word is a
+    // supplier-side display label only). Writing 'delivered' here violated
+    // supplier_orders_status_check.
+    const newStatus = order.status === 'dispatched' ? 'received' : order.status;
 
     await restPatch(`supplier_orders?id=eq.${order.id}`, {
       crew_signed_at:           signedAt.toISOString(),
