@@ -772,7 +772,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               <span className="dp-dn">{deck.name}</span>
               <span className="dp-dc">{deck.spaceCount} {deck.spaceCount === 1 ? 'space' : 'spaces'}</span>
               <span className="dp-spring" />
-              {crop && gaDims && (
+              {crop && gaDims && !traceMode && (
                 <button
                   className={`dp-linkbtn ${linkMode ? 'is-on' : ''}`}
                   onClick={toggleLinkMode}
@@ -792,7 +792,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   <span className="dp-linkbtn-label">{traceMode ? 'Done tracing' : 'Trace rooms'}</span>
                 </button>
               )}
-              {crop && gaDims && (
+              {crop && gaDims && !traceMode && (
                 <button
                   className="dp-linkbtn dp-aibtn"
                   onClick={() => detectRooms(deck)}
@@ -805,7 +805,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               )}
               {/* When unframed, the big "Frame this deck" box below is the single
                   call-to-action; only offer Reframe once it's framed. */}
-              {crop && <button className="lg-btn sm" onClick={() => setFramingDeck(deck)}>Reframe</button>}
+              {crop && !traceMode && <button className="lg-btn sm" onClick={() => setFramingDeck(deck)}>Reframe</button>}
             </div>
 
             {linkMode && crop && gaDims && (
