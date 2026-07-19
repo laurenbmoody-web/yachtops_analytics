@@ -5,7 +5,8 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { supabase } from '../../../lib/supabaseClient';
 import { useCurrentRota } from '../../crew-rota/useCurrentRota';
 import { assessMlc, ON_DUTY_TYPES, MLC_DAILY_REST_MIN } from '../../crew-rota/restHours';
-import ConfirmHoursModal from './ConfirmHoursModal';
+import TimeWheel from '../../../components/editorial/TimeWheel';
+import { upsertWorkEntryDay } from '../../crew-profile/utils/horWorkEntries';
 import './rota-widget.css';
 
 // Rota widget — role-scoped rest view.
@@ -68,6 +69,17 @@ function dayStatus(shifts, date) {
 const RANK = { breach: 2, marginal: 1, compliant: 0 };
 const worse = (a, b) => (RANK[a] >= RANK[b] ? a : b);
 
+// HH:MM → 30-min block index (0–47). A range [start, end) becomes the block
+// indices to log; end <= start wraps past midnight, so we run to the end of the
+// day (the post-midnight part belongs to the next day, handled by the HOR page).
+const toIdx = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 2 + (m >= 30 ? 1 : 0); };
+function buildSegments(start, end, type) {
+  const s = toIdx(start); let e = toIdx(end); if (e <= s) e = 48;
+  const segs = []; const types = {};
+  for (let i = s; i < e && i < 48; i += 1) { segs.push(i); types[i] = type; }
+  return { segs, types };
+}
+
 const ArrowSvg = ({ w = 40 }) => (
   <svg width={w} height="10" viewBox="0 0 40 10" fill="none" aria-hidden="true">
     <path d="M0 5h34m0 0-5-4m5 4-5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -83,7 +95,12 @@ const RotaWidget = () => {
   const [shiftsByMember, setShiftsByMember] = useState(() => new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  // Inline confirm-hours edit state (the hero times become wheels in place).
+  const [editing, setEditing] = useState(false);
+  const [editStart, setEditStart] = useState('08:00');
+  const [editEnd, setEditEnd] = useState('12:00');
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState(false);
 
   const tier = (tenantRole || user?.permission_tier || '').toUpperCase();
   const view = tier === 'COMMAND' ? 'command' : tier === 'CHIEF' ? 'chief' : 'crew';
@@ -157,6 +174,27 @@ const RotaWidget = () => {
   }), [myShifts, todayStr]);
   const myWeekRest = myReport.pastWeekHours != null ? Math.round(myReport.pastWeekHours) : null;
   const myBreach = myReport.anyBreach;
+
+  const startEdit = () => {
+    setEditStart(myToday?.start || '08:00');
+    setEditEnd(myToday?.end || '12:00');
+    setSaveErr(false);
+    setEditing(true);
+  };
+  const saveHours = async () => {
+    setSaving(true); setSaveErr(false);
+    try {
+      const { segs, types } = buildSegments(editStart, editEnd, myTodayType);
+      await upsertWorkEntryDay({ tenantId: activeTenantId, subjectUserId: user?.id, date: todayStr, workSegments: segs, segmentTypes: types });
+      setEditing(false);
+      await load();
+    } catch (err) {
+      console.error('[RotaWidget] confirm hours failed:', err);
+      setSaveErr(true);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Crew "coming up" — next 4 days.
   const comingUp = useMemo(() => Array.from({ length: 4 }, (_, i) => {
@@ -255,16 +293,36 @@ const RotaWidget = () => {
           {myToday ? (
             <>
               <div className="rw-hero">
-                <div className="rw-blk"><div className="rw-lb">On</div><div className="rw-tm">{myToday.start}</div></div>
+                <div className="rw-blk">
+                  <div className="rw-lb">On</div>
+                  {editing
+                    ? <TimeWheel value={editStart} onChange={setEditStart} ariaLabel="Actual start time" className="rw-tm rw-tm-edit" />
+                    : <div className="rw-tm">{myToday.start}</div>}
+                </div>
                 <div className="rw-arw"><span className="rw-du">{myToday.hours}h</span><ArrowSvg /></div>
-                <div className="rw-blk"><div className="rw-lb">Off</div><div className="rw-tm">{myToday.end}</div></div>
+                <div className="rw-blk">
+                  <div className="rw-lb">Off</div>
+                  {editing
+                    ? <TimeWheel value={editEnd} onChange={setEditEnd} ariaLabel="Actual finish time" className="rw-tm rw-tm-edit" />
+                    : <div className="rw-tm">{myToday.end}</div>}
+                </div>
               </div>
-              <div className={`rw-herometa${myBreach ? ' is-breach' : ''}`}>
-                {myBreach
-                  ? <><b>Rest-hour breach</b>{myWeekRest != null ? ` · ${myWeekRest}h this week` : ''}</>
-                  : <><b>Within rest limits</b>{myWeekRest != null ? ` · ${myWeekRest}h this week` : ''}</>}
-              </div>
-              <button type="button" className="rw-confirm" onClick={() => setConfirmOpen(true)}>Confirm today’s hours</button>
+              {editing ? (
+                <>
+                  <div className="rw-herometa">{saveErr ? <b style={{ color: '#A32D2D' }}>Couldn’t save — try again</b> : 'Scroll each time to your actual hours'}</div>
+                  <button type="button" className="rw-confirm" disabled={saving} onClick={saveHours}>{saving ? 'Saving…' : 'Confirm — updates Hours of Rest'}</button>
+                  <button type="button" className="rw-linkbtn" onClick={() => setEditing(false)}>Cancel</button>
+                </>
+              ) : (
+                <>
+                  <div className={`rw-herometa${myBreach ? ' is-breach' : ''}`}>
+                    {myBreach
+                      ? <><b>Rest-hour breach</b>{myWeekRest != null ? ` · ${myWeekRest}h this week` : ''}</>
+                      : <><b>Within rest limits</b>{myWeekRest != null ? ` · ${myWeekRest}h this week` : ''}</>}
+                  </div>
+                  <button type="button" className="rw-confirm" onClick={startEdit}>Confirm today’s hours</button>
+                </>
+              )}
             </>
           ) : (
             <div className="rw-herometa" style={{ borderBottom: 0, paddingTop: 10 }}>
@@ -373,20 +431,6 @@ const RotaWidget = () => {
             <p className="rw-empty" style={{ padding: '4px 2px' }}>No one on vessel watch today.</p>
           )}
         </>
-      )}
-
-      {confirmOpen && (
-        <ConfirmHoursModal
-          date={todayStr}
-          dateLabel={`${WD[new Date().getDay()]} ${new Date().getDate()}`}
-          defaultStart={myToday?.start}
-          defaultEnd={myToday?.end}
-          type={myTodayType}
-          tenantId={activeTenantId}
-          subjectUserId={user?.id}
-          onClose={() => setConfirmOpen(false)}
-          onSaved={load}
-        />
       )}
     </div>
   );
