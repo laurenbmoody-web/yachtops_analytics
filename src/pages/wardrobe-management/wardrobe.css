@@ -13,26 +13,6 @@
 .wm-wrap .editorial-meta { margin: 0 0 14px; }
 .wm-titlerow { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin: 0 0 22px; }
 
-/* Data strip — at-a-glance counts across the resident wardrobe + cases. */
-.wm-stats {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 0 0 22px;
-}
-.wm-stat {
-  display: flex; flex-direction: column; gap: 2px; position: relative;
-  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px 16px;
-}
-.wm-stat-ic { position: absolute; top: 13px; right: 14px; color: #C65A1A; opacity: 0.85; }
-.wm-stat-side { font: 700 8px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; margin-bottom: 6px; }
-.wm-stat-v { font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; line-height: 1; color: #1C1B3A; }
-.wm-stat-l { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.9px; text-transform: uppercase; color: #8B8478; margin-top: 4px; }
-/* A thin left accent tells the two worlds apart at a glance. */
-.wm-stat { border-left-width: 3px; }
-.wm-stat-owner { border-left-color: #C65A1A; }
-.wm-stat-owner .wm-stat-side { color: #C65A1A; }
-.wm-stat-charter { border-left-color: #2F6E8F; }
-.wm-stat-charter .wm-stat-side { color: #2F6E8F; }
-.wm-stat-both { border-left-color: #AEB4C2; }
-
 .wm-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 @media (max-width: 680px) { .wm-cards { grid-template-columns: 1fr; } }
 
