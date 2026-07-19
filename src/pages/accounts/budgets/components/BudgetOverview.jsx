@@ -96,8 +96,9 @@ const BurnChart = ({ o, cur }) => {
 };
 
 export default function BudgetOverview({ view, monthly, cur, todayYm }) {
-  const o = useMemo(() => computeOverview(view, monthly, todayYm), [view, monthly, todayYm]);
+  const o = useMemo(() => computeOverview(view, monthly, todayYm, (n) => compact(n, cur)), [view, monthly, todayYm, cur]);
   const [lit, setLit] = useState(false);
+  const [heatMode, setHeatMode] = useState('variance'); // 'variance' | 'spend'
   useEffect(() => { const t = requestAnimationFrame(() => setLit(true)); return () => cancelAnimationFrame(t); }, []);
 
   const cats = o.categories.filter((c) => c.budget > 0 || c.used > 0);
@@ -184,12 +185,20 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
         </div>
       )}
 
-      {heat.length > 0 && (
+      {heat.length > 0 && (() => {
+        const s = symbolOf(cur);
+        const bare = (n) => compact(Math.abs(n), cur).replace(s, '');
+        const varScale = Math.max(1, ...heat.flatMap((h) => h.cells).filter((c) => c.value > 0 && c.plan > 0).map((c) => Math.abs(c.variance)));
+        return (
         <div className="bg-panel bg-ov-mt">
           <div className="bg-phead">
             <span className="bg-ptitle">Seasonal shape</span>
-            <span className="bg-pnote">monthly spend intensity · terracotta outline = over that month&rsquo;s plan</span>
+            <div className="bg-ov-toggle">
+              <button type="button" className={heatMode === 'variance' ? 'on' : ''} onClick={() => setHeatMode('variance')}>vs plan</button>
+              <button type="button" className={heatMode === 'spend' ? 'on' : ''} onClick={() => setHeatMode('spend')}>Spend</button>
+            </div>
           </div>
+          <span className="bg-pnote bg-ov-hmnote">{heatMode === 'variance' ? 'each month’s actual vs its plan — terracotta over, green under' : 'monthly spend intensity'}</span>
           <div className="bg-ov-hm">
             <table className="bg-ov-heat">
               <thead>
@@ -200,15 +209,30 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
                   <tr key={r.name}>
                     <td className="rowh">{r.name}</td>
                     {r.cells.map((c) => {
+                      const both = c.value > 0 && c.plan > 0;
+                      if (heatMode === 'variance') {
+                        if (!both) return <td key={c.ym}><div className="bg-ov-cell zero">·</div></td>;
+                        const over = c.variance > 0;
+                        const t = Math.min(1, Math.abs(c.variance) / varScale);
+                        const bg = over ? `rgba(198,90,26,${(0.12 + t * 0.68).toFixed(2)})` : `rgba(63,122,82,${(0.10 + t * 0.6).toFixed(2)})`;
+                        return (
+                          <td key={c.ym}>
+                            <div className="bg-ov-cell"
+                              style={{ background: bg, color: t > 0.5 ? '#fff' : (over ? '#8a3a12' : '#2f5c3e') }}
+                              title={`${r.name} · ${c.label}: ${formatMoney(c.value, cur)} vs plan ${formatMoney(c.plan, cur)} (${over ? '+' : '−'}${formatMoney(Math.abs(c.variance), cur)})`}>
+                              {Math.abs(c.variance) < varScale * 0.02 ? '≈' : `${over ? '+' : '−'}${bare(c.variance)}`}
+                            </div>
+                          </td>
+                        );
+                      }
                       if (!c.value) return <td key={c.ym}><div className="bg-ov-cell zero">·</div></td>;
                       const t = c.value / r.peak;
-                      const over = c.elapsed && c.plan > 0 && c.value > c.plan;
                       return (
                         <td key={c.ym}>
-                          <div className={`bg-ov-cell${over ? ' over' : ''}`}
+                          <div className="bg-ov-cell"
                             style={{ background: `rgba(198,90,26,${(0.16 + t * 0.74).toFixed(2)})`, color: t > 0.45 ? '#fff' : '#7a4a2c' }}
                             title={`${r.name} · ${c.label}: ${formatMoney(c.value, cur)}${c.plan ? ` (plan ${formatMoney(c.plan, cur)})` : ''}`}>
-                            {compact(c.value, cur).replace(symbolOf(cur), '')}
+                            {bare(c.value)}
                           </div>
                         </td>
                       );
@@ -219,7 +243,8 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
             </table>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

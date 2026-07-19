@@ -358,6 +358,10 @@ const buildResolver = (overrides, lineCatSet) => {
   return (item) => {
     const ov = map.get(normKey(item.category));
     if (ov && lineCatSet.has(normKey(ov.category))) return ov.category;
+    // A category that already IS a budget line is authoritative — never let the
+    // classifier second-guess it (its job is to place freeform categories that don't
+    // yet match a line, not to relabel exact matches).
+    if (lineCatSet.has(normKey(item.category))) return item.category;
     const s = classifySpend(item);
     if (s && s.confidence === 'high' && lineCatSet.has(normKey(s.category))) return s.category;
     return item.category;

@@ -520,13 +520,13 @@ export default function BudgetDetail() {
                   </div>
                   <span className="bg-kpi-sub">{formatMoney(kpiUsed, cur)} of {formatMoney(sT.totals.budgeted, cur)}{sT.totals.committed ? ` · incl. ${formatMoney(sT.totals.committed, cur)} on order` : ''}{overview && overview.pctYear > 0 && overview.pctYear < 1 ? ` · ${Math.round(overview.pctYear * 100)}% of the period gone` : ''}</span>
                 </div>
-                <div className="bg-kpi"><span className="bg-kpi-label">Spent</span><b className="bg-kpi-fig">{formatMoney(sT.totals.actual, cur)}</b><span className="bg-kpi-mini">actual, from the ledger</span></div>
-                <div className="bg-kpi"><span className="bg-kpi-label">On order</span><b className="bg-kpi-fig">{formatMoney(sT.totals.committed, cur)}</b><span className="bg-kpi-mini">open supplier orders</span></div>
-                <div className="bg-kpi"><span className="bg-kpi-label">Remaining</span><b className={`bg-kpi-fig ${sT.totals.remaining < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(sT.totals.remaining, cur)}</b><span className="bg-kpi-mini">budget − spent − on order</span></div>
-                {hasRevenue && <div className="bg-kpi"><span className="bg-kpi-label">Revenue</span><b className="bg-kpi-fig bg-pos">{formatMoney(sT.revenueTotals.actual, cur)}</b><span className="bg-kpi-mini">charter income</span></div>}
-                {hasRevenue && <div className="bg-kpi"><span className="bg-kpi-label">Net rev. (exp.)</span><b className={`bg-kpi-fig ${sT.net.actual < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(sT.net.actual, cur)}</b><span className="bg-kpi-mini">revenue − expenditure</span></div>}
+                <div className="bg-kpi" title="Actual spend, live from the ledger"><span className="bg-kpi-label">Spent</span><b className="bg-kpi-fig">{formatMoney(sT.totals.actual, cur)}</b></div>
+                <div className="bg-kpi" title="Open supplier orders (not yet paid)"><span className="bg-kpi-label">On order</span><b className="bg-kpi-fig">{formatMoney(sT.totals.committed, cur)}</b></div>
+                <div className="bg-kpi" title="Budget − spent − on order"><span className="bg-kpi-label">Remaining</span><b className={`bg-kpi-fig ${sT.totals.remaining < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(sT.totals.remaining, cur)}</b></div>
+                {hasRevenue && <div className="bg-kpi" title="Charter income, live from the ledger"><span className="bg-kpi-label">Revenue</span><b className="bg-kpi-fig bg-pos">{formatMoney(sT.revenueTotals.actual, cur)}</b></div>}
+                {hasRevenue && <div className="bg-kpi" title="Revenue − expenditure"><span className="bg-kpi-label">Net rev. (exp.)</span><b className={`bg-kpi-fig ${sT.net.actual < 0 ? 'bg-neg' : 'bg-pos'}`}>{formatMoney(sT.net.actual, cur)}</b></div>}
               </div>
-              <p className="bg-report-note">Figures reported in {cur}. Actual is live from the ledger; on-order is open supplier orders (VAT-exclusive), assumed same currency.</p>
+              <p className="bg-report-note"><span title="Actual is live from the ledger; on-order is open supplier orders (VAT-exclusive), assumed the budget currency.">Figures in {cur} · hover any tile for detail</span></p>
 
               <div className="bg-tabs">
                 <button type="button" className={`bg-tab${tab === 'overview' ? ' is-active' : ''}`} onClick={() => setTab('overview')}>Overview</button>
