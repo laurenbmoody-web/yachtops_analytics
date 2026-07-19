@@ -24,7 +24,10 @@ const L = {
   ECN: { bucket: 'Engineer', category: 'Engineer Consumables', code: 'ECN' },
 };
 
-const DRINK = /wine|champagne|prosecco|beer|cider|spirit|whisk|vodka|gin|rum|liqueur|cocktail|fortified|vermouth|aperitif|sake/;
+// Word-boundaried so short tokens don't match inside unrelated words — e.g. a bare
+// "gin" must not match "en·gin·eer" (which used to route all Engineer spend to Guest
+// Wine Stock). Anchors on whole words; plurals/‑y forms handled explicitly.
+const DRINK = /\b(?:wine|champagnes?|prosecco|beers?|ciders?|spirits?|whisk(?:e?y)?|vodkas?|gin|rum|liqueurs?|cocktails?|fortified|vermouth|aperitifs?|sake)\b/;
 const FOOD = /produce|fruit|veg|salad|dairy|egg|cheese|meat|poultry|beef|pork|lamb|fish|seafood|shellfish|caviar|pantry|dry\s*goods|bakery|bread|charcuterie|grocer|provision|food|truffle|legume|pulse|mushroom|herb|spice|condiment|vinegar|flour|gelling|stabilis|thicken|edible|sea\s*veg|foraged|acidulant|syrup|bitters/;
 const CLEANING = /clean|consumable|non-?food|detergent|paper|hygiene|laundry\s*powder|chemical/;
 const FUEL = /\bfuel\b|diesel|\blube\b|gas\s*oil/;

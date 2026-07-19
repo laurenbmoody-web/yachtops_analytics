@@ -18,7 +18,9 @@ const elapsedMonths = (months, todayYm) => {
   return i === -1 ? months.length : i + 1;
 };
 
-export const computeOverview = (view, monthly, todayYm) => {
+// fmt formats a money amount for the plain-language callouts. Defaults to a bare
+// rounded number; the UI passes a currency-aware compact formatter (e.g. "€393k").
+export const computeOverview = (view, monthly, todayYm, fmt = (n) => String(Math.round(n))) => {
   const months = (monthly && monthly.months) || [];
   const n = months.length;
 
@@ -63,22 +65,23 @@ export const computeOverview = (view, monthly, todayYm) => {
   const heat = (monthly?.buckets || []).filter((b) => b.kind !== 'revenue').map((b) => ({
     name: b.bucket,
     peak: Math.max(1, ...months.map((m) => num(b.subtotalByMonth[m.ym]))),
-    cells: months.map((m, i) => ({
-      ym: m.ym, label: m.label, value: num(b.subtotalByMonth[m.ym]),
-      plan: num(b.budgetSubtotalByMonth[m.ym]), elapsed: i < elapsed,
-    })),
+    cells: months.map((m, i) => {
+      const value = num(b.subtotalByMonth[m.ym]);
+      const plan = num(b.budgetSubtotalByMonth[m.ym]);
+      return { ym: m.ym, label: m.label, value, plan, variance: r2(value - plan), elapsed: i < elapsed };
+    }),
   }));
 
   // Callouts.
   const insights = [];
   categories.filter((c) => c.over).slice(0, 2).forEach((c, i) => {
-    insights.push({ sev: i === 0 ? 'crit' : 'warn', text: `${c.name} is over budget by ${Math.round(c.used - c.budget)} — ${Math.round(c.pct * 100)}% used.` });
+    insights.push({ sev: i === 0 ? 'crit' : 'warn', text: `${c.name} is over budget by ${fmt(c.used - c.budget)} — ${Math.round(c.pct * 100)}% used.` });
   });
   if (pctUsed != null) {
-    if (projectedOver > annualBudget * 0.01) insights.push({ sev: 'warn', text: `On this run-rate you'll finish ~${Math.round(projectedOver)} over budget.` });
+    if (projectedOver > annualBudget * 0.01) insights.push({ sev: 'warn', text: `On this run-rate you'll finish ~${fmt(projectedOver)} over budget.` });
     else if (pctUsed <= pctYear + 0.02) insights.push({ sev: 'good', text: `On plan — ${Math.round(pctUsed * 100)}% used at ${Math.round(pctYear * 100)}% through the period.` });
   }
-  if (remaining > 0) insights.push({ sev: 'info', text: `${Math.round(remaining)} still uncommitted.` });
+  if (remaining > 0) insights.push({ sev: 'info', text: `${fmt(remaining)} still uncommitted.` });
 
   return {
     months, elapsed, plannedCum, actualCum, forecast, projectedTotal, projectedOver,

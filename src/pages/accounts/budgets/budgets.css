@@ -283,7 +283,11 @@
 .bg-ov-cpct small { display: block; font-size: 10px; font-weight: 500; color: #AEB4C2; }
 
 /* seasonal heatmap */
-.bg-ov-hm { margin-top: 14px; overflow-x: auto; }
+.bg-ov-toggle { display: inline-flex; background: #EEF0F4; border-radius: 999px; padding: 3px; }
+.bg-ov-toggle button { border: 0; background: none; padding: 5px 13px; border-radius: 999px; font: inherit; font-size: 11.5px; font-weight: 600; color: #6B7280; cursor: pointer; }
+.bg-ov-toggle button.on { background: #fff; color: #1C1B3A; box-shadow: 0 1px 3px rgba(28,27,58,0.12); }
+.bg-ov-hmnote { display: block; margin-top: 6px; }
+.bg-ov-hm { margin-top: 12px; overflow-x: auto; }
 .bg-ov-heat { border-collapse: separate; border-spacing: 3px; width: 100%; }
 .bg-ov-heat th { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #AEB4C2; padding: 2px; text-align: center; }
 .bg-ov-heat th.rowh, .bg-ov-heat td.rowh { text-align: left; font-size: 12px; font-weight: 600; color: #1C1B3A; text-transform: none; letter-spacing: 0; white-space: nowrap; padding-right: 10px; }

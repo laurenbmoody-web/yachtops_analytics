@@ -49,3 +49,10 @@ test('consumables route by department, low confidence', () => {
 test('unknown category with no department → null (Unbudgeted)', () => {
   assert.equal(classifySpend({ category: 'Mystery thing' }), null);
 });
+
+test('a drink token inside a word does not match — "gin" must not hit "engineer"', () => {
+  assert.equal(classifySpend({ category: 'Engineer Spares & Renewals' }), null);
+  assert.equal(classifySpend({ category: 'Engine room supplies' }), null);
+  // but a real drink still routes
+  assert.equal(classifySpend({ category: 'Gin & tonic' }).code, 'GWS');
+});
