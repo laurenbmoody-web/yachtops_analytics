@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
-import { loadAllLaundryItems } from '../laundry-management-dashboard/utils/laundryStorage';
+import { loadAllLaundryItems, LaundryStatus } from '../laundry-management-dashboard/utils/laundryStorage';
+import { loadWardrobes } from '../laundry-management-dashboard/utils/laundryWardrobes';
+import { money } from '../laundry-management-dashboard/utils/laundryBilling';
+import { canViewCost } from '../../utils/costPermissions';
 import OwnerWardrobeView from '../laundry-management-dashboard/components/OwnerWardrobeView';
 import LaundryCasesModal from '../laundry-management-dashboard/components/LaundryCasesModal';
 import LaundryScanModal from '../laundry-management-dashboard/components/LaundryScanModal';
@@ -16,14 +19,19 @@ import './wardrobe.css';
 // in. Both let you pack/unpack and scan; an item opens its full record.
 const WardrobeManagement = () => {
   const navigate = useNavigate();
+  const showValue = canViewCost(); // garment value is cost data — Command/Chief/HOD only
   const [items, setItems] = useState([]);
+  const [wardrobes, setWardrobes] = useState([]);
   const [mode, setMode] = useState('hub'); // hub | owner
   const [showCases, setShowCases] = useState(false);
   const [showScan, setShowScan] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
   const [casesInitialId, setCasesInitialId] = useState(null);
 
-  const reload = async () => { setItems(await loadAllLaundryItems().catch(() => [])); };
+  const reload = async () => {
+    const [all, ws] = await Promise.all([loadAllLaundryItems().catch(() => []), loadWardrobes('owner').catch(() => [])]);
+    setItems(all); setWardrobes(ws);
+  };
   useEffect(() => { reload(); }, []);
 
   const openScannedItem = (id) => {
@@ -32,11 +40,27 @@ const WardrobeManagement = () => {
     else window.alert('That label doesn’t match a laundry item on this vessel.');
   };
 
-  const ownerCount = items.filter((i) => i.wardrobeId).length;
+  // Hub metrics — resident (owner) garments that live on board, and the guests'
+  // cases in flight. Value is a Command/Chief/HOD-only glance.
+  const inWash = (i) => i.status === LaundryStatus.IN_PROGRESS || i.status === LaundryStatus.READY_TO_DELIVER;
+  const resident = items.filter((i) => i.wardrobeId && !i.isArchivedFromToday);
+  const ownerCount = resident.length;
   const charterCount = items.filter((i) => i.caseId).length;
+  const inLaundryCount = resident.filter(inWash).length;
+  const awayCount = resident.filter((i) => i.caseId).length;
+  const valueOnBoard = resident.reduce((sum, i) => sum + (Number(i.garmentValue) || 0), 0);
+  const valueCurrency = resident.find((i) => i.garmentValue != null)?.garmentValueCurrency || 'EUR';
+
+  const stats = [
+    { key: 'onboard', label: 'On board', value: ownerCount, icon: 'Shirt' },
+    { key: 'laundry', label: 'In laundry', value: inLaundryCount, icon: 'Waves' },
+    { key: 'away', label: 'Away in cases', value: awayCount, icon: 'Plane' },
+    { key: 'wardrobes', label: 'Wardrobes', value: wardrobes.length, icon: 'FolderClosed' },
+    ...(showValue ? [{ key: 'value', label: 'Value on board', value: money(valueOnBoard, valueCurrency), icon: 'Gem' }] : []),
+  ];
 
   return (
-    <div className="wm-root">
+    <>
       <Header />
       <div className="wm-page">
         <div className="wm-wrap">
@@ -52,6 +76,16 @@ const WardrobeManagement = () => {
               <div className="wm-titlerow">
                 <h1 className="editorial-greeting">WARDROBE<span className="period">,</span> <em>managed</em><span className="period">.</span></h1>
                 <button type="button" className="lm-btn ghost" onClick={() => setShowScan(true)}><Icon name="QrCode" size={16} /> Scan</button>
+              </div>
+
+              <div className="wm-stats">
+                {stats.map((s) => (
+                  <div className="wm-stat" key={s.key}>
+                    <span className="wm-stat-ic"><Icon name={s.icon} size={16} /></span>
+                    <span className="wm-stat-v">{s.value}</span>
+                    <span className="wm-stat-l">{s.label}</span>
+                  </div>
+                ))}
               </div>
 
               <div className="wm-cards">
@@ -95,7 +129,7 @@ const WardrobeManagement = () => {
       {detailItem && (
         <LaundryDetailModal item={detailItem} onClose={() => setDetailItem(null)} onUpdated={reload} />
       )}
-    </div>
+    </>
   );
 };
 
