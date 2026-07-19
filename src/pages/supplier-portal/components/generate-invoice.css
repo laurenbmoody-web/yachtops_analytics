@@ -59,18 +59,64 @@
 }
 #sp-root .gi-alert strong { font-weight: 600; }
 
-/* Bonded-supply toggle — soft field card, terracotta when on. */
-#sp-root .gi-toggle {
-  display: flex; align-items: flex-start; gap: 11px;
-  padding: 13px 15px; margin-bottom: 20px;
-  border: 1px solid var(--line); background: var(--ground);
-  border-radius: 12px; cursor: pointer; transition: border-color .12s, background .12s;
+/* Tax treatment — one compact segmented control replacing the two stacked
+   toggle cards. Standard / Bonded / Reverse charge, mutually exclusive. */
+#sp-root .gi-treat { margin-bottom: 20px; }
+#sp-root .gi-treat-head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+#sp-root .gi-treat-head .gi-label { margin-bottom: 0; }
+
+#sp-root .gi-seg {
+  display: inline-flex; gap: 4px; padding: 3px;
+  background: var(--ground); border: 1px solid var(--line);
+  border-radius: 999px;
 }
-#sp-root .gi-toggle.on { border-color: var(--orange); background: var(--pill); }
-#sp-root .gi-toggle input { margin-top: 2px; accent-color: var(--orange); width: 15px; height: 15px; }
-#sp-root .gi-toggle-title { font-size: 13px; font-weight: 600; color: var(--fg); }
-#sp-root .gi-toggle.on .gi-toggle-title { color: var(--orange); }
-#sp-root .gi-toggle-sub { font-size: 11.5px; color: var(--muted-strong); margin-top: 3px; line-height: 1.45; }
+#sp-root .gi-seg-pill {
+  appearance: none; cursor: pointer;
+  font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--muted-strong);
+  padding: 6px 14px; border: 0; background: transparent;
+  border-radius: 999px; transition: background .12s, color .12s;
+}
+#sp-root .gi-seg-pill:hover:not(.on) { color: var(--fg); }
+#sp-root .gi-seg-pill.on { background: var(--orange); color: #fff; font-weight: 600; }
+#sp-root .gi-seg-pill:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--pill); }
+
+#sp-root .gi-caption {
+  font-size: 11.5px; color: var(--muted-strong); margin-top: 9px; line-height: 1.45;
+}
+#sp-root .gi-caption-warn { color: var(--orange); }
+
+/* Small info affordance next to the section label. */
+#sp-root .gi-info {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--ground);
+  font-size: 9.5px; font-weight: 700; font-style: italic; color: var(--muted);
+  cursor: help; user-select: none;
+}
+#sp-root .gi-info:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--pill); }
+
+/* Tooltip — navy bubble above the element, shown on hover/focus. */
+#sp-root .gi-tip { position: relative; }
+#sp-root .gi-tip::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(3px);
+  width: max-content; max-width: 240px; white-space: normal; text-align: left;
+  background: #1C1B3A; color: #fff;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 11px; font-weight: 400; line-height: 1.45;
+  padding: 8px 10px; border-radius: 8px;
+  box-shadow: 0 12px 30px -8px rgba(28,27,58,.45);
+  opacity: 0; pointer-events: none; transition: opacity .12s, transform .12s; z-index: 40;
+}
+#sp-root .gi-tip:hover::after, #sp-root .gi-tip:focus-visible::after {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+/* Keep edge pills' tooltips from overflowing the modal — nudge in. */
+#sp-root .gi-seg .gi-seg-pill:first-child.gi-tip::after { left: 0; transform: translateX(0) translateY(3px); }
+#sp-root .gi-seg .gi-seg-pill:first-child.gi-tip:hover::after,
+#sp-root .gi-seg .gi-seg-pill:first-child.gi-tip:focus-visible::after { transform: translateX(0) translateY(0); }
+#sp-root .gi-seg .gi-seg-pill:last-child.gi-tip::after { left: auto; right: 0; transform: translateX(0) translateY(3px); }
+#sp-root .gi-seg .gi-seg-pill:last-child.gi-tip:hover::after,
+#sp-root .gi-seg .gi-seg-pill:last-child.gi-tip:focus-visible::after { transform: translateX(0) translateY(0); }
 
 /* Line items — hairline rows, not boxed cards. */
 #sp-root .gi-lines { margin-bottom: 22px; }

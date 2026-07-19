@@ -113,6 +113,34 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
   const taxName = getTaxNameForSupplier(supplier);
   const ready = useMemo(() => isInvoicingReady(supplier), [supplier]);
 
+  // Tax treatment as a single mutually-exclusive choice, mapped onto the two
+  // underlying flags. Standard = neither; bonded and reverse-charge both zero-rate.
+  const treatment = bondedSupply ? 'bonded' : reverseCharge ? 'reverse_charge' : 'standard';
+  const setTreatment = (key) => {
+    setBondedSupply(key === 'bonded');
+    setReverseCharge(key === 'reverse_charge');
+  };
+  const treatmentOptions = [
+    {
+      key: 'standard',
+      label: 'Standard',
+      tip: `Each line is taxed at its own category rate. The usual choice.`,
+      caption: `Standard — each line taxed at its category rate.`,
+    },
+    {
+      key: 'bonded',
+      label: 'Bonded',
+      tip: `Forces every line to 0% ${taxName}. Use for supplies under temporary admission / yacht-in-transit / customs-bonded rules.`,
+      caption: `Bonded yacht supply — every line zero-rated (0% ${taxName}).`,
+    },
+    {
+      key: 'reverse_charge',
+      label: 'Reverse charge',
+      tip: `Zero-rates every line and prints a reverse-charge statement. Use for cross-border B2B where the customer self-accounts for ${taxName}.`,
+      caption: `Reverse charge — customer accounts for ${taxName}; lines zero-rated.`,
+    },
+  ];
+
   // Sprint 9.5: count items not yet in a billable state. Server-side check
   // in generateSupplierInvoice/index.ts is the canonical guard; this banner
   // surfaces the same constraint client-side so the supplier doesn't waste
@@ -292,55 +320,44 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
         </div>
       )}
 
-      {/* Disclaimer — low-key editorial note */}
-      <div className="gi-note">
-        <span><strong>Heads up.</strong> {DISCLAIMER}</span>
-      </div>
-
-      {/* Soft nudge: a VAT-registered supplier should carry their number on the
-          invoice. Non-blocking — plenty of suppliers aren't registered. */}
-      {!supplier?.vat_number && (
-        <div className="gi-note">
-          <span>
-            No {taxName} number on file. If you're {taxName}-registered, add it under
-            Tax &amp; invoicing settings so it prints on the invoice.
-          </span>
-        </div>
-      )}
-
       {error && <div className="gi-alert">{error}</div>}
 
-      {/* Bonded supply — mutually exclusive with reverse charge (both zero-rate). */}
-      <label className={`gi-toggle${bondedSupply ? ' on' : ''}`}>
-        <input
-          type="checkbox"
-          checked={bondedSupply}
-          onChange={(e) => { setBondedSupply(e.target.checked); if (e.target.checked) setReverseCharge(false); }}
-        />
-        <div>
-          <div className="gi-toggle-title">Bonded yacht supply (zero-rate)</div>
-          <div className="gi-toggle-sub">
-            Forces every line to 0% {taxName}. Use for supplies under temporary admission /
-            yacht-in-transit / customs-bonded supply rules.
-          </div>
+      {/* Tax treatment — one segmented row instead of two stacked toggle cards.
+          Standard / Bonded / Reverse charge are mutually exclusive; each pill
+          carries its full explanation as a hover/focus tooltip, and the caption
+          below restates the active choice for touch users. */}
+      <div className="gi-treat">
+        <div className="gi-treat-head">
+          <span className="gi-label">Tax treatment</span>
+          <span
+            className="gi-tip gi-info"
+            data-tip={DISCLAIMER}
+            tabIndex={0}
+            role="img"
+            aria-label="About tax rates"
+          >i</span>
         </div>
-      </label>
-
-      {/* Reverse charge */}
-      <label className={`gi-toggle${reverseCharge ? ' on' : ''}`}>
-        <input
-          type="checkbox"
-          checked={reverseCharge}
-          onChange={(e) => { setReverseCharge(e.target.checked); if (e.target.checked) setBondedSupply(false); }}
-        />
-        <div>
-          <div className="gi-toggle-title">Reverse charge (customer accounts for {taxName})</div>
-          <div className="gi-toggle-sub">
-            Zero-rates every line and prints a reverse-charge statement. Use for cross-border
-            B2B supplies where the customer self-accounts for {taxName}.
-          </div>
+        <div className="gi-seg" role="group" aria-label="Tax treatment">
+          {treatmentOptions.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              className={`gi-seg-pill gi-tip${treatment === o.key ? ' on' : ''}`}
+              data-tip={o.tip}
+              aria-pressed={treatment === o.key}
+              onClick={() => setTreatment(o.key)}
+            >
+              {o.label}
+            </button>
+          ))}
         </div>
-      </label>
+        <div className="gi-caption">
+          {treatmentOptions.find((o) => o.key === treatment)?.caption}
+          {!supplier?.vat_number && (
+            <> · <span className="gi-caption-warn">No {taxName} number on file — add one in Tax &amp; invoicing settings to print it.</span></>
+          )}
+        </div>
+      </div>
 
       {/* Lines */}
       <div className="gi-lines">
