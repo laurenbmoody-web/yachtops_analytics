@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { supabase } from '../../../lib/supabaseClient';
 import { useCurrentRota } from '../../crew-rota/useCurrentRota';
 import { assessMlc, ON_DUTY_TYPES, MLC_DAILY_REST_MIN } from '../../crew-rota/restHours';
+import ConfirmHoursModal from './ConfirmHoursModal';
 import './rota-widget.css';
 
 // Rota widget — role-scoped rest view.
@@ -82,6 +83,7 @@ const RotaWidget = () => {
   const [shiftsByMember, setShiftsByMember] = useState(() => new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const tier = (tenantRole || user?.permission_tier || '').toUpperCase();
   const view = tier === 'COMMAND' ? 'command' : tier === 'CHIEF' ? 'chief' : 'crew';
@@ -144,6 +146,7 @@ const RotaWidget = () => {
   const me = useMemo(() => members.find((m) => m.userId && m.userId === user?.id) || null, [members, user?.id]);
   const myShifts = (me && shiftsByMember.get(me.id)) || [];
   const myToday = spanForDay(myShifts, todayStr);
+  const myTodayType = myShifts.find((s) => s.date === todayStr && ON_DUTY_TYPES.has(s.shiftType))?.shiftType || 'duty';
   const tmrwStr = addDays(todayStr, 1);
   const myTomorrow = spanForDay(myShifts, tmrwStr);
   const tmrwDt = new Date(`${tmrwStr}T00:00:00`);
@@ -261,7 +264,7 @@ const RotaWidget = () => {
                   ? <><b>Rest-hour breach</b>{myWeekRest != null ? ` · ${myWeekRest}h this week` : ''}</>
                   : <><b>Within rest limits</b>{myWeekRest != null ? ` · ${myWeekRest}h this week` : ''}</>}
               </div>
-              <button type="button" className="rw-confirm" onClick={() => navigate('/my-profile?tab=hor')}>Confirm today’s hours</button>
+              <button type="button" className="rw-confirm" onClick={() => setConfirmOpen(true)}>Confirm today’s hours</button>
             </>
           ) : (
             <div className="rw-herometa" style={{ borderBottom: 0, paddingTop: 10 }}>
@@ -370,6 +373,20 @@ const RotaWidget = () => {
             <p className="rw-empty" style={{ padding: '4px 2px' }}>No one on vessel watch today.</p>
           )}
         </>
+      )}
+
+      {confirmOpen && (
+        <ConfirmHoursModal
+          date={todayStr}
+          dateLabel={`${WD[new Date().getDay()]} ${new Date().getDate()}`}
+          defaultStart={myToday?.start}
+          defaultEnd={myToday?.end}
+          type={myTodayType}
+          tenantId={activeTenantId}
+          subjectUserId={user?.id}
+          onClose={() => setConfirmOpen(false)}
+          onSaved={load}
+        />
       )}
     </div>
   );

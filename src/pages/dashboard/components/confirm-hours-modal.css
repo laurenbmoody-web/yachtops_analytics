@@ -1,0 +1,39 @@
+/* Confirm-hours sheet — opens the HOR wheel to log today's actual on/off. */
+.chm-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(28, 27, 58, 0.42);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.chm-sheet {
+  background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  padding: 22px; width: 100%; max-width: 340px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.chm-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 20px; font-weight: 500; letter-spacing: -0.3px; color: #1A1D3F; }
+.chm-sub { font-size: 12px; color: #7C7E9B; margin: 2px 0 18px; }
+.chm-wheels { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 18px; }
+.chm-col { text-align: center; flex: 1; }
+.chm-lb { font-size: 9.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #9098B1; margin-bottom: 6px; }
+.chm-time {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 34px; font-weight: 500; color: #262A53; letter-spacing: -1px;
+  background: none; border: 0; cursor: pointer; font-variant-numeric: tabular-nums;
+  padding: 2px 8px; border-radius: 8px; line-height: 1;
+}
+.chm-time:hover { background: #FAFAF8; }
+.chm-ar { color: #C65A1A; flex: 0 0 auto; padding-top: 16px; }
+.chm-err { font-size: 12px; color: #A32D2D; margin-bottom: 10px; text-align: center; }
+.chm-confirm {
+  width: 100%; background: #C65A1A; color: #fff; border: 0; border-radius: 10px;
+  padding: 12px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.chm-confirm:hover { background: #B14E16; }
+.chm-confirm:disabled { opacity: .6; cursor: default; }
+.chm-cancel {
+  width: 100%; background: none; border: 0; color: #7C7E9B;
+  font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  padding: 10px; margin-top: 4px;
+}
+.chm-cancel:hover { color: #262A53; }
