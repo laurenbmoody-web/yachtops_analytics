@@ -98,7 +98,6 @@ const BurnChart = ({ o, cur }) => {
 export default function BudgetOverview({ view, monthly, cur, todayYm }) {
   const o = useMemo(() => computeOverview(view, monthly, todayYm, (n) => compact(n, cur)), [view, monthly, todayYm, cur]);
   const [lit, setLit] = useState(false);
-  const [heatMode, setHeatMode] = useState('variance'); // 'variance' | 'spend'
   useEffect(() => { const t = requestAnimationFrame(() => setLit(true)); return () => cancelAnimationFrame(t); }, []);
 
   const cats = o.categories.filter((c) => c.budget > 0 || c.used > 0);
@@ -189,16 +188,15 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
         const s = symbolOf(cur);
         const bare = (n) => compact(Math.abs(n), cur).replace(s, '');
         const varScale = Math.max(1, ...heat.flatMap((h) => h.cells).filter((c) => c.value > 0 && c.plan > 0).map((c) => Math.abs(c.variance)));
+        const varColor = (variance, t) => (variance > 0
+          ? { bg: `rgba(198,90,26,${(0.12 + t * 0.68).toFixed(2)})`, fg: t > 0.5 ? '#fff' : '#8a3a12' }
+          : { bg: `rgba(63,122,82,${(0.10 + t * 0.6).toFixed(2)})`, fg: t > 0.5 ? '#fff' : '#2f5c3e' });
         return (
         <div className="bg-panel bg-ov-mt">
           <div className="bg-phead">
             <span className="bg-ptitle">Seasonal shape</span>
-            <div className="bg-ov-toggle">
-              <button type="button" className={heatMode === 'variance' ? 'on' : ''} onClick={() => setHeatMode('variance')}>vs plan</button>
-              <button type="button" className={heatMode === 'spend' ? 'on' : ''} onClick={() => setHeatMode('spend')}>Spend</button>
-            </div>
+            <span className="bg-pnote">colour = over (terracotta) / under (green) plan · hover a cell to flip it to the +/− amount</span>
           </div>
-          <span className="bg-pnote bg-ov-hmnote">{heatMode === 'variance' ? 'each month’s actual vs its plan — terracotta over, green under' : 'monthly spend intensity'}</span>
           <div className="bg-ov-hm">
             <table className="bg-ov-heat">
               <thead>
@@ -210,29 +208,19 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
                     <td className="rowh">{r.name}</td>
                     {r.cells.map((c) => {
                       const both = c.value > 0 && c.plan > 0;
-                      if (heatMode === 'variance') {
-                        if (!both) return <td key={c.ym}><div className="bg-ov-cell zero">·</div></td>;
-                        const over = c.variance > 0;
-                        const t = Math.min(1, Math.abs(c.variance) / varScale);
-                        const bg = over ? `rgba(198,90,26,${(0.12 + t * 0.68).toFixed(2)})` : `rgba(63,122,82,${(0.10 + t * 0.6).toFixed(2)})`;
-                        return (
-                          <td key={c.ym}>
-                            <div className="bg-ov-cell"
-                              style={{ background: bg, color: t > 0.5 ? '#fff' : (over ? '#8a3a12' : '#2f5c3e') }}
-                              title={`${r.name} · ${c.label}: ${formatMoney(c.value, cur)} vs plan ${formatMoney(c.plan, cur)} (${over ? '+' : '−'}${formatMoney(Math.abs(c.variance), cur)})`}>
-                              {Math.abs(c.variance) < varScale * 0.02 ? '≈' : `${over ? '+' : '−'}${bare(c.variance)}`}
-                            </div>
-                          </td>
-                        );
-                      }
-                      if (!c.value) return <td key={c.ym}><div className="bg-ov-cell zero">·</div></td>;
-                      const t = c.value / r.peak;
+                      if (!both) return <td key={c.ym}><div className="bg-ov-cell zero">·</div></td>;
+                      const t = Math.min(1, Math.abs(c.variance) / varScale);
+                      const near = Math.abs(c.variance) < varScale * 0.02;
+                      const { bg, fg } = near ? { bg: '#F1F2F5', fg: '#8B8478' } : varColor(c.variance, t);
+                      const sign = c.variance > 0 ? '+' : '−';
                       return (
                         <td key={c.ym}>
-                          <div className="bg-ov-cell"
-                            style={{ background: `rgba(198,90,26,${(0.16 + t * 0.74).toFixed(2)})`, color: t > 0.45 ? '#fff' : '#7a4a2c' }}
-                            title={`${r.name} · ${c.label}: ${formatMoney(c.value, cur)}${c.plan ? ` (plan ${formatMoney(c.plan, cur)})` : ''}`}>
-                            {bare(c.value)}
+                          <div className="bg-ov-flip" tabIndex={0}
+                            title={`${r.name} · ${c.label}: ${formatMoney(c.value, cur)} vs plan ${formatMoney(c.plan, cur)} (${sign}${formatMoney(Math.abs(c.variance), cur)})`}>
+                            <div className="bg-ov-flip-in">
+                              <div className="bg-ov-face bg-ov-front" style={{ background: bg, color: fg }}>{bare(c.value)}</div>
+                              <div className="bg-ov-face bg-ov-back" style={{ background: bg, color: fg }}>{near ? '≈' : `${sign}${bare(c.variance)}`}</div>
+                            </div>
                           </div>
                         </td>
                       );
