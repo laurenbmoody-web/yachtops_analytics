@@ -4,6 +4,7 @@ import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
 import { loadAllLaundryItems, LaundryStatus } from '../laundry-management-dashboard/utils/laundryStorage';
 import { loadWardrobes } from '../laundry-management-dashboard/utils/laundryWardrobes';
+import { loadCases } from '../laundry-management-dashboard/utils/laundryCases';
 import { money } from '../laundry-management-dashboard/utils/laundryBilling';
 import { canViewCost } from '../../utils/costPermissions';
 import OwnerWardrobeView from '../laundry-management-dashboard/components/OwnerWardrobeView';
@@ -22,6 +23,7 @@ const WardrobeManagement = () => {
   const showValue = canViewCost(); // garment value is cost data — Command/Chief/HOD only
   const [items, setItems] = useState([]);
   const [wardrobes, setWardrobes] = useState([]);
+  const [cases, setCases] = useState([]);
   const [mode, setMode] = useState('hub'); // hub | owner
   const [showCases, setShowCases] = useState(false);
   const [showScan, setShowScan] = useState(false);
@@ -29,8 +31,12 @@ const WardrobeManagement = () => {
   const [casesInitialId, setCasesInitialId] = useState(null);
 
   const reload = async () => {
-    const [all, ws] = await Promise.all([loadAllLaundryItems().catch(() => []), loadWardrobes('owner').catch(() => [])]);
-    setItems(all); setWardrobes(ws);
+    const [all, ws, cs] = await Promise.all([
+      loadAllLaundryItems().catch(() => []),
+      loadWardrobes('owner').catch(() => []),
+      loadCases().catch(() => []),
+    ]);
+    setItems(all); setWardrobes(ws); setCases(cs);
   };
   useEffect(() => { reload(); }, []);
 
@@ -40,23 +46,24 @@ const WardrobeManagement = () => {
     else window.alert('That label doesn’t match a laundry item on this vessel.');
   };
 
-  // Hub metrics — resident (owner) garments that live on board, and the guests'
-  // cases in flight. Value is a Command/Chief/HOD-only glance.
+  // Hub metrics — this page serves BOTH worlds, so the strip carries an Owner
+  // cluster (resident garments in their wardrobes) and a Charter cluster (guests'
+  // items travelling in cases). Value is a Command/Chief/HOD-only glance.
   const inWash = (i) => i.status === LaundryStatus.IN_PROGRESS || i.status === LaundryStatus.READY_TO_DELIVER;
   const resident = items.filter((i) => i.wardrobeId && !i.isArchivedFromToday);
   const ownerCount = resident.length;
   const charterCount = items.filter((i) => i.caseId).length;
-  const inLaundryCount = resident.filter(inWash).length;
-  const awayCount = resident.filter((i) => i.caseId).length;
+  const inLaundryCount = items.filter((i) => !i.isArchivedFromToday && inWash(i)).length; // both worlds
   const valueOnBoard = resident.reduce((sum, i) => sum + (Number(i.garmentValue) || 0), 0);
   const valueCurrency = resident.find((i) => i.garmentValue != null)?.garmentValueCurrency || 'EUR';
 
   const stats = [
-    { key: 'onboard', label: 'On board', value: ownerCount, icon: 'Shirt' },
-    { key: 'laundry', label: 'In laundry', value: inLaundryCount, icon: 'Waves' },
-    { key: 'away', label: 'Away in cases', value: awayCount, icon: 'Plane' },
-    { key: 'wardrobes', label: 'Wardrobes', value: wardrobes.length, icon: 'FolderClosed' },
-    ...(showValue ? [{ key: 'value', label: 'Value on board', value: money(valueOnBoard, valueCurrency), icon: 'Gem' }] : []),
+    { key: 'onboard', side: 'Owner', label: 'On board', value: ownerCount, icon: 'Shirt' },
+    { key: 'wardrobes', side: 'Owner', label: 'Wardrobes', value: wardrobes.length, icon: 'FolderClosed' },
+    ...(showValue ? [{ key: 'value', side: 'Owner', label: 'Value on board', value: money(valueOnBoard, valueCurrency), icon: 'Gem' }] : []),
+    { key: 'incases', side: 'Charter', label: 'In cases', value: charterCount, icon: 'Plane' },
+    { key: 'cases', side: 'Charter', label: 'Active cases', value: cases.length, icon: 'Package' },
+    { key: 'laundry', side: 'Both', label: 'In laundry', value: inLaundryCount, icon: 'Waves' },
   ];
 
   return (
@@ -70,6 +77,7 @@ const WardrobeManagement = () => {
           <p className="editorial-meta">
             <span className="dot">●</span><span>Housekeeping</span>
             <span className="bar" /><span className="muted">Wardrobe management</span>
+            <span className="bar" /><span className="muted">Owner &amp; charter</span>
           </p>
           {mode === 'hub' ? (
             <>
@@ -80,8 +88,9 @@ const WardrobeManagement = () => {
 
               <div className="wm-stats">
                 {stats.map((s) => (
-                  <div className="wm-stat" key={s.key}>
+                  <div className={`wm-stat wm-stat-${s.side.toLowerCase()}`} key={s.key}>
                     <span className="wm-stat-ic"><Icon name={s.icon} size={16} /></span>
+                    <span className="wm-stat-side">{s.side}</span>
                     <span className="wm-stat-v">{s.value}</span>
                     <span className="wm-stat-l">{s.label}</span>
                   </div>
