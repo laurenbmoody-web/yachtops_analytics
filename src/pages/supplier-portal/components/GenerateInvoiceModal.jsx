@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
 import SupplierModal from './SupplierModal';
 import {
@@ -46,6 +47,7 @@ const fmtMoney = (n, currency) => {
 };
 
 export default function GenerateInvoiceModal({ orderId, items, supplierId, open, onClose, onGenerated }) {
+  const navigate = useNavigate();
   const [supplier, setSupplier] = useState(null);
   const [loadingSupplier, setLoadingSupplier] = useState(true);
   const [profileError, setProfileError] = useState(null);
@@ -126,21 +128,21 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
       key: 'standard',
       label: 'Standard',
       tip: `Each line is taxed at its own category rate. The usual choice.`,
-      caption: `Standard — each line taxed at its category rate.`,
     },
     {
       key: 'bonded',
       label: 'Bonded',
       tip: `Forces every line to 0% ${taxName}. Use for supplies under temporary admission / yacht-in-transit / customs-bonded rules.`,
-      caption: `Bonded yacht supply — every line zero-rated (0% ${taxName}).`,
     },
     {
       key: 'reverse_charge',
       label: 'Reverse charge',
       tip: `Zero-rates every line and prints a reverse-charge statement. Use for cross-border B2B where the customer self-accounts for ${taxName}.`,
-      caption: `Reverse charge — customer accounts for ${taxName}; lines zero-rated.`,
     },
   ];
+
+  // Jump straight to the tax-settings tab to add a missing VAT number.
+  const goAddVatNumber = () => { onClose(); navigate('/supplier/workspace/tax'); };
 
   // Sprint 9.5: count items not yet in a billable state. Server-side check
   // in generateSupplierInvoice/index.ts is the canonical guard; this banner
@@ -352,12 +354,12 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
             </button>
           ))}
         </div>
-        <div className="gi-caption">
-          {treatmentOptions.find((o) => o.key === treatment)?.caption}
-          {!supplier?.vat_number && (
-            <> · <span className="gi-caption-warn">No {taxName} number on file — add one in Tax &amp; invoicing settings to print it.</span></>
-          )}
-        </div>
+        {!supplier?.vat_number && (
+          <div className="gi-caption">
+            No {taxName} number on file.{' '}
+            <button type="button" className="gi-link" onClick={goAddVatNumber}>Add one →</button>
+          </div>
+        )}
       </div>
 
       {/* Lines */}

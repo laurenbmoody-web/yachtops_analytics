@@ -85,6 +85,14 @@
 }
 #sp-root .gi-caption-warn { color: var(--orange); }
 
+/* Inline text link (e.g. "Add one →") — terracotta, underline on hover. */
+#sp-root .gi-link {
+  appearance: none; border: 0; background: none; padding: 0; cursor: pointer;
+  font: inherit; color: var(--orange); font-weight: 600;
+}
+#sp-root .gi-link:hover { text-decoration: underline; }
+#sp-root .gi-link:focus-visible { outline: none; text-decoration: underline; }
+
 /* Small info affordance next to the section label. Holds a lucide <Info>
    icon, which self-centres — no glyph baseline fiddling. */
 #sp-root .gi-info {
