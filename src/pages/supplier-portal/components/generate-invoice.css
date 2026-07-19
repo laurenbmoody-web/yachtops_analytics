@@ -85,15 +85,26 @@
 }
 #sp-root .gi-caption-warn { color: var(--orange); }
 
-/* Small info affordance next to the section label. */
+/* Small info affordance next to the section label. Holds a lucide <Info>
+   icon, which self-centres — no glyph baseline fiddling. */
 #sp-root .gi-info {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 15px; height: 15px; border-radius: 999px;
+  width: 16px; height: 16px; border-radius: 999px;
   border: 1px solid var(--line); background: var(--ground);
-  font-size: 9.5px; font-weight: 700; font-style: italic; color: var(--muted);
-  cursor: help; user-select: none;
+  color: var(--muted); cursor: help; user-select: none;
 }
+#sp-root .gi-info svg { display: block; }
 #sp-root .gi-info:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--pill); }
+
+/* Zero-rated line indicator — replaces the category dropdown when the whole
+   invoice is bonded / reverse-charged. Sits in the same grid cell. */
+#sp-root .gi-line-zero {
+  justify-self: start;
+  font-size: 12px; font-weight: 500; color: var(--muted-strong);
+  padding: 6px 12px; border-radius: 999px;
+  background: var(--ground); border: 1px solid var(--line);
+  white-space: nowrap;
+}
 
 /* Tooltip — navy bubble above the element, shown on hover/focus. */
 #sp-root .gi-tip { position: relative; }
@@ -110,11 +121,21 @@
 #sp-root .gi-tip:hover::after, #sp-root .gi-tip:focus-visible::after {
   opacity: 1; transform: translateX(-50%) translateY(0);
 }
-/* Keep edge pills' tooltips from overflowing the modal — nudge in. */
-#sp-root .gi-seg .gi-seg-pill:first-child.gi-tip::after { left: 0; transform: translateX(0) translateY(3px); }
+/* Drop the bubble BELOW the trigger — used near the top of the modal where an
+   upward bubble collides with the sticky header. */
+#sp-root .gi-tip-below::after {
+  bottom: auto; top: calc(100% + 8px); transform: translateX(-50%) translateY(-3px);
+}
+#sp-root .gi-tip-below:hover::after, #sp-root .gi-tip-below:focus-visible::after {
+  transform: translateX(-50%) translateY(0);
+}
+/* Keep edge pills' tooltips from overflowing the modal — left-align the first
+   pill's bubble, right-align the last. These pills drop below (gi-tip-below),
+   so only the horizontal anchor is overridden; vertical stays from -below. */
+#sp-root .gi-seg .gi-seg-pill:first-child.gi-tip::after { left: 0; transform: translateX(0) translateY(-3px); }
 #sp-root .gi-seg .gi-seg-pill:first-child.gi-tip:hover::after,
 #sp-root .gi-seg .gi-seg-pill:first-child.gi-tip:focus-visible::after { transform: translateX(0) translateY(0); }
-#sp-root .gi-seg .gi-seg-pill:last-child.gi-tip::after { left: auto; right: 0; transform: translateX(0) translateY(3px); }
+#sp-root .gi-seg .gi-seg-pill:last-child.gi-tip::after { left: auto; right: 0; transform: translateX(0) translateY(-3px); }
 #sp-root .gi-seg .gi-seg-pill:last-child.gi-tip:hover::after,
 #sp-root .gi-seg .gi-seg-pill:last-child.gi-tip:focus-visible::after { transform: translateX(0) translateY(0); }
 
