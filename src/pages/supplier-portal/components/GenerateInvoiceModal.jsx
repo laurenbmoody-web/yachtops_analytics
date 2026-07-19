@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Info } from 'lucide-react';
 import SupplierModal from './SupplierModal';
 import {
   fetchSupplierProfileById,
@@ -330,19 +331,19 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
         <div className="gi-treat-head">
           <span className="gi-label">Tax treatment</span>
           <span
-            className="gi-tip gi-info"
+            className="gi-tip gi-info gi-tip-below"
             data-tip={DISCLAIMER}
             tabIndex={0}
             role="img"
             aria-label="About tax rates"
-          >i</span>
+          ><Info size={12} strokeWidth={2.25} /></span>
         </div>
         <div className="gi-seg" role="group" aria-label="Tax treatment">
           {treatmentOptions.map((o) => (
             <button
               key={o.key}
               type="button"
-              className={`gi-seg-pill gi-tip${treatment === o.key ? ' on' : ''}`}
+              className={`gi-seg-pill gi-tip gi-tip-below${treatment === o.key ? ' on' : ''}`}
               data-tip={o.tip}
               aria-pressed={treatment === o.key}
               onClick={() => setTreatment(o.key)}
@@ -372,16 +373,21 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
                   {it.quantity}{it.unit ? ' ' + it.unit : ''} · {fmtMoney(it.agreed_price ?? it.unit_price, currency)}
                 </span>
               </div>
-              <select
-                className="gi-select gi-select-sm"
-                value={lineCategories[it.id] || ''}
-                onChange={(e) => setLineCategories((prev) => ({ ...prev, [it.id]: e.target.value }))}
-                disabled={zeroRated}
-              >
-                {categories.map((c) => (
-                  <option key={c.key} value={c.key}>{c.label} ({c.rate}%)</option>
-                ))}
-              </select>
+              {zeroRated ? (
+                // Bonded / reverse-charge zero-rate the whole invoice — show that
+                // per line instead of a stale "Standard rate (20%)" dropdown.
+                <div className="gi-line-zero">Zero-rated · 0%</div>
+              ) : (
+                <select
+                  className="gi-select gi-select-sm"
+                  value={lineCategories[it.id] || ''}
+                  onChange={(e) => setLineCategories((prev) => ({ ...prev, [it.id]: e.target.value }))}
+                >
+                  {categories.map((c) => (
+                    <option key={c.key} value={c.key}>{c.label} ({c.rate}%)</option>
+                  ))}
+                </select>
+              )}
               <div className="gi-line-total">{fmtMoney(computedLine?.total ?? 0, currency)}</div>
             </div>
           );
