@@ -375,6 +375,12 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-cat-chip:hover{border-color:var(--lg-ink,#1C1B3A);color:var(--lg-ink,#1C1B3A);}
 .dp-cat-chip.is-on{border-color:var(--lg-ink,#1C1B3A);color:var(--lg-ink,#1C1B3A);background:var(--lg-wash,#F8FAFC);}
 .dp-cat-dot{width:11px;height:11px;border-radius:3px;flex:none;box-shadow:0 0 0 1px rgba(28,27,58,.12);}
+/* Compact category dropdown (replaces the 6 chips in the adjust bar). */
+.dp-cat-sel{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:8px;
+  background:#fff;border:1px solid var(--lg-hair,#E8E6DF);}
+.dp-cat-native{font-family:var(--lg-sans);font-size:12px;font-weight:600;color:var(--lg-ink,#1C1B3A);
+  border:0;background:transparent;cursor:pointer;padding:0;padding-right:2px;}
+.dp-cat-native:focus{outline:none;}
 .dp-plan-empty{display:flex;align-items:center;justify-content:center;width:100%;min-height:110px;cursor:pointer;
   border:1px dashed var(--lg-hair);border-radius:14px;background:var(--lg-wash);color:var(--lg-terra);
   font-family:var(--lg-sans);font-size:13.5px;font-weight:500;}

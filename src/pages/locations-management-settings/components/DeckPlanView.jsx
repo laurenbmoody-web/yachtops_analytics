@@ -404,7 +404,8 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     if (!editing) return;
     const e = editing;
     setEditing(null); setEditSel(null);
-    traceStartRef.current = true;
+    // No swallow flag here — Re-trace is a button press, not a room-select click,
+    // so the very next tap on the plan must count (was being eaten before).
     setTracing({ spaceId: e.spaceId, deckId: e.deckId, name: e.name, nodes: [] });
   };
   useEffect(() => () => { window.removeEventListener('pointermove', onEditNodeMove); window.removeEventListener('pointerup', onEditNodeUp); }, [onEditNodeMove, onEditNodeUp]);
@@ -817,22 +818,18 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                 {editing && editing.deckId === deck.id ? (
                   <>
                     <span className="dp-adjhdr">Adjusting <em>{editing.name}</em> · <b>{editing.nodes.length}</b> pts <span className="dp-hint-faint" title="Drag a corner to move · click a + midpoint to add · click a corner then Delete/⌫ to remove · hold Alt to move without snapping">drag · + add · ⌫ remove</span></span>
-                    <span className="dp-cat-pick" role="group" aria-label="Room category">
-                      {(() => {
-                        const eSpace = spaces.find((s) => s.id === editing.spaceId) || { id: editing.spaceId, name: editing.name };
-                        const cur = categoryOf(eSpace);
-                        return CATEGORIES.map((c) => (
-                          <button
-                            key={c.id}
-                            className={`dp-cat-chip ${cur === c.id ? 'is-on' : ''}`}
-                            onClick={() => setCategory(editing.spaceId, c.id)}
-                            title={`Colour this room as ${c.label}`}
-                          >
-                            <span className="dp-cat-dot" style={{ background: c.color }} />{c.label}
-                          </button>
-                        ));
-                      })()}
-                    </span>
+                    {(() => {
+                      const eSpace = spaces.find((s) => s.id === editing.spaceId) || { id: editing.spaceId, name: editing.name };
+                      const cur = categoryOf(eSpace);
+                      return (
+                        <span className="dp-cat-sel" title="Room category (zone colour)">
+                          <span className="dp-cat-dot" style={{ background: categoryColor(cur) }} />
+                          <select className="dp-cat-native" value={cur} onChange={(e) => setCategory(editing.spaceId, e.target.value)} aria-label="Room category">
+                            {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                          </select>
+                        </span>
+                      );
+                    })()}
                     <span className="dp-spring" />
                     <button className="lg-btn sm" disabled={editing.nodes.length <= 4} onClick={simplifyEdit} title="Reduce the number of corners">Simplify</button>
                     <button className="lg-btn sm" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => deleteNodeAt(editSel)}>Delete point</button>
