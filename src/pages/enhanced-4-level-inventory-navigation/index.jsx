@@ -736,8 +736,10 @@ const BulkMoveItemsModal = ({ selectedCount, itemLabel, folderTree, currentPathS
         const childPath = childSegments?.join(' > ');
         const isCurrent = childPath === currentFullPath;
 
+        // Non-Command (Chief, HOD and crew) can only move items within their
+        // own department.
         let isAllowed = true;
-        if (!isCommand && (isChief || isHOD)) {
+        if (!isCommand) {
           const rootSegment = childSegments?.[0] || '';
           isAllowed = rootSegment?.toLowerCase() === userDepartment?.toLowerCase();
         }
@@ -3631,17 +3633,15 @@ const LocationFirstInventory = () => {
               {selectedItemIds?.size} item{selectedItemIds?.size !== 1 ? 's' : ''} selected
             </span>
             <div className="inv-selbar-spacer" />
+            <button onClick={() => setShowBulkMoveModal(true)} className="inv-selbtn">
+              <Icon name="FolderInput" size={13} />
+              Move
+            </button>
             {canManageItems && (
-              <>
-                <button onClick={() => setShowBulkMoveModal(true)} className="inv-selbtn">
-                  <Icon name="FolderInput" size={13} />
-                  Move
-                </button>
-                <button onClick={() => setShowBulkDeleteModal(true)} className="inv-selbtn danger">
-                  <Icon name="Trash2" size={13} />
-                  Delete
-                </button>
-              </>
+              <button onClick={() => setShowBulkDeleteModal(true)} className="inv-selbtn danger">
+                <Icon name="Trash2" size={13} />
+                Delete
+              </button>
             )}
             <button onClick={() => setShowExportModal(true)} className="inv-selbtn primary">
               <Icon name="Download" size={13} />
@@ -3777,11 +3777,11 @@ const LocationFirstInventory = () => {
                   <ItemRow
                     key={item?.id}
                     item={item}
-                    canEdit={canManageItems}
+                    canEdit={canEdit}
                     onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
-                    onDelete={(i) => setDeletingItem(i)}
+                    onDelete={canManageItems ? (i) => setDeletingItem(i) : undefined}
                     onMove={(i) => setMovingItem(i)}
-                    onClone={handleCloneItem}
+                    onClone={canManageItems ? handleCloneItem : undefined}
                     onUpdate={loadData}
                     onQuickView={(i) => setQuickViewItem(i)}
                     isSelected={selectedItemIds?.has(item?.id)}
@@ -3796,11 +3796,11 @@ const LocationFirstInventory = () => {
                   <ItemGridCard
                     key={item?.id}
                     item={item}
-                    canEdit={canManageItems}
+                    canEdit={canEdit}
                     onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
-                    onDelete={(i) => setDeletingItem(i)}
+                    onDelete={canManageItems ? (i) => setDeletingItem(i) : undefined}
                     onMove={(i) => setMovingItem(i)}
-                    onClone={handleCloneItem}
+                    onClone={canManageItems ? handleCloneItem : undefined}
                     onUpdate={loadData}
                     onQuickView={(i) => setQuickViewItem(i)}
                     isSelected={selectedItemIds?.has(item?.id)}
