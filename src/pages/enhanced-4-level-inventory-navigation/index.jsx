@@ -268,20 +268,21 @@ const AddFolderModal = ({ parentPath, onClose, onSave }) => {
   const previewIcon = selectedIcon || 'FolderOpen';
 
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-foreground">Add Sub-folder</h2>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-          <Icon name="X" size={18} />
-        </button>
+    <ModalShell onClose={onClose} panelClassName="inv-modal">
+      <div className="inv-modal-head">
+        <div>
+          <div className="inv-modal-eyebrow">New folder</div>
+          <h2 className="inv-modal-title">Add sub-folder</h2>
+        </div>
+        <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
       </div>
       {parentLabel && (
-        <p className="text-sm text-muted-foreground mb-3">Inside: <span className="font-medium text-foreground">{parentLabel}</span></p>
+        <p className="inv-modal-sub">Inside <b>{parentLabel}</b></p>
       )}
 
       {/* Name input */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-foreground mb-1.5">Folder name</label>
+      <div className="inv-fieldwrap">
+        <label className="inv-flabel">Folder name</label>
         <input
           ref={inputRef}
           type="text"
@@ -289,60 +290,46 @@ const AddFolderModal = ({ parentPath, onClose, onSave }) => {
           onChange={handleNameChange}
           onKeyDown={(e) => { if (e?.key === 'Enter') handleSave(); if (e?.key === 'Escape') onClose(); }}
           placeholder="e.g. Linen & Towels"
-          className="w-full px-3 py-2.5 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+          className="inv-field"
         />
-        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        {error && <p className="inv-err">{error}</p>}
       </div>
 
       {/* Preview + Icon/Color selectors */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-foreground mb-2">Appearance</label>
+      <div className="inv-fieldwrap">
+        <label className="inv-flabel">Appearance</label>
         <div className="flex items-center gap-3">
-          {/* Preview circle */}
-          <div
-            className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: previewColor + '22', border: `2px solid ${previewColor}44` }}
-          >
+          <div className="inv-preview" style={{ backgroundColor: previewColor + '22', border: `2px solid ${previewColor}44` }}>
             <Icon name={previewIcon} size={22} style={{ color: previewColor }} />
           </div>
-
-          {/* Icon picker toggle */}
           <div className="flex-1">
-            <button
-              type="button"
-              onClick={() => setShowIconPicker(v => !v)}
-              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm bg-background border border-border rounded-xl hover:border-primary/50 transition-colors text-foreground"
-            >
-              <div className="flex items-center gap-2">
-                <Icon name={previewIcon} size={14} className="text-muted-foreground" />
-                <span className="text-muted-foreground text-xs">{previewIcon}</span>
-              </div>
-              <Icon name={showIconPicker ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
+            <button type="button" onClick={() => setShowIconPicker(v => !v)} className="inv-picker-toggle">
+              <span className="flex items-center gap-2">
+                <Icon name={previewIcon} size={14} />
+                <span>{previewIcon}</span>
+              </span>
+              <Icon name={showIconPicker ? 'ChevronUp' : 'ChevronDown'} size={14} />
             </button>
           </div>
         </div>
 
-        {/* Icon grid */}
         {showIconPicker && (
-          <div className="mt-2 p-3 bg-background border border-border rounded-xl">
+          <div className="inv-picker-panel">
             <input
               type="text"
               value={iconSearch}
               onChange={e => setIconSearch(e?.target?.value)}
               placeholder="Search icons…"
-              className="w-full px-2.5 py-1.5 text-xs bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground mb-2"
+              className="inv-field"
+              style={{ marginBottom: 10, padding: '8px 11px', fontSize: 13 }}
             />
-            <div className="grid grid-cols-8 gap-1 max-h-40 overflow-y-auto">
+            <div className="inv-icongrid">
               {FOLDER_ICON_PALETTE?.filter(n => !iconSearch || n?.toLowerCase()?.includes(iconSearch?.toLowerCase()))?.map(iconName => (
                 <button
                   key={iconName}
                   type="button"
                   onClick={() => { setSelectedIcon(iconName); setShowIconPicker(false); setIconSearch(''); }}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                    selectedIcon === iconName
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                  }`}
+                  className={`inv-iconopt${selectedIcon === iconName ? ' on' : ''}`}
                   title={iconName}
                 >
                   <Icon name={iconName} size={14} />
@@ -352,43 +339,31 @@ const AddFolderModal = ({ parentPath, onClose, onSave }) => {
           </div>
         )}
 
-        {/* Color swatches */}
-        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+        <div className="inv-swatchrow">
           {FOLDER_COLOR_PALETTE?.map(c => (
             <button
               key={c?.value}
               type="button"
               onClick={() => setSelectedColor(selectedColor === c?.value ? null : c?.value)}
-              className="w-6 h-6 rounded-full transition-transform hover:scale-110 flex-shrink-0"
-              style={{
-                backgroundColor: c?.value,
-                outline: selectedColor === c?.value ? `2px solid ${c?.value}` : '2px solid transparent',
-                outlineOffset: 2,
-              }}
+              className="inv-swatch-c"
+              style={{ backgroundColor: c?.value, outlineColor: selectedColor === c?.value ? c?.value : 'transparent' }}
               title={c?.label}
             />
           ))}
           {selectedColor && (
-            <button
-              type="button"
-              onClick={() => setSelectedColor(null)}
-              className="text-xs text-muted-foreground hover:text-foreground ml-1 underline"
-            >
-              Reset
-            </button>
+            <button type="button" onClick={() => setSelectedColor(null)} className="inv-swatch-reset">Reset</button>
           )}
         </div>
         {name && suggestIconForName(name) && selectedIcon === suggestIconForName(name) && (
-          <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
-            <Icon name="Sparkles" size={10} />
-            Icon suggested based on folder name
+          <p className="inv-modal-sub" style={{ margin: '10px 0 0', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Icon name="Sparkles" size={10} /> Icon suggested from the folder name
           </p>
         )}
       </div>
 
-      <div className="flex gap-2 justify-end">
-        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
-        <button onClick={handleSave} className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors">Create</button>
+      <div className="inv-modal-actions">
+        <button onClick={onClose} className="inv-btn ghost">Cancel</button>
+        <button onClick={handleSave} className="inv-btn primary">Create</button>
       </div>
     </ModalShell>
   );
@@ -448,56 +423,46 @@ const EditFolderAppearanceModal = ({ folderName, currentIcon, currentColor, onCl
   const previewIcon = selectedIcon || 'FolderOpen';
 
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-foreground">Edit Appearance</h2>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-          <Icon name="X" size={18} />
-        </button>
+    <ModalShell onClose={onClose} panelClassName="inv-modal">
+      <div className="inv-modal-head">
+        <div>
+          <div className="inv-modal-eyebrow">Appearance</div>
+          <h2 className="inv-modal-title">{folderName}</h2>
+        </div>
+        <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
       </div>
-      <p className="text-sm text-muted-foreground mb-4">{folderName}</p>
 
       {/* Preview + Icon toggle */}
-      <div className="flex items-center gap-3 mb-4">
-        <div
-          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: previewColor + '22', border: `2px solid ${previewColor}44` }}
-        >
+      <div className="flex items-center gap-3" style={{ marginBottom: 14 }}>
+        <div className="inv-preview" style={{ backgroundColor: previewColor + '22', border: `2px solid ${previewColor}44` }}>
           <Icon name={previewIcon} size={22} style={{ color: previewColor }} />
         </div>
-        <button
-          type="button"
-          onClick={() => setShowIconPicker(v => !v)}
-          className="flex-1 flex items-center justify-between gap-2 px-3 py-2 text-sm bg-background border border-border rounded-xl hover:border-primary/50 transition-colors text-foreground"
-        >
-          <div className="flex items-center gap-2">
-            <Icon name={previewIcon} size={14} className="text-muted-foreground" />
-            <span className="text-muted-foreground text-xs">{previewIcon}</span>
-          </div>
-          <Icon name={showIconPicker ? 'ChevronUp' : 'ChevronDown'} size={14} className="text-muted-foreground" />
+        <button type="button" onClick={() => setShowIconPicker(v => !v)} className="inv-picker-toggle" style={{ flex: 1 }}>
+          <span className="flex items-center gap-2">
+            <Icon name={previewIcon} size={14} />
+            <span>{previewIcon}</span>
+          </span>
+          <Icon name={showIconPicker ? 'ChevronUp' : 'ChevronDown'} size={14} />
         </button>
       </div>
 
       {showIconPicker && (
-        <div className="mb-4 p-3 bg-background border border-border rounded-xl">
+        <div className="inv-picker-panel" style={{ marginBottom: 14 }}>
           <input
             type="text"
             value={iconSearch}
             onChange={e => setIconSearch(e?.target?.value)}
             placeholder="Search icons…"
-            className="w-full px-2.5 py-1.5 text-xs bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground mb-2"
+            className="inv-field"
+            style={{ marginBottom: 10, padding: '8px 11px', fontSize: 13 }}
           />
-          <div className="grid grid-cols-8 gap-1 max-h-44 overflow-y-auto">
+          <div className="inv-icongrid">
             {FOLDER_ICON_PALETTE?.filter(n => !iconSearch || n?.toLowerCase()?.includes(iconSearch?.toLowerCase()))?.map(iconName => (
               <button
                 key={iconName}
                 type="button"
                 onClick={() => { setSelectedIcon(iconName); setShowIconPicker(false); setIconSearch(''); }}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                  selectedIcon === iconName
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                }`}
+                className={`inv-iconopt${selectedIcon === iconName ? ' on' : ''}`}
                 title={iconName}
               >
                 <Icon name={iconName} size={14} />
@@ -507,43 +472,28 @@ const EditFolderAppearanceModal = ({ folderName, currentIcon, currentColor, onCl
         </div>
       )}
 
-      <div className="mb-5">
-        <p className="text-xs font-medium text-muted-foreground mb-2">Colour</p>
-        <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="inv-fieldwrap">
+        <label className="inv-flabel">Colour</label>
+        <div className="inv-swatchrow" style={{ marginTop: 0 }}>
           {FOLDER_COLOR_PALETTE?.map(c => (
             <button
               key={c?.value}
               type="button"
               onClick={() => setSelectedColor(selectedColor === c?.value ? null : c?.value)}
-              className="w-6 h-6 rounded-full transition-transform hover:scale-110 flex-shrink-0"
-              style={{
-                backgroundColor: c?.value,
-                outline: selectedColor === c?.value ? `2px solid ${c?.value}` : '2px solid transparent',
-                outlineOffset: 2,
-              }}
+              className="inv-swatch-c"
+              style={{ backgroundColor: c?.value, outlineColor: selectedColor === c?.value ? c?.value : 'transparent' }}
               title={c?.label}
             />
           ))}
           {selectedColor && (
-            <button
-              type="button"
-              onClick={() => setSelectedColor(null)}
-              className="text-xs text-muted-foreground hover:text-foreground ml-1 underline"
-            >
-              Reset
-            </button>
+            <button type="button" onClick={() => setSelectedColor(null)} className="inv-swatch-reset">Reset</button>
           )}
         </div>
       </div>
 
-      <div className="flex gap-2 justify-end">
-        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
-        <button
-          onClick={() => onSave({ icon: selectedIcon, color: selectedColor })}
-          className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors"
-        >
-          Save
-        </button>
+      <div className="inv-modal-actions">
+        <button onClick={onClose} className="inv-btn ghost">Cancel</button>
+        <button onClick={() => onSave({ icon: selectedIcon, color: selectedColor })} className="inv-btn primary">Save</button>
       </div>
     </ModalShell>
   );
@@ -715,27 +665,19 @@ const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose,
   };
 
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Icon name="FolderInput" size={16} className="text-primary" />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Move Folder</h2>
-            <p className="text-xs text-muted-foreground truncate max-w-[180px]">{folderName}</p>
-          </div>
+    <ModalShell onClose={onClose} panelClassName="inv-modal">
+      <div className="inv-modal-head">
+        <div>
+          <div className="inv-modal-eyebrow">Move</div>
+          <h2 className="inv-modal-title">Move {folderName}</h2>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-          <Icon name="X" size={18} />
-        </button>
+        <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
       </div>
 
-      <p className="text-xs text-muted-foreground mb-3">Select a destination folder:</p>
-
-      <div className="max-h-64 overflow-y-auto space-y-0.5 border border-border rounded-xl p-2 bg-background">
+      <label className="inv-flabel">Destination folder</label>
+      <div className="inv-movetree">
         {destinations?.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">No other folders available</p>
+          <p className="inv-confirm-text" style={{ textAlign: 'center', padding: '20px 0' }}>No other folders available</p>
         ) : (
           destinations?.map((dest) => {
             const isSelected = selectedPath?.path === dest?.path;
@@ -743,24 +685,17 @@ const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose,
               <button
                 key={dest?.path}
                 onClick={() => setSelectedPath(dest)}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors text-left ${
-                  isSelected
-                    ? 'bg-primary/10 text-primary font-medium' :'text-foreground hover:bg-muted'
-                }`}
-                style={{ paddingLeft: `${12 + dest?.depth * 16}px` }}
+                className={`inv-moveitem${isSelected ? ' on' : ''}`}
+                style={{ paddingLeft: `${10 + dest?.depth * 16}px` }}
               >
-                <Icon
-                  name={isSelected ? 'FolderOpen' : 'Folder'}
-                  size={14}
-                  className={isSelected ? 'text-primary' : 'text-muted-foreground'}
-                />
+                <Icon name={isSelected ? 'FolderOpen' : 'Folder'} size={14} />
                 <span className="truncate">{dest?.label}</span>
                 {dest?.depth > 0 && (
-                  <span className="ml-auto text-xs text-muted-foreground truncate max-w-[100px]">
+                  <span className="ml-auto truncate" style={{ fontSize: 11, color: '#AEB4C2', maxWidth: 110 }}>
                     {dest?.segments?.slice(0, -1)?.join(' › ')}
                   </span>
                 )}
-                {isSelected && <Icon name="Check" size={13} className="ml-auto text-primary shrink-0" />}
+                {isSelected && <Icon name="Check" size={13} className="ml-auto shrink-0" />}
               </button>
             );
           })
@@ -768,25 +703,16 @@ const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose,
       </div>
 
       {selectedPath && (
-        <p className="text-xs text-muted-foreground mt-2">
-          Moving to: <span className="font-medium text-foreground">{selectedPath?.segments?.join(' › ')}</span>
+        <p className="inv-modal-sub" style={{ margin: '10px 0 0' }}>
+          Moving to <b>{selectedPath?.segments?.join(' › ')}</b>
         </p>
       )}
 
-      <div className="flex gap-2 justify-end mt-4">
-        <button
-          onClick={onClose}
-          className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleConfirm}
-          disabled={!selectedPath || moving}
-          className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
+      <div className="inv-modal-actions">
+        <button onClick={onClose} className="inv-btn ghost">Cancel</button>
+        <button onClick={handleConfirm} disabled={!selectedPath || moving} className="inv-btn primary">
           {moving && <LogoSpinner size={14} />}
-          {moving ? 'Moving…' : 'Move Here'}
+          {moving ? 'Moving…' : 'Move here'}
         </button>
       </div>
     </ModalShell>
@@ -1807,7 +1733,20 @@ const FolderActionsMenu = ({ canEdit, showCog, canMove, onOpen, onRename, onAppe
 };
 
 // ─── Folder Card ───────────────────────────────────────────────────────────────
-const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onPalette, onMove, onPermissions, onDuplicate, onExport, onArchive, onVisibilityChange, canMove, dragHandleProps, isDragging, isFolderDropTarget, isDropTargetReady, showCog, layout = 'grid' }) => {
+const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onRenameSubmit, onDelete, onCog, onPalette, onMove, onPermissions, onDuplicate, onExport, onArchive, onVisibilityChange, canMove, dragHandleProps, isDragging, isFolderDropTarget, isDropTargetReady, showCog, layout = 'grid' }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  const inputRef = useRef(null);
+  useEffect(() => { if (editing) { setDraft(name); setTimeout(() => inputRef?.current?.select(), 0); } }, [editing, name]);
+
+  const startRename = () => setEditing(true);
+  const commitRename = () => {
+    const next = draft?.trim();
+    setEditing(false);
+    if (next && next !== name) onRenameSubmit?.(next);
+  };
+  const cancelRename = () => { setEditing(false); setDraft(name); };
+
   const lead = (
     <div className="inv-folder-lead">
       {canEdit && dragHandleProps && (
@@ -1847,7 +1786,7 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
           showCog={showCog}
           canMove={canMove}
           onOpen={onClick}
-          onRename={onEdit}
+          onRename={startRename}
           onAppearance={onPalette}
           onMove={onMove}
           onPermissions={onPermissions}
@@ -1857,8 +1796,25 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
           onDelete={onDelete}
         />
       )}
-      {onClick && !isFolderDropTarget && <Icon name="ChevronRight" size={18} className="inv-folder-chevron" />}
     </div>
+  );
+
+  const nameEl = editing ? (
+    <input
+      ref={inputRef}
+      className="inv-folder-nameedit"
+      value={draft}
+      autoFocus
+      onClick={(e) => e?.stopPropagation()}
+      onChange={(e) => setDraft(e?.target?.value)}
+      onKeyDown={(e) => {
+        if (e?.key === 'Enter') { e?.preventDefault(); commitRename(); }
+        else if (e?.key === 'Escape') { e?.preventDefault(); cancelRename(); }
+      }}
+      onBlur={commitRename}
+    />
+  ) : (
+    <h3 className="inv-folder-name">{name}</h3>
   );
 
   const meta = (
@@ -1875,12 +1831,15 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
     isFolderDropTarget && isDropTargetReady ? 'droptarget-ready' : isFolderDropTarget ? 'droptarget' : '',
   ]?.join(' ');
 
+  // Whole tile is clickable to open — except while inline-editing the name.
+  const handleTileClick = editing ? undefined : onClick;
+
   if (layout === 'list') {
     return (
-      <div onClick={onClick} className={cls}>
+      <div onClick={handleTileClick} className={cls}>
         {lead}
         <div className="inv-folder-body">
-          <h3 className="inv-folder-name">{name}</h3>
+          {nameEl}
           {meta}
         </div>
         {actions}
@@ -1889,19 +1848,19 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
   }
 
   return (
-    <div onClick={onClick} className={cls}>
+    <div onClick={handleTileClick} className={cls}>
       <div className="inv-folder-top">
         {lead}
         {actions}
       </div>
-      <h3 className="inv-folder-name">{name}</h3>
+      {nameEl}
       {meta}
     </div>
   );
 };
 
 // ─── Sortable Folder Card Wrapper ─────────────────────────────────────────────
-const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onPalette, onMove, onPermissions, onDuplicate, onExport, onArchive, canMove, showCog, folderDropTargetId, folderDropTargetReady, layout = 'grid' }) => {
+const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onRenameSubmit, onDelete, onCog, onPalette, onMove, onPermissions, onDuplicate, onExport, onArchive, canMove, showCog, folderDropTargetId, folderDropTargetReady, layout = 'grid' }) => {
   const {
     attributes,
     listeners,
@@ -1931,6 +1890,7 @@ const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, 
         onClick={onClick}
         canEdit={canEdit}
         onEdit={onEdit}
+        onRenameSubmit={onRenameSubmit}
         onDelete={onDelete}
         onCog={onCog}
         onPalette={onPalette}
@@ -1955,50 +1915,48 @@ const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, 
 
 // ─── Delete Folder Confirmation Modal ────────────────────────────────────────
 const DeleteFolderModal = ({ folderName, onClose, onConfirm }) => (
-  <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-    <div className="flex items-center justify-between mb-4">
-      <h2 className="text-lg font-semibold text-foreground">Delete Folder</h2>
-      <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-        <Icon name="X" size={18} />
-      </button>
-    </div>
-    <div className="flex items-start gap-3 mb-5">
-      <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-        <Icon name="Trash2" size={18} className="text-red-600" />
-      </div>
+  <ModalShell onClose={onClose} panelClassName="inv-modal">
+    <div className="inv-modal-head">
       <div>
-        <p className="text-sm font-medium text-foreground mb-1">Delete folder and all its contents?</p>
-        <p className="text-sm text-muted-foreground">"<span className="font-medium text-foreground">{folderName}</span>" and all its sub-folders and items will be permanently removed.</p>
+        <div className="inv-modal-eyebrow">Delete</div>
+        <h2 className="inv-modal-title">Delete folder?</h2>
+      </div>
+      <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
+    </div>
+    <div className="inv-confirm">
+      <div className="inv-confirm-icon danger"><Icon name="Trash2" size={18} /></div>
+      <div>
+        <p className="inv-confirm-title">This can't be undone</p>
+        <p className="inv-confirm-text"><b>{folderName}</b> and all its sub-folders and items will be permanently removed.</p>
       </div>
     </div>
-    <div className="flex gap-2 justify-end">
-      <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
-      <button onClick={onConfirm} className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors">Delete</button>
+    <div className="inv-modal-actions">
+      <button onClick={onClose} className="inv-btn ghost">Cancel</button>
+      <button onClick={onConfirm} className="inv-btn danger">Delete</button>
     </div>
   </ModalShell>
 );
 
 // ─── Archive Folder Confirmation Modal ────────────────────────────────────────
 const ArchiveFolderModal = ({ folderName, onClose, onConfirm }) => (
-  <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-    <div className="flex items-center justify-between mb-4">
-      <h2 className="text-lg font-semibold text-foreground">Archive Folder</h2>
-      <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-        <Icon name="X" size={18} />
-      </button>
-    </div>
-    <div className="flex items-start gap-3 mb-5">
-      <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
-        <Icon name="Archive" size={18} className="text-amber-600" />
-      </div>
+  <ModalShell onClose={onClose} panelClassName="inv-modal">
+    <div className="inv-modal-head">
       <div>
-        <p className="text-sm font-medium text-foreground mb-1">Archive this folder?</p>
-        <p className="text-sm text-muted-foreground">"<span className="font-medium text-foreground">{folderName}</span>" will be hidden from normal view. All data is preserved.</p>
+        <div className="inv-modal-eyebrow">Archive</div>
+        <h2 className="inv-modal-title">Archive folder?</h2>
+      </div>
+      <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
+    </div>
+    <div className="inv-confirm">
+      <div className="inv-confirm-icon warn"><Icon name="Archive" size={18} /></div>
+      <div>
+        <p className="inv-confirm-title">Hidden, not deleted</p>
+        <p className="inv-confirm-text"><b>{folderName}</b> will be hidden from normal view. All data is preserved and can be restored.</p>
       </div>
     </div>
-    <div className="flex gap-2 justify-end">
-      <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
-      <button onClick={onConfirm} className="px-4 py-2 text-sm font-medium bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-colors">Archive</button>
+    <div className="inv-modal-actions">
+      <button onClick={onClose} className="inv-btn ghost">Cancel</button>
+      <button onClick={onConfirm} className="inv-btn warn">Archive</button>
     </div>
   </ModalShell>
 );
@@ -2851,6 +2809,11 @@ const LocationFirstInventory = () => {
     setFolderVisibilities(prev => ({ ...prev, [folderName]: visibility }));
   };
 
+  const handleInlineRename = async (folderName, newName) => {
+    const ok = await renameFolderInDB(pathSegments, folderName, newName);
+    if (ok !== false) await loadData();
+  };
+
   const handleDuplicateFolder = async (folderName) => {
     setDuplicatingFolder(folderName);
     try {
@@ -3574,6 +3537,7 @@ const LocationFirstInventory = () => {
                         onClick={() => navigate(segmentsToUrl(folderSegments))}
                         canEdit={canEdit && !isReadOnly}
                         onEdit={() => setEditingFolderName(folderName)}
+                        onRenameSubmit={(newName) => handleInlineRename(folderName, newName)}
                         onDelete={() => setDeletingFolderName(folderName)}
                         onCog={() => setCogFolderName(folderName)}
                         onPalette={canEdit && !isFolderReadOnly(folderName) ? () => setAppearanceFolderName(folderName) : undefined}
