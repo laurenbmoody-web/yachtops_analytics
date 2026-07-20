@@ -1,43 +1,58 @@
-/* Team Jobs widget — the actual open jobs as a list. Mirrors the provisioning
-   row pattern (hairline rows, DM Serif title via .ce-title in the header).
-   Crew see their own; Chief/Command see the team's, with assignee. */
-.tj-list { display: flex; flex-direction: column; }
-.tj-row { display: flex; align-items: center; gap: 11px; padding: 9px 2px; border-bottom: 1px solid #ECEDF3; }
-.tj-row:last-child { border-bottom: 0; }
+/* Team Jobs widget — editorial. A composed "lead" (the one job that matters,
+   its urgency as a DM Serif figure) over a quiet index of the rest. Sits in
+   the ce-card family; DM Serif title comes from .ce-title in the header. */
 
-/* Tick to complete — a ring that fills on hover. */
-.tj-tick { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 999px; border: 2px solid #CBD0DE; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: border-color .12s, background .12s; }
-.tj-tick svg { opacity: 0; color: #fff; width: 11px; height: 11px; }
+/* Lead — the featured job. Light ground, terracotta rail, serif figure. */
+.tj-lead { display: flex; align-items: center; gap: 15px; background: #FAFAF8; border: 1px solid #ECEDF3; border-radius: 13px; padding: 15px 16px; margin-top: 2px; position: relative; overflow: hidden; cursor: pointer; transition: border-color .12s, background .12s; }
+.tj-lead:hover { border-color: #E1D9CE; background: #F8F6F2; }
+.tj-lead::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #C65A1A; }
+.tj-lead-fig { flex: 0 0 auto; text-align: center; line-height: .78; min-width: 40px; }
+.tj-lead-num { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-style: italic; font-size: 42px; color: #C65A1A; line-height: .78; letter-spacing: -1px; }
+.tj-lead-unit { font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-top: 6px; line-height: 1.25; }
+.tj-lead-word { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-style: italic; font-size: 22px; color: #C65A1A; line-height: 1; }
+.tj-lead-m { flex: 1; min-width: 0; border-left: 1px solid #E4E0D7; padding-left: 15px; }
+.tj-lead-e { font-size: 8.5px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: #C65A1A; }
+.tj-lead-t { font-size: 15px; font-weight: 700; color: #1C1B3A; margin: 4px 0 3px; line-height: 1.2; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tj-lead-s { font-size: 11px; color: #8B8478; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tj-lead-s .u { color: #C65A1A; font-weight: 600; }
+.tj-lead-go { flex: 0 0 auto; color: #C9CDD8; }
+
+/* The quiet index. */
+.tj-then { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #AEB4C2; margin: 17px 0 2px; }
+.tj-list { display: flex; flex-direction: column; }
+.tj-row { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid #F0F1F5; cursor: pointer; border-radius: 8px; transition: background .1s; }
+.tj-row:last-child { border-bottom: 0; }
+.tj-row:hover { background: #FAFAF8; }
+/* Tick-to-complete: strike through, then the row collapses out. */
+.tj-row.is-clearing { pointer-events: none; animation: tj-clear .55s ease forwards; }
+.tj-row.is-clearing .tj-t, .tj-row.is-clearing .tj-d { text-decoration: line-through; color: #AEB4C2; }
+.tj-row.is-clearing .tj-tick { border-color: #047857; background: #047857; }
+.tj-row.is-clearing .tj-tick svg { opacity: 1; }
+@keyframes tj-clear { 0% { opacity: 1; } 45% { opacity: 1; } 100% { opacity: 0; transform: translateX(6px); } }
+.tj-tick { width: 18px; height: 18px; border-radius: 999px; border: 1.5px solid #CDD1DC; background: none; cursor: pointer; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; color: #fff; transition: .13s; }
+.tj-tick svg { opacity: 0; }
 .tj-tick:hover { border-color: #047857; background: #047857; }
 .tj-tick:hover svg { opacity: 1; }
-.tj-tick:disabled { cursor: default; opacity: .5; }
+.tj-tick:disabled { opacity: .5; cursor: default; }
+.tj-t { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tj-t .tj-sub { font-weight: 400; color: #8B8478; font-size: 11.5px; }
+.tj-t .tj-sub .u { color: #C65A1A; font-weight: 600; }
+.tj-d { flex: 0 0 auto; font-size: 12px; color: #AEB4C2; font-weight: 500; font-variant-numeric: tabular-nums; }
+.tj-d.is-today { color: #8B8478; font-weight: 700; font-size: 10px; letter-spacing: .4px; text-transform: uppercase; }
+.tj-d.is-late { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-style: italic; color: #C65A1A; font-size: 14px; }
 
-.tj-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.tj-t { font-size: 13px; font-weight: 600; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tj-sub { font-size: 11px; color: #8B8478; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tj-sub .tj-unassigned { color: #C65A1A; font-weight: 600; }
-
-/* Due pill — right-aligned status. Late red, today amber, soon muted. */
-.tj-due { flex: 0 0 auto; font-size: 10.5px; font-weight: 700; letter-spacing: .2px; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
-.tj-due.is-late { background: #FCEBEB; color: #A32D2D; }
-.tj-due.is-today { background: #F5E6C1; color: #8B5A1F; }
-.tj-due.is-soon { background: #F0F1F5; color: #6B7280; }
-/* Small urgent flag before the title. */
-.tj-urg { flex: 0 0 auto; font-size: 9px; font-weight: 800; letter-spacing: .4px; color: #fff; background: #A32D2D; padding: 2px 6px; border-radius: 4px; margin-right: 2px; }
-
-.tj-more { background: none; border: 0; padding: 10px 2px 0; font-family: inherit; font-size: 11.5px; font-weight: 600; color: #6B7280; cursor: pointer; text-align: left; }
+.tj-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 12px; border-top: 1px solid #ECEDF3; }
+.tj-more { background: none; border: 0; padding: 0; font-family: inherit; font-size: 11.5px; font-weight: 600; color: #6B7280; cursor: pointer; }
 .tj-more:hover { color: #C65A1A; }
+.tj-cleared { font-size: 11.5px; color: #047857; display: flex; align-items: center; gap: 5px; }
+.tj-cleared b { font-weight: 700; }
 
-/* Done-today momentum line. */
-.tj-done { margin-top: 13px; padding-top: 11px; border-top: 1px solid #EEF0F4; font-size: 12px; color: #047857; }
-.tj-done b { font-weight: 700; }
-
-.tj-empty { text-align: center; padding: 20px 0 6px; }
-.tj-empty .tj-em-ic { width: 34px; height: 34px; border-radius: 999px; background: #E7F3EC; color: #047857; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 8px; }
-.tj-empty .tj-em-t { font-size: 13px; font-weight: 600; color: #1C1B3A; }
-.tj-empty .tj-em-s { font-size: 12px; color: #8B8478; margin-top: 2px; }
-
-.tj-err { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: #9A2B12; padding: 10px 0; }
+/* States. */
+.tj-empty { text-align: center; padding: 22px 0 8px; }
+.tj-empty .ic { width: 40px; height: 40px; border-radius: 999px; background: #E7F3EC; color: #047857; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 9px; }
+.tj-empty .t { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
+.tj-empty .s { font-size: 12px; color: #8B8478; margin-top: 2px; }
+.tj-err { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: #9A2B12; padding: 12px 0; }
 .tj-retry { background: none; border: 0; padding: 0; font-family: inherit; font-size: 12.5px; font-weight: 700; color: #9A2B12; text-decoration: underline; cursor: pointer; }
-.tj-skel { height: 40px; border-radius: 10px; background: #EEF0F4; animation: tj-pulse 1.3s ease-in-out infinite; }
+.tj-skel { border-radius: 12px; background: #EEF0F4; animation: tj-pulse 1.3s ease-in-out infinite; }
 @keyframes tj-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
