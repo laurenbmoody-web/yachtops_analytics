@@ -57,6 +57,17 @@
    serif .rw-tm; button reset + a soft hover only (no underline). */
 .rw-tm-edit { background: none; padding: 0 6px; cursor: pointer; border: 0; border-radius: 8px; }
 .rw-tm-edit:hover { background: #FAFAF8; }
+/* Second and later blocks sit a touch smaller so the day reads as a list. */
+.rw-hero-block { position: relative; margin: 6px 0 0; }
+.rw-tm-sm { font-size: 30px; }
+.rw-blk-rm { position: absolute; top: -2px; right: -2px; background: none; border: 0; color: var(--rw-msoft); font-size: 12px; cursor: pointer; padding: 2px 4px; line-height: 1; }
+.rw-blk-rm:hover { color: var(--rw-red-deep); }
+/* Break between two on-duty blocks — the gap, shown as a hairline label. */
+.rw-break { position: relative; text-align: center; font-size: 10px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; color: var(--rw-msoft); margin: 8px 0; }
+.rw-break::before, .rw-break::after { content: ""; position: absolute; top: 50%; width: 26%; height: 1px; background: var(--rw-soft); }
+.rw-break::before { left: 6px; } .rw-break::after { right: 6px; }
+.rw-addblk { display: block; margin: 8px auto 0; background: none; border: 0; color: var(--rw-orange); font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.rw-addblk:hover { color: var(--rw-orange-deep); }
 
 /* coming up — day strip (crew) */
 .rw-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
