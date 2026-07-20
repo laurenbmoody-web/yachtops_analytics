@@ -104,7 +104,7 @@
 .bg-cols, .bg-row { display: grid; grid-template-columns: 1.4fr 110px 110px 110px 110px 150px 40px; align-items: center; gap: 14px; }
 .bg-cols { padding: 10px 8px 6px 14px; }
 .bg-cols span { font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #AEB4C2; }
-.bg-cols .r, .bg-row .r { text-align: right; }
+.bg-cols .r, .bg-row .r { text-align: right; padding-right: 6px; }
 .bg-row { padding: 12px 8px 12px 14px; border-bottom: 1px solid #EEF0F4; }
 .bg-row.is-over { box-shadow: inset 3px 0 0 0 #C65A1A; }
 
@@ -124,7 +124,7 @@
 .bg-row-cat b { font-size: 14px; font-weight: 600; }
 .bg-code { display: inline-block; font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 10.5px; font-weight: 700; letter-spacing: 0.4px; color: #8B8478; background: #F1EFEA; border-radius: 5px; padding: 1px 5px; margin-right: 8px; vertical-align: middle; }
 .bg-row-note { font-size: 11px; color: #8B8478; font-style: italic; margin-top: 3px; font-weight: 400; }
-.bg-fig { font-size: 13.5px; font-variant-numeric: tabular-nums; text-align: right; }
+.bg-fig { font-size: 13.5px; font-variant-numeric: tabular-nums; text-align: right; padding-right: 6px; }
 .bg-fig.muted { color: #8B8478; }
 
 /* Meter */
@@ -195,11 +195,12 @@
 /* Month-by-month matrix */
 .bg-mwrap { overflow-x: auto; border: 1px solid #E6E8EF; border-radius: 12px; }
 .bg-mtable { border-collapse: collapse; width: 100%; font-size: 12.5px; }
-.bg-mtable th, .bg-mtable td { padding: 8px 12px; white-space: nowrap; }
+.bg-mtable th, .bg-mtable td { padding: 8px 9px; white-space: nowrap; }
 .bg-mtable thead th { position: sticky; top: 0; background: #F8FAFC; font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #8B8478; text-align: right; border-bottom: 1px solid #E6E8EF; }
 .bg-mtable thead th.bg-mcode, .bg-mtable thead th.bg-mline { text-align: left; }
 .bg-mcode { font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 10.5px; color: #8B8478; text-align: left; position: sticky; left: 0; background: #fff; }
-.bg-mline { text-align: left; color: #1C1B3A; position: sticky; left: 56px; background: #fff; min-width: 190px; }
+.bg-mline { text-align: left; color: #1C1B3A; position: sticky; left: 50px; background: #fff; }
+.bg-mline-name { display: inline-block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
 .bg-mcell { text-align: right; font-variant-numeric: tabular-nums; color: #4B4A66; }
 .bg-mcum { font-weight: 700; color: #1C1B3A; border-left: 1px solid #EEF0F4; }
 .bg-mtable tbody tr:hover td { background: #FAFAF8; }
@@ -217,7 +218,7 @@
 .bg-mcell-edit:hover { background: #FBEFE9; box-shadow: inset 0 0 0 1px #F0D9CC; }
 /* Always-on, tab-able budget cells — subtle until hovered/focused so a whole column
    of them still reads as a clean table, not a wall of boxes. */
-.bg-minput { width: 72px; font: inherit; font-size: 12px; text-align: right; color: #1C1B3A; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 3px 5px; }
+.bg-minput { width: 100%; min-width: 58px; font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; color: #1C1B3A; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 3px 0; }
 .bg-minput:hover { background: #FBEFE9; }
 .bg-minput:focus { outline: none; background: #fff; border-color: #C65A1A; box-shadow: 0 0 0 2px #FAECE7; }
 .bg-cellinput { width: 100%; font: inherit; font-size: 13.5px; text-align: right; color: #1C1B3A; background: transparent; border: 1px solid transparent; border-radius: 7px; padding: 4px 6px; }

@@ -65,6 +65,7 @@ export default function BudgetDetail() {
   // tab-able inputs that persist on a debounce in the background — no per-cell save +
   // refresh. Keyed `${lineId}` (summary annual) and `${lineId}:${ym}` (monthly).
   const [drafts, setDrafts] = useState({});
+  const [focusCell, setFocusCell] = useState(null); // which money input is being typed in (raw), else formatted
   const draftsRef = useRef({});
   const saveTimers = useRef({});
   const setDraft = (key, val) => {
@@ -236,7 +237,9 @@ export default function BudgetDetail() {
     const m = row.id ? metricsFor(effAnnual(row), row.actual, row.committed) : row;
     const spent = m.actual + m.committed;
     const draftKey = row.id;
-    const val = draftKey != null && drafts[draftKey] !== undefined ? drafts[draftKey] : (row.budgeted ? String(row.budgeted) : '');
+    const rawVal = draftKey != null && drafts[draftKey] !== undefined ? drafts[draftKey] : (row.budgeted != null ? String(row.budgeted) : '');
+    // Formatted (€ + commas) while blurred; plain number while typing.
+    const shownVal = focusCell === draftKey ? rawVal : (effAnnual(row) ? formatMoney(effAnnual(row), cur) : '');
     return (
       <div key={key} className={`bg-row${m.state === 'over' && row.kind !== 'revenue' ? ' is-over' : ''}`}>
         <div className="bg-row-cat">
@@ -245,10 +248,11 @@ export default function BudgetDetail() {
         </div>
         {canEdit && row.id ? (
           <input
-            className="bg-cellinput bg-num" type="number" step="0.01" min="0" inputMode="decimal"
-            value={val} placeholder="0"
-            onChange={(e) => editAnnual(row, e.target.value)}
-            onBlur={() => scheduleSave(row.id, () => persistAnnual(row))}
+            className="bg-cellinput bg-num" type="text" inputMode="decimal"
+            value={shownVal} placeholder="0"
+            onFocus={() => setFocusCell(draftKey)}
+            onChange={(e) => editAnnual(row, e.target.value.replace(/[^\d.]/g, ''))}
+            onBlur={() => { setFocusCell(null); scheduleSave(row.id, () => persistAnnual(row)); }}
           />
         ) : (
           <span className="bg-fig">{formatMoney(m.budgeted, cur)}</span>
@@ -373,13 +377,15 @@ export default function BudgetDetail() {
     // Budget mode: every month cell is a real, tab-able input that saves on a debounce.
     const editCells = (l) => M.map((m) => {
       const key = `${l.id}:${m.ym}`;
-      const val = drafts[key] !== undefined ? drafts[key] : (l.budgetByMonth[m.ym] ? String(l.budgetByMonth[m.ym]) : '');
+      const raw = drafts[key] !== undefined ? drafts[key] : (l.budgetByMonth[m.ym] ? String(l.budgetByMonth[m.ym]) : '');
+      const shown = focusCell === key ? raw : (effMonth(l, m.ym) ? mfmt(effMonth(l, m.ym)) : '');
       return (
         <td key={m.ym} className="bg-mcell">
-          <input className="bg-minput" type="number" step="0.01" min="0" inputMode="decimal" placeholder="0"
-            value={val}
-            onChange={(e) => editMonth(l, m.ym, e.target.value, M)}
-            onBlur={() => scheduleSave(key, () => persistMonthly(l, M))} />
+          <input className="bg-minput" type="text" inputMode="decimal" placeholder="0"
+            value={shown}
+            onFocus={() => setFocusCell(key)}
+            onChange={(e) => editMonth(l, m.ym, e.target.value.replace(/[^\d.]/g, ''), M)}
+            onBlur={() => { setFocusCell(null); scheduleSave(key, () => persistMonthly(l, M)); }} />
         </td>
       );
     });
@@ -416,7 +422,7 @@ export default function BudgetDetail() {
                     <tr key={l.id}>
                       <td className="bg-mcode">{l.code || ''}</td>
                       <td className="bg-mline">
-                        {l.category}
+                        <span className="bg-mline-name" title={l.category}>{l.category}</span>
                         {editable && <button type="button" className="bg-spread" title="Spread the annual amount evenly across the period" onClick={() => spreadEvenly(l, M)}>spread</button>}
                       </td>
                       {editable ? editCells(l) : roCells(lineRow(l))}
