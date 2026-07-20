@@ -25,14 +25,14 @@ const ACCOUNT_SELECT =
 const TXN_SELECT =
   'id, tenant_id, account_id, txn_date, amount, currency, fx_rate, amount_base, ' +
   'category, category_code, department, vat_amount, vat_rate, payee, ' +
-  'description, source, status, supplier_order_id, supplier_invoice_id, ' +
+  'description, source, status, fee_parent_id, supplier_order_id, supplier_invoice_id, ' +
   'provisioning_item_id, defect_id, trip_id, crew_id, posting_group_id, created_by, created_at';
 
 const ATTACHMENT_SELECT =
   'id, tenant_id, ledger_transaction_id, storage_path, file_name, mime_type, size_bytes, uploaded_by, created_at';
 const RECEIPT_BUCKET = 'ledger-receipts';
 
-const currentUserId = async () => {
+export const currentUserId = async () => {
   try {
     const { data } = await supabase.auth.getUser();
     return data?.user?.id || null;
