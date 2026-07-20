@@ -25,22 +25,24 @@ const kitStatus = (k) => {
   return STATUS[k.status] || { label: k.status, cls: 'live' };
 };
 
-// The inventory folder path an issued item files under, so the List view mirrors
-// how uniform is filed in inventory. Shows the folders BELOW the "Uniform" anchor
-// (e.g. Interior › Crew › Uniform › On charter › Evening wear → "On charter ›
-// Evening wear"); falls back to the item's location, then "Uncategorised" when
-// the issued row isn't linked to inventory stock yet.
+// The inventory folder an issued item files under, so the List view mirrors how
+// uniform is filed in inventory. Inventory's location model is the materialized
+// folder path — `location` + `sub_location` ('>'-joined) — NOT the deprecated
+// l1..l4 taxonomy. Show the folders BELOW the "Uniform" anchor (e.g. Interior >
+// Crew > Uniform > On charter > Evening wear → "On charter › Evening wear");
+// "Uncategorised" when the issued row isn't linked to inventory stock yet.
 const UNCATEGORISED = 'Uncategorised';
 const catPath = (item) => {
   if (!item) return UNCATEGORISED;
-  const segs = [item.l1Name, item.l2Name, item.l3Name, item.l4Name].map((s) => (s || '').trim()).filter(Boolean);
-  if (segs.length) {
-    const ui = segs.findIndex((s) => s.toLowerCase() === 'uniform');
-    const below = ui >= 0 ? segs.slice(ui + 1) : segs.slice(1); // below Uniform, else drop the dept root
-    return (below.length ? below : segs.slice(-1)).join(' › ');
-  }
-  const loc = [item.location, item.subLocation].map((s) => (s || '').trim()).filter(Boolean);
-  return loc.length ? loc.join(' › ') : UNCATEGORISED;
+  const parts = [];
+  if (item.location) parts.push(item.location);
+  if (item.subLocation) item.subLocation.split('>').forEach((s) => parts.push(s));
+  const segs = parts.map((s) => (s || '').trim()).filter(Boolean)
+    .filter((s, i, a) => i === 0 || s.toLowerCase() !== a[i - 1].toLowerCase()); // drop duplicated roots
+  if (!segs.length) return UNCATEGORISED;
+  const ui = segs.findIndex((s) => s.toLowerCase() === 'uniform');
+  const below = ui >= 0 ? segs.slice(ui + 1) : segs.slice(1); // below Uniform, else drop the top root
+  return (below.length ? below : segs.slice(-1)).join(' › ');
 };
 
 // Issue-from-inventory modal: pick a uniform stock item, size + qty, then issue.
