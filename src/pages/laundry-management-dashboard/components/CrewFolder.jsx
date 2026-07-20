@@ -45,15 +45,23 @@ const catPath = (item) => {
   return (below.length ? below : segs.slice(-1)).join(' › ');
 };
 
-// Segments of an item's inventory folder path BELOW the "Uniform" anchor — what
-// the issue browser drills through (Uniform > On charter > Evening wear → the
-// item lives in the "Evening wear" folder).
-const uniformRel = (item) => {
+// The item's inventory folder path as deduped segments (location + sub_location).
+const pathSegs = (item) => {
   const parts = [];
   if (item.location) parts.push(item.location);
   if (item.subLocation) item.subLocation.split('>').forEach((s) => parts.push(s));
-  const segs = parts.map((s) => (s || '').trim()).filter(Boolean)
+  return parts.map((s) => (s || '').trim()).filter(Boolean)
     .filter((s, i, a) => i === 0 || s.toLowerCase() !== a[i - 1].toLowerCase());
+};
+// Uniform is defined by the FOLDER, not a per-item flag: an item is issuable
+// uniform when it's filed anywhere under a "Uniform" folder. `is_uniform` is kept
+// only as an optional override for uniform that lives outside that tree.
+const underUniform = (item) => pathSegs(item).some((s) => s.toLowerCase() === 'uniform');
+const isUniformStock = (item) => underUniform(item) || item.isUniform;
+// Segments BELOW the "Uniform" anchor — what the issue browser drills through
+// (Uniform > On charter > Evening wear → the item lives in "Evening wear").
+const uniformRel = (item) => {
+  const segs = pathSegs(item);
   const ui = segs.map((s) => s.toLowerCase()).lastIndexOf('uniform');
   return ui >= 0 ? segs.slice(ui + 1) : segs;
 };
@@ -112,7 +120,7 @@ const IssueModal = ({ crewName, stock, showValue, onIssue, onClose }) => {
 
         <div className="cf-modal-body">
           {stock.length === 0 ? (
-            <p className="cf-empty-note">No uniform in inventory yet. Flag stock as <b>Uniform</b> in inventory to issue it here.</p>
+            <p className="cf-empty-note">No uniform in inventory yet. File stock under a <b>Uniform</b> folder in inventory and it shows here to issue.</p>
           ) : (
             <>
               {folders.length > 0 && (
@@ -232,11 +240,11 @@ const CrewFolder = ({ onBack }) => {
     const [crew, allKit, all] = await Promise.all([
       fetchTenantCrew(activeTenantId), fetchTenantUniformKit(activeTenantId), getAllItems().catch(() => []),
     ]);
-    setRoster(crew); setKit(allKit); setStock(all.filter((i) => i.isUniform)); setLoading(false);
+    setRoster(crew); setKit(allKit); setStock(all.filter(isUniformStock)); setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [activeTenantId]);
 
-  const openIssue = async () => { setIssuing(true); const all = await getAllItems(); setStock(all.filter((i) => i.isUniform)); };
+  const openIssue = async () => { setIssuing(true); const all = await getAllItems(); setStock(all.filter(isUniformStock)); };
 
   // Linked inventory item by id — lets the List view file each issued item under
   // its inventory folder path (the same category tree used in inventory).
