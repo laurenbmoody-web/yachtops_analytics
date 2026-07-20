@@ -1762,78 +1762,105 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
 };
 
 // ─── Folder Card ───────────────────────────────────────────────────────────────
-const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onPalette, onVisibilityChange, canMove, dragHandleProps, isDragging, isFolderDropTarget, isDropTargetReady, showCog }) => (
-  <div
-    onClick={onClick}
-    className={[
-      'inv-folder',
-      isDragging ? 'dragging' : '',
-      isFolderDropTarget && isDropTargetReady ? 'droptarget-ready' : isFolderDropTarget ? 'droptarget' : '',
-    ]?.join(' ')}
-  >
-    <div className="inv-folder-top">
-      <div className="inv-folder-lead">
-        {canEdit && dragHandleProps && (
-          <div
-            {...dragHandleProps}
-            onClick={(e) => e?.stopPropagation()}
-            className="inv-grip"
-            title="Drag to reorder or hold over a folder to move inside"
-          >
-            <Icon name="GripVertical" size={14} />
-          </div>
-        )}
+const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onPalette, onVisibilityChange, canMove, dragHandleProps, isDragging, isFolderDropTarget, isDropTargetReady, showCog, layout = 'grid' }) => {
+  const lead = (
+    <div className="inv-folder-lead">
+      {canEdit && dragHandleProps && (
         <div
-          className={color ? 'inv-folder-icon' : 'inv-folder-icon plain'}
-          style={color ? { backgroundColor: color + '22', border: `1.5px solid ${color}44` } : undefined}
+          {...dragHandleProps}
+          onClick={(e) => e?.stopPropagation()}
+          className="inv-grip"
+          title="Drag to reorder or hold over a folder to move inside"
         >
-          <Icon
-            name={icon || (depth === 0 ? 'MapPin' : 'FolderOpen')}
-            size={20}
-            style={color ? { color } : undefined}
-          />
+          <Icon name="GripVertical" size={14} />
         </div>
-      </div>
-      <div className="inv-folder-actions">
-        {isFolderDropTarget && isDropTargetReady && (
-          <span className="inv-moveinside">
-            <Icon name="FolderInput" size={12} />
-            <span>Move inside</span>
-          </span>
-        )}
-        {canEdit && onPalette && !isFolderDropTarget && (
-          <button onClick={(e) => { e?.stopPropagation(); onPalette?.(); }} className="inv-iconbtn" title="Edit icon &amp; colour">
-            <Icon name="Palette" size={14} />
-          </button>
-        )}
-        {showCog && onCog && !isFolderDropTarget && (
-          <button onClick={(e) => { e?.stopPropagation(); onCog?.(); }} className="inv-iconbtn" title="Folder settings">
-            <Icon name="Settings" size={14} />
-          </button>
-        )}
-        {canEdit && onEdit && !showCog && !isFolderDropTarget && (
-          <button onClick={(e) => { e?.stopPropagation(); onEdit?.(); }} className="inv-iconbtn" title="Rename folder">
-            <Icon name="Pencil" size={14} />
-          </button>
-        )}
-        {canEdit && onDelete && !showCog && !isFolderDropTarget && (
-          <button onClick={(e) => { e?.stopPropagation(); onDelete?.(); }} className="inv-iconbtn danger" title="Delete folder">
-            <Icon name="Trash2" size={14} />
-          </button>
-        )}
-        {onClick && !isFolderDropTarget && <Icon name="ChevronRight" size={18} className="inv-folder-chevron" />}
+      )}
+      <div
+        className={color ? 'inv-folder-icon' : 'inv-folder-icon plain'}
+        style={color ? { backgroundColor: color + '22', border: `1.5px solid ${color}44` } : undefined}
+      >
+        <Icon
+          name={icon || (depth === 0 ? 'MapPin' : 'FolderOpen')}
+          size={20}
+          style={color ? { color } : undefined}
+        />
       </div>
     </div>
-    <h3 className="inv-folder-name">{name}</h3>
+  );
+
+  const actions = (
+    <div className="inv-folder-actions">
+      {isFolderDropTarget && isDropTargetReady && (
+        <span className="inv-moveinside">
+          <Icon name="FolderInput" size={12} />
+          <span>Move inside</span>
+        </span>
+      )}
+      {canEdit && onPalette && !isFolderDropTarget && (
+        <button onClick={(e) => { e?.stopPropagation(); onPalette?.(); }} className="inv-iconbtn" title="Edit icon &amp; colour">
+          <Icon name="Palette" size={14} />
+        </button>
+      )}
+      {showCog && onCog && !isFolderDropTarget && (
+        <button onClick={(e) => { e?.stopPropagation(); onCog?.(); }} className="inv-iconbtn" title="Folder settings">
+          <Icon name="Settings" size={14} />
+        </button>
+      )}
+      {canEdit && onEdit && !showCog && !isFolderDropTarget && (
+        <button onClick={(e) => { e?.stopPropagation(); onEdit?.(); }} className="inv-iconbtn" title="Rename folder">
+          <Icon name="Pencil" size={14} />
+        </button>
+      )}
+      {canEdit && onDelete && !showCog && !isFolderDropTarget && (
+        <button onClick={(e) => { e?.stopPropagation(); onDelete?.(); }} className="inv-iconbtn danger" title="Delete folder">
+          <Icon name="Trash2" size={14} />
+        </button>
+      )}
+      {onClick && !isFolderDropTarget && <Icon name="ChevronRight" size={18} className="inv-folder-chevron" />}
+    </div>
+  );
+
+  const meta = (
     <div className="inv-folder-meta">
       <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
       {subFolderCount > 0 && <span>· {subFolderCount} folder{subFolderCount !== 1 ? 's' : ''}</span>}
     </div>
-  </div>
-);
+  );
+
+  const cls = [
+    'inv-folder',
+    layout === 'list' ? 'row' : '',
+    isDragging ? 'dragging' : '',
+    isFolderDropTarget && isDropTargetReady ? 'droptarget-ready' : isFolderDropTarget ? 'droptarget' : '',
+  ]?.join(' ');
+
+  if (layout === 'list') {
+    return (
+      <div onClick={onClick} className={cls}>
+        {lead}
+        <div className="inv-folder-body">
+          <h3 className="inv-folder-name">{name}</h3>
+          {meta}
+        </div>
+        {actions}
+      </div>
+    );
+  }
+
+  return (
+    <div onClick={onClick} className={cls}>
+      <div className="inv-folder-top">
+        {lead}
+        {actions}
+      </div>
+      <h3 className="inv-folder-name">{name}</h3>
+      {meta}
+    </div>
+  );
+};
 
 // ─── Sortable Folder Card Wrapper ─────────────────────────────────────────────
-const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onPalette, showCog, folderDropTargetId, folderDropTargetReady }) => {
+const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onPalette, showCog, folderDropTargetId, folderDropTargetReady, layout = 'grid' }) => {
   const {
     attributes,
     listeners,
@@ -1873,6 +1900,7 @@ const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, 
         isDropTargetReady={isDropTargetReady}
         onVisibilityChange={undefined}
         canMove={undefined}
+        layout={layout}
       />
     </div>
   );
@@ -3398,7 +3426,7 @@ const LocationFirstInventory = () => {
             {filteredSubFolders?.length > 0 && (
               <div>
                 {!isRoot && <h2 className="inv-sectlabel">Folders</h2>}
-                <div className="inv-grid">
+                <div className={viewMode === 'list' ? 'inv-grid list' : 'inv-grid'}>
                   {filteredSubFolders?.map(folderName => {
                     const folderSegments = [...pathSegments, folderName];
                     const isReadOnly = isFolderReadOnly(folderName);
@@ -3425,6 +3453,7 @@ const LocationFirstInventory = () => {
                         showCog={showCog}
                         folderDropTargetId={folderDropTargetId}
                         folderDropTargetReady={folderDropTargetReady}
+                        layout={viewMode}
                       />
                     );
                   })}
@@ -3454,6 +3483,7 @@ const LocationFirstInventory = () => {
                 isFolderDropTarget={false}
                 isDropTargetReady={false}
                 showCog={false}
+                layout={viewMode}
               />
             ) : null}
           </DragOverlay>
