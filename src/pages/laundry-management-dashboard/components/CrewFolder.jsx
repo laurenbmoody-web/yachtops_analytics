@@ -10,6 +10,7 @@ import { getAllItems, adjustItemQuantity } from '../../inventory/utils/inventory
 import { canViewCost } from '../../../utils/costPermissions';
 import { money } from '../utils/laundryBilling';
 import PersonTiles from './PersonTiles';
+import { FilterMenu, SortMenu } from './LaundryFilters';
 import './crewFolder.css';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -170,6 +171,10 @@ const CrewFolder = ({ onBack }) => {
   const [stock, setStock] = useState([]);
   const [issuing, setIssuing] = useState(false);
   const [returning, setReturning] = useState(null);
+  const [q, setQ] = useState('');
+  const [dept, setDept] = useState('all');
+  const [sort, setSort] = useState('name');
+  const [crewView, setCrewView] = useState('tiles'); // tiles (by crew) | list (combined uniform)
 
   const load = async () => {
     if (!activeTenantId) return;
@@ -187,6 +192,48 @@ const CrewFolder = ({ onBack }) => {
     kit.forEach((k) => { if (k.status === 'in_service') m[k.user_id] = (m[k.user_id] || 0) + 1; });
     return m;
   }, [kit]);
+
+  const depts = useMemo(() => [...new Set(roster.map((c) => c.department).filter((d) => d && d !== '—'))].sort(), [roster]);
+  const deptMatch = (c) => dept === 'all' || c.department === dept;
+
+  // Roster as tiles — filtered by department + name search, sorted.
+  const tilePeople = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    let list = roster.filter(deptMatch);
+    if (s) list = list.filter((c) => (c.fullName || '').toLowerCase().includes(s));
+    const rows = list.map((c) => ({
+      id: c.id, name: c.fullName, photo: c.photo,
+      subtitle: [c.roleTitle, c.department].filter(Boolean).join(' · '),
+      count: countByUser[c.id] || 0, countLabel: 'issued',
+    }));
+    rows.sort((a, b) => (sort === 'most' ? b.count - a.count : sort === 'fewest' ? a.count - b.count : (a.name || '').localeCompare(b.name || '')));
+    return rows;
+  }, [roster, q, dept, sort, countByUser]);
+
+  // List view — every in-service item combined across the (dept-filtered) crew,
+  // keyed by item + size. 3 crew each holding 2 × Polo white M → 6 × Polo white M.
+  const listRows = useMemo(() => {
+    const ids = new Set(roster.filter(deptMatch).map((c) => c.id));
+    const m = new Map();
+    kit.filter((k) => k.status === 'in_service' && ids.has(k.user_id)).forEach((k) => {
+      const key = `${(k.item || '').trim().toLowerCase()}|${(k.size || '').trim().toLowerCase()}`;
+      if (!m.has(key)) m.set(key, { item: k.item, size: k.size, qty: 0, holders: new Set(), value: k.value });
+      const r = m.get(key); r.qty += Number(k.quantity) || 1; r.holders.add(k.user_id);
+    });
+    let rows = [...m.values()].map((r) => ({ ...r, holders: r.holders.size }));
+    const s = q.trim().toLowerCase();
+    if (s) rows = rows.filter((r) => `${r.item} ${r.size}`.toLowerCase().includes(s));
+    rows.sort((a, b) => (sort === 'qty' ? b.qty - a.qty : (a.item || '').localeCompare(b.item || '')));
+    return rows;
+  }, [kit, roster, dept, q, sort]);
+
+  const sortOptions = crewView === 'list'
+    ? [{ val: 'item', label: 'Item (A–Z)' }, { val: 'qty', label: 'Quantity (high → low)' }]
+    : [{ val: 'name', label: 'Name (A–Z)' }, { val: 'most', label: 'Most issued' }, { val: 'fewest', label: 'Fewest issued' }];
+  const filterGroups = [
+    { key: 'dept', label: 'Department', value: dept, neutral: 'all', onChange: setDept, options: [{ value: 'all', label: 'All departments' }, ...depts.map((d) => ({ value: d, label: d }))] },
+  ];
+  const switchView = (v) => { setCrewView(v); setSort(v === 'list' ? 'item' : 'name'); };
 
   const selected = roster.find((c) => c.id === selectedId) || null;
   const memberKit = useMemo(
@@ -227,18 +274,43 @@ const CrewFolder = ({ onBack }) => {
     return (
       <div className="cf-view">
         <div className="cf-bar"><button type="button" className="lm-back" onClick={onBack}><Icon name="ArrowLeft" size={16} /> Back to wardrobe management</button></div>
+        <div className="cf-head">
+          <span className="cf-eyebrow">Wardrobe · Crew</span>
+          <h1 className="cf-h1">Crew uniform</h1>
+        </div>
+        <div className="cf-toolbar">
+          <div className="cf-tsearch">
+            <Icon name="Search" size={16} className="cf-search-ic" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={crewView === 'list' ? 'Search uniform…' : 'Search crew…'} />
+          </div>
+          <div className="cf-tools">
+            <FilterMenu groups={filterGroups} />
+            <SortMenu value={sort} onChange={setSort} options={sortOptions} />
+            <div className="cf-viewtoggle" role="tablist" aria-label="View">
+              <button type="button" className={crewView === 'tiles' ? 'on' : ''} onClick={() => switchView('tiles')}>By crew</button>
+              <button type="button" className={crewView === 'list' ? 'on' : ''} onClick={() => switchView('list')}>List</button>
+            </div>
+          </div>
+        </div>
         {loading ? (
           <div className="cf-loading">Loading the crew…</div>
+        ) : crewView === 'tiles' ? (
+          <PersonTiles people={tilePeople} emptyLabel="No crew match." onPick={(id) => setSelectedId(id)} />
         ) : (
-          <PersonTiles
-            people={roster.map((c) => ({
-              id: c.id, name: c.fullName, photo: c.photo,
-              subtitle: [c.roleTitle, c.department].filter(Boolean).join(' · '),
-              count: countByUser[c.id] || 0, countLabel: 'issued',
-            }))}
-            emptyLabel="No crew on board yet."
-            onPick={(id) => setSelectedId(id)}
-          />
+          <div className="cf-list">
+            {listRows.length === 0 ? (
+              <div className="cf-empty-note">No uniform issued{dept !== 'all' ? ` in ${dept}` : ''} yet.</div>
+            ) : listRows.map((r, i) => (
+              <div className="cf-list-row" key={i}>
+                <span className="cf-list-qty">{r.qty}×</span>
+                <div className="cf-list-main">
+                  <span className="cf-list-nm">{r.item}{r.size ? ` · ${r.size}` : ''}</span>
+                  <span className="cf-list-sub">held by {r.holders} {r.holders === 1 ? 'crew member' : 'crew'}</span>
+                </div>
+                {showValue && r.value != null && <span className="cf-kit-val">{money(r.value * r.qty, 'USD')}</span>}
+              </div>
+            ))}
+          </div>
         )}
       </div>
     );

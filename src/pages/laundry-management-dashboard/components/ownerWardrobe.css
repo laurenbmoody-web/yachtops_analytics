@@ -1,6 +1,8 @@
 /* Owner wardrobe catalogue — cool maritime palette (never warm beige). */
 .ow-view { display: flex; flex-direction: column; gap: 16px; }
 .ow-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ow-head { margin: 4px 0 18px; }
+.ow-h1 { font-family: 'DM Serif Display', Georgia, serif; font-size: 30px; color: #1C1B3A; line-height: 1.05; margin-top: 3px; }
 .ow-person-head { display: flex; align-items: baseline; gap: 12px; margin: -2px 0 2px; }
 .ow-person-nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; color: #1C1B3A; line-height: 1.1; }
 .ow-person-ct { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.9px; text-transform: uppercase; color: #8B8478; }
