@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { useNavigate } from 'react-router-dom';
@@ -13,53 +13,54 @@ const TeamJobListWidget = () => {
 
   const [counts, setCounts] = useState({ overdue: 0, dueToday: 0, completedToday: 0 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    if (!activeTenantId || !authUser?.id) {
+  const load = useCallback(async () => {
+    if (!activeTenantId || !authUser?.id) { setLoading(false); return; }
+    setLoading(true);
+    setError(false);
+    try {
+      const d = new Date();
+      const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      // OPEN jobs assigned to the current user.
+      const openRes = await supabase
+        .from('team_jobs')
+        .select('id, due_date, status')
+        .eq('tenant_id', activeTenantId)
+        .eq('assigned_to', authUser.id)
+        .eq('status', 'OPEN');
+      if (openRes.error) throw openRes.error;
+
+      // Jobs the user completed today.
+      const doneRes = await supabase
+        .from('team_jobs')
+        .select('id, completion_date, status')
+        .eq('tenant_id', activeTenantId)
+        .eq('assigned_to', authUser.id)
+        .eq('status', 'completed')
+        .eq('completion_date', todayStr);
+      if (doneRes.error) throw doneRes.error;
+
+      const openList = openRes.data || [];
+      setCounts({
+        overdue: openList.filter((j) => j.due_date && j.due_date < todayStr).length,
+        dueToday: openList.filter((j) => j.due_date === todayStr).length,
+        completedToday: (doneRes.data || []).length,
+      });
+    } catch (err) {
+      console.error('[TeamJobListWidget] fetch error:', err);
+      setError(true);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const fetchCounts = async () => {
-      setLoading(true);
-      try {
-        const todayStr = (() => {
-          const d = new Date();
-          return `${d?.getFullYear()}-${String(d?.getMonth() + 1)?.padStart(2, '0')}-${String(d?.getDate())?.padStart(2, '0')}`;
-        })();
-
-        // Fetch all OPEN jobs assigned to the current user
-        const { data: openJobs } = await supabase
-          ?.from('team_jobs')
-          ?.select('id, due_date, status')
-          ?.eq('tenant_id', activeTenantId)
-          ?.eq('assigned_to', authUser?.id)
-          ?.eq('status', 'OPEN');
-
-        // Fetch completed jobs assigned to the current user completed today
-        const { data: completedJobs } = await supabase
-          ?.from('team_jobs')
-          ?.select('id, completion_date, status')
-          ?.eq('tenant_id', activeTenantId)
-          ?.eq('assigned_to', authUser?.id)
-          ?.eq('status', 'completed')
-          ?.eq('completion_date', todayStr);
-
-        const openList = openJobs || [];
-        const dueToday = openList?.filter(j => j?.due_date === todayStr)?.length;
-        const overdue = openList?.filter(j => j?.due_date && j?.due_date < todayStr)?.length;
-        const completedToday = (completedJobs || [])?.length;
-
-        setCounts({ overdue, dueToday, completedToday });
-      } catch (err) {
-        console.warn('[TeamJobListWidget] fetch error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCounts();
   }, [activeTenantId, authUser?.id]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    window.addEventListener('focus', load);
+    return () => window.removeEventListener('focus', load);
+  }, [load]);
 
   const total = counts?.overdue + counts?.dueToday;
 
@@ -94,6 +95,11 @@ const TeamJobListWidget = () => {
         <div className="flex items-center justify-center py-6">
           <LogoSpinner size={20} />
         </div>
+      ) : error ? (
+        <div className="flex items-center gap-2 py-6 justify-center text-sm" style={{ color: '#9A2B12' }}>
+          <Icon name="AlertTriangle" size={16} /> Couldn’t load jobs.
+          <button type="button" onClick={load} className="font-bold underline">Retry</button>
+        </div>
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between py-2.5 border-b border-border">
@@ -127,7 +133,7 @@ const TeamJobListWidget = () => {
           </div>
         </div>
       )}
-      {!loading && total === 0 && counts?.completedToday === 0 && (
+      {!loading && !error && total === 0 && counts?.completedToday === 0 && (
         <div className="mt-4 pt-4 border-t border-border">
           <p className="text-xs text-muted-foreground text-center italic">
             No open jobs — you're on top of things.
