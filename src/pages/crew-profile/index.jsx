@@ -503,6 +503,7 @@ const CrewProfile = () => {
               can_order_without_approval,
               can_confirm_quotes_without_approval,
               can_view_crew_docs,
+              can_access_accounts,
               start_date,
               joined_at,
               departments(name),
@@ -551,6 +552,7 @@ const CrewProfile = () => {
           canOrderWithoutApproval: membershipData?.can_order_without_approval ?? null,
           canConfirmQuotesWithoutApproval: membershipData?.can_confirm_quotes_without_approval ?? null,
           canViewCrewDocs: membershipData?.can_view_crew_docs ?? null,
+          canAccessAccounts: membershipData?.can_access_accounts ?? false,
           startDate: membershipData?.start_date || membershipData?.joined_at || null,
           // Initialize empty fields for sections that may not have data yet
           dateOfBirth: '',
@@ -3610,6 +3612,7 @@ const canEdit = (() => {
       : false;
     // Viewing other crew's certs/contracts — Command always can; others opt-in.
     const viewCrewDocs = crewMember?.canViewCrewDocs ?? (memberTier === 'COMMAND');
+    const accountsAccess = memberTier === 'COMMAND' ? true : (crewMember?.canAccessAccounts ?? false);
 
     // Toggle handlers (with master→dependent cascades).
     const toggleCanEditRota = () => {
@@ -3646,6 +3649,10 @@ const canEdit = (() => {
       const next = !viewCrewDocs;
       updateCaps({ can_view_crew_docs: next }, { canViewCrewDocs: next });
     };
+    const toggleAccountsAccess = () => {
+      const next = !accountsAccess;
+      updateCaps({ can_access_accounts: next }, { canAccessAccounts: next });
+    };
 
     const editable = canEditPermissions && !permSaving;
     const whom = firstName === 'This person' ? 'this person' : firstName;
@@ -3669,7 +3676,8 @@ const canEdit = (() => {
     const defOrder = memberTier === 'COMMAND';
     const defConfirm = memberTier === 'COMMAND';
     const defViewCrewDocs = memberTier === 'COMMAND';
-    const exceptions = [canEditRota !== defEdit, publishNoApproval !== defPublish, orderNoApproval !== defOrder, confirmQuotesNoApproval !== defConfirm, viewCrewDocs !== defViewCrewDocs].filter(Boolean).length;
+    const defAccounts = memberTier === 'COMMAND';
+    const exceptions = [canEditRota !== defEdit, publishNoApproval !== defPublish, orderNoApproval !== defOrder, confirmQuotesNoApproval !== defConfirm, viewCrewDocs !== defViewCrewDocs, accountsAccess !== defAccounts].filter(Boolean).length;
 
     // One-line class summary + the capability map it grants, grouped by area.
     const CLASS_DESC = {
@@ -3758,6 +3766,7 @@ const canEdit = (() => {
         {capRow('Send supplier orders without approval', 'On sends straight to suppliers; off routes for approval.', orderNoApproval, toggleOrderNoApproval, { def: defOrder })}
         {capRow('Confirm supplier quotes without approval', orderNoApproval ? 'On confirms directly; off routes for approval.' : 'Needs sending-without-approval enabled first.', confirmQuotesNoApproval, toggleConfirmQuotes, { disabled: !orderNoApproval, def: defConfirm })}
         {capRow('View all crew documents', memberTier === 'COMMAND' ? 'Command always sees every crew member’s certificates & contracts.' : 'See every crew member’s certificates & contracts in the vault and renewals — normally Command only.', viewCrewDocs, toggleViewCrewDocs, { disabled: memberTier === 'COMMAND', def: defViewCrewDocs })}
+        {capRow('Access Accounts', memberTier === 'COMMAND' ? 'Command always has the Accounts area — ledger, budgets & charter finances.' : memberTier === 'CHIEF' ? 'Open the Accounts area — ledger, budgets & charter finances. Normally Command only; grant it to a chief who does the books (e.g. a purser).' : 'Accounts is Command-level; only a Chief can be granted access.', accountsAccess, toggleAccountsAccess, { disabled: memberTier === 'COMMAND' || memberTier === 'CREW' || memberTier === 'HOD' || memberTier === 'OPTIONAL_CREW', def: defAccounts })}
 
         <div className="s2-lock"><Icon name="Lock" size={13} /> {canEditPermissions ? 'Changes save immediately.' : `Only Command can change ${whom}’s access.`}</div>
       </div>

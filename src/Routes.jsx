@@ -285,7 +285,7 @@ const FallbackRoute = () => {
 };
 
 // Protected Route wrapper - uses AuthContext for session state
-const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null }) => {
+const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null, requireAccounts = false }) => {
   // Check DEV MODE flag
   if (isDevMode()) {
     console.log('[ProtectedRoute] 🔧 DEV MODE: Bypassing all auth checks');
@@ -305,7 +305,8 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
     bootstrapComplete,
     activeTenantId: tenant_id,
     tenantRole: role,
-    retryBootstrap
+    retryBootstrap,
+    hasAccountsAccess
   } = useAuth();
 
   // Auto-retry once if bootstrap completed but found no tenant (transient failure on first login)
@@ -339,7 +340,12 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null 
     decision = 'NO_ROLE';
   } else if (requiredRoles && requiredRoles?.length > 0) {
     const normalizedRole = (role || '')?.toUpperCase()?.trim();
-    const allowed = requiredRoles?.some(r => r?.toUpperCase() === normalizedRole);
+    let allowed = requiredRoles?.some(r => r?.toUpperCase() === normalizedRole);
+    // Accounts area additionally requires the per-member capability (COMMAND
+    // always; CHIEF only when toggled on; CREW never — enforced by requiredRoles).
+    if (allowed && requireAccounts && typeof hasAccountsAccess === 'function' && !hasAccountsAccess()) {
+      allowed = false;
+    }
     decision = allowed ? 'ALLOWED' : 'DENIED';
   } else {
     decision = 'ALLOWED';
@@ -1443,10 +1449,10 @@ const Routes = () => {
         <Route path="/provisioning/:boardId/orders/:orderId" element={<ProtectedRoute><SupplierOrderPage /></ProtectedRoute>} />
 
         {/* Accounts */}
-        <Route path="/accounts" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><Accounts /></ProtectedRoute>} />
-        <Route path="/accounts/ledger" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><Ledger /></ProtectedRoute>} />
-        <Route path="/accounts/budgets" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><Budgets /></ProtectedRoute>} />
-        <Route path="/accounts/budgets/:id" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><BudgetDetail /></ProtectedRoute>} />
+        <Route path="/accounts" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Accounts /></ProtectedRoute>} />
+        <Route path="/accounts/ledger" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Ledger /></ProtectedRoute>} />
+        <Route path="/accounts/budgets" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Budgets /></ProtectedRoute>} />
+        <Route path="/accounts/budgets/:id" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><BudgetDetail /></ProtectedRoute>} />
         
         {/* Logs/Deliveries */}
         <Route path="/logs-deliveries" element={<ProtectedRoute><LogsDeliveries /></ProtectedRoute>} />

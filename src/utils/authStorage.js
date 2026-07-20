@@ -344,6 +344,14 @@ export const canAccessDepartment = (user, department) => {
   return user?.department === department;
 };
 
+// Accounts area access: COMMAND always; CHIEF only when the per-member
+// `can_access_accounts` toggle is on (set in Crew profile → Permissions); CREW never.
+export const hasAccountsAccess = (user) => {
+  if (hasCommandAccess(user)) return true;
+  if (!hasChiefAccess(user)) return false;
+  return user?.can_access_accounts === true || user?.canAccessAccounts === true;
+};
+
 // Department display names
 export const getDepartmentDisplayName = (department) => {
   const mapping = {

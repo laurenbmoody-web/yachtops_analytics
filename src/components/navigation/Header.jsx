@@ -83,7 +83,7 @@ const AvatarMenuItem = ({ icon, label, onClick, danger, active }) => {
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user: authUser, session } = useAuth();
+  const { user: authUser, session, hasAccountsAccess } = useAuth();
   const { noVesselAccess } = useTenant();
   // Between vessels: strip vessel-only chrome (inbox, admin menu) down to the
   // personal essentials — the only pages reachable are profile & settings.
@@ -545,7 +545,9 @@ const Header = () => {
   const isCrewRole = role === 'CREW';
   const isHODRole = role === 'HOD';
   const isCommandOrChief = isCommandRole || isChiefRole;
-  
+  // Accounts: COMMAND always; CHIEF only with the per-member toggle on; CREW never.
+  const accountsAccess = typeof hasAccountsAccess === 'function' ? hasAccountsAccess() : isCommandRole;
+
   // For backward compatibility with other parts of the app that still use currentUser
   const isCommand = currentUser && hasCommandAccess(currentUser);
   const isChief = currentUser && currentUser?.isChief;
@@ -798,8 +800,8 @@ const Header = () => {
                         items: [
                           { show: isCommandRole || isChiefRole, icon: 'Users', label: 'Crew Management', path: '/crew-management', onClick: () => handleNavigation('/crew-management', 'Crew Management') },
                           { show: isCommandRole || isChiefRole, icon: 'CalendarCheck', label: 'Month-end', path: '/month-end', onClick: () => handleNavigation('/month-end', 'Month-end') },
-                          { show: isCommandRole || isChiefRole, icon: 'BookOpen', label: 'Ledger', path: '/accounts/ledger', onClick: () => handleNavigation('/accounts/ledger', 'Ledger') },
-                          { show: isCommandRole || isChiefRole, icon: 'Target', label: 'Budgets', path: '/accounts/budgets', onClick: () => handleNavigation('/accounts/budgets', 'Budgets') },
+                          { show: accountsAccess, icon: 'BookOpen', label: 'Ledger', path: '/accounts/ledger', onClick: () => handleNavigation('/accounts/ledger', 'Ledger') },
+                          { show: accountsAccess, icon: 'Target', label: 'Budgets', path: '/accounts/budgets', onClick: () => handleNavigation('/accounts/budgets', 'Budgets') },
                           { show: isCommandRole || isChiefRole, icon: 'FolderArchive', label: 'Vessel Documents', path: '/vessel-documents', onClick: () => handleNavigation('/vessel-documents', 'Vessel Documents') },
                         ],
                       },
