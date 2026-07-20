@@ -15,6 +15,7 @@ import {
 } from '../../../services/financeService';
 import { formatMoney, isLiveTxn } from '../../../services/financeCalc';
 import { ManualTxnModal, AssignAccountModal } from '../components/TransactionModals';
+import StatementReconcileModal from '../components/StatementReconcileModal';
 import '../accounts.css';
 
 const SOURCE_LABEL = {
@@ -49,6 +50,7 @@ export default function Ledger() {
   const [txns, setTxns] = useState([]);
   const [filters, setFilters] = useState({ accountId: '', source: '', category: '', from: '', to: '', search: '', needsAttention: false });
   const [addOpen, setAddOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [assignTxn, setAssignTxn] = useState(null);
   const [attByTxn, setAttByTxn] = useState({});   // txnId → [attachment w/ signed url]
   const [toast, setToast] = useState('');
@@ -210,9 +212,14 @@ export default function Ledger() {
               <h1 className="ca-title">The <em>ledger</em>.</h1>
               <div className="ca-head-act">
                 {canEdit && (
-                  <button type="button" className="ca-btn ca-btn-primary" onClick={() => setAddOpen(true)}>
-                    <Icon name="Plus" size={16} /> Add transaction
-                  </button>
+                  <>
+                    <button type="button" className="ca-btn ca-btn-ghost" onClick={() => setImportOpen(true)}>
+                      <Icon name="Upload" size={15} /> Import statement
+                    </button>
+                    <button type="button" className="ca-btn ca-btn-primary" onClick={() => setAddOpen(true)}>
+                      <Icon name="Plus" size={16} /> Add transaction
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -258,6 +265,8 @@ export default function Ledger() {
 
       <ManualTxnModal open={addOpen} onClose={() => setAddOpen(false)} onSave={handleAdd} onUploadReceipt={handleUploadReceipt} accounts={accounts} />
       <AssignAccountModal open={Boolean(assignTxn)} onClose={() => setAssignTxn(null)} onAssign={handleAssign} txn={assignTxn} accounts={accounts} />
+      <StatementReconcileModal open={importOpen} onClose={() => setImportOpen(false)} accounts={accounts} tenantId={activeTenantId}
+        onDone={() => { flash('Statement reconciled'); loadTxns(); }} />
     </>
   );
 }
