@@ -23,14 +23,6 @@ const addDays = (ymd, n) => { const [y, m, d] = ymd.split('-').map(Number); cons
 const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const WD1 = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-// Monday of the week containing `date`.
-function mondayOf(date) {
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const dow = (d.getDay() + 6) % 7; // 0 = Monday
-  d.setDate(d.getDate() - dow);
-  return d;
-}
-
 const hhmm = (t) => (t ? String(t).slice(0, 5) : null);
 
 // Every on-duty BLOCK for a date (a split shift = several), earliest first.
@@ -124,15 +116,13 @@ const HoursOfRestWidget = () => {
   const tier = (tenantRole || user?.permission_tier || '').toUpperCase();
   const view = tier === 'COMMAND' ? 'command' : tier === 'CHIEF' ? 'chief' : 'crew';
 
-  // Display week (Mon–Sun of the current week) + the trailing window each day
-  // needs for its 7-day rest test.
+  // The compliance window is the LAST 7 DAYS (today last) — compliance is the
+  // record of rest actually taken, and it keeps every cell loggable in the
+  // "You" row. Each cell's 7-day rest test needs a further 6 days of history.
   const todayStr = toYmd(new Date());
-  const weekMonStr = toYmd(mondayOf(new Date()));
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekMonStr, i)), [weekMonStr]);
-  // Cover both the Mon–Sun grid's trailing tests and the crew strip's trailing
-  // 7 days (each cell's 7-day rest test needs a further 6 days of history).
+  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(todayStr, i - 6)), [todayStr]);
   const loadStart = addDays(todayStr, -12);
-  const loadEnd = addDays(weekMonStr, 6);
+  const loadEnd = addDays(todayStr, 1); // +1 so an overnight log's spill day is in range
 
   const load = useCallback(async () => {
     if (!activeTenantId || !rota?.id) { setLoading(false); return; }
@@ -279,7 +269,7 @@ const HoursOfRestWidget = () => {
   const chiefRows = useMemo(() => chiefMembers.map((m) => {
     const sh = mergeMemberShifts(shiftsByMember.get(m.id) || [], entriesByUser.get(m.userId));
     const cells = days.map((d) => dayStatus(sh, d));
-    return { name: m.name, cells, breaches: cells.filter((c) => c === 'breach').length };
+    return { name: m.name, userId: m.userId, cells, breaches: cells.filter((c) => c === 'breach').length };
   }).sort((a, b) => b.breaches - a.breaches), [chiefMembers, shiftsByMember, entriesByUser, days]);
 
   const deptRows = useMemo(() => {
@@ -321,6 +311,25 @@ const HoursOfRestWidget = () => {
       <span><i style={{ background: 'var(--rw-sage)' }} />{command ? 'All compliant' : 'Compliant'}</span>
       <span><i style={{ background: 'var(--rw-amber)' }} />Marginal</span>
       <span><i style={{ background: 'var(--rw-red)' }} />Breach</span>
+    </div>
+  );
+
+  // The current user's own row inside the grid — tappable to log any day, the
+  // same way crew use their strip. Shares the grid's last-7 columns.
+  const myBreaches = myWeek.filter((d) => d.status === 'breach').length;
+  const YouRow = () => (
+    <div className="rw-grow rw-grow-you">
+      <span className="rw-gl">You</span>
+      {myWeek.map((d) => (
+        <button
+          type="button"
+          key={d.date}
+          className={`rw-cell rw-cell-btn${d.status === 'breach' ? ' is-breach' : d.status === 'marginal' ? ' is-marginal' : ''}${d.date === selectedDate ? ' is-sel' : ''}`}
+          onClick={() => { setSelDate(d.date); setLogRest(false); setSaveErr(false); }}
+          aria-label={`${d.wd1} ${d.dn} — log your hours`}
+        />
+      ))}
+      <span className={`rw-gc${myBreaches ? ' is-breach' : ' is-clear'}`}>{myBreaches || '✓'}</span>
     </div>
   );
 
@@ -419,9 +428,10 @@ const HoursOfRestWidget = () => {
           {view === 'chief' && chiefRows.length > 0 && (
             <>
               <div className="rw-divider" />
-              <div className="rw-seclab">{me?.department} · rest compliance</div>
-              <div className="rw-grid-hd"><span className="rw-h">Crew</span>{days.map((d, i) => <span key={d}>{WD1[new Date(`${d}T00:00:00`).getDay()]}</span>)}<span /></div>
-              {chiefRows.map((r) => (
+              <div className="rw-seclab">{me?.department} · rest · last 7 days</div>
+              <div className="rw-grid-hd"><span className="rw-h">Crew</span>{days.map((d) => <span key={d}>{WD1[new Date(`${d}T00:00:00`).getDay()]}</span>)}<span /></div>
+              <YouRow />
+              {chiefRows.filter((r) => r.userId !== user?.id).map((r) => (
                 <div key={r.name} className="rw-grow">
                   <span className="rw-gl">{surname(r.name)}</span>
                   {r.cells.map((c, i) => <StatusCell key={i} s={c} />)}
@@ -439,8 +449,9 @@ const HoursOfRestWidget = () => {
           {view === 'command' && deptRows.length > 0 && (
             <>
               <div className="rw-divider" />
-              <div className="rw-seclab">Rest compliance · by department</div>
+              <div className="rw-seclab">Rest · last 7 days · by department</div>
               <div className="rw-grid-hd"><span className="rw-h">Dept</span>{days.map((d) => <span key={d}>{WD1[new Date(`${d}T00:00:00`).getDay()]}</span>)}<span /></div>
+              <YouRow />
               {deptRows.map((r) => (
                 <div key={r.name} className="rw-grow">
                   <span className="rw-gl">{r.name}</span>
