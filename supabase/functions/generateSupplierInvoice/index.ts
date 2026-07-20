@@ -892,6 +892,41 @@ Deno.serve(async (req: Request) => {
       })
     ));
 
+    // 10b) First-issuance side-effects (skipped on regenerate). Advancing from
+    //      'received' → 'invoiced' moves both progress bars (supplier timeline +
+    //      crew lifecycle); the bell fan-out tells the crew the invoice is in.
+    //      Regenerating an already-invoiced/paid order must not repeat either.
+    if (order.status === 'received') {
+      await restPatch(`supplier_orders?id=eq.${orderId}`, {
+        status: 'invoiced',
+        invoiced_at: new Date().toISOString(),
+      });
+
+      // Notify every crew member on the tenant (best-effort — a notify hiccup
+      // must never fail invoice generation itself).
+      try {
+        const curCode = supplier.default_currency || 'EUR';
+        const dueDmy = fmtDate(dueDate);
+        const members = await restGet<any[]>(
+          `tenant_members?tenant_id=eq.${order.tenant_id}&status=neq.invited&select=user_id`
+        );
+        const notifRows = (members || [])
+          .filter((m) => m.user_id)
+          .map((m) => ({
+            user_id: m.user_id,
+            type: 'supplier_invoice',
+            title: `${supplier.name || 'Supplier'} sent an invoice`,
+            message: `${invoiceNumber} · ${curCode} ${total.toFixed(2)} · due ${dueDmy}`,
+            severity: 'info',
+            action_url: '/provisioning/orders',
+            read: false,
+          }));
+        if (notifRows.length) await restPost('notifications', notifRows);
+      } catch (notifyErr) {
+        console.error('[generateSupplierInvoice] crew notify failed', notifyErr);
+      }
+    }
+
     // 11) Mint a 10-min signed URL for the caller to view immediately
     const signedRes = await fetch(
       `${SUPABASE_URL}/storage/v1/object/sign/${BUCKET}/${pdfPath}`,
