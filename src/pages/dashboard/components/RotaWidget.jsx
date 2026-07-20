@@ -46,7 +46,7 @@ const RotaWidget = () => {
   const isCrew = !['COMMAND', 'CHIEF'].includes(tier);
 
   const todayStr = toYmd(new Date());
-  const loadEnd = addDays(todayStr, 6);
+  const loadEnd = addDays(todayStr, 3);
 
   const load = useCallback(async () => {
     if (!activeTenantId || !rota?.id) { setLoading(false); return; }
@@ -87,8 +87,8 @@ const RotaWidget = () => {
     return () => window.removeEventListener('focus', load);
   }, [load]);
 
-  // Today + the next six days as cells.
-  const cells = useMemo(() => Array.from({ length: 7 }, (_, i) => {
+  // Today + the next three days as cells.
+  const cells = useMemo(() => Array.from({ length: 4 }, (_, i) => {
     const date = addDays(todayStr, i);
     const dt = new Date(`${date}T00:00:00`);
     return { date, wd: WD[dt.getDay()], dn: dt.getDate(), isToday: i === 0, span: spanForDay(myShifts, date) };

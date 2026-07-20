@@ -9,6 +9,19 @@ import { WIDGET_META, DEFAULT_LAYOUT } from './widgetRegistry';
 const STORAGE_KEY = 'cargo_dashboard_layout_v3_';
 const COLUMNS = ['left', 'center', 'right'];
 
+// Per-user auto-inject: newly-added widgets appear for existing users without
+// resetting their layout. We track a "known" set per user; any accessible
+// widget not yet known is injected once at its default position, then marked
+// known (so removing it later won't resurrect it). KNOWN is seeded on first
+// run from PRE_AUTOINJECT + the user's currently-visible widgets, so a widget
+// the user had previously REMOVED isn't wrongly treated as new.
+const KNOWN_KEY = 'cargo_dashboard_known_v1_';
+const PRE_AUTOINJECT = [
+  'teamJobs', 'rota', 'todaySnapshot', 'recentActivity', 'vesselStatus',
+  'vesselView', 'laundry', 'quickActions', 'charterAccounts', 'ownerAccounts',
+  'inventoryHealth', 'provisioning', 'pantry', 'vesselDocRenewals',
+];
+
 export const useDashboardLayout = () => {
   const { user, tenantRole } = useAuth();
   const userTier = (tenantRole || '').toUpperCase().trim();
@@ -32,21 +45,52 @@ export const useDashboardLayout = () => {
 
   const [layout, setLayout] = useState(() => {
     if (!storageKey) return getDefaultLayout();
+    const clean = (arr) =>
+      (arr || []).filter((id) => accessibleIds.includes(id) && WIDGET_META[id]);
+
+    // Base layout — saved if present, else the default.
+    let base;
     try {
       const raw = localStorage.getItem(storageKey);
-      if (!raw) return getDefaultLayout();
-      const parsed = JSON.parse(raw);
-      // Strip widgets the user can no longer access
-      const clean = (arr) =>
-        (arr || []).filter((id) => accessibleIds.includes(id) && WIDGET_META[id]);
-      return {
-        left:   clean(parsed.left),
-        center: clean(parsed.center),
-        right:  clean(parsed.right),
-      };
+      const parsed = raw ? JSON.parse(raw) : null;
+      base = parsed
+        ? { left: clean(parsed.left), center: clean(parsed.center), right: clean(parsed.right) }
+        : getDefaultLayout();
     } catch {
-      return getDefaultLayout();
+      base = getDefaultLayout();
     }
+
+    // The "known" set — what this user has already been offered.
+    const knownKey = `${KNOWN_KEY}${user.id}`;
+    let known;
+    try { known = JSON.parse(localStorage.getItem(knownKey)); } catch { known = null; }
+    if (!Array.isArray(known)) {
+      const visible = [...base.left, ...base.center, ...base.right];
+      known = [...new Set([...PRE_AUTOINJECT, ...visible])];
+    }
+
+    // Inject any accessible widget not yet known at its default slot.
+    let result = base;
+    let changed = false;
+    for (const id of accessibleIds) {
+      if (known.includes(id)) continue;
+      known.push(id);
+      changed = true;
+      const present = new Set([...result.left, ...result.center, ...result.right]);
+      if (present.has(id)) continue; // already placed (new-user default)
+      const col = WIDGET_META[id]?.defaultColumn || 'right';
+      const defIdx = (DEFAULT_LAYOUT[col] || []).indexOf(id);
+      const arr = [...result[col]];
+      if (defIdx >= 0 && defIdx <= arr.length) arr.splice(defIdx, 0, id); else arr.push(id);
+      result = { ...result, [col]: arr };
+    }
+    if (changed) {
+      try {
+        localStorage.setItem(knownKey, JSON.stringify(known));
+        localStorage.setItem(storageKey, JSON.stringify(result));
+      } catch { /* storage full / disabled — non-fatal */ }
+    }
+    return result;
   });
 
   const persist = useCallback((newLayout) => {
