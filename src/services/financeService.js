@@ -18,7 +18,9 @@ import {
 } from './financeCalc.js';
 
 const ACCOUNT_SELECT =
-  'id, tenant_id, name, kind, currency, opening_balance, is_active, notes, created_by, created_at, updated_at';
+  'id, tenant_id, name, kind, currency, opening_balance, is_active, notes, ' +
+  'funds_type, holder_role, holder_user_id, card_last4, provider, ' +
+  'created_by, created_at, updated_at';
 
 const TXN_SELECT =
   'id, tenant_id, account_id, txn_date, amount, currency, fx_rate, amount_base, ' +
@@ -92,6 +94,11 @@ export const createAccount = async (payload) => {
       currency: payload.currency || 'EUR',
       opening_balance: payload.opening_balance ?? 0,
       notes: payload.notes || null,
+      funds_type: payload.funds_type || 'general',
+      holder_role: payload.holder_role || null,
+      holder_user_id: payload.holder_user_id || null,
+      card_last4: payload.card_last4 || null,
+      provider: payload.provider || null,
       created_by,
     })
     .select(ACCOUNT_SELECT)
@@ -100,7 +107,8 @@ export const createAccount = async (payload) => {
 };
 
 export const updateAccount = async (id, patch) => {
-  const allowed = ['name', 'kind', 'currency', 'opening_balance', 'notes', 'is_active'];
+  const allowed = ['name', 'kind', 'currency', 'opening_balance', 'notes', 'is_active',
+    'funds_type', 'holder_role', 'holder_user_id', 'card_last4', 'provider'];
   const clean = Object.fromEntries(Object.entries(patch || {}).filter(([k]) => allowed.includes(k)));
   const { data, error } = await supabase
     .from('financial_accounts')
