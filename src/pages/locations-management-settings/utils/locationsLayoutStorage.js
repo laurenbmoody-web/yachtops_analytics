@@ -100,6 +100,19 @@ export const autotraceDeck = async ({ imageBase64, deckName, roomNames }) => {
   return Array.isArray(data?.rooms) ? data.rooms : [];
 };
 
+// SAM (Segment Anything 2) point-prompted segmentation — hand one deck image and
+// a single point (pixels) to the deck-plan-sam edge function; get back a mask
+// (base64 PNG) of the room at that point. The client traces the mask boundary.
+export const samSegment = async ({ imageBase64, x, y }) => {
+  const { data, error } = await supabase.functions.invoke('deck-plan-sam', {
+    body: { imageBase64, x, y, mediaType: 'image/jpeg' },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  if (!data?.maskBase64) throw new Error('No mask returned.');
+  return data; // { maskBase64, width, height }
+};
+
 // Doorway links between rooms (undirected). Stored canonically a < b.
 const orderPair = (a, b) => (a < b ? [a, b] : [b, a]);
 

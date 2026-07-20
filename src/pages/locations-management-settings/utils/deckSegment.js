@@ -322,6 +322,66 @@ export function regionContour(seg, region, opts = {}) {
   return contourLocalMask(m, bw, bh, minx, miny, W, H, opts.eps);
 }
 
+// Trace the boundary of a SAM (or any binary) mask → simplified nodes 0..1.
+// SAM returns a white-on-black mask of the room at the prompt point; we keep its
+// largest blob (dropping stray specks), fill interior holes, and contour it with
+// the same simplify pipeline as a segmented region, so a SAM outline is a drop-in
+// for a flood-fill one.
+export function maskToNodes(imageData, opts = {}) {
+  const W = imageData.width;
+  const H = imageData.height;
+  const d = imageData.data;
+  const N = W * H;
+  const thr = opts.threshold ?? 128;
+  const fg = new Uint8Array(N);
+  for (let i = 0; i < N; i += 1) {
+    const o = i * 4;
+    if ((d[o] + d[o + 1] + d[o + 2]) / 3 > thr) fg[i] = 1;
+  }
+  // Largest connected foreground blob + its bbox.
+  const seen = new Uint8Array(N);
+  const stack = [];
+  let best = null;
+  for (let s = 0; s < N; s += 1) {
+    if (!fg[s] || seen[s]) continue;
+    seen[s] = 1;
+    stack.length = 0;
+    stack.push(s);
+    let area = 0;
+    let minx = W;
+    let miny = H;
+    let maxx = 0;
+    let maxy = 0;
+    while (stack.length) {
+      const p = stack.pop();
+      area += 1;
+      const x = p % W;
+      const y = (p / W) | 0;
+      if (x < minx) minx = x;
+      if (x > maxx) maxx = x;
+      if (y < miny) miny = y;
+      if (y > maxy) maxy = y;
+      if (x > 0 && fg[p - 1] && !seen[p - 1]) { seen[p - 1] = 1; stack.push(p - 1); }
+      if (x < W - 1 && fg[p + 1] && !seen[p + 1]) { seen[p + 1] = 1; stack.push(p + 1); }
+      if (y > 0 && fg[p - W] && !seen[p - W]) { seen[p - W] = 1; stack.push(p - W); }
+      if (y < H - 1 && fg[p + W] && !seen[p + W]) { seen[p + W] = 1; stack.push(p + W); }
+    }
+    if (!best || area > best.area) best = { area, minx, miny, maxx, maxy, label: s };
+  }
+  if (!best) return null;
+  const bw = best.maxx - best.minx + 1;
+  const bh = best.maxy - best.miny + 1;
+  const m = new Uint8Array(bw * bh);
+  // Re-flood the chosen blob into a local mask (seen was reused, so redo from fg
+  // over the bbox — the blob is the fg pixels connected to best.label).
+  for (let y = 0; y < bh; y += 1) {
+    for (let x = 0; x < bw; x += 1) {
+      if (fg[(best.miny + y) * W + (best.minx + x)]) m[y * bw + x] = 1;
+    }
+  }
+  return contourLocalMask(m, bw, bh, best.minx, best.miny, W, H, opts.eps);
+}
+
 // A room's outline: the seed's region PLUS its small satellite sub-regions
 // (ensuite / wardrobe / WC, each cut off by one thin internal wall), so a cabin
 // comes out whole rather than as just its bed area. A satellite is absorbed only
