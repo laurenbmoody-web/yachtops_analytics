@@ -31,7 +31,7 @@ const SEV = { crit: 's-crit', warn: 's-warn', good: 's-good', info: 's-info' };
 const BurnChart = ({ o, cur }) => {
   const months = o.months;
   const n = months.length;
-  const W = 760; const H = 280; const mL = 46; const mR = 68; const mT = 16; const mB = 26;
+  const W = 760; const H = 280; const mL = 46; const mR = 96; const mT = 16; const mB = 26;
   const rawMax = Math.max(o.annualBudget, o.projectedTotal, o.plannedCum[n - 1] || 0, o.actualCum[o.actualCum.length - 1] || 0, 1);
   const yMax = niceMax(rawMax * 1.08);
   const x = (i) => (n > 1 ? mL + (i / (n - 1)) * (W - mL - mR) : mL + (W - mL - mR) / 2);
@@ -62,7 +62,7 @@ const BurnChart = ({ o, cur }) => {
       ))}
       {/* budget ceiling */}
       <line x1={mL} y1={y(o.annualBudget)} x2={W - mR} y2={y(o.annualBudget)} stroke="#AEB4C2" strokeWidth="1" strokeDasharray="2 4" />
-      <text x={W - mR + 6} y={y(o.annualBudget) + 3} fontSize="9.5" fill="#8B8478">Budget {compact(o.annualBudget, cur)}</text>
+      <text x={W - 4} y={y(o.annualBudget) + 12} textAnchor="end" fontSize="9.5" fill="#8B8478">Budget {compact(o.annualBudget, cur)}</text>
       {/* today marker */}
       {o.elapsed > 0 && o.elapsed < n && (
         <>
