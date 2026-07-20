@@ -64,11 +64,18 @@ Deno.serve(async (req: Request) => {
       return json({ error: `segmentation failed (${falRes.status})`, detail: t.slice(0, 600) }, 502);
     }
     const data = await falRes.json();
-    const mask = data?.combined_mask || (Array.isArray(data?.individual_masks) ? data.individual_masks[0] : null);
+    // Point-prompted sam2/image returns a single `image` mask; other SAM
+    // variants use `combined_mask` / `individual_masks` / `masks`. Accept any.
+    const pick = (m: any) => (m && typeof m === 'object' ? m : (typeof m === 'string' ? { url: m } : null));
+    const mask = pick(data?.image)
+      || pick(data?.combined_mask)
+      || pick(Array.isArray(data?.individual_masks) ? data.individual_masks[0] : null)
+      || pick(Array.isArray(data?.masks) ? data.masks[0] : null);
     const url = mask?.url;
     if (!url) {
-      console.error('[deck-plan-sam] no mask in response:', JSON.stringify(data).slice(0, 400));
-      return json({ error: 'no mask returned' }, 502);
+      const keys = Object.keys(data || {}).join(', ');
+      console.error('[deck-plan-sam] no mask in response; keys:', keys, JSON.stringify(data).slice(0, 300));
+      return json({ error: 'no mask returned', detail: `response keys: ${keys}` }, 502);
     }
     // Hand the mask URL straight back — the browser loads it (fal media is CORS-
     // open) and traces it. No server-side download/base64, so nothing large to
