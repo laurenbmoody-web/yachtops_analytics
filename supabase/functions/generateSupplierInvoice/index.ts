@@ -299,7 +299,7 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     .brand { align-self: center; }
     .brand .logo { margin-bottom: 0; }
     .brand .logo-fallback { margin-bottom: 0; }
-    .logo { max-height: 56px; max-width: 200px; display: block; margin-bottom: 8px; }
+    .logo { max-height: 76px; max-width: 260px; display: block; margin-bottom: 8px; }
     .logo-fallback {
       font-family: 'DM Serif Display', Georgia, serif;
       font-size: 24px; font-weight: 400; color: #1C1B3A;
