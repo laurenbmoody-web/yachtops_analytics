@@ -2999,7 +2999,7 @@ const SupplierOrderDetail = () => {
         order={order}
         items={items}
         canEdit={canEdit}
-        invoice={latestInvoice}
+        invoice={(order.invoices && order.invoices.length > 0) ? order.invoices[0] : null}
         onConfirmAll={handleConfirmAll}
         onStartPicking={() => navigate(`/supplier/orders/${order.id}/pick`)}
         onGenerateInvoice={() => setGenerateInvoiceOpen(true)}
