@@ -487,6 +487,13 @@
 .inv-menuitem.danger svg { color: #DC2626; }
 .inv-menuitem.danger:hover { background: #FEF0F0; color: #DC2626; }
 .inv-menu-sep { height: 1px; background: #F0F1F5; margin: 5px 6px; }
+/* ⋯ trigger sitting on a card's media overlay — give it a white pill */
+.inv-card-menu { opacity: 1 !important; }
+.inv-card-menu .inv-menutrigger {
+  background: rgba(255,255,255,0.92); border: 1px solid #E5E7EB; color: #6B7280;
+  width: 28px; height: 28px; border-radius: 8px;
+}
+.inv-card-menu .inv-menutrigger:hover { background: #FFFFFF; color: #1C1B3A; }
 
 /* ── editorial modal (permissions etc.) ─────────────────────── */
 .inv-modal {
