@@ -109,6 +109,25 @@ const suggestIconForName = (name) => {
   return null;
 };
 
+// Default icon for a top-level department folder (used when the folder has no
+// custom icon set) — so the root inventory page shows fitting icons, not pins.
+const DEPARTMENT_ICON_MAP = {
+  galley: 'ChefHat',
+  interior: 'Sofa',
+  bridge: 'Compass',
+  deck: 'Anchor',
+  engineering: 'Wrench',
+  admin: 'ClipboardList',
+  aviation: 'Plane',
+  science: 'FlaskConical',
+  medical: 'HeartPulse',
+  security: 'ShieldCheck',
+  spa: 'Flower2',
+  unfiled: 'Inbox',
+};
+const departmentIcon = (name) =>
+  DEPARTMENT_ICON_MAP?.[name?.trim()?.toLowerCase()] || suggestIconForName(name) || 'MapPin';
+
 const encodeSegment = (s) =>
   encodeURIComponent(s?.replace(/\//g, SLASH_PLACEHOLDER));
 
@@ -2861,9 +2880,56 @@ const LocationFirstInventory = () => {
 
   const pageTitle = currentFolderName || 'Inventory';
   const pageSubtitle = isRoot
-    ? 'Department folders'
+    ? null
     : pathSegments?.length === 1
     ? 'Select an area or view items' : pathSegments?.join(' → ');
+
+  // Canonical headline pattern: WORD, *qualifier*.
+  // root → INVENTORY, *Onboard*.  ·  department → INTERIOR, *Stores*.
+  // deeper → FOLDER, *Parent*.
+  const headlineWord = isRoot ? 'Inventory' : currentFolderName;
+  const headlineQualifier = isRoot
+    ? 'Onboard'
+    : pathSegments?.length === 1
+    ? 'Stores'
+    : pathSegments?.[pathSegments?.length - 2];
+
+  // Back link target — Dashboard at root, else the parent folder page.
+  const backLabel = isRoot
+    ? 'Back to Dashboard'
+    : `Back to ${pathSegments?.length === 1 ? 'Inventory' : pathSegments?.[pathSegments?.length - 2]}`;
+  const handleBackNav = () => {
+    if (isRoot) { navigate('/dashboard'); return; }
+    navigate(segmentsToUrl(pathSegments?.slice(0, -1)));
+  };
+
+  // Root meta bar — live figures worth knowing across all departments.
+  const rootMeta = React.useMemo(() => {
+    const list = allItems || [];
+    const qtyOf = (it) => {
+      const locs = it?.stockLocations || [];
+      if (locs?.length > 0) return locs?.reduce((s, l) => s + (l?.qty || 0), 0);
+      return it?.quantity ?? it?.totalQty ?? 0;
+    };
+    let units = 0;
+    let expiringSoon = 0;
+    const now = Date.now();
+    const in30 = now + 30 * 24 * 60 * 60 * 1000;
+    list?.forEach(it => {
+      units += Number(qtyOf(it)) || 0;
+      const raw = it?.expiryDate || it?.expiry_date;
+      if (raw) {
+        const t = new Date(raw)?.getTime();
+        if (!Number.isNaN(t) && t >= now && t <= in30) expiringSoon += 1;
+      }
+    });
+    return {
+      departments: subFolders?.length || 0,
+      items: list?.length || 0,
+      units,
+      expiringSoon,
+    };
+  }, [allItems, subFolders]);
 
   const handleExport = async ({ scope, format, includeImages, selectedFolderItems, selectedFoldersMeta, allFoldersMeta }) => {
     setIsExporting(true);
@@ -3087,40 +3153,26 @@ const LocationFirstInventory = () => {
       <Header />
       <div className="inv-wrap">
 
-        {/* Breadcrumb */}
-        <div className="inv-crumbs">
-          <button onClick={() => navigate('/dashboard')} className="inv-crumb">Dashboard</button>
-          <Icon name="ChevronRight" size={13} />
-          <button onClick={() => navigate('/inventory')} className="inv-crumb">Inventory</button>
-          {pathSegments?.map((seg, idx) => (
-            <React.Fragment key={idx}>
-              <Icon name="ChevronRight" size={13} />
-              {idx < pathSegments?.length - 1 ? (
-                <button
-                  onClick={() => navigate(segmentsToUrl(pathSegments?.slice(0, idx + 1)))}
-                  className="inv-crumb"
-                >
-                  {seg}
-                </button>
-              ) : (
-                <span className="inv-crumb-current">{seg}</span>
-              )}
-            </React.Fragment>
-          ))}
-        </div>
+        {/* Back link — Dashboard at root, else the parent folder page */}
+        <button onClick={handleBackNav} className="inv-back">
+          <Icon name="ArrowLeft" size={14} />
+          {backLabel}
+        </button>
 
         {/* Header Row */}
         <div className="inv-header">
           <div>
-            <div className="inv-eyebrow">{isRoot ? 'Inventory' : 'Inventory · ' + (pathSegments?.[0] || '')}</div>
-            <h1 className="inv-title">{pageTitle}</h1>
-            <p className="inv-subtitle">{pageSubtitle}</p>
+            <h1 className="inv-headline">
+              {String(headlineWord || 'Inventory').toUpperCase()}<span className="punc">,</span>{' '}
+              <em>{headlineQualifier}</em><span className="punc">.</span>
+            </h1>
+            {pageSubtitle && <p className="inv-subtitle">{pageSubtitle}</p>}
           </div>
           <div className="inv-actions">
             <button
               onClick={() => setShowExportModal(true)}
               className="inv-btn ghost"
-              title="Export Inventory"
+              title="Export inventory"
             >
               <Icon name="Download" size={15} />
               <span className="hidden sm:inline">Export</span>
@@ -3128,27 +3180,42 @@ const LocationFirstInventory = () => {
             <button
               onClick={() => setShowAzureImportModal(true)}
               className="inv-btn accent"
-              title="Import from PDF / Document (Azure AI)"
+              title="Import inventory from PDF / spreadsheet"
             >
               <Icon name="FileText" size={15} />
-              <span className="hidden sm:inline">Import document</span>
+              <span className="hidden sm:inline">Import inventory</span>
             </button>
-            <AddDropdownButton
-              isRoot={isRoot}
-              onAddFolder={() => setShowAddFolderModal(true)}
-              onAddItem={() => { setEditingItem(null); setShowAddModal(true); }}
-            />
             {!isRoot && (
-              <button
-                onClick={handleBack}
-                className="inv-btn ghost"
-              >
-                <Icon name="ArrowLeft" size={15} />
-                Back
-              </button>
+              <AddDropdownButton
+                isRoot={isRoot}
+                onAddFolder={() => setShowAddFolderModal(true)}
+                onAddItem={() => { setEditingItem(null); setShowAddModal(true); }}
+              />
             )}
           </div>
         </div>
+
+        {/* Meta bar — live figures across all departments (root only) */}
+        {isRoot && (
+          <div className="inv-meta">
+            <div className="inv-meta-cell">
+              <div className="inv-meta-num">{rootMeta?.departments}</div>
+              <div className="inv-meta-label">Departments</div>
+            </div>
+            <div className="inv-meta-cell">
+              <div className="inv-meta-num">{rootMeta?.items?.toLocaleString()}</div>
+              <div className="inv-meta-label">Items tracked</div>
+            </div>
+            <div className="inv-meta-cell">
+              <div className="inv-meta-num">{rootMeta?.units?.toLocaleString()}</div>
+              <div className="inv-meta-label">Units in stock</div>
+            </div>
+            <div className="inv-meta-cell">
+              <div className={`inv-meta-num${rootMeta?.expiringSoon > 0 ? ' accent' : ''}`}>{rootMeta?.expiringSoon}</div>
+              <div className="inv-meta-label">Expiring ≤ 30 days</div>
+            </div>
+          </div>
+        )}
 
         {/* Toolbar */}
         {!isRoot && (
@@ -3311,7 +3378,7 @@ const LocationFirstInventory = () => {
                     const isReadOnly = isFolderReadOnly(folderName);
                     const showCog = shouldShowCog(folderName);
                     const meta = folderTree?.[pathKey(pathSegments)]?.folderMeta?.[folderName] || {};
-                    const folderIcon = meta?.icon || (isRoot ? 'MapPin' : 'FolderOpen');
+                    const folderIcon = meta?.icon || (isRoot ? departmentIcon(folderName) : 'FolderOpen');
                     const folderColor = meta?.color || null;
                     return (
                       <SortableFolderCard
@@ -3344,7 +3411,7 @@ const LocationFirstInventory = () => {
             {activeDragId ? (
               <FolderCard
                 name={activeDragId}
-                icon={folderTree?.[pathKey(pathSegments)]?.folderMeta?.[activeDragId]?.icon || (isRoot ? 'MapPin' : 'FolderOpen')}
+                icon={folderTree?.[pathKey(pathSegments)]?.folderMeta?.[activeDragId]?.icon || (isRoot ? departmentIcon(activeDragId) : 'FolderOpen')}
                 color={folderTree?.[pathKey(pathSegments)]?.folderMeta?.[activeDragId]?.color || null}
                 itemCount={itemCounts?.[activeDragId] ?? 0}
                 subFolderCount={0}

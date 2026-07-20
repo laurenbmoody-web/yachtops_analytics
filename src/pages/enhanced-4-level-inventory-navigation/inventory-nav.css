@@ -19,6 +19,49 @@
 }
 .inv-wrap { max-width: none; width: 100%; }
 
+/* ── back link (contextual, replaces breadcrumb) ────────────── */
+.inv-back {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; cursor: pointer;
+  font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #6E6B85; padding: 2px 0; margin-bottom: 16px;
+  transition: color 0.14s;
+}
+.inv-back:hover { color: #C65A1A; }
+.inv-back svg { transition: transform 0.14s; }
+.inv-back:hover svg { transform: translateX(-2px); }
+
+/* ── app-canonical headline: WORD, *qualifier*. ─────────────── */
+.inv-headline {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 500; font-size: 46px; line-height: 0.98; letter-spacing: -1px;
+  color: #1C1B3A; text-transform: uppercase; margin: 0;
+}
+.inv-headline em { font-style: italic; font-weight: 400; color: #C65A1A; text-transform: none; }
+.inv-headline .punc { color: #1C1B3A; }
+
+/* ── meta bar — figures on a hairline, no box ───────────────── */
+.inv-meta {
+  display: flex; flex-wrap: wrap; gap: 0;
+  border-top: 1px solid #E5E7EB; border-bottom: 1px solid #E5E7EB;
+  margin: 20px 0 26px;
+}
+.inv-meta-cell {
+  padding: 14px 26px 14px 0; margin-right: 26px;
+  border-right: 1px solid #EEF0F4;
+}
+.inv-meta-cell:last-child { border-right: none; margin-right: 0; }
+.inv-meta-num {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 26px; line-height: 1; color: #1C1B3A;
+  font-variant-numeric: tabular-nums;
+}
+.inv-meta-num.accent { color: #C65A1A; }
+.inv-meta-label {
+  font-family: 'Inter', system-ui, sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-top: 6px;
+}
+
 /* ── breadcrumb ─────────────────────────────────────────────── */
 .inv-crumbs {
   display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
