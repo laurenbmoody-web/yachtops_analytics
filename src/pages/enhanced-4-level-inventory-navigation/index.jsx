@@ -1809,28 +1809,34 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
   };
   const cancelRename = () => { setEditing(false); setDraft(name); };
 
+  const gripEl = canEdit && dragHandleProps ? (
+    <div
+      {...dragHandleProps}
+      onClick={(e) => e?.stopPropagation()}
+      className="inv-grip"
+      title="Drag to reorder or hold over a folder to move inside"
+    >
+      <Icon name="GripVertical" size={14} />
+    </div>
+  ) : null;
+
+  const iconEl = (
+    <div
+      className={color ? 'inv-folder-icon' : 'inv-folder-icon plain'}
+      style={color ? { backgroundColor: color + '22', border: `1.5px solid ${color}44` } : undefined}
+    >
+      <Icon
+        name={icon || (depth === 0 ? 'MapPin' : 'FolderOpen')}
+        size={20}
+        style={color ? { color } : undefined}
+      />
+    </div>
+  );
+
   const lead = (
     <div className="inv-folder-lead">
-      {canEdit && dragHandleProps && (
-        <div
-          {...dragHandleProps}
-          onClick={(e) => e?.stopPropagation()}
-          className="inv-grip"
-          title="Drag to reorder or hold over a folder to move inside"
-        >
-          <Icon name="GripVertical" size={14} />
-        </div>
-      )}
-      <div
-        className={color ? 'inv-folder-icon' : 'inv-folder-icon plain'}
-        style={color ? { backgroundColor: color + '22', border: `1.5px solid ${color}44` } : undefined}
-      >
-        <Icon
-          name={icon || (depth === 0 ? 'MapPin' : 'FolderOpen')}
-          size={20}
-          style={color ? { color } : undefined}
-        />
-      </div>
+      {gripEl}
+      {iconEl}
     </div>
   );
 
@@ -1888,7 +1894,7 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
 
   const cls = [
     'inv-folder',
-    layout === 'list' ? 'row' : '',
+    layout === 'list' ? 'row' : 'square',
     isDragging ? 'dragging' : '',
     isFolderDropTarget && isDropTargetReady ? 'droptarget-ready' : isFolderDropTarget ? 'droptarget' : '',
   ]?.join(' ');
@@ -1909,12 +1915,12 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
     );
   }
 
+  // Grid → square, centred tile.
   return (
     <div onClick={handleTileClick} className={cls}>
-      <div className="inv-folder-top">
-        {lead}
-        {actions}
-      </div>
+      {gripEl}
+      <div className="inv-folder-corner">{actions}</div>
+      {iconEl}
       {nameEl}
       {meta}
     </div>
