@@ -50,12 +50,6 @@ const normName = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim
 const NAME_SYNONYMS = { master: 'owner', owners: 'owner', wc: 'head', toilet: 'head', bathroom: 'head', ensuite: 'head', salon: 'saloon', lounge: 'saloon', accomodation: 'accommodation', accom: 'accommodation' };
 const matchKey = (s) => normName(s).split(' ').map((w) => NAME_SYNONYMS[w] || w).join(' ').trim();
 
-// Words too generic to signal "same room" (every cabin shares "cabin"). Used to
-// decide when to even offer a reconcile row — only when two names share a real,
-// specific word, so the panel stays empty unless there's a genuine maybe-dup.
-const GENERIC_TOKENS = new Set(['room', 'cabin', 'space', 'area', 'deck', 'guest', 'crew', 'lower', 'upper', 'main', 'the', 'port', 'stbd', 'starboard']);
-const sigTokens = (s) => matchKey(s).split(' ').filter((t) => t.length >= 4 && !GENERIC_TOKENS.has(t));
-const namesSimilar = (a, b) => { const ta = new Set(sigTokens(a)); return sigTokens(b).some((t) => ta.has(t)); };
 
 // Box aspect of a deck's crop, in true pixels (undistorted).
 const boxAspectOf = (crop, dims) => (crop.w * dims.w) / (crop.h * dims.h) || 3;
@@ -657,20 +651,29 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           idxs.forEach((i, k) => { nodesByIdx[i] = parts[k] || null; });
         }
       });
+      // Outline ONLY the rooms the crew already set up. Detect matches each read
+      // label to an existing room and outlines it — it never creates rooms of its
+      // own (that caused duplicate pins). Read labels with no matching room are
+      // listed so the crew knows what to add, then re-detect.
       const used = new Set();
-      let dropped = 0;
+      const unmatched = [];
       const items = rooms.map((r, idx) => {
-        // Region-only: a room is shown only if its seed resolved to a real region
-        // (single or split). No region → dropped, not a loose/floating box.
         const nodes = nodesByIdx[idx];
-        if (!nodes) { dropped += 1; return null; }
+        if (!nodes) return null;
         const matchedSpaceId = matchSpaceId(r.name, spaces, used);
-        if (matchedSpaceId) used.add(matchedSpaceId);
-        return { name: r.name, matchedSpaceId, create: !matchedSpaceId, nodes, traced: true };
+        if (!matchedSpaceId) { unmatched.push(r.name); return null; }
+        used.add(matchedSpaceId);
+        const sp = spaces.find((s) => s.id === matchedSpaceId);
+        return { name: sp?.name || r.name, matchedSpaceId, create: false, nodes, traced: true };
       }).filter(Boolean);
-      if (dropped) console.info(`[deck-plan] dropped ${dropped} room(s) with no usable region`);
-      if (!items.length) { setDetectError({ deckId: deck.id, message: 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' }); return; }
-      setProposals({ deckId: deck.id, items });
+      const unmatchedNames = [...new Set(unmatched)];
+      if (!items.length) {
+        setDetectError({ deckId: deck.id, message: unmatchedNames.length
+          ? `Read ${unmatchedNames.length} room(s) but none matched your list — add them first (${unmatchedNames.slice(0, 6).join(', ')}${unmatchedNames.length > 6 ? '…' : ''}), then Detect again.`
+          : 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' });
+        return;
+      }
+      setProposals({ deckId: deck.id, items, unmatchedNames });
     } catch (err) {
       console.error('[deck-plan] detect error:', err);
       setDetectError({ deckId: deck.id, message: err?.message || 'Could not detect rooms on this deck.' });
@@ -679,46 +682,35 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     }
   };
 
-  // Reconcile a read name to an existing room (or back to "create new"), so a
-  // plan label the crew named differently doesn't spawn a duplicate.
-  const setItemAssign = (idx, spaceId) => {
-    setProposals((p) => (p ? { ...p, items: p.items.map((it, i) => (i === idx ? { ...it, assignTo: spaceId || null } : it)) } : p));
+  // Add a room to a deck straight from Plan view (no jumping to Grid/Carousel).
+  // Creates a space under the deck's first zone (making one if the deck has none).
+  const addRoom = async (deck) => {
+    // eslint-disable-next-line no-alert
+    const name = window.prompt(`Add a room to ${deck.name}:`)?.trim();
+    if (!name) return;
+    try {
+      let zoneId = deck.zones?.[0]?.id || null;
+      if (!zoneId) { const z = await createZone(deck.id, 'General'); zoneId = z.id; }
+      await createSpace(zoneId, name);
+      await onReloadRef.current?.();
+    } catch (err) {
+      console.error('[deck-plan] add room error:', err);
+      setDetectError({ deckId: deck.id, message: err?.message || 'Could not add the room.' });
+    }
   };
 
-  // Land every proposal: create the new rooms (unmatched labels) under the deck,
-  // then write each outline + centre point onto its room. Reloads the gallery so
-  // freshly-created rooms appear.
+  // Land the outlines onto the crew's existing rooms (Detect never creates rooms).
   const applyProposals = async (deck) => {
     if (!proposals || applying) return;
     setApplying(true);
     try {
-      // A space needs a parent zone — use the deck's first zone, or make one.
-      let zoneId = deck.zones?.[0]?.id || null;
-      // "assignTo" (crew mapped a read name to an existing room) counts as matched,
-      // not a create — that's how we avoid duplicate rooms.
-      const needsCreate = proposals.items.some((it) => it.create && !it.assignTo);
-      if (needsCreate && !zoneId) {
-        const z = await createZone(deck.id, 'General');
-        zoneId = z.id;
-      }
       for (const it of proposals.items) {
-        let spaceId = it.matchedSpaceId || it.assignTo || null;
-        if (!spaceId && it.create) {
-          try {
-            const sp = await createSpace(zoneId, it.name);
-            spaceId = sp.id;
-          } catch (err) {
-            console.error('[deck-plan] create room failed:', it.name, err);
-            continue; // e.g. RLS (crew) — skip, leave the rest
-          }
-        }
-        if (!spaceId) continue;
-        await setSpaceShape(spaceId, { closed: true, nodes: it.nodes }).catch((e) => console.error('[deck-plan] shape save', e));
+        if (!it.matchedSpaceId) continue;
+        await setSpaceShape(it.matchedSpaceId, { closed: true, nodes: it.nodes }).catch((e) => console.error('[deck-plan] shape save', e));
         const c = centroidOf(it.nodes);
-        if (c) await setSpacePosition(spaceId, c.x, c.y).catch((e) => console.error('[deck-plan] pos save', e));
+        if (c) await setSpacePosition(it.matchedSpaceId, c.x, c.y).catch((e) => console.error('[deck-plan] pos save', e));
       }
       setProposals(null);
-      if (needsCreate) await onReloadRef.current?.(); // pull in the new rooms
     } catch (err) {
       console.error('[deck-plan] apply proposals error:', err);
       setDetectError({ deckId: deck.id, message: err?.message || 'Could not apply the outlines.' });
@@ -812,6 +804,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   <span className="dp-linkbtn-label">{detecting === deck.id ? 'Reading plan…' : 'Detect rooms'}</span>
                 </button>
               )}
+              {!traceMode && <button className="lg-btn sm" onClick={() => addRoom(deck)} title="Add a room to this deck">+ Add room</button>}
               {/* When unframed, the big "Frame this deck" box below is the single
                   call-to-action; only offer Reframe once it's framed. */}
               {crop && !traceMode && <button className="lg-btn sm" onClick={() => setFramingDeck(deck)}>Reframe</button>}
@@ -875,48 +868,19 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
 
             {deckProps && (() => {
               const total = deckProps.items.length;
-              const newCount = deckProps.items.filter((i) => i.create && !i.assignTo).length;
-              const matchCount = total - newCount; // auto-matched + reconciled-to-existing
-              const matchedIds = new Set(deckProps.items.filter((i) => i.matchedSpaceId).map((i) => i.matchedSpaceId));
-              const baseCandidates = spaces.filter((s) => !shapeOf(s) && !matchedIds.has(s.id));
-              // Only offer a reconcile row where a read name plausibly IS an existing
-              // room (shares a specific word) — otherwise it's genuinely new, no row.
-              const candidatesFor = (it, idx) => baseCandidates.filter((s) =>
-                namesSimilar(it.name, s.name) && !deckProps.items.some((o, oi) => oi !== idx && o.assignTo === s.id));
-              const reconcileItems = deckProps.items
-                .map((it, i) => ({ it, i, opts: candidatesFor(it, i) }))
-                .filter(({ it, opts }) => it.create && (opts.length > 0 || it.assignTo));
-              const showReconcile = reconcileItems.length > 0;
+              const unm = deckProps.unmatchedNames || [];
               return (
-                <>
-                  <div className="dp-tracehint dp-ai-review">
-                    <span>
-                      <b className="dp-ai-spark">✦ AI</b> traced <b>{total}</b> — <b>{matchCount}</b> matched
-                      {newCount > 0 && <>, <b>{newCount}</b> new (<span className="dp-ai-unmatched">will be created</span>)</>}.
-                    </span>
-                    <span className="dp-spring" />
-                    <button className="lg-btn-primary sm" disabled={!total || applying} onClick={() => applyProposals(deck)}>
-                      {applying ? 'Applying…' : newCount > 0 ? `Create ${newCount} & apply ${total}` : `Apply ${total}`}
-                    </button>
-                    <button className="lg-btn sm" disabled={applying} onClick={() => setProposals(null)}>Discard</button>
-                  </div>
-                  {showReconcile && (
-                    <div className="dp-reconcile">
-                      <div className="dp-reconcile-hd">These read names look like rooms you may already have — map any that match, or leave as new.</div>
-                      <div className="dp-reconcile-rows">
-                        {reconcileItems.map(({ it, i, opts }) => (
-                          <label className="dp-reconcile-row" key={i}>
-                            <span className="dp-recon-name">✦ {it.name}</span>
-                            <select className="dp-recon-sel" value={it.assignTo || ''} onChange={(e) => setItemAssign(i, e.target.value || null)}>
-                              <option value="">Create new room</option>
-                              {opts.map((s) => <option key={s.id} value={s.id}>= {s.name}</option>)}
-                            </select>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
+                <div className="dp-tracehint dp-ai-review">
+                  <span>
+                    <b className="dp-ai-spark">✦ AI</b> outlined <b>{total}</b> of your room{total === 1 ? '' : 's'}.
+                    {unm.length > 0 && <span className="dp-ai-unmatched"> {unm.length} read label{unm.length === 1 ? '' : 's'} not in your list (add them, then Detect again).</span>}
+                  </span>
+                  <span className="dp-spring" />
+                  <button className="lg-btn-primary sm" disabled={!total || applying} onClick={() => applyProposals(deck)}>
+                    {applying ? 'Applying…' : `Apply ${total}`}
+                  </button>
+                  <button className="lg-btn sm" disabled={applying} onClick={() => setProposals(null)}>Discard</button>
+                </div>
               );
             })()}
 
@@ -1009,7 +973,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       : normCategory(inferCategory(it.name));
                     return (
                       <span key={i} className="dp-proposal-label" style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%`, background: categoryColor(cat) }}>
-                        ✦ {it.name}{it.create && !it.assignTo ? ' +' : ''}
+                        ✦ {it.name}
                       </span>
                     );
                   })}
