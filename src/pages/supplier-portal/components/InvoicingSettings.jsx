@@ -27,6 +27,7 @@ const formFromProfile = (p) => ({
   business_city:                 p?.business_city ?? '',
   business_postal_code:          p?.business_postal_code ?? '',
   business_state_region:         p?.business_state_region ?? '',
+  vat_registered:                p?.vat_registered ?? true,
   vat_number:                    p?.vat_number ?? '',
   company_registration_number:   p?.company_registration_number ?? '',
   default_currency:              p?.default_currency ?? 'EUR',
@@ -259,17 +260,36 @@ const BusinessDetailsSection = ({ form, set, validationErrors }) => {
         />
       </div>
 
+      {/* VAT-registration flag — when off, the invoice flow stops prompting for
+          a number and no VAT number field is shown. */}
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, margin: '4px 0 14px', cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={form.vat_registered !== false}
+          onChange={(e) => set('vat_registered', e.target.checked)}
+          style={{ width: 16, height: 16, marginTop: 1, accentColor: '#C65A1A', cursor: 'pointer' }}
+        />
+        <span style={{ fontSize: 13, color: 'var(--fg)' }}>
+          Registered for {preset?.taxName || 'VAT'}
+          <span style={{ display: 'block', fontSize: 11.5, color: 'var(--muted-strong)', marginTop: 2, lineHeight: 1.45 }}>
+            Turn off if you're not {preset?.taxName || 'VAT'}-registered — invoices won't ask for a number.
+          </span>
+        </span>
+      </label>
+
       <div className="sp-field-row">
-        <div className="sp-field">
-          <label className="sp-field-label">{preset?.taxName || 'VAT'} number</label>
-          <input
-            type="text"
-            className="sp-field-input"
-            value={form.vat_number}
-            onChange={(e) => set('vat_number', e.target.value)}
-            placeholder={preset?.vatRegistrationFormat || 'Optional'}
-          />
-        </div>
+        {form.vat_registered !== false && (
+          <div className="sp-field">
+            <label className="sp-field-label">{preset?.taxName || 'VAT'} number</label>
+            <input
+              type="text"
+              className="sp-field-input"
+              value={form.vat_number}
+              onChange={(e) => set('vat_number', e.target.value)}
+              placeholder={preset?.vatRegistrationFormat || 'Optional'}
+            />
+          </div>
+        )}
         <div className="sp-field">
           <label className="sp-field-label">Company registration number</label>
           <input
