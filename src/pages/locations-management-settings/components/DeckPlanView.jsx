@@ -645,17 +645,39 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       // is the true wall boundary (tolerant of a loose seed). Flood-fill/box only
       // as a fallback when a seed doesn't land in a usable region.
       const seg = segmentDeck(imageData);
-      // Which enclosed region each room's seed lands in.
-      const roomRegion = rooms.map((r) => ({ r, region: regionAtPoint(seg, r.seed.x, r.seed.y) }));
-      // Group by region. A region with ONE seed → its outline. A region with
-      // SEVERAL seeds → rooms that flooded together (thin/undrawn wall); split it
-      // by watershed so each gets its own part. Single-room regions are untouched.
-      const byRegion = new Map();
-      roomRegion.forEach((rr, idx) => {
-        if (!rr.region) return;
-        if (!byRegion.has(rr.region.id)) byRegion.set(rr.region.id, []);
-        byRegion.get(rr.region.id).push(idx);
+      const items = [];
+      const used = new Set();       // spaces already claimed by an outline
+      const claimed = new Map();    // regionId → true (a pin already owns this region)
+
+      // ── Pin pass ──────────────────────────────────────────────────────────
+      // A pin the crew already dropped is ground truth. Trace the wall-region
+      // that pin sits inside and hang the room on it — so Detect outlines the
+      // exact room the crew marked (e.g. the Wheelhouse), not wherever the model
+      // guessed. The model's own reading of that room is then ignored.
+      spacesOf(deck).forEach((s) => {
+        const pin = posOf(s);
+        if (!pin) return;
+        const region = regionAtPoint(seg, pin.x, pin.y);
+        if (!region || claimed.has(region.id)) return;
+        const nodes = regionContour(seg, region);
+        if (!nodes) return;
+        claimed.set(region.id, true);
+        used.add(s.id);
+        items.push({ name: s.name, matchedSpaceId: s.id, create: false, nodes, traced: true, anchored: true });
       });
+
+      // ── Model pass ────────────────────────────────────────────────────────
+      // Which enclosed region each read seed lands in — skipping regions a pin
+      // already owns (that room is done).
+      const byRegion = new Map();
+      rooms.forEach((r, idx) => {
+        const region = regionAtPoint(seg, r.seed.x, r.seed.y);
+        if (!region || claimed.has(region.id)) return;
+        if (!byRegion.has(region.id)) byRegion.set(region.id, []);
+        byRegion.get(region.id).push(idx);
+      });
+      // A region with ONE seed → its outline. SEVERAL seeds → rooms that flooded
+      // together (thin/undrawn wall); split by watershed so each gets its part.
       const nodesByIdx = new Array(rooms.length).fill(null);
       byRegion.forEach((idxs, regionId) => {
         const region = seg.regionById.get(regionId);
@@ -666,19 +688,18 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           idxs.forEach((i, k) => { nodesByIdx[i] = parts[k] || null; });
         }
       });
-      // Trace what it sees: every detected region becomes an outline. Where a read
-      // label clearly matches a room the crew already set up, it outlines THAT room
-      // (no duplicate); otherwise it's a new room (with the plan's label) for the
-      // crew to rename or delete. Detect never gates on names.
-      const used = new Set();
-      const items = rooms.map((r, idx) => {
+      // Trace what it sees: every remaining region becomes an outline. Where a
+      // read label clearly matches an UNPLACED room the crew set up, it outlines
+      // that room; otherwise it's a new draft the crew can rename or delete right
+      // here before applying. Detect never gates on names.
+      rooms.forEach((r, idx) => {
         const nodes = nodesByIdx[idx];
-        if (!nodes) return null;
+        if (!nodes) return;
         const matchedSpaceId = matchSpaceId(r.name, spaces, used);
         if (matchedSpaceId) used.add(matchedSpaceId);
         const sp = matchedSpaceId ? spaces.find((s) => s.id === matchedSpaceId) : null;
-        return { name: sp?.name || r.name, matchedSpaceId, create: !matchedSpaceId, nodes, traced: true };
-      }).filter(Boolean);
+        items.push({ name: sp?.name || r.name, matchedSpaceId, create: !matchedSpaceId, nodes, traced: true });
+      });
       if (!items.length) { setDetectError({ deckId: deck.id, message: 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' }); return; }
       setProposals({ deckId: deck.id, items });
     } catch (err) {
@@ -718,6 +739,23 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       console.error('[deck-plan] delete room error:', err);
       setDetectError({ deckId: deck.id, message: err?.message || 'Could not delete the room.' });
     }
+  };
+
+  // Review-stage edits (before anything is committed): rename a proposed outline
+  // or drop it from the batch. Nothing hits the database until Apply.
+  const renameProposal = (i) => {
+    const it = proposals?.items[i];
+    if (!it) return;
+    // eslint-disable-next-line no-alert
+    const name = window.prompt('Rename this outline:', it.name)?.trim();
+    if (!name) return;
+    setProposals((p) => ({ ...p, items: p.items.map((x, k) => (k === i ? { ...x, name } : x)) }));
+  };
+  const removeProposal = (i) => {
+    setProposals((p) => {
+      const items = p.items.filter((_, k) => k !== i);
+      return items.length ? { ...p, items } : null;
+    });
   };
 
   // Land every traced outline: matched rooms get the shape; the rest are created
@@ -920,7 +958,8 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   <span>
                     <b className="dp-ai-spark">✦ AI</b> traced <b>{total}</b> room{total === 1 ? '' : 's'}
                     {matchCount > 0 && <> — <b>{matchCount}</b> matched</>}
-                    {newCount > 0 && <>{matchCount > 0 ? ', ' : ' — '}<b>{newCount}</b> new (<span className="dp-ai-unmatched">rename or delete after</span>)</>}.
+                    {newCount > 0 && <>{matchCount > 0 ? ', ' : ' — '}<b>{newCount}</b> new</>}.{' '}
+                    <span className="dp-ai-unmatched">Click a name to rename, × to remove — nothing saves until you Apply.</span>
                   </span>
                   <span className="dp-spring" />
                   <button className="lg-btn-primary sm" disabled={!total || applying} onClick={() => applyProposals(deck)}>
@@ -1033,7 +1072,11 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       </div>
                     );
                   })}
-                  {/* AI proposal labels at each outline's centre. */}
+                  {/* Proposal labels at each outline's centre — editable before
+                      apply: click the name to rename, × to drop it from the batch.
+                      Matched (or pin-anchored) rooms show the crew's own name; new
+                      draft outlines are marked so the suggested name reads as a
+                      starting point, not something imposed. */}
                   {deckProps && deckProps.items.map((it, i) => {
                     const c = centroidOf(it.nodes);
                     if (!c) return null;
@@ -1041,8 +1084,11 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       ? categoryOf(spaces.find((s) => s.id === it.matchedSpaceId) || { id: it.matchedSpaceId, name: it.name })
                       : normCategory(inferCategory(it.name));
                     return (
-                      <span key={i} className="dp-proposal-label" style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%`, background: categoryColor(cat) }}>
-                        ✦ {it.name}
+                      <span key={i} className={`dp-proposal-label ${it.create ? 'is-new' : ''}`} style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%`, background: categoryColor(cat) }}>
+                        <button type="button" className="dp-proposal-name" onClick={(e) => { e.stopPropagation(); renameProposal(i); }} title="Rename this outline">
+                          {it.anchored ? '📍' : '✦'} {it.name}
+                        </button>
+                        <button type="button" className="dp-proposal-x" onClick={(e) => { e.stopPropagation(); removeProposal(i); }} title="Remove this outline">×</button>
                       </span>
                     );
                   })}
