@@ -5,7 +5,7 @@ import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
-import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, duplicateFolder, moveFolderToTrash, restoreFromTrash, listTrash, purgeTrashRecord, emptyTrash, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
+import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, duplicateFolder, moveFolderToTrash, moveItemToTrash, moveItemsToTrash, restoreFromTrash, listTrash, purgeTrashRecord, emptyTrash, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
 import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
 import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
@@ -842,8 +842,8 @@ const BulkDeleteConfirmModal = ({ selectedCount, onClose, onConfirm }) => {
       <div className="inv-confirm">
         <div className="inv-confirm-icon danger"><Icon name="Trash2" size={18} /></div>
         <div>
-          <p className="inv-confirm-title">This can't be undone</p>
-          <p className="inv-confirm-text"><b>{selectedCount} item{selectedCount !== 1 ? 's' : ''}</b> will be permanently removed from inventory.</p>
+          <p className="inv-confirm-title">Moves to Trash</p>
+          <p className="inv-confirm-text"><b>{selectedCount} item{selectedCount !== 1 ? 's' : ''}</b> will be removed. You can restore from Trash for 30 days.</p>
         </div>
       </div>
       <div className="inv-modal-actions">
@@ -1220,8 +1220,8 @@ const ItemDeleteModal = ({ item, onClose, onConfirm }) => (
     <div className="inv-confirm">
       <div className="inv-confirm-icon danger"><Icon name="Trash2" size={18} /></div>
       <div>
-        <p className="inv-confirm-title">This can't be undone</p>
-        <p className="inv-confirm-text"><b>{item?.name}</b> will be permanently removed from inventory.</p>
+        <p className="inv-confirm-title">Moves to Trash</p>
+        <p className="inv-confirm-text"><b>{item?.name}</b> will be removed. You can restore it from Trash for 30 days.</p>
       </div>
     </div>
     <div className="inv-modal-actions">
@@ -1241,7 +1241,7 @@ const TrashModal = ({ items, loading, onClose, onRestore, onPurge, onEmpty, canE
       </div>
       <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
     </div>
-    <p className="inv-modal-sub">Deleted folders are kept for 30 days, then permanently removed.</p>
+    <p className="inv-modal-sub">Deleted items and folders are kept for 30 days, then permanently removed.</p>
     {loading ? (
       <div style={{ padding: '34px 0', textAlign: 'center' }}><LogoSpinner size={20} /></div>
     ) : (items?.length === 0 ? (
@@ -2823,12 +2823,20 @@ const LocationFirstInventory = () => {
     loadData();
   };
 
+  const showUndoToast = (name, trashId) => {
+    if (!trashId) return;
+    if (undoTimerRef?.current) clearTimeout(undoTimerRef.current);
+    setUndoToast({ name, trashId });
+    undoTimerRef.current = setTimeout(() => setUndoToast(null), 9000);
+  };
+
   const handleConfirmDeleteItem = async () => {
     const item = deletingItem;
     setDeletingItem(null);
     if (!item) return;
-    await deleteItem(item?.id);
-    loadData();
+    const trashId = await moveItemToTrash(item?.id);
+    await loadData();
+    showUndoToast(item?.name, trashId);
   };
 
   // Duplicate a single item in place — fresh id + Cargo ID, name + " (copy)".
@@ -3109,10 +3117,12 @@ const LocationFirstInventory = () => {
   const handleBulkDelete = async () => {
     const ids = [...selectedItemIds];
     if (!ids?.length) return;
-    const success = await bulkDeleteItemsByIds(ids);
-    if (success) {
+    const count = ids.length;
+    const trashId = await moveItemsToTrash(ids);
+    if (trashId) {
       setSelectedItemIds(new Set());
       await loadData();
+      showUndoToast(`${count} item${count !== 1 ? 's' : ''}`, trashId);
     }
   };
 

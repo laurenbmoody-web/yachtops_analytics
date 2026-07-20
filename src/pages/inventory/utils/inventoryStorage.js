@@ -1619,6 +1619,72 @@ export const moveFolderToTrash = async (parentSegments, name, folderPath = null)
   }
 };
 
+/**
+ * Delete a single item into the recoverable Trash. Snapshots the item row into
+ * inventory_trash, then removes it. Returns the trash record id, or null.
+ */
+export const moveItemToTrash = async (itemId) => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId || !itemId) return null;
+    const { data: { session } } = await supabase?.auth?.getSession();
+    const { data: row } = await supabase?.from('inventory_items')?.select('*')?.eq('id', itemId)?.eq('tenant_id', tenantId)?.single();
+    if (!row) return null;
+    const path = [row?.location, row?.sub_location]?.filter(Boolean)?.join(' › ');
+    const { data: rec, error } = await supabase
+      ?.from('inventory_trash')
+      ?.insert({
+        tenant_id: tenantId,
+        deleted_by: session?.user?.id || null,
+        folder_name: row?.name || 'Item',
+        parent_segments: [],
+        folder_path: path || null,
+        item_count: 1,
+        folder_count: 0,
+        payload: { locations: [], items: [row] },
+      })
+      ?.select('id')?.single();
+    if (error) { console.error('[inventoryStorage] moveItemToTrash insert error:', error?.message); return null; }
+    const ok = await deleteItem(itemId);
+    if (!ok) { await supabase?.from('inventory_trash')?.delete()?.eq('id', rec?.id); return null; }
+    return rec?.id || null;
+  } catch (err) {
+    console.error('[inventoryStorage] moveItemToTrash exception:', err?.message);
+    return null;
+  }
+};
+
+/** Delete many items into Trash as one record. Returns the trash id, or null. */
+export const moveItemsToTrash = async (itemIds) => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId || !itemIds?.length) return null;
+    const { data: { session } } = await supabase?.auth?.getSession();
+    const { data: rows } = await supabase?.from('inventory_items')?.select('*')?.eq('tenant_id', tenantId)?.in('id', itemIds);
+    if (!rows?.length) return null;
+    const { data: rec, error } = await supabase
+      ?.from('inventory_trash')
+      ?.insert({
+        tenant_id: tenantId,
+        deleted_by: session?.user?.id || null,
+        folder_name: `${rows?.length} items`,
+        parent_segments: [],
+        folder_path: rows?.[0]?.location || null,
+        item_count: rows?.length,
+        folder_count: 0,
+        payload: { locations: [], items: rows },
+      })
+      ?.select('id')?.single();
+    if (error) { console.error('[inventoryStorage] moveItemsToTrash insert error:', error?.message); return null; }
+    const ok = await bulkDeleteItemsByIds(itemIds);
+    if (!ok) { await supabase?.from('inventory_trash')?.delete()?.eq('id', rec?.id); return null; }
+    return rec?.id || null;
+  } catch (err) {
+    console.error('[inventoryStorage] moveItemsToTrash exception:', err?.message);
+    return null;
+  }
+};
+
 /** Restore a trashed folder (re-insert its snapshot) and remove the trash record. */
 export const restoreFromTrash = async (trashId) => {
   try {
