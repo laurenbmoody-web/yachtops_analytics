@@ -11,6 +11,8 @@
 /* Even top-of-page rhythm: back → meta → title share the same 14px gap. */
 .wm-wrap .lm-back { margin-bottom: 14px; }
 .wm-wrap .editorial-meta { margin: 0 0 14px; }
+/* Quick-info meta: the counts lead in terracotta so the eye lands on them. */
+.wm-meta .wm-metanum { font-weight: 800; color: #C65A1A; margin-right: 3px; }
 .wm-titlerow { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin: 0 0 22px; }
 
 .wm-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }

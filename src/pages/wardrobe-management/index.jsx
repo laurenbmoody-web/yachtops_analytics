@@ -46,10 +46,13 @@ const WardrobeManagement = () => {
           <button type="button" className="lm-back" onClick={() => navigate('/laundry-management-dashboard')}>
             <Icon name="ArrowLeft" size={16} /> Back to laundry
           </button>
-          <p className="editorial-meta">
-            <span className="dot">●</span><span>Housekeeping</span>
-            <span className="bar" /><span className="muted">Wardrobe management</span>
-            <span className="bar" /><span className="muted">Owner &amp; guest</span>
+          {/* Meta strip earns its place with quick live info, not a repeat of
+              the page title: owner garments on board + guests' items on board. */}
+          <p className="editorial-meta wm-meta">
+            <span className="dot">●</span>
+            <span><b className="wm-metanum">{ownerCount}</b> owner on board</span>
+            <span className="bar" />
+            <span><b className="wm-metanum">{guestCount}</b> guest on board</span>
           </p>
           {mode === 'hub' ? (
             <>
