@@ -602,25 +602,31 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           autotraceDeck({ imageBase64: cropSub(a, b), deckName: deck.name, roomNames: names })
             .then((rs) => rs.map((r) => ({ r, a, b })))
             .catch(() => [])));
-        // Remap each strip's seed/bbox back to full-deck 0..1; dedupe by name,
-        // keeping the reading whose seed sits most centrally in its strip.
-        const byName = new Map();
+        // Remap each strip's seed/bbox back to full-deck 0..1, then dedupe. Only
+        // merge same-name readings that are in the SAME place (one room caught in
+        // two overlapping strips) — two cabins that genuinely share a label (e.g.
+        // port + starboard "2×Officer") sit far apart and are BOTH kept, so each
+        // gets its own seed and the split can separate them.
+        const all = [];
         perSeg.flat().forEach(({ r, a, b }) => {
           if (!r.seed) return;
           const wdt = b - a;
-          const central = Math.min(r.seed.x, 1 - r.seed.x); // within-strip centrality
-          const key = normName(r.name);
-          const cur = byName.get(key);
-          if (cur && cur.central >= central) return;
-          byName.set(key, {
+          all.push({
             name: r.name,
             confidence: r.confidence,
-            central,
+            central: Math.min(r.seed.x, 1 - r.seed.x), // within-strip centrality
             seed: { x: a + r.seed.x * wdt, y: r.seed.y },
             bbox: r.bbox ? { x: a + r.bbox.x * wdt, y: r.bbox.y, w: r.bbox.w * wdt, h: r.bbox.h } : null,
           });
         });
-        rooms = [...byName.values()];
+        all.sort((x, y) => y.central - x.central); // prefer the most-central reading of a dup
+        const kept = [];
+        all.forEach((d) => {
+          const dup = kept.find((k) => normName(k.name) === normName(d.name)
+            && Math.hypot(k.seed.x - d.seed.x, k.seed.y - d.seed.y) < 0.1);
+          if (!dup) kept.push(d);
+        });
+        rooms = kept;
       }
       if (!rooms.length) { setDetectError({ deckId: deck.id, message: 'No rooms could be read from this deck. Try reframing it tighter around the plan.' }); return; }
       // Segment the whole deck into enclosed wall-regions once — the accurate
