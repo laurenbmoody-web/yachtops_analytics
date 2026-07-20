@@ -116,3 +116,30 @@
 .cf-check input { margin-top: 2px; }
 .cf-check b { font-size: 13.5px; color: #1C1B3A; }
 .cf-check-sub { display: block; font-size: 12px; color: #8B8478; margin-top: 2px; }
+
+/* Issue browser — Uniform-scoped folder tiles + selectable item rows w/ allocator. */
+.cf-crumb { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 0 22px 8px; }
+.cf-crumb-seg { background: none; border: none; padding: 0; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; cursor: pointer; }
+.cf-crumb-seg:last-child { color: #1C1B3A; }
+.cf-crumb-seg:hover { color: #C65A1A; }
+.cf-crumb-sep { color: #AEB4C2; font-size: 12px; }
+
+.cf-folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; margin-bottom: 6px; }
+.cf-folder { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; cursor: pointer; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px; font-family: inherit; transition: border-color 0.14s, transform 0.14s; }
+.cf-folder:hover { border-color: #C65A1A; transform: translateY(-1px); }
+.cf-folder-ic { color: #C65A1A; margin-bottom: 4px; }
+.cf-folder-nm { font-weight: 600; font-size: 13.5px; color: #1C1B3A; }
+.cf-folder-ct { font: 700 8px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.6px; text-transform: uppercase; color: #9A93A0; }
+
+.cf-issue { border-bottom: 1px solid #F0F1F5; padding: 12px 2px; }
+.cf-issue.on { background: #FBEFE9; border-radius: 10px; border-bottom-color: transparent; padding: 12px; margin: 2px -6px; }
+.cf-issue-top { display: flex; align-items: center; gap: 11px; }
+.cf-issue-check { background: none; border: none; padding: 0; color: #C65A1A; cursor: pointer; flex: none; }
+.cf-issue-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cf-issue-qty { display: flex; align-items: center; gap: 10px; margin: 11px 0 0 29px; }
+.cf-issue-qlbl { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.8px; text-transform: uppercase; color: #8B8478; margin-right: 2px; }
+.cf-qbtn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #E5E7EB; background: #FFFFFF; color: #1C1B3A; font-size: 18px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+.cf-qbtn:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
+.cf-qbtn:disabled { opacity: 0.4; cursor: default; }
+.cf-qnum { min-width: 26px; text-align: center; font-weight: 700; font-size: 15px; color: #1C1B3A; font-variant-numeric: tabular-nums; }
+.cf-issue-of { font-size: 11.5px; color: #AEB4C2; }
