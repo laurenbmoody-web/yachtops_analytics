@@ -50,9 +50,9 @@ const WardrobeManagement = () => {
               the page title: owner garments on board + guests' items on board. */}
           <p className="editorial-meta wm-meta">
             <span className="dot">●</span>
-            <span><b className="wm-metanum">{ownerCount}</b> owner on board</span>
+            <span><b className="wm-metanum">{ownerCount}</b> owner items</span>
             <span className="bar" />
-            <span><b className="wm-metanum">{guestCount}</b> guest on board</span>
+            <span><b className="wm-metanum">{guestCount}</b> guest items</span>
           </p>
           {mode === 'hub' ? (
             <>
@@ -68,7 +68,7 @@ const WardrobeManagement = () => {
                     <span className="wm-card-t">Owner</span>
                     <span className="wm-card-d">Resident garments that live on board, in their wardrobes. Pack, unpack, scan and view.</span>
                   </span>
-                  <span className="wm-card-n">{ownerCount}<small>on board</small></span>
+                  <span className="wm-card-go"><Icon name="ArrowRight" size={18} /></span>
                 </button>
 
                 <button type="button" className="wm-card" onClick={() => setShowCases(true)}>
@@ -77,7 +77,7 @@ const WardrobeManagement = () => {
                     <span className="wm-card-t">Guest</span>
                     <span className="wm-card-d">Guests’ cases for travel on and off the vessel. Pack, unpack, share a case with a guest.</span>
                   </span>
-                  <span className="wm-card-n">{guestCount}<small>on board</small></span>
+                  <span className="wm-card-go"><Icon name="ArrowRight" size={18} /></span>
                 </button>
               </div>
             </>

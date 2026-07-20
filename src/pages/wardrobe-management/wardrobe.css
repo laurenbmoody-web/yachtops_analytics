@@ -30,5 +30,5 @@
 .wm-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .wm-card-t { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: #1C1B3A; }
 .wm-card-d { font-size: 13px; line-height: 1.55; color: #6B7280; }
-.wm-card-n { flex: none; text-align: right; font-family: 'DM Serif Display', Georgia, serif; font-size: 24px; color: #1C1B3A; line-height: 1; }
-.wm-card-n small { display: block; font: 700 8px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #9A93A0; margin-top: 5px; }
+.wm-card-go { flex: none; align-self: center; color: #AEB4C2; transition: color 0.16s, transform 0.16s; }
+.wm-card:hover .wm-card-go { color: #C65A1A; transform: translateX(2px); }
