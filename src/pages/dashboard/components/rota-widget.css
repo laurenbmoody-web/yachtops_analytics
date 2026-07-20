@@ -54,8 +54,8 @@
 .rw-linkbtn { width: 100%; background: none; border: 0; padding: 9px; margin-top: 2px; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--rw-muted); cursor: pointer; }
 .rw-linkbtn:hover { color: var(--rw-navy); }
 /* Editable On/Off time trigger (the wheel's inline anchor). Inherits the big
-   serif .rw-tm; adds a button reset + a dashed terracotta affordance. */
-.rw-tm-edit { background: none; padding: 0 4px; cursor: pointer; border: 0; border-bottom: 2px dashed rgba(198, 90, 26, 0.45); border-radius: 4px 4px 0 0; }
+   serif .rw-tm; button reset + a soft hover only (no underline). */
+.rw-tm-edit { background: none; padding: 0 6px; cursor: pointer; border: 0; border-radius: 8px; }
 .rw-tm-edit:hover { background: #FAFAF8; }
 
 /* coming up — day strip (crew) */

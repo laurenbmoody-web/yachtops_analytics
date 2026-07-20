@@ -73,12 +73,6 @@ const worse = (a, b) => (RANK[a] >= RANK[b] ? a : b);
 // indices to log; end <= start wraps past midnight, so we run to the end of the
 // day (the post-midnight part belongs to the next day, handled by the HOR page).
 const toIdx = (t) => { const [h, m] = String(t).split(':').map(Number); return h * 2 + (m >= 30 ? 1 : 0); };
-function buildSegments(start, end, type) {
-  const s = toIdx(start); let e = toIdx(end); if (e <= s) e = 48;
-  const segs = []; const types = {};
-  for (let i = s; i < e && i < 48; i += 1) { segs.push(i); types[i] = type; }
-  return { segs, types };
-}
 const blockToHHMM = (b) => `${pad2(Math.floor(b / 2))}:${pad2((b % 2) * 30)}`;
 // A logged HOR day (hor_work_entries.work_segments) → a single on-duty span so
 // it can slot into the same rest math + hero the planned shifts use.
@@ -227,8 +221,21 @@ const RotaWidget = () => {
   const saveHours = async () => {
     setSaving(true); setSaveErr(false);
     try {
-      const { segs, types } = buildSegments(editStart, editEnd, myTodayType);
-      await upsertWorkEntryDay({ tenantId: activeTenantId, subjectUserId: user?.id, date: todayStr, workSegments: segs, segmentTypes: types });
+      const s = toIdx(editStart); const e = toIdx(editEnd);
+      const write = (date, from, to) => {
+        const segs = []; const types = {};
+        for (let i = from; i < to; i += 1) { segs.push(i); types[i] = myTodayType; }
+        return upsertWorkEntryDay({ tenantId: activeTenantId, subjectUserId: user?.id, date, workSegments: segs, segmentTypes: types });
+      };
+      if (e > s) {
+        await write(todayStr, s, e);
+      } else {
+        // Off is earlier than On → the shift runs past midnight. HOR is a
+        // per-calendar-day record (rest is assessed within each 24h), so split
+        // at midnight: today [start → 24:00) and tomorrow [00:00 → end).
+        await write(todayStr, s, 48);
+        await write(tmrwStr, 0, e);
+      }
       setLogRest(false);
       await load();
     } catch (err) {
@@ -349,15 +356,13 @@ const RotaWidget = () => {
               <div className="rw-hormeta">
                 {saveErr
                   ? <b className="rw-bad">Couldn’t save — try again</b>
-                  : loggedToday
-                    ? <><b className="rw-ok">Logged ✓</b> — this is your Hours of Rest, the rota is unchanged</>
-                    : <>Tap a time to set your actual hours — logs to <b>your Hours of Rest</b>, not the rota</>}
+                  : <>Logs to <b>your Hours of Rest</b>, not the rota</>}
               </div>
               {myWeekRest != null && (
                 <div className={`rw-restline${myBreach ? ' is-breach' : ''}`}>{myBreach ? 'Rest-hour breach' : 'Within rest limits'} · {myWeekRest}h this week</div>
               )}
               <button type="button" className="rw-confirm" disabled={saving} onClick={saveHours}>
-                {saving ? 'Saving…' : loggedToday ? 'Update my Hours of Rest' : 'Save to my Hours of Rest'}
+                {saving ? 'Saving…' : loggedToday ? 'Update Hours of Rest' : 'Save to Hours of Rest'}
               </button>
             </>
           ) : (
