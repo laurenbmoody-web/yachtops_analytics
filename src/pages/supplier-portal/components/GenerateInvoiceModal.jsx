@@ -354,7 +354,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
             </button>
           ))}
         </div>
-        {!supplier?.vat_number && (
+        {supplier?.vat_registered !== false && !supplier?.vat_number && (
           <div className="gi-caption">
             No {taxName} number on file.{' '}
             <button type="button" className="gi-link" onClick={goAddVatNumber}>Add one →</button>
