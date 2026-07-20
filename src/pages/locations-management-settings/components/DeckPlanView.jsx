@@ -651,29 +651,21 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           idxs.forEach((i, k) => { nodesByIdx[i] = parts[k] || null; });
         }
       });
-      // Outline ONLY the rooms the crew already set up. Detect matches each read
-      // label to an existing room and outlines it — it never creates rooms of its
-      // own (that caused duplicate pins). Read labels with no matching room are
-      // listed so the crew knows what to add, then re-detect.
+      // Trace what it sees: every detected region becomes an outline. Where a read
+      // label clearly matches a room the crew already set up, it outlines THAT room
+      // (no duplicate); otherwise it's a new room (with the plan's label) for the
+      // crew to rename or delete. Detect never gates on names.
       const used = new Set();
-      const unmatched = [];
       const items = rooms.map((r, idx) => {
         const nodes = nodesByIdx[idx];
         if (!nodes) return null;
         const matchedSpaceId = matchSpaceId(r.name, spaces, used);
-        if (!matchedSpaceId) { unmatched.push(r.name); return null; }
-        used.add(matchedSpaceId);
-        const sp = spaces.find((s) => s.id === matchedSpaceId);
-        return { name: sp?.name || r.name, matchedSpaceId, create: false, nodes, traced: true };
+        if (matchedSpaceId) used.add(matchedSpaceId);
+        const sp = matchedSpaceId ? spaces.find((s) => s.id === matchedSpaceId) : null;
+        return { name: sp?.name || r.name, matchedSpaceId, create: !matchedSpaceId, nodes, traced: true };
       }).filter(Boolean);
-      const unmatchedNames = [...new Set(unmatched)];
-      if (!items.length) {
-        setDetectError({ deckId: deck.id, message: unmatchedNames.length
-          ? `Read ${unmatchedNames.length} room(s) but none matched your list — add them first (${unmatchedNames.slice(0, 6).join(', ')}${unmatchedNames.length > 6 ? '…' : ''}), then Detect again.`
-          : 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' });
-        return;
-      }
-      setProposals({ deckId: deck.id, items, unmatchedNames });
+      if (!items.length) { setDetectError({ deckId: deck.id, message: 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' }); return; }
+      setProposals({ deckId: deck.id, items });
     } catch (err) {
       console.error('[deck-plan] detect error:', err);
       setDetectError({ deckId: deck.id, message: err?.message || 'Could not detect rooms on this deck.' });
@@ -713,18 +705,28 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     }
   };
 
-  // Land the outlines onto the crew's existing rooms (Detect never creates rooms).
+  // Land every traced outline: matched rooms get the shape; the rest are created
+  // as new rooms (with the plan's label) under the deck, then outlined.
   const applyProposals = async (deck) => {
     if (!proposals || applying) return;
     setApplying(true);
     try {
+      const needsCreate = proposals.items.some((it) => it.create);
+      let zoneId = deck.zones?.[0]?.id || null;
+      if (needsCreate && !zoneId) { const z = await createZone(deck.id, 'General'); zoneId = z.id; }
       for (const it of proposals.items) {
-        if (!it.matchedSpaceId) continue;
-        await setSpaceShape(it.matchedSpaceId, { closed: true, nodes: it.nodes }).catch((e) => console.error('[deck-plan] shape save', e));
+        let spaceId = it.matchedSpaceId || null;
+        if (!spaceId && it.create) {
+          try { const sp = await createSpace(zoneId, it.name); spaceId = sp.id; }
+          catch (err) { console.error('[deck-plan] create room failed:', it.name, err); continue; }
+        }
+        if (!spaceId) continue;
+        await setSpaceShape(spaceId, { closed: true, nodes: it.nodes }).catch((e) => console.error('[deck-plan] shape save', e));
         const c = centroidOf(it.nodes);
-        if (c) await setSpacePosition(it.matchedSpaceId, c.x, c.y).catch((e) => console.error('[deck-plan] pos save', e));
+        if (c) await setSpacePosition(spaceId, c.x, c.y).catch((e) => console.error('[deck-plan] pos save', e));
       }
       setProposals(null);
+      if (needsCreate) await onReloadRef.current?.(); // pull in the created rooms
     } catch (err) {
       console.error('[deck-plan] apply proposals error:', err);
       setDetectError({ deckId: deck.id, message: err?.message || 'Could not apply the outlines.' });
@@ -882,16 +884,18 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
 
             {deckProps && (() => {
               const total = deckProps.items.length;
-              const unm = deckProps.unmatchedNames || [];
+              const newCount = deckProps.items.filter((i) => i.create).length;
+              const matchCount = total - newCount;
               return (
                 <div className="dp-tracehint dp-ai-review">
                   <span>
-                    <b className="dp-ai-spark">✦ AI</b> outlined <b>{total}</b> of your room{total === 1 ? '' : 's'}.
-                    {unm.length > 0 && <span className="dp-ai-unmatched"> {unm.length} read label{unm.length === 1 ? '' : 's'} not in your list (add them, then Detect again).</span>}
+                    <b className="dp-ai-spark">✦ AI</b> traced <b>{total}</b> room{total === 1 ? '' : 's'}
+                    {matchCount > 0 && <> — <b>{matchCount}</b> matched</>}
+                    {newCount > 0 && <>{matchCount > 0 ? ', ' : ' — '}<b>{newCount}</b> new (<span className="dp-ai-unmatched">rename or delete after</span>)</>}.
                   </span>
                   <span className="dp-spring" />
                   <button className="lg-btn-primary sm" disabled={!total || applying} onClick={() => applyProposals(deck)}>
-                    {applying ? 'Applying…' : `Apply ${total}`}
+                    {applying ? 'Applying…' : newCount > 0 ? `Create ${newCount} & apply ${total}` : `Apply ${total}`}
                   </button>
                   <button className="lg-btn sm" disabled={applying} onClick={() => setProposals(null)}>Discard</button>
                 </div>
