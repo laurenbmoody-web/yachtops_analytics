@@ -739,6 +739,7 @@ const DoStation = ({ order, items, canEdit, invoice, onConfirmAll, onStartPickin
   let hint = null;
   let progress = null;
   let primary = null;
+  let secondary = null;
 
   if (preConfirm && pending > 0) {
     title = <>Confirming — <em>{pending} line{pending === 1 ? '' : 's'}</em> still need pricing or a call</>;
@@ -768,9 +769,10 @@ const DoStation = ({ order, items, canEdit, invoice, onConfirmAll, onStartPickin
       : 'Raise the invoice from the confirmed lines.';
     primary = { label: invoice ? 'Regenerate invoice →' : 'Generate invoice →', onClick: onGenerateInvoice };
   } else if (status === 'invoiced') {
-    title = 'Invoiced — awaiting payment';
+    title = invoice ? `Invoiced — ${invoice.invoice_number}` : 'Invoiced — awaiting payment';
     hint = 'Mark paid when the invoice settles.';
     primary = { label: 'Mark paid →', onClick: () => onAdvance('paid') };
+    if (invoice) secondary = { label: 'Regenerate invoice', onClick: onGenerateInvoice };
   } else if (status === 'paid') {
     eyebrow = 'Complete';
     title = 'Order complete · paid';
@@ -779,9 +781,9 @@ const DoStation = ({ order, items, canEdit, invoice, onConfirmAll, onStartPickin
     return null;
   }
 
-  const firePrimary = () => {
+  const fire = (action) => {
     if (!canEdit) { window.alert(NO_PERMISSION_TITLE); return; }
-    primary.onClick();
+    action.onClick();
   };
 
   return (
@@ -794,17 +796,30 @@ const DoStation = ({ order, items, canEdit, invoice, onConfirmAll, onStartPickin
         )}
         {hint && <div className="sod-station-hint">{hint}</div>}
       </div>
-      {primary && (
-        <button
-          type="button"
-          className="sod-station-btn"
-          disabled={!canEdit}
-          title={!canEdit ? NO_PERMISSION_TITLE : undefined}
-          onClick={firePrimary}
-        >
-          {primary.label}
-        </button>
-      )}
+      <div className="sod-station-actions">
+        {secondary && (
+          <button
+            type="button"
+            className="sod-station-btn sod-station-btn-ghost"
+            disabled={!canEdit}
+            title={!canEdit ? NO_PERMISSION_TITLE : undefined}
+            onClick={() => fire(secondary)}
+          >
+            {secondary.label}
+          </button>
+        )}
+        {primary && (
+          <button
+            type="button"
+            className="sod-station-btn"
+            disabled={!canEdit}
+            title={!canEdit ? NO_PERMISSION_TITLE : undefined}
+            onClick={() => fire(primary)}
+          >
+            {primary.label}
+          </button>
+        )}
+      </div>
     </div>
   );
 };
