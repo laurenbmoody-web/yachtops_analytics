@@ -185,8 +185,7 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
       )}
 
       {heat.length > 0 && (() => {
-        const s = symbolOf(cur);
-        const bare = (n) => compact(Math.abs(n), cur).replace(s, '');
+        const money = (n) => compact(n, cur);          // vessel currency, e.g. "€182k", "€740"
         const varScale = Math.max(1, ...heat.flatMap((h) => h.cells).filter((c) => c.value > 0 && c.plan > 0).map((c) => Math.abs(c.variance)));
         const varColor = (variance, t) => (variance > 0
           ? { bg: `rgba(198,90,26,${(0.12 + t * 0.68).toFixed(2)})`, fg: t > 0.5 ? '#fff' : '#8a3a12' }
@@ -223,16 +222,18 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
                       const frontFg = st > 0.55 ? '#fff' : '#33324F';
                       // Back (flip): variance vs plan, green under / terracotta over.
                       const t = both ? Math.min(1, Math.abs(c.variance) / varScale) : 0;
-                      const near = both && Math.abs(c.variance) < varScale * 0.04;
+                      // On plan = within 3% of that month's plan — keeps tiny sub-thousand
+                      // variances (e.g. +€740 on a €44k line) from reading as noise.
+                      const near = both && Math.abs(c.variance) < Math.max(c.plan * 0.03, 1);
                       const back = !both ? { bg: '#F1F2F5', fg: '#8B8478' } : near ? { bg: '#EAF1EC', fg: '#3F7A52' } : varColor(c.variance, t);
                       const sign = c.variance > 0 ? '+' : '−';
-                      const backLabel = !both ? '—' : near ? '✓' : `${sign}${bare(c.variance)}`;
+                      const backLabel = !both ? '—' : near ? '✓' : `${sign}${money(Math.abs(c.variance))}`;
                       return (
                         <td key={c.ym}>
                           <div className="bg-ov-flip" tabIndex={0}
                             title={`${r.name} · ${c.label}: ${formatMoney(c.value, cur)}${both ? ` vs plan ${formatMoney(c.plan, cur)} (${sign}${formatMoney(Math.abs(c.variance), cur)})` : ' · no plan set'}`}>
                             <div className="bg-ov-flip-in">
-                              <div className="bg-ov-face bg-ov-front" style={{ background: frontBg, color: frontFg }}>{bare(c.value)}</div>
+                              <div className="bg-ov-face bg-ov-front" style={{ background: frontBg, color: frontFg }}>{money(c.value)}</div>
                               <div className="bg-ov-face bg-ov-back" style={{ background: back.bg, color: back.fg }}>{backLabel}</div>
                             </div>
                           </div>
