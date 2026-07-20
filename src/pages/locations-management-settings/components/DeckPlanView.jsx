@@ -307,6 +307,22 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     snapTargetsRef.current = targets;
     setEditing({ spaceId: space.id, deckId: deck.id, name: space.name, nodes: (sh?.nodes || []).map((n) => ({ x: n.x, y: n.y })) });
   };
+  // Adjust a PROPOSED outline's corners in the review stage, before anything is
+  // committed. Reuses the same drag/snap/insert/delete machinery as startEdit;
+  // the only difference is where "Done" writes the nodes back to (the proposal
+  // item, not the database). propIdx marks it as a proposal edit.
+  const startEditProposal = (i, deck) => {
+    const it = proposals?.items?.[i];
+    if (!it) return;
+    setEditSel(null);
+    // Snap to every OTHER proposed outline's corners + any placed rooms' corners
+    // on this deck, so shared walls meet cleanly.
+    const targets = [];
+    proposals.items.forEach((p, k) => { if (k !== i) p.nodes?.forEach((n) => targets.push({ x: n.x, y: n.y })); });
+    spacesOf(deck).forEach((s) => { (shapeOf(s)?.nodes || []).forEach((n) => targets.push({ x: n.x, y: n.y })); });
+    snapTargetsRef.current = targets;
+    setEditing({ propIdx: i, spaceId: null, deckId: deck.id, name: it.name, nodes: it.nodes.map((n) => ({ x: n.x, y: n.y })) });
+  };
   // Drag a corner, snapping for clean lines: to a nearby other-room corner
   // (shared walls join), else axis-align to a neighbour/other corner's x or y
   // (walls go straight/flush). Hold Alt to move freely without snapping.
@@ -383,6 +399,14 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const simplifyEdit = () => setEditing((ed) => (ed && ed.nodes.length > 4 ? { ...ed, nodes: simplifyClosed(ed.nodes, 0.012) } : ed));
   const saveEdit = () => {
     if (!editing || editing.nodes.length < 3) { setEditing(null); setEditSel(null); return; }
+    // Proposal edit: write the reshaped corners back into the proposal only —
+    // nothing hits the database until Apply.
+    if (editing.propIdx != null) {
+      const { propIdx, nodes } = editing;
+      setProposals((p) => (p ? { ...p, items: p.items.map((x, k) => (k === propIdx ? { ...x, nodes } : x)) } : p));
+      setEditing(null); setEditSel(null);
+      return;
+    }
     saveShape(editing.spaceId, { closed: true, nodes: editing.nodes });
     const c = centroidOf(editing.nodes);
     if (c) applyPos(editing.spaceId, c.x, c.y);
@@ -393,6 +417,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   // the room's point/pin; use the room list to remove the room itself.
   const deleteOutline = () => {
     if (!editing) return;
+    if (editing.propIdx != null) { const i = editing.propIdx; setEditing(null); setEditSel(null); removeProposal(i); return; }
     saveShape(editing.spaceId, null);
     setEditing(null); setEditSel(null);
   };
@@ -949,7 +974,20 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               <p className="dp-error">{detectError.message}</p>
             )}
 
-            {deckProps && (() => {
+            {deckProps && editing?.propIdx != null && editing.deckId === deck.id ? (
+              // Reshaping one proposed outline (before apply). Same handles/keys as
+              // the post-apply Adjust tool; Done writes the corners back to the
+              // proposal only.
+              <div className="dp-tracehint dp-ai-review">
+                <span className="dp-adjhdr">Reshaping <em>{editing.name}</em> · <b>{editing.nodes.length}</b> pts <span className="dp-hint-faint" title="Drag a corner to move · click a + midpoint to add · click a corner then Delete/⌫ to remove · hold Alt to move without snapping">drag · + add · ⌫ remove</span></span>
+                <span className="dp-spring" />
+                <button className="lg-btn sm" disabled={editing.nodes.length <= 4} onClick={simplifyEdit} title="Reduce the number of corners">Simplify</button>
+                <button className="lg-btn sm" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => deleteNodeAt(editSel)}>Delete point</button>
+                <button className="lg-btn-primary sm" onClick={saveEdit}>Done</button>
+                <button className="lg-btn sm dp-btn-danger" onClick={deleteOutline} title="Remove this outline from the batch">Delete outline</button>
+                <button className="lg-btn sm" onClick={cancelEdit}>Cancel</button>
+              </div>
+            ) : deckProps && (() => {
               const total = deckProps.items.length;
               const newCount = deckProps.items.filter((i) => i.create).length;
               const matchCount = total - newCount;
@@ -959,7 +997,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     <b className="dp-ai-spark">✦ AI</b> traced <b>{total}</b> room{total === 1 ? '' : 's'}
                     {matchCount > 0 && <> — <b>{matchCount}</b> matched</>}
                     {newCount > 0 && <>{matchCount > 0 ? ', ' : ' — '}<b>{newCount}</b> new</>}.{' '}
-                    <span className="dp-ai-unmatched">Click a name to rename, × to remove — nothing saves until you Apply.</span>
+                    <span className="dp-ai-unmatched">Click a name to rename, ✎ to reshape, × to remove — nothing saves until you Apply.</span>
                   </span>
                   <span className="dp-spring" />
                   <button className="lg-btn-primary sm" disabled={!total || applying} onClick={() => applyProposals(deck)}>
@@ -1006,6 +1044,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     })()}
                     {/* AI proposal outlines — dashed, coloured by category (zone map). */}
                     {deckProps && deckProps.items.map((it, i) => {
+                      if (editing?.propIdx === i && editing.deckId === deck.id) return null; // shown live while reshaping
                       const d = shapeToPath({ closed: true, nodes: it.nodes });
                       const cat = it.matchedSpaceId
                         ? categoryOf(spaces.find((s) => s.id === it.matchedSpaceId) || { id: it.matchedSpaceId, name: it.name })
@@ -1078,6 +1117,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       draft outlines are marked so the suggested name reads as a
                       starting point, not something imposed. */}
                   {deckProps && deckProps.items.map((it, i) => {
+                    if (editing?.propIdx === i && editing.deckId === deck.id) return null; // reshaping — handles shown instead
                     const c = centroidOf(it.nodes);
                     if (!c) return null;
                     const cat = it.matchedSpaceId
@@ -1088,6 +1128,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                         <button type="button" className="dp-proposal-name" onClick={(e) => { e.stopPropagation(); renameProposal(i); }} title="Rename this outline">
                           {it.anchored ? '📍' : '✦'} {it.name}
                         </button>
+                        <button type="button" className="dp-proposal-edit" onClick={(e) => { e.stopPropagation(); startEditProposal(i, deck); }} title="Reshape this outline">✎</button>
                         <button type="button" className="dp-proposal-x" onClick={(e) => { e.stopPropagation(); removeProposal(i); }} title="Remove this outline">×</button>
                       </span>
                     );
