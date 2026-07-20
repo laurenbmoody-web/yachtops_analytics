@@ -2342,6 +2342,11 @@ const LocationFirstInventory = () => {
 
   const currentUser = authCurrentUser || getCurrentUser();
   const canEdit = !!(session);
+  // Managing items (edit / move / duplicate / delete) is for Command, Chief and
+  // HOD only — crew get a read-only item list. Server RLS enforces the same.
+  const canManageItems = isCommand || isChief || isHOD;
+  // Trash (recovery) is Command + Chief only — HODs ask their Chief to restore.
+  const canUseTrash = isCommand || isChief;
 
   const profileReady = bootstrapComplete && !!(
     (currentUser?.permission_tier ||
@@ -3485,7 +3490,7 @@ const LocationFirstInventory = () => {
             {pageSubtitle && <p className="inv-subtitle">{pageSubtitle}</p>}
           </div>
           <div className="inv-actions">
-            {(isCommand || isChief || isHOD) && (
+            {canUseTrash && (
               <button onClick={openTrash} className="inv-btn ghost" title="Recently deleted">
                 <Icon name="Trash2" size={15} />
                 <span className="hidden sm:inline">Trash</span>
@@ -3626,14 +3631,18 @@ const LocationFirstInventory = () => {
               {selectedItemIds?.size} item{selectedItemIds?.size !== 1 ? 's' : ''} selected
             </span>
             <div className="inv-selbar-spacer" />
-            <button onClick={() => setShowBulkMoveModal(true)} className="inv-selbtn">
-              <Icon name="FolderInput" size={13} />
-              Move
-            </button>
-            <button onClick={() => setShowBulkDeleteModal(true)} className="inv-selbtn danger">
-              <Icon name="Trash2" size={13} />
-              Delete
-            </button>
+            {canManageItems && (
+              <>
+                <button onClick={() => setShowBulkMoveModal(true)} className="inv-selbtn">
+                  <Icon name="FolderInput" size={13} />
+                  Move
+                </button>
+                <button onClick={() => setShowBulkDeleteModal(true)} className="inv-selbtn danger">
+                  <Icon name="Trash2" size={13} />
+                  Delete
+                </button>
+              </>
+            )}
             <button onClick={() => setShowExportModal(true)} className="inv-selbtn primary">
               <Icon name="Download" size={13} />
               Export
@@ -3768,7 +3777,7 @@ const LocationFirstInventory = () => {
                   <ItemRow
                     key={item?.id}
                     item={item}
-                    canEdit={canEdit}
+                    canEdit={canManageItems}
                     onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
                     onDelete={(i) => setDeletingItem(i)}
                     onMove={(i) => setMovingItem(i)}
@@ -3787,7 +3796,7 @@ const LocationFirstInventory = () => {
                   <ItemGridCard
                     key={item?.id}
                     item={item}
-                    canEdit={canEdit}
+                    canEdit={canManageItems}
                     onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
                     onDelete={(i) => setDeletingItem(i)}
                     onMove={(i) => setMovingItem(i)}
