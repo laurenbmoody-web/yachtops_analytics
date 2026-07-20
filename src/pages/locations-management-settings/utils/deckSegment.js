@@ -111,6 +111,32 @@ export function segmentDeck(imageData, opts = {}) {
     c.r = sumR[c.id] / n; c.g = sumG[c.id] / n; c.b = sumB[c.id] / n;
     c.exterior = isTeak(c.r, c.g, c.b);
   });
+  // Furniture-on-deck pass: a sun-lounger, table or hot tub drawn on the open
+  // deck encloses a small light region that isn't teak itself but is RINGED by
+  // teak. Those aren't rooms — flag any small region whose immediate surround is
+  // mostly teak as exterior too, so it's skipped like the deck around it.
+  const smallFrac = opts.furnitureFrac ?? 0.02;
+  regionById.forEach((c) => {
+    if (c.exterior || c.area > smallFrac * N) return;
+    const pad = 4;
+    const minx = Math.max(0, c.minx - pad);
+    const miny = Math.max(0, c.miny - pad);
+    const maxx = Math.min(W - 1, c.maxx + pad);
+    const maxy = Math.min(H - 1, c.maxy + pad);
+    let teak = 0;
+    let tot = 0;
+    for (let y = miny; y <= maxy; y += 1) {
+      for (let x = minx; x <= maxx; x += 1) {
+        const i = y * W + x;
+        if (label[i] === c.id) continue;      // inside the region itself
+        const o = i * 4;
+        if (lum(d, o) < wallLum) continue;     // skip the dark line-work
+        tot += 1;
+        if (isTeak(d[o], d[o + 1], d[o + 2])) teak += 1;
+      }
+    }
+    if (tot > 0 && teak / tot > 0.5) c.exterior = true;
+  });
   return { W, H, label, regionById };
 }
 
