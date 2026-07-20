@@ -5,7 +5,7 @@ import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
-import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, duplicateFolder, getFolderSnapshot, restoreFolderSnapshot, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
+import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, duplicateFolder, moveFolderToTrash, restoreFromTrash, listTrash, purgeTrashRecord, emptyTrash, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
 import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
 import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
@@ -1231,6 +1231,52 @@ const ItemDeleteModal = ({ item, onClose, onConfirm }) => (
   </ModalShell>
 );
 
+// ─── Trash (recently deleted) modal ─────────────────────────────────────────────
+const TrashModal = ({ items, loading, onClose, onRestore, onPurge, onEmpty, canEmpty }) => (
+  <ModalShell onClose={onClose} panelClassName="inv-modal inv-modal-lg">
+    <div className="inv-modal-head">
+      <div>
+        <div className="inv-modal-eyebrow">Recently deleted</div>
+        <h2 className="inv-modal-title">Trash</h2>
+      </div>
+      <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
+    </div>
+    <p className="inv-modal-sub">Deleted folders are kept for 30 days, then permanently removed.</p>
+    {loading ? (
+      <div style={{ padding: '34px 0', textAlign: 'center' }}><LogoSpinner size={20} /></div>
+    ) : (items?.length === 0 ? (
+      <div className="inv-trash-empty">
+        <Icon name="Trash2" size={26} />
+        <p>Trash is empty</p>
+      </div>
+    ) : (
+      <div className="inv-trash-list">
+        {items?.map(t => (
+          <div key={t?.id} className="inv-trash-row">
+            <div className="inv-trash-info">
+              <div className="inv-trash-name">{t?.folder_name}</div>
+              <div className="inv-trash-meta">
+                {t?.folder_path && <span>{t?.folder_path}</span>}
+                <span>{t?.item_count} item{t?.item_count !== 1 ? 's' : ''}</span>
+                <span>deleted {formatDate(t?.deleted_at)}</span>
+              </div>
+            </div>
+            <div className="inv-trash-actions">
+              <button className="inv-selbtn primary" onClick={() => onRestore(t?.id)}><Icon name="Undo2" size={13} />Restore</button>
+              <button className="inv-selbtn danger" onClick={() => onPurge(t?.id)} title="Delete permanently"><Icon name="Trash2" size={13} /></button>
+            </div>
+          </div>
+        ))}
+      </div>
+    ))}
+    {canEmpty && items?.length > 0 && (
+      <div className="inv-modal-actions">
+        <button className="inv-btn ghost" onClick={onEmpty}>Empty trash</button>
+      </div>
+    )}
+  </ModalShell>
+);
+
 const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false, onAppearanceChange }) => {
   const [item, setItem] = useState(itemProp);
   useEffect(() => { setItem(itemProp); }, [itemProp]);
@@ -2245,8 +2291,11 @@ const LocationFirstInventory = () => {
   const [duplicatingFolder, setDuplicatingFolder] = useState(null);
   const [movingItem, setMovingItem] = useState(null);
   const [deletingItem, setDeletingItem] = useState(null);
-  const [undoToast, setUndoToast] = useState(null); // { name, snapshot }
+  const [undoToast, setUndoToast] = useState(null); // { name, trashId }
   const undoTimerRef = useRef(null);
+  const [showTrash, setShowTrash] = useState(false);
+  const [trashItems, setTrashItems] = useState([]);
+  const [trashLoading, setTrashLoading] = useState(false);
 
   const [selectedItemIds, setSelectedItemIds] = useState(new Set());
   const [showExportModal, setShowExportModal] = useState(false);
@@ -2834,19 +2883,18 @@ const LocationFirstInventory = () => {
     const folderToDelete = deletingFolderName;
     const deletePath = pathSegments;
     setDeletingFolderName(null);
-    // Snapshot first so the delete can be undone.
-    const snapshot = await getFolderSnapshot(deletePath, folderToDelete);
-    const success = await deleteFolderFromDB(deletePath, folderToDelete);
-    if (!success) {
-      console.error('[Inventory] handleDeleteFolder: deleteFolderFromDB returned false for', folderToDelete, 'at path', deletePath);
+    // Move to the recoverable Trash (snapshot + physical delete).
+    const trashId = await moveFolderToTrash(deletePath, folderToDelete, deletePath?.join(' › ') || 'Inventory');
+    if (!trashId) {
+      console.error('[Inventory] handleDeleteFolder: moveFolderToTrash failed for', folderToDelete, 'at path', deletePath);
       alert(`Failed to delete "${folderToDelete}". Please check your connection and try again.`);
       await loadData();
       return;
     }
     await loadData();
-    // Offer an undo for ~9s.
+    // Offer an instant undo for ~9s; it also stays in Trash for 30 days.
     if (undoTimerRef?.current) clearTimeout(undoTimerRef.current);
-    setUndoToast({ name: folderToDelete, snapshot });
+    setUndoToast({ name: folderToDelete, trashId });
     undoTimerRef.current = setTimeout(() => setUndoToast(null), 9000);
   };
 
@@ -2854,9 +2902,30 @@ const LocationFirstInventory = () => {
     if (undoTimerRef?.current) clearTimeout(undoTimerRef.current);
     const toast = undoToast;
     setUndoToast(null);
-    if (!toast?.snapshot) return;
-    await restoreFolderSnapshot(toast.snapshot);
+    if (!toast?.trashId) return;
+    await restoreFromTrash(toast.trashId);
     await loadData();
+  };
+
+  // ── Trash (recently deleted) ──────────────────────────────────────────────
+  const openTrash = async () => {
+    setShowTrash(true);
+    setTrashLoading(true);
+    setTrashItems(await listTrash());
+    setTrashLoading(false);
+  };
+  const handleRestoreTrash = async (id) => {
+    await restoreFromTrash(id);
+    setTrashItems(prev => prev?.filter(t => t?.id !== id));
+    await loadData();
+  };
+  const handlePurgeTrash = async (id) => {
+    await purgeTrashRecord(id);
+    setTrashItems(prev => prev?.filter(t => t?.id !== id));
+  };
+  const handleEmptyTrash = async () => {
+    await emptyTrash();
+    setTrashItems([]);
   };
 
   const handleArchiveFolder = async () => {
@@ -3406,6 +3475,12 @@ const LocationFirstInventory = () => {
             {pageSubtitle && <p className="inv-subtitle">{pageSubtitle}</p>}
           </div>
           <div className="inv-actions">
+            {(isCommand || isChief || isHOD) && (
+              <button onClick={openTrash} className="inv-btn ghost" title="Recently deleted">
+                <Icon name="Trash2" size={15} />
+                <span className="hidden sm:inline">Trash</span>
+              </button>
+            )}
             <button
               onClick={() => setShowExportModal(true)}
               className="inv-btn ghost"
@@ -3916,6 +3991,17 @@ const LocationFirstInventory = () => {
           item={deletingItem}
           onClose={() => setDeletingItem(null)}
           onConfirm={handleConfirmDeleteItem}
+        />
+      )}
+      {showTrash && (
+        <TrashModal
+          items={trashItems}
+          loading={trashLoading}
+          onClose={() => setShowTrash(false)}
+          onRestore={handleRestoreTrash}
+          onPurge={handlePurgeTrash}
+          onEmpty={handleEmptyTrash}
+          canEmpty={isCommand}
         />
       )}
       {undoToast && (
