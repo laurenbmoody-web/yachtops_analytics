@@ -1439,7 +1439,15 @@ export const deleteFolderFromDB = async (parentSegments, name) => {
     const tenantId = getActiveTenantId();
     if (!tenantId) return false;
     if (parentSegments?.length === 0) {
-      // Deleting a root folder — fetch all rows where location = name
+      // Deleting a root folder — remove its items first, then all location rows
+      // (items must go too, else the folder is re-derived from orphaned item
+      // paths and reappears — see getFolderTree / itemDerivedSubs).
+      const { error: itemErr } = await supabase
+        ?.from('inventory_items')
+        ?.delete()
+        ?.eq('tenant_id', tenantId)
+        ?.eq('location', name);
+      if (itemErr) { console.error('[inventoryStorage] deleteFolderFromDB root item error:', itemErr?.message); return false; }
       const { error } = await supabase
         ?.from('inventory_locations')
         ?.delete()
@@ -1451,6 +1459,24 @@ export const deleteFolderFromDB = async (parentSegments, name) => {
       const parentSubPath = parentSegments?.slice(1)?.join(' > ');
       const subPath = parentSubPath ? `${parentSubPath} > ${name}` : name;
       console.log('[inventoryStorage] deleteFolderFromDB — location:', location, '| subPath to delete:', subPath);
+
+      // Remove items in this folder subtree first (exact path + descendants),
+      // otherwise the folder is re-derived from their paths and reappears.
+      const { data: itemsInSubtree } = await supabase
+        ?.from('inventory_items')
+        ?.select('id, sub_location')
+        ?.eq('tenant_id', tenantId)
+        ?.eq('location', location);
+      const itemIdsToDelete = (itemsInSubtree || [])
+        ?.filter(r => r?.sub_location === subPath || r?.sub_location?.startsWith(subPath + ' > '))
+        ?.map(r => r?.id);
+      if (itemIdsToDelete?.length > 0) {
+        const { error: itemDelErr } = await supabase
+          ?.from('inventory_items')
+          ?.delete()
+          ?.in('id', itemIdsToDelete);
+        if (itemDelErr) { console.error('[inventoryStorage] deleteFolderFromDB item error:', itemDelErr?.message); return false; }
+      }
       // Fetch all rows for this location so we can filter descendants
       const { data: toDelete, error: fetchError } = await supabase
         ?.from('inventory_locations')
