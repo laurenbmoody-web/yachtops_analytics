@@ -69,6 +69,12 @@
 .rw-addblk { display: block; margin: 8px auto 0; background: none; border: 0; color: var(--rw-orange); font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
 .rw-addblk:hover { color: var(--rw-orange-deep); }
 
+/* schedule calendar — today + days ahead as cells (Rota widget). Wraps. */
+.rw-cal { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 8px; }
+.rw-day.is-today { border-color: var(--rw-orange); background: #FBEFE9; }
+.rw-day.is-today .rw-wd { color: var(--rw-orange); }
+.rw-day.is-today .rw-dn { color: var(--rw-deep); }
+
 /* coming up — day strip (crew) */
 .rw-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .rw-day { border: 1px solid var(--rw-soft); border-radius: 11px; padding: 11px 6px; text-align: center; }

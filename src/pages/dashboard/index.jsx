@@ -17,6 +17,7 @@ import Header from '../../components/navigation/Header';
 import BlueprintNavigator from '../../components/dashboard/BlueprintNavigator';
 import TeamJobListWidget from './components/TeamJobListWidget';
 import RotaWidget from './components/RotaWidget';
+import HoursOfRestWidget from './components/HoursOfRestWidget';
 import TodaySnapshotWidget from './components/TodaySnapshotWidget';
 import RecentActivityWidget from './components/RecentActivityWidget';
 import VesselStatusWidget from './components/VesselStatusWidget';
@@ -626,6 +627,8 @@ const Dashboard = () => {
         return <TeamJobListWidget />;
       case 'rota':
         return <RotaWidget />;
+      case 'hoursOfRest':
+        return <HoursOfRestWidget />;
       case 'todaySnapshot':
         return <TodaySnapshotWidget />;
       case 'recentActivity':
