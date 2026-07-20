@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Icon from '../../../components/AppIcon';
+import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import { fetchTenantCrew } from '../../crew-profile/utils/tenantCrew';
@@ -69,7 +70,7 @@ const uniformRel = (item) => {
 // Issue-from-inventory: browse the Uniform folder as tiles, drill down to items,
 // tick items and allocate a quantity (−/count/+, capped at what's on board), then
 // issue the lot to the crew member in one go.
-const IssueModal = ({ crewName, stock, showValue, onIssue, onClose }) => {
+const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onClose }) => {
   const [trail, setTrail] = useState([]); // folder segments below Uniform
   const [sel, setSel] = useState({});     // itemId -> allocated qty
   const [busy, setBusy] = useState(false);
@@ -79,11 +80,16 @@ const IssueModal = ({ crewName, stock, showValue, onIssue, onClose }) => {
     () => withRel.filter((x) => trail.every((t, idx) => (x.rel[idx] || '').toLowerCase() === t.toLowerCase())),
     [withRel, trail]
   );
+  // Child folders = real inventory folders at this level (so empty ones show)
+  // plus any surfaced by items, with the item count on each.
   const folders = useMemo(() => {
+    const key = (s) => s.toLowerCase();
+    const under = (rel) => rel.length > trail.length && trail.every((t, idx) => (rel[idx] || '').toLowerCase() === t.toLowerCase());
     const m = new Map();
-    atLevel.forEach((x) => { if (x.rel.length > trail.length) { const seg = x.rel[trail.length]; m.set(seg, (m.get(seg) || 0) + 1); } });
-    return [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
-  }, [atLevel, trail]);
+    folderRels.forEach((rel) => { if (under(rel)) { const seg = rel[trail.length]; if (!m.has(key(seg))) m.set(key(seg), { name: seg, count: 0 }); } });
+    atLevel.forEach((x) => { if (x.rel.length > trail.length) { const seg = x.rel[trail.length]; const e = m.get(key(seg)) || { name: seg, count: 0 }; e.count += 1; m.set(key(seg), e); } });
+    return [...m.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [folderRels, atLevel, trail]);
   const itemsHere = useMemo(() => atLevel.filter((x) => x.rel.length === trail.length).map((x) => x.i), [atLevel, trail]);
 
   const stockOf = (i) => Number(i.totalQty ?? i.quantity) || 0;
@@ -119,8 +125,8 @@ const IssueModal = ({ crewName, stock, showValue, onIssue, onClose }) => {
         </div>
 
         <div className="cf-modal-body">
-          {stock.length === 0 ? (
-            <p className="cf-empty-note">No uniform in inventory yet. File stock under a <b>Uniform</b> folder in inventory and it shows here to issue.</p>
+          {stock.length === 0 && folderRels.length === 0 ? (
+            <p className="cf-empty-note">No <b>Uniform</b> folder in inventory yet. Add one (with sub-folders) in inventory and it shows here to issue from.</p>
           ) : (
             <>
               {folders.length > 0 && (
@@ -227,6 +233,7 @@ const CrewFolder = ({ onBack }) => {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState(null);
   const [stock, setStock] = useState([]);
+  const [folderRels, setFolderRels] = useState([]); // inventory folder paths below "Uniform"
   const [issuing, setIssuing] = useState(false);
   const [returning, setReturning] = useState(null);
   const [q, setQ] = useState('');
@@ -240,7 +247,21 @@ const CrewFolder = ({ onBack }) => {
     const [crew, allKit, all] = await Promise.all([
       fetchTenantCrew(activeTenantId), fetchTenantUniformKit(activeTenantId), getAllItems().catch(() => []),
     ]);
-    setRoster(crew); setKit(allKit); setStock(all.filter(isUniformStock)); setLoading(false);
+    setRoster(crew); setKit(allKit); setStock(all.filter(isUniformStock));
+    // The Uniform folder tree from inventory, so the browser shows the structure
+    // (empty folders included), not just folders that already hold items.
+    const { data: locs } = await supabase
+      .from('inventory_locations')
+      .select('location, sub_location')
+      .eq('tenant_id', activeTenantId)
+      .eq('is_archived', false);
+    const rels = [];
+    (locs || []).forEach((r) => {
+      const it = { location: r.location, subLocation: r.sub_location };
+      if (underUniform(it)) { const rel = uniformRel(it); if (rel.length) rels.push(rel); }
+    });
+    setFolderRels(rels);
+    setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [activeTenantId]);
 
@@ -448,7 +469,7 @@ const CrewFolder = ({ onBack }) => {
         </div>
       )}
 
-      {issuing && <IssueModal crewName={selected.fullName} stock={stock} showValue={showValue} onIssue={doIssue} onClose={() => setIssuing(false)} />}
+      {issuing && <IssueModal crewName={selected.fullName} stock={stock} folderRels={folderRels} showValue={showValue} onIssue={doIssue} onClose={() => setIssuing(false)} />}
       {returning && <ReturnModal row={returning} onReturn={doReturn} onClose={() => setReturning(null)} />}
     </div>
   );
