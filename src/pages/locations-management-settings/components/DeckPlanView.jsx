@@ -143,7 +143,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [editSel, setEditSel] = useState(null); // index of the selected corner while editing
   const editDragRef = useRef(null); // node being dragged while editing
   const snapTargetsRef = useRef([]); // other rooms' corners on this deck, to snap to
-  const [tapMode, setTapMode] = useState(true); // trace by tapping a room (auto-outline) vs drawing points
+  const [tapMode, setTapMode] = useState(false); // false = draw points by hand (default); true = tap to auto-outline
   const [tapBusy, setTapBusy] = useState(false); // segmenting on a tap
   const segCacheRef = useRef({}); // deckId -> { cropKey, seg }
   const [detecting, setDetecting] = useState(null); // deckId with an AI detect in flight
@@ -266,7 +266,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     setLocalCats((p) => ({ ...p, [spaceId]: cat }));
     setSpaceCategory(spaceId, cat).catch((err) => console.error('[deck-plan] save category error:', err));
   };
-  const startTrace = (space, deck) => { traceStartRef.current = true; setTracing({ spaceId: space.id, deckId: deck.id, name: space.name, nodes: [] }); };
+  const startTrace = (space, deck, fromPin) => { if (fromPin) traceStartRef.current = true; setTracing({ spaceId: space.id, deckId: deck.id, name: space.name, nodes: [] }); };
   const addTraceNode = (x, y) => setTracing((t) => (t ? { ...t, nodes: [...t.nodes, { x, y }] } : t));
   const undoTraceNode = () => setTracing((t) => (t && t.nodes.length ? { ...t, nodes: t.nodes.slice(0, -1) } : t));
   const cancelTrace = () => setTracing(null);
@@ -296,9 +296,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   // Clicking an already-outlined room in trace mode opens it for point editing:
   // drag corners, click a midpoint to add one, double-click to remove. Beats
   // re-drawing the whole room when the auto-trace just needs a nudge.
-  const startEdit = (space, deck) => {
+  const startEdit = (space, deck, fromPin) => {
     const sh = shapeOf(space);
-    traceStartRef.current = true;
+    if (fromPin) traceStartRef.current = true;
     setTracing(null);
     setEditSel(null);
     // Snap targets: every OTHER outlined room's corners on this deck, so shared
@@ -440,7 +440,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     if (traceMode) {
       e.preventDefault();
       // Already outlined → adjust its points; otherwise trace a fresh outline.
-      if (shapeOf(space)) startEdit(space, deck); else startTrace(space, deck);
+      // fromPlaced = a pin on the plan (its click bubbles to onPlanClick and must
+      // be swallowed); a tray chip does not, so the first plan click must count.
+      if (shapeOf(space)) startEdit(space, deck, fromPlaced); else startTrace(space, deck, fromPlaced);
       return;
     }
     if (!linkMode) { startDrag(e, space, deck, fromPlaced); return; }
@@ -862,7 +864,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     <button className="lg-btn sm" onClick={cancelTrace}>Cancel</button>
                   </>
                 ) : (
-                  <span>Click a room, then tap inside it on the plan to auto-outline it. Or click an outlined room to adjust its corners.</span>
+                  <span>Click a room, then click points on the plan to draw its outline (close on the first point). Turn on <b>Tap room</b> to auto-outline instead. Click an outlined room to adjust it.</span>
                 )}
               </div>
             )}
