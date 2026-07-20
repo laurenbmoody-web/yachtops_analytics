@@ -187,9 +187,10 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
       {heat.length > 0 && (() => {
         const money = (n) => compact(n, cur);          // vessel currency, e.g. "€182k", "€740"
         const varScale = Math.max(1, ...heat.flatMap((h) => h.cells).filter((c) => c.value > 0 && c.plan > 0).map((c) => Math.abs(c.variance)));
+        // Gentle tints, one fixed dark text colour per state — no white/dark flip.
         const varColor = (variance, t) => (variance > 0
-          ? { bg: `rgba(198,90,26,${(0.12 + t * 0.68).toFixed(2)})`, fg: t > 0.5 ? '#fff' : '#8a3a12' }
-          : { bg: `rgba(63,122,82,${(0.10 + t * 0.6).toFixed(2)})`, fg: t > 0.5 ? '#fff' : '#2f5c3e' });
+          ? { bg: `rgba(198,90,26,${(0.12 + t * 0.28).toFixed(2)})`, fg: '#8A3A12' }
+          : { bg: `rgba(63,122,82,${(0.10 + t * 0.26).toFixed(2)})`, fg: '#2F5C3E' });
         return (
         <div className="bg-panel bg-ov-mt">
           <div className="bg-phead">
@@ -216,10 +217,11 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
                     {r.cells.map((c) => {
                       if (!c.value) return <td key={c.ym}><div className="bg-ov-cell zero" title={`${r.name} · ${c.label}: no spend yet`}>·</div></td>;
                       const both = c.plan > 0;
-                      // Front: spend magnitude in neutral slate — no over/under colour here.
+                      // Front: spend magnitude as a gentle single-tint depth (bigger =
+                      // slightly deeper) with one fixed dark text colour — calm, consistent.
                       const st = Math.min(1, c.value / r.peak);
-                      const frontBg = `rgba(28,27,58,${(0.05 + st * 0.5).toFixed(2)})`;
-                      const frontFg = st > 0.55 ? '#fff' : '#33324F';
+                      const frontBg = `rgba(28,27,58,${(0.04 + st * 0.13).toFixed(2)})`;
+                      const frontFg = '#33324F';
                       // Back (flip): variance vs plan, green under / terracotta over.
                       const t = both ? Math.min(1, Math.abs(c.variance) / varScale) : 0;
                       // On plan = within 3% of that month's plan — keeps tiny sub-thousand
