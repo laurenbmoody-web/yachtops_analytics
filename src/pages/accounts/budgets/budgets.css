@@ -283,6 +283,15 @@
 .bg-ov-cpct small { display: block; font-size: 10px; font-weight: 500; color: #AEB4C2; }
 
 /* seasonal heatmap — each cell is a flip card: front = spend, hover flips to +/− vs plan */
+.bg-ov-guide { position: relative; display: inline-flex; align-items: center; color: #AEB4C2; cursor: help; }
+.bg-ov-guide:hover { color: #8B8478; }
+.bg-ov-guidepop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; width: 210px;
+  background: #fff; border: 1px solid #ECEAE3; border-radius: 12px; box-shadow: 0 16px 40px -14px rgba(28,27,58,0.3);
+  padding: 13px 15px; display: none; flex-direction: column; gap: 9px; text-align: left; }
+.bg-ov-guide:hover .bg-ov-guidepop, .bg-ov-guide:focus-visible .bg-ov-guidepop, .bg-ov-guide:focus-within .bg-ov-guidepop { display: flex; }
+.bg-ov-guidepop .g-row { display: flex; align-items: center; gap: 9px; font-size: 12px; color: #1C1B3A; font-weight: 500; }
+.bg-ov-guidepop .g-sw { width: 13px; height: 13px; border-radius: 4px; flex: 0 0 auto; }
+.bg-ov-guidepop .g-hint { font-size: 11px; line-height: 1.45; color: #8B8478; border-top: 1px solid #F0F1F5; padding-top: 9px; }
 .bg-ov-hm { margin-top: 12px; overflow-x: auto; }
 .bg-ov-flip { perspective: 300px; height: 26px; min-width: 34px; outline: none; }
 .bg-ov-flip-in { position: relative; width: 100%; height: 100%; transition: transform 0.5s cubic-bezier(.2,.7,.2,1); transform-style: preserve-3d; }
