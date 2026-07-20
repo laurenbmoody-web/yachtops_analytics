@@ -106,6 +106,9 @@ const rowToItem = (row) => {
     partialBottle: row?.partial_bottle ?? null,
     isAlcohol: row?.is_alcohol ?? false,
     isUniform: row?.is_uniform ?? false,
+    hasVariants: row?.has_variants ?? false,
+    variantType: row?.variant_type || null,
+    variants: row?.variants || [],
     createdAt: row?.created_at,
     updatedAt: row?.updated_at,
   };
@@ -299,6 +302,9 @@ const itemToRow = (item, tenantId) => ({
   custom_fields: item?.customFields && Object.keys(item?.customFields)?.length > 0 ? item?.customFields : null,
   is_alcohol: item?.isAlcohol ?? false,
   is_uniform: item?.isUniform ?? false,
+  has_variants: item?.hasVariants ?? false,
+  variant_type: item?.variantType || null,
+  variants: item?.variants || [],
   updated_at: new Date()?.toISOString(),
 });
 
