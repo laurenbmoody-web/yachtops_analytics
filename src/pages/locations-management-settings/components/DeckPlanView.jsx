@@ -45,10 +45,6 @@ const centroidOf = (nodes = []) => {
 // Loose room-name key for matching AI-read labels to the crew's existing rooms.
 const normName = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
-// Fold common yacht synonyms so a crew name and the plan label match up
-// (Master Cabin ↔ Owner's Cabin, WC/Bathroom/Ensuite ↔ Head, Salon ↔ Saloon).
-const NAME_SYNONYMS = { master: 'owner', owners: 'owner', wc: 'head', toilet: 'head', bathroom: 'head', ensuite: 'head', salon: 'saloon', lounge: 'saloon', accomodation: 'accommodation', accom: 'accommodation' };
-const matchKey = (s) => normName(s).split(' ').map((w) => NAME_SYNONYMS[w] || w).join(' ').trim();
 
 
 // Box aspect of a deck's crop, in true pixels (undistorted).
@@ -594,23 +590,6 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     img.src = layout.gaImageUrl;
   });
 
-  // Match an AI-read label to one of this deck's existing rooms: exact key first,
-  // then a contained-name fallback ("Master" ↔ "Master Cabin"). Synonyms fold the
-  // classic yacht mismatches (Master↔Owner, WC/Bathroom↔Head) so a crew name and
-  // the plan label meet. One room each.
-  const matchSpaceId = (name, spaces, used) => {
-    const k = matchKey(name);
-    if (!k) return null;
-    let s = spaces.find((sp) => matchKey(sp.name) === k && !used.has(sp.id));
-    if (!s && k.length >= 4) {
-      s = spaces.find((sp) => {
-        if (used.has(sp.id)) return false;
-        const n = matchKey(sp.name);
-        return n.length >= 4 && (n.includes(k) || k.includes(n));
-      });
-    }
-    return s?.id || null;
-  };
 
   const detectRooms = async (deck) => {
     const crop = cropOf(deck);
@@ -713,17 +692,15 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           idxs.forEach((i, k) => { nodesByIdx[i] = parts[k] || null; });
         }
       });
-      // Trace what it sees: every remaining region becomes an outline. Where a
-      // read label clearly matches an UNPLACED room the crew set up, it outlines
-      // that room; otherwise it's a new draft the crew can rename or delete right
-      // here before applying. Detect never gates on names.
+      // The model is used ONLY to find regions to trace — never to name or match
+      // rooms. Its name guesses were landing on the wrong rooms, so assignment to
+      // an existing room happens purely by pin geometry (the pass above). Every
+      // remaining region is an unnamed draft outline: the crew keeps the shapes
+      // that are real rooms and drops the rest. Nothing carries an AI label.
       rooms.forEach((r, idx) => {
         const nodes = nodesByIdx[idx];
         if (!nodes) return;
-        const matchedSpaceId = matchSpaceId(r.name, spaces, used);
-        if (matchedSpaceId) used.add(matchedSpaceId);
-        const sp = matchedSpaceId ? spaces.find((s) => s.id === matchedSpaceId) : null;
-        items.push({ name: sp?.name || r.name, matchedSpaceId, create: !matchedSpaceId, nodes, traced: true });
+        items.push({ name: null, matchedSpaceId: null, create: true, nodes, traced: true });
       });
       if (!items.length) { setDetectError({ deckId: deck.id, message: 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' }); return; }
       setProposals({ deckId: deck.id, items });
@@ -766,16 +743,8 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     }
   };
 
-  // Review-stage edits (before anything is committed): rename a proposed outline
-  // or drop it from the batch. Nothing hits the database until Apply.
-  const renameProposal = (i) => {
-    const it = proposals?.items[i];
-    if (!it) return;
-    // eslint-disable-next-line no-alert
-    const name = window.prompt('Rename this outline:', it.name)?.trim();
-    if (!name) return;
-    setProposals((p) => ({ ...p, items: p.items.map((x, k) => (k === i ? { ...x, name } : x)) }));
-  };
+  // Review-stage edit (before anything is committed): drop a proposed outline
+  // from the batch. Nothing hits the database until Apply.
   const removeProposal = (i) => {
     setProposals((p) => {
       const items = p.items.filter((_, k) => k !== i);
@@ -783,8 +752,8 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     });
   };
 
-  // Land every traced outline: matched rooms get the shape; the rest are created
-  // as new rooms (with the plan's label) under the deck, then outlined.
+  // Land every traced outline: a pin-anchored outline updates that room's shape;
+  // each unnamed draft becomes a new "Untitled area" the crew renames afterwards.
   const applyProposals = async (deck) => {
     if (!proposals || applying) return;
     setApplying(true);
@@ -792,11 +761,13 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       const needsCreate = proposals.items.some((it) => it.create);
       let zoneId = deck.zones?.[0]?.id || null;
       if (needsCreate && !zoneId) { const z = await createZone(deck.id, 'General'); zoneId = z.id; }
+      let draftN = 0;
       for (const it of proposals.items) {
         let spaceId = it.matchedSpaceId || null;
         if (!spaceId && it.create) {
-          try { const sp = await createSpace(zoneId, it.name); spaceId = sp.id; }
-          catch (err) { console.error('[deck-plan] create room failed:', it.name, err); continue; }
+          const name = it.name || `Untitled area ${(draftN += 1)}`;
+          try { const sp = await createSpace(zoneId, name); spaceId = sp.id; }
+          catch (err) { console.error('[deck-plan] create room failed:', name, err); continue; }
         }
         if (!spaceId) continue;
         await setSpaceShape(spaceId, { closed: true, nodes: it.nodes }).catch((e) => console.error('[deck-plan] shape save', e));
@@ -979,7 +950,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               // the post-apply Adjust tool; Done writes the corners back to the
               // proposal only.
               <div className="dp-tracehint dp-ai-review">
-                <span className="dp-adjhdr">Reshaping <em>{editing.name}</em> · <b>{editing.nodes.length}</b> pts <span className="dp-hint-faint" title="Drag a corner to move · click a + midpoint to add · click a corner then Delete/⌫ to remove · hold Alt to move without snapping">drag · + add · ⌫ remove</span></span>
+                <span className="dp-adjhdr">Reshaping <em>{editing.name || 'outline'}</em> · <b>{editing.nodes.length}</b> pts <span className="dp-hint-faint" title="Drag a corner to move · click a + midpoint to add · click a corner then Delete/⌫ to remove · hold Alt to move without snapping">drag · + add · ⌫ remove</span></span>
                 <span className="dp-spring" />
                 <button className="lg-btn sm" disabled={editing.nodes.length <= 4} onClick={simplifyEdit} title="Reduce the number of corners">Simplify</button>
                 <button className="lg-btn sm" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => deleteNodeAt(editSel)}>Delete point</button>
@@ -994,10 +965,10 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               return (
                 <div className="dp-tracehint dp-ai-review">
                   <span>
-                    <b className="dp-ai-spark">✦ AI</b> traced <b>{total}</b> room{total === 1 ? '' : 's'}
-                    {matchCount > 0 && <> — <b>{matchCount}</b> matched</>}
-                    {newCount > 0 && <>{matchCount > 0 ? ', ' : ' — '}<b>{newCount}</b> new</>}.{' '}
-                    <span className="dp-ai-unmatched">Click a name to rename, ✎ to reshape, × to remove — nothing saves until you Apply.</span>
+                    <b className="dp-ai-spark">✦ AI</b> traced <b>{total}</b> outline{total === 1 ? '' : 's'}
+                    {matchCount > 0 && <> — <b>{matchCount}</b> on your pins</>}
+                    {newCount > 0 && <>{matchCount > 0 ? ', ' : ' — '}<b>{newCount}</b> unnamed</>}.{' '}
+                    <span className="dp-ai-unmatched">✎ reshape, × to remove — nothing saves until you Apply.</span>
                   </span>
                   <span className="dp-spring" />
                   <button className="lg-btn-primary sm" disabled={!total || applying} onClick={() => applyProposals(deck)}>
@@ -1117,6 +1088,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       Matched (or pin-anchored) rooms show the crew's own name; new
                       draft outlines are marked so the suggested name reads as a
                       starting point, not something imposed. */}
+                  {/* Detect draws outlines only — no names. Each carries just a
+                      reshape (✎) and remove (×) control at its centre. Pinned rooms
+                      keep their own pin/name; the rest are unnamed drafts. */}
                   {deckProps && !(editing?.propIdx != null && editing.deckId === deck.id) && deckProps.items.map((it, i) => {
                     const c = centroidOf(it.nodes);
                     if (!c) return null;
@@ -1125,9 +1099,6 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       : normCategory(inferCategory(it.name));
                     return (
                       <span key={i} className={`dp-proposal-label ${it.create ? 'is-new' : ''}`} style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%`, background: categoryColor(cat) }}>
-                        <button type="button" className="dp-proposal-name" onClick={(e) => { e.stopPropagation(); renameProposal(i); }} title="Rename this outline">
-                          {it.anchored ? '📍' : '✦'} {it.name}
-                        </button>
                         <button type="button" className="dp-proposal-edit" onClick={(e) => { e.stopPropagation(); startEditProposal(i, deck); }} title="Reshape this outline">✎</button>
                         <button type="button" className="dp-proposal-x" onClick={(e) => { e.stopPropagation(); removeProposal(i); }} title="Remove this outline">×</button>
                       </span>
