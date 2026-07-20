@@ -117,6 +117,9 @@ const HoursOfRestWidget = () => {
   const [logRest, setLogRest] = useState(false); // reveal wheels on a rest day
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState(false);
+  // Which day the confirm section acts on — today by default; the crew last-7
+  // strip lets a member pick any of those days to log/adjust.
+  const [selDate, setSelDate] = useState(null);
 
   const tier = (tenantRole || user?.permission_tier || '').toUpperCase();
   const view = tier === 'COMMAND' ? 'command' : tier === 'CHIEF' ? 'chief' : 'crew';
@@ -210,30 +213,25 @@ const HoursOfRestWidget = () => {
     return base.concat(logged);
   }, [myShifts, myEntries]);
 
-  const myTodayBlocks = useMemo(() => blocksForDay(myShiftsMerged, todayStr), [myShiftsMerged, todayStr]);
-  const loggedToday = myEntries.has(todayStr);
-  const myTodayType = myShifts.find((s) => s.date === todayStr && ON_DUTY_TYPES.has(s.shiftType))?.shiftType || 'duty';
-  const tmrwStr = addDays(todayStr, 1);
-  const myReport = useMemo(() => assessMlc({
-    dayShifts: myShiftsMerged.filter((s) => s.date === todayStr),
-    weekShifts: myShiftsMerged.filter((s) => s.date > addDays(todayStr, -7) && s.date <= todayStr),
-  }), [myShiftsMerged, todayStr]);
-  const myWeekRest = myReport.pastWeekHours != null ? Math.round(myReport.pastWeekHours) : null;
-  const myBreach = myReport.anyBreach;
+  const selectedDate = selDate || todayStr;
+  const selBlocks = useMemo(() => blocksForDay(myShiftsMerged, selectedDate), [myShiftsMerged, selectedDate]);
+  const loggedSel = myEntries.has(selectedDate);
+  const selType = myShifts.find((s) => s.date === selectedDate && ON_DUTY_TYPES.has(s.shiftType))?.shiftType || 'duty';
 
   // The crew member's own rest status for the trailing 7 days (today last).
   const myWeek = useMemo(() => Array.from({ length: 7 }, (_, i) => {
     const date = addDays(todayStr, i - 6);
     const dt = new Date(`${date}T00:00:00`);
-    return { date, wd1: WD1[dt.getDay()], status: dayStatus(myShiftsMerged, date), isToday: i === 6 };
+    return { date, wd1: WD1[dt.getDay()], dn: dt.getDate(), status: dayStatus(myShiftsMerged, date), isToday: i === 6 };
   }), [myShiftsMerged, todayStr]);
 
-  // The wheels track the logged (or planned) blocks; re-sync when data changes.
-  const blocksKey = myTodayBlocks.map((b) => `${b.start}-${b.end}`).join('|');
+  // The wheels track the selected day's logged/planned blocks; re-sync when the
+  // day changes or the data reloads. Empty (a rest day) → a sensible default.
+  const blocksKey = selBlocks.map((b) => `${b.start}-${b.end}`).join('|');
   useEffect(() => {
-    if (myTodayBlocks.length > 0) setEditBlocks(myTodayBlocks.map((b) => ({ ...b })));
+    setEditBlocks(selBlocks.length > 0 ? selBlocks.map((b) => ({ ...b })) : [{ start: '08:00', end: '12:00' }]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocksKey]);
+  }, [selectedDate, blocksKey]);
 
   const editTotalHours = useMemo(
     () => Math.round(editBlocks.reduce((sum, b) => sum + blockDur(b), 0)),
@@ -255,14 +253,14 @@ const HoursOfRestWidget = () => {
       // calendar day gets exactly the on-duty it should.
       const today = new Set(); const todayT = {};
       const next = new Set(); const nextT = {};
-      const fill = (set, types, from, to) => { for (let i = from; i < to; i += 1) { set.add(i); types[i] = myTodayType; } };
+      const fill = (set, types, from, to) => { for (let i = from; i < to; i += 1) { set.add(i); types[i] = selType; } };
       for (const b of editBlocks) {
         const s = toIdx(b.start); const e = toIdx(b.end);
         if (e > s) fill(today, todayT, s, e);
         else { fill(today, todayT, s, 48); fill(next, nextT, 0, e); }
       }
-      await upsertWorkEntryDay({ tenantId: activeTenantId, subjectUserId: user?.id, date: todayStr, workSegments: [...today].sort((a, b) => a - b), segmentTypes: todayT });
-      if (next.size > 0) await upsertWorkEntryDay({ tenantId: activeTenantId, subjectUserId: user?.id, date: tmrwStr, workSegments: [...next].sort((a, b) => a - b), segmentTypes: nextT });
+      await upsertWorkEntryDay({ tenantId: activeTenantId, subjectUserId: user?.id, date: selectedDate, workSegments: [...today].sort((a, b) => a - b), segmentTypes: todayT });
+      if (next.size > 0) await upsertWorkEntryDay({ tenantId: activeTenantId, subjectUserId: user?.id, date: addDays(selectedDate, 1), workSegments: [...next].sort((a, b) => a - b), segmentTypes: nextT });
       setLogRest(false);
       await load();
     } catch (err) {
@@ -349,8 +347,12 @@ const HoursOfRestWidget = () => {
       ) : (
         <>
           {/* Log your own hours to your HOR record (never the rota) */}
-          <div className="rw-eyebrow">{`Confirm today · ${WD[new Date().getDay()]} ${new Date().getDate()}`}</div>
-          {(myTodayBlocks.length > 0 || logRest) ? (
+          <div className="rw-eyebrow">{(() => {
+            const dt = new Date(`${selectedDate}T00:00:00`);
+            const isToday = selectedDate === todayStr;
+            return `Confirm ${isToday ? 'today · ' : ''}${WD[dt.getDay()]} ${dt.getDate()}`;
+          })()}</div>
+          {(selBlocks.length > 0 || logRest) ? (
             <>
               {editBlocks.map((b, i) => {
                 const prev = editBlocks[i - 1];
@@ -378,15 +380,15 @@ const HoursOfRestWidget = () => {
               <button type="button" className="rw-addblk" onClick={addBlock}>+ Add another block</button>
               {saveErr && <div className="rw-hormeta"><b className="rw-bad">Couldn’t save — try again</b></div>}
               <button type="button" className="rw-confirm" disabled={saving} onClick={saveHours}>
-                {saving ? 'Saving…' : loggedToday ? 'Update Hours of Rest' : 'Save to Hours of Rest'}
+                {saving ? 'Saving…' : loggedSel ? 'Update Hours of Rest' : 'Save to Hours of Rest'}
               </button>
             </>
           ) : (
             <>
               <div className="rw-herometa" style={{ borderBottom: 0, paddingTop: 10 }}>
-                <b>Rest day today</b>{myWeekRest != null ? ` · ${myWeekRest}h rest this week` : ''}
+                <b>{selectedDate === todayStr ? 'Rest day today' : 'Rest day'}</b>
               </div>
-              <button type="button" className="rw-linkbtn" onClick={() => { setEditBlocks([{ start: '08:00', end: '12:00' }]); setSaveErr(false); setLogRest(true); }}>Worked today? Log hours →</button>
+              <button type="button" className="rw-linkbtn" onClick={() => { setEditBlocks([{ start: '08:00', end: '12:00' }]); setSaveErr(false); setLogRest(true); }}>Worked this day? Log hours →</button>
             </>
           )}
 
@@ -394,13 +396,19 @@ const HoursOfRestWidget = () => {
           {view === 'crew' && (
             <>
               <div className="rw-divider" />
-              <div className="rw-seclab">Your rest · last 7 days</div>
+              <div className="rw-seclab">Your rest · last 7 days · <span className="rw-seclab-hint">tap a day to log</span></div>
               <div className="rw-week">
                 {myWeek.map((d) => (
-                  <div key={d.date} className={`rw-wcell${d.isToday ? ' is-today' : ''}`}>
+                  <button
+                    type="button"
+                    key={d.date}
+                    className={`rw-wcell${d.isToday ? ' is-today' : ''}${d.date === selectedDate ? ' is-sel' : ''}`}
+                    onClick={() => { setSelDate(d.date); setLogRest(false); setSaveErr(false); }}
+                    aria-label={`${d.wd1} ${d.dn} — log hours`}
+                  >
                     <StatusCell s={d.status} />
-                    <span className="rw-wd">{d.wd1}</span>
-                  </div>
+                    <span className="rw-wd">{d.isToday ? 'Today' : d.wd1}</span>
+                  </button>
                 ))}
               </div>
               <Legend />
