@@ -62,6 +62,23 @@ never as a page or card fill.
   `text-transform:uppercase`, color `#8B8478`. Mark optional/required inline
   (`required` in terracotta, `optional` in faint).
 
+**Page headers — ALWAYS the canonical editorial pair, never a bespoke title.**
+Every top-level page AND every drill-in sub-view (a folder, a person's wardrobe,
+a tab that owns the viewport) leads with the same two elements — do NOT invent
+`*-h1` / `*-eyebrow` / `*-title` classes for a page heading:
+- **Meta strip**: `<p className="editorial-meta">` — a terracotta `●` dot, the
+  section word, then `<span className="bar" />` separators between `<span
+  className="muted">` context/quick-stat segments. E.g. `● HOUSEKEEPING | TODAY |
+  3 IN THE WASH`, `● WARDROBE | CREW | 6 ISSUED`. Put live quick info here, not
+  a repeat of the title.
+- **Big serif headline**: `<h1 className="editorial-greeting">` in the shape
+  `SUBJECT<span className="period">,</span> <em>state</em><span
+  className="period">.</span>` — the subject renders UPPERCASE navy (`#1C1B3A`,
+  the class transforms it), the `<em>` accent is terracotta italic (`#C65A1A`),
+  and the comma/period `.period` spans are navy. E.g. `LAUNDRY, in motion.`,
+  `WARDROBE, managed.`, `CREW, in uniform.`. Both classes live in
+  `src/styles/editorial.css` — import it, don't reimplement.
+
 **Shape & layout**
 - No heavy boxed cards. Separate items with hairline rules (`border-bottom:1px
   solid #F0F1F5`) and whitespace — editorial sections, not boxed widgets.

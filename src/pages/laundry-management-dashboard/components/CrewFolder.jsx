@@ -274,10 +274,12 @@ const CrewFolder = ({ onBack }) => {
     return (
       <div className="cf-view">
         <div className="cf-bar"><button type="button" className="lm-back" onClick={onBack}><Icon name="ArrowLeft" size={16} /> Back to wardrobe management</button></div>
-        <div className="cf-head">
-          <span className="cf-eyebrow">Wardrobe · Crew</span>
-          <h1 className="cf-h1">Crew uniform</h1>
-        </div>
+        <p className="editorial-meta">
+          <span className="dot">●</span><span>Wardrobe</span>
+          <span className="bar" /><span className="muted">Crew</span>
+          <span className="bar" /><span className="muted">{kit.filter((k) => k.status === 'in_service').length} issued</span>
+        </p>
+        <h1 className="editorial-greeting">CREW<span className="period">,</span> <em>in uniform</em><span className="period">.</span></h1>
         <div className="cf-toolbar">
           <div className="cf-tsearch">
             <Icon name="Search" size={16} className="cf-search-ic" />

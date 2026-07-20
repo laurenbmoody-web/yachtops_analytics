@@ -2,10 +2,8 @@
 .cf-view { padding-top: 4px; }
 .cf-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 
-/* Folder header + toolbar (roster / list level) */
-.cf-head { margin-bottom: 16px; }
-.cf-head .cf-eyebrow { display: block; }
-.cf-h1 { font-family: 'DM Serif Display', Georgia, serif; font-size: 30px; color: #1C1B3A; line-height: 1.05; margin-top: 3px; }
+/* Folder toolbar (roster / list level) — header uses the canonical
+   .editorial-meta + .editorial-greeting pair, not bespoke classes. */
 .cf-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
 .cf-tsearch { display: flex; align-items: center; gap: 8px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 9px 12px; min-width: 240px; flex: 1; max-width: 420px; }
 .cf-tsearch input { flex: 1; border: none; background: none; outline: none; font-size: 14px; color: #1C1B3A; }
