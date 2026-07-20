@@ -5,6 +5,7 @@ import LaundryScanModal from './LaundryScanModal';
 import AddGarmentModal from './AddGarmentModal';
 import GarmentFullView from './GarmentFullView';
 import WardrobeEditorModal from './WardrobeEditorModal';
+import PersonTiles from './PersonTiles';
 import { canViewCost } from '../../../utils/costPermissions';
 import { loadWardrobes, createWardrobe } from '../utils/laundryWardrobes';
 import { loadCases, createCase } from '../utils/laundryCases';
@@ -54,6 +55,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   const [guests, setGuests] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [personId, setPersonId] = useState(null); // null = person-tiles landing; 'owner' or a guestId = drilled in
   const [view, setView] = useState('image'); // image | list
   const [groupBy, setGroupBy] = useState('location'); // location | guest
   const [query, setQuery] = useState('');
@@ -92,8 +94,27 @@ const OwnerWardrobeView = ({ onBack }) => {
   const caseName = (id) => cases.find((c) => c.id === id)?.name || 'a case';
   const types = useMemo(() => Array.from(new Set(items.map((i) => i.garmentType).filter(Boolean))).sort(), [items]);
 
+  // The people this owner-world holds: the owner (unassigned garments) plus each
+  // owner guest/family member — the tile landing, matching the Crew folder.
+  const people = useMemo(() => {
+    const counts = new Map();
+    items.forEach((it) => { const k = it.ownerGuestId || 'owner'; counts.set(k, (counts.get(k) || 0) + 1); });
+    const arr = [{ id: 'owner', name: 'Owner', subtitle: 'Unassigned garments', count: counts.get('owner') || 0, countLabel: 'garments' }];
+    guests.forEach((g) => arr.push({
+      id: g.id, name: guestName(g), subtitle: g.cabinLocationLabel || g.cabinAllocated || '',
+      photo: g.photo || g.avatarUrl || '', count: counts.get(g.id) || 0, countLabel: 'garments',
+    }));
+    return arr;
+  }, [items, guests]);
+  const selectedPerson = personId === 'owner' ? { name: 'Owner' } : (guestsById[personId] ? { name: guestName(guestsById[personId]) } : null);
+  const personItems = useMemo(() => {
+    if (!personId) return items;
+    if (personId === 'owner') return items.filter((it) => !it.ownerGuestId);
+    return items.filter((it) => it.ownerGuestId === personId);
+  }, [items, personId]);
+
   const shown = useMemo(() => {
-    let list = items;
+    let list = personItems;
     const q = query.trim().toLowerCase();
     if (q) list = list.filter((i) => `${i.description} ${i.garmentType} ${i.colour} ${(i.tags || []).join(' ')}`.toLowerCase().includes(q));
     if (fLoc !== 'all') {
@@ -116,7 +137,7 @@ const OwnerWardrobeView = ({ onBack }) => {
       return 0;
     });
     return s;
-  }, [items, query, fLoc, fType, fStatus, fAge, sort]);
+  }, [personItems, query, fLoc, fType, fStatus, fAge, sort]);
 
   // Group the shown items by wardrobe/room (location) or by the person (guest).
   const groups = useMemo(() => {
@@ -216,11 +237,33 @@ const OwnerWardrobeView = ({ onBack }) => {
     );
   };
 
+  // Person-tiles landing — pick who first, then see their wardrobe (mirrors Crew).
+  if (personId === null) {
+    return (
+      <div className="ow-view">
+        <div className="ow-bar">
+          <button type="button" className="lm-back" onClick={onBack}><Icon name="ArrowLeft" size={16} /> Back to wardrobe management</button>
+          <button type="button" className="ow-btn ghost" onClick={() => setShowNewWardrobe(true)}><Icon name="FolderPlus" size={15} /> New wardrobe</button>
+        </div>
+        {loading
+          ? <div className="ow-empty">Loading the wardrobe…</div>
+          : <PersonTiles people={people} emptyLabel="No owner garments yet." onPick={setPersonId} />}
+        {showNewWardrobe && <WardrobeEditorModal scope="owner" onClose={() => setShowNewWardrobe(false)} onCreated={load} />}
+      </div>
+    );
+  }
+
   return (
     <div className="ow-view">
       <div className="ow-bar">
-        <button type="button" className="lm-back" onClick={onBack}><Icon name="ArrowLeft" size={16} /> Back to wardrobe management</button>
+        <button type="button" className="lm-back" onClick={() => setPersonId(null)}><Icon name="ArrowLeft" size={16} /> Back to owners</button>
       </div>
+      {selectedPerson && (
+        <div className="ow-person-head">
+          <h2 className="ow-person-nm">{selectedPerson.name}</h2>
+          <span className="ow-person-ct">{personItems.length} garment{personItems.length === 1 ? '' : 's'}</span>
+        </div>
+      )}
 
       <div className="ow-toolbar">
         <div className="ow-search">
