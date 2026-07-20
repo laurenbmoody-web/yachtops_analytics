@@ -3343,6 +3343,22 @@ export const markInvoicePaid = async (invoiceId) => {
   return invoice;
 };
 
+// Outstanding (unpaid) invoices for a tenant — the crew "money owed" view in
+// Accounts. Tenant-scoped read of supplier_invoices (RLS: crew_read_their_invoices),
+// only the amounts still owed (sent / overdue), newest due first. Joins the
+// supplier name + a little order context for the row.
+export const fetchOutstandingInvoices = async (tenantId) => {
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    .from('supplier_invoices')
+    .select('id, order_id, invoice_number, amount, currency, status, pdf_url, issue_date, due_date, yacht_name, supplier:supplier_profiles(name)')
+    .eq('tenant_id', tenantId)
+    .in('status', ['sent', 'overdue'])
+    .order('due_date', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+};
+
 // Sprint 9c.2 Phase 5 — vessel-side editable surfaces on supplier_profiles.
 //
 // Both helpers write to the four crew-writable columns added by migration

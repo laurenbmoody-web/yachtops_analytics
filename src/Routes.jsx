@@ -9,6 +9,7 @@ import Dashboard from './pages/dashboard';
 import TeamJobsManagement from './pages/team-jobs-management';
 import Accounts from './pages/accounts';
 import Ledger from './pages/accounts/ledger';
+import Payables from './pages/accounts/payables';
 import Budgets from './pages/accounts/budgets';
 import BudgetDetail from './pages/accounts/budgets/BudgetDetail';
 import LogsDeliveries from './pages/logs-deliveries';
@@ -1451,6 +1452,7 @@ const Routes = () => {
         {/* Accounts */}
         <Route path="/accounts" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Accounts /></ProtectedRoute>} />
         <Route path="/accounts/ledger" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Ledger /></ProtectedRoute>} />
+        <Route path="/accounts/payables" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Payables /></ProtectedRoute>} />
         <Route path="/accounts/budgets" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Budgets /></ProtectedRoute>} />
         <Route path="/accounts/budgets/:id" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><BudgetDetail /></ProtectedRoute>} />
         

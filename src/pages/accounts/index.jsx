@@ -107,6 +107,9 @@ export default function Accounts() {
             <div className="ca-titlerow">
               <h1 className="ca-title">Cash <em>position</em>.</h1>
               <div className="ca-head-act">
+                <button type="button" className="ca-btn ca-btn-ghost" onClick={() => navigate('/accounts/payables')}>
+                  <Icon name="ReceiptText" size={16} /> Outstanding
+                </button>
                 <button type="button" className="ca-btn ca-btn-ghost" onClick={() => navigate('/accounts/ledger')}>
                   <Icon name="BookOpen" size={16} /> Ledger
                 </button>
