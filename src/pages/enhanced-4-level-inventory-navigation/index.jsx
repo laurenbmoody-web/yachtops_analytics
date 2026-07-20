@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { dateLocale } from '../../utils/dateFormat';
+import { dateLocale, formatDate } from '../../utils/dateFormat';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
@@ -28,6 +28,7 @@ import { exportInventoryToPDF } from './utils/inventoryPdfExport';
 import { exportInventoryToXLSX } from './utils/inventoryXlsxExport';
 
 import ModalShell from '../../components/ui/ModalShell';
+import './inventory-nav.css';
 const SLASH_PLACEHOLDER = '__FWDSLASH__';
 
 // ─── Folder Icon Suggestions ───────────────────────────────────────────────────
@@ -945,34 +946,31 @@ const AddDropdownButton = ({ isRoot, onAddFolder, onAddItem }) => {
   }, []);
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="inv-adddrop" ref={ref}>
       <button
         onClick={() => setOpen(prev => !prev)}
-        className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-all shadow-sm"
+        className="inv-btn primary"
       >
         <Icon name="Plus" size={15} />
         Add
         <Icon name="ChevronDown" size={13} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 w-48 bg-card border border-border rounded-xl shadow-lg z-30 overflow-hidden">
+        <div className="inv-addmenu">
           {!isRoot && (
-            <>
-              <button
-                onClick={() => { setOpen(false); onAddFolder(); }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors text-left"
-              >
-                <Icon name="FolderPlus" size={15} className="text-primary" />
-                Add Sub-folder
-              </button>
-              <div className="h-px bg-border mx-3" />
-            </>
+            <button
+              onClick={() => { setOpen(false); onAddFolder(); }}
+              className="inv-addmenu-item"
+            >
+              <Icon name="FolderPlus" size={15} />
+              Add Sub-folder
+            </button>
           )}
           <button
             onClick={() => { setOpen(false); onAddItem(); }}
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-muted transition-colors text-left"
+            className="inv-addmenu-item"
           >
-            <Icon name="PackagePlus" size={15} className="text-primary" />
+            <Icon name="PackagePlus" size={15} />
             Add Item
           </button>
         </div>
@@ -1043,19 +1041,19 @@ const QuickQtyControl = ({ item, onUpdate, locationQtys, setLocationQtys, showLo
   };
 
   return (
-    <div className="relative flex items-center gap-1">
+    <div className="inv-qty">
       <button
         onClick={(e) => handleButtonClick(e, -1)}
         disabled={loading || (!isMultiLocation && localQty <= 0)}
-        className={`w-7 h-7 rounded-full flex items-center justify-center disabled:opacity-40 transition-colors ${isMultiLocation ? 'bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary' : 'bg-red-100 text-red-600 hover:bg-red-200'}`}
+        className={`inv-qtybtn ${isMultiLocation ? 'neutral' : 'minus'}`}
       >
         <Icon name={isMultiLocation ? (showLocations ? 'ChevronUp' : 'ChevronDown') : 'Minus'} size={12} />
       </button>
-      <span className="w-10 text-center text-sm font-semibold text-foreground">{displayQty}</span>
+      <span className="inv-qtyval">{displayQty}</span>
       <button
         onClick={(e) => handleButtonClick(e, 1)}
         disabled={loading || (!isMultiLocation && false)}
-        className={`w-7 h-7 rounded-full flex items-center justify-center disabled:opacity-40 transition-colors ${isMultiLocation ? 'bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary' : 'bg-green-100 text-green-600 hover:bg-green-200'}`}
+        className={`inv-qtybtn ${isMultiLocation ? 'neutral' : 'plus'}`}
       >
         <Icon name={isMultiLocation ? (showLocations ? 'ChevronUp' : 'ChevronDown') : 'Plus'} size={12} />
       </button>
@@ -1287,37 +1285,32 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
   const categoryLabel = item?.l3Name || item?.l2Name || item?.l1Name || null;
   // Format expiry date — check both camelCase and snake_case field names
   const rawExpiry = item?.expiryDate || item?.expiry_date || null;
-  const expiryLabel = rawExpiry ? (() => {
-    try { return new Date(rawExpiry)?.toLocaleDateString(dateLocale(), { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return rawExpiry; }
-  })() : null;
+  const expiryLabel = rawExpiry ? (formatDate(rawExpiry) || rawExpiry) : null;
 
   const accentColor = item?.color || null;
 
   return (
     <>
     <div
-      className={`flex flex-col bg-card rounded-xl border transition-all group overflow-hidden ${isSelected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'}`}
+      className={`inv-row${isSelected ? ' selected' : ''}`}
       style={accentColor ? { borderLeftColor: accentColor, borderLeftWidth: 3 } : {}}
     >
-      <div className="flex items-center gap-3 p-3">
+      <div className="inv-row-main">
         <button
           onClick={(e) => { e?.stopPropagation(); onToggleSelect?.(item); }}
-          className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
-            isSelected
-              ? 'bg-primary border-primary' :'bg-background border-border hover:border-primary/60'
-          }`}
+          className={`inv-check${isSelected ? ' on' : ''}`}
           title={isSelected ? 'Deselect' : 'Select'}
         >
-          {isSelected && <Icon name="Check" size={11} className="text-primary-foreground" />}
+          {isSelected && <Icon name="Check" size={11} />}
         </button>
 
         {/* Colour/icon swatch — click to customise */}
         <button
           onClick={(e) => { e?.stopPropagation(); setAppearanceAnchor(e?.currentTarget?.getBoundingClientRect()); }}
-          className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all hover:scale-110 border"
+          className="inv-swatch"
           style={accentColor
             ? { backgroundColor: accentColor + '25', borderColor: accentColor + '60', color: accentColor }
-            : { backgroundColor: 'var(--color-muted)', borderColor: 'var(--color-border)', color: 'var(--color-muted-foreground)' }
+            : undefined
           }
           title="Customise icon & colour"
         >
@@ -1325,40 +1318,38 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
         </button>
 
         {/* Item info: Name | Category | Code | Expiry */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="inv-row-body">
+          <div className="inv-row-nameline">
             <span
-              className="font-medium text-foreground text-sm truncate cursor-pointer hover:text-primary transition-colors"
+              className="inv-row-name"
               onClick={(e) => { e?.stopPropagation(); onQuickView?.(item); }}
               title="Quick view"
             >{item?.name}</span>
-            {isLow && <span className="px-1.5 py-0.5 text-xs bg-red-100 text-red-700 rounded-full font-medium">Low</span>}
+            {isLow && <span className="inv-badge-low">Low</span>}
           </div>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
+          <div className="inv-row-sub">
             {categoryLabel && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Icon name="Tag" size={10} className="shrink-0" />
+              <span className="inv-metaitem">
+                <Icon name="Tag" size={10} />
                 <span className="truncate max-w-[120px]">{categoryLabel}</span>
               </span>
             )}
             {item?.cargoItemId && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <span className="text-muted-foreground/50">|</span>
-                <Icon name="Hash" size={10} className="shrink-0" />
-                <span className="font-mono">{item?.cargoItemId}</span>
+              <span className="inv-metaitem">
+                <Icon name="Hash" size={10} />
+                <span className="mono">{item?.cargoItemId}</span>
               </span>
             )}
             {expiryLabel && (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <span className="text-muted-foreground/50">|</span>
-                <Icon name="Calendar" size={10} className="shrink-0" />
+              <span className="inv-metaitem">
+                <Icon name="Calendar" size={10} />
                 <span>{expiryLabel}</span>
               </span>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="inv-row-right">
           <QuickQtyControl item={item} onUpdate={onUpdate} locationQtys={locationQtys} setLocationQtys={setLocationQtys} showLocations={showLocations} onToggleLocations={() => setShowLocations(v => !v)} />
           {!isMultiLocation && isAlcoholItem(item) && (
             <button
@@ -1377,11 +1368,11 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
             </button>
           )}
           {canEdit && (
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={(e) => { e?.stopPropagation(); onEdit?.(item); }} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+            <div className="inv-row-hoveractions">
+              <button onClick={(e) => { e?.stopPropagation(); onEdit?.(item); }} className="inv-iconbtn" style={{ opacity: 1 }}>
                 <Icon name="Pencil" size={14} />
               </button>
-              <button onClick={(e) => { e?.stopPropagation(); onDelete?.(item); }} className="p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-colors">
+              <button onClick={(e) => { e?.stopPropagation(); onDelete?.(item); }} className="inv-iconbtn danger" style={{ opacity: 1 }}>
                 <Icon name="Trash2" size={14} />
               </button>
             </div>
@@ -1389,13 +1380,13 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
         </div>
       </div>
       {isMultiLocation && showLocations && locationQtys?.length > 0 && (
-        <div className="border-t border-border px-3 pb-3 pt-2 flex flex-col gap-1.5">
+        <div className="inv-locexpand">
           {locationQtys?.map((loc, idx) => {
             const label = getLastLocationSegment(loc) || `Location ${idx + 1}`;
             const hasPartial = loc?.partial != null;
             return (
-              <div key={idx} className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground truncate flex-1">{label}</span>
+              <div key={idx} className="inv-locrow">
+                <span className="inv-locname">{label}</span>
                 <div className="flex items-center gap-1.5">
                   {isAlcoholItem(item) && (
                     <button
@@ -1416,7 +1407,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
                   <button
                     onClick={(e) => { e?.stopPropagation(); const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: Math.max(0, (l?.qty || 0) - 1) } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; updateItemStockLocations(item?.id, updated); }}
                     disabled={loc?.qty <= 0}
-                    className="w-6 h-6 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center disabled:opacity-40 transition-colors"
+                    className="inv-qtybtn minus" style={{ width: 24, height: 24 }}
                   >
                     <Icon name="Minus" size={10} />
                   </button>
@@ -1425,7 +1416,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
                   </span>
                   <button
                     onClick={(e) => { e?.stopPropagation(); const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: (l?.qty || 0) + 1 } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; updateItemStockLocations(item?.id, updated); }}
-                    className="w-6 h-6 rounded-full bg-green-100 text-green-600 hover:bg-green-200 flex items-center justify-center transition-colors"
+                    className="inv-qtybtn plus" style={{ width: 24, height: 24 }}
                   >
                     <Icon name="Plus" size={10} />
                   </button>
@@ -1528,105 +1519,101 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
   const categoryLabel = item?.l3Name || item?.l2Name || item?.l1Name || null;
   // Format expiry date — check both camelCase and snake_case field names
   const rawExpiry = item?.expiryDate || item?.expiry_date || null;
-  const expiryLabel = rawExpiry ? (() => {
-    try { return new Date(rawExpiry)?.toLocaleDateString(dateLocale(), { day: '2-digit', month: 'short', year: 'numeric' }); } catch { return rawExpiry; }
-  })() : null;
+  const expiryLabel = rawExpiry ? (formatDate(rawExpiry) || rawExpiry) : null;
 
   return (
     <>
     <div
-      className={`bg-card rounded-2xl border transition-all overflow-hidden group flex flex-col ${isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/30'}`}
+      className={`inv-card${isSelected ? ' selected' : ''}`}
       style={accentColor ? { borderTopColor: accentColor, borderTopWidth: 3 } : {}}
     >
       <div
-        className="relative h-28 flex items-center justify-center overflow-hidden cursor-pointer bg-muted"
+        className="inv-card-media"
         style={accentColor && !imageUrl ? { backgroundColor: accentColor + '22' } : {}}
         onClick={() => onQuickView?.(item)}
         title="Quick view"
       >
         {imageUrl ? (
-          <img src={imageUrl} alt={item?.name} className="w-full h-full object-cover" />
+          <img src={imageUrl} alt={item?.name} />
         ) : (
-          <Icon
-            name={accentIcon || 'Package'}
-            size={32}
-            style={accentColor ? { color: accentColor } : {}}
-            className={!accentColor ? 'text-muted-foreground/30' : ''}
-          />
+          <span className="inv-placeholder">
+            <Icon
+              name={accentIcon || 'Package'}
+              size={32}
+              style={accentColor ? { color: accentColor } : undefined}
+            />
+          </span>
         )}
         {/* Appearance edit button */}
         <button
           onClick={(e) => { e?.stopPropagation(); setAppearanceAnchor(e?.currentTarget?.getBoundingClientRect()); }}
-          className="absolute bottom-2 right-2 w-7 h-7 rounded-lg bg-background/90 border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-all opacity-0 group-hover:opacity-100"
+          className="inv-media-btn inv-card-media-tr"
           title="Customise icon & colour"
         >
           <Icon name="Palette" size={12} />
         </button>
         {isLow && (
-          <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold shadow">Low</div>
+          <div className="inv-media-badge-low">Low</div>
         )}
         <button
           onClick={(e) => { e?.stopPropagation(); onToggleSelect?.(item); }}
-          className={`absolute top-2 left-2 w-6 h-6 rounded border-2 flex items-center justify-center transition-all shadow ${
-            isSelected
-              ? 'bg-primary border-primary' :'bg-black/20 border-white/80'
-          }`}
+          className={`inv-media-check${isSelected ? ' on' : ''}`}
           title={isSelected ? 'Deselect' : 'Select'}
         >
-          {isSelected && <Icon name="Check" size={11} className="text-white" />}
+          {isSelected && <Icon name="Check" size={11} />}
         </button>
         {canEdit && (
-          <div className="absolute bottom-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="inv-card-media-bl">
             <button
               onClick={(e) => { e?.stopPropagation(); onEdit?.(item); }}
-              className="w-7 h-7 rounded-lg bg-background/90 border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              className="inv-media-btn"
             >
               <Icon name="Pencil" size={12} />
             </button>
             <button
               onClick={(e) => { e?.stopPropagation(); onDelete?.(item); }}
-              className="w-7 h-7 rounded-lg bg-background/90 border border-border flex items-center justify-center text-muted-foreground hover:text-red-600 transition-colors"
+              className="inv-media-btn danger"
             >
               <Icon name="Trash2" size={12} />
             </button>
           </div>
         )}
       </div>
-      <div className="p-3 flex flex-col gap-1.5 flex-1">
+      <div className="inv-card-body">
         {/* Item Name */}
         <p
-          className="font-semibold text-foreground text-sm leading-tight line-clamp-2 cursor-pointer hover:text-primary transition-colors"
+          className="inv-card-name"
           onClick={() => onQuickView?.(item)}
           title="Quick view"
         >{item?.name}</p>
 
         {/* Category */}
         {categoryLabel && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Icon name="Tag" size={10} className="shrink-0" />
+          <div className="inv-card-meta">
+            <Icon name="Tag" size={10} />
             <span className="truncate">{categoryLabel}</span>
           </div>
         )}
 
         {/* Code */}
         {item?.cargoItemId && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Icon name="Hash" size={10} className="shrink-0" />
-            <span className="font-mono truncate">{item?.cargoItemId}</span>
+          <div className="inv-card-meta">
+            <Icon name="Hash" size={10} />
+            <span className="mono truncate">{item?.cargoItemId}</span>
           </div>
         )}
 
         {/* Expiry Date */}
         {expiryLabel && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Icon name="Calendar" size={10} className="shrink-0" />
+          <div className="inv-card-meta">
+            <Icon name="Calendar" size={10} />
             <span>{expiryLabel}</span>
           </div>
         )}
 
         {/* Quantity control */}
-        <div className="flex items-center justify-between mt-auto pt-1 border-t border-border/50">
-          <span className="text-xs text-muted-foreground">Qty</span>
+        <div className="inv-card-qty">
+          <span className="inv-card-qty-label">Qty</span>
           <div className="flex items-center gap-1.5">
             {!isMultiLocation && isAlcoholItem(item) && (
               <button
@@ -1649,13 +1636,13 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
           </div>
         </div>
         {isMultiLocation && showLocations && locationQtys?.length > 0 && (
-          <div className="border-t border-border pt-2 flex flex-col gap-1.5">
+          <div className="inv-locexpand" style={{ padding: '8px 0 0' }}>
             {locationQtys?.map((loc, idx) => {
               const label = getLastLocationSegment(loc) || `Location ${idx + 1}`;
               const hasPartial = loc?.partial != null;
               return (
-                <div key={idx} className="flex items-center justify-between gap-2">
-                  <span className="text-xs text-muted-foreground truncate flex-1">{label}</span>
+                <div key={idx} className="inv-locrow">
+                  <span className="inv-locname">{label}</span>
                   <div className="flex items-center gap-1">
                     {isAlcoholItem(item) && (
                       <button
@@ -1676,7 +1663,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
                     <button
                       onClick={(e) => { e?.stopPropagation(); const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: Math.max(0, (l?.qty || 0) - 1) } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; updateItemStockLocations(item?.id, updated); }}
                       disabled={loc?.qty <= 0}
-                      className="w-6 h-6 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center disabled:opacity-40 transition-colors"
+                      className="inv-qtybtn minus" style={{ width: 24, height: 24 }}
                     >
                       <Icon name="Minus" size={10} />
                     </button>
@@ -1685,7 +1672,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
                     </span>
                     <button
                       onClick={(e) => { e?.stopPropagation(); const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: (l?.qty || 0) + 1 } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; updateItemStockLocations(item?.id, updated); }}
-                      className="w-6 h-6 rounded-full bg-green-100 text-green-600 hover:bg-green-200 flex items-center justify-center transition-colors"
+                      className="inv-qtybtn plus" style={{ width: 24, height: 24 }}
                     >
                       <Icon name="Plus" size={10} />
                     </button>
@@ -1755,94 +1742,66 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
   <div
     onClick={onClick}
     className={[
-      'bg-card rounded-2xl border transition-all cursor-pointer p-5 group relative',
-      isDragging ? 'opacity-40 shadow-xl' : '',
-      isFolderDropTarget && isDropTargetReady
-        ? 'border-primary shadow-lg shadow-primary/20 bg-primary/5 scale-[1.02]'
-        : isFolderDropTarget
-        ? 'border-primary/50 bg-primary/3' : 'border-border hover:border-primary/40 hover:shadow-md',
+      'inv-folder',
+      isDragging ? 'dragging' : '',
+      isFolderDropTarget && isDropTargetReady ? 'droptarget-ready' : isFolderDropTarget ? 'droptarget' : '',
     ]?.join(' ')}
   >
-    {isFolderDropTarget && isDropTargetReady && (
-      <div className="absolute inset-0 rounded-2xl border-2 border-primary animate-pulse pointer-events-none" />
-    )}
-    <div className="flex items-start justify-between mb-3">
-      <div className="flex items-center gap-2">
+    <div className="inv-folder-top">
+      <div className="inv-folder-lead">
         {canEdit && dragHandleProps && (
           <div
             {...dragHandleProps}
             onClick={(e) => e?.stopPropagation()}
-            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted cursor-grab active:cursor-grabbing transition-colors flex-shrink-0"
+            className="inv-grip"
             title="Drag to reorder or hold over a folder to move inside"
           >
             <Icon name="GripVertical" size={14} />
           </div>
         )}
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={color
-            ? { backgroundColor: color + '22', border: `1.5px solid ${color}44` }
-            : depth === 0
-              ? { backgroundColor: 'var(--color-primary-10, rgba(74,144,226,0.1))' }
-              : { backgroundColor: 'var(--color-muted)' }
-          }
+          className={color ? 'inv-folder-icon' : 'inv-folder-icon plain'}
+          style={color ? { backgroundColor: color + '22', border: `1.5px solid ${color}44` } : undefined}
         >
           <Icon
             name={icon || (depth === 0 ? 'MapPin' : 'FolderOpen')}
             size={20}
-            style={color ? { color } : {}}
-            className={!color ? (depth === 0 ? 'text-primary' : 'text-muted-foreground') : ''}
+            style={color ? { color } : undefined}
           />
         </div>
       </div>
-      <div className="flex items-center gap-1">
+      <div className="inv-folder-actions">
         {isFolderDropTarget && isDropTargetReady && (
-          <div className="flex items-center gap-1 px-2 py-1 bg-primary text-primary-foreground rounded-lg text-xs font-medium">
+          <span className="inv-moveinside">
             <Icon name="FolderInput" size={12} />
             <span>Move inside</span>
-          </div>
+          </span>
         )}
         {canEdit && onPalette && !isFolderDropTarget && (
-          <button
-            onClick={(e) => { e?.stopPropagation(); onPalette?.(); }}
-            className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
-            title="Edit icon &amp; colour"
-          >
+          <button onClick={(e) => { e?.stopPropagation(); onPalette?.(); }} className="inv-iconbtn" title="Edit icon &amp; colour">
             <Icon name="Palette" size={14} />
           </button>
         )}
         {showCog && onCog && !isFolderDropTarget && (
-          <button
-            onClick={(e) => { e?.stopPropagation(); onCog?.(); }}
-            className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
-            title="Folder settings"
-          >
+          <button onClick={(e) => { e?.stopPropagation(); onCog?.(); }} className="inv-iconbtn" title="Folder settings">
             <Icon name="Settings" size={14} />
           </button>
         )}
         {canEdit && onEdit && !showCog && !isFolderDropTarget && (
-          <button
-            onClick={(e) => { e?.stopPropagation(); onEdit?.(); }}
-            className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-muted text-muted-foreground hover:text-foreground transition-all"
-            title="Rename folder"
-          >
+          <button onClick={(e) => { e?.stopPropagation(); onEdit?.(); }} className="inv-iconbtn" title="Rename folder">
             <Icon name="Pencil" size={14} />
           </button>
         )}
         {canEdit && onDelete && !showCog && !isFolderDropTarget && (
-          <button
-            onClick={(e) => { e?.stopPropagation(); onDelete?.(); }}
-            className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-50 text-muted-foreground hover:text-red-600 transition-all"
-            title="Delete folder"
-          >
+          <button onClick={(e) => { e?.stopPropagation(); onDelete?.(); }} className="inv-iconbtn danger" title="Delete folder">
             <Icon name="Trash2" size={14} />
           </button>
         )}
-        {onClick && !isFolderDropTarget && <Icon name="ChevronRight" size={18} className="text-muted-foreground group-hover:text-primary transition-colors" />}
+        {onClick && !isFolderDropTarget && <Icon name="ChevronRight" size={18} className="inv-folder-chevron" />}
       </div>
     </div>
-    <h3 className="font-semibold text-foreground text-base mb-1">{name}</h3>
-    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+    <h3 className="inv-folder-name">{name}</h3>
+    <div className="inv-folder-meta">
       <span>{itemCount} item{itemCount !== 1 ? 's' : ''}</span>
       {subFolderCount > 0 && <span>· {subFolderCount} folder{subFolderCount !== 1 ? 's' : ''}</span>}
     </div>
@@ -3120,53 +3079,54 @@ const LocationFirstInventory = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="inv-page">
       <Header />
-      <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="inv-wrap">
 
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1 text-sm text-muted-foreground mb-4 flex-wrap">
-          <button onClick={() => navigate('/dashboard')} className="hover:text-foreground transition-colors">Dashboard</button>
-          <Icon name="ChevronRight" size={14} />
-          <button onClick={() => navigate('/inventory')} className="hover:text-foreground transition-colors">Inventory</button>
+        <div className="inv-crumbs">
+          <button onClick={() => navigate('/dashboard')} className="inv-crumb">Dashboard</button>
+          <Icon name="ChevronRight" size={13} />
+          <button onClick={() => navigate('/inventory')} className="inv-crumb">Inventory</button>
           {pathSegments?.map((seg, idx) => (
             <React.Fragment key={idx}>
-              <Icon name="ChevronRight" size={14} />
+              <Icon name="ChevronRight" size={13} />
               {idx < pathSegments?.length - 1 ? (
                 <button
                   onClick={() => navigate(segmentsToUrl(pathSegments?.slice(0, idx + 1)))}
-                  className="hover:text-foreground transition-colors"
+                  className="inv-crumb"
                 >
                   {seg}
                 </button>
               ) : (
-                <span className="text-foreground font-medium">{seg}</span>
+                <span className="inv-crumb-current">{seg}</span>
               )}
             </React.Fragment>
           ))}
         </div>
 
         {/* Header Row */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="inv-header">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">{pageTitle}</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">{pageSubtitle}</p>
+            <div className="inv-eyebrow">{isRoot ? 'Inventory' : 'Inventory · ' + (pathSegments?.[0] || '')}</div>
+            <h1 className="inv-title">{pageTitle}</h1>
+            <p className="inv-subtitle">{pageSubtitle}</p>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="inv-actions">
             <button
               onClick={() => setShowExportModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-card text-foreground border border-border rounded-xl hover:bg-muted transition-all shadow-sm"
+              className="inv-btn ghost"
               title="Export Inventory"
             >
-              <Icon name="Download" size={15} className="text-muted-foreground" />
+              <Icon name="Download" size={15} />
               <span className="hidden sm:inline">Export</span>
             </button>
             <button
               onClick={() => setShowAzureImportModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-primary/10 text-primary border border-primary/20 rounded-xl hover:bg-primary/20 transition-all shadow-sm"
+              className="inv-btn accent"
               title="Import from PDF / Document (Azure AI)"
             >
-              <Icon name="FileText" size={15} className="text-primary" />
+              <Icon name="FileText" size={15} />
               <span className="hidden sm:inline">Import document</span>
             </button>
             <AddDropdownButton
@@ -3177,7 +3137,7 @@ const LocationFirstInventory = () => {
             {!isRoot && (
               <button
                 onClick={handleBack}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-muted-foreground bg-card border border-border rounded-xl hover:bg-muted transition-all"
+                className="inv-btn ghost"
               >
                 <Icon name="ArrowLeft" size={15} />
                 Back
@@ -3188,39 +3148,35 @@ const LocationFirstInventory = () => {
 
         {/* Toolbar */}
         {!isRoot && (
-          <div className="sticky top-16 z-30 bg-background py-2 -mx-4 px-4 mb-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative flex-1 min-w-[180px]">
-                <Icon name="Search" size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <div className="inv-toolbar">
+            <div className="inv-toolbar-row">
+              <div className="inv-search">
+                <Icon name="Search" size={15} />
                 <input
                   type="text"
                   placeholder="Search name, brand, tag, supplier, barcode…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e?.target?.value)}
-                  className="w-full pl-9 pr-4 py-2 text-sm bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground placeholder:text-muted-foreground"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="inv-search-clear"
                   >
                     <Icon name="X" size={14} />
                   </button>
                 )}
               </div>
 
-              <div className="relative" ref={filterPanelRef}>
+              <div className="inv-sortwrap" ref={filterPanelRef}>
                 <button
                   onClick={() => { setShowFilterPanel(prev => !prev); setShowSortDropdown(false); }}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl border transition-all ${
-                    hasActiveFilters
-                      ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-foreground border-border hover:bg-muted'
-                  }`}
+                  className={`inv-tool${hasActiveFilters ? ' on' : ''}`}
                 >
                   <Icon name="SlidersHorizontal" size={15} />
                   <span className="hidden sm:inline">Filter</span>
                   {hasActiveFilters && (
-                    <span className="w-5 h-5 rounded-full bg-white/20 text-xs flex items-center justify-center font-bold">
+                    <span className="inv-tool-count">
                       {activeFilterChips?.length}
                     </span>
                   )}
@@ -3235,46 +3191,43 @@ const LocationFirstInventory = () => {
                 )}
               </div>
 
-              <div className="relative" ref={sortDropdownRef}>
+              <div className="inv-sortwrap" ref={sortDropdownRef}>
                 <button
                   onClick={() => { setShowSortDropdown(prev => !prev); setShowFilterPanel(false); }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-card text-foreground border border-border rounded-xl hover:bg-muted transition-all"
+                  className="inv-tool"
                 >
-                  <Icon name="ArrowUpDown" size={15} className="text-muted-foreground" />
+                  <Icon name="ArrowUpDown" size={15} />
                   <span className="hidden sm:inline max-w-[120px] truncate">{currentSortLabel}</span>
-                  <Icon name="ChevronDown" size={13} className={`text-muted-foreground transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
+                  <Icon name="ChevronDown" size={13} className={`transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
                 </button>
                 {showSortDropdown && (
-                  <div className="absolute right-0 top-full mt-1.5 w-52 bg-card border border-border rounded-xl shadow-xl z-40 overflow-hidden py-1">
+                  <div className="inv-sortmenu">
                     {SORT_OPTIONS?.map(opt => (
                       <button
                         key={opt?.value}
                         onClick={() => { setSortBy(opt?.value); setShowSortDropdown(false); }}
-                        className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors text-left ${
-                          sortBy === opt?.value
-                            ? 'bg-primary/10 text-primary font-medium' :'text-foreground hover:bg-muted'
-                        }`}
+                        className={`inv-sortitem${sortBy === opt?.value ? ' on' : ''}`}
                       >
                         {opt?.label}
-                        {sortBy === opt?.value && <Icon name="Check" size={14} className="text-primary" />}
+                        {sortBy === opt?.value && <Icon name="Check" size={14} />}
                       </button>
                     ))}
                   </div>
                 )}
               </div>
 
-              <div className="flex flex-wrap bg-card border border-border rounded-xl overflow-hidden">
+              <div className="inv-viewtoggle">
                 <button
                   onClick={() => setViewMode('list')}
                   title="List view"
-                  className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                  className={`inv-viewbtn${viewMode === 'list' ? ' on' : ''}`}
                 >
                   <Icon name="List" size={16} />
                 </button>
                 <button
                   onClick={() => setViewMode('grid')}
                   title="Grid view"
-                  className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
+                  className={`inv-viewbtn${viewMode === 'grid' ? ' on' : ''}`}
                 >
                   <Icon name="LayoutGrid" size={16} />
                 </button>
@@ -3285,46 +3238,34 @@ const LocationFirstInventory = () => {
 
         {/* Selection toolbar */}
         {!isRoot && selectedItemIds?.size > 0 && (
-          <div className="flex items-center gap-3 mb-3 px-4 py-2.5 bg-primary/5 border border-primary/20 rounded-xl">
+          <div className="inv-selbar">
             <button
               onClick={handleSelectAll}
-              className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+              className="inv-selbar-toggle"
             >
-              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0
-                    ? 'bg-primary border-primary' :'border-primary'
-              }`}>
+              <div className={`inv-minicheck${selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0 ? ' on' : ''}`}>
                 {selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0
-                  ? <Icon name="Check" size={10} className="text-white" />
-                  : <Icon name="Minus" size={10} className="text-primary" />
+                  ? <Icon name="Check" size={10} />
+                  : <Icon name="Minus" size={10} />
                 }
               </div>
               {selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0
                 ? 'Deselect All' :'Select All'
               }
             </button>
-            <span className="text-sm text-foreground font-medium">
+            <span className="inv-selbar-count">
               {selectedItemIds?.size} item{selectedItemIds?.size !== 1 ? 's' : ''} selected
             </span>
-            <div className="flex-1" />
-            <button
-              onClick={() => setShowBulkMoveModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-card border border-border text-foreground rounded-lg hover:bg-muted transition-colors"
-            >
+            <div className="inv-selbar-spacer" />
+            <button onClick={() => setShowBulkMoveModal(true)} className="inv-selbtn">
               <Icon name="FolderInput" size={13} />
               Move
             </button>
-            <button
-              onClick={() => setShowBulkDeleteModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-50 border border-red-200 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-            >
+            <button onClick={() => setShowBulkDeleteModal(true)} className="inv-selbtn danger">
               <Icon name="Trash2" size={13} />
               Delete
             </button>
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
+            <button onClick={() => setShowExportModal(true)} className="inv-selbtn primary">
               <Icon name="Download" size={13} />
               Export
             </button>
@@ -3333,12 +3274,12 @@ const LocationFirstInventory = () => {
 
         {/* Active filter chips */}
         {hasActiveFilters && (
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="inv-chips">
             {activeFilterChips?.map((chip, idx) => (
               <button
                 key={idx}
                 onClick={() => removeFilterChip(chip)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-primary/10 text-primary rounded-full border border-primary/20 hover:bg-primary/20 transition-colors"
+                className="inv-chip"
               >
                 {chip?.label}
                 <Icon name="X" size={11} />
@@ -3359,8 +3300,8 @@ const LocationFirstInventory = () => {
           <SortableContext items={filteredSubFolders} strategy={rectSortingStrategy}>
             {filteredSubFolders?.length > 0 && (
               <div>
-                {!isRoot && <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Folders</h2>}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                {!isRoot && <h2 className="inv-sectlabel">Folders</h2>}
+                <div className="inv-grid">
                   {filteredSubFolders?.map(folderName => {
                     const folderSegments = [...pathSegments, folderName];
                     const isReadOnly = isFolderReadOnly(folderName);
@@ -3423,21 +3364,18 @@ const LocationFirstInventory = () => {
 
         {/* Items section */}
         {filteredItems?.length > 0 && (
-          <div className={filteredSubFolders?.length > 0 ? 'mt-6' : ''}>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          <div style={filteredSubFolders?.length > 0 ? { marginTop: 28 } : undefined}>
+            <div className="inv-sectrow">
+              <h2 className="inv-sectlabel">
                 Items ({filteredItems?.length})
               </h2>
               <button
                 onClick={handleSelectAll}
-                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-primary border border-primary/30 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors"
+                className="inv-selbtn"
               >
-                <div className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
-                  selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0
-                    ? 'bg-primary border-primary' :'border-primary'
-                }`}>
+                <div className={`inv-minicheck${selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0 ? ' on' : ''}`}>
                   {selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0
-                    ? <Icon name="Check" size={9} className="text-white" />
+                    ? <Icon name="Check" size={9} />
                     : null
                   }
                 </div>
@@ -3447,7 +3385,7 @@ const LocationFirstInventory = () => {
               </button>
             </div>
             {viewMode === 'list' ? (
-              <div className="flex flex-col gap-2">
+              <div className="inv-items">
                 {filteredItems?.map(item => (
                   <ItemRow
                     key={item?.id}
@@ -3464,7 +3402,7 @@ const LocationFirstInventory = () => {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="inv-cardgrid">
                 {filteredItems?.map(item => (
                   <ItemGridCard
                     key={item?.id}
@@ -3486,30 +3424,30 @@ const LocationFirstInventory = () => {
 
         {/* Empty state */}
         {!isRoot && filteredSubFolders?.length === 0 && filteredItems?.length === 0 && (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-              <Icon name="Package" size={28} className="text-muted-foreground" />
+          <div className="inv-empty">
+            <div className="inv-empty-icon">
+              <Icon name="Package" size={28} />
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">
+            <h3 className="inv-empty-title">
               {searchQuery ? 'No results found' : 'This folder is empty'}
             </h3>
-            <p className="text-muted-foreground text-sm mb-6">
+            <p className="inv-empty-sub">
               {searchQuery
                 ? `No items or folders match "${searchQuery}"`
                 : 'Add items or sub-folders to get started'}
             </p>
             {!searchQuery && canEdit && (
-              <div className="flex gap-3 justify-center">
+              <div className="inv-empty-actions">
                 <button
                   onClick={() => setShowAddFolderModal(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-card border border-border text-foreground rounded-xl hover:bg-muted transition-colors"
+                  className="inv-btn ghost"
                 >
                   <Icon name="FolderPlus" size={15} />
                   Add Sub-folder
                 </button>
                 <button
                   onClick={() => { setEditingItem(null); setShowAddModal(true); }}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors"
+                  className="inv-btn primary"
                 >
                   <Icon name="Plus" size={15} />
                   Add Item
@@ -3520,12 +3458,12 @@ const LocationFirstInventory = () => {
         )}
 
         {isRoot && subFolders?.length === 0 && (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-              <Icon name="FolderOpen" size={28} className="text-muted-foreground" />
+          <div className="inv-empty">
+            <div className="inv-empty-icon">
+              <Icon name="FolderOpen" size={28} />
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">No department folders yet</h3>
-            <p className="text-muted-foreground text-sm">Department folders will appear here once your account is set up.</p>
+            <h3 className="inv-empty-title">No department folders yet</h3>
+            <p className="inv-empty-sub">Department folders will appear here once your account is set up.</p>
           </div>
         )}
       </div>
