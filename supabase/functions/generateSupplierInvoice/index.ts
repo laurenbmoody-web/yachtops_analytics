@@ -296,6 +296,9 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     .supplier-block .supplier-contact {
       margin-top: 5px; font-size: 10.5px; color: #6B7280;
     }
+    .brand { align-self: center; }
+    .brand .logo { margin-bottom: 0; }
+    .brand .logo-fallback { margin-bottom: 0; }
     .logo { max-height: 56px; max-width: 200px; display: block; margin-bottom: 8px; }
     .logo-fallback {
       font-family: 'DM Serif Display', Georgia, serif;
@@ -474,16 +477,8 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
 <div class="page">
 
   <header class="top">
-    <div class="supplier-block">
+    <div class="brand">
       ${logoBlock}
-      <div class="name">${supplierName}</div>
-      <div>${renderAddress(input.supplier)}</div>
-      ${[input.supplier.contact_email, input.supplier.contact_phone].filter(Boolean).length
-        ? `<div class="supplier-contact">${[input.supplier.contact_email, input.supplier.contact_phone].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
-      ${input.supplier.vat_number
-        ? `<div class="tax-id">${taxNumberLabel}: ${escapeHtml(input.supplier.vat_number)}</div>` : ''}
-      ${input.supplier.company_registration_number
-        ? `<div class="tax-id">Co. reg: ${escapeHtml(input.supplier.company_registration_number)}</div>` : ''}
     </div>
     <div class="invoice-block">
       <h1>INVOICE</h1>
@@ -503,10 +498,18 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
       ${billToAddress ? `<div class="bill-addr">${billToAddress}</div>` : ''}
       ${billToVat ? `<div class="bill-meta">${taxNumberLabel} no: ${billToVat}</div>` : ''}
     </div>
-    <div class="block" style="text-align:right">
-      <div class="heading">Order reference</div>
-      <div class="body mono" style="font-size:11px">#${escapeHtml(String(input.order.id || '').slice(0, 8).toUpperCase())}</div>
-      ${deliveryLine ? `<div class="bill-meta" style="margin-top:6px">Delivery: ${deliveryLine}</div>` : ''}
+    <div class="block from-block" style="text-align:right">
+      <div class="heading">From</div>
+      <div class="body"><strong>${supplierName}</strong></div>
+      <div class="bill-addr">${renderAddress(input.supplier)}</div>
+      ${[input.supplier.contact_email, input.supplier.contact_phone].filter(Boolean).length
+        ? `<div class="bill-addr">${[input.supplier.contact_email, input.supplier.contact_phone].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
+      ${input.supplier.vat_number
+        ? `<div class="bill-meta">${taxNumberLabel}: ${escapeHtml(input.supplier.vat_number)}</div>` : ''}
+      ${input.supplier.company_registration_number
+        ? `<div class="bill-meta">Co. reg: ${escapeHtml(input.supplier.company_registration_number)}</div>` : ''}
+      <div class="bill-meta" style="margin-top:8px">Order ref <span class="mono">#${escapeHtml(String(input.order.id || '').slice(0, 8).toUpperCase())}</span></div>
+      ${deliveryLine ? `<div class="bill-meta">Delivery: ${deliveryLine}</div>` : ''}
     </div>
   </section>
 
