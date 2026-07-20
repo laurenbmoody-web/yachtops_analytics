@@ -1,0 +1,43 @@
+/* Team Jobs widget — the actual open jobs as a list. Mirrors the provisioning
+   row pattern (hairline rows, DM Serif title via .ce-title in the header).
+   Crew see their own; Chief/Command see the team's, with assignee. */
+.tj-list { display: flex; flex-direction: column; }
+.tj-row { display: flex; align-items: center; gap: 11px; padding: 9px 2px; border-bottom: 1px solid #ECEDF3; }
+.tj-row:last-child { border-bottom: 0; }
+
+/* Tick to complete — a ring that fills on hover. */
+.tj-tick { flex: 0 0 auto; width: 20px; height: 20px; border-radius: 999px; border: 2px solid #CBD0DE; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: border-color .12s, background .12s; }
+.tj-tick svg { opacity: 0; color: #fff; width: 11px; height: 11px; }
+.tj-tick:hover { border-color: #047857; background: #047857; }
+.tj-tick:hover svg { opacity: 1; }
+.tj-tick:disabled { cursor: default; opacity: .5; }
+
+.tj-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tj-t { font-size: 13px; font-weight: 600; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tj-sub { font-size: 11px; color: #8B8478; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tj-sub .tj-unassigned { color: #C65A1A; font-weight: 600; }
+
+/* Due pill — right-aligned status. Late red, today amber, soon muted. */
+.tj-due { flex: 0 0 auto; font-size: 10.5px; font-weight: 700; letter-spacing: .2px; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.tj-due.is-late { background: #FCEBEB; color: #A32D2D; }
+.tj-due.is-today { background: #F5E6C1; color: #8B5A1F; }
+.tj-due.is-soon { background: #F0F1F5; color: #6B7280; }
+/* Small urgent flag before the title. */
+.tj-urg { flex: 0 0 auto; font-size: 9px; font-weight: 800; letter-spacing: .4px; color: #fff; background: #A32D2D; padding: 2px 6px; border-radius: 4px; margin-right: 2px; }
+
+.tj-more { background: none; border: 0; padding: 10px 2px 0; font-family: inherit; font-size: 11.5px; font-weight: 600; color: #6B7280; cursor: pointer; text-align: left; }
+.tj-more:hover { color: #C65A1A; }
+
+/* Done-today momentum line. */
+.tj-done { margin-top: 13px; padding-top: 11px; border-top: 1px solid #EEF0F4; font-size: 12px; color: #047857; }
+.tj-done b { font-weight: 700; }
+
+.tj-empty { text-align: center; padding: 20px 0 6px; }
+.tj-empty .tj-em-ic { width: 34px; height: 34px; border-radius: 999px; background: #E7F3EC; color: #047857; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+.tj-empty .tj-em-t { font-size: 13px; font-weight: 600; color: #1C1B3A; }
+.tj-empty .tj-em-s { font-size: 12px; color: #8B8478; margin-top: 2px; }
+
+.tj-err { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: #9A2B12; padding: 10px 0; }
+.tj-retry { background: none; border: 0; padding: 0; font-family: inherit; font-size: 12.5px; font-weight: 700; color: #9A2B12; text-decoration: underline; cursor: pointer; }
+.tj-skel { height: 40px; border-radius: 10px; background: #EEF0F4; animation: tj-pulse 1.3s ease-in-out infinite; }
+@keyframes tj-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
