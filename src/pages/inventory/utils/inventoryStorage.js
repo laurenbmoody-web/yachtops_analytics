@@ -1580,6 +1580,107 @@ export const restoreFolderSnapshot = async (snapshot) => {
 };
 
 /**
+ * Delete a folder into the recoverable Trash: snapshot its rows into
+ * inventory_trash, then physically remove them from the live tables. Returns
+ * the trash record id (for undo) or null on failure.
+ */
+export const moveFolderToTrash = async (parentSegments, name, folderPath = null) => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId) return null;
+    const { data: { session } } = await supabase?.auth?.getSession();
+    const snapshot = await getFolderSnapshot(parentSegments, name);
+    // Write to trash FIRST so the data is safe before we remove the live rows.
+    const { data: rec, error: insErr } = await supabase
+      ?.from('inventory_trash')
+      ?.insert({
+        tenant_id: tenantId,
+        deleted_by: session?.user?.id || null,
+        folder_name: name,
+        parent_segments: parentSegments || [],
+        folder_path: folderPath || null,
+        item_count: snapshot?.items?.length || 0,
+        folder_count: snapshot?.locations?.length || 0,
+        payload: snapshot,
+      })
+      ?.select('id')
+      ?.single();
+    if (insErr) { console.error('[inventoryStorage] moveFolderToTrash insert error:', insErr?.message); return null; }
+    const ok = await deleteFolderFromDB(parentSegments, name);
+    if (!ok) {
+      // Roll back the trash record so we don't leave a phantom copy.
+      await supabase?.from('inventory_trash')?.delete()?.eq('id', rec?.id);
+      return null;
+    }
+    return rec?.id || null;
+  } catch (err) {
+    console.error('[inventoryStorage] moveFolderToTrash exception:', err?.message);
+    return null;
+  }
+};
+
+/** Restore a trashed folder (re-insert its snapshot) and remove the trash record. */
+export const restoreFromTrash = async (trashId) => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId || !trashId) return false;
+    const { data: rec } = await supabase
+      ?.from('inventory_trash')?.select('payload')?.eq('id', trashId)?.single();
+    if (!rec?.payload) return false;
+    await restoreFolderSnapshot(rec.payload);
+    await supabase?.from('inventory_trash')?.delete()?.eq('id', trashId);
+    return true;
+  } catch (err) {
+    console.error('[inventoryStorage] restoreFromTrash exception:', err?.message);
+    return false;
+  }
+};
+
+/** List trashed folders for the tenant (newest first). Opportunistically purges >30d. */
+export const listTrash = async () => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId) return [];
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    await supabase?.from('inventory_trash')?.delete()?.eq('tenant_id', tenantId)?.lt('deleted_at', cutoff);
+    const { data } = await supabase
+      ?.from('inventory_trash')
+      ?.select('id, folder_name, folder_path, parent_segments, item_count, folder_count, deleted_at')
+      ?.eq('tenant_id', tenantId)
+      ?.order('deleted_at', { ascending: false });
+    return data || [];
+  } catch (err) {
+    console.error('[inventoryStorage] listTrash exception:', err?.message);
+    return [];
+  }
+};
+
+/** Permanently remove a single trash record (no restore). */
+export const purgeTrashRecord = async (trashId) => {
+  try {
+    if (!trashId) return false;
+    await supabase?.from('inventory_trash')?.delete()?.eq('id', trashId);
+    return true;
+  } catch (err) {
+    console.error('[inventoryStorage] purgeTrashRecord exception:', err?.message);
+    return false;
+  }
+};
+
+/** Permanently empty the tenant's trash. */
+export const emptyTrash = async () => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId) return false;
+    await supabase?.from('inventory_trash')?.delete()?.eq('tenant_id', tenantId);
+    return true;
+  } catch (err) {
+    console.error('[inventoryStorage] emptyTrash exception:', err?.message);
+    return false;
+  }
+};
+
+/**
  * Move a folder into another folder (iOS-style drag-into-folder).
  * draggedSegments = full path segments of the folder being dragged (e.g. ['Interior', 'Pantry'])
  * targetSegments = full path segments of the destination folder (e.g. ['Galley'])
