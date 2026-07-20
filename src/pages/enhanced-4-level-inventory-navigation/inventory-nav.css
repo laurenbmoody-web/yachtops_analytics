@@ -40,27 +40,9 @@
 .inv-headline em { font-style: italic; font-weight: 400; color: #C65A1A; text-transform: none; }
 .inv-headline .punc { color: #1C1B3A; }
 
-/* ── meta bar — figures on a hairline, no box ───────────────── */
-.inv-meta {
-  display: flex; flex-wrap: wrap; gap: 0;
-  border-top: 1px solid #E5E7EB; border-bottom: 1px solid #E5E7EB;
-  margin: 20px 0 26px;
-}
-.inv-meta-cell {
-  padding: 14px 26px 14px 0; margin-right: 26px;
-  border-right: 1px solid #EEF0F4;
-}
-.inv-meta-cell:last-child { border-right: none; margin-right: 0; }
-.inv-meta-num {
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-weight: 400; font-size: 26px; line-height: 1; color: #1C1B3A;
-  font-variant-numeric: tabular-nums;
-}
-.inv-meta-num.accent { color: #C65A1A; }
-.inv-meta-label {
-  font-family: 'Inter', system-ui, sans-serif; font-size: 9px; font-weight: 700;
-  letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-top: 6px;
-}
+/* ── meta strip — canonical .editorial-meta, tuned spacing ──── */
+.inv-metastrip { margin: 2px 0 4px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+@media (max-width: 700px) { .inv-metastrip { white-space: normal; row-gap: 6px; } }
 
 /* ── breadcrumb ─────────────────────────────────────────────── */
 .inv-crumbs {

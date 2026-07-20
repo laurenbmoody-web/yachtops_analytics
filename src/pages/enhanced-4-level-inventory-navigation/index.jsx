@@ -28,6 +28,7 @@ import { exportInventoryToPDF } from './utils/inventoryPdfExport';
 import { exportInventoryToXLSX } from './utils/inventoryXlsxExport';
 
 import ModalShell from '../../components/ui/ModalShell';
+import '../../styles/editorial.css';
 import './inventory-nav.css';
 const SLASH_PLACEHOLDER = '__FWDSLASH__';
 
@@ -2753,7 +2754,14 @@ const LocationFirstInventory = () => {
   }, []);
 
   const filteredItems = (() => {
-    let result = items?.filter(item => {
+    // On the root page there is no folder's item list; instead, search / filter
+    // look across ALL inventory (a "find anything" launchpad). Only surface
+    // results once a search or filter is active — otherwise root shows folders only.
+    const anyRootFilter = !!searchQuery || !!activeTagFilter || (activeFilters && (
+      (activeFilters?.tags?.length > 0) || activeFilters?.brand || activeFilters?.supplier ||
+      activeFilters?.belowPar || activeFilters?.hasExpiry || activeFilters?.hasImage || activeFilters?.location));
+    const baseList = isRoot ? (anyRootFilter ? (allItems || []) : []) : items;
+    let result = baseList?.filter(item => {
       if (searchQuery) {
         const q = searchQuery?.toLowerCase();
         const matchesName = item?.name?.toLowerCase()?.includes(q);
@@ -2903,6 +2911,10 @@ const LocationFirstInventory = () => {
     navigate(segmentsToUrl(pathSegments?.slice(0, -1)));
   };
 
+  // Value figures are sensitive — only Command / Chief see them.
+  const canSeeValue = isCommand || isChief;
+  const CURRENCY_SYMBOL = { USD: '$', EUR: '€', GBP: '£', AUD: 'A$', CAD: 'C$' };
+
   // Root meta bar — live figures worth knowing across all departments.
   const rootMeta = React.useMemo(() => {
     const list = allItems || [];
@@ -2913,23 +2925,39 @@ const LocationFirstInventory = () => {
     };
     let units = 0;
     let expiringSoon = 0;
+    let lowStock = 0;
+    let value = 0;
+    const currencyTally = {};
     const now = Date.now();
     const in30 = now + 30 * 24 * 60 * 60 * 1000;
     list?.forEach(it => {
-      units += Number(qtyOf(it)) || 0;
+      const qty = Number(qtyOf(it)) || 0;
+      units += qty;
       const raw = it?.expiryDate || it?.expiry_date;
       if (raw) {
         const t = new Date(raw)?.getTime();
         if (!Number.isNaN(t) && t >= now && t <= in30) expiringSoon += 1;
       }
+      if (it?.restockEnabled && it?.restockLevel != null && qty <= it?.restockLevel) lowStock += 1;
+      const cost = Number(it?.unitCost);
+      if (!Number.isNaN(cost) && cost > 0) {
+        value += cost * qty;
+        const cur = it?.currency || 'USD';
+        currencyTally[cur] = (currencyTally[cur] || 0) + 1;
+      }
     });
+    const domCur = Object.entries(currencyTally)?.sort((a, b) => b[1] - a[1])?.[0]?.[0] || 'USD';
     return {
       departments: subFolders?.length || 0,
       items: list?.length || 0,
       units,
       expiringSoon,
+      lowStock,
+      value,
+      valueLabel: `${CURRENCY_SYMBOL[domCur] || ''}${Math.round(value)?.toLocaleString()}`,
     };
-  }, [allItems, subFolders]);
+  }, [allItems, subFolders, isCommand, isChief]);
+
 
   const handleExport = async ({ scope, format, includeImages, selectedFolderItems, selectedFoldersMeta, allFoldersMeta }) => {
     setIsExporting(true);
@@ -3159,6 +3187,28 @@ const LocationFirstInventory = () => {
           {backLabel}
         </button>
 
+        {/* Meta strip — canonical editorial inline data (root only) */}
+        {isRoot && (
+          <p className="editorial-meta inv-metastrip">
+            <span className="dot">●</span>
+            <span>{rootMeta?.departments} Departments</span>
+            <span className="bar" />
+            <span>{rootMeta?.items?.toLocaleString()} Items</span>
+            <span className="bar" />
+            <span className="muted">{rootMeta?.units?.toLocaleString()} Units in stock</span>
+            <span className="bar" />
+            <span style={rootMeta?.expiringSoon > 0 ? { color: '#C65A1A' } : undefined}>
+              {rootMeta?.expiringSoon} Expiring ≤ 30d
+            </span>
+            {canSeeValue && (
+              <>
+                <span className="bar" />
+                <span className="muted">{rootMeta?.valueLabel} Est. value</span>
+              </>
+            )}
+          </p>
+        )}
+
         {/* Header Row */}
         <div className="inv-header">
           <div>
@@ -3195,37 +3245,14 @@ const LocationFirstInventory = () => {
           </div>
         </div>
 
-        {/* Meta bar — live figures across all departments (root only) */}
-        {isRoot && (
-          <div className="inv-meta">
-            <div className="inv-meta-cell">
-              <div className="inv-meta-num">{rootMeta?.departments}</div>
-              <div className="inv-meta-label">Departments</div>
-            </div>
-            <div className="inv-meta-cell">
-              <div className="inv-meta-num">{rootMeta?.items?.toLocaleString()}</div>
-              <div className="inv-meta-label">Items tracked</div>
-            </div>
-            <div className="inv-meta-cell">
-              <div className="inv-meta-num">{rootMeta?.units?.toLocaleString()}</div>
-              <div className="inv-meta-label">Units in stock</div>
-            </div>
-            <div className="inv-meta-cell">
-              <div className={`inv-meta-num${rootMeta?.expiringSoon > 0 ? ' accent' : ''}`}>{rootMeta?.expiringSoon}</div>
-              <div className="inv-meta-label">Expiring ≤ 30 days</div>
-            </div>
-          </div>
-        )}
-
-        {/* Toolbar */}
-        {!isRoot && (
-          <div className="inv-toolbar">
+        {/* Toolbar — search / filter / sort (root searches all inventory) */}
+        <div className="inv-toolbar">
             <div className="inv-toolbar-row">
               <div className="inv-search">
                 <Icon name="Search" size={15} />
                 <input
                   type="text"
-                  placeholder="Search name, brand, tag, supplier, barcode…"
+                  placeholder={isRoot ? 'Search all inventory — name, brand, tag, supplier, barcode…' : 'Search name, brand, tag, supplier, barcode…'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e?.target?.value)}
                 />
@@ -3254,7 +3281,7 @@ const LocationFirstInventory = () => {
                 </button>
                 {showFilterPanel && (
                   <FilterPanel
-                    items={items}
+                    items={isRoot ? (allItems || []) : items}
                     filters={activeFilters}
                     onChange={setActiveFilters}
                     onClose={() => setShowFilterPanel(false)}
@@ -3305,7 +3332,6 @@ const LocationFirstInventory = () => {
               </div>
             </div>
           </div>
-        )}
 
         {/* Selection toolbar */}
         {!isRoot && selectedItemIds?.size > 0 && (
