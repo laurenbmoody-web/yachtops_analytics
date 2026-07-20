@@ -1,6 +1,26 @@
 /* CrewFolder — the wardrobe "Crew" world: roster tiles → a member's uniform. */
 .cf-view { padding-top: 4px; }
-.cf-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.cf-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+
+/* Folder header + toolbar (roster / list level) */
+.cf-head { margin-bottom: 16px; }
+.cf-head .cf-eyebrow { display: block; }
+.cf-h1 { font-family: 'DM Serif Display', Georgia, serif; font-size: 30px; color: #1C1B3A; line-height: 1.05; margin-top: 3px; }
+.cf-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 20px; }
+.cf-tsearch { display: flex; align-items: center; gap: 8px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 9px 12px; min-width: 240px; flex: 1; max-width: 420px; }
+.cf-tsearch input { flex: 1; border: none; background: none; outline: none; font-size: 14px; color: #1C1B3A; }
+.cf-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cf-viewtoggle { display: inline-flex; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 3px; }
+.cf-viewtoggle button { border: none; background: none; border-radius: 8px; padding: 6px 12px; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; cursor: pointer; }
+.cf-viewtoggle button.on { background: #1C1B3A; color: #FFFFFF; }
+
+/* Combined list view */
+.cf-list { display: flex; flex-direction: column; }
+.cf-list-row { display: flex; align-items: center; gap: 14px; padding: 13px 4px; border-bottom: 1px solid #F0F1F5; }
+.cf-list-qty { flex: none; min-width: 44px; font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #C65A1A; }
+.cf-list-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cf-list-nm { font-weight: 600; font-size: 14px; color: #1C1B3A; }
+.cf-list-sub { font-size: 12px; color: #8B8478; }
 .cf-loading, .cf-empty { color: #8B8478; font-size: 14px; }
 .cf-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 56px 16px; }
 .cf-empty svg { color: #C65A1A; opacity: 0.8; }
