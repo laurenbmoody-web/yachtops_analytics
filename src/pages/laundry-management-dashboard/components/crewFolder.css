@@ -135,8 +135,10 @@
 .cf-item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .cf-itile { border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; background: #FFFFFF; display: flex; flex-direction: column; }
 .cf-itile.on { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
-.cf-itile-media { position: relative; aspect-ratio: 1 / 1; width: 100%; background: #F8FAFC; border: none; padding: 0; cursor: pointer; display: block; }
-.cf-itile-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Bulletproof square image box — padding-ratio holds even where aspect-ratio
+   is flaky on a <button>, so every tile's image is identical size. */
+.cf-itile-media { position: relative; width: 100%; padding-top: 100%; box-sizing: border-box; background: #F8FAFC; border: none; cursor: pointer; display: block; overflow: hidden; }
+.cf-itile-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .cf-itile-ph { position: absolute; inset: 0; display: grid; place-items: center; color: #AEB4C2; }
 .cf-itile-check { position: absolute; top: 8px; left: 8px; background: rgba(255, 255, 255, 0.92); border-radius: 6px; padding: 2px; color: #C65A1A; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(28, 27, 58, 0.15); }
 .cf-itile-body { padding: 9px 11px 10px; display: flex; flex-direction: column; gap: 2px; }
