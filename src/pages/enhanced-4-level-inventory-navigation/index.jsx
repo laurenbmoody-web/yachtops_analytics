@@ -720,7 +720,7 @@ const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose,
 };
 
 // ─── Bulk Move Items Modal ────────────────────────────────────────────────────
-const BulkMoveItemsModal = ({ selectedCount, folderTree, currentPathSegments, onClose, onMove, isCommand, isChief, isHOD, userDepartment }) => {
+const BulkMoveItemsModal = ({ selectedCount, itemLabel, folderTree, currentPathSegments, onClose, onMove, isCommand, isChief, isHOD, userDepartment }) => {
   const [selectedPath, setSelectedPath] = useState(null);
   const [moving, setMoving] = useState(false);
 
@@ -763,28 +763,21 @@ const BulkMoveItemsModal = ({ selectedCount, folderTree, currentPathSegments, on
     onClose();
   };
 
+  const title = itemLabel ? `Move ${itemLabel}` : `Move ${selectedCount} item${selectedCount !== 1 ? 's' : ''}`;
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Icon name="FolderInput" size={16} className="text-primary" />
-          </div>
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Move Items</h2>
-            <p className="text-xs text-muted-foreground">{selectedCount} item{selectedCount !== 1 ? 's' : ''} selected</p>
-          </div>
+    <ModalShell onClose={onClose} panelClassName="inv-modal">
+      <div className="inv-modal-head">
+        <div>
+          <div className="inv-modal-eyebrow">Move</div>
+          <h2 className="inv-modal-title">{title}</h2>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-          <Icon name="X" size={18} />
-        </button>
+        <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
       </div>
 
-      <p className="text-xs text-muted-foreground mb-3">Select a destination folder:</p>
-
-      <div className="max-h-64 overflow-y-auto space-y-0.5 border border-border rounded-xl p-2 bg-background">
+      <label className="inv-flabel">Destination folder</label>
+      <div className="inv-movetree">
         {destinations?.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">No other folders available</p>
+          <p className="inv-confirm-text" style={{ textAlign: 'center', padding: '20px 0' }}>No other folders available</p>
         ) : (
           destinations?.map((dest) => {
             const isSelected = selectedPath?.path === dest?.path;
@@ -792,24 +785,17 @@ const BulkMoveItemsModal = ({ selectedCount, folderTree, currentPathSegments, on
               <button
                 key={dest?.path}
                 onClick={() => setSelectedPath(dest)}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors text-left ${
-                  isSelected
-                    ? 'bg-primary/10 text-primary font-medium' :'text-foreground hover:bg-muted'
-                }`}
-                style={{ paddingLeft: `${12 + dest?.depth * 16}px` }}
+                className={`inv-moveitem${isSelected ? ' on' : ''}`}
+                style={{ paddingLeft: `${10 + dest?.depth * 16}px` }}
               >
-                <Icon
-                  name={isSelected ? 'FolderOpen' : 'Folder'}
-                  size={14}
-                  className={isSelected ? 'text-primary' : 'text-muted-foreground'}
-                />
+                <Icon name={isSelected ? 'FolderOpen' : 'Folder'} size={14} />
                 <span className="truncate">{dest?.label}</span>
                 {dest?.depth > 0 && (
-                  <span className="ml-auto text-xs text-muted-foreground truncate max-w-[100px]">
+                  <span className="ml-auto truncate" style={{ fontSize: 11, color: '#AEB4C2', maxWidth: 110 }}>
                     {dest?.segments?.slice(0, -1)?.join(' › ')}
                   </span>
                 )}
-                {isSelected && <Icon name="Check" size={13} className="ml-auto text-primary shrink-0" />}
+                {isSelected && <Icon name="Check" size={13} className="ml-auto shrink-0" />}
               </button>
             );
           })
@@ -817,25 +803,16 @@ const BulkMoveItemsModal = ({ selectedCount, folderTree, currentPathSegments, on
       </div>
 
       {selectedPath && (
-        <p className="text-xs text-muted-foreground mt-2">
-          Moving to: <span className="font-medium text-foreground">{selectedPath?.segments?.join(' › ')}</span>
+        <p className="inv-modal-sub" style={{ margin: '10px 0 0' }}>
+          Moving to <b>{selectedPath?.segments?.join(' › ')}</b>
         </p>
       )}
 
-      <div className="flex gap-2 justify-end mt-4">
-        <button
-          onClick={onClose}
-          className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleConfirm}
-          disabled={!selectedPath || moving}
-          className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
+      <div className="inv-modal-actions">
+        <button onClick={onClose} className="inv-btn ghost">Cancel</button>
+        <button onClick={handleConfirm} disabled={!selectedPath || moving} className="inv-btn primary">
           {moving && <LogoSpinner size={14} />}
-          {moving ? 'Moving…' : 'Move Here'}
+          {moving ? 'Moving…' : 'Move here'}
         </button>
       </div>
     </ModalShell>
@@ -854,26 +831,26 @@ const BulkDeleteConfirmModal = ({ selectedCount, onClose, onConfirm }) => {
   };
 
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-xl w-full max-w-sm p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-            <Icon name="Trash2" size={16} className="text-red-600" />
-          </div>
-          <h2 className="text-lg font-semibold text-foreground">Delete Items</h2>
+    <ModalShell onClose={onClose} panelClassName="inv-modal">
+      <div className="inv-modal-head">
+        <div>
+          <div className="inv-modal-eyebrow">Delete</div>
+          <h2 className="inv-modal-title">Delete {selectedCount} item{selectedCount !== 1 ? 's' : ''}?</h2>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
-          <Icon name="X" size={18} />
-        </button>
+        <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
       </div>
-      <p className="text-sm text-muted-foreground mb-5">
-        Are you sure you want to permanently delete <span className="font-semibold text-foreground">{selectedCount} item{selectedCount !== 1 ? 's' : ''}</span>? This cannot be undone.
-      </p>
-      <div className="flex gap-2 justify-end">
-        <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors">Cancel</button>
-        <button onClick={handleConfirm} disabled={deleting} className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+      <div className="inv-confirm">
+        <div className="inv-confirm-icon danger"><Icon name="Trash2" size={18} /></div>
+        <div>
+          <p className="inv-confirm-title">This can't be undone</p>
+          <p className="inv-confirm-text"><b>{selectedCount} item{selectedCount !== 1 ? 's' : ''}</b> will be permanently removed from inventory.</p>
+        </div>
+      </div>
+      <div className="inv-modal-actions">
+        <button onClick={onClose} className="inv-btn ghost">Cancel</button>
+        <button onClick={handleConfirm} disabled={deleting} className="inv-btn danger">
           {deleting && <LogoSpinner size={14} />}
-          {deleting ? 'Deleting…' : `Delete ${selectedCount} item${selectedCount !== 1 ? 's' : ''}`}
+          {deleting ? 'Deleting…' : 'Delete'}
         </button>
       </div>
     </ModalShell>
@@ -1199,7 +1176,62 @@ const ItemAppearancePopover = ({ item, anchorRect, onClose, onSave }) => {
 };
 
 // ─── Item Row (List View) ──────────────────────────────────────────────────────
-const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false, onAppearanceChange }) => {
+// ─── Item actions menu (⋯) — mirrors the folder menu on item tiles ───────────────
+const ItemActionsMenu = ({ item, onEdit, onMove, onClone, onDelete, size = 28 }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const handleClick = (e) => { if (ref?.current && !ref?.current?.contains(e?.target)) setOpen(false); };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+  const rowBtn = (iconName, label, fn, opts = {}) => (
+    <button className={`inv-menuitem${opts?.danger ? ' danger' : ''}`} onClick={(e) => { e?.stopPropagation(); setOpen(false); fn?.(item); }}>
+      <Icon name={iconName} size={15} /><span>{label}</span>
+    </button>
+  );
+  return (
+    <div className="inv-actionsmenu" ref={ref}>
+      <button className="inv-menutrigger" title="Item actions" style={{ width: size, height: size }}
+        onClick={(e) => { e?.stopPropagation(); setOpen(o => !o); }}>
+        <Icon name="MoreHorizontal" size={16} />
+      </button>
+      {open && (
+        <div className="inv-menu" onClick={(e) => e?.stopPropagation()}>
+          {onEdit && rowBtn('Pencil', 'Edit', onEdit)}
+          {onMove && rowBtn('FolderInput', 'Move', onMove)}
+          {onClone && rowBtn('Copy', 'Duplicate', onClone)}
+          {onDelete && (<><div className="inv-menu-sep" />{rowBtn('Trash2', 'Delete', onDelete, { danger: true })}</>)}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const ItemDeleteModal = ({ item, onClose, onConfirm }) => (
+  <ModalShell onClose={onClose} panelClassName="inv-modal">
+    <div className="inv-modal-head">
+      <div>
+        <div className="inv-modal-eyebrow">Delete</div>
+        <h2 className="inv-modal-title">Delete item?</h2>
+      </div>
+      <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
+    </div>
+    <div className="inv-confirm">
+      <div className="inv-confirm-icon danger"><Icon name="Trash2" size={18} /></div>
+      <div>
+        <p className="inv-confirm-title">This can't be undone</p>
+        <p className="inv-confirm-text"><b>{item?.name}</b> will be permanently removed from inventory.</p>
+      </div>
+    </div>
+    <div className="inv-modal-actions">
+      <button onClick={onClose} className="inv-btn ghost">Cancel</button>
+      <button onClick={onConfirm} className="inv-btn danger">Delete</button>
+    </div>
+  </ModalShell>
+);
+
+const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false, onAppearanceChange }) => {
   const [item, setItem] = useState(itemProp);
   useEffect(() => { setItem(itemProp); }, [itemProp]);
 
@@ -1316,14 +1348,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
             </button>
           )}
           {canEdit && (
-            <div className="inv-row-hoveractions">
-              <button onClick={(e) => { e?.stopPropagation(); onEdit?.(item); }} className="inv-iconbtn" style={{ opacity: 1 }}>
-                <Icon name="Pencil" size={14} />
-              </button>
-              <button onClick={(e) => { e?.stopPropagation(); onDelete?.(item); }} className="inv-iconbtn danger" style={{ opacity: 1 }}>
-                <Icon name="Trash2" size={14} />
-              </button>
-            </div>
+            <ItemActionsMenu item={item} onEdit={onEdit} onMove={onMove} onClone={onClone} onDelete={onDelete} />
           )}
         </div>
       </div>
@@ -1433,7 +1458,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
 };
 
 // ─── Item Grid Card (Grid View) ────────────────────────────────────────────────
-const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false, onAppearanceChange }) => {
+const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false, onAppearanceChange }) => {
   const [item, setItem] = useState(itemProp);
   useEffect(() => { setItem(itemProp); }, [itemProp]);
   const [appearanceAnchor, setAppearanceAnchor] = useState(null);
@@ -1513,19 +1538,8 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
           {isSelected && <Icon name="Check" size={11} />}
         </button>
         {canEdit && (
-          <div className="inv-card-media-bl">
-            <button
-              onClick={(e) => { e?.stopPropagation(); onEdit?.(item); }}
-              className="inv-media-btn"
-            >
-              <Icon name="Pencil" size={12} />
-            </button>
-            <button
-              onClick={(e) => { e?.stopPropagation(); onDelete?.(item); }}
-              className="inv-media-btn danger"
-            >
-              <Icon name="Trash2" size={12} />
-            </button>
+          <div className="inv-card-media-bl inv-card-menu">
+            <ItemActionsMenu item={item} onEdit={onEdit} onMove={onMove} onClone={onClone} onDelete={onDelete} size={28} />
           </div>
         )}
       </div>
@@ -2229,6 +2243,8 @@ const LocationFirstInventory = () => {
   const [appearanceFolderName, setAppearanceFolderName] = useState(null);
   const [permsFolderName, setPermsFolderName] = useState(null);
   const [duplicatingFolder, setDuplicatingFolder] = useState(null);
+  const [movingItem, setMovingItem] = useState(null);
+  const [deletingItem, setDeletingItem] = useState(null);
 
   const [selectedItemIds, setSelectedItemIds] = useState(new Set());
   const [showExportModal, setShowExportModal] = useState(false);
@@ -2753,6 +2769,30 @@ const LocationFirstInventory = () => {
   const handleDeleteItem = async (item) => {
     if (!window.confirm(`Delete "${item?.name}"?`)) return;
     await deleteItem(item?.id);
+    loadData();
+  };
+
+  const handleConfirmDeleteItem = async () => {
+    const item = deletingItem;
+    setDeletingItem(null);
+    if (!item) return;
+    await deleteItem(item?.id);
+    loadData();
+  };
+
+  // Duplicate a single item in place — fresh id + Cargo ID, name + " (copy)".
+  const handleCloneItem = async (item) => {
+    const { id, cargoItemId, ...rest } = item || {};
+    await saveItem({ ...rest, name: `${item?.name || 'Item'} (copy)` });
+    loadData();
+  };
+
+  const handleMoveItem = async (destinationSegments) => {
+    const item = movingItem;
+    if (!item) return;
+    const { location, subLocation } = segmentsToStorageFields(destinationSegments);
+    await bulkMoveItemsByIds([item?.id], location, subLocation);
+    setMovingItem(null);
     loadData();
   };
 
@@ -3616,7 +3656,9 @@ const LocationFirstInventory = () => {
                     item={item}
                     canEdit={canEdit}
                     onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
-                    onDelete={handleDeleteItem}
+                    onDelete={(i) => setDeletingItem(i)}
+                    onMove={(i) => setMovingItem(i)}
+                    onClone={handleCloneItem}
                     onUpdate={loadData}
                     onQuickView={(i) => setQuickViewItem(i)}
                     isSelected={selectedItemIds?.has(item?.id)}
@@ -3633,7 +3675,9 @@ const LocationFirstInventory = () => {
                     item={item}
                     canEdit={canEdit}
                     onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
-                    onDelete={handleDeleteItem}
+                    onDelete={(i) => setDeletingItem(i)}
+                    onMove={(i) => setMovingItem(i)}
+                    onClone={handleCloneItem}
                     onUpdate={loadData}
                     onQuickView={(i) => setQuickViewItem(i)}
                     isSelected={selectedItemIds?.has(item?.id)}
@@ -3822,6 +3866,27 @@ const LocationFirstInventory = () => {
           selectedCount={selectedItemIds?.size}
           onClose={() => setShowBulkDeleteModal(false)}
           onConfirm={handleBulkDelete}
+        />
+      )}
+      {movingItem && (
+        <BulkMoveItemsModal
+          selectedCount={1}
+          itemLabel={movingItem?.name}
+          folderTree={folderTree}
+          currentPathSegments={pathSegments}
+          onClose={() => setMovingItem(null)}
+          onMove={handleMoveItem}
+          isCommand={isCommand}
+          isChief={isChief}
+          isHOD={isHOD}
+          userDepartment={userDepartment}
+        />
+      )}
+      {deletingItem && (
+        <ItemDeleteModal
+          item={deletingItem}
+          onClose={() => setDeletingItem(null)}
+          onConfirm={handleConfirmDeleteItem}
         />
       )}
       {devMode && <DevDebugPanel />}
