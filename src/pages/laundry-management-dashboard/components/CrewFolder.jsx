@@ -25,6 +25,24 @@ const kitStatus = (k) => {
   return STATUS[k.status] || { label: k.status, cls: 'live' };
 };
 
+// The inventory folder path an issued item files under, so the List view mirrors
+// how uniform is filed in inventory. Shows the folders BELOW the "Uniform" anchor
+// (e.g. Interior › Crew › Uniform › On charter › Evening wear → "On charter ›
+// Evening wear"); falls back to the item's location, then "Uncategorised" when
+// the issued row isn't linked to inventory stock yet.
+const UNCATEGORISED = 'Uncategorised';
+const catPath = (item) => {
+  if (!item) return UNCATEGORISED;
+  const segs = [item.l1Name, item.l2Name, item.l3Name, item.l4Name].map((s) => (s || '').trim()).filter(Boolean);
+  if (segs.length) {
+    const ui = segs.findIndex((s) => s.toLowerCase() === 'uniform');
+    const below = ui >= 0 ? segs.slice(ui + 1) : segs.slice(1); // below Uniform, else drop the dept root
+    return (below.length ? below : segs.slice(-1)).join(' › ');
+  }
+  const loc = [item.location, item.subLocation].map((s) => (s || '').trim()).filter(Boolean);
+  return loc.length ? loc.join(' › ') : UNCATEGORISED;
+};
+
 // Issue-from-inventory modal: pick a uniform stock item, size + qty, then issue.
 const IssueModal = ({ crewName, stock, showValue, onIssue, onClose }) => {
   const [q, setQ] = useState('');
@@ -179,13 +197,18 @@ const CrewFolder = ({ onBack }) => {
   const load = async () => {
     if (!activeTenantId) return;
     setLoading(true);
-    const [crew, allKit] = await Promise.all([fetchTenantCrew(activeTenantId), fetchTenantUniformKit(activeTenantId)]);
-    setRoster(crew); setKit(allKit); setLoading(false);
+    const [crew, allKit, all] = await Promise.all([
+      fetchTenantCrew(activeTenantId), fetchTenantUniformKit(activeTenantId), getAllItems().catch(() => []),
+    ]);
+    setRoster(crew); setKit(allKit); setStock(all.filter((i) => i.isUniform)); setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [activeTenantId]);
 
-  // Uniform stock loaded lazily when the issue modal opens.
   const openIssue = async () => { setIssuing(true); const all = await getAllItems(); setStock(all.filter((i) => i.isUniform)); };
+
+  // Linked inventory item by id — lets the List view file each issued item under
+  // its inventory folder path (the same category tree used in inventory).
+  const itemById = useMemo(() => Object.fromEntries(stock.map((i) => [i.id, i])), [stock]);
 
   const countByUser = useMemo(() => {
     const m = {};
@@ -211,21 +234,30 @@ const CrewFolder = ({ onBack }) => {
   }, [roster, q, dept, sort, countByUser]);
 
   // List view — every in-service item combined across the (dept-filtered) crew,
-  // keyed by item + size. 3 crew each holding 2 × Polo white M → 6 × Polo white M.
-  const listRows = useMemo(() => {
+  // keyed by item + size (3 crew each holding 2 × Polo white M → 6 × Polo white M),
+  // then grouped under the item's inventory folder path so it mirrors inventory.
+  const listGroups = useMemo(() => {
     const ids = new Set(roster.filter(deptMatch).map((c) => c.id));
     const m = new Map();
     kit.filter((k) => k.status === 'in_service' && ids.has(k.user_id)).forEach((k) => {
       const key = `${(k.item || '').trim().toLowerCase()}|${(k.size || '').trim().toLowerCase()}`;
-      if (!m.has(key)) m.set(key, { item: k.item, size: k.size, qty: 0, holders: new Set(), value: k.value });
+      if (!m.has(key)) m.set(key, { item: k.item, size: k.size, qty: 0, holders: new Set(), value: k.value, invId: k.inventory_item_id || null });
       const r = m.get(key); r.qty += Number(k.quantity) || 1; r.holders.add(k.user_id);
+      if (!r.invId && k.inventory_item_id) r.invId = k.inventory_item_id;
     });
-    let rows = [...m.values()].map((r) => ({ ...r, holders: r.holders.size }));
+    let rows = [...m.values()].map((r) => ({ ...r, holders: r.holders.size, path: catPath(itemById[r.invId]) }));
     const s = q.trim().toLowerCase();
-    if (s) rows = rows.filter((r) => `${r.item} ${r.size}`.toLowerCase().includes(s));
-    rows.sort((a, b) => (sort === 'qty' ? b.qty - a.qty : (a.item || '').localeCompare(b.item || '')));
-    return rows;
-  }, [kit, roster, dept, q, sort]);
+    if (s) rows = rows.filter((r) => `${r.item} ${r.size} ${r.path}`.toLowerCase().includes(s));
+    const g = new Map();
+    rows.forEach((r) => { if (!g.has(r.path)) g.set(r.path, []); g.get(r.path).push(r); });
+    const groups = [...g.entries()].map(([path, rs]) => ({
+      path,
+      rows: rs.sort((a, b) => (sort === 'qty' ? b.qty - a.qty : (a.item || '').localeCompare(b.item || ''))),
+    }));
+    // Categorised folders alphabetical; the Uncategorised bucket sinks to the end.
+    groups.sort((a, b) => (a.path === UNCATEGORISED ? 1 : b.path === UNCATEGORISED ? -1 : a.path.localeCompare(b.path)));
+    return groups;
+  }, [kit, roster, dept, q, sort, itemById]);
 
   const sortOptions = crewView === 'list'
     ? [{ val: 'item', label: 'Item (A–Z)' }, { val: 'qty', label: 'Quantity (high → low)' }]
@@ -300,17 +332,22 @@ const CrewFolder = ({ onBack }) => {
           <PersonTiles people={tilePeople} emptyLabel="No crew match." onPick={(id) => setSelectedId(id)} />
         ) : (
           <div className="cf-list">
-            {listRows.length === 0 ? (
+            {listGroups.length === 0 ? (
               <div className="cf-empty-note">No uniform issued{dept !== 'all' ? ` in ${dept}` : ''} yet.</div>
-            ) : listRows.map((r, i) => (
-              <div className="cf-list-row" key={i}>
-                <span className="cf-list-qty">{r.qty}×</span>
-                <div className="cf-list-main">
-                  <span className="cf-list-nm">{r.item}{r.size ? ` · ${r.size}` : ''}</span>
-                  <span className="cf-list-sub">held by {r.holders} {r.holders === 1 ? 'crew member' : 'crew'}</span>
-                </div>
-                {showValue && r.value != null && <span className="cf-kit-val">{money(r.value * r.qty, 'USD')}</span>}
-              </div>
+            ) : listGroups.map((grp) => (
+              <section className="cf-listgroup" key={grp.path}>
+                <div className="cf-listgroup-h">{grp.path}</div>
+                {grp.rows.map((r, i) => (
+                  <div className="cf-list-row" key={i}>
+                    <span className="cf-list-qty">{r.qty}×</span>
+                    <div className="cf-list-main">
+                      <span className="cf-list-nm">{r.item}{r.size ? ` · ${r.size}` : ''}</span>
+                      <span className="cf-list-sub">held by {r.holders} {r.holders === 1 ? 'crew member' : 'crew'}</span>
+                    </div>
+                    {showValue && r.value != null && <span className="cf-kit-val">{money(r.value * r.qty, 'USD')}</span>}
+                  </div>
+                ))}
+              </section>
             ))}
           </div>
         )}
