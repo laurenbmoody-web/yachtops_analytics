@@ -640,6 +640,31 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     setTracing(null);
     setDetecting(deck.id);
     try {
+      // SAM Detect (beta): outline each room the crew has pinned, precisely, with
+      // Segment Anything. No AI seeds and no unnamed drafts — just clean outlines
+      // of the rooms you marked. (Open-deck/teak noise disappears because nothing
+      // unpinned is traced.)
+      if (samMode) {
+        const placed = spacesOf(deck).filter((s) => posOf(s));
+        if (!placed.length) {
+          setDetectError({ deckId: deck.id, message: 'AI trace outlines the rooms you’ve pinned. Drop a pin inside each room first, then Detect.' });
+          return;
+        }
+        const items = [];
+        for (const s of placed) {
+          const pin = posOf(s);
+          try {
+            const nodes = await samOutline(deck, pin.x, pin.y);
+            if (nodes && nodes.length >= 3) items.push({ name: s.name, matchedSpaceId: s.id, create: false, nodes, traced: true, anchored: true });
+          } catch (err) { console.error('[deck-plan] SAM detect pin failed:', s.name, err); }
+        }
+        if (!items.length) {
+          setDetectError({ deckId: deck.id, message: 'AI trace returned no outlines — check the FAL_KEY secret is set on the Cargo Supabase project (Edge Functions → Secrets).' });
+          return;
+        }
+        setProposals({ deckId: deck.id, items });
+        return;
+      }
       const { imageData, cropSub } = await prepareDeck(crop);
       const spaces = spacesOf(deck);
       const names = spaces.map((s) => s.name);
@@ -942,13 +967,23 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               )}
               {crop && gaDims && !traceMode && (
                 <button
+                  className={`dp-linkbtn ${samMode ? 'is-on' : ''}`}
+                  onClick={() => setSamMode((v) => !v)}
+                  title="Beta: when on, Detect outlines your pinned rooms with Segment Anything (AI) instead of the built-in tracer"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
+                  <span className="dp-linkbtn-label">{samMode ? 'AI trace: on' : 'AI trace: off'}</span>
+                </button>
+              )}
+              {crop && gaDims && !traceMode && (
+                <button
                   className="dp-linkbtn dp-aibtn"
                   onClick={() => detectRooms(deck)}
                   disabled={detecting === deck.id}
-                  title="Let Claude read this deck and propose room outlines"
+                  title={samMode ? 'Outline your pinned rooms with Segment Anything (AI)' : 'Let Claude read this deck and propose room outlines'}
                 >
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M18.5 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /></svg>
-                  <span className="dp-linkbtn-label">{detecting === deck.id ? 'Reading plan…' : 'Detect rooms'}</span>
+                  <span className="dp-linkbtn-label">{detecting === deck.id ? (samMode ? 'AI tracing…' : 'Reading plan…') : 'Detect rooms'}</span>
                 </button>
               )}
               {!traceMode && <button className="lg-btn sm" onClick={() => addRoom(deck)} title="Add a room to this deck">+ Add room</button>}
