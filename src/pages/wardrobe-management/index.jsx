@@ -4,6 +4,7 @@ import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
 import { loadAllLaundryItems } from '../laundry-management-dashboard/utils/laundryStorage';
 import OwnerWardrobeView from '../laundry-management-dashboard/components/OwnerWardrobeView';
+import CrewFolder from '../laundry-management-dashboard/components/CrewFolder';
 import LaundryCasesModal from '../laundry-management-dashboard/components/LaundryCasesModal';
 import LaundryScanModal from '../laundry-management-dashboard/components/LaundryScanModal';
 import LaundryDetailModal from '../laundry-management-dashboard/components/LaundryDetailModal';
@@ -79,8 +80,19 @@ const WardrobeManagement = () => {
                   </span>
                   <span className="wm-card-go"><Icon name="ArrowRight" size={18} /></span>
                 </button>
+
+                <button type="button" className="wm-card" onClick={() => setMode('crew')}>
+                  <span className="wm-card-ic"><Icon name="Users" size={26} /></span>
+                  <span className="wm-card-body">
+                    <span className="wm-card-t">Crew</span>
+                    <span className="wm-card-d">Uniform issued to crew, drawn from master inventory. Issue, return and track — sizes and sign-off live on each crew profile.</span>
+                  </span>
+                  <span className="wm-card-go"><Icon name="ArrowRight" size={18} /></span>
+                </button>
               </div>
             </>
+          ) : mode === 'crew' ? (
+            <CrewFolder onBack={() => { setMode('hub'); reload(); }} />
           ) : (
             <OwnerWardrobeView onBack={() => { setMode('hub'); reload(); }} />
           )}

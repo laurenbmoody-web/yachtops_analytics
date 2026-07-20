@@ -15,7 +15,7 @@
 .wm-meta .wm-metanum { font-weight: 800; color: #C65A1A; margin-right: 3px; }
 .wm-titlerow { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin: 0 0 22px; }
 
-.wm-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.wm-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
 @media (max-width: 680px) { .wm-cards { grid-template-columns: 1fr; } }
 
 .wm-card {
