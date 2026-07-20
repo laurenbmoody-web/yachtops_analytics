@@ -2350,11 +2350,6 @@ const LocationFirstInventory = () => {
 
   const currentUser = authCurrentUser || getCurrentUser();
   const canEdit = !!(session);
-  // Managing items (edit / move / duplicate / delete) is for Command, Chief and
-  // HOD only — crew get a read-only item list. Server RLS enforces the same.
-  const canManageItems = isCommand || isChief || isHOD;
-  // Trash (recovery) is Command + Chief only — HODs ask their Chief to restore.
-  const canUseTrash = isCommand || isChief;
 
   const profileReady = bootstrapComplete && !!(
     (currentUser?.permission_tier ||
@@ -2367,6 +2362,12 @@ const LocationFirstInventory = () => {
   const isChief   = !isCommand && (ctxIsChief || (bootstrapComplete && (tenantRole?.toUpperCase() === 'CHIEF')));
   const isHOD     = !isCommand && !isChief && (ctxIsHOD || (bootstrapComplete && (tenantRole?.toUpperCase() === 'HOD')));
   const userDepartment = currentUser?.department || '';
+
+  // Managing items (edit / move / duplicate / delete) is for Command, Chief and
+  // HOD only — crew get a read-only item list. Server RLS enforces the same.
+  const canManageItems = isCommand || isChief || isHOD;
+  // Trash (recovery) is Command + Chief only — HODs ask their Chief to restore.
+  const canUseTrash = isCommand || isChief;
 
   console.log('[Inventory] Permission debug:', {
     bootstrapComplete,
