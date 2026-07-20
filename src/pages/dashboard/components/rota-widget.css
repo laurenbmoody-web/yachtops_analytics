@@ -109,6 +109,12 @@
 .rw-cell { height: 18px; border-radius: 4px; background: var(--rw-sage); }
 .rw-cell.is-marginal { background: var(--rw-amber); }
 .rw-cell.is-breach { background: var(--rw-red); }
+/* The "You" grid row — its cells are tappable to log that day. */
+.rw-grow-you { align-items: stretch; }
+.rw-grow-you .rw-gl { color: var(--rw-orange); font-weight: 700; align-self: center; }
+.rw-cell-btn { border: 0; padding: 0; cursor: pointer; width: 100%; height: 18px; }
+.rw-cell-btn:hover { filter: brightness(0.94); }
+.rw-cell-btn.is-sel { box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--rw-orange); }
 .rw-gc { font-size: 11px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 .rw-gc.is-clear { color: var(--rw-sage-deep); }
 .rw-gc.is-breach { color: var(--rw-red-deep); }
