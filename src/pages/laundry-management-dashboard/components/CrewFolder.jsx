@@ -45,30 +45,50 @@ const catPath = (item) => {
   return (below.length ? below : segs.slice(-1)).join(' › ');
 };
 
-// Issue-from-inventory modal: pick a uniform stock item, size + qty, then issue.
+// Segments of an item's inventory folder path BELOW the "Uniform" anchor — what
+// the issue browser drills through (Uniform > On charter > Evening wear → the
+// item lives in the "Evening wear" folder).
+const uniformRel = (item) => {
+  const parts = [];
+  if (item.location) parts.push(item.location);
+  if (item.subLocation) item.subLocation.split('>').forEach((s) => parts.push(s));
+  const segs = parts.map((s) => (s || '').trim()).filter(Boolean)
+    .filter((s, i, a) => i === 0 || s.toLowerCase() !== a[i - 1].toLowerCase());
+  const ui = segs.map((s) => s.toLowerCase()).lastIndexOf('uniform');
+  return ui >= 0 ? segs.slice(ui + 1) : segs;
+};
+
+// Issue-from-inventory: browse the Uniform folder as tiles, drill down to items,
+// tick items and allocate a quantity (−/count/+, capped at what's on board), then
+// issue the lot to the crew member in one go.
 const IssueModal = ({ crewName, stock, showValue, onIssue, onClose }) => {
-  const [q, setQ] = useState('');
-  const [pick, setPick] = useState(null); // chosen inventory item
-  const [size, setSize] = useState('');
-  const [quantity, setQuantity] = useState(1);
-  const [condition, setCondition] = useState('New');
-  const [issuedDate, setIssuedDate] = useState(today());
-  const [notes, setNotes] = useState('');
+  const [trail, setTrail] = useState([]); // folder segments below Uniform
+  const [sel, setSel] = useState({});     // itemId -> allocated qty
   const [busy, setBusy] = useState(false);
 
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    return s ? stock.filter((i) => `${i.name} ${i.size}`.toLowerCase().includes(s)) : stock;
-  }, [stock, q]);
+  const withRel = useMemo(() => stock.map((i) => ({ i, rel: uniformRel(i) })), [stock]);
+  const atLevel = useMemo(
+    () => withRel.filter((x) => trail.every((t, idx) => (x.rel[idx] || '').toLowerCase() === t.toLowerCase())),
+    [withRel, trail]
+  );
+  const folders = useMemo(() => {
+    const m = new Map();
+    atLevel.forEach((x) => { if (x.rel.length > trail.length) { const seg = x.rel[trail.length]; m.set(seg, (m.get(seg) || 0) + 1); } });
+    return [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [atLevel, trail]);
+  const itemsHere = useMemo(() => atLevel.filter((x) => x.rel.length === trail.length).map((x) => x.i), [atLevel, trail]);
 
-  const choose = (i) => { setPick(i); setSize(i.size || ''); setQuantity(1); };
-  const avail = pick ? (Number(pick.totalQty ?? pick.quantity) || 0) : 0;
+  const stockOf = (i) => Number(i.totalQty ?? i.quantity) || 0;
+  const toggle = (i) => setSel((p) => { const n = { ...p }; if (i.id in n) delete n[i.id]; else n[i.id] = 0; return n; });
+  const bump = (i, d) => setSel((p) => ({ ...p, [i.id]: Math.max(0, Math.min(stockOf(i), (p[i.id] || 0) + d)) }));
+
+  const alloc = stock.filter((i) => (sel[i.id] || 0) > 0).map((i) => ({ invItem: i, qty: sel[i.id] }));
+  const totalUnits = alloc.reduce((a, x) => a + x.qty, 0);
 
   const submit = async () => {
-    if (!pick || busy) return;
+    if (!alloc.length || busy) return;
     setBusy(true);
-    try { await onIssue({ invItem: pick, size, quantity: Math.max(1, Number(quantity) || 1), condition, issuedDate, notes }); }
-    finally { setBusy(false); }
+    try { await onIssue(alloc); } finally { setBusy(false); }
   };
 
   return (
@@ -79,63 +99,72 @@ const IssueModal = ({ crewName, stock, showValue, onIssue, onClose }) => {
           <button type="button" className="cf-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
         </div>
 
-        {!pick ? (
-          <div className="cf-modal-body">
-            <div className="cf-search">
-              <Icon name="Search" size={15} className="cf-search-ic" />
-              <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search uniform stock…" />
-            </div>
-            {stock.length === 0 ? (
-              <p className="cf-empty-note">No uniform in inventory yet. Flag stock as <b>Uniform</b> in inventory to issue it here.</p>
-            ) : (
-              <div className="cf-pick-list">
-                {filtered.map((i) => {
-                  const a = Number(i.totalQty ?? i.quantity) || 0;
-                  return (
-                    <button type="button" key={i.id} className="cf-pick" onClick={() => choose(i)} disabled={a <= 0}>
-                      <span className="cf-pick-thumb">{i.imageUrl ? <img src={i.imageUrl} alt="" /> : <Icon name="Shirt" size={16} />}</span>
-                      <span className="cf-pick-main">
-                        <span className="cf-pick-nm">{i.name}</span>
-                        <span className="cf-pick-sub">{[i.size, showValue && i.unitCost != null ? money(i.unitCost, i.currency) : null].filter(Boolean).join(' · ') || '—'}</span>
-                      </span>
-                      <span className={`cf-pick-stock${a <= 0 ? ' out' : ''}`}>{a} in stock</span>
-                    </button>
-                  );
-                })}
-                {filtered.length === 0 && <p className="cf-empty-note">Nothing matches “{q}”.</p>}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="cf-modal-body">
-            <button type="button" className="cf-pick-back" onClick={() => setPick(null)}><Icon name="ArrowLeft" size={13} /> Pick a different item</button>
-            <div className="cf-chosen">
-              <span className="cf-pick-thumb lg">{pick.imageUrl ? <img src={pick.imageUrl} alt="" /> : <Icon name="Shirt" size={20} />}</span>
-              <div>
-                <div className="cf-chosen-nm">{pick.name}</div>
-                <div className="cf-chosen-sub">{avail} in stock{showValue && pick.unitCost != null ? ` · ${money(pick.unitCost, pick.currency)} each` : ''}</div>
-              </div>
-            </div>
-            <div className="cf-row2">
-              <div><label className="cf-l">Size</label><input className="cf-input" value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. M" /></div>
-              <div><label className="cf-l">Quantity</label><input className="cf-input" type="number" min="1" max={avail || undefined} value={quantity} onChange={(e) => setQuantity(e.target.value)} /></div>
-            </div>
-            <div className="cf-row2">
-              <div><label className="cf-l">Condition</label><div className="cf-select"><select value={condition} onChange={(e) => setCondition(e.target.value)}>{CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div></div>
-              <div><label className="cf-l">Issued</label><input className="cf-input" type="date" value={issuedDate} onChange={(e) => setIssuedDate(e.target.value)} /></div>
-            </div>
-            <label className="cf-l">Notes <span className="cf-opt">optional</span></label>
-            <input className="cf-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. embroidered M/Y name" />
-            {quantity > avail && <p className="cf-warn">Only {avail} in stock — issuing will take the stock negative.</p>}
-          </div>
-        )}
+        {/* Breadcrumb — Uniform is the root; each tile drills a folder deeper. */}
+        <div className="cf-crumb">
+          <button type="button" className="cf-crumb-seg" onClick={() => setTrail([])}>Uniform</button>
+          {trail.map((seg, i) => (
+            <React.Fragment key={i}>
+              <span className="cf-crumb-sep">›</span>
+              <button type="button" className="cf-crumb-seg" onClick={() => setTrail(trail.slice(0, i + 1))}>{seg}</button>
+            </React.Fragment>
+          ))}
+        </div>
 
-        {pick && (
-          <div className="cf-modal-foot">
-            <button type="button" className="cf-btn ghost" onClick={onClose}>Cancel</button>
-            <button type="button" className="cf-btn primary" disabled={busy} onClick={submit}>{busy ? 'Issuing…' : 'Issue & take from stock'}</button>
-          </div>
-        )}
+        <div className="cf-modal-body">
+          {stock.length === 0 ? (
+            <p className="cf-empty-note">No uniform in inventory yet. Flag stock as <b>Uniform</b> in inventory to issue it here.</p>
+          ) : (
+            <>
+              {folders.length > 0 && (
+                <div className="cf-folder-grid">
+                  {folders.map((f) => (
+                    <button type="button" key={f.name} className="cf-folder" onClick={() => setTrail([...trail, f.name])}>
+                      <span className="cf-folder-ic"><Icon name="Folder" size={18} /></span>
+                      <span className="cf-folder-nm">{f.name}</span>
+                      <span className="cf-folder-ct">{f.count} item{f.count === 1 ? '' : 's'}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {itemsHere.map((i) => {
+                const onboard = stockOf(i);
+                const picked = i.id in sel;
+                const qty = sel[i.id] || 0;
+                return (
+                  <div className={`cf-issue${picked ? ' on' : ''}`} key={i.id}>
+                    <div className="cf-issue-top">
+                      <button type="button" className="cf-issue-check" onClick={() => toggle(i)} aria-label="Select">
+                        <Icon name={picked ? 'CheckSquare' : 'Square'} size={18} />
+                      </button>
+                      <span className="cf-pick-thumb">{i.imageUrl ? <img src={i.imageUrl} alt="" /> : <Icon name="Shirt" size={16} />}</span>
+                      <div className="cf-issue-main">
+                        <span className="cf-pick-nm">{i.name}{i.size ? ` · ${i.size}` : ''}</span>
+                        <span className="cf-pick-sub">{onboard} on board{showValue && i.unitCost != null ? ` · ${money(i.unitCost, i.currency)} each` : ''}</span>
+                      </div>
+                    </div>
+                    {picked && (
+                      <div className="cf-issue-qty">
+                        <span className="cf-issue-qlbl">Allocate to {crewName.split(' ')[0]}</span>
+                        <button type="button" className="cf-qbtn" onClick={() => bump(i, -1)} disabled={qty <= 0} aria-label="Less">−</button>
+                        <span className="cf-qnum">{qty}</span>
+                        <button type="button" className="cf-qbtn" onClick={() => bump(i, 1)} disabled={qty >= onboard} aria-label="More">+</button>
+                        <span className="cf-issue-of">of {onboard}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {folders.length === 0 && itemsHere.length === 0 && <p className="cf-empty-note">Nothing filed here.</p>}
+            </>
+          )}
+        </div>
+
+        <div className="cf-modal-foot">
+          <button type="button" className="cf-btn ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="cf-btn primary" disabled={busy || totalUnits === 0} onClick={submit}>
+            {busy ? 'Issuing…' : totalUnits > 0 ? `Issue ${totalUnits} item${totalUnits === 1 ? '' : 's'}` : 'Issue'}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -276,16 +305,21 @@ const CrewFolder = ({ onBack }) => {
     [kit, selectedId]
   );
 
-  const doIssue = async ({ invItem, size, quantity, condition, issuedDate, notes }) => {
-    await saveKitItem({
-      userId: selectedId, tenantId: activeTenantId, category: 'uniform',
-      item: invItem.name, size: size || invItem.size || null, quantity,
-      conditionIssued: condition || 'New', issuedDate,
-      issuedBy: user?.id, issuedByName: user?.user_metadata?.full_name || user?.email,
-      value: invItem.unitCost ?? null, inventoryItemId: invItem.id, createdBy: user?.id, notes,
-    });
-    await adjustItemQuantity(invItem.id, -Math.abs(quantity));
-    await logKitEvent({ userId: selectedId, tenantId: activeTenantId, action: 'issued', detail: { item: invItem.name, quantity }, actorId: user?.id, actorName: user?.user_metadata?.full_name });
+  // Issue a batch of allocations [{ invItem, qty }] to the selected crew member:
+  // one kit row each, drawing the quantity from master stock.
+  const doIssue = async (allocations) => {
+    const issuerName = user?.user_metadata?.full_name || user?.email;
+    for (const { invItem, qty } of allocations) {
+      await saveKitItem({
+        userId: selectedId, tenantId: activeTenantId, category: 'uniform',
+        item: invItem.name, size: invItem.size || null, quantity: qty,
+        conditionIssued: 'New', issuedDate: today(),
+        issuedBy: user?.id, issuedByName: issuerName,
+        value: invItem.unitCost ?? null, inventoryItemId: invItem.id, createdBy: user?.id,
+      });
+      await adjustItemQuantity(invItem.id, -Math.abs(qty));
+      await logKitEvent({ userId: selectedId, tenantId: activeTenantId, action: 'issued', detail: { item: invItem.name, quantity: qty }, actorId: user?.id, actorName: issuerName });
+    }
     setIssuing(false); load();
   };
 
