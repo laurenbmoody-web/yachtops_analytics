@@ -126,7 +126,9 @@ const HoursOfRestWidget = () => {
   const todayStr = toYmd(new Date());
   const weekMonStr = toYmd(mondayOf(new Date()));
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekMonStr, i)), [weekMonStr]);
-  const loadStart = addDays(weekMonStr, -6);
+  // Cover both the Mon–Sun grid's trailing tests and the crew strip's trailing
+  // 7 days (each cell's 7-day rest test needs a further 6 days of history).
+  const loadStart = addDays(todayStr, -12);
   const loadEnd = addDays(weekMonStr, 6);
 
   const load = useCallback(async () => {
@@ -218,6 +220,13 @@ const HoursOfRestWidget = () => {
   }), [myShiftsMerged, todayStr]);
   const myWeekRest = myReport.pastWeekHours != null ? Math.round(myReport.pastWeekHours) : null;
   const myBreach = myReport.anyBreach;
+
+  // The crew member's own rest status for the trailing 7 days (today last).
+  const myWeek = useMemo(() => Array.from({ length: 7 }, (_, i) => {
+    const date = addDays(todayStr, i - 6);
+    const dt = new Date(`${date}T00:00:00`);
+    return { date, wd1: WD1[dt.getDay()], status: dayStatus(myShiftsMerged, date), isToday: i === 6 };
+  }), [myShiftsMerged, todayStr]);
 
   // The wheels track the logged (or planned) blocks; re-sync when data changes.
   const blocksKey = myTodayBlocks.map((b) => `${b.start}-${b.end}`).join('|');
@@ -378,6 +387,23 @@ const HoursOfRestWidget = () => {
                 <b>Rest day today</b>{myWeekRest != null ? ` · ${myWeekRest}h rest this week` : ''}
               </div>
               <button type="button" className="rw-linkbtn" onClick={() => { setEditBlocks([{ start: '08:00', end: '12:00' }]); setSaveErr(false); setLogRest(true); }}>Worked today? Log hours →</button>
+            </>
+          )}
+
+          {/* Crew: their own rest compliance over the last 7 days */}
+          {view === 'crew' && (
+            <>
+              <div className="rw-divider" />
+              <div className="rw-seclab">Your rest · last 7 days</div>
+              <div className="rw-week">
+                {myWeek.map((d) => (
+                  <div key={d.date} className={`rw-wcell${d.isToday ? ' is-today' : ''}`}>
+                    <StatusCell s={d.status} />
+                    <span className="rw-wd">{d.wd1}</span>
+                  </div>
+                ))}
+              </div>
+              <Legend />
             </>
           )}
 
