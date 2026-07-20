@@ -12,7 +12,11 @@
 //
 // Request body:  { imageBase64: string, x: number, y: number, mediaType?: string }
 //                x,y are PIXEL coordinates in the sent image (label = foreground).
-// Response:      { maskBase64: string, width: number, height: number }
+// Response:      { maskUrl: string, width: number, height: number }
+//                The client loads the mask URL directly (fal media serves it with
+//                open CORS) and traces its boundary — we do NOT base64 the mask
+//                here, because a multi-MB mask can OOM the isolate / blow the
+//                response limit → a platform 502.
 // Env vars:      FAL_KEY  (get one at https://fal.ai/dashboard/keys)
 
 declare const Deno: {
@@ -32,17 +36,6 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
-}
-
-// ArrayBuffer → base64 without blowing the call stack on large masks.
-function toBase64(buf: ArrayBuffer) {
-  const bytes = new Uint8Array(buf);
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
 }
 
 Deno.serve(async (req: Request) => {
@@ -67,8 +60,8 @@ Deno.serve(async (req: Request) => {
     });
     if (!falRes.ok) {
       const t = await falRes.text();
-      console.error('[deck-plan-sam] fal error:', falRes.status, t.slice(0, 400));
-      return json({ error: `segmentation failed (${falRes.status})` }, 502);
+      console.error('[deck-plan-sam] fal error:', falRes.status, t.slice(0, 600));
+      return json({ error: `segmentation failed (${falRes.status})`, detail: t.slice(0, 600) }, 502);
     }
     const data = await falRes.json();
     const mask = data?.combined_mask || (Array.isArray(data?.individual_masks) ? data.individual_masks[0] : null);
@@ -77,14 +70,10 @@ Deno.serve(async (req: Request) => {
       console.error('[deck-plan-sam] no mask in response:', JSON.stringify(data).slice(0, 400));
       return json({ error: 'no mask returned' }, 502);
     }
-
-    // Pull the mask PNG server-side so the client loads it as a data URI (no CORS
-    // taint → it can read the pixels back off a canvas to trace the boundary).
-    const maskRes = await fetch(url);
-    if (!maskRes.ok) return json({ error: `could not fetch mask (${maskRes.status})` }, 502);
-    const buf = await maskRes.arrayBuffer();
-
-    return json({ maskBase64: toBase64(buf), width: mask.width || null, height: mask.height || null });
+    // Hand the mask URL straight back — the browser loads it (fal media is CORS-
+    // open) and traces it. No server-side download/base64, so nothing large to
+    // build or return.
+    return json({ maskUrl: url, width: mask.width || null, height: mask.height || null });
   } catch (err: any) {
     console.error('[deck-plan-sam] error:', err);
     return json({ error: String(err?.message || err) }, 500);

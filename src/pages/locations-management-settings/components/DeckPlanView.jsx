@@ -513,9 +513,10 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const samOutline = async (deck, nx, ny) => {
     const { deckJpeg } = await prepareDeck(cropOf(deck));
     const { base64, w, h } = deckJpeg();
-    const { maskBase64 } = await samSegment({ imageBase64: base64, x: Math.round(nx * w), y: Math.round(ny * h) });
+    const { maskUrl } = await samSegment({ imageBase64: base64, x: Math.round(nx * w), y: Math.round(ny * h) });
     const maskData = await new Promise((resolve, reject) => {
       const im = new Image();
+      im.crossOrigin = 'anonymous'; // fal media is CORS-open → canvas stays readable
       im.onload = () => {
         const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
         const cx = c.getContext('2d', { willReadFrequently: true });
@@ -523,7 +524,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         try { resolve(cx.getImageData(0, 0, c.width, c.height)); } catch (err) { reject(err); }
       };
       im.onerror = () => reject(new Error('Could not read the mask.'));
-      im.src = `data:image/png;base64,${maskBase64}`;
+      im.src = maskUrl;
     });
     return maskToNodes(maskData);
   };
