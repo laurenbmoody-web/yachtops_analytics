@@ -616,6 +616,33 @@
 .inv-moveitem.on svg { color: #C65A1A; }
 .inv-moveitem svg { color: #8B8478; flex-shrink: 0; }
 
+/* ── undo toast (reversible delete) ─────────────────────────── */
+.inv-toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+  z-index: 1000; display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px 12px 18px; border-radius: 12px;
+  background: #1C1B3A; color: #FFFFFF;
+  box-shadow: 0 20px 48px -14px rgba(28,27,58,0.5);
+  font: 500 13.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  animation: inv-toast-in 0.2s ease-out;
+}
+@keyframes inv-toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.inv-toast > svg { color: #E27B42; flex-shrink: 0; }
+.inv-toast b { font-weight: 700; }
+.inv-toast-undo {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: 4px;
+  padding: 7px 13px; border-radius: 8px; cursor: pointer;
+  background: #C65A1A; color: #FFFFFF; border: none;
+  font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; transition: background 0.14s;
+}
+.inv-toast-undo:hover { background: #B14E16; }
+.inv-toast-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 7px; border: none; cursor: pointer;
+  background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.75); transition: all 0.14s;
+}
+.inv-toast-close:hover { background: rgba(255,255,255,0.2); color: #FFFFFF; }
+
 /* ── add dropdown menu ──────────────────────────────────────── */
 .inv-adddrop { position: relative; }
 .inv-addmenu {
