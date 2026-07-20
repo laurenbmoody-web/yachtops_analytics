@@ -2319,6 +2319,13 @@ const LocationFirstInventory = () => {
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem('cargo_inventory_view_mode') || 'list'; } catch { return 'list'; }
   });
+  // Grid tile size (min column width in px) — user-adjustable zoom. 160=small, 360=large.
+  const [tileZoom, setTileZoom] = useState(() => {
+    try {
+      const v = parseInt(localStorage.getItem('cargo_inventory_tile_zoom'), 10);
+      return (v >= 160 && v <= 360) ? v : 300;
+    } catch { return 300; }
+  });
   const sortDropdownRef = useRef(null);
   const filterPanelRef = useRef(null);
 
@@ -2338,6 +2345,10 @@ const LocationFirstInventory = () => {
   useEffect(() => {
     try { localStorage.setItem('cargo_inventory_view_mode', viewMode); } catch {}
   }, [viewMode]);
+
+  useEffect(() => {
+    try { localStorage.setItem('cargo_inventory_tile_zoom', String(tileZoom)); } catch {}
+  }, [tileZoom]);
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -3600,6 +3611,35 @@ const LocationFirstInventory = () => {
                 )}
               </div>
 
+              {viewMode === 'grid' && (
+                <div className="inv-zoom" title="Card size">
+                  <button
+                    className="inv-zoom-btn"
+                    onClick={() => setTileZoom(z => Math.max(160, z - 40))}
+                    title="Smaller cards"
+                  >
+                    <Icon name="Minus" size={14} />
+                  </button>
+                  <input
+                    type="range"
+                    min={160}
+                    max={360}
+                    step={10}
+                    value={tileZoom}
+                    onChange={(e) => setTileZoom(parseInt(e?.target?.value, 10))}
+                    className="inv-zoom-range"
+                    aria-label="Card size"
+                  />
+                  <button
+                    className="inv-zoom-btn"
+                    onClick={() => setTileZoom(z => Math.min(360, z + 40))}
+                    title="Larger cards"
+                  >
+                    <Icon name="Plus" size={14} />
+                  </button>
+                </div>
+              )}
+
               <div className="inv-viewtoggle">
                 <button
                   onClick={() => setViewMode('list')}
@@ -3686,7 +3726,10 @@ const LocationFirstInventory = () => {
             {filteredSubFolders?.length > 0 && (
               <div>
                 {!isRoot && <h2 className="inv-sectlabel">Folders</h2>}
-                <div className={viewMode === 'list' ? 'inv-grid list' : 'inv-grid'}>
+                <div
+                  className={viewMode === 'list' ? 'inv-grid list' : 'inv-grid'}
+                  style={viewMode === 'grid' ? { gridTemplateColumns: `repeat(auto-fill, minmax(${tileZoom}px, 1fr))` } : undefined}
+                >
                   {filteredSubFolders?.map(folderName => {
                     const folderSegments = [...pathSegments, folderName];
                     const isReadOnly = isFolderReadOnly(folderName);
@@ -3798,7 +3841,10 @@ const LocationFirstInventory = () => {
                 ))}
               </div>
             ) : (
-              <div className="inv-cardgrid">
+              <div
+                className="inv-cardgrid"
+                style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(tileZoom * 0.7)}px, 1fr))` }}
+              >
                 {filteredItems?.map(item => (
                   <ItemGridCard
                     key={item?.id}
