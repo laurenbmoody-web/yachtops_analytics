@@ -79,7 +79,9 @@ const rowToItem = (row) => {
     defaultLocationId: row?.default_location_id || '',
     // Custom structured fields (colour, batch_no, etc.)
     customFields: row?.custom_fields || {},
-    // Legacy taxonomy (kept for backward compat)
+    // ⚠️ DEPRECATED legacy taxonomy — kept for backward compat only.
+    // The live model is the folder path (location + subLocation above).
+    // Do NOT build new features on l1..l4. See docs/inventory-location-model.md.
     l1Id: row?.l1_id,
     l2Id: row?.l2_id,
     l3Id: row?.l3_id,
@@ -272,7 +274,8 @@ const itemToRow = (item, tenantId) => ({
   barcode: item?.barcode || null,
   expiry_date: sanitizeDate(item?.expiryDate),
   default_location_id: item?.defaultLocationId || null,
-  // Legacy taxonomy
+  // ⚠️ DEPRECATED legacy taxonomy — written through for compat only; the live
+  // model is location + sub_location above. See docs/inventory-location-model.md.
   l1_id: item?.l1Id || null,
   l2_id: item?.l2Id || null,
   l3_id: item?.l3Id || null,

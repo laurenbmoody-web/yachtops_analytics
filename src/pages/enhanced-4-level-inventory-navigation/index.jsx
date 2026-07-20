@@ -1281,7 +1281,9 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQuickV
     };
   }, []);
 
-  // Derive category label from taxonomy names
+  // Category label. NOTE: still reads DEPRECATED legacy l1..l3 names — this is the
+  // last visible dependency on the old taxonomy. When retiring l1..l4, derive this
+  // from the folder path instead. See docs/inventory-location-model.md.
   const categoryLabel = item?.l3Name || item?.l2Name || item?.l1Name || null;
   // Format expiry date — check both camelCase and snake_case field names
   const rawExpiry = item?.expiryDate || item?.expiry_date || null;
@@ -1515,7 +1517,9 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
   const accentColor = item?.color || null;
   const accentIcon = item?.icon || null;
 
-  // Derive category label from taxonomy names
+  // Category label. NOTE: still reads DEPRECATED legacy l1..l3 names — this is the
+  // last visible dependency on the old taxonomy. When retiring l1..l4, derive this
+  // from the folder path instead. See docs/inventory-location-model.md.
   const categoryLabel = item?.l3Name || item?.l2Name || item?.l1Name || null;
   // Format expiry date — check both camelCase and snake_case field names
   const rawExpiry = item?.expiryDate || item?.expiry_date || null;
