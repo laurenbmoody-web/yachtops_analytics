@@ -214,6 +214,18 @@ export const assignTransactionAccount = async (id, accountId) => {
   return { data, error };
 };
 
+// Categorise a transaction from the reconcile register — stamps the chart line
+// (category + code). Used by a holder sorting their own card at month-end.
+export const setTransactionCategory = async (id, { category, category_code }) => {
+  const { data, error } = await supabase
+    .from('ledger_transactions')
+    .update({ category: category || null, category_code: category_code || null })
+    .eq('id', id)
+    .select(TXN_SELECT)
+    .single();
+  return { data, error };
+};
+
 // ── Receipts / attachments ──────────────────────────────────────────────────
 
 // Upload a receipt file for a ledger row into the private ledger-receipts bucket

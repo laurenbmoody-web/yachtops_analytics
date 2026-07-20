@@ -1,0 +1,32 @@
+/* Cargo Accounts — CardVisual. Scoped under .cv-*. */
+.cv-card {
+  position: relative; border-radius: 16px; padding: 18px; color: #fff; overflow: hidden;
+  background: linear-gradient(140deg, #2A2952 0%, #1C1B3A 60%);
+  box-shadow: 0 22px 44px -22px rgba(28,27,58,0.55);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.cv-md { width: 300px; height: 184px; }
+.cv-lg { width: 320px; height: 196px; padding: 22px; }
+.cv-sm { width: 234px; height: 144px; padding: 15px; }
+.cv-glow { position: absolute; inset: 0; pointer-events: none; }
+.cv-top { display: flex; align-items: flex-start; justify-content: space-between; position: relative; }
+.cv-brand { font-weight: 800; letter-spacing: 2px; font-size: 13px; }
+.cv-lg .cv-brand { font-size: 14px; }
+.cv-type { font-size: 9px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: rgba(255,255,255,0.7); text-align: right; }
+.cv-chip { width: 38px; height: 28px; border-radius: 6px; margin-top: 20px; position: relative;
+  background: linear-gradient(135deg, #E7CE8A, #C6A04A); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25); }
+.cv-lg .cv-chip { width: 40px; height: 30px; margin-top: 22px; }
+.cv-chip::after { content: ''; position: absolute; inset: 6px 8px; border: 1px solid rgba(120,90,30,0.35); border-radius: 3px; }
+.cv-no { margin-top: 16px; font-size: 16px; letter-spacing: 2px; font-variant-numeric: tabular-nums; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.cv-lg .cv-no { font-size: 18px; letter-spacing: 2.5px; }
+.cv-sm .cv-no { font-size: 14px; letter-spacing: 1.5px; margin-top: 12px; }
+.cv-cashglyph { width: 40px; height: 30px; border-radius: 7px; margin-top: 22px; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center; }
+.cv-cashglyph svg { width: 20px; height: 20px; color: #fff; }
+.cv-btm { position: absolute; left: 18px; right: 18px; bottom: 16px; display: flex; align-items: flex-end; justify-content: space-between; }
+.cv-lg .cv-btm { left: 22px; right: 22px; bottom: 20px; }
+.cv-holder { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
+.cv-hsub { font-size: 9px; color: rgba(255,255,255,0.55); margin-top: 3px; letter-spacing: 0.4px; }
+.cv-mc { display: inline-flex; align-items: center; }
+.cv-mc i { width: 20px; height: 20px; border-radius: 999px; display: block; }
+.cv-mc i:first-child { background: #EB6A2E; }
+.cv-mc i:last-child { background: #F0A94B; margin-left: -9px; mix-blend-mode: screen; }

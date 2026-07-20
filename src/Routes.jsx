@@ -8,6 +8,8 @@ import lazyWithRetry from './utils/lazyWithRetry';
 import Dashboard from './pages/dashboard';
 import TeamJobsManagement from './pages/team-jobs-management';
 import Accounts from './pages/accounts';
+import DepartmentCards from './pages/accounts/department-cards';
+import MyReconcile from './pages/accounts/my';
 import Ledger from './pages/accounts/ledger';
 import Payables from './pages/accounts/payables';
 import Budgets from './pages/accounts/budgets';
@@ -1451,6 +1453,8 @@ const Routes = () => {
 
         {/* Accounts */}
         <Route path="/accounts" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Accounts /></ProtectedRoute>} />
+        <Route path="/accounts/cards" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><DepartmentCards /></ProtectedRoute>} />
+        <Route path="/accounts/my" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><MyReconcile /></ProtectedRoute>} />
         <Route path="/accounts/ledger" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Ledger /></ProtectedRoute>} />
         <Route path="/accounts/payables" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Payables /></ProtectedRoute>} />
         <Route path="/accounts/budgets" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Budgets /></ProtectedRoute>} />
