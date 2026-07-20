@@ -101,7 +101,7 @@
 .bg-bucket-rule { flex: 1; height: 1px; background: #E6E8EF; align-self: center; }
 .bg-bucket-meta { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 
-.bg-cols, .bg-row { display: grid; grid-template-columns: 1.4fr 110px 110px 110px 110px 150px 40px; align-items: center; gap: 14px; }
+.bg-cols, .bg-row { display: grid; grid-template-columns: minmax(180px, 1.2fr) 132px 132px 118px 132px 130px 34px; align-items: center; gap: 12px; }
 .bg-cols { padding: 10px 8px 6px 14px; }
 .bg-cols span { font-size: 9px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #AEB4C2; }
 .bg-cols .r, .bg-row .r { text-align: right; padding-right: 6px; }
@@ -200,7 +200,7 @@
 .bg-mtable thead th.bg-mcode, .bg-mtable thead th.bg-mline { text-align: left; }
 .bg-mcode { font-family: 'Roboto Mono', ui-monospace, monospace; font-size: 10.5px; color: #8B8478; text-align: left; position: sticky; left: 0; background: #fff; }
 .bg-mline { text-align: left; color: #1C1B3A; position: sticky; left: 50px; background: #fff; }
-.bg-mline-name { display: inline-block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.bg-mline-name { display: inline-block; max-width: 158px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; cursor: help; }
 .bg-mcell { text-align: right; font-variant-numeric: tabular-nums; color: #4B4A66; }
 .bg-mcum { font-weight: 700; color: #1C1B3A; border-left: 1px solid #EEF0F4; }
 .bg-mtable tbody tr:hover td { background: #FAFAF8; }
@@ -229,7 +229,7 @@
 .bg-spread:hover { opacity: 1 !important; text-decoration: underline; }
 
 @media (max-width: 900px) {
-  .bg-cols, .bg-row { grid-template-columns: 1.3fr 90px 90px 120px 30px; }
+  .bg-cols, .bg-row { grid-template-columns: minmax(120px, 1fr) 112px 112px 110px 28px; }
   .bg-cols .c-committed, .bg-row .c-committed, .bg-cols .c-remaining, .bg-row .c-remaining { display: none; }
   .bg-list-row { grid-template-columns: 1fr auto auto; }
   .bg-list-period, .bg-list-chev { display: none; }
