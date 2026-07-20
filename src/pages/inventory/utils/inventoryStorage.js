@@ -1142,6 +1142,123 @@ export const archiveFolder = async (parentSegments, folderName) => {
 };
 
 /**
+ * Deep-duplicate a folder (its sub-folders AND items) under the same parent.
+ * The copy is named "<name> (copy)" — or "(copy N)" if that already exists.
+ * Duplicated items get a fresh cargo_item_id via the DB trigger (cargo_item_id
+ * inserted null). Returns the new folder name on success, or null.
+ */
+export const duplicateFolder = async (parentSegments, folderName) => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId) return null;
+    const { data: { session } } = await supabase?.auth?.getSession();
+    const userId = session?.user?.id || null;
+
+    const isRoot = !parentSegments || parentSegments?.length === 0;
+    const location = isRoot ? folderName : parentSegments?.[0];
+    const parentSubPath = isRoot ? '' : parentSegments?.slice(1)?.join(' > ');
+    const srcSub = isRoot ? '' : (parentSubPath ? `${parentSubPath} > ${folderName}` : folderName);
+
+    // Find a unique copy name among direct siblings.
+    const siblings = [];
+    if (isRoot) {
+      const { data } = await supabase?.from('inventory_locations')
+        ?.select('location')?.eq('tenant_id', tenantId)?.is('sub_location', null);
+      (data || [])?.forEach(r => siblings?.push(r?.location));
+    } else {
+      const { data } = await supabase?.from('inventory_locations')
+        ?.select('sub_location')?.eq('tenant_id', tenantId)?.eq('location', location);
+      const parentSegs = parentSubPath ? parentSubPath?.split(' > ') : [];
+      (data || [])?.forEach(r => {
+        const s = r?.sub_location; if (!s) return;
+        const segs = s?.split(' > ');
+        if (segs?.length === parentSegs?.length + 1 && segs?.slice(0, parentSegs?.length)?.join(' > ') === parentSubPath) {
+          siblings?.push(segs?.[segs?.length - 1]);
+        }
+      });
+    }
+    let copyName = `${folderName} (copy)`;
+    let n = 2;
+    while (siblings?.includes(copyName)) { copyName = `${folderName} (copy ${n})`; n++; }
+    const dstSub = isRoot ? '' : (parentSubPath ? `${parentSubPath} > ${copyName}` : copyName);
+
+    // Fetch source folder rows (the folder itself + all descendants).
+    let locRows = [];
+    if (isRoot) {
+      const { data } = await supabase?.from('inventory_locations')?.select('*')
+        ?.eq('tenant_id', tenantId)?.eq('location', folderName);
+      locRows = data || [];
+    } else {
+      const { data: self } = await supabase?.from('inventory_locations')?.select('*')
+        ?.eq('tenant_id', tenantId)?.eq('location', location)?.eq('sub_location', srcSub);
+      const { data: desc } = await supabase?.from('inventory_locations')?.select('*')
+        ?.eq('tenant_id', tenantId)?.eq('location', location)?.like('sub_location', `${srcSub} > %`);
+      locRows = [...(self || []), ...(desc || [])];
+    }
+
+    const remapSub = (sub) => {
+      if (isRoot) return sub; // root: sub_location unchanged, only location changes
+      if (sub === srcSub) return dstSub;
+      return dstSub + (sub || '')?.slice(srcSub?.length);
+    };
+
+    const newLocRows = (locRows || [])?.map(r => ({
+      tenant_id: tenantId,
+      created_by: userId,
+      location: isRoot ? copyName : r?.location,
+      sub_location: isRoot ? r?.sub_location : remapSub(r?.sub_location),
+      is_archived: false,
+      sort_order: r?.sort_order ?? 0,
+      department: r?.department ?? null,
+      is_department_root: isRoot ? false : (r?.is_department_root ?? false),
+      visibility: r?.visibility ?? 'everyone',
+      icon: r?.icon ?? null,
+      color: r?.color ?? null,
+    }));
+    if (newLocRows?.length > 0) {
+      const { error } = await supabase?.from('inventory_locations')?.insert(newLocRows);
+      if (error) { console.error('[inventoryStorage] duplicateFolder locations error:', error?.message); return null; }
+    }
+
+    // Fetch + copy items in the subtree.
+    let itemRows = [];
+    if (isRoot) {
+      const { data } = await supabase?.from('inventory_items')?.select('*')
+        ?.eq('tenant_id', tenantId)?.eq('location', folderName);
+      itemRows = data || [];
+    } else {
+      const { data: exact } = await supabase?.from('inventory_items')?.select('*')
+        ?.eq('tenant_id', tenantId)?.eq('location', location)?.eq('sub_location', srcSub);
+      const { data: under } = await supabase?.from('inventory_items')?.select('*')
+        ?.eq('tenant_id', tenantId)?.eq('location', location)?.like('sub_location', `${srcSub} > %`);
+      itemRows = [...(exact || []), ...(under || [])];
+    }
+
+    const newItemRows = (itemRows || [])?.map(r => {
+      const { id, cargo_item_id, created_at, updated_at, ...rest } = r;
+      return {
+        ...rest,
+        tenant_id: tenantId,
+        created_by: userId,
+        cargo_item_id: null, // let the DB trigger assign a fresh one
+        location: isRoot ? copyName : rest?.location,
+        sub_location: isRoot ? rest?.sub_location : remapSub(rest?.sub_location),
+      };
+    });
+    const chunk = 200;
+    for (let i = 0; i < (newItemRows?.length || 0); i += chunk) {
+      const { error } = await supabase?.from('inventory_items')?.insert(newItemRows?.slice(i, i + chunk));
+      if (error) console.error('[inventoryStorage] duplicateFolder items error:', error?.message);
+    }
+
+    return copyName;
+  } catch (err) {
+    console.error('[inventoryStorage] duplicateFolder exception:', err?.message);
+    return null;
+  }
+};
+
+/**
  * Create a folder in inventory_locations.
  * parentSegments = [] for root, ['Interior'] for sub-folder of Interior, etc.
  * name = new folder name

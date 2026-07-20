@@ -459,6 +459,73 @@
 .inv-empty-sub { font-size: 13.5px; color: #8B8478; margin: 0 0 22px; }
 .inv-empty-actions { display: flex; gap: 11px; justify-content: center; flex-wrap: wrap; }
 
+/* ── folder actions ⋯ menu (always visible, touch-friendly) ─── */
+.inv-actionsmenu { position: relative; display: inline-flex; }
+.inv-menutrigger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 8px;
+  border: none; background: none; color: #AEB4C2; cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+.inv-menutrigger:hover { background: #F5F6F8; color: #1C1B3A; }
+.inv-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 50;
+  min-width: 186px; padding: 5px;
+  background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 12px;
+  box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32);
+}
+.inv-menuitem {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 9px 11px; border-radius: 8px; border: none; background: none;
+  font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  cursor: pointer; text-align: left; transition: background 0.12s, color 0.12s;
+}
+.inv-menuitem svg { color: #6B7280; flex-shrink: 0; }
+.inv-menuitem:hover { background: #FBEFE9; color: #C65A1A; }
+.inv-menuitem:hover svg { color: #C65A1A; }
+.inv-menuitem.danger { color: #DC2626; }
+.inv-menuitem.danger svg { color: #DC2626; }
+.inv-menuitem.danger:hover { background: #FEF0F0; color: #DC2626; }
+.inv-menu-sep { height: 1px; background: #F0F1F5; margin: 5px 6px; }
+
+/* ── editorial modal (permissions etc.) ─────────────────────── */
+.inv-modal {
+  width: 100%; max-width: 420px; background: #FFFFFF;
+  border: 1px solid #ECEAE3; border-radius: 16px; padding: 24px;
+  box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32);
+}
+.inv-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.inv-modal-eyebrow {
+  font-family: 'Inter', system-ui, sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 1.6px; text-transform: uppercase; color: #C65A1A; margin-bottom: 6px;
+}
+.inv-modal-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 22px; line-height: 1.1; color: #1C1B3A; margin: 0;
+}
+.inv-modal-close {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px; border: none;
+  background: none; color: #8B8478; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.14s, color 0.14s;
+}
+.inv-modal-close:hover { background: #F5F6F8; color: #1C1B3A; }
+.inv-radio-list { display: flex; flex-direction: column; gap: 8px; }
+.inv-radio {
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  padding: 12px 14px; border-radius: 10px; cursor: pointer; text-align: left;
+  background: #FAFAF8; border: 1px solid #EEF0F4;
+  font: 500 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  transition: border-color 0.14s, background 0.14s;
+}
+.inv-radio:hover { border-color: #D6C3B4; }
+.inv-radio.on { border-color: #C65A1A; background: #FBEFE9; }
+.inv-radio-dot {
+  width: 16px; height: 16px; border-radius: 999px; flex-shrink: 0;
+  border: 2px solid #C9CED6; transition: all 0.14s;
+}
+.inv-radio.on .inv-radio-dot { border-color: #C65A1A; background: #C65A1A; box-shadow: inset 0 0 0 3px #FFFFFF; }
+.inv-modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+
 /* ── add dropdown menu ──────────────────────────────────────── */
 .inv-adddrop { position: relative; }
 .inv-addmenu {
