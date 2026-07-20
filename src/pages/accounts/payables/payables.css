@@ -1,0 +1,49 @@
+/* Outstanding invoices (Accounts → payables) — editorial hairline rows,
+   reusing the accounts.css page shell (ca-*). */
+
+.pay-row {
+  display: grid;
+  grid-template-columns: 1fr auto 130px auto;
+  align-items: center;
+  gap: 18px;
+  padding: 13px 2px;
+  border-bottom: 1px solid #F0F1F5;
+}
+.pay-row:last-child { border-bottom: 0; }
+
+.pay-who { min-width: 0; }
+.pay-name {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 14px; font-weight: 600; color: #1C1B3A;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pay-sub { font-size: 12px; color: #8B8478; margin-top: 2px; }
+.pay-num { font-variant-numeric: tabular-nums; color: #6B7280; }
+.pay-dim { color: #AEB4C2; }
+
+.pay-dates { display: flex; align-items: center; gap: 9px; justify-content: flex-end; white-space: nowrap; }
+.pay-due { font-size: 12.5px; color: #6B7280; font-variant-numeric: tabular-nums; }
+.pay-pill {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: #C65A1A; background: #FBEFE9; border-radius: 999px; padding: 3px 9px;
+}
+.pay-row.is-overdue .pay-due { color: #C65A1A; font-weight: 600; }
+
+.pay-amt { text-align: right; font-size: 14px; font-weight: 600; color: #1C1B3A; font-variant-numeric: tabular-nums; }
+
+.pay-act { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
+.pay-settle {
+  appearance: none; cursor: pointer;
+  font-family: inherit; font-size: 12.5px; font-weight: 600; color: #fff;
+  background: #C65A1A; border: 0; border-radius: 8px; padding: 7px 13px;
+  white-space: nowrap; transition: background .12s;
+}
+.pay-settle:hover:not(:disabled) { background: #B14E16; }
+.pay-settle:disabled { opacity: 0.55; cursor: default; }
+
+@media (max-width: 640px) {
+  .pay-row { grid-template-columns: 1fr auto; row-gap: 8px; }
+  .pay-dates { grid-column: 2; }
+  .pay-amt { grid-column: 1; text-align: left; }
+  .pay-act { grid-column: 2; }
+}
