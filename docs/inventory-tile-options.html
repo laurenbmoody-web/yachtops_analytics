@@ -1,0 +1,203 @@
+<title>Inventory tile options</title>
+<style>
+  :root {
+    --ground:#F5F7FA; --surface:#FFFFFF; --surface-2:#FBFCFD;
+    --ink:#1C1B3A; --ink-soft:#4A4864; --muted:#7A7790; --faint:#A6A3B8;
+    --hair:#E7E9EF; --hair-2:#EFF1F6;
+    --accent:#C65A1A; --accent-soft:#FBEFE9; --accent-line:#EAD3C6;
+    --icon-bg:#EEF1F5; --icon-fg:#6B7280;
+    --shadow:0 14px 30px -20px rgba(28,27,58,0.35);
+    --serif:'Iowan Old Style','Palatino Linotype','Palatino','Georgia',serif;
+    --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --ground:#0F1220; --surface:#171A2B; --surface-2:#1B1F32;
+    --ink:#ECEBF4; --ink-soft:#C3C1D6; --muted:#8F8CA6; --faint:#6A6883;
+    --hair:#2A2E44; --hair-2:#232742;
+    --accent:#E27B42; --accent-soft:#2A2032; --accent-line:#4A3A34;
+    --icon-bg:#232742; --icon-fg:#9A97B0;
+    --shadow:0 14px 30px -18px rgba(0,0,0,0.6);
+  }}
+  :root[data-theme="dark"]{
+    --ground:#0F1220; --surface:#171A2B; --surface-2:#1B1F32;
+    --ink:#ECEBF4; --ink-soft:#C3C1D6; --muted:#8F8CA6; --faint:#6A6883;
+    --hair:#2A2E44; --hair-2:#232742;
+    --accent:#E27B42; --accent-soft:#2A2032; --accent-line:#4A3A34;
+    --icon-bg:#232742; --icon-fg:#9A97B0;
+    --shadow:0 14px 30px -18px rgba(0,0,0,0.6);
+  }
+  :root[data-theme="light"]{
+    --ground:#F5F7FA; --surface:#FFFFFF; --surface-2:#FBFCFD;
+    --ink:#1C1B3A; --ink-soft:#4A4864; --muted:#7A7790; --faint:#A6A3B8;
+    --hair:#E7E9EF; --hair-2:#EFF1F6;
+    --accent:#C65A1A; --accent-soft:#FBEFE9; --accent-line:#EAD3C6;
+    --icon-bg:#EEF1F5; --icon-fg:#6B7280;
+    --shadow:0 14px 30px -20px rgba(28,27,58,0.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:52px 32px 100px}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent)}
+  h1{font-family:var(--serif);font-weight:400;font-size:clamp(30px,4.6vw,46px);line-height:1.05;letter-spacing:-.01em;margin:12px 0 0;text-wrap:balance}
+  .standfirst{font-size:16px;color:var(--ink-soft);max-width:64ch;margin:16px 0 0}
+  .note{margin-top:18px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--hair);padding-top:14px}
+  .note b{color:var(--ink-soft)}
+
+  section{margin-top:52px}
+  .ohead{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid var(--hair)}
+  .ohead h2{font-family:var(--serif);font-weight:400;font-size:24px;margin:0;color:var(--ink)}
+  .ohead .lede{font-size:13.5px;color:var(--ink-soft);margin:4px 0 0;max-width:70ch}
+  .badge{font-size:11px;font-weight:700;letter-spacing:.4px;color:var(--accent);background:var(--accent-soft);border:1px solid var(--accent-line);padding:5px 11px;border-radius:999px;white-space:nowrap}
+
+  /* ── shared tile bits ── */
+  .ico{display:flex;align-items:center;justify-content:center;background:var(--icon-bg);color:var(--icon-fg);border-radius:11px}
+  .ico svg{width:56%;height:56%}
+  .dots{color:var(--faint);font-size:18px;line-height:1;letter-spacing:1px}
+  .nm{font-family:var(--serif);color:var(--ink);line-height:1.12}
+  .mt{color:var(--muted);font-variant-numeric:tabular-nums}
+  .mt .b{color:var(--accent);font-weight:600}
+
+  /* ── A · current (wide) ── */
+  .gridA{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .gridA .tile{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:18px;min-height:118px;display:flex;flex-direction:column;transition:border-color .14s,box-shadow .14s}
+  .gridA .tile:hover{border-color:var(--accent-line);box-shadow:var(--shadow)}
+  .gridA .top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+  .gridA .ico{width:42px;height:42px}
+  .gridA .nm{font-size:18px;margin:0 0 4px}
+  .gridA .mt{font-size:12.5px}
+
+  /* ── B · compact (smaller, same shape) ── */
+  .gridB{display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:11px}
+  .gridB .tile{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:13px;min-height:96px;display:flex;flex-direction:column;transition:border-color .14s,box-shadow .14s}
+  .gridB .tile:hover{border-color:var(--accent-line);box-shadow:var(--shadow)}
+  .gridB .top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:11px}
+  .gridB .ico{width:34px;height:34px;border-radius:9px}
+  .gridB .nm{font-size:15.5px;margin:0 0 2px}
+  .gridB .mt{font-size:11.5px}
+
+  /* ── C · square (centred) ── */
+  .gridC{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .gridC .tile{background:var(--surface);border:1px solid var(--hair);border-radius:14px;padding:18px 12px 16px;aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;position:relative;transition:border-color .14s,box-shadow .14s}
+  .gridC .tile:hover{border-color:var(--accent-line);box-shadow:var(--shadow)}
+  .gridC .dots{position:absolute;top:9px;right:12px;opacity:0;transition:opacity .14s}
+  .gridC .tile:hover .dots{opacity:1}
+  .gridC .ico{width:48px;height:48px;border-radius:13px;margin-bottom:12px}
+  .gridC .nm{font-size:16px;margin:0 0 5px}
+  .gridC .mt{font-size:12px}
+
+  /* ── D · cover (icon panel + footer) ── */
+  .gridD{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:13px}
+  .gridD .tile{background:var(--surface);border:1px solid var(--hair);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;transition:border-color .14s,box-shadow .14s}
+  .gridD .tile:hover{border-color:var(--accent-line);box-shadow:var(--shadow)}
+  .gridD .cover{height:82px;background:var(--surface-2);display:flex;align-items:center;justify-content:center;position:relative;border-bottom:1px solid var(--hair-2)}
+  .gridD .cover .ico{width:40px;height:40px;background:transparent;color:var(--icon-fg)}
+  .gridD .cover .ico svg{width:100%;height:100%}
+  .gridD .dots{position:absolute;top:8px;right:11px;opacity:0;transition:opacity .14s}
+  .gridD .tile:hover .dots{opacity:1}
+  .gridD .foot{padding:12px 14px 14px}
+  .gridD .nm{font-size:15.5px;margin:0 0 3px}
+  .gridD .mt{font-size:12px}
+
+  .rec{margin-top:56px;background:var(--surface);border:1px solid var(--hair);border-left:3px solid var(--accent);border-radius:14px;padding:22px 24px;box-shadow:var(--shadow)}
+  .rec .lbl{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+  .rec p{margin:0 0 10px;font-size:15px;color:var(--ink);line-height:1.5}
+  .rec p:last-child{margin-bottom:0}
+  .rec b{color:var(--accent);font-weight:600}
+  .foot-note{margin-top:34px;font-size:12px;color:var(--muted)}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="i-package" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></g>
+    <g id="i-folder" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></g>
+    <g id="i-anchor" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.3"/><path d="M12 7.3V21"/><path d="M5 12H3a9 9 0 0 0 18 0h-2"/></g>
+    <g id="i-compass" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.6 8.4l-2.2 5-5 2.2 2.2-5z"/></g>
+    <g id="i-heart" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-6.6-4.1-9-8.6A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 9 4.4C18.6 15.9 12 20 12 20z"/></g>
+    <g id="i-flask" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v6l-4.4 8a2 2 0 0 0 1.8 3h9.2a2 2 0 0 0 1.8-3L14 9V3"/></g>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Inventory · tile options</div>
+    <h1>Four ways to shape the department tiles</h1>
+    <p class="standfirst">The same twelve departments, rendered four ways, so we can judge density and shape at real width before committing. Everything stays in the editorial system — cool ground, navy ink, terracotta accent, hairline cards.</p>
+    <p class="note"><b>Reading this:</b> hover a tile to see its ⋯ menu appear. Type is approximated with a system serif here; in the app the names render in DM Serif Display exactly as today.</p>
+  </header>
+
+  <section>
+    <div class="ohead">
+      <div><h2>A · Current</h2><p class="lede">Wide cards, generous padding, icon top-left. What's live now.</p></div>
+      <span class="badge">3–4 per row</span>
+    </div>
+    <div class="gridA" data-grid="A"></div>
+  </section>
+
+  <section>
+    <div class="ohead">
+      <div><h2>B · Compact</h2><p class="lede">Same layout, smaller — tighter padding and icon, narrower minimum. Fits noticeably more per row.</p></div>
+      <span class="badge">5–6 per row</span>
+    </div>
+    <div class="gridB" data-grid="B"></div>
+  </section>
+
+  <section>
+    <div class="ohead">
+      <div><h2>C · Square</h2><p class="lede">True square tiles, everything centred. Reads as a tidy grid of "places" — the most "square" answer.</p></div>
+      <span class="badge">6–7 per row</span>
+    </div>
+    <div class="gridC" data-grid="C"></div>
+  </section>
+
+  <section>
+    <div class="ohead">
+      <div><h2>D · Cover</h2><p class="lede">Square with a soft icon panel on top and a name/count footer. More visual — closer to a photo-forward app grid.</p></div>
+      <span class="badge">5–6 per row</span>
+    </div>
+    <div class="gridD" data-grid="D"></div>
+  </section>
+
+  <div class="rec">
+    <div class="lbl">My recommendation</div>
+    <p>Go <b>square (C)</b> for this department page. With a dozen departments — many at 0 items — the current wide cards (A) burn a lot of horizontal space and make empty departments feel heavier than they are. Square tiles read as a calm, scannable grid of "places," which is exactly what this level is: a launchpad, not a data table.</p>
+    <p>Keep the <b>meta and quantity detail for the deeper pages</b>, where tiles carry item counts, low-stock and expiry signals — there the compact card (B) earns its width. So: square at the top level, compact cards once you're inside a department.</p>
+    <p>Option D (cover) looks great but its value is images; until departments/folders carry a photo, the icon panel is doing a card's job with more chrome. Worth revisiting if we add folder cover images later.</p>
+  </div>
+
+  <p class="foot-note">Same content in every grid · hover for the ⋯ actions · light &amp; dark aware.</p>
+</div>
+
+<script>
+  const DEPTS = [
+    ['Galley','1 item · 11 folders','i-package'],
+    ['Interior','4 items · 4 folders','i-folder'],
+    ['Bridge','0 items','i-compass'],
+    ['Engineering','0 items · 1 folder','i-package'],
+    ['Admin','0 items','i-folder'],
+    ['Deck','0 items','i-anchor'],
+    ['Aviation','0 items','i-compass'],
+    ['Science','0 items','i-flask'],
+    ['Medical','341 items · 1 folder','i-heart'],
+    ['Security','0 items','i-folder'],
+    ['Spa','0 items','i-heart'],
+    ['Unfiled','1 item','i-package'],
+  ];
+  const ico = (id) => `<span class="ico"><svg viewBox="0 0 24 24"><use href="#${id}"/></svg></span>`;
+  const dots = `<span class="dots">···</span>`;
+  const metaHtml = (m) => {
+    // emphasise a non-zero item count in terracotta
+    const big = /^(?!0 )(\d[\d,]*) item/.test(m);
+    return big ? m.replace(/^(\d[\d,]*) item(s?)/, '<span class="b">$1 item$2</span>') : m;
+  };
+  const builders = {
+    A: (n,m,i) => `<div class="tile"><div class="top">${ico(i)}${dots}</div><h3 class="nm">${n}</h3><div class="mt">${metaHtml(m)}</div></div>`,
+    B: (n,m,i) => `<div class="tile"><div class="top">${ico(i)}${dots}</div><h3 class="nm">${n}</h3><div class="mt">${metaHtml(m)}</div></div>`,
+    C: (n,m,i) => `<div class="tile">${dots}${ico(i)}<h3 class="nm">${n}</h3><div class="mt">${metaHtml(m)}</div></div>`,
+    D: (n,m,i) => `<div class="tile"><div class="cover">${ico(i)}${dots}</div><div class="foot"><h3 class="nm">${n}</h3><div class="mt">${metaHtml(m)}</div></div></div>`,
+  };
+  document.querySelectorAll('[data-grid]').forEach(g => {
+    const b = builders[g.dataset.grid];
+    g.innerHTML = DEPTS.map(d => b(d[0], d[1], d[2])).join('');
+  });
+</script>
