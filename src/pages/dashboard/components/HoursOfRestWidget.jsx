@@ -81,6 +81,16 @@ function entryToShift(date, segments, types) {
   return { memberId: null, date, startTime: blockToHHMM(min), endTime: blockToHHMM(max + 1), shiftType: type, logged: true };
 }
 
+// Merge a member's logged actuals over their planned shifts — logged days win.
+function mergeMemberShifts(planned, userEntries) {
+  if (!userEntries || userEntries.size === 0) return planned;
+  const loggedDates = new Set(userEntries.keys());
+  const base = planned.filter((s) => !loggedDates.has(s.date));
+  const logged = [];
+  for (const [date, e] of userEntries) { const sh = entryToShift(date, e.segments, e.types); if (sh) logged.push(sh); }
+  return base.concat(logged);
+}
+
 const ArrowSvg = ({ w = 40 }) => (
   <svg width={w} height="10" viewBox="0 0 40 10" fill="none" aria-hidden="true">
     <path d="M0 5h34m0 0-5-4m5 4-5 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
@@ -98,6 +108,9 @@ const HoursOfRestWidget = () => {
   const [error, setError] = useState(false);
   // The current user's own logged HOR actuals (date → {segments, types}).
   const [myEntries, setMyEntries] = useState(() => new Map());
+  // Every readable crew member's logged actuals (userId → date → {segments,types})
+  // — merged over the plan in the compliance grid.
+  const [entriesByUser, setEntriesByUser] = useState(() => new Map());
   // The editable on-duty blocks the wheels bind to; a split shift has several.
   // Saved to the HOR log on Confirm.
   const [editBlocks, setEditBlocks] = useState([{ start: '08:00', end: '12:00' }]);
@@ -128,20 +141,28 @@ const HoursOfRestWidget = () => {
           .select('member_id, shift_date, start_time, end_time, shift_type, sub_type')
           .eq('tenant_id', activeTenantId).eq('rota_id', rota.id)
           .gte('shift_date', loadStart).lte('shift_date', loadEnd),
-        // The current user's own logged HOR actuals in the window.
-        user?.id
-          ? supabase.from('hor_work_entries')
-            .select('entry_date, work_segments, segment_types')
-            .eq('tenant_id', activeTenantId).eq('subject_user_id', user.id)
-            .gte('entry_date', loadStart).lte('entry_date', loadEnd)
-          : Promise.resolve({ data: [] }),
+        // Logged HOR actuals for the window — tenant-wide; RLS returns the
+        // rows this viewer may see (their own; their department for CHIEF; all
+        // for COMMAND), same as the rota page's compliance matrix.
+        supabase.from('hor_work_entries')
+          .select('subject_user_id, entry_date, work_segments, segment_types')
+          .eq('tenant_id', activeTenantId)
+          .gte('entry_date', loadStart).lte('entry_date', loadEnd),
       ]);
       if (membersRes.error) throw membersRes.error;
       if (shiftsRes.error) throw shiftsRes.error;
 
+      // Split entries: current user's (for the hero) + by-user (for the grid).
       const em = new Map();
-      for (const e of (entriesRes.data || [])) em.set(e.entry_date, { segments: e.work_segments || [], types: e.segment_types || {} });
+      const byUser = new Map();
+      for (const e of (entriesRes.data || [])) {
+        const rec = { segments: e.work_segments || [], types: e.segment_types || {} };
+        if (!byUser.has(e.subject_user_id)) byUser.set(e.subject_user_id, new Map());
+        byUser.get(e.subject_user_id).set(e.entry_date, rec);
+        if (e.subject_user_id === user?.id) em.set(e.entry_date, rec);
+      }
       setMyEntries(em);
+      setEntriesByUser(byUser);
 
       const mm = (membersRes.data || []).map((m) => ({
         id: m.id,
@@ -249,10 +270,10 @@ const HoursOfRestWidget = () => {
   ), [members, me?.departmentId]);
 
   const chiefRows = useMemo(() => chiefMembers.map((m) => {
-    const sh = shiftsByMember.get(m.id) || [];
+    const sh = mergeMemberShifts(shiftsByMember.get(m.id) || [], entriesByUser.get(m.userId));
     const cells = days.map((d) => dayStatus(sh, d));
     return { name: m.name, cells, breaches: cells.filter((c) => c === 'breach').length };
-  }).sort((a, b) => b.breaches - a.breaches), [chiefMembers, shiftsByMember, days]);
+  }).sort((a, b) => b.breaches - a.breaches), [chiefMembers, shiftsByMember, entriesByUser, days]);
 
   const deptRows = useMemo(() => {
     // A department is "in use" because it has active crew — inviting a crew
@@ -261,14 +282,14 @@ const HoursOfRestWidget = () => {
     const byDept = new Map();
     for (const m of members) {
       if (!m.departmentId) continue;
-      if (!byDept.has(m.departmentId)) byDept.set(m.departmentId, { name: m.department, memberIds: [] });
-      byDept.get(m.departmentId).memberIds.push(m.id);
+      if (!byDept.has(m.departmentId)) byDept.set(m.departmentId, { name: m.department, mem: [] });
+      byDept.get(m.departmentId).mem.push(m);
     }
     return [...byDept.values()].map((dep) => {
-      const cells = days.map((d) => dep.memberIds.reduce((acc, id) => worse(acc, dayStatus(shiftsByMember.get(id) || [], d)), 'compliant'));
+      const cells = days.map((d) => dep.mem.reduce((acc, m) => worse(acc, dayStatus(mergeMemberShifts(shiftsByMember.get(m.id) || [], entriesByUser.get(m.userId)), d)), 'compliant'));
       return { name: dep.name, cells, breaches: cells.filter((c) => c === 'breach').length };
     }).sort((a, b) => b.breaches - a.breaches);
-  }, [members, shiftsByMember, days]);
+  }, [members, shiftsByMember, entriesByUser, days]);
 
   const totalBreachDays = view === 'command'
     ? deptRows.reduce((s, r) => s + r.breaches, 0)
