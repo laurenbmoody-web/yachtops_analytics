@@ -113,6 +113,14 @@
 .rw-gc.is-clear { color: var(--rw-sage-deep); }
 .rw-gc.is-breach { color: var(--rw-red-deep); }
 
+/* Crew's own last-7-days rest strip — a cell + weekday per day. */
+.rw-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.rw-wcell { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.rw-wcell .rw-cell { height: 26px; }
+.rw-wcell .rw-wd { text-align: center; font-size: 9px; font-weight: 700; letter-spacing: .3px; color: var(--rw-msoft); }
+.rw-wcell.is-today .rw-wd { color: var(--rw-orange); }
+.rw-wcell.is-today .rw-cell { box-shadow: 0 0 0 2px #fff, 0 0 0 3px var(--rw-orange); }
+
 .rw-legend { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 12px; font-size: 10px; color: var(--rw-muted); align-items: center; }
 .rw-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 4px; vertical-align: -1px; }
 
