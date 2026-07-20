@@ -126,9 +126,11 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [localPos, setLocalPos] = useState({}); // spaceId -> {x,y} | null (override)
   const [drag, setDrag] = useState(null); // active room drag
   const [ghost, setGhost] = useState(null); // cursor coords while dragging
-  const [links, setLinks] = useState([]); // doorway links [{id,a,b}]
+  const [links, setLinks] = useState([]); // room links [{id,a,b,kind:'door'|'stairs'}]
   const [linkMode, setLinkMode] = useState(false);
   const [pendingLink, setPendingLink] = useState(null); // {spaceId, deckId} first-picked dot
+  const [flashSpace, setFlashSpace] = useState(null); // spaceId briefly highlighted after a stairs jump
+  const flashTimerRef = useRef(null);
   const [localShapes, setLocalShapes] = useState({}); // spaceId -> shape | null (override)
   const [localCats, setLocalCats] = useState({}); // spaceId -> category (override for instant recolour)
   const [traceMode, setTraceMode] = useState(false);
@@ -444,9 +446,12 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     if (!pendingLink) { setPendingLink({ spaceId: space.id, deckId: deck.id }); return; }
     if (pendingLink.spaceId === space.id) { setPendingLink(null); return; } // toggle off
     const a = pendingLink.spaceId; const b = space.id;
+    // Same deck → a doorway (walk straight through). Different deck → stairs
+    // (the only way to reach a space like the foredeck from another level).
+    const kind = pendingLink.deckId === deck.id ? 'door' : 'stairs';
     setPendingLink(null);
     if (linkExists(a, b)) return;
-    addSpaceLink(a, b)
+    addSpaceLink(a, b, kind)
       .then((row) => setLinks((p) => (p.some((l) => l.id === row.id) ? p : [...p, row])))
       .catch((err) => console.error('[deck-plan] add link error:', err));
   };
@@ -454,6 +459,16 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const deleteLink = (linkId) => {
     setLinks((p) => p.filter((l) => l.id !== linkId));
     removeSpaceLink(linkId).catch((err) => console.error('[deck-plan] remove link error:', err));
+  };
+
+  // Follow a stairs link: scroll the connected deck into view and flash the
+  // room it lands on, so a cross-deck connection reads like walking up stairs.
+  const jumpToSpace = (deckId, spaceId) => {
+    const el = typeof document !== 'undefined' && document.getElementById(`dp-deck-${deckId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setFlashSpace(spaceId);
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => setFlashSpace(null), 1800);
   };
 
   const toggleLinkMode = () => { setPendingLink(null); setTraceMode(false); setTracing(null); setLinkMode((v) => !v); };
@@ -758,6 +773,11 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     );
   }
 
+  // Every space across every deck, keyed by id — lets a stairs link name and
+  // reach the room it lands on even though that room lives on another deck.
+  const spaceMeta = {};
+  decks.forEach((d) => spacesOf(d).forEach((s) => { spaceMeta[s.id] = { name: s.name, deckId: d.id, deckName: d.name }; }));
+
   return (
     <div className="dp">
       {hidden}
@@ -776,15 +796,24 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         const spaces = spacesOf(deck);
         const placed = spaces.filter((s) => posOf(s));
         const unplaced = spaces.filter((s) => !posOf(s));
-        // Links whose both endpoints are placed on THIS deck (drawable as lines).
+        // Doorway links: both endpoints placed on THIS deck (drawable as lines).
         const posById = Object.fromEntries(placed.map((s) => [s.id, posOf(s)]));
-        const deckLinks = links.filter((l) => posById[l.a] && posById[l.b]);
+        const deckLinks = links.filter((l) => l.kind !== 'stairs' && posById[l.a] && posById[l.b]);
+        // Stairs links touching THIS deck: one endpoint is here, the other on
+        // another deck — rendered as a ↕ badge that jumps to the other deck.
+        const deckStairs = links.filter((l) => l.kind === 'stairs').map((l) => {
+          const localId = posById[l.a] ? l.a : posById[l.b] ? l.b : null;
+          if (!localId) return null;
+          const remoteId = localId === l.a ? l.b : l.a;
+          const remote = spaceMeta[remoteId];
+          return { link: l, localId, remoteId, pos: posById[localId], remote };
+        }).filter(Boolean);
         const deckProps = proposals?.deckId === deck.id ? proposals : null;
         // Focus mode: while tracing/adjusting a room on this deck, hide the other
         // outlines + doorway lines and dim the other pins so the work stands out.
         const focusMode = (tracing?.deckId === deck.id) || (editing?.deckId === deck.id);
         return (
-          <div className="dp-deck" key={deck.id}>
+          <div className="dp-deck" key={deck.id} id={`dp-deck-${deck.id}`}>
             <div className="dp-deckhdr">
               <span className="dp-dn">{deck.name}</span>
               <span className="dp-dc">{deck.spaceCount} {deck.spaceCount === 1 ? 'space' : 'spaces'}</span>
@@ -827,7 +856,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
             </div>
 
             {linkMode && crop && gaDims && (
-              <p className="dp-linkhint">{pendingLink ? 'Now click the room it connects to (or the same dot again to cancel).' : 'Click two rooms to link them through a doorway. Click a line to remove it.'}</p>
+              <p className="dp-linkhint">{pendingLink ? 'Now click the room it connects to — on this deck for a doorway, or on another deck for a stair connection (or the same dot again to cancel).' : 'Click two rooms to link them: same deck makes a doorway, two different decks makes a ↕ stair connection. Click a line or ↕ badge to remove it.'}</p>
             )}
 
             {traceMode && crop && gaDims && (
@@ -965,6 +994,28 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       })}
                     </svg>
                   )}
+                  {/* Stairs: a ↕ badge sitting on the local pin. Tap to jump to
+                      the connected deck (or, while linking, to remove it). */}
+                  {!focusMode && deckStairs.map(({ link, remoteId, pos, remote }) => (
+                    <button
+                      key={link.id}
+                      type="button"
+                      className={`dp-stair-badge ${linkMode ? 'is-removable' : ''}`}
+                      style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }}
+                      title={linkMode
+                        ? `Remove stairs to ${remote?.name || 'the other deck'}`
+                        : `Stairs to ${remote?.name || 'room'}${remote?.deckName ? ` · ${remote.deckName}` : ''}`}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (linkMode) { deleteLink(link.id); return; }
+                        if (remote) jumpToSpace(remote.deckId, remoteId);
+                      }}
+                    >
+                      <span className="dp-stair-ic" aria-hidden="true">↕</span>
+                      <span className="dp-stair-txt">{remote?.deckName || 'Stairs'}</span>
+                    </button>
+                  ))}
                   {placed.map((s) => {
                     if (tracing?.spaceId === s.id || editing?.spaceId === s.id) return null; // hide the pin while tracing/adjusting
                     const p = posOf(s);
@@ -973,7 +1024,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     return (
                       <div
                         key={s.id}
-                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''} ${pending ? 'is-pending' : ''}`}
+                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''} ${pending ? 'is-pending' : ''} ${flashSpace === s.id ? 'is-flash' : ''}`}
                         style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
                         onPointerDown={(e) => onDotDown(e, s, deck, true)}
                         title={linkMode ? s.name : scanned ? `${s.name} — open on map` : `${s.name} — add a scan`}
