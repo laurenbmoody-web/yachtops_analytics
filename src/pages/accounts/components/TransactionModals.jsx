@@ -1,23 +1,40 @@
 // Ledger modals — add a manual transaction, and assign an account to an
 // unreconciled (auto-posted) row. Both editorial, portaled via ModalShell.
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ModalShell from '../../../components/ui/ModalShell';
 import { deriveAmountBase, formatMoney } from '../../../services/financeCalc';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
+import { getChartGrouped } from '../../../services/chartService';
 
 const CURRENCIES = ['EUR', 'GBP', 'USD'];
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-// MYBA chart grouped by bucket for the category picker — a chosen line stamps the
-// code so the spend reconciles into the right budget bucket deterministically
-// (no reliance on the word-guessing classifier).
-const CHART_GROUPS = STANDARD_BUCKET_ORDER
+// Fallback grouped chart from the MYBA standard template — used only until a
+// tenant's own chart_of_accounts loads (or if they haven't set one up yet).
+const FALLBACK_GROUPS = STANDARD_BUCKET_ORDER
   .map((bucket) => ({ bucket, lines: STANDARD_CHART_OF_ACCOUNTS.filter((c) => c.bucket === bucket) }))
   .filter((g) => g.lines.length);
-const LINE_BY_CODE = Object.fromEntries(STANDARD_CHART_OF_ACCOUNTS.map((c) => [c.code, c]));
+
+// Build the category picker (grouped options + a key→line lookup) from either the
+// tenant's chart or the fallback. A chosen line stamps both category + code so the
+// spend reconciles into the right bucket deterministically. Lines may have no code
+// (custom charts), so the option key falls back to id, then the category label.
+function buildPicker(groups) {
+  const lineByKey = {};
+  const uiGroups = (groups || []).map((g) => ({
+    bucket: g.bucket,
+    lines: g.lines.map((l) => {
+      const key = l.code || l.id || `cat:${l.category}`;
+      lineByKey[key] = { code: l.code || null, category: l.category };
+      return { key, code: l.code || null, category: l.category };
+    }),
+  })).filter((g) => g.lines.length);
+  return { uiGroups, lineByKey };
+}
 
 // ── Manual transaction ────────────────────────────────────────────────────────
-export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, accounts }) {
+export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, accounts, tenantId }) {
+  const [chartGroups, setChartGroups] = useState(null); // null until loaded → use fallback
   const [direction, setDirection] = useState('out'); // out = money out (negative)
   const [amount, setAmount] = useState('');
   const [accountId, setAccountId] = useState('');
@@ -35,6 +52,22 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
+  // Load the tenant's own chart of accounts when the modal opens; fall back to
+  // the MYBA template if the tenant has no chart yet or the load fails.
+  useEffect(() => {
+    if (!open || !tenantId) return;
+    let alive = true;
+    getChartGrouped(tenantId).then(({ data, error }) => {
+      if (alive && !error && data?.length) setChartGroups(data);
+    });
+    return () => { alive = false; };
+  }, [open, tenantId]);
+
+  const { uiGroups, lineByKey } = useMemo(
+    () => buildPicker(chartGroups || FALLBACK_GROUPS),
+    [chartGroups],
+  );
+
   if (!open) return null;
   const account = accounts.find((a) => a.id === accountId);
   const acctCurrency = account?.currency || 'EUR';
@@ -48,7 +81,7 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
     const fx = crossCurrency ? (Number(fxRate) || 1) : 1;
     setBusy(true); setErr('');
     const signed = direction === 'out' ? -Math.abs(mag) : Math.abs(mag);
-    const line = catCode && catCode !== '__other__' ? LINE_BY_CODE[catCode] : null;
+    const line = catCode && catCode !== '__other__' ? lineByKey[catCode] : null;
     const res = await onSave({
       account_id: accountId || null,
       txn_date: date,
@@ -115,9 +148,11 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
           <label className="ca-label" htmlFor="ca-tx-cat">Category <span className="opt">optional</span></label>
           <select id="ca-tx-cat" className="ca-select" value={catCode} onChange={(e) => setCatCode(e.target.value)}>
             <option value="">— None —</option>
-            {CHART_GROUPS.map((g) => (
+            {uiGroups.map((g) => (
               <optgroup key={g.bucket} label={g.bucket}>
-                {g.lines.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.category}</option>)}
+                {g.lines.map((c) => (
+                  <option key={c.key} value={c.key}>{c.code ? `${c.code} — ${c.category}` : c.category}</option>
+                ))}
               </optgroup>
             ))}
             <option value="__other__">Other (type your own)…</option>
