@@ -37,6 +37,9 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const [name, setName] = useState(item?.name || '');
   const [imageUrl, setImageUrl] = useState(item?.imageUrl || '');
   const [uploading, setUploading] = useState(false);
+  const [removingBg, setRemovingBg] = useState(false);
+  const [originalUrl, setOriginalUrl] = useState(''); // pre-cutout image, for undo
+  const [bgError, setBgError] = useState('');
   const [garmentType, setGarmentType] = useState(cf.garmentType || folder.garment || '');
   const [subType, setSubType] = useState(cf.subType || '');
   const [fit, setFit] = useState(cf.fit || folder.fit || '');
@@ -80,6 +83,20 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
       }
     } catch { /* ignore */ }
     setUploading(false);
+  };
+
+  // Background removal — a manual button (only spends a fal call when needed).
+  // Sends the current image to the uniform-cutout edge function and swaps in the
+  // garment-on-transparent result; keeps the original for one-tap undo.
+  const removeBg = async () => {
+    if (!imageUrl || removingBg) return;
+    setRemovingBg(true); setBgError('');
+    try {
+      const { data, error: fnErr } = await supabase.functions.invoke('uniform-cutout', { body: { imageUrl } });
+      if (fnErr || !data?.url) setBgError('Couldn’t remove the background — try again.');
+      else { setOriginalUrl(imageUrl); setImageUrl(data.url); }
+    } catch { setBgError('Couldn’t remove the background — try again.'); }
+    setRemovingBg(false);
   };
 
   const addSize = (s) => {
@@ -129,10 +146,20 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
 
         <div className="uim-body">
           <div className="uim-top">
-            <label className="uim-photo">
-              {imageUrl ? <img src={imageUrl} alt="" /> : <span className="uim-photo-ph"><Icon name={uploading ? 'Loader' : 'Camera'} size={22} /><span>{uploading ? 'Uploading…' : 'Add photo'}</span></span>}
-              <input type="file" accept="image/*" onChange={upload} hidden />
-            </label>
+            <div className="uim-photo-col">
+              <label className="uim-photo">
+                {imageUrl ? <img src={imageUrl} alt="" /> : <span className="uim-photo-ph"><Icon name={uploading ? 'Loader' : 'Camera'} size={22} /><span>{uploading ? 'Uploading…' : 'Add photo'}</span></span>}
+                <input type="file" accept="image/*" onChange={upload} hidden />
+              </label>
+              {imageUrl && !uploading && (
+                originalUrl ? (
+                  <button type="button" className="uim-mini" onClick={() => { setImageUrl(originalUrl); setOriginalUrl(''); }}>↺ Use original</button>
+                ) : (
+                  <button type="button" className="uim-mini" onClick={removeBg} disabled={removingBg}><Icon name="Scissors" size={12} /> {removingBg ? 'Removing…' : 'Remove background'}</button>
+                )
+              )}
+              {bgError && <span className="uim-bg-err">{bgError}</span>}
+            </div>
             <div className="uim-top-fields">
               <L>Item / style <span className="uim-req">required</span></L>
               <input className="uim-input" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Musto Sardinia 2.0 Jacket" />
