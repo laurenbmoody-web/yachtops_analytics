@@ -217,17 +217,13 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
                     {r.cells.map((c) => {
                       if (!c.value) return <td key={c.ym}><div className="bg-ov-cell zero" title={`${r.name} · ${c.label}: no spend yet`}>·</div></td>;
                       const both = c.plan > 0;
-                      // Front: spend magnitude as a gentle single-tint depth (bigger =
-                      // slightly deeper) with one fixed dark text colour — calm, consistent.
-                      const st = Math.min(1, c.value / r.peak);
-                      const frontBg = `rgba(28,27,58,${(0.04 + st * 0.13).toFixed(2)})`;
-                      const frontFg = '#33324F';
-                      // Back (flip): variance vs plan, green under / terracotta over.
+                      // The whole cell is coloured by variance — over (terracotta), under
+                      // (green), on plan (pale green). Both faces share it; the flip only
+                      // swaps the number (spend → +/− vs plan). On plan = within 3% of the
+                      // month's plan, so tiny sub-thousand variances don't read as noise.
                       const t = both ? Math.min(1, Math.abs(c.variance) / varScale) : 0;
-                      // On plan = within 3% of that month's plan — keeps tiny sub-thousand
-                      // variances (e.g. +€740 on a €44k line) from reading as noise.
                       const near = both && Math.abs(c.variance) < Math.max(c.plan * 0.03, 1);
-                      const back = !both ? { bg: '#F1F2F5', fg: '#8B8478' } : near ? { bg: '#EAF1EC', fg: '#3F7A52' } : varColor(c.variance, t);
+                      const cell = !both ? { bg: '#F1F2F5', fg: '#8B8478' } : near ? { bg: '#EAF1EC', fg: '#3F7A52' } : varColor(c.variance, t);
                       const sign = c.variance > 0 ? '+' : '−';
                       const backLabel = !both ? '—' : near ? '✓' : `${sign}${money(Math.abs(c.variance))}`;
                       return (
@@ -235,8 +231,8 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
                           <div className="bg-ov-flip" tabIndex={0}
                             title={`${r.name} · ${c.label}: ${formatMoney(c.value, cur)}${both ? ` vs plan ${formatMoney(c.plan, cur)} (${sign}${formatMoney(Math.abs(c.variance), cur)})` : ' · no plan set'}`}>
                             <div className="bg-ov-flip-in">
-                              <div className="bg-ov-face bg-ov-front" style={{ background: frontBg, color: frontFg }}>{money(c.value)}</div>
-                              <div className="bg-ov-face bg-ov-back" style={{ background: back.bg, color: back.fg }}>{backLabel}</div>
+                              <div className="bg-ov-face bg-ov-front" style={{ background: cell.bg, color: cell.fg }}>{money(c.value)}</div>
+                              <div className="bg-ov-face bg-ov-back" style={{ background: cell.bg, color: cell.fg }}>{backLabel}</div>
                             </div>
                           </div>
                         </td>
