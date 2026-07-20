@@ -206,6 +206,7 @@ const RotaWidget = () => {
     return base.concat(logged);
   }, [myShifts, myEntries]);
 
+  const myTodayBlocks = useMemo(() => blocksForDay(myShiftsMerged, todayStr), [myShiftsMerged, todayStr]);
   const loggedToday = myEntries.has(todayStr);
   const myTodayType = myShifts.find((s) => s.date === todayStr && ON_DUTY_TYPES.has(s.shiftType))?.shiftType || 'duty';
   const tmrwStr = addDays(todayStr, 1);
