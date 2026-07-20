@@ -1,7 +1,7 @@
-// Cargo Accounts — Accounts page (/accounts). Rebuilt onto the editorial (Cargo)
-// system per CLAUDE.md — hairline lists, DM Serif Display + Plus Jakarta Sans,
-// tabular figures, dd/mm/yyyy. Shows the tenant cash position as the hero figure
-// and each financial_account with its computed balance. COMMAND adds/edits.
+// Cargo Accounts — vessel overview (/accounts), COMMAND-only. Cash position split
+// by Owner / Charter APA / Petty cash, and every account grouped by the holder who
+// carries it (Vessel/Command first, then each Chief) with a month-end reconcile
+// indicator. Editorial (Cargo) system per CLAUDE.md.
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
@@ -11,10 +11,17 @@ import { useTenant } from '../../contexts/TenantContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAccountsOverview, createAccount, updateAccount } from '../../services/financeService';
 import { formatMoney } from '../../services/financeCalc';
+import { groupAccountsByHolder, fundsTotals } from '../../services/accountsView';
 import AccountFormModal from './components/AccountFormModal';
 import './accounts.css';
 
-const KIND_ICON = { bank: 'Landmark', card: 'CreditCard', cash: 'Banknote' };
+const KIND_ICON = { bank: 'Landmark', card: 'CreditCard', cash: 'Wallet', petty_cash: 'Wallet' };
+const FUNDS_LABEL = { owner: 'Owner', charter_apa: 'Charter APA', general: 'General' };
+const initials = (role) => {
+  if (!role) return '—';
+  const parts = role.trim().split(/\s+/);
+  return (parts.length > 1 ? parts[0][0] + parts[1][0] : parts[0].slice(0, 2)).toUpperCase();
+};
 
 export default function Accounts() {
   const navigate = useNavigate();
@@ -41,17 +48,15 @@ export default function Accounts() {
 
   useEffect(() => { load(); }, [load]);
 
-  // The cash-position hero renders in the reporting currency. Phase 0 has no
-  // per-tenant reporting-currency setting yet, so use the most common account
-  // currency (EUR fallback) rather than inventing one.
   const positionCurrency = useMemo(() => {
     const counts = {};
     accounts.filter((a) => a.is_active !== false).forEach((a) => { counts[a.currency] = (counts[a.currency] || 0) + 1; });
     return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'EUR';
   }, [accounts]);
 
-  const activeAccounts = accounts.filter((a) => a.is_active !== false);
-  const inactiveAccounts = accounts.filter((a) => a.is_active === false);
+  const groups = useMemo(() => groupAccountsByHolder(accounts), [accounts]);
+  const funds = useMemo(() => fundsTotals(accounts), [accounts]);
+  const activeCount = accounts.filter((a) => a.is_active !== false).length;
 
   const handleSave = async (payload) => {
     const res = editing?.id
@@ -64,27 +69,35 @@ export default function Accounts() {
   const openAdd = () => { setEditing(null); setModalOpen(true); };
   const openEdit = (a) => { setEditing(a); setModalOpen(true); };
 
-  const renderRow = (a) => (
-    <div key={a.id} className={`ca-acct${a.is_active === false ? ' is-inactive' : ''}`}>
-      <span className="ca-acct-ico"><Icon name={KIND_ICON[a.kind] || 'Landmark'} size={19} /></span>
-      <div className="ca-acct-who">
-        <div className="ca-acct-name">{a.name}</div>
-        <div className="ca-acct-sub">
-          <span className="ca-pill ca-pill-kind">{a.kind}</span>
-          {a.is_active === false && <span className="ca-pill ca-pill-muted" style={{ marginLeft: 6 }}>Inactive</span>}
-        </div>
-      </div>
-      <span className="ca-acct-cur">{a.currency}</span>
-      <span className={`ca-acct-bal ca-num ${a.balance < 0 ? 'ca-neg' : ''}`}>{formatMoney(a.balance, a.currency)}</span>
-      <span className="ca-acct-act">
-        {canEdit && (
-          <button type="button" className="ca-link is-mut" onClick={() => openEdit(a)} aria-label={`Edit ${a.name}`}>
-            <Icon name="Pencil" size={15} />
-          </button>
-        )}
-      </span>
-    </div>
+  const reconcilePill = (toReconcile) => (
+    toReconcile > 0
+      ? <span className="ca-ov-grec due">{toReconcile} to reconcile</span>
+      : <span className="ca-ov-grec ok">Reconciled</span>
   );
+
+  const renderRow = (a) => {
+    const cur = a.currency;
+    const fundsCls = a.kind === 'petty_cash' ? 'petty' : (a.funds_type === 'owner' ? 'owner' : a.funds_type === 'charter_apa' ? 'apa' : 'gen');
+    const fundsLabel = a.kind === 'petty_cash' ? 'Petty cash' : FUNDS_LABEL[a.funds_type] || 'General';
+    const sub = a.kind === 'card'
+      ? `${a.provider || 'Card'}${a.card_last4 ? ` ····${a.card_last4}` : ''}`
+      : (a.provider || (a.kind === 'petty_cash' ? "Ship's float" : a.kind));
+    return (
+      <button key={a.id} type="button" className="ca-arow" onClick={() => canEdit && openEdit(a)}>
+        <span className={`ca-aico ${a.kind}`}><Icon name={KIND_ICON[a.kind] || 'Landmark'} size={18} /></span>
+        <span className="ca-awho">
+          <span className="ca-aname">{a.name}{a.kind === 'card' && a.card_last4 ? ` ····${a.card_last4}` : ''}</span>
+          <span className="ca-asub">{sub}</span>
+        </span>
+        <span className={`ca-tag ${fundsCls}`}><i className="ca-tag-dot" />{fundsLabel}</span>
+        <span className="ca-acur">{cur}</span>
+        <span className={`ca-abal ca-num ${a.balance < 0 ? 'ca-neg' : ''}`}>{formatMoney(a.balance, cur)}</span>
+        <span className={`ca-arec ${a.unreconciled > 0 ? 'rev' : 'ok'}`}>
+          <i className="ca-arec-dot" />{a.unreconciled > 0 ? `${a.unreconciled} to review` : 'Reconciled'}
+        </span>
+      </button>
+    );
+  };
 
   return (
     <>
@@ -100,16 +113,13 @@ export default function Accounts() {
               <span className="dot">●</span>
               <span>Accounts</span>
               <span className="bar" />
-              <span className="muted">{activeAccounts.length} active</span>
+              <span className="muted">{funds.holders} holders · {activeCount} accounts</span>
               <span className="bar" />
               <span className="muted">Financial core</span>
             </p>
             <div className="ca-titlerow">
               <h1 className="ca-title">Cash <em>position</em>.</h1>
               <div className="ca-head-act">
-                <button type="button" className="ca-btn ca-btn-ghost" onClick={() => navigate('/accounts/payables')}>
-                  <Icon name="ReceiptText" size={16} /> Outstanding
-                </button>
                 <button type="button" className="ca-btn ca-btn-ghost" onClick={() => navigate('/accounts/ledger')}>
                   <Icon name="BookOpen" size={16} /> Ledger
                 </button>
@@ -125,15 +135,32 @@ export default function Accounts() {
             </div>
           </div>
 
-          <div className="ca-sum">
-            <div className="ca-s">
-              <b className="ca-num">{formatMoney(cashPosition, positionCurrency)}</b>
-              <span>Cash position · {positionCurrency}</span>
+          {/* KPI strip */}
+          <div className="ca-ov-kpis">
+            <div className="ca-ov-hero">
+              <span className="ca-ov-hl">Total cash position · {positionCurrency}</span>
+              <b className="ca-ov-hbig ca-num">{formatMoney(cashPosition, positionCurrency)}</b>
+              <span className="ca-ov-hsub">across {activeCount} accounts · {funds.holders} holders</span>
             </div>
-            <div className="ca-vr" />
-            <div className="ca-s">
-              <b className="ca-num">{activeAccounts.length}</b>
-              <span>Active accounts</span>
+            <div className="ca-ov-kpi">
+              <span className="ca-ov-kl">Owner funds</span>
+              <b className="ca-ov-kv owner ca-num">{formatMoney(funds.owner, positionCurrency)}</b>
+              <span className="ca-ov-km">{funds.ownerCards} cards</span>
+            </div>
+            <div className="ca-ov-kpi">
+              <span className="ca-ov-kl">Charter APA</span>
+              <b className="ca-ov-kv apa ca-num">{formatMoney(funds.charterApa, positionCurrency)}</b>
+              <span className="ca-ov-km">{funds.apaCards} cards</span>
+            </div>
+            <div className="ca-ov-kpi">
+              <span className="ca-ov-kl">Petty cash</span>
+              <b className="ca-ov-kv ca-num">{formatMoney(funds.pettyCash, positionCurrency)}</b>
+              <span className="ca-ov-km">{funds.pettyFloats} floats</span>
+            </div>
+            <div className="ca-ov-kpi">
+              <span className="ca-ov-kl">To reconcile</span>
+              <b className="ca-ov-kv ca-num">{funds.toReconcile}</b>
+              <span className="ca-ov-km">this month-end</span>
             </div>
           </div>
 
@@ -144,31 +171,25 @@ export default function Accounts() {
               <Icon name="Wallet" size={44} />
               <p>No accounts yet</p>
               <p className="ca-empty-sub">
-                {canEdit ? 'Add a bank, card or cash account to start tracking balances.' : 'A COMMAND user can add the first account.'}
+                {canEdit ? 'Add the vessel bank accounts and each holder’s cards to start tracking balances.' : 'A COMMAND user can add the first account.'}
               </p>
             </div>
           ) : (
-            <>
-              <div className="ca-cat">
-                <div className="ca-cat-head">
-                  <span className="ca-cat-name">Accounts</span>
-                  <span className="ca-cat-rule" />
-                  <span className="ca-cat-meta">{activeAccounts.length} active</span>
+            groups.map((g) => (
+              <div key={g.holder} className="ca-ov-group">
+                <div className="ca-ov-gh">
+                  <span className={`ca-ov-ga ${g.holder === 'Vessel' ? 'vessel' : ''}`}>
+                    {g.holder === 'Vessel' ? <Icon name="Landmark" size={17} /> : initials(g.holder)}
+                  </span>
+                  <span className="ca-ov-gn">{g.holder}</span>
+                  <span className="ca-ov-grole">{g.holder === 'Vessel' ? 'Command' : `${g.accounts.length} accounts`}</span>
+                  <span className="ca-ov-grule" />
+                  <span className="ca-ov-gtot">balance <b className="ca-num">{formatMoney(g.total, positionCurrency)}</b></span>
+                  {reconcilePill(g.toReconcile)}
                 </div>
-                {activeAccounts.map(renderRow)}
+                {g.accounts.map(renderRow)}
               </div>
-
-              {inactiveAccounts.length > 0 && (
-                <div className="ca-cat">
-                  <div className="ca-cat-head">
-                    <span className="ca-cat-name">Inactive</span>
-                    <span className="ca-cat-rule" />
-                    <span className="ca-cat-meta">{inactiveAccounts.length}</span>
-                  </div>
-                  {inactiveAccounts.map(renderRow)}
-                </div>
-              )}
-            </>
+            ))
           )}
         </div>
 

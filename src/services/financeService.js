@@ -67,6 +67,9 @@ export const getAccountsOverview = async (tenantId) => {
     ...a,
     balance: computeAccountBalance(a, txns),
     base_balance: computeAccountBaseBalance(a, txns),
+    // Ledger rows on this account not yet marked reconciled — drives the
+    // per-account "to review / reconciled" indicator on the overview.
+    unreconciled: (txns || []).filter((t) => t.account_id === a.id && t.status !== 'reconciled').length,
   }));
 
   return {

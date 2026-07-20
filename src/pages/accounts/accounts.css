@@ -141,3 +141,51 @@
 .ca-rec-cand { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #E6C9B8; background: #FDF7F3; color: #B14E16; border-radius: 999px; padding: 5px 11px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .ca-rec-cand:hover:not(:disabled) { background: #FBEFE9; border-color: #C65A1A; }
 .ca-rec-cand:disabled { opacity: 0.6; cursor: default; }
+
+/* ── Vessel overview (holder-grouped) ──────────────────────────────────────── */
+.ca-ov-kpis { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr; gap: 14px; margin: 20px 0 8px; }
+@media (max-width: 900px) { .ca-ov-kpis { grid-template-columns: 1fr 1fr; } }
+.ca-ov-hero { background: #1C1B3A; border: 1px solid #1C1B3A; border-radius: 16px; color: #fff; padding: 18px 22px; display: flex; flex-direction: column; justify-content: center; gap: 4px; box-shadow: 0 22px 46px -24px rgba(28,27,58,0.6); }
+.ca-ov-hl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; }
+.ca-ov-hbig { font-family: 'DM Serif Display', Georgia, serif; font-size: 38px; line-height: 0.98; margin: 4px 0 2px; }
+.ca-ov-hsub { font-size: 11px; color: #AEB4C2; }
+.ca-ov-kpi { background: #fff; border: 1px solid #E5E7EB; border-radius: 14px; padding: 15px 17px; display: flex; flex-direction: column; gap: 4px; }
+.ca-ov-kl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.ca-ov-kv { font-family: 'DM Serif Display', Georgia, serif; font-size: 24px; line-height: 1; color: #1C1B3A; }
+.ca-ov-kv.owner { color: #3B6EA5; } .ca-ov-kv.apa { color: #7A4FA3; }
+.ca-ov-km { font-size: 10.5px; color: #AEB4C2; }
+
+.ca-ov-group { margin-top: 24px; }
+.ca-ov-gh { display: flex; align-items: center; gap: 11px; margin-bottom: 2px; }
+.ca-ov-ga { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: #F1F5F9; color: #4B4A66; flex: 0 0 auto; font-weight: 700; font-size: 12px; letter-spacing: 0.5px; }
+.ca-ov-ga.vessel { color: #4B4A66; }
+.ca-ov-gn { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #1C1B3A; }
+.ca-ov-grole { font-size: 10px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #8B8478; }
+.ca-ov-grule { flex: 1; height: 1px; background: #EEF0F4; }
+.ca-ov-gtot { font-size: 12px; color: #8B8478; }
+.ca-ov-gtot b { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 16px; color: #1C1B3A; margin-left: 5px; }
+.ca-ov-grec { font-size: 9px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; margin-left: 4px; }
+.ca-ov-grec.ok { color: #3F7A52; border: 1px solid #BFE0C9; }
+.ca-ov-grec.due { color: #B5762B; border: 1px solid #EAD3B4; }
+
+.ca-arow { display: grid; grid-template-columns: 34px minmax(0,1fr) 150px 52px 118px 140px; align-items: center; gap: 16px; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid #EEF0F4; padding: 0 6px; height: 56px; cursor: pointer; font-family: inherit; transition: background 0.12s; }
+.ca-arow:hover { background: #F8FAFC; }
+.ca-aico { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.ca-aico.bank { background: #EAF0F7; color: #3B6EA5; }
+.ca-aico.card { background: #F3EDF8; color: #7A4FA3; }
+.ca-aico.cash, .ca-aico.petty_cash { background: #EAF1EC; color: #3F7A52; }
+.ca-awho { min-width: 0; display: flex; flex-direction: column; }
+.ca-aname { font-size: 14px; font-weight: 600; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ca-asub { font-size: 10.5px; color: #8B8478; margin-top: 2px; }
+.ca-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 9.5px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; white-space: nowrap; justify-self: start; }
+.ca-tag .ca-tag-dot { width: 6px; height: 6px; border-radius: 999px; }
+.ca-tag.owner { color: #3B6EA5; border: 1px solid #C4D6E8; } .ca-tag.owner .ca-tag-dot { background: #3B6EA5; }
+.ca-tag.apa { color: #7A4FA3; border: 1px solid #D8CBE6; } .ca-tag.apa .ca-tag-dot { background: #7A4FA3; }
+.ca-tag.petty { color: #4B4A66; border: 1px solid #E5E7EB; } .ca-tag.petty .ca-tag-dot { background: #8B8478; }
+.ca-tag.gen { color: #4B4A66; border: 1px solid #E5E7EB; } .ca-tag.gen .ca-tag-dot { background: #AEB4C2; }
+.ca-acur { font-size: 11px; color: #AEB4C2; letter-spacing: 0.5px; text-align: right; }
+.ca-abal { font-family: 'DM Serif Display', Georgia, serif; font-size: 19px; color: #1C1B3A; text-align: right; }
+.ca-arec { display: flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: 11px; font-weight: 600; }
+.ca-arec .ca-arec-dot { width: 7px; height: 7px; border-radius: 999px; }
+.ca-arec.ok { color: #3F7A52; } .ca-arec.ok .ca-arec-dot { background: #6FBF8B; }
+.ca-arec.rev { color: #B5762B; } .ca-arec.rev .ca-arec-dot { background: #D98A3D; }
