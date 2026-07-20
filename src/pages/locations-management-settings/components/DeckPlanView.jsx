@@ -1042,9 +1042,10 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       const d = shapeToPath({ closed: true, nodes: editing.nodes });
                       return (<g><path className="dp-shape-halo" d={d} /><path className="dp-shape is-editing" d={d} /></g>);
                     })()}
-                    {/* AI proposal outlines — dashed, coloured by category (zone map). */}
-                    {deckProps && deckProps.items.map((it, i) => {
-                      if (editing?.propIdx === i && editing.deckId === deck.id) return null; // shown live while reshaping
+                    {/* AI proposal outlines — dashed, coloured by category (zone map).
+                        While reshaping one, hide ALL of them (the active one draws
+                        live below) so the corner work stands alone on the plan. */}
+                    {deckProps && !(editing?.propIdx != null && editing.deckId === deck.id) && deckProps.items.map((it, i) => {
                       const d = shapeToPath({ closed: true, nodes: it.nodes });
                       const cat = it.matchedSpaceId
                         ? categoryOf(spaces.find((s) => s.id === it.matchedSpaceId) || { id: it.matchedSpaceId, name: it.name })
@@ -1116,8 +1117,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       Matched (or pin-anchored) rooms show the crew's own name; new
                       draft outlines are marked so the suggested name reads as a
                       starting point, not something imposed. */}
-                  {deckProps && deckProps.items.map((it, i) => {
-                    if (editing?.propIdx === i && editing.deckId === deck.id) return null; // reshaping — handles shown instead
+                  {deckProps && !(editing?.propIdx != null && editing.deckId === deck.id) && deckProps.items.map((it, i) => {
                     const c = centroidOf(it.nodes);
                     if (!c) return null;
                     const cat = it.matchedSpaceId
