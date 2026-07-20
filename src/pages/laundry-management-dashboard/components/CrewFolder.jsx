@@ -226,7 +226,7 @@ const CrewFolder = ({ onBack }) => {
   if (!selected) {
     return (
       <div className="cf-view">
-        <div className="cf-bar"><button type="button" className="lm-back" onClick={onBack}><Icon name="ArrowLeft" size={16} /> Wardrobe management</button></div>
+        <div className="cf-bar"><button type="button" className="lm-back" onClick={onBack}><Icon name="ArrowLeft" size={16} /> Back to wardrobe management</button></div>
         {loading ? (
           <div className="cf-loading">Loading the crew…</div>
         ) : (
@@ -248,7 +248,7 @@ const CrewFolder = ({ onBack }) => {
   return (
     <div className="cf-view">
       <div className="cf-bar">
-        <button type="button" className="lm-back" onClick={() => setSelectedId(null)}><Icon name="ArrowLeft" size={16} /> All crew</button>
+        <button type="button" className="lm-back" onClick={() => setSelectedId(null)}><Icon name="ArrowLeft" size={16} /> Back to all crew</button>
         {canManage && <button type="button" className="cf-btn primary sm" onClick={openIssue}><Icon name="Plus" size={15} /> Issue from inventory</button>}
       </div>
 

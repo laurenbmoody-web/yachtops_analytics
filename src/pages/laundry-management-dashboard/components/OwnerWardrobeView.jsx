@@ -219,7 +219,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   return (
     <div className="ow-view">
       <div className="ow-bar">
-        <button type="button" className="lm-back" onClick={onBack}><Icon name="ArrowLeft" size={16} /> Wardrobe management</button>
+        <button type="button" className="lm-back" onClick={onBack}><Icon name="ArrowLeft" size={16} /> Back to wardrobe management</button>
       </div>
 
       <div className="ow-toolbar">

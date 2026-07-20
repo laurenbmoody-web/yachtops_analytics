@@ -44,17 +44,21 @@ const WardrobeManagement = () => {
       <Header />
       <div className="wm-page">
         <div className="wm-wrap">
-          <button type="button" className="lm-back" onClick={() => navigate('/laundry-management-dashboard')}>
-            <Icon name="ArrowLeft" size={16} /> Back to laundry
-          </button>
-          {/* Meta strip earns its place with quick live info, not a repeat of
-              the page title: owner garments on board + guests' items on board. */}
-          <p className="editorial-meta wm-meta">
-            <span className="dot">●</span>
-            <span><b className="wm-metanum">{ownerCount}</b> owner items</span>
-            <span className="bar" />
-            <span><b className="wm-metanum">{guestCount}</b> guest items</span>
-          </p>
+          {/* Hub header — back to laundry + the quick-info meta. Only on the hub;
+              each sub-world (Owner / Crew) renders its own single back. */}
+          {mode === 'hub' && (
+            <>
+              <button type="button" className="lm-back" onClick={() => navigate('/laundry-management-dashboard')}>
+                <Icon name="ArrowLeft" size={16} /> Back to laundry
+              </button>
+              <p className="editorial-meta wm-meta">
+                <span className="dot">●</span>
+                <span><b className="wm-metanum">{ownerCount}</b> owner items</span>
+                <span className="bar" />
+                <span><b className="wm-metanum">{guestCount}</b> guest items</span>
+              </p>
+            </>
+          )}
           {mode === 'hub' ? (
             <>
               <div className="wm-titlerow">
