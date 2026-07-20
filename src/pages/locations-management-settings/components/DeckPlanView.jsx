@@ -658,16 +658,37 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       // that pin sits inside and hang the room on it — so Detect outlines the
       // exact room the crew marked (e.g. the Wheelhouse), not wherever the model
       // guessed. The model's own reading of that room is then ignored.
+      // Group placed pins by the region they fall in first, because two pins can
+      // land in ONE region when the AI missed a thin/undrawn wall between them.
+      const pinsByRegion = new Map(); // regionId → [{ space, pin }]
       spacesOf(deck).forEach((s) => {
         const pin = posOf(s);
         if (!pin) return;
         const region = regionAtPoint(seg, pin.x, pin.y);
-        if (!region || claimed.has(region.id)) return;
-        const nodes = regionContour(seg, region);
-        if (!nodes) return;
-        claimed.set(region.id, true);
-        used.add(s.id);
-        items.push({ name: s.name, matchedSpaceId: s.id, create: false, nodes, traced: true, anchored: true });
+        if (!region) return;
+        if (!pinsByRegion.has(region.id)) pinsByRegion.set(region.id, []);
+        pinsByRegion.get(region.id).push({ space: s, pin });
+      });
+      pinsByRegion.forEach((entries, regionId) => {
+        const region = seg.regionById.get(regionId);
+        claimed.set(regionId, true); // this region is the crew's, off-limits to the model pass
+        if (entries.length === 1) {
+          const { space } = entries[0];
+          const nodes = regionContour(seg, region);
+          if (!nodes) return;
+          used.add(space.id);
+          items.push({ name: space.name, matchedSpaceId: space.id, create: false, nodes, traced: true, anchored: true });
+        } else {
+          // Two+ pins in one region → the crew marked rooms the AI merged. Split
+          // by watershed (nearest-pin) so each pin gets its own share of the area.
+          const parts = splitRegionBySeeds(seg, region, entries.map((e) => e.pin));
+          entries.forEach((e, k) => {
+            const nodes = parts[k];
+            if (!nodes) return;
+            used.add(e.space.id);
+            items.push({ name: e.space.name, matchedSpaceId: e.space.id, create: false, nodes, traced: true, anchored: true });
+          });
+        }
       });
 
       // ── Model pass ────────────────────────────────────────────────────────
