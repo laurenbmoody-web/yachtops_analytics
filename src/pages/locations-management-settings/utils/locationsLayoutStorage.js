@@ -107,8 +107,14 @@ export const samSegment = async ({ imageBase64, x, y }) => {
   const { data, error } = await supabase.functions.invoke('deck-plan-sam', {
     body: { imageBase64, x, y, mediaType: 'image/jpeg' },
   });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
+  if (error) {
+    // supabase-js hides the response body on a non-2xx — dig out the function's
+    // {error, detail} (which carries fal's actual message) so it surfaces.
+    let msg = error.message;
+    try { const b = await error.context?.json?.(); if (b?.detail || b?.error) msg = b.detail || b.error; } catch { /* keep msg */ }
+    throw new Error(msg || 'segmentation failed');
+  }
+  if (data?.error) throw new Error(data.detail || data.error);
   if (!data?.maskUrl) throw new Error('No mask returned.');
   return data; // { maskUrl, width, height }
 };
