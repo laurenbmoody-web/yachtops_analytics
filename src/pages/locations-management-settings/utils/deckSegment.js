@@ -243,17 +243,27 @@ export function splitRegionBySeeds(seg, region, seeds, opts = {}) {
 }
 
 // A single region's outline (no satellites) → simplified nodes 0..1, or null.
+// The floor region sits INSIDE the thickened (doorway-sealed) walls, so its raw
+// boundary is inset ~`grow` px from the true wall. We grow the mask back by that
+// much before tracing, so the outline lands ON the wall — matching a hand trace.
 export function regionContour(seg, region, opts = {}) {
-  const bbox = { minx: region.minx, miny: region.miny, maxx: region.maxx, maxy: region.maxy };
   const { W, H, label } = seg;
-  const mask = new Uint8Array(W * H);
-  for (let y = region.miny; y <= region.maxy; y += 1) {
-    for (let x = region.minx; x <= region.maxx; x += 1) {
-      const i = y * W + x;
-      if (label[i] === region.id) mask[i] = 1;
+  const grow = opts.grow ?? 2;
+  const pad = grow + 1;
+  const minx = Math.max(0, region.minx - pad);
+  const miny = Math.max(0, region.miny - pad);
+  const maxx = Math.min(W - 1, region.maxx + pad);
+  const maxy = Math.min(H - 1, region.maxy + pad);
+  const bw = maxx - minx + 1;
+  const bh = maxy - miny + 1;
+  let m = new Uint8Array(bw * bh);
+  for (let y = 0; y < bh; y += 1) {
+    for (let x = 0; x < bw; x += 1) {
+      if (label[(miny + y) * W + (minx + x)] === region.id) m[y * bw + x] = 1;
     }
   }
-  return maskContour(mask, W, H, bbox, opts.eps);
+  if (grow > 0) m = dilate(m, bw, bh, grow);
+  return contourLocalMask(m, bw, bh, minx, miny, W, H, opts.eps);
 }
 
 // A room's outline: the seed's region PLUS its small satellite sub-regions
