@@ -10,6 +10,7 @@ import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
 import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
 import AddEditItemModal from '../inventory/components/AddEditItemModal';
+import UniformItemModal from '../inventory/components/UniformItemModal';
 import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
 import PartialBottleModal from '../inventory/components/PartialBottleModal';
 import { supabase } from '../../lib/supabaseClient';
@@ -3912,15 +3913,30 @@ const LocationFirstInventory = () => {
         )}
       </div>
       {/* Modals */}
-      {showAddModal && (
-        <AddEditItemModal
-          item={editingItem}
-          defaultLocation={currentStorageFields?.location}
-          defaultSubLocation={currentStorageFields?.subLocation}
-          onClose={handleModalClose}
-          onSave={handleItemSaved}
-        />
-      )}
+      {showAddModal && (() => {
+        // Uniform is captured differently (size run, fit, branding, care) — an
+        // item filed anywhere under a "Uniform" folder gets the uniform modal.
+        const editSegs = editingItem
+          ? [editingItem.location, ...String(editingItem.subLocation || '').split('>').map((s) => s.trim())]
+          : pathSegments;
+        const isUniform = (editSegs || []).some((s) => /(^|\b)uniform(\b|$)/i.test(String(s || '')));
+        return isUniform ? (
+          <UniformItemModal
+            item={editingItem}
+            defaultLocation={currentStorageFields?.location}
+            defaultSubLocation={currentStorageFields?.subLocation}
+            onClose={handleModalClose}
+          />
+        ) : (
+          <AddEditItemModal
+            item={editingItem}
+            defaultLocation={currentStorageFields?.location}
+            defaultSubLocation={currentStorageFields?.subLocation}
+            onClose={handleModalClose}
+            onSave={handleItemSaved}
+          />
+        );
+      })()}
       {showAddFolderModal && (
         <AddFolderModal
           parentPath={pathSegments}
