@@ -346,6 +346,9 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
   font-family:var(--lg-sans);font-size:12px;font-weight:600;line-height:1;cursor:grab;touch-action:none;user-select:none;
   background:var(--lg-card,#fff);color:var(--lg-ink);border:1px solid var(--lg-hair);}
 .dp-chip:hover{border-color:var(--lg-terra);}
+.dp-chip-x{border:0;background:transparent;color:var(--lg-faint,#AEB4C2);cursor:pointer;font-size:15px;line-height:1;
+  padding:0 0 0 2px;margin-left:1px;border-radius:50%;}
+.dp-chip-x:hover{color:#A32D2D;}
 .dp-chip.is-scanned .dp-pin-dot{background:var(--lg-terra);}
 .dp-chip.is-empty .dp-pin-dot{background:#6B7280;}
 
