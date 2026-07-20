@@ -39,6 +39,14 @@
 .rw-herometa { text-align: center; font-size: 11.5px; color: var(--rw-muted); padding-bottom: 14px; border-bottom: 1px solid var(--rw-soft); }
 .rw-herometa b { color: var(--rw-navy); font-weight: 600; }
 .rw-herometa.is-breach b { color: var(--rw-red-deep); }
+/* HOR-log clarity line under the wheels — makes explicit this logs to the
+   user's Hours of Rest, never the rota. */
+.rw-hormeta { text-align: center; font-size: 11px; color: var(--rw-muted); line-height: 1.45; margin-top: 10px; }
+.rw-hormeta b { color: var(--rw-navy); font-weight: 600; }
+.rw-hormeta .rw-ok { color: var(--rw-sage-deep); }
+.rw-hormeta .rw-bad { color: var(--rw-red-deep); }
+.rw-restline { text-align: center; font-size: 11.5px; color: var(--rw-muted); margin-top: 4px; }
+.rw-restline.is-breach { color: var(--rw-red-deep); font-weight: 600; }
 .rw-confirm { width: 100%; background: var(--rw-orange); color: #fff; border: 0; border-radius: 10px; padding: 11px; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; margin-top: 14px; }
 .rw-confirm:hover { background: var(--rw-orange-deep); }
 .rw-confirm:disabled { opacity: .6; cursor: default; }

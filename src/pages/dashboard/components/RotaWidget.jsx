@@ -79,6 +79,15 @@ function buildSegments(start, end, type) {
   for (let i = s; i < e && i < 48; i += 1) { segs.push(i); types[i] = type; }
   return { segs, types };
 }
+const blockToHHMM = (b) => `${pad2(Math.floor(b / 2))}:${pad2((b % 2) * 30)}`;
+// A logged HOR day (hor_work_entries.work_segments) → a single on-duty span so
+// it can slot into the same rest math + hero the planned shifts use.
+function entryToShift(date, segments, types) {
+  if (!Array.isArray(segments) || segments.length === 0) return null; // logged rest day
+  const min = Math.min(...segments); const max = Math.max(...segments);
+  const type = (types && Object.values(types)[0]) || 'duty';
+  return { memberId: null, date, startTime: blockToHHMM(min), endTime: blockToHHMM(max + 1), shiftType: type, logged: true };
+}
 
 const ArrowSvg = ({ w = 40 }) => (
   <svg width={w} height="10" viewBox="0 0 40 10" fill="none" aria-hidden="true">
@@ -95,10 +104,12 @@ const RotaWidget = () => {
   const [shiftsByMember, setShiftsByMember] = useState(() => new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  // Inline confirm-hours edit state (the hero times become wheels in place).
-  const [editing, setEditing] = useState(false);
+  // The current user's own logged HOR actuals (date → {segments, types}).
+  const [myEntries, setMyEntries] = useState(() => new Map());
+  // The editable On/Off the wheels bind to; saved to the HOR log on Confirm.
   const [editStart, setEditStart] = useState('08:00');
   const [editEnd, setEditEnd] = useState('12:00');
+  const [logRest, setLogRest] = useState(false); // reveal wheels on a rest day
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState(false);
 
@@ -117,7 +128,7 @@ const RotaWidget = () => {
     if (!activeTenantId || !rota?.id) { setLoading(false); return; }
     setLoading(true); setError(false);
     try {
-      const [membersRes, shiftsRes] = await Promise.all([
+      const [membersRes, shiftsRes, entriesRes] = await Promise.all([
         supabase.from('tenant_members')
           .select('id, user_id, display_name, permission_tier, department_id, departments ( name )')
           .eq('tenant_id', activeTenantId).eq('active', true),
@@ -125,9 +136,20 @@ const RotaWidget = () => {
           .select('member_id, shift_date, start_time, end_time, shift_type, sub_type')
           .eq('tenant_id', activeTenantId).eq('rota_id', rota.id)
           .gte('shift_date', loadStart).lte('shift_date', loadEnd),
+        // The current user's own logged HOR actuals in the window.
+        user?.id
+          ? supabase.from('hor_work_entries')
+            .select('entry_date, work_segments, segment_types')
+            .eq('tenant_id', activeTenantId).eq('subject_user_id', user.id)
+            .gte('entry_date', loadStart).lte('entry_date', loadEnd)
+          : Promise.resolve({ data: [] }),
       ]);
       if (membersRes.error) throw membersRes.error;
       if (shiftsRes.error) throw shiftsRes.error;
+
+      const em = new Map();
+      for (const e of (entriesRes.data || [])) em.set(e.entry_date, { segments: e.work_segments || [], types: e.segment_types || {} });
+      setMyEntries(em);
 
       const mm = (membersRes.data || []).map((m) => ({
         id: m.id,
@@ -161,32 +183,53 @@ const RotaWidget = () => {
 
   // ── The current user's own row ───────────────────────────────
   const me = useMemo(() => members.find((m) => m.userId && m.userId === user?.id) || null, [members, user?.id]);
-  const myShifts = (me && shiftsByMember.get(me.id)) || [];
-  const myToday = spanForDay(myShifts, todayStr);
+  const myShifts = useMemo(() => (me && shiftsByMember.get(me.id)) || [], [me, shiftsByMember]);
+  // Logged HOR actuals override the planned shift on any day the user has
+  // confirmed — the same "logged is truth" rule the rota page uses. This is
+  // what makes a confirmed change actually show here.
+  const myShiftsMerged = useMemo(() => {
+    const loggedDates = new Set(myEntries.keys());
+    const base = myShifts.filter((s) => !loggedDates.has(s.date));
+    const logged = [];
+    for (const [date, e] of myEntries) { const sh = entryToShift(date, e.segments, e.types); if (sh) logged.push(sh); }
+    return base.concat(logged);
+  }, [myShifts, myEntries]);
+
+  const myToday = spanForDay(myShiftsMerged, todayStr);
+  const loggedToday = myEntries.has(todayStr);
   const myTodayType = myShifts.find((s) => s.date === todayStr && ON_DUTY_TYPES.has(s.shiftType))?.shiftType || 'duty';
   const tmrwStr = addDays(todayStr, 1);
-  const myTomorrow = spanForDay(myShifts, tmrwStr);
+  const myTomorrow = spanForDay(myShiftsMerged, tmrwStr);
   const tmrwDt = new Date(`${tmrwStr}T00:00:00`);
   const tomorrowLabel = `${WD[tmrwDt.getDay()]} ${tmrwDt.getDate()}`;
   const myReport = useMemo(() => assessMlc({
-    dayShifts: myShifts.filter((s) => s.date === todayStr),
-    weekShifts: myShifts.filter((s) => s.date > addDays(todayStr, -7) && s.date <= todayStr),
-  }), [myShifts, todayStr]);
+    dayShifts: myShiftsMerged.filter((s) => s.date === todayStr),
+    weekShifts: myShiftsMerged.filter((s) => s.date > addDays(todayStr, -7) && s.date <= todayStr),
+  }), [myShiftsMerged, todayStr]);
   const myWeekRest = myReport.pastWeekHours != null ? Math.round(myReport.pastWeekHours) : null;
   const myBreach = myReport.anyBreach;
 
-  const startEdit = () => {
-    setEditStart(myToday?.start || '08:00');
-    setEditEnd(myToday?.end || '12:00');
-    setSaveErr(false);
-    setEditing(true);
-  };
+  // The wheels track the logged (or planned) On/Off; re-sync when data changes
+  // and the user isn't mid-scroll (they can always re-open).
+  const heroStart = myToday?.start; const heroEnd = myToday?.end;
+  useEffect(() => {
+    if (heroStart) setEditStart(heroStart);
+    if (heroEnd) setEditEnd(heroEnd);
+  }, [heroStart, heroEnd]);
+  // Live duration between the wheels (updates as they scroll).
+  const editHours = useMemo(() => {
+    const [sh, sm] = editStart.split(':').map(Number);
+    const [eh, em] = editEnd.split(':').map(Number);
+    let d = (eh + em / 60) - (sh + sm / 60); if (d <= 0) d += 24;
+    return Math.round(d);
+  }, [editStart, editEnd]);
+
   const saveHours = async () => {
     setSaving(true); setSaveErr(false);
     try {
       const { segs, types } = buildSegments(editStart, editEnd, myTodayType);
       await upsertWorkEntryDay({ tenantId: activeTenantId, subjectUserId: user?.id, date: todayStr, workSegments: segs, segmentTypes: types });
-      setEditing(false);
+      setLogRest(false);
       await load();
     } catch (err) {
       console.error('[RotaWidget] confirm hours failed:', err);
@@ -200,8 +243,8 @@ const RotaWidget = () => {
   const comingUp = useMemo(() => Array.from({ length: 4 }, (_, i) => {
     const date = addDays(todayStr, i + 1);
     const dt = new Date(`${date}T00:00:00`);
-    return { date, wd: WD[dt.getDay()], dn: dt.getDate(), span: spanForDay(myShifts, date) };
-  }), [myShifts, todayStr]);
+    return { date, wd: WD[dt.getDay()], dn: dt.getDate(), span: spanForDay(myShiftsMerged, date) };
+  }), [myShiftsMerged, todayStr]);
 
   // ── Compliance grids ─────────────────────────────────────────
   const chiefMembers = useMemo(() => (
@@ -288,46 +331,42 @@ const RotaWidget = () => {
         <p className="rw-empty">No rota configured yet.</p>
       ) : (
         <>
-          {/* Shared spine: your own hours today + confirm */}
-          <div className="rw-eyebrow">{`Today · ${WD[new Date().getDay()]} ${new Date().getDate()}`}</div>
-          {myToday ? (
+          {/* Shared spine: log your own hours to your HOR record (never the rota) */}
+          <div className="rw-eyebrow">{`Today · ${WD[new Date().getDay()]} ${new Date().getDate()} · Hours of Rest`}</div>
+          {(myToday || logRest) ? (
             <>
               <div className="rw-hero">
                 <div className="rw-blk">
                   <div className="rw-lb">On</div>
-                  {editing
-                    ? <TimeWheel value={editStart} onChange={setEditStart} ariaLabel="Actual start time" className="rw-tm rw-tm-edit" />
-                    : <div className="rw-tm">{myToday.start}</div>}
+                  <TimeWheel value={editStart} onChange={setEditStart} ariaLabel="Actual start time" className="rw-tm rw-tm-edit" />
                 </div>
-                <div className="rw-arw"><span className="rw-du">{myToday.hours}h</span><ArrowSvg /></div>
+                <div className="rw-arw"><span className="rw-du">{editHours}h</span><ArrowSvg /></div>
                 <div className="rw-blk">
                   <div className="rw-lb">Off</div>
-                  {editing
-                    ? <TimeWheel value={editEnd} onChange={setEditEnd} ariaLabel="Actual finish time" className="rw-tm rw-tm-edit" />
-                    : <div className="rw-tm">{myToday.end}</div>}
+                  <TimeWheel value={editEnd} onChange={setEditEnd} ariaLabel="Actual finish time" className="rw-tm rw-tm-edit" />
                 </div>
               </div>
-              {editing ? (
-                <>
-                  <div className="rw-herometa">{saveErr ? <b style={{ color: '#A32D2D' }}>Couldn’t save — try again</b> : 'Scroll each time to your actual hours'}</div>
-                  <button type="button" className="rw-confirm" disabled={saving} onClick={saveHours}>{saving ? 'Saving…' : 'Confirm — updates Hours of Rest'}</button>
-                  <button type="button" className="rw-linkbtn" onClick={() => setEditing(false)}>Cancel</button>
-                </>
-              ) : (
-                <>
-                  <div className={`rw-herometa${myBreach ? ' is-breach' : ''}`}>
-                    {myBreach
-                      ? <><b>Rest-hour breach</b>{myWeekRest != null ? ` · ${myWeekRest}h this week` : ''}</>
-                      : <><b>Within rest limits</b>{myWeekRest != null ? ` · ${myWeekRest}h this week` : ''}</>}
-                  </div>
-                  <button type="button" className="rw-confirm" onClick={startEdit}>Confirm today’s hours</button>
-                </>
+              <div className="rw-hormeta">
+                {saveErr
+                  ? <b className="rw-bad">Couldn’t save — try again</b>
+                  : loggedToday
+                    ? <><b className="rw-ok">Logged ✓</b> — this is your Hours of Rest, the rota is unchanged</>
+                    : <>Tap a time to set your actual hours — logs to <b>your Hours of Rest</b>, not the rota</>}
+              </div>
+              {myWeekRest != null && (
+                <div className={`rw-restline${myBreach ? ' is-breach' : ''}`}>{myBreach ? 'Rest-hour breach' : 'Within rest limits'} · {myWeekRest}h this week</div>
               )}
+              <button type="button" className="rw-confirm" disabled={saving} onClick={saveHours}>
+                {saving ? 'Saving…' : loggedToday ? 'Update my Hours of Rest' : 'Save to my Hours of Rest'}
+              </button>
             </>
           ) : (
-            <div className="rw-herometa" style={{ borderBottom: 0, paddingTop: 10 }}>
-              <b>Rest day today</b>{myWeekRest != null ? ` · ${myWeekRest}h rest this week` : ''}
-            </div>
+            <>
+              <div className="rw-herometa" style={{ borderBottom: 0, paddingTop: 10 }}>
+                <b>Rest day today</b>{myWeekRest != null ? ` · ${myWeekRest}h rest this week` : ''}
+              </div>
+              <button type="button" className="rw-linkbtn" onClick={() => { setEditStart('08:00'); setEditEnd('12:00'); setSaveErr(false); setLogRest(true); }}>Worked today? Log hours →</button>
+            </>
           )}
 
           {/* Crew: coming-up strip + vessel watch */}
