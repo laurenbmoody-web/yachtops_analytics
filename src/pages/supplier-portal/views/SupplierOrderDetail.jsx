@@ -726,7 +726,7 @@ const Timeline = ({ order, items }) => {
 // the timeline. Each stage's action routes to the existing flow for that
 // stage (confirm-all, the picking screen, the invoice modal, status advance)
 // rather than duplicating it.
-const DoStation = ({ order, items, canEdit, onConfirmAll, onStartPicking, onGenerateInvoice, onAdvance }) => {
+const DoStation = ({ order, items, canEdit, invoice, onConfirmAll, onStartPicking, onGenerateInvoice, onAdvance }) => {
   const total = items.length;
   const pending = items.filter((i) => (i.status || 'pending') === 'pending').length;
   const actioned = total - pending;
@@ -762,9 +762,11 @@ const DoStation = ({ order, items, canEdit, onConfirmAll, onStartPicking, onGene
     hint = 'Mark delivered once the yacht signs for it.';
     primary = { label: 'Mark delivered →', onClick: () => onAdvance('received') };
   } else if (status === 'received') {
-    title = 'Delivered — ready to invoice';
-    hint = 'Raise the invoice from the confirmed lines.';
-    primary = { label: 'Generate invoice →', onClick: onGenerateInvoice };
+    title = invoice ? `Invoiced — ${invoice.invoice_number}` : 'Delivered — ready to invoice';
+    hint = invoice
+      ? 'Regenerating replaces this invoice — same number, updated total.'
+      : 'Raise the invoice from the confirmed lines.';
+    primary = { label: invoice ? 'Regenerate invoice →' : 'Generate invoice →', onClick: onGenerateInvoice };
   } else if (status === 'invoiced') {
     title = 'Invoiced — awaiting payment';
     hint = 'Mark paid when the invoice settles.';
@@ -2997,6 +2999,7 @@ const SupplierOrderDetail = () => {
         order={order}
         items={items}
         canEdit={canEdit}
+        invoice={latestInvoice}
         onConfirmAll={handleConfirmAll}
         onStartPicking={() => navigate(`/supplier/orders/${order.id}/pick`)}
         onGenerateInvoice={() => setGenerateInvoiceOpen(true)}
