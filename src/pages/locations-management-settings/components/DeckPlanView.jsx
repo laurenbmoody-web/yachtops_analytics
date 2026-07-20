@@ -11,7 +11,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck } from '../utils/locationsLayoutStorage';
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
-import { createZone, createSpace } from '../utils/locationsHierarchyStorage';
+import { createZone, createSpace, archiveSpace } from '../utils/locationsHierarchyStorage';
 import { simplifyClosed } from '../utils/deckTrace';
 import { segmentDeck, regionAtPoint, regionContour, splitRegionBySeeds } from '../utils/deckSegment';
 import { pdfToPngBlob } from '../utils/pdfRaster';
@@ -699,6 +699,20 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     }
   };
 
+  // Delete a room from the vessel (archive) straight from Plan view — for the
+  // leftover / wrong rooms sitting in the tray.
+  const deleteRoom = async (space, deck) => {
+    // eslint-disable-next-line no-alert
+    if (!window.confirm(`Delete "${space.name}"? This removes the room from the vessel.`)) return;
+    try {
+      await archiveSpace(space.id);
+      await onReloadRef.current?.();
+    } catch (err) {
+      console.error('[deck-plan] delete room error:', err);
+      setDetectError({ deckId: deck.id, message: err?.message || 'Could not delete the room.' });
+    }
+  };
+
   // Land the outlines onto the crew's existing rooms (Detect never creates rooms).
   const applyProposals = async (deck) => {
     if (!proposals || applying) return;
@@ -1020,6 +1034,12 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                         onPointerDown={(e) => onDotDown(e, s, deck, false)}
                       >
                         <span className="dp-pin-dot" />{s.name}
+                        <button
+                          className="dp-chip-x"
+                          title="Delete this room"
+                          onPointerDown={(e) => { e.stopPropagation(); }}
+                          onClick={(e) => { e.stopPropagation(); deleteRoom(s, deck); }}
+                        >×</button>
                       </div>
                     ))}
                   </div>
