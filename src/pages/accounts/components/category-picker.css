@@ -1,0 +1,14 @@
+/* Cargo Accounts — CategoryPicker popover. Scoped .cp-*. */
+.cp-pop { position: fixed; width: 288px; max-height: 340px; background: #fff; border: 1px solid #E6E8EF; border-radius: 12px;
+  box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); z-index: 90; display: flex; flex-direction: column; overflow: hidden;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+.cp-head { padding: 9px; border-bottom: 1px solid #EEF0F4; }
+.cp-search { display: flex; align-items: center; gap: 8px; border: 1px solid #E6E8EF; border-radius: 8px; padding: 7px 10px; background: #F8FAFC; }
+.cp-search svg { width: 14px; height: 14px; color: #AEB4C2; }
+.cp-search input { border: 0; background: transparent; outline: none; font: inherit; font-size: 13px; flex: 1; color: #1C1B3A; }
+.cp-list { overflow-y: auto; padding: 5px; }
+.cp-grp { font-size: 9px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #8B8478; padding: 8px 8px 3px; }
+.cp-opt { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 8px; cursor: pointer; font-size: 13px; color: #1C1B3A; }
+.cp-opt.active { background: #F1F5F9; }
+.cp-code { font-size: 10px; font-weight: 700; color: #AEB4C2; font-variant-numeric: tabular-nums; }
+.cp-none { padding: 16px; text-align: center; color: #8B8478; font-size: 12px; }
