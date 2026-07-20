@@ -81,6 +81,23 @@ export const fetchCrewKit = async (userId) => {
   return data || [];
 };
 
+// All uniform kit issued across the vessel — powers the wardrobe-management
+// "Crew" folder (roster counts + per-member lists). The crew_kit_manage RLS
+// lets COMMAND / Interior read the whole tenant's rows; a plain crew member
+// would only get their own.
+export const fetchTenantUniformKit = async (tenantId) => {
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    ?.from('crew_issued_kit')
+    ?.select('*')
+    ?.eq('tenant_id', tenantId)
+    ?.eq('category', 'uniform')
+    ?.order('issued_date', { ascending: false, nullsFirst: false })
+    ?.order('created_at', { ascending: false });
+  if (error) { console.error('[kit] tenant uniform fetch failed', error); return []; }
+  return data || [];
+};
+
 export const saveKitItem = async (item) => {
   const payload = {
     user_id: item.userId,
@@ -95,6 +112,7 @@ export const saveKitItem = async (item) => {
     issued_by: item.issuedBy || null,
     issued_by_name: item.issuedByName || null,
     value: item.value ?? null,
+    inventory_item_id: item.inventoryItemId || null, // links to master stock (uniform)
     notes: item.notes || null,
     updated_at: new Date().toISOString(),
   };
