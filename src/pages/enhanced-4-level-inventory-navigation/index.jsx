@@ -5,7 +5,7 @@ import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
-import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
+import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, duplicateFolder, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
 import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
 import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
@@ -1761,8 +1761,53 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onUpdate, onQ
   );
 };
 
+// ─── Folder actions menu (⋯) — consolidates all tile actions, touch-friendly ────
+const FolderActionsMenu = ({ canEdit, showCog, canMove, onOpen, onRename, onAppearance, onMove, onPermissions, onDuplicate, onExport, onArchive, onDelete }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const handleClick = (e) => { if (ref?.current && !ref?.current?.contains(e?.target)) setOpen(false); };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+  const row = (iconName, label, fn, opts = {}) => (
+    <button
+      className={`inv-menuitem${opts?.danger ? ' danger' : ''}`}
+      onClick={(e) => { e?.stopPropagation(); setOpen(false); fn?.(); }}
+    >
+      <Icon name={iconName} size={15} />
+      <span>{label}</span>
+    </button>
+  );
+  return (
+    <div className="inv-actionsmenu" ref={ref}>
+      <button
+        className="inv-menutrigger"
+        title="Folder actions"
+        onClick={(e) => { e?.stopPropagation(); setOpen(o => !o); }}
+      >
+        <Icon name="MoreHorizontal" size={17} />
+      </button>
+      {open && (
+        <div className="inv-menu" onClick={(e) => e?.stopPropagation()}>
+          {onOpen && row('FolderOpen', 'Open', onOpen)}
+          {canEdit && onRename && row('Pencil', 'Rename', onRename)}
+          {canEdit && onAppearance && row('Palette', 'Icon & colour', onAppearance)}
+          {canEdit && canMove && onMove && row('FolderInput', 'Move', onMove)}
+          {canEdit && onDuplicate && row('Copy', 'Duplicate', onDuplicate)}
+          {onExport && row('Download', 'Export', onExport)}
+          {showCog && onPermissions && row('Users', 'Permissions', onPermissions)}
+          {((canEdit && showCog && onArchive) || (canEdit && onDelete)) && <div className="inv-menu-sep" />}
+          {canEdit && showCog && onArchive && row('Archive', 'Archive', onArchive)}
+          {canEdit && onDelete && row('Trash2', 'Delete', onDelete, { danger: true })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Folder Card ───────────────────────────────────────────────────────────────
-const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onPalette, onVisibilityChange, canMove, dragHandleProps, isDragging, isFolderDropTarget, isDropTargetReady, showCog, layout = 'grid' }) => {
+const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onPalette, onMove, onPermissions, onDuplicate, onExport, onArchive, onVisibilityChange, canMove, dragHandleProps, isDragging, isFolderDropTarget, isDropTargetReady, showCog, layout = 'grid' }) => {
   const lead = (
     <div className="inv-folder-lead">
       {canEdit && dragHandleProps && (
@@ -1796,25 +1841,21 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
           <span>Move inside</span>
         </span>
       )}
-      {canEdit && onPalette && !isFolderDropTarget && (
-        <button onClick={(e) => { e?.stopPropagation(); onPalette?.(); }} className="inv-iconbtn" title="Edit icon &amp; colour">
-          <Icon name="Palette" size={14} />
-        </button>
-      )}
-      {showCog && onCog && !isFolderDropTarget && (
-        <button onClick={(e) => { e?.stopPropagation(); onCog?.(); }} className="inv-iconbtn" title="Folder settings">
-          <Icon name="Settings" size={14} />
-        </button>
-      )}
-      {canEdit && onEdit && !showCog && !isFolderDropTarget && (
-        <button onClick={(e) => { e?.stopPropagation(); onEdit?.(); }} className="inv-iconbtn" title="Rename folder">
-          <Icon name="Pencil" size={14} />
-        </button>
-      )}
-      {canEdit && onDelete && !showCog && !isFolderDropTarget && (
-        <button onClick={(e) => { e?.stopPropagation(); onDelete?.(); }} className="inv-iconbtn danger" title="Delete folder">
-          <Icon name="Trash2" size={14} />
-        </button>
+      {!isFolderDropTarget && (
+        <FolderActionsMenu
+          canEdit={canEdit}
+          showCog={showCog}
+          canMove={canMove}
+          onOpen={onClick}
+          onRename={onEdit}
+          onAppearance={onPalette}
+          onMove={onMove}
+          onPermissions={onPermissions}
+          onDuplicate={onDuplicate}
+          onExport={onExport}
+          onArchive={onArchive}
+          onDelete={onDelete}
+        />
       )}
       {onClick && !isFolderDropTarget && <Icon name="ChevronRight" size={18} className="inv-folder-chevron" />}
     </div>
@@ -1860,7 +1901,7 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
 };
 
 // ─── Sortable Folder Card Wrapper ─────────────────────────────────────────────
-const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onPalette, showCog, folderDropTargetId, folderDropTargetReady, layout = 'grid' }) => {
+const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, depth, onClick, canEdit, onEdit, onDelete, onCog, onPalette, onMove, onPermissions, onDuplicate, onExport, onArchive, canMove, showCog, folderDropTargetId, folderDropTargetReady, layout = 'grid' }) => {
   const {
     attributes,
     listeners,
@@ -1893,6 +1934,12 @@ const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, 
         onDelete={onDelete}
         onCog={onCog}
         onPalette={onPalette}
+        onMove={onMove}
+        onPermissions={onPermissions}
+        onDuplicate={onDuplicate}
+        onExport={onExport}
+        onArchive={onArchive}
+        canMove={canMove}
         showCog={showCog}
         dragHandleProps={{ ...attributes, ...listeners }}
         isDragging={isDragging}
@@ -1955,6 +2002,38 @@ const ArchiveFolderModal = ({ folderName, onClose, onConfirm }) => (
     </div>
   </ModalShell>
 );
+
+// ─── Folder Visibility (Permissions) Modal — editorial ──────────────────────────
+const FolderVisibilityModal = ({ folderName, currentVisibility, onClose, onSave }) => {
+  const [value, setValue] = useState(currentVisibility || 'everyone');
+  return (
+    <ModalShell onClose={onClose} panelClassName="inv-modal">
+      <div className="inv-modal-head">
+        <div>
+          <div className="inv-modal-eyebrow">Permissions</div>
+          <h2 className="inv-modal-title">Who can see {folderName}?</h2>
+        </div>
+        <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
+      </div>
+      <div className="inv-radio-list">
+        {VISIBILITY_OPTIONS?.map(opt => (
+          <button
+            key={opt?.value}
+            className={`inv-radio${value === opt?.value ? ' on' : ''}`}
+            onClick={() => setValue(opt?.value)}
+          >
+            <span className="inv-radio-dot" />
+            <span>{opt?.label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="inv-modal-actions">
+        <button onClick={onClose} className="inv-btn ghost">Cancel</button>
+        <button onClick={() => onSave(value)} className="inv-btn primary">Save</button>
+      </div>
+    </ModalShell>
+  );
+};
 
 // ─── Health Summary ────────────────────────────────────────────────────────────
 const HealthSummary = ({ items }) => {
@@ -2190,6 +2269,8 @@ const LocationFirstInventory = () => {
   const [activeDragId, setActiveDragId] = useState(null);
   const [movingFolderName, setMovingFolderName] = useState(null);
   const [appearanceFolderName, setAppearanceFolderName] = useState(null);
+  const [permsFolderName, setPermsFolderName] = useState(null);
+  const [duplicatingFolder, setDuplicatingFolder] = useState(null);
 
   const [selectedItemIds, setSelectedItemIds] = useState(new Set());
   const [showExportModal, setShowExportModal] = useState(false);
@@ -2768,6 +2849,52 @@ const LocationFirstInventory = () => {
   const handleVisibilityChange = async (folderName, visibility) => {
     await updateFolderVisibility(pathSegments, folderName, visibility);
     setFolderVisibilities(prev => ({ ...prev, [folderName]: visibility }));
+  };
+
+  const handleDuplicateFolder = async (folderName) => {
+    setDuplicatingFolder(folderName);
+    try {
+      const copyName = await duplicateFolder(pathSegments, folderName);
+      if (copyName) await loadData();
+    } finally {
+      setDuplicatingFolder(null);
+    }
+  };
+
+  // One-click export of a folder's whole subtree as a grouped PDF —
+  // each sub-folder becomes a heading and drills down into its items.
+  const handleExportFolder = async (folderSegments) => {
+    setIsExporting(true);
+    try {
+      const loc = folderSegments?.[0];
+      const subPath = folderSegments?.slice(1)?.join(' > ');
+      const inSubtree = (it) => {
+        if (it?.location !== loc) return false;
+        if (!subPath) return true;
+        const s = it?.subLocation || '';
+        return s === subPath || s?.startsWith(subPath + ' > ');
+      };
+      const subtree = (allItems || [])?.filter(inSubtree);
+      const groups = new Map();
+      subtree?.forEach(it => {
+        const parts = [it?.location, ...((it?.subLocation || '')?.split(' > ')?.filter(Boolean))];
+        const full = parts?.join(' › ');
+        if (!groups?.has(full)) groups?.set(full, { key: full, label: full, fullPath: full, items: [] });
+        groups?.get(full)?.items?.push(it);
+      });
+      const foldersMeta = [...groups.values()]?.sort((a, b) => (a?.fullPath || '')?.localeCompare(b?.fullPath || ''));
+      await exportInventoryToPDF({
+        items: subtree,
+        scope: 'selected',
+        folderPath: folderSegments?.join(' › '),
+        includeImages: false,
+        selectedFoldersMeta: foldersMeta,
+      });
+    } catch (err) {
+      console.error('[Export folder] error:', err);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleSaveAppearance = async ({ icon, color }) => {
@@ -3450,6 +3577,12 @@ const LocationFirstInventory = () => {
                         onDelete={() => setDeletingFolderName(folderName)}
                         onCog={() => setCogFolderName(folderName)}
                         onPalette={canEdit && !isFolderReadOnly(folderName) ? () => setAppearanceFolderName(folderName) : undefined}
+                        onMove={() => setMovingFolderName(folderName)}
+                        onPermissions={() => setPermsFolderName(folderName)}
+                        onDuplicate={() => handleDuplicateFolder(folderName)}
+                        onExport={() => handleExportFolder(folderSegments)}
+                        onArchive={() => setArchivingFolderName(folderName)}
+                        canMove={!isRoot}
                         showCog={showCog}
                         folderDropTargetId={folderDropTargetId}
                         folderDropTargetReady={folderDropTargetReady}
@@ -3658,6 +3791,14 @@ const LocationFirstInventory = () => {
           isChief={isChief}
           isHOD={isHOD}
           userDepartment={userDepartment}
+        />
+      )}
+      {permsFolderName && (
+        <FolderVisibilityModal
+          folderName={permsFolderName}
+          currentVisibility={folderVisibilities?.[permsFolderName] || 'everyone'}
+          onClose={() => setPermsFolderName(null)}
+          onSave={(v) => { handleVisibilityChange(permsFolderName, v); setPermsFolderName(null); }}
         />
       )}
       {appearanceFolderName && (
