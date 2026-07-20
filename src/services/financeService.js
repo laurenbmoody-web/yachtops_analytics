@@ -22,8 +22,13 @@ const ACCOUNT_SELECT =
 
 const TXN_SELECT =
   'id, tenant_id, account_id, txn_date, amount, currency, fx_rate, amount_base, ' +
-  'category, description, source, status, supplier_order_id, supplier_invoice_id, ' +
+  'category, category_code, department, vat_amount, vat_rate, payee, ' +
+  'description, source, status, supplier_order_id, supplier_invoice_id, ' +
   'provisioning_item_id, defect_id, trip_id, crew_id, posting_group_id, created_by, created_at';
+
+const ATTACHMENT_SELECT =
+  'id, tenant_id, ledger_transaction_id, storage_path, file_name, mime_type, size_bytes, uploaded_by, created_at';
+const RECEIPT_BUCKET = 'ledger-receipts';
 
 const currentUserId = async () => {
   try {
@@ -151,6 +156,11 @@ export const createTransaction = async (payload) => {
       fx_rate,
       amount_base: payload.amount_base ?? deriveAmountBase(amount, fx_rate),
       category: payload.category || null,
+      category_code: payload.category_code || null,
+      department: payload.department || null,
+      vat_amount: payload.vat_amount ?? null,
+      vat_rate: payload.vat_rate ?? null,
+      payee: payload.payee || null,
       description: payload.description || null,
       source: payload.source || 'manual',
       // A manual row booked straight into an account is reconciled; an unassigned
@@ -191,4 +201,54 @@ export const assignTransactionAccount = async (id, accountId) => {
     .select(TXN_SELECT)
     .single();
   return { data, error };
+};
+
+// ── Receipts / attachments ──────────────────────────────────────────────────
+
+// Upload a receipt file for a ledger row into the private ledger-receipts bucket
+// (path: <tenant>/<txn>/<ts>.<ext>) and record it in ledger_transaction_attachments.
+export const uploadReceipt = async (txnId, file, { tenantId }) => {
+  if (!txnId || !file || !tenantId) return { data: null, error: new Error('Missing receipt, transaction, or tenant') };
+  const uploaded_by = await currentUserId();
+  const ext = (file.name || '').split('.').pop() || 'bin';
+  const storage_path = `${tenantId}/${txnId}/${Date.now()}.${ext}`;
+  const { error: upErr } = await supabase.storage.from(RECEIPT_BUCKET).upload(storage_path, file, { upsert: false });
+  if (upErr) return { data: null, error: upErr };
+  const { data, error } = await supabase
+    .from('ledger_transaction_attachments')
+    .insert({
+      tenant_id: tenantId,
+      ledger_transaction_id: txnId,
+      storage_path,
+      file_name: file.name || null,
+      mime_type: file.type || null,
+      size_bytes: file.size ?? null,
+      uploaded_by,
+    })
+    .select(ATTACHMENT_SELECT)
+    .single();
+  return { data, error };
+};
+
+// Attachments for one (or many) ledger rows, each with a short-lived signed URL.
+export const listAttachments = async (txnIds) => {
+  const ids = Array.isArray(txnIds) ? txnIds : [txnIds];
+  if (!ids.length) return { data: [], error: null };
+  const { data, error } = await supabase
+    .from('ledger_transaction_attachments')
+    .select(ATTACHMENT_SELECT)
+    .in('ledger_transaction_id', ids)
+    .order('created_at', { ascending: true });
+  if (error) return { data: null, error };
+  const withUrls = await Promise.all((data || []).map(async (a) => {
+    const { data: signed } = await supabase.storage.from(RECEIPT_BUCKET).createSignedUrl(a.storage_path, 3600);
+    return { ...a, url: signed?.signedUrl || null };
+  }));
+  return { data: withUrls, error: null };
+};
+
+export const deleteAttachment = async (id, storagePath) => {
+  if (storagePath) await supabase.storage.from(RECEIPT_BUCKET).remove([storagePath]);
+  const { error } = await supabase.from('ledger_transaction_attachments').delete().eq('id', id);
+  return { error };
 };

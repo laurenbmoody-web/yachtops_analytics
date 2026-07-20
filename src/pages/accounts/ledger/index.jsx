@@ -11,6 +11,7 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
   listAccounts, listTransactions, createTransaction, voidTransaction, assignTransactionAccount,
+  uploadReceipt, listAttachments,
 } from '../../../services/financeService';
 import { formatMoney, isLiveTxn } from '../../../services/financeCalc';
 import { ManualTxnModal, AssignAccountModal } from '../components/TransactionModals';
@@ -49,6 +50,7 @@ export default function Ledger() {
   const [filters, setFilters] = useState({ accountId: '', source: '', category: '', from: '', to: '', search: '', needsAttention: false });
   const [addOpen, setAddOpen] = useState(false);
   const [assignTxn, setAssignTxn] = useState(null);
+  const [attByTxn, setAttByTxn] = useState({});   // txnId → [attachment w/ signed url]
   const [toast, setToast] = useState('');
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
@@ -67,6 +69,16 @@ export default function Ledger() {
     const { data } = await listTransactions(activeTenantId, clean);
     setTxns(data || []);
     setLoading(false);
+    // Receipts for the visible rows (each carries a short-lived signed URL).
+    const ids = (data || []).map((t) => t.id);
+    if (ids.length) {
+      const { data: atts } = await listAttachments(ids);
+      const map = {};
+      (atts || []).forEach((a) => { (map[a.ledger_transaction_id] ||= []).push(a); });
+      setAttByTxn(map);
+    } else {
+      setAttByTxn({});
+    }
   }, [activeTenantId, filters]);
 
   useEffect(() => { loadAccounts(); }, [loadAccounts]);
@@ -92,6 +104,12 @@ export default function Ledger() {
   const handleAdd = async (payload) => {
     const res = await createTransaction({ ...payload, tenant_id: activeTenantId });
     if (!res.error) { await Promise.all([loadTxns(), loadAccounts()]); flash('Transaction added'); }
+    return res;
+  };
+
+  const handleUploadReceipt = async (txnId, file) => {
+    const res = await uploadReceipt(txnId, file, { tenantId: activeTenantId });
+    if (!res.error) await loadTxns();   // refresh so the receipt chip appears
     return res;
   };
 
@@ -137,6 +155,14 @@ export default function Ledger() {
             {voided ? ' · voided' : ''}
           </div>
           {renderChips(t)}
+          {attByTxn[t.id]?.length > 0 && (
+            <div className="ca-chips">
+              <button type="button" className="ca-chip" title="View receipt"
+                onClick={() => attByTxn[t.id][0].url && window.open(attByTxn[t.id][0].url, '_blank', 'noopener')}>
+                <Icon name="Paperclip" size={11} /> {attByTxn[t.id].length > 1 ? `${attByTxn[t.id].length} receipts` : 'Receipt'}
+              </button>
+            </div>
+          )}
         </div>
         <span className={`ca-txn-acct${!t.account_id ? ' is-unassigned' : ''}`}>
           {acct ? acct.name : 'Unassigned'}
@@ -230,7 +256,7 @@ export default function Ledger() {
         {toast && <div className="ca-toast">{toast}</div>}
       </div>
 
-      <ManualTxnModal open={addOpen} onClose={() => setAddOpen(false)} onSave={handleAdd} accounts={accounts} />
+      <ManualTxnModal open={addOpen} onClose={() => setAddOpen(false)} onSave={handleAdd} onUploadReceipt={handleUploadReceipt} accounts={accounts} />
       <AssignAccountModal open={Boolean(assignTxn)} onClose={() => setAssignTxn(null)} onAssign={handleAssign} txn={assignTxn} accounts={accounts} />
     </>
   );
