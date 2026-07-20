@@ -52,6 +52,23 @@ function spanForDay(shifts, date) {
   return { start, end, hours: Math.round(dur) };
 }
 
+// Every on-duty BLOCK for a date (a split shift = several), earliest first.
+// The break between two blocks is just the gap between them.
+function blocksForDay(shifts, date) {
+  return shifts
+    .filter((s) => s.date === date && ON_DUTY_TYPES.has(s.shiftType))
+    .map((s) => ({ start: hhmm(s.startTime), end: hhmm(s.endTime) }))
+    .filter((b) => b.start && b.end)
+    .sort((a, b) => a.start.localeCompare(b.start));
+}
+// Decimal hours of one block (overnight-aware).
+const blockDur = (b) => {
+  const [sh, sm] = b.start.split(':').map(Number);
+  const [eh, em] = b.end.split(':').map(Number);
+  let d = (eh + em / 60) - (sh + sm / 60); if (d <= 0) d += 24;
+  return d;
+};
+
 // Per-day compliance for one member, matching RestLogView's cell colouring
 // (rotaHorExportData.computeCell): a day with no on-duty shift is a rest day →
 // compliant; rest-in-24h < 10h → breach; [10h, 11h) → marginal; else compliant.
@@ -100,9 +117,9 @@ const RotaWidget = () => {
   const [error, setError] = useState(false);
   // The current user's own logged HOR actuals (date → {segments, types}).
   const [myEntries, setMyEntries] = useState(() => new Map());
-  // The editable On/Off the wheels bind to; saved to the HOR log on Confirm.
-  const [editStart, setEditStart] = useState('08:00');
-  const [editEnd, setEditEnd] = useState('12:00');
+  // The editable on-duty blocks the wheels bind to; a split shift has several.
+  // Saved to the HOR log on Confirm.
+  const [editBlocks, setEditBlocks] = useState([{ start: '08:00', end: '12:00' }]);
   const [logRest, setLogRest] = useState(false); // reveal wheels on a rest day
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState(false);
@@ -189,7 +206,6 @@ const RotaWidget = () => {
     return base.concat(logged);
   }, [myShifts, myEntries]);
 
-  const myToday = spanForDay(myShiftsMerged, todayStr);
   const loggedToday = myEntries.has(todayStr);
   const myTodayType = myShifts.find((s) => s.date === todayStr && ON_DUTY_TYPES.has(s.shiftType))?.shiftType || 'duty';
   const tmrwStr = addDays(todayStr, 1);
@@ -203,39 +219,41 @@ const RotaWidget = () => {
   const myWeekRest = myReport.pastWeekHours != null ? Math.round(myReport.pastWeekHours) : null;
   const myBreach = myReport.anyBreach;
 
-  // The wheels track the logged (or planned) On/Off; re-sync when data changes
-  // and the user isn't mid-scroll (they can always re-open).
-  const heroStart = myToday?.start; const heroEnd = myToday?.end;
+  // The wheels track the logged (or planned) blocks; re-sync when data changes.
+  const blocksKey = myTodayBlocks.map((b) => `${b.start}-${b.end}`).join('|');
   useEffect(() => {
-    if (heroStart) setEditStart(heroStart);
-    if (heroEnd) setEditEnd(heroEnd);
-  }, [heroStart, heroEnd]);
-  // Live duration between the wheels (updates as they scroll).
-  const editHours = useMemo(() => {
-    const [sh, sm] = editStart.split(':').map(Number);
-    const [eh, em] = editEnd.split(':').map(Number);
-    let d = (eh + em / 60) - (sh + sm / 60); if (d <= 0) d += 24;
-    return Math.round(d);
-  }, [editStart, editEnd]);
+    if (myTodayBlocks.length > 0) setEditBlocks(myTodayBlocks.map((b) => ({ ...b })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocksKey]);
+
+  const editTotalHours = useMemo(
+    () => Math.round(editBlocks.reduce((sum, b) => sum + blockDur(b), 0)),
+    [editBlocks],
+  );
+  const setBlock = (i, patch) => setEditBlocks((bs) => bs.map((b, j) => (j === i ? { ...b, ...patch } : b)));
+  const addBlock = () => setEditBlocks((bs) => {
+    const last = bs[bs.length - 1];
+    const s = last ? Math.min(47, toIdx(last.end) + 2) : 36; // ~1h after last, else 18:00
+    return [...bs, { start: blockToHHMM(s), end: blockToHHMM(Math.min(47, s + 8)) }];
+  });
+  const removeBlock = (i) => setEditBlocks((bs) => (bs.length > 1 ? bs.filter((_, j) => j !== i) : bs));
 
   const saveHours = async () => {
     setSaving(true); setSaveErr(false);
     try {
-      const s = toIdx(editStart); const e = toIdx(editEnd);
-      const write = (date, from, to) => {
-        const segs = []; const types = {};
-        for (let i = from; i < to; i += 1) { segs.push(i); types[i] = myTodayType; }
-        return upsertWorkEntryDay({ tenantId: activeTenantId, subjectUserId: user?.id, date, workSegments: segs, segmentTypes: types });
-      };
-      if (e > s) {
-        await write(todayStr, s, e);
-      } else {
-        // Off is earlier than On → the shift runs past midnight. HOR is a
-        // per-calendar-day record (rest is assessed within each 24h), so split
-        // at midnight: today [start → 24:00) and tomorrow [00:00 → end).
-        await write(todayStr, s, 48);
-        await write(tmrwStr, 0, e);
+      // Accumulate every block's 30-min indices, splitting any overnight block
+      // at midnight (today → 24:00, remainder onto tomorrow) so each HOR
+      // calendar day gets exactly the on-duty it should.
+      const today = new Set(); const todayT = {};
+      const next = new Set(); const nextT = {};
+      const fill = (set, types, from, to) => { for (let i = from; i < to; i += 1) { set.add(i); types[i] = myTodayType; } };
+      for (const b of editBlocks) {
+        const s = toIdx(b.start); const e = toIdx(b.end);
+        if (e > s) fill(today, todayT, s, e);
+        else { fill(today, todayT, s, 48); fill(next, nextT, 0, e); }
       }
+      await upsertWorkEntryDay({ tenantId: activeTenantId, subjectUserId: user?.id, date: todayStr, workSegments: [...today].sort((a, b) => a - b), segmentTypes: todayT });
+      if (next.size > 0) await upsertWorkEntryDay({ tenantId: activeTenantId, subjectUserId: user?.id, date: tmrwStr, workSegments: [...next].sort((a, b) => a - b), segmentTypes: nextT });
       setLogRest(false);
       await load();
     } catch (err) {
@@ -340,23 +358,36 @@ const RotaWidget = () => {
         <>
           {/* Shared spine: log your own hours to your HOR record (never the rota) */}
           <div className="rw-eyebrow">{`Today · ${WD[new Date().getDay()]} ${new Date().getDate()} · Hours of Rest`}</div>
-          {(myToday || logRest) ? (
+          {(myTodayBlocks.length > 0 || logRest) ? (
             <>
-              <div className="rw-hero">
-                <div className="rw-blk">
-                  <div className="rw-lb">On</div>
-                  <TimeWheel value={editStart} onChange={setEditStart} ariaLabel="Actual start time" className="rw-tm rw-tm-edit" />
-                </div>
-                <div className="rw-arw"><span className="rw-du">{editHours}h</span><ArrowSvg /></div>
-                <div className="rw-blk">
-                  <div className="rw-lb">Off</div>
-                  <TimeWheel value={editEnd} onChange={setEditEnd} ariaLabel="Actual finish time" className="rw-tm rw-tm-edit" />
-                </div>
-              </div>
+              {editBlocks.map((b, i) => {
+                const prev = editBlocks[i - 1];
+                const gap = prev ? Math.round((toIdx(b.start) - toIdx(prev.end)) / 2) : 0;
+                return (
+                  <React.Fragment key={i}>
+                    {prev && gap > 0 && <div className="rw-break">break · {gap}h</div>}
+                    <div className="rw-hero rw-hero-block">
+                      <div className="rw-blk">
+                        <div className="rw-lb">On</div>
+                        <TimeWheel value={b.start} onChange={(v) => setBlock(i, { start: v })} ariaLabel={`Block ${i + 1} start`} className="rw-tm rw-tm-edit rw-tm-sm" />
+                      </div>
+                      <div className="rw-arw"><span className="rw-du">{Math.round(blockDur(b))}h</span><ArrowSvg w={34} /></div>
+                      <div className="rw-blk">
+                        <div className="rw-lb">Off</div>
+                        <TimeWheel value={b.end} onChange={(v) => setBlock(i, { end: v })} ariaLabel={`Block ${i + 1} finish`} className="rw-tm rw-tm-edit rw-tm-sm" />
+                      </div>
+                      {editBlocks.length > 1 && (
+                        <button type="button" className="rw-blk-rm" onClick={() => removeBlock(i)} aria-label={`Remove block ${i + 1}`}>✕</button>
+                      )}
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+              <button type="button" className="rw-addblk" onClick={addBlock}>+ Add another block</button>
               <div className="rw-hormeta">
                 {saveErr
                   ? <b className="rw-bad">Couldn’t save — try again</b>
-                  : <>Logs to <b>your Hours of Rest</b>, not the rota</>}
+                  : <>{editTotalHours}h on{editBlocks.length > 1 ? ` · ${editBlocks.length} blocks` : ''} — logs to <b>your Hours of Rest</b>, not the rota</>}
               </div>
               {myWeekRest != null && (
                 <div className={`rw-restline${myBreach ? ' is-breach' : ''}`}>{myBreach ? 'Rest-hour breach' : 'Within rest limits'} · {myWeekRest}h this week</div>
@@ -370,7 +401,7 @@ const RotaWidget = () => {
               <div className="rw-herometa" style={{ borderBottom: 0, paddingTop: 10 }}>
                 <b>Rest day today</b>{myWeekRest != null ? ` · ${myWeekRest}h rest this week` : ''}
               </div>
-              <button type="button" className="rw-linkbtn" onClick={() => { setEditStart('08:00'); setEditEnd('12:00'); setSaveErr(false); setLogRest(true); }}>Worked today? Log hours →</button>
+              <button type="button" className="rw-linkbtn" onClick={() => { setEditBlocks([{ start: '08:00', end: '12:00' }]); setSaveErr(false); setLogRest(true); }}>Worked today? Log hours →</button>
             </>
           )}
 
