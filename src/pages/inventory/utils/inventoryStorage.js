@@ -1533,6 +1533,53 @@ export const deleteFolderFromDB = async (parentSegments, name) => {
 };
 
 /**
+ * Snapshot a folder's rows (its inventory_locations + inventory_items across the
+ * whole subtree) BEFORE deleting, so the delete can be undone. Returns full rows.
+ */
+export const getFolderSnapshot = async (parentSegments, name) => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId) return { locations: [], items: [] };
+    const isRoot = !parentSegments || parentSegments?.length === 0;
+    const location = isRoot ? name : parentSegments?.[0];
+    if (isRoot) {
+      const { data: locs } = await supabase?.from('inventory_locations')?.select('*')?.eq('tenant_id', tenantId)?.eq('location', name);
+      const { data: its } = await supabase?.from('inventory_items')?.select('*')?.eq('tenant_id', tenantId)?.eq('location', name);
+      return { locations: locs || [], items: its || [] };
+    }
+    const parentSubPath = parentSegments?.slice(1)?.join(' > ');
+    const subPath = parentSubPath ? `${parentSubPath} > ${name}` : name;
+    const inSub = (r) => r?.sub_location === subPath || r?.sub_location?.startsWith(subPath + ' > ');
+    const { data: locs } = await supabase?.from('inventory_locations')?.select('*')?.eq('tenant_id', tenantId)?.eq('location', location);
+    const { data: its } = await supabase?.from('inventory_items')?.select('*')?.eq('tenant_id', tenantId)?.eq('location', location);
+    return { locations: (locs || [])?.filter(inSub), items: (its || [])?.filter(inSub) };
+  } catch (err) {
+    console.error('[inventoryStorage] getFolderSnapshot exception:', err?.message);
+    return { locations: [], items: [] };
+  }
+};
+
+/** Re-insert a snapshot captured by getFolderSnapshot — undoes a folder delete. */
+export const restoreFolderSnapshot = async (snapshot) => {
+  try {
+    const { locations = [], items = [] } = snapshot || {};
+    if (locations?.length > 0) {
+      const { error } = await supabase?.from('inventory_locations')?.insert(locations);
+      if (error) { console.error('[inventoryStorage] restoreFolderSnapshot locations error:', error?.message); return false; }
+    }
+    const chunk = 200;
+    for (let i = 0; i < (items?.length || 0); i += chunk) {
+      const { error } = await supabase?.from('inventory_items')?.insert(items?.slice(i, i + chunk));
+      if (error) console.error('[inventoryStorage] restoreFolderSnapshot items error:', error?.message);
+    }
+    return true;
+  } catch (err) {
+    console.error('[inventoryStorage] restoreFolderSnapshot exception:', err?.message);
+    return false;
+  }
+};
+
+/**
  * Move a folder into another folder (iOS-style drag-into-folder).
  * draggedSegments = full path segments of the folder being dragged (e.g. ['Interior', 'Pantry'])
  * targetSegments = full path segments of the destination folder (e.g. ['Galley'])

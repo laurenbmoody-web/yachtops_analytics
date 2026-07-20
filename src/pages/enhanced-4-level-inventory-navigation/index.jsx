@@ -5,7 +5,7 @@ import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
-import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, duplicateFolder, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
+import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, duplicateFolder, getFolderSnapshot, restoreFolderSnapshot, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
 import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
 import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
@@ -1940,8 +1940,8 @@ const DeleteFolderModal = ({ folderName, onClose, onConfirm }) => (
     <div className="inv-confirm">
       <div className="inv-confirm-icon danger"><Icon name="Trash2" size={18} /></div>
       <div>
-        <p className="inv-confirm-title">This can't be undone</p>
-        <p className="inv-confirm-text"><b>{folderName}</b> and all its sub-folders and items will be permanently removed.</p>
+        <p className="inv-confirm-title">Removes everything inside</p>
+        <p className="inv-confirm-text"><b>{folderName}</b> and all its sub-folders and items will be removed. You'll have a few seconds to undo.</p>
       </div>
     </div>
     <div className="inv-modal-actions">
@@ -2245,6 +2245,8 @@ const LocationFirstInventory = () => {
   const [duplicatingFolder, setDuplicatingFolder] = useState(null);
   const [movingItem, setMovingItem] = useState(null);
   const [deletingItem, setDeletingItem] = useState(null);
+  const [undoToast, setUndoToast] = useState(null); // { name, snapshot }
+  const undoTimerRef = useRef(null);
 
   const [selectedItemIds, setSelectedItemIds] = useState(new Set());
   const [showExportModal, setShowExportModal] = useState(false);
@@ -2819,14 +2821,41 @@ const LocationFirstInventory = () => {
     loadData();
   };
 
+  // Who may delete a folder: department (root) folders → Command only;
+  // sub-folders → Command, or the Chief/HOD of that department.
+  const canDeleteFolder = (folderName) => {
+    if (isRoot) return isCommand;
+    if (isCommand) return true;
+    if (isChief || isHOD) return (pathSegments?.[0] || '')?.toLowerCase() === (userDepartment || '')?.toLowerCase();
+    return false;
+  };
+
   const handleDeleteFolder = async () => {
     const folderToDelete = deletingFolderName;
+    const deletePath = pathSegments;
     setDeletingFolderName(null);
-    const success = await deleteFolderFromDB(pathSegments, folderToDelete);
+    // Snapshot first so the delete can be undone.
+    const snapshot = await getFolderSnapshot(deletePath, folderToDelete);
+    const success = await deleteFolderFromDB(deletePath, folderToDelete);
     if (!success) {
-      console.error('[Inventory] handleDeleteFolder: deleteFolderFromDB returned false for', folderToDelete, 'at path', pathSegments);
+      console.error('[Inventory] handleDeleteFolder: deleteFolderFromDB returned false for', folderToDelete, 'at path', deletePath);
       alert(`Failed to delete "${folderToDelete}". Please check your connection and try again.`);
+      await loadData();
+      return;
     }
+    await loadData();
+    // Offer an undo for ~9s.
+    if (undoTimerRef?.current) clearTimeout(undoTimerRef.current);
+    setUndoToast({ name: folderToDelete, snapshot });
+    undoTimerRef.current = setTimeout(() => setUndoToast(null), 9000);
+  };
+
+  const handleUndoDelete = async () => {
+    if (undoTimerRef?.current) clearTimeout(undoTimerRef.current);
+    const toast = undoToast;
+    setUndoToast(null);
+    if (!toast?.snapshot) return;
+    await restoreFolderSnapshot(toast.snapshot);
     await loadData();
   };
 
@@ -3578,7 +3607,7 @@ const LocationFirstInventory = () => {
                         canEdit={canEdit && !isReadOnly}
                         onEdit={() => setEditingFolderName(folderName)}
                         onRenameSubmit={(newName) => handleInlineRename(folderName, newName)}
-                        onDelete={() => setDeletingFolderName(folderName)}
+                        onDelete={canDeleteFolder(folderName) ? () => setDeletingFolderName(folderName) : undefined}
                         onCog={() => setCogFolderName(folderName)}
                         onPalette={canEdit && !isFolderReadOnly(folderName) ? () => setAppearanceFolderName(folderName) : undefined}
                         onMove={() => setMovingFolderName(folderName)}
@@ -3888,6 +3917,18 @@ const LocationFirstInventory = () => {
           onClose={() => setDeletingItem(null)}
           onConfirm={handleConfirmDeleteItem}
         />
+      )}
+      {undoToast && (
+        <div className="inv-toast" role="status">
+          <Icon name="Trash2" size={15} />
+          <span>Deleted <b>{undoToast?.name}</b></span>
+          <button className="inv-toast-undo" onClick={handleUndoDelete}>
+            <Icon name="Undo2" size={14} /> Undo
+          </button>
+          <button className="inv-toast-close" onClick={() => { if (undoTimerRef?.current) clearTimeout(undoTimerRef.current); setUndoToast(null); }}>
+            <Icon name="X" size={14} />
+          </button>
+        </div>
       )}
       {devMode && <DevDebugPanel />}
     </div>
