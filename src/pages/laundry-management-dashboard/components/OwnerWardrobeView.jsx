@@ -245,10 +245,12 @@ const OwnerWardrobeView = ({ onBack }) => {
           <button type="button" className="lm-back" onClick={onBack}><Icon name="ArrowLeft" size={16} /> Back to wardrobe management</button>
           <button type="button" className="ow-btn ghost" onClick={() => setShowNewWardrobe(true)}><Icon name="FolderPlus" size={15} /> New wardrobe</button>
         </div>
-        <div className="ow-head">
-          <span className="ow-eyebrow">Wardrobe · Owner</span>
-          <h1 className="ow-h1">Owner wardrobes</h1>
-        </div>
+        <p className="editorial-meta">
+          <span className="dot">●</span><span>Wardrobe</span>
+          <span className="bar" /><span className="muted">Owner</span>
+          <span className="bar" /><span className="muted">{items.length} garment{items.length === 1 ? '' : 's'}</span>
+        </p>
+        <h1 className="editorial-greeting">OWNER<span className="period">,</span> <em>in residence</em><span className="period">.</span></h1>
         {loading
           ? <div className="ow-empty">Loading the wardrobe…</div>
           : <PersonTiles people={people} emptyLabel="No owner garments yet." onPick={setPersonId} />}
