@@ -385,14 +385,7 @@ const RotaWidget = () => {
                 );
               })}
               <button type="button" className="rw-addblk" onClick={addBlock}>+ Add another block</button>
-              <div className="rw-hormeta">
-                {saveErr
-                  ? <b className="rw-bad">Couldn’t save — try again</b>
-                  : <>{editTotalHours}h on{editBlocks.length > 1 ? ` · ${editBlocks.length} blocks` : ''} — logs to <b>your Hours of Rest</b>, not the rota</>}
-              </div>
-              {myWeekRest != null && (
-                <div className={`rw-restline${myBreach ? ' is-breach' : ''}`}>{myBreach ? 'Rest-hour breach' : 'Within rest limits'} · {myWeekRest}h this week</div>
-              )}
+              {saveErr && <div className="rw-hormeta"><b className="rw-bad">Couldn’t save — try again</b></div>}
               <button type="button" className="rw-confirm" disabled={saving} onClick={saveHours}>
                 {saving ? 'Saving…' : loggedToday ? 'Update Hours of Rest' : 'Save to Hours of Rest'}
               </button>
