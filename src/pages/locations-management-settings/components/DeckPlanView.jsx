@@ -694,10 +694,16 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       // ── Model pass ────────────────────────────────────────────────────────
       // Which enclosed region each read seed lands in — skipping regions a pin
       // already owns (that room is done).
+      // Higher decks are mostly open deck: skip regions whose floor reads as warm
+      // teak planking — that's exterior space, not a room. (A crew pin overrides
+      // this: a pinned region is claimed above and always traced, so an exterior
+      // area the crew genuinely wants still comes through.)
+      let extSkipped = 0;
       const byRegion = new Map();
       rooms.forEach((r, idx) => {
         const region = regionAtPoint(seg, r.seed.x, r.seed.y);
         if (!region || claimed.has(region.id)) return;
+        if (region.exterior) { extSkipped += 1; return; }
         if (!byRegion.has(region.id)) byRegion.set(region.id, []);
         byRegion.get(region.id).push(idx);
       });
@@ -723,8 +729,8 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         if (!nodes) return;
         items.push({ name: null, matchedSpaceId: null, create: true, nodes, traced: true });
       });
-      if (!items.length) { setDetectError({ deckId: deck.id, message: 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' }); return; }
-      setProposals({ deckId: deck.id, items });
+      if (!items.length) { setDetectError({ deckId: deck.id, message: extSkipped ? 'This deck read as mostly open exterior deck — no interior rooms to outline. Drop a pin in any space you want traced, then Detect again.' : 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' }); return; }
+      setProposals({ deckId: deck.id, items, extSkipped });
     } catch (err) {
       console.error('[deck-plan] detect error:', err);
       setDetectError({ deckId: deck.id, message: err?.message || 'Could not detect rooms on this deck.' });
@@ -989,6 +995,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     <b className="dp-ai-spark">✦ AI</b> traced <b>{total}</b> outline{total === 1 ? '' : 's'}
                     {matchCount > 0 && <> — <b>{matchCount}</b> on your pins</>}
                     {newCount > 0 && <>{matchCount > 0 ? ', ' : ' — '}<b>{newCount}</b> unnamed</>}.{' '}
+                    {deckProps.extSkipped > 0 && <span className="dp-ai-unmatched">Skipped <b>{deckProps.extSkipped}</b> exterior deck area{deckProps.extSkipped === 1 ? '' : 's'}. </span>}
                     <span className="dp-ai-unmatched">✎ reshape, × to remove — nothing saves until you Apply.</span>
                   </span>
                   <span className="dp-spring" />

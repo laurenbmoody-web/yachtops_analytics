@@ -91,7 +91,37 @@ export function segmentDeck(imageData, opts = {}) {
     if (c.area > hardMax) continue;
     regionById.set(c.id, c);
   }
+
+  // Mean floor colour per kept region, in one O(N) pass, so each region can be
+  // classified as exterior teak vs interior. On a yacht the higher decks are
+  // mostly open deck: warm teak planking around the perimeter is exterior space,
+  // not a room. We flag those so the caller can skip auto-outlining them.
+  const sumR = new Float64Array(id + 1);
+  const sumG = new Float64Array(id + 1);
+  const sumB = new Float64Array(id + 1);
+  const cnt = new Float64Array(id + 1);
+  for (let i = 0; i < N; i += 1) {
+    const l = label[i];
+    if (!l || !regionById.has(l)) continue;
+    const o = i * 4;
+    sumR[l] += d[o]; sumG[l] += d[o + 1]; sumB[l] += d[o + 2]; cnt[l] += 1;
+  }
+  regionById.forEach((c) => {
+    const n = cnt[c.id] || 1;
+    c.r = sumR[c.id] / n; c.g = sumG[c.id] / n; c.b = sumB[c.id] / n;
+    c.exterior = isTeak(c.r, c.g, c.b);
+  });
   return { W, H, label, regionById };
+}
+
+// Warm brown planking test. Teak reads as a saturated tan (R ≥ G ≥ B, mid
+// brightness, distinctly warm), unlike interior floors which render light,
+// cool, or near-grey. Only the warmth-relative-to-brightness ratio separates
+// teak from a pale beige carpet, so we gate on that rather than raw R−B.
+export function isTeak(r, g, b) {
+  const bright = (r + g + b) / 3;
+  const warm = r - b;
+  return bright < 200 && warm > 30 && warm / Math.max(1, bright) > 0.2 && r >= g && g >= b - 6;
 }
 
 // The usable region a normalized point falls in, or (if it's on a wall / in the
