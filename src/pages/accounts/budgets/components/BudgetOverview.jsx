@@ -195,7 +195,15 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
         <div className="bg-panel bg-ov-mt">
           <div className="bg-phead">
             <span className="bg-ptitle">Seasonal shape</span>
-            <span className="bg-pnote">colour = over (terracotta) / under (green) plan · hover a cell to flip it to the +/− amount</span>
+            <span className="bg-ov-guide" tabIndex={0} aria-label="Legend">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"><circle cx="8" cy="8" r="6.5" /><path d="M8 7.4v3.2" strokeLinecap="round" /><circle cx="8" cy="5.1" r="0.6" fill="currentColor" stroke="none" /></svg>
+              <span className="bg-ov-guidepop" role="tooltip">
+                <span className="g-row"><i className="g-sw" style={{ background: '#C65A1A' }} />Over plan</span>
+                <span className="g-row"><i className="g-sw" style={{ background: '#3F7A52' }} />Under plan</span>
+                <span className="g-row"><i className="g-sw" style={{ background: '#EAF1EC' }} />On plan (✓)</span>
+                <span className="g-hint">Each cell shows the month’s spend — hover to flip it to the +/− vs plan.</span>
+              </span>
+            </span>
           </div>
           <div className="bg-ov-hm">
             <table className="bg-ov-heat">
@@ -207,19 +215,25 @@ export default function BudgetOverview({ view, monthly, cur, todayYm }) {
                   <tr key={r.name}>
                     <td className="rowh">{r.name}</td>
                     {r.cells.map((c) => {
-                      const both = c.value > 0 && c.plan > 0;
-                      if (!both) return <td key={c.ym}><div className="bg-ov-cell zero">·</div></td>;
-                      const t = Math.min(1, Math.abs(c.variance) / varScale);
-                      const near = Math.abs(c.variance) < varScale * 0.02;
-                      const { bg, fg } = near ? { bg: '#F1F2F5', fg: '#8B8478' } : varColor(c.variance, t);
+                      if (!c.value) return <td key={c.ym}><div className="bg-ov-cell zero" title={`${r.name} · ${c.label}: no spend yet`}>·</div></td>;
+                      const both = c.plan > 0;
+                      // Front: spend magnitude in neutral slate — no over/under colour here.
+                      const st = Math.min(1, c.value / r.peak);
+                      const frontBg = `rgba(28,27,58,${(0.05 + st * 0.5).toFixed(2)})`;
+                      const frontFg = st > 0.55 ? '#fff' : '#33324F';
+                      // Back (flip): variance vs plan, green under / terracotta over.
+                      const t = both ? Math.min(1, Math.abs(c.variance) / varScale) : 0;
+                      const near = both && Math.abs(c.variance) < varScale * 0.04;
+                      const back = !both ? { bg: '#F1F2F5', fg: '#8B8478' } : near ? { bg: '#EAF1EC', fg: '#3F7A52' } : varColor(c.variance, t);
                       const sign = c.variance > 0 ? '+' : '−';
+                      const backLabel = !both ? '—' : near ? '✓' : `${sign}${bare(c.variance)}`;
                       return (
                         <td key={c.ym}>
                           <div className="bg-ov-flip" tabIndex={0}
-                            title={`${r.name} · ${c.label}: ${formatMoney(c.value, cur)} vs plan ${formatMoney(c.plan, cur)} (${sign}${formatMoney(Math.abs(c.variance), cur)})`}>
+                            title={`${r.name} · ${c.label}: ${formatMoney(c.value, cur)}${both ? ` vs plan ${formatMoney(c.plan, cur)} (${sign}${formatMoney(Math.abs(c.variance), cur)})` : ' · no plan set'}`}>
                             <div className="bg-ov-flip-in">
-                              <div className="bg-ov-face bg-ov-front" style={{ background: bg, color: fg }}>{bare(c.value)}</div>
-                              <div className="bg-ov-face bg-ov-back" style={{ background: bg, color: fg }}>{near ? '≈' : `${sign}${bare(c.variance)}`}</div>
+                              <div className="bg-ov-face bg-ov-front" style={{ background: frontBg, color: frontFg }}>{bare(c.value)}</div>
+                              <div className="bg-ov-face bg-ov-back" style={{ background: back.bg, color: back.fg }}>{backLabel}</div>
                             </div>
                           </div>
                         </td>
