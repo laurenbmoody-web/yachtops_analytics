@@ -26,7 +26,7 @@
 .rw-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 20px; font-weight: 500; letter-spacing: -0.3px; line-height: 1.1; color: var(--rw-deep); }
 .rw-link { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; color: var(--rw-orange); white-space: nowrap; }
 .rw-link:hover { text-decoration: underline; }
-.rw-eyebrow { font-size: 9.5px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--rw-msoft); }
+.rw-eyebrow { font-size: 9.5px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--rw-msoft); margin: 14px 0 10px; }
 .rw-seclab { font-size: 9.5px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: var(--rw-msoft); margin: 16px 0 9px; }
 
 /* hero — On ⟶ Off */
