@@ -56,7 +56,7 @@ const TeamJobListWidget = () => {
       // Open jobs in scope. status IN ('OPEN','active') — 'OPEN' is rotation
       // jobs, 'active' is manually-created ones (the old widget missed those).
       let q = supabase.from('team_jobs')
-        .select('id, title, due_date, priority, assigned_to')
+        .select('id, title, due_date, assigned_to, metadata')
         .eq('tenant_id', activeTenantId).in('status', ['OPEN', 'active']);
       if (v === 'crew') q = q.eq('assigned_to', authUser.id);
       else if (v === 'chief' && myDept) q = q.eq('department_id', myDept);
@@ -74,7 +74,7 @@ const TeamJobListWidget = () => {
       const shaped = (openRes.data || []).map((j) => ({
         id: j.id,
         title: j.title || 'Untitled job',
-        urgent: j.priority === 'urgent',
+        urgent: j.metadata?.priority === 'urgent',
         assignee: j.assigned_to ? (nameByUser.get(j.assigned_to) || null) : null,
         unassigned: !j.assigned_to,
         due: dueState(j.due_date, todayStr),
