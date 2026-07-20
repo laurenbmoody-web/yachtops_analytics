@@ -198,6 +198,20 @@
   display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 14px; margin-bottom: 28px;
 }
+/* list view — folders as full-width rows */
+.inv-grid.list { grid-template-columns: 1fr; gap: 8px; }
+.inv-folder.row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 16px;
+}
+.inv-folder.row .inv-folder-lead { flex-shrink: 0; }
+.inv-folder.row .inv-folder-body { flex: 1; min-width: 0; }
+.inv-folder.row .inv-folder-name { font-size: 16px; margin: 0; }
+.inv-folder.row .inv-folder-meta { margin-top: 2px; }
+.inv-folder.row .inv-folder-actions { flex-shrink: 0; }
+/* keep hover actions discoverable in the denser row layout */
+.inv-folder.row .inv-iconbtn { opacity: 0; }
+.inv-folder.row:hover .inv-iconbtn { opacity: 1; }
 .inv-folder {
   position: relative; background: #FFFFFF;
   border: 1px solid #E5E7EB; border-radius: 14px;
