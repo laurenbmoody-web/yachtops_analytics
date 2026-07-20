@@ -748,9 +748,20 @@ Deno.serve(async (req: Request) => {
     const total = discountedNet + vatTotal;
     const vatBreakdown = summariseVat(computed);
 
-    // 5) Sequential invoice number
-    const invoiceNumberRaw = await rpc<string>('next_invoice_number', { p_supplier_id: supplierId });
-    const invoiceNumber = String(invoiceNumberRaw);
+    // 5) One invoice per order. If this order already has one, regenerating
+    //    REPLACES it in place — same invoice number, row updated, PDF
+    //    overwritten — so the outstanding total isn't double-counted. Only a
+    //    brand-new order mints the next sequential number.
+    const priorInvoices = await restGet<any[]>(
+      `supplier_invoices?order_id=eq.${orderId}&supplier_id=eq.${supplierId}&select=id,invoice_number,status&order=created_at.asc&limit=1`
+    );
+    const priorInvoice = priorInvoices?.[0] || null;
+    if (priorInvoice && priorInvoice.status === 'paid') {
+      return jsonResponse({ error: 'This invoice has already been paid and can’t be regenerated.' }, 409);
+    }
+    const invoiceNumber = priorInvoice
+      ? String(priorInvoice.invoice_number)
+      : String(await rpc<string>('next_invoice_number', { p_supplier_id: supplierId }));
 
     // Dates
     const issueDate = options.issue_date || new Date().toISOString().slice(0, 10);
@@ -840,26 +851,33 @@ Deno.serve(async (req: Request) => {
       line_total: l.line_total,
     }));
 
-    const inserted = await restPost<any[]>('supplier_invoices', {
-      supplier_id: supplierId,
-      order_id: orderId,
-      invoice_number: invoiceNumber,
-      tenant_id: order.tenant_id,
-      yacht_name: order.vessel_name,
+    const invoiceFields = {
       issue_date: issueDate,
       due_date: dueDate,
       amount: Number(total.toFixed(2)),
       subtotal: Number(subtotal.toFixed(2)),
       currency: supplier.default_currency || 'EUR',
-      status: 'sent',
       pdf_url: pdfPath,
       notes: options.notes ?? null,
       line_items_snapshot: lineSnapshot,
       vat_breakdown: vatBreakdown,
       bonded_supply: bonded,
-      payment_method: 'pending',
-    });
-    const invoice = Array.isArray(inserted) ? inserted[0] : inserted;
+    };
+    // Regenerate → update the existing row (keeps its number, status and
+    // payment state); first time → insert a fresh 'sent' row.
+    const written = priorInvoice
+      ? await restPatch<any[]>(`supplier_invoices?id=eq.${priorInvoice.id}`, invoiceFields)
+      : await restPost<any[]>('supplier_invoices', {
+          supplier_id: supplierId,
+          order_id: orderId,
+          invoice_number: invoiceNumber,
+          tenant_id: order.tenant_id,
+          yacht_name: order.vessel_name,
+          status: 'sent',
+          payment_method: 'pending',
+          ...invoiceFields,
+        });
+    const invoice = Array.isArray(written) ? written[0] : written;
 
     // 10) Snapshot per-line VAT + invoiced price onto supplier_order_items.
     // invoiced_price catches any divergence between agreed_price and what
