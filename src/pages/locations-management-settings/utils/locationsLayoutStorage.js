@@ -106,24 +106,42 @@ const orderPair = (a, b) => (a < b ? [a, b] : [b, a]);
 export const getSpaceLinks = async () => {
   const tenantId = await getTenantId();
   if (!tenantId) return [];
-  const { data, error } = await supabase
-    .from('vessel_space_links').select('id, a_space_id, b_space_id').eq('tenant_id', tenantId);
+  let { data, error } = await supabase
+    .from('vessel_space_links').select('id, a_space_id, b_space_id, link_kind').eq('tenant_id', tenantId);
+  // Resilient to the link_kind column not being live yet (migration pending):
+  // fall back to the base columns and treat every link as a doorway.
+  if (error?.code === '42703') {
+    ({ data, error } = await supabase
+      .from('vessel_space_links').select('id, a_space_id, b_space_id').eq('tenant_id', tenantId));
+  }
   if (error) { console.error('[layout] links fetch error:', error); return []; }
-  return (data || []).map((r) => ({ id: r.id, a: r.a_space_id, b: r.b_space_id }));
+  return (data || []).map((r) => ({ id: r.id, a: r.a_space_id, b: r.b_space_id, kind: r.link_kind || 'door' }));
 };
 
-// Create a doorway between two rooms; returns the row (new or already-existing).
-export const addSpaceLink = async (spaceId1, spaceId2) => {
+// Create a link between two rooms; returns the row (new or already-existing).
+// kind: 'door' (same deck) or 'stairs' (across decks). The pair is stored
+// canonically, so re-linking an existing pair just updates its kind.
+export const addSpaceLink = async (spaceId1, spaceId2, kind = 'door') => {
   const tenantId = await getTenantId();
   if (!tenantId) throw new Error('No vessel context.');
   const [a, b] = orderPair(spaceId1, spaceId2);
-  const { data, error } = await supabase
+  const payload = { tenant_id: tenantId, a_space_id: a, b_space_id: b, link_kind: kind };
+  let { data, error } = await supabase
     .from('vessel_space_links')
-    .upsert({ tenant_id: tenantId, a_space_id: a, b_space_id: b }, { onConflict: 'a_space_id,b_space_id' })
-    .select('id, a_space_id, b_space_id')
+    .upsert(payload, { onConflict: 'a_space_id,b_space_id' })
+    .select('id, a_space_id, b_space_id, link_kind')
     .single();
+  // Column not live yet — insert the doorway without the discriminator.
+  if (error?.code === '42703') {
+    delete payload.link_kind;
+    ({ data, error } = await supabase
+      .from('vessel_space_links')
+      .upsert(payload, { onConflict: 'a_space_id,b_space_id' })
+      .select('id, a_space_id, b_space_id')
+      .single());
+  }
   if (error) throw error;
-  return { id: data.id, a: data.a_space_id, b: data.b_space_id };
+  return { id: data.id, a: data.a_space_id, b: data.b_space_id, kind: data.link_kind || 'door' };
 };
 
 export const removeSpaceLink = async (linkId) => {
