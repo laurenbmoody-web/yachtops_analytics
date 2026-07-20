@@ -13,6 +13,23 @@ behind `main`** — don't leave the branch diverged. After a squash merge:
 --force-with-lease`, then confirm with `git rev-list --left-right --count
 origin/main...HEAD` (expect `0  0`).
 
+## Inventory rule — one location model (folder paths)
+
+Inventory is organised by a **free-form, infinitely-nested folder tree** stored as
+**materialized path strings**: `inventory_locations` rows and the `location` +
+`sub_location` columns on `inventory_items` (`sub_location` = path joined by `' > '`).
+Items pin to a folder by matching those strings — there is no folder-id FK. Provisioning
+and Pantry mode both reference inventory via the `inventory_item_id` FK and this same path
+model. **Read `location` + `sub_location` for "where is this item".**
+
+Two things you must NOT conflate with it:
+- **`l1..l4` taxonomy columns** (+ `taxonomyStorage.js`) are **DEPRECATED** — do not read
+  or write them in new code (their only live job is the item-card category label).
+- **`vessel_locations`** is the **physical deck-plan tree** (adjacency list via
+  `parent_id`) for the GA/vessel map — a *different* concern from stock organisation.
+
+Full detail and the "which model for which question" table: `docs/inventory-location-model.md`.
+
 ## Migrations rule — no clashing version timestamps
 
 Two migration files sharing the same 14-digit version prefix break `supabase db

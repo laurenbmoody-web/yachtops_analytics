@@ -1,3 +1,13 @@
+// ⚠️ DEPRECATED — LEGACY 4-LEVEL TAXONOMY (L1 → L2 → L3 → L4). DO NOT BUILD ON THIS.
+// The live location/organisation model is the free-form folder tree in
+// `inventory_locations` (materialized path strings on inventory_items:
+// `location` + `sub_location`). Provisioning and Pantry mode both flow through
+// that path model via the `inventory_item_id` FK — NOT through this taxonomy.
+// These l1..l4 columns/functions are retained only for backward compatibility
+// (old category labels, some import/export paths). New code must read the
+// folder path, not l1..l4. Slated for removal once the category label is
+// derived from the folder path. See docs/inventory-location-model.md.
+//
 // Taxonomy Storage - 4-Level Hierarchy (L1 Operational Domain → L2 Category → L3 Subcategory → L4 Optional)
 // ID-BASED RELATIONSHIPS ONLY - Names are display labels only
 
