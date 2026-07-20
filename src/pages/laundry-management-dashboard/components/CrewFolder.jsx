@@ -126,34 +126,35 @@ const IssueModal = ({ crewName, stock, showValue, onIssue, onClose }) => {
                   ))}
                 </div>
               )}
-              {itemsHere.map((i) => {
-                const onboard = stockOf(i);
-                const picked = i.id in sel;
-                const qty = sel[i.id] || 0;
-                return (
-                  <div className={`cf-issue${picked ? ' on' : ''}`} key={i.id}>
-                    <div className="cf-issue-top">
-                      <button type="button" className="cf-issue-check" onClick={() => toggle(i)} aria-label="Select">
-                        <Icon name={picked ? 'CheckSquare' : 'Square'} size={18} />
-                      </button>
-                      <span className="cf-pick-thumb">{i.imageUrl ? <img src={i.imageUrl} alt="" /> : <Icon name="Shirt" size={16} />}</span>
-                      <div className="cf-issue-main">
-                        <span className="cf-pick-nm">{i.name}{i.size ? ` · ${i.size}` : ''}</span>
-                        <span className="cf-pick-sub">{onboard} on board{showValue && i.unitCost != null ? ` · ${money(i.unitCost, i.currency)} each` : ''}</span>
+              {itemsHere.length > 0 && (
+                <div className="cf-item-grid">
+                  {itemsHere.map((i) => {
+                    const onboard = stockOf(i);
+                    const picked = i.id in sel;
+                    const qty = sel[i.id] || 0;
+                    return (
+                      <div className={`cf-itile${picked ? ' on' : ''}`} key={i.id}>
+                        <button type="button" className="cf-itile-media" onClick={() => toggle(i)}>
+                          {i.imageUrl ? <img src={i.imageUrl} alt={i.name} /> : <span className="cf-itile-ph"><Icon name="Shirt" size={26} /></span>}
+                          <span className="cf-itile-check"><Icon name={picked ? 'CheckSquare' : 'Square'} size={18} /></span>
+                        </button>
+                        <div className="cf-itile-body">
+                          <span className="cf-itile-nm">{i.name}{i.size ? ` · ${i.size}` : ''}</span>
+                          <span className="cf-itile-sub">{onboard} on board{showValue && i.unitCost != null ? ` · ${money(i.unitCost, i.currency)}` : ''}</span>
+                        </div>
+                        {picked && (
+                          <div className="cf-itile-qty">
+                            <button type="button" className="cf-qbtn" onClick={() => bump(i, -1)} disabled={qty <= 0} aria-label="Less">−</button>
+                            <span className="cf-qnum">{qty}</span>
+                            <button type="button" className="cf-qbtn" onClick={() => bump(i, 1)} disabled={qty >= onboard} aria-label="More">+</button>
+                            <span className="cf-itile-of">of {onboard}</span>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    {picked && (
-                      <div className="cf-issue-qty">
-                        <span className="cf-issue-qlbl">Allocate to {crewName.split(' ')[0]}</span>
-                        <button type="button" className="cf-qbtn" onClick={() => bump(i, -1)} disabled={qty <= 0} aria-label="Less">−</button>
-                        <span className="cf-qnum">{qty}</span>
-                        <button type="button" className="cf-qbtn" onClick={() => bump(i, 1)} disabled={qty >= onboard} aria-label="More">+</button>
-                        <span className="cf-issue-of">of {onboard}</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
               {folders.length === 0 && itemsHere.length === 0 && <p className="cf-empty-note">Nothing filed here.</p>}
             </>
           )}

@@ -131,15 +131,20 @@
 .cf-folder-nm { font-weight: 600; font-size: 13.5px; color: #1C1B3A; }
 .cf-folder-ct { font: 700 8px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.6px; text-transform: uppercase; color: #9A93A0; }
 
-.cf-issue { border-bottom: 1px solid #F0F1F5; padding: 12px 2px; }
-.cf-issue.on { background: #FBEFE9; border-radius: 10px; border-bottom-color: transparent; padding: 12px; margin: 2px -6px; }
-.cf-issue-top { display: flex; align-items: center; gap: 11px; }
-.cf-issue-check { background: none; border: none; padding: 0; color: #C65A1A; cursor: pointer; flex: none; }
-.cf-issue-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.cf-issue-qty { display: flex; align-items: center; gap: 10px; margin: 11px 0 0 29px; }
-.cf-issue-qlbl { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.8px; text-transform: uppercase; color: #8B8478; margin-right: 2px; }
+/* Item tiles — image-forward, select square overlaid, allocator when picked. */
+.cf-item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.cf-itile { border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; background: #FFFFFF; display: flex; flex-direction: column; }
+.cf-itile.on { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.cf-itile-media { position: relative; aspect-ratio: 1 / 1; width: 100%; background: #F8FAFC; border: none; padding: 0; cursor: pointer; display: block; }
+.cf-itile-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cf-itile-ph { position: absolute; inset: 0; display: grid; place-items: center; color: #AEB4C2; }
+.cf-itile-check { position: absolute; top: 8px; left: 8px; background: rgba(255, 255, 255, 0.92); border-radius: 6px; padding: 2px; color: #C65A1A; display: grid; place-items: center; box-shadow: 0 1px 3px rgba(28, 27, 58, 0.15); }
+.cf-itile-body { padding: 9px 11px 10px; display: flex; flex-direction: column; gap: 2px; }
+.cf-itile-nm { font-weight: 600; font-size: 13px; color: #1C1B3A; line-height: 1.2; }
+.cf-itile-sub { font-size: 11.5px; color: #8B8478; }
+.cf-itile-qty { display: flex; align-items: center; gap: 8px; padding: 0 11px 12px; }
+.cf-itile-of { font-size: 11px; color: #AEB4C2; }
 .cf-qbtn { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #E5E7EB; background: #FFFFFF; color: #1C1B3A; font-size: 18px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
 .cf-qbtn:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
 .cf-qbtn:disabled { opacity: 0.4; cursor: default; }
-.cf-qnum { min-width: 26px; text-align: center; font-weight: 700; font-size: 15px; color: #1C1B3A; font-variant-numeric: tabular-nums; }
-.cf-issue-of { font-size: 11.5px; color: #AEB4C2; }
+.cf-qnum { min-width: 24px; text-align: center; font-weight: 700; font-size: 15px; color: #1C1B3A; font-variant-numeric: tabular-nums; }
