@@ -313,15 +313,17 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
       margin: 0 0 14px; color: #C65A1A;
     }
     .invoice-meta {
-      font-size: 11px; line-height: 1.7;
-      display: inline-block; text-align: left;
+      display: grid; grid-template-columns: auto auto;
+      column-gap: 20px; row-gap: 3px;
+      justify-content: end; align-items: baseline;
+      font-size: 11px;
     }
     .invoice-meta .label {
-      display: inline-block; min-width: 86px;
+      text-align: left;
       color: #8B8478; font-size: 9px; font-weight: 700;
       letter-spacing: 0.1em; text-transform: uppercase;
     }
-    .invoice-meta .value { color: #1C1B3A; font-weight: 600; }
+    .invoice-meta .value { color: #1C1B3A; font-weight: 600; text-align: right; }
     .invoice-meta .number { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
 
     /* Bonded badge */
@@ -361,6 +363,10 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
       font-size: 10.5px;
       vertical-align: top;
     }
+    /* Flush the outer columns to the page margins so the first column lines up
+       with Bill-To / Terms on the left and the last with the totals on the right. */
+    table.lines th:first-child, table.lines td:first-child { padding-left: 0; }
+    table.lines th:last-child, table.lines td:last-child { padding-right: 0; }
     table.lines th {
       font-size: 9px; letter-spacing: 0.08em;
       text-transform: uppercase; color: #6B7280;
@@ -422,13 +428,12 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     }
     .tax-statement strong { color: #7A3E1C; font-weight: 600; }
 
-    /* Bank block */
+    /* Bank block — borderless editorial section (content flush to the left
+       margin, aligned with Bill-To / line items / terms). */
     section.bank {
-      margin-top: 28px;
-      padding: 14px 16px;
-      background: #FAFAF8;
-      border: 1px solid #ECEAE3;
-      border-radius: 6px;
+      margin-top: 26px;
+      padding: 16px 0 0;
+      border-top: 1px solid #ECEAE3;
     }
     section.bank h3 {
       font-size: 9.5px; letter-spacing: 0.1em;
@@ -483,9 +488,9 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     <div class="invoice-block">
       <h1>INVOICE</h1>
       <div class="invoice-meta">
-        <div><span class="label">Number</span><span class="value number">${escapeHtml(input.invoiceNumber)}</span></div>
-        <div><span class="label">Issued</span><span class="value">${fmtDate(input.issueDate)}</span></div>
-        <div><span class="label">Due</span><span class="value">${fmtDate(input.dueDate)}</span></div>
+        <span class="label">Number</span><span class="value number">${escapeHtml(input.invoiceNumber)}</span>
+        <span class="label">Issued</span><span class="value">${fmtDate(input.issueDate)}</span>
+        <span class="label">Due</span><span class="value">${fmtDate(input.dueDate)}</span>
       </div>
       ${isBonded ? `<div class="bonded-badge">Bonded yacht supply · 0% VAT</div>` : ''}
     </div>
