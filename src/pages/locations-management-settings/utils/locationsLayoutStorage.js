@@ -109,8 +109,8 @@ export const samSegment = async ({ imageBase64, x, y }) => {
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
-  if (!data?.maskBase64) throw new Error('No mask returned.');
-  return data; // { maskBase64, width, height }
+  if (!data?.maskUrl) throw new Error('No mask returned.');
+  return data; // { maskUrl, width, height }
 };
 
 // Doorway links between rooms (undirected). Stored canonically a < b.
