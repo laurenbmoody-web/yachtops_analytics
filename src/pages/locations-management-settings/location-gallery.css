@@ -347,10 +347,12 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-proposal-name{background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:1px 2px;
   border-radius:6px;max-width:150px;overflow:hidden;text-overflow:ellipsis;}
 .dp-proposal-name:hover{background:rgba(255,255,255,.22);}
-.dp-proposal-x{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;
-  border:0;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;font-size:13px;line-height:1;
-  cursor:pointer;flex:none;}
-.dp-proposal-x:hover{background:rgba(255,255,255,.42);}
+.dp-proposal-edit,.dp-proposal-x{display:inline-flex;align-items:center;justify-content:center;
+  width:15px;height:15px;border:0;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;
+  line-height:1;cursor:pointer;flex:none;}
+.dp-proposal-edit{font-size:9.5px;}
+.dp-proposal-x{font-size:13px;}
+.dp-proposal-edit:hover,.dp-proposal-x:hover{background:rgba(255,255,255,.42);}
 
 /* AI review bar — reuses the trace-hint layout, tinted so it reads as a prompt. */
 .dp-ai-review{background:#FBEFE9;border:1px solid #F0D9CC;border-radius:10px;padding:9px 12px;}
