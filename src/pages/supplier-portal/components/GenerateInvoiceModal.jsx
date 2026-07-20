@@ -4,6 +4,7 @@ import { Info } from 'lucide-react';
 import SupplierModal from './SupplierModal';
 import {
   fetchSupplierProfileById,
+  fetchInvoicesForOrder,
   generateSupplierInvoice,
 } from '../utils/supplierStorage';
 import {
@@ -65,6 +66,9 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
+  // Existing invoice for this order (if any) — regenerating replaces it.
+  const [existingInvoice, setExistingInvoice] = useState(null);
+
   // ─── Load profile on open ───────────────────────────────────────────────
   useEffect(() => {
     if (!open || !supplierId) return;
@@ -81,6 +85,17 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
       .finally(() => { if (!cancelled) setLoadingSupplier(false); });
     return () => { cancelled = true; };
   }, [open, supplierId]);
+
+  // Detect a prior invoice so the CTA reads "Regenerate" and we can tell the
+  // supplier the number stays the same / the total replaces the old one.
+  useEffect(() => {
+    if (!open || !orderId) { setExistingInvoice(null); return; }
+    let cancelled = false;
+    fetchInvoicesForOrder(orderId)
+      .then((rows) => { if (!cancelled) setExistingInvoice((rows || [])[0] || null); })
+      .catch(() => { if (!cancelled) setExistingInvoice(null); });
+    return () => { cancelled = true; };
+  }, [open, orderId]);
 
   // Derived: effective categories the supplier has enabled.
   const categories = useMemo(
@@ -286,11 +301,13 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
   }
 
   // Main form
+  const isRegenerate = !!existingInvoice;
+  const isPaid = existingInvoice?.status === 'paid';
   return (
     <SupplierModal
       open={open}
       onClose={onClose}
-      title="Generate invoice"
+      title={isRegenerate ? 'Regenerate invoice' : 'Generate invoice'}
       className="gi-modal"
       footer={
         <>
@@ -301,12 +318,16 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
             type="button"
             className="sp-btn sp-btn-primary"
             onClick={handleGenerate}
-            disabled={submitting || !items || items.length === 0 || blockingItems.length > 0}
-            title={blockingItems.length > 0
-              ? `${blockingItems.length} line${blockingItems.length === 1 ? '' : 's'} still awaiting agreement`
-              : undefined}
+            disabled={submitting || !items || items.length === 0 || blockingItems.length > 0 || isPaid}
+            title={isPaid
+              ? 'This invoice has been paid and can’t be regenerated'
+              : blockingItems.length > 0
+                ? `${blockingItems.length} line${blockingItems.length === 1 ? '' : 's'} still awaiting agreement`
+                : undefined}
           >
-            {submitting ? 'Generating…' : 'Generate invoice'}
+            {submitting
+              ? (isRegenerate ? 'Regenerating…' : 'Generating…')
+              : (isRegenerate ? 'Regenerate invoice' : 'Generate invoice')}
           </button>
         </>
       }
@@ -324,6 +345,21 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
       )}
 
       {error && <div className="gi-alert">{error}</div>}
+
+      {/* Regenerate context — one invoice per order; regenerating replaces the
+          existing one (same number, outstanding total updated), so the KPI
+          isn't double-counted. */}
+      {isRegenerate && (
+        <div className="gi-note">
+          <span>
+            {isPaid ? (
+              <><strong>{existingInvoice.invoice_number} is paid.</strong> A paid invoice can’t be regenerated.</>
+            ) : (
+              <><strong>Replaces {existingInvoice.invoice_number}.</strong> Regenerating keeps the same invoice number and updates the outstanding total — it won’t add a second invoice.</>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* Tax treatment — one segmented row instead of two stacked toggle cards.
           Standard / Bonded / Reverse charge are mutually exclusive; each pill
