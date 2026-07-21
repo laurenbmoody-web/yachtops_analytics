@@ -24,8 +24,15 @@
 .cv-no { margin-top: 16px; font-size: 16px; letter-spacing: 2px; font-variant-numeric: tabular-nums; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
 .cv-lg .cv-no { font-size: 18px; letter-spacing: 2.5px; }
 .cv-sm .cv-no { font-size: 14px; letter-spacing: 1.5px; margin-top: 12px; }
-.cv-cashglyph { width: 40px; height: 30px; border-radius: 7px; margin-top: 22px; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center; }
-.cv-cashglyph svg { width: 20px; height: 20px; color: #fff; }
+/* cash / petty-cash = a wallet float, not a card */
+.cv-cash { background: linear-gradient(140deg, #2C5344 0%, #17281F 65%); }
+.cv-cash .cv-brand { letter-spacing: 1.5px; }
+.cv-wallet { margin-top: 20px; width: 52px; height: 52px; border-radius: 13px; background: rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; }
+.cv-wallet svg { width: 28px; height: 28px; color: #C7E8D3; }
+.cv-sm .cv-wallet { margin-top: 12px; width: 42px; height: 42px; border-radius: 11px; }
+.cv-sm .cv-wallet svg { width: 23px; height: 23px; }
+.cv-lg .cv-wallet { margin-top: 22px; }
+.cv-cashword { font-size: 10px; font-weight: 800; letter-spacing: 2px; color: rgba(255,255,255,0.5); }
 .cv-btm { position: absolute; left: 18px; right: 18px; bottom: 16px; display: flex; align-items: flex-end; justify-content: space-between; }
 .cv-lg .cv-btm { left: 22px; right: 22px; bottom: 20px; }
 .cv-holder { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
