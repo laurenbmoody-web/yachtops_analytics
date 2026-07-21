@@ -39,7 +39,6 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const [imageUrl, setImageUrl] = useState(item?.imageUrl || '');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [removingBg, setRemovingBg] = useState(false);
   const [isolating, setIsolating] = useState(false);
   const [originalUrl, setOriginalUrl] = useState(''); // pre-cutout image, for undo
   const [bgError, setBgError] = useState('');
@@ -173,31 +172,10 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
     setUploading(false);
   };
 
-  // Background removal — a manual button (only spends a fal call when needed).
-  // Sends the current image to the uniform-cutout edge function and swaps in the
-  // garment-on-transparent result; keeps the original for one-tap undo.
-  const removeBg = async () => {
-    if (!imageUrl || removingBg) return;
-    setRemovingBg(true); setBgError('');
-    try {
-      const { data, error: fnErr } = await supabase.functions.invoke('uniform-cutout', { body: { imageUrl } });
-      if (fnErr) {
-        // Surface the function's real reason (fal status / detail) so failures
-        // are diagnosable instead of a blanket "try again".
-        let detail = fnErr?.message || '';
-        try { const body = await fnErr?.context?.json?.(); if (body?.detail || body?.error) detail = body.detail || body.error; } catch { /* body not JSON */ }
-        setBgError(`Couldn’t remove the background — ${detail || 'try again.'}`.slice(0, 280));
-      } else if (!data?.url) {
-        setBgError('Couldn’t remove the background — no image came back.');
-      } else { setOriginalUrl(imageUrl); setImageUrl(data.url); }
-    } catch (e) { setBgError(`Couldn’t remove the background — ${e?.message || 'try again.'}`); }
-    setRemovingBg(false);
-  };
-
-  // Isolate just the garment (drop the person too). SAM2 segments the object at
-  // a point; for these product shots the garment dominates the frame, so we
-  // auto-point at the upper-centre. The mask is composited onto the photo client-
-  // side (canvas destination-in) and the transparent cut-out uploaded.
+  // Cut out just the item — drops the person AND the background. SAM2 segments
+  // the object at a point; for these product shots the item dominates the frame,
+  // so we auto-point at the upper-centre. The mask is composited onto the photo
+  // client-side (canvas destination-in) and the transparent cut-out uploaded.
   const loadImg = (src) => new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -207,7 +185,7 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   });
 
   const isolateGarment = async () => {
-    if (!imageUrl || isolating || removingBg) return;
+    if (!imageUrl || isolating) return;
     setIsolating(true); setBgError('');
     try {
       const img = await loadImg(imageUrl);
@@ -338,10 +316,7 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
                 originalUrl ? (
                   <button type="button" className="uim-mini" onClick={() => { setImageUrl(originalUrl); setOriginalUrl(''); }}>↺ Use original</button>
                 ) : (
-                  <>
-                    <button type="button" className="uim-mini" onClick={removeBg} disabled={removingBg || isolating}><Icon name="Scissors" size={12} /> {removingBg ? 'Removing…' : 'Remove background'}</button>
-                    <button type="button" className="uim-mini" onClick={isolateGarment} disabled={removingBg || isolating}><Icon name="Shirt" size={12} /> {isolating ? 'Isolating…' : 'Isolate garment'}</button>
-                  </>
+                  <button type="button" className="uim-mini" onClick={isolateGarment} disabled={isolating}><Icon name="Scissors" size={12} /> {isolating ? 'Cleaning up…' : 'Cut out the item'}</button>
                 )
               )}
               {uploadError && <span className="uim-bg-err">{uploadError}</span>}
