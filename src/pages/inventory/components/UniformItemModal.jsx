@@ -180,9 +180,16 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
     setRemovingBg(true); setBgError('');
     try {
       const { data, error: fnErr } = await supabase.functions.invoke('uniform-cutout', { body: { imageUrl } });
-      if (fnErr || !data?.url) setBgError('Couldn’t remove the background — try again.');
-      else { setOriginalUrl(imageUrl); setImageUrl(data.url); }
-    } catch { setBgError('Couldn’t remove the background — try again.'); }
+      if (fnErr) {
+        // Surface the function's real reason (fal status / detail) so failures
+        // are diagnosable instead of a blanket "try again".
+        let detail = fnErr?.message || '';
+        try { const body = await fnErr?.context?.json?.(); if (body?.detail || body?.error) detail = body.detail || body.error; } catch { /* body not JSON */ }
+        setBgError(`Couldn’t remove the background — ${detail || 'try again.'}`.slice(0, 280));
+      } else if (!data?.url) {
+        setBgError('Couldn’t remove the background — no image came back.');
+      } else { setOriginalUrl(imageUrl); setImageUrl(data.url); }
+    } catch (e) { setBgError(`Couldn’t remove the background — ${e?.message || 'try again.'}`); }
     setRemovingBg(false);
   };
 

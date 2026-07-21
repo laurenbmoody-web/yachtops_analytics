@@ -64,24 +64,26 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'no cutout returned', detail: `response keys: ${Object.keys(data || {}).join(', ')}` }, 502);
     }
 
-    // 2. Fetch the cutout bytes (fal media is CORS-open / server fetch is fine).
-    const imgRes = await fetch(cutoutUrl);
-    if (!imgRes.ok) return json({ error: 'could not fetch the cutout' }, 502);
-    const bytes = new Uint8Array(await imgRes.arrayBuffer());
-
-    // 3. Store it permanently in item-images (service role), return its public URL.
-    const path = `inventory/cutouts/${Date.now()}.png`;
-    const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/item-images/${path}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'image/png', 'x-upsert': 'true' },
-      body: bytes,
-    });
-    if (!upRes.ok) {
-      const t = await upRes.text();
-      console.error('[uniform-cutout] store error:', upRes.status, t.slice(0, 300));
-      return json({ error: 'could not store the cutout', detail: t.slice(0, 300) }, 502);
+    // 2 & 3. Try to persist the cutout in item-images (service role) so the URL
+    // is permanent. If any of that fails, fall back to fal's own URL so the
+    // feature still works (ephemeral, but the client saves the item which pins
+    // the image reference). Persistence problems must not break the cutout.
+    try {
+      const imgRes = await fetch(cutoutUrl);
+      if (!imgRes.ok) throw new Error(`fetch cutout ${imgRes.status}`);
+      const bytes = new Uint8Array(await imgRes.arrayBuffer());
+      const path = `inventory/cutouts/${Date.now()}.png`;
+      const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/item-images/${path}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'image/png', 'x-upsert': 'true' },
+        body: bytes,
+      });
+      if (!upRes.ok) throw new Error(`store ${upRes.status}: ${(await upRes.text()).slice(0, 200)}`);
+      return json({ url: `${SUPABASE_URL}/storage/v1/object/public/item-images/${path}` });
+    } catch (persistErr: any) {
+      console.error('[uniform-cutout] persist failed, returning fal url:', String(persistErr?.message || persistErr));
+      return json({ url: cutoutUrl, ephemeral: true });
     }
-    return json({ url: `${SUPABASE_URL}/storage/v1/object/public/item-images/${path}` });
   } catch (err: any) {
     console.error('[uniform-cutout] error:', err);
     return json({ error: String(err?.message || err) }, 500);
