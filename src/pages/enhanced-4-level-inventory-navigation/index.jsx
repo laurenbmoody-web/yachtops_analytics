@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { dateLocale, formatDate } from '../../utils/dateFormat';
 import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
@@ -1065,48 +1066,40 @@ const ItemAppearancePopover = ({ item, anchorRect, onClose, onSave }) => {
 
   const filteredIcons = FOLDER_ICON_PALETTE?.filter(n => !iconSearch || n?.toLowerCase()?.includes(iconSearch?.toLowerCase()));
 
-  return (
-    <div ref={popoverRef} style={style} className="bg-card border border-border rounded-2xl shadow-xl overflow-hidden">
-      {/* Header tabs */}
-      <div className="flex border-b border-border">
-        {[{ id: 'icon', label: 'Icon' }, { id: 'color', label: 'Colour' }]?.map(t => (
-          <button
-            key={t?.id}
-            onClick={() => setTab(t?.id)}
-            className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${
-              tab === t?.id ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {t?.label}
-          </button>
-        ))}
-        <button onClick={onClose} className="px-3 text-muted-foreground hover:text-foreground">
-          <Icon name="X" size={14} />
-        </button>
+  return createPortal(
+    <div ref={popoverRef} style={style} className="iap">
+      <div className="iap-head">
+        <div className="iap-tabs">
+          {[{ id: 'icon', label: 'Icon' }, { id: 'color', label: 'Colour' }]?.map(t => (
+            <button
+              key={t?.id}
+              onClick={() => setTab(t?.id)}
+              className={`iap-tab${tab === t?.id ? ' on' : ''}`}
+            >
+              {t?.label}
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} className="iap-x" aria-label="Close"><Icon name="X" size={15} /></button>
       </div>
 
-      <div className="p-3">
+      <div className="iap-body">
         {/* Preview strip */}
-        <div className="flex items-center gap-2 mb-3 p-2 bg-muted/40 rounded-xl">
+        <div className="iap-preview">
           <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={selectedColor ? { backgroundColor: selectedColor + '25', border: `1.5px solid ${selectedColor}50` } : {}}
+            className="iap-swatch"
+            style={selectedColor ? { backgroundColor: selectedColor + '22', border: `1.5px solid ${selectedColor}55`, color: selectedColor } : {}}
           >
-            <Icon
-              name={selectedIcon || 'Package'}
-              size={18}
-              style={selectedColor ? { color: selectedColor } : {}}
-              className={!selectedColor ? 'text-muted-foreground' : ''}
-            />
+            <Icon name={selectedIcon || 'Package'} size={18} />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-foreground truncate">{item?.name}</p>
-            <p className="text-xs text-muted-foreground">{selectedIcon || 'Default icon'}{selectedColor ? ` · ${selectedColor}` : ''}</p>
+          <div className="iap-preview-info">
+            <p className="iap-preview-name">{item?.name}</p>
+            <p className="iap-preview-sub">{selectedIcon || 'Default icon'}{selectedColor ? ` · ${selectedColor}` : ''}</p>
           </div>
           {(selectedIcon || selectedColor) && (
             <button
               onClick={() => { setSelectedIcon(null); setSelectedColor(null); handleSave(null, null); }}
-              className="text-xs text-muted-foreground hover:text-foreground underline flex-shrink-0"
+              className="iap-clear"
             >
               Clear
             </button>
@@ -1120,19 +1113,17 @@ const ItemAppearancePopover = ({ item, anchorRect, onClose, onSave }) => {
               value={iconSearch}
               onChange={e => setIconSearch(e?.target?.value)}
               placeholder="Search icons…"
-              className="w-full px-2.5 py-1.5 text-xs bg-background border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/30 text-foreground mb-2"
+              className="iap-search"
             />
-            <div className="grid grid-cols-8 gap-1 max-h-36 overflow-y-auto">
+            <div className="iap-icongrid">
               {filteredIcons?.map(iconName => (
                 <button
                   key={iconName}
                   title={iconName}
                   onClick={() => { setSelectedIcon(iconName); handleSave(iconName, selectedColor); }}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                    selectedIcon === iconName ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-                  }`}
+                  className={`iap-icon${selectedIcon === iconName ? ' on' : ''}`}
                 >
-                  <Icon name={iconName} size={14} />
+                  <Icon name={iconName} size={15} />
                 </button>
               ))}
             </div>
@@ -1141,72 +1132,111 @@ const ItemAppearancePopover = ({ item, anchorRect, onClose, onSave }) => {
 
         {tab === 'color' && (
           <>
-            {/* Preset swatches */}
-            <div className="grid grid-cols-5 gap-2 mb-3">
+            <div className="iap-swatches">
               {ITEM_COLOR_PRESETS?.map(hex => (
                 <button
                   key={hex}
                   onClick={() => { setSelectedColor(hex); handleSave(selectedIcon, hex); }}
-                  className="w-full aspect-square rounded-lg transition-transform hover:scale-110 flex-shrink-0"
-                  style={{
-                    backgroundColor: hex,
-                    outline: selectedColor === hex ? `2.5px solid ${hex}` : '2.5px solid transparent',
-                    outlineOffset: 2,
-                  }}
+                  className={`iap-color${selectedColor === hex ? ' on' : ''}`}
+                  style={{ backgroundColor: hex, '--sw': hex }}
                   title={hex}
                 />
               ))}
             </div>
-            {/* Full spectrum */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-muted-foreground flex-shrink-0">Custom</label>
+            <div className="iap-custom">
+              <label>Custom</label>
               <input
                 type="color"
-                value={selectedColor || '#4A90E2'}
+                value={selectedColor || '#C65A1A'}
                 onChange={e => setSelectedColor(e?.target?.value)}
                 onBlur={e => handleSave(selectedIcon, e?.target?.value)}
-                className="h-8 flex-1 rounded-lg border border-border cursor-pointer bg-background"
-                style={{ padding: '2px 4px' }}
+                className="iap-colorinput"
               />
-              {selectedColor && (
-                <span className="text-xs font-mono text-muted-foreground">{selectedColor}</span>
-              )}
+              {selectedColor && <span className="iap-hex">{selectedColor}</span>}
             </div>
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
 // ─── Item Row (List View) ──────────────────────────────────────────────────────
 // ─── Item actions menu (⋯) — mirrors the folder menu on item tiles ───────────────
-const ItemActionsMenu = ({ item, onEdit, onMove, onClone, onDelete, size = 28 }) => {
+const ItemActionsMenu = ({ item, onEdit, onAppearance, onMove, onClone, onDelete, size = 28 }) => {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [menuStyle, setMenuStyle] = useState(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+
   useEffect(() => {
-    const handleClick = (e) => { if (ref?.current && !ref?.current?.contains(e?.target)) setOpen(false); };
+    if (!open) return;
+    const handleClick = (e) => {
+      if (menuRef?.current?.contains(e?.target) || triggerRef?.current?.contains(e?.target)) return;
+      setOpen(false);
+    };
+    const handleKey = (e) => { if (e?.key === 'Escape') setOpen(false); };
+    const handleScroll = () => setOpen(false);
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+    document.addEventListener('keydown', handleKey);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [open]);
+
+  // Anchor the menu to the trigger with fixed positioning so a card's
+  // overflow:hidden can't clip it (the old absolute dropdown was invisible).
+  const toggle = (e) => {
+    e?.stopPropagation();
+    if (open) { setOpen(false); return; }
+    const r = triggerRef?.current?.getBoundingClientRect();
+    if (r) {
+      const W = window?.innerWidth || 800;
+      const H = window?.innerHeight || 600;
+      const width = 200;
+      const rowCount = 4 + (onAppearance ? 1 : 0);
+      const estH = 60 + rowCount * 40;
+      let left = r.right - width;
+      if (left < 8) left = 8;
+      if (left + width > W - 8) left = W - width - 8;
+      let top = r.bottom + 6;
+      if (top + estH > H - 8) top = Math.max(8, r.top - estH - 6);
+      setMenuStyle({ position: 'fixed', top, left, right: 'auto', width, zIndex: 'var(--z-overlay, 1000)' });
+    }
+    setOpen(true);
+  };
+
   const rowBtn = (iconName, label, fn, opts = {}) => (
     <button className={`inv-menuitem${opts?.danger ? ' danger' : ''}`} onClick={(e) => { e?.stopPropagation(); setOpen(false); fn?.(item); }}>
       <Icon name={iconName} size={15} /><span>{label}</span>
     </button>
   );
+
   return (
-    <div className="inv-actionsmenu" ref={ref}>
-      <button className="inv-menutrigger" title="Item actions" style={{ width: size, height: size }}
-        onClick={(e) => { e?.stopPropagation(); setOpen(o => !o); }}>
+    <div className="inv-actionsmenu">
+      <button ref={triggerRef} className="inv-menutrigger" title="Item actions" style={{ width: size, height: size }} onClick={toggle}>
         <Icon name="MoreHorizontal" size={16} />
       </button>
-      {open && (
-        <div className="inv-menu" onClick={(e) => e?.stopPropagation()}>
+      {open && menuStyle && createPortal(
+        <div ref={menuRef} className="inv-menu" style={menuStyle} onClick={(e) => e?.stopPropagation()}>
+          {item?.name && <div className="inv-menu-head" title={item?.name}>{item?.name}</div>}
           {onEdit && rowBtn('Pencil', 'Edit', onEdit)}
+          {onAppearance && (
+            <button className="inv-menuitem" onClick={(e) => { e?.stopPropagation(); const r = triggerRef?.current?.getBoundingClientRect(); setOpen(false); onAppearance?.(r); }}>
+              <Icon name="Palette" size={15} /><span>Icon &amp; colour</span>
+            </button>
+          )}
           {onMove && rowBtn('FolderInput', 'Move', onMove)}
           {onClone && rowBtn('Copy', 'Duplicate', onClone)}
           {onDelete && (<><div className="inv-menu-sep" />{rowBtn('Trash2', 'Delete', onDelete, { danger: true })}</>)}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -1398,7 +1428,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, o
             </button>
           )}
           {canEdit && (
-            <ItemActionsMenu item={item} onEdit={onEdit} onMove={onMove} onClone={onClone} onDelete={onDelete} />
+            <ItemActionsMenu item={item} onEdit={onEdit} onAppearance={(r) => setAppearanceAnchor(r)} onMove={onMove} onClone={onClone} onDelete={onDelete} />
           )}
         </div>
       </div>
@@ -1569,14 +1599,6 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
             />
           </span>
         )}
-        {/* Appearance edit button */}
-        <button
-          onClick={(e) => { e?.stopPropagation(); setAppearanceAnchor(e?.currentTarget?.getBoundingClientRect()); }}
-          className="inv-media-btn inv-card-media-tr"
-          title="Customise icon & colour"
-        >
-          <Icon name="Palette" size={12} />
-        </button>
         {isLow && (
           <div className="inv-media-badge-low">Low</div>
         )}
@@ -1589,7 +1611,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
         </button>
         {canEdit && (
           <div className="inv-card-media-bl inv-card-menu">
-            <ItemActionsMenu item={item} onEdit={onEdit} onMove={onMove} onClone={onClone} onDelete={onDelete} size={28} />
+            <ItemActionsMenu item={item} onEdit={onEdit} onAppearance={(r) => setAppearanceAnchor(r)} onMove={onMove} onClone={onClone} onDelete={onDelete} size={28} />
           </div>
         )}
       </div>
