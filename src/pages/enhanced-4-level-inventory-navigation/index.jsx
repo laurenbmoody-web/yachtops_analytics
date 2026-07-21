@@ -1985,7 +1985,9 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
   ]?.join(' ');
   return (
     <div onClick={handleTileClick} className={cardCls}>
-      <div className="inv-card-media">
+      {gripEl}
+      {actions}
+      <div className="inv-foldercard-inner">
         <div className="inv-foldericon-lg">
           <Icon
             name={icon || (depth === 0 ? 'MapPin' : 'FolderOpen')}
@@ -1993,10 +1995,6 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
             style={color ? { color } : undefined}
           />
         </div>
-        {gripEl}
-        {actions}
-      </div>
-      <div className="inv-card-body">
         {nameEl}
         {meta}
       </div>

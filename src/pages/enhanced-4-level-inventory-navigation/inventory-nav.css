@@ -465,12 +465,17 @@
 .inv-card.itemdragging { opacity: 0.4; }
 
 /* folder rendered as a same-size tile (unified grid with items) — clean white
-   card with a small tinted icon badge (NOT a cream fill). */
-.inv-card.foldercard { cursor: pointer; }
-.inv-card.foldercard .inv-card-media { background: #FFFFFF; }
+   card with the name sitting directly under a small tinted icon badge, the
+   whole group centred in the tile. */
+.inv-card.foldercard { cursor: pointer; background: #FFFFFF; }
+.inv-foldercard-inner {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 18px 16px; text-align: center;
+}
 .inv-card.foldercard .inv-foldericon-lg {
   width: 64px; height: 64px; border-radius: 17px; background: #FBEFE9;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .inv-card.foldercard .inv-foldericon-lg svg { color: #C65A1A; width: 30px; height: 30px; }
 .inv-card.foldercard .inv-card-body { gap: 4px; }
