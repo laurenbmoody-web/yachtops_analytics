@@ -407,9 +407,19 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-adj-info{display:inline-flex;align-items:center;color:var(--lg-faint,#AEB4C2);cursor:help;}
 .dp-adj-info svg{width:15px;height:15px;}
 .dp-adj-info:hover{color:var(--lg-muted,#8B8478);}
-/* Compact icon buttons in the Adjust bar (tooltips carry the label). */
-.dp-adj-ic{padding:0;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;}
-.dp-adj-ic svg{width:16px;height:16px;}
+/* "More" overflow menu in the Adjust bar — keeps the bar to Save/Cancel/More,
+   with the less-common actions as legible labelled items in a popover. */
+.dp-adj-more{position:relative;display:inline-flex;}
+.dp-adj-backdrop{position:fixed;inset:0;z-index:40;}
+.dp-adj-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:41;min-width:190px;
+  background:#fff;border:1px solid #ECEAE3;border-radius:12px;padding:6px;
+  box-shadow:0 24px 60px -16px rgba(28,27,58,.32);display:flex;flex-direction:column;gap:2px;}
+.dp-adj-menu button{display:block;width:100%;text-align:left;border:0;background:none;cursor:pointer;
+  font-family:var(--lg-sans);font-size:13px;color:var(--lg-ink);padding:8px 10px;border-radius:8px;}
+.dp-adj-menu button:hover:not(:disabled){background:#F6F7F9;}
+.dp-adj-menu button:disabled{color:var(--lg-faint,#AEB4C2);cursor:default;}
+.dp-adj-menu button.is-danger{color:#A32D2D;}
+.dp-adj-menu button.is-danger:hover{background:#FBEEEE;}
 .dp-cat-pick{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;}
 .dp-cat-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;cursor:pointer;
   font-family:var(--lg-sans);font-size:11.5px;font-weight:600;color:var(--lg-muted,#6B7280);
