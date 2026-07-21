@@ -1,8 +1,8 @@
 // Cargo Accounts — Department Cards (/accounts/cards). The hub between the vessel
-// overview and a holder's month-end reconcile. Defaults to a compact account
-// summary (all visible, scannable); toggle to full card faces. Search + filter +
-// sort across every department's cards & floats. Click one → /accounts/my.
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// overview and a holder's month-end reconcile. Defaults to a scannable LIST of
+// accounts; toggle to full card faces. Search + Filter + Sort across every
+// department's cards & floats. Click one → /accounts/my.
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
@@ -32,8 +32,8 @@ const FUNDS_FILTERS = [
 ];
 const SORTS = [
   { value: 'holder', label: 'By department' },
-  { value: 'balance', label: 'Balance (high→low)' },
-  { value: 'name', label: 'Name (A→Z)' },
+  { value: 'balance', label: 'Balance (high → low)' },
+  { value: 'name', label: 'Name (A → Z)' },
 ];
 const initials = (role) => {
   if (!role) return '—';
@@ -53,10 +53,12 @@ export default function DepartmentCards() {
   const [loading, setLoading] = useState(true);
   const [accounts, setAccounts] = useState([]);
   const [reconByAccount, setReconByAccount] = useState({});
-  const [view, setView] = useState('accounts'); // accounts | cards
+  const [view, setView] = useState('list'); // list | cards
   const [q, setQ] = useState('');
   const [funds, setFunds] = useState('all');
   const [sort, setSort] = useState('holder');
+  const [menu, setMenu] = useState(null); // 'filter' | 'sort' | null
+  const toolRef = useRef(null);
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
@@ -73,6 +75,13 @@ export default function DepartmentCards() {
   }, [activeTenantId, period]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Close the Filter/Sort menus on outside click.
+  useEffect(() => {
+    const onDoc = (e) => { if (toolRef.current && !toolRef.current.contains(e.target)) setMenu(null); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, []);
 
   const groups = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -95,8 +104,11 @@ export default function DepartmentCards() {
   const total = useMemo(() => groups.reduce((n, g) => n + g.cards.length, 0), [groups]);
   const openReconcile = (holder, accountId) =>
     navigate(`/accounts/my?holder=${encodeURIComponent(holder)}&account=${accountId}`);
-
   const statusFor = (id) => STATUS[reconByAccount[id] || 'open'];
+  const fundsMeta = (a) => ({
+    cls: a.kind === 'petty_cash' ? 'petty' : (a.funds_type === 'owner' ? 'owner' : a.funds_type === 'charter_apa' ? 'apa' : 'gen'),
+    label: a.kind === 'petty_cash' ? 'Petty cash' : FUNDS_LABEL[a.funds_type] || 'General',
+  });
 
   const renderCard = (holder, a) => {
     const st = statusFor(a.id);
@@ -111,24 +123,20 @@ export default function DepartmentCards() {
     );
   };
 
-  const renderBox = (holder, a) => {
+  const renderRow = (holder, a) => {
     const st = statusFor(a.id);
-    const fundsCls = a.kind === 'petty_cash' ? 'petty' : (a.funds_type === 'owner' ? 'owner' : a.funds_type === 'charter_apa' ? 'apa' : 'gen');
-    const fundsLabel = a.kind === 'petty_cash' ? 'Petty cash' : FUNDS_LABEL[a.funds_type] || 'General';
+    const fm = fundsMeta(a);
     return (
-      <button key={a.id} type="button" className="dc-abox" onClick={() => openReconcile(holder, a.id)}>
-        <div className="dc-abox-top">
-          <span className={`ca-aico ${a.kind}`}><Icon name={KIND_ICON[a.kind] || 'CreditCard'} size={17} /></span>
-          <div className="dc-abox-id">
-            <div className="dc-abox-name">{a.name}{a.card_last4 ? ` ····${a.card_last4}` : ''}</div>
-            <div className="dc-abox-sub">{a.provider || (a.kind === 'petty_cash' ? "Ship's float" : 'Card')} · {a.currency}</div>
-          </div>
-          <span className={`ca-tag ${fundsCls}`}><i className="ca-tag-dot" />{fundsLabel}</span>
-        </div>
-        <div className="dc-abox-bot">
-          <span className="dc-abox-bal ca-num">{formatMoney(a.balance, a.currency)}</span>
-          <span className={`dc-cstat ${st.cls}`}><i />{st.label}</span>
-        </div>
+      <button key={a.id} type="button" className="dc-lrow" onClick={() => openReconcile(holder, a.id)}>
+        <span className={`ca-aico ${a.kind}`}><Icon name={KIND_ICON[a.kind] || 'CreditCard'} size={17} /></span>
+        <span className="dc-lwho">
+          <span className="dc-lname">{a.name}{a.card_last4 ? ` ····${a.card_last4}` : ''}</span>
+          <span className="dc-lsub">{a.provider || (a.kind === 'petty_cash' ? "Ship's float" : 'Card')}</span>
+        </span>
+        <span className={`ca-tag ${fm.cls}`}><i className="ca-tag-dot" />{fm.label}</span>
+        <span className="dc-lcur">{a.currency}</span>
+        <span className="dc-lbal ca-num">{formatMoney(a.balance, a.currency)}</span>
+        <span className={`dc-cstat ${st.cls}`}><i />{st.label}</span>
       </button>
     );
   };
@@ -154,19 +162,48 @@ export default function DepartmentCards() {
           </div>
 
           {/* toolbar */}
-          <div className="dc-tool">
+          <div className="dc-tool" ref={toolRef}>
             <div className="dc-search">
               <Icon name="Search" size={15} />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a card or holder…" />
             </div>
-            <select className="dc-sel" value={funds} onChange={(e) => setFunds(e.target.value)}>
-              {FUNDS_FILTERS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
-            </select>
-            <select className="dc-sel" value={sort} onChange={(e) => setSort(e.target.value)}>
-              {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
+
+            <div className="dc-dd">
+              <button type="button" className={`dc-ddbtn ${funds !== 'all' ? 'active' : ''}`} onClick={() => setMenu(menu === 'filter' ? null : 'filter')}>
+                <Icon name="Filter" size={15} /> Filter{funds !== 'all' && <span className="dc-dddot" />}
+              </button>
+              {menu === 'filter' && (
+                <div className="dc-ddmenu">
+                  <div className="dc-ddlabel">Funds</div>
+                  {FUNDS_FILTERS.map((f) => (
+                    <button key={f.value} type="button" className={`dc-ddopt ${funds === f.value ? 'on' : ''}`}
+                      onClick={() => { setFunds(f.value); setMenu(null); }}>
+                      {f.label}{funds === f.value && <Icon name="Check" size={14} />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="dc-dd">
+              <button type="button" className={`dc-ddbtn ${sort !== 'holder' ? 'active' : ''}`} onClick={() => setMenu(menu === 'sort' ? null : 'sort')}>
+                <Icon name="ArrowUpDown" size={15} /> Sort{sort !== 'holder' && <span className="dc-dddot" />}
+              </button>
+              {menu === 'sort' && (
+                <div className="dc-ddmenu">
+                  <div className="dc-ddlabel">Sort by</div>
+                  {SORTS.map((s) => (
+                    <button key={s.value} type="button" className={`dc-ddopt ${sort === s.value ? 'on' : ''}`}
+                      onClick={() => { setSort(s.value); setMenu(null); }}>
+                      {s.label}{sort === s.value && <Icon name="Check" size={14} />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="dc-toggle">
-              <button className={view === 'accounts' ? 'on' : ''} onClick={() => setView('accounts')}><Icon name="List" size={15} /> Accounts</button>
+              <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}><Icon name="List" size={15} /> List</button>
               <button className={view === 'cards' ? 'on' : ''} onClick={() => setView('cards')}><Icon name="CreditCard" size={15} /> Cards</button>
             </div>
           </div>
@@ -191,7 +228,7 @@ export default function DepartmentCards() {
                 </div>
                 {view === 'cards'
                   ? <div className="dc-cards">{g.cards.map((a) => renderCard(g.holder, a))}</div>
-                  : <div className="dc-boxes">{g.cards.map((a) => renderBox(g.holder, a))}</div>}
+                  : <div className="dc-list">{g.cards.map((a) => renderRow(g.holder, a))}</div>}
               </section>
             ))
           )}

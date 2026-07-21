@@ -23,18 +23,30 @@
 .dc-tool { display: flex; align-items: center; gap: 10px; margin: 18px 0 4px; flex-wrap: wrap; }
 .dc-search { flex: 1; min-width: 200px; display: flex; align-items: center; gap: 8px; border: 1px solid #E6E8EF; border-radius: 10px; padding: 9px 13px; background: #fff; color: #AEB4C2; }
 .dc-search input { border: 0; background: transparent; outline: none; font: inherit; font-size: 13.5px; flex: 1; color: #1C1B3A; }
-.dc-sel { border: 1px solid #E6E8EF; border-radius: 10px; padding: 9px 12px; font: inherit; font-size: 13px; font-weight: 600; color: #4B4A66; background: #fff; cursor: pointer; }
+/* Filter / Sort dropdown buttons (always labelled) */
+.dc-dd { position: relative; }
+.dc-ddbtn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid #E6E8EF; border-radius: 10px; padding: 9px 14px; font: inherit; font-size: 13px; font-weight: 700; color: #4B4A66; background: #fff; cursor: pointer; }
+.dc-ddbtn:hover { border-color: #D5D2CB; }
+.dc-ddbtn.active { color: #C65A1A; border-color: #E6C9B8; }
+.dc-dddot { width: 6px; height: 6px; border-radius: 999px; background: #C65A1A; margin-left: 1px; }
+.dc-ddmenu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; min-width: 200px; background: #fff; border: 1px solid #E6E8EF; border-radius: 12px; box-shadow: 0 20px 48px -16px rgba(28,27,58,0.28); padding: 6px; }
+.dc-ddlabel { font-size: 9px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: #8B8478; padding: 7px 9px 4px; }
+.dc-ddopt { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600; color: #1C1B3A; padding: 8px 9px; border-radius: 8px; cursor: pointer; }
+.dc-ddopt:hover { background: #F8FAFC; }
+.dc-ddopt.on { color: #C65A1A; }
+.dc-ddopt svg { color: #C65A1A; }
+
 .dc-toggle { display: inline-flex; background: #F1F5F9; border-radius: 10px; padding: 3px; }
 .dc-toggle button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; font: inherit; font-size: 12.5px; font-weight: 700; color: #8B8478; padding: 7px 13px; border-radius: 8px; cursor: pointer; }
 .dc-toggle button.on { background: #fff; color: #1C1B3A; box-shadow: 0 1px 3px rgba(28,27,58,0.14); }
 
-/* compact account boxes */
-.dc-boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-.dc-abox { text-align: left; background: #fff; border: 1px solid #E6E8EF; border-radius: 14px; padding: 14px 16px; cursor: pointer; font-family: inherit; transition: border-color 0.14s, box-shadow 0.14s; display: flex; flex-direction: column; gap: 12px; }
-.dc-abox:hover { border-color: #D5D2CB; box-shadow: 0 8px 20px -14px rgba(28,27,58,0.35); }
-.dc-abox-top { display: flex; align-items: center; gap: 11px; }
-.dc-abox-id { min-width: 0; flex: 1; }
-.dc-abox-name { font-size: 14px; font-weight: 700; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dc-abox-sub { font-size: 10.5px; color: #8B8478; margin-top: 2px; }
-.dc-abox-bot { display: flex; align-items: center; justify-content: space-between; }
-.dc-abox-bal { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: #1C1B3A; }
+/* list view — actual rows, hairline separated */
+.dc-list { border-top: 1px solid #EEF0F4; }
+.dc-lrow { display: grid; grid-template-columns: 34px minmax(0,1fr) 150px 52px 130px 130px; align-items: center; gap: 16px; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid #EEF0F4; padding: 0 6px; height: 58px; cursor: pointer; font-family: inherit; transition: background 0.12s; }
+.dc-lrow:hover { background: #F8FAFC; }
+.dc-lwho { min-width: 0; display: flex; flex-direction: column; }
+.dc-lname { font-size: 14px; font-weight: 600; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dc-lsub { font-size: 10.5px; color: #8B8478; margin-top: 2px; }
+.dc-lcur { font-size: 11px; color: #AEB4C2; letter-spacing: 0.5px; text-align: right; }
+.dc-lbal { font-family: 'DM Serif Display', Georgia, serif; font-size: 19px; color: #1C1B3A; text-align: right; }
+.dc-lrow .dc-cstat { justify-self: end; }
