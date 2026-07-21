@@ -9,11 +9,11 @@
 //            doorway; links render as lines on the plan (vessel_space_links).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck, samSegment, recordDeckShapeSample } from '../utils/locationsLayoutStorage';
+import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck, recordDeckShapeSample } from '../utils/locationsLayoutStorage';
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace, archiveSpace } from '../utils/locationsHierarchyStorage';
 import { simplifyClosed } from '../utils/deckTrace';
-import { segmentDeck, regionAtPoint, regionContour, splitRegionBySeeds, maskToNodes } from '../utils/deckSegment';
+import { segmentDeck, regionAtPoint, regionContour, splitRegionBySeeds } from '../utils/deckSegment';
 import { pdfToPngBlob } from '../utils/pdfRaster';
 
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.webp';
@@ -137,7 +137,6 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const snapTargetsRef = useRef([]); // other rooms' corners on this deck, to snap to
   const [tapMode, setTapMode] = useState(false); // false = draw points by hand (default); true = tap to auto-outline
   const [tapBusy, setTapBusy] = useState(false); // segmenting on a tap
-  const [samMode, setSamMode] = useState(false); // beta: use SAM (AI) for tap-outline geometry instead of flood-fill
   const segCacheRef = useRef({}); // deckId -> { cropKey, seg }
   const [detecting, setDetecting] = useState(null); // deckId with an AI detect in flight
   const [proposals, setProposals] = useState(null); // { deckId, items:[{name,matchedSpaceId,create,nodes,traced}] }
@@ -515,31 +514,6 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     return seg;
   };
 
-  // Beta AI outline (SAM): send the deck image + one point (0..1) to Segment
-  // Anything, decode the returned mask, and trace its boundary → outline nodes.
-  // Falls back to null so the caller can drop to the flood-fill path.
-  const samOutline = async (deck, nx, ny, nbox) => {
-    const { deckJpeg } = await prepareDeck(cropOf(deck));
-    const { base64, w, h } = deckJpeg();
-    // nbox is the room's bounding box normalized 0..1 (from the flood-fill region
-    // the pin sits in) → convert to pixels so SAM stays inside the room.
-    const box = nbox ? { x_min: nbox.x0 * w, y_min: nbox.y0 * h, x_max: nbox.x1 * w, y_max: nbox.y1 * h } : null;
-    const { maskUrl } = await samSegment({ imageBase64: base64, x: Math.round(nx * w), y: Math.round(ny * h), box });
-    const maskData = await new Promise((resolve, reject) => {
-      const im = new Image();
-      im.crossOrigin = 'anonymous'; // fal media is CORS-open → canvas stays readable
-      im.onload = () => {
-        const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
-        const cx = c.getContext('2d', { willReadFrequently: true });
-        cx.drawImage(im, 0, 0);
-        try { resolve(cx.getImageData(0, 0, c.width, c.height)); } catch (err) { reject(err); }
-      };
-      im.onerror = () => reject(new Error('Could not read the mask.'));
-      im.src = maskUrl;
-    });
-    return maskToNodes(maskData);
-  };
-
   // Click on the plan while tracing. In tap mode, one tap inside a room outlines
   // its enclosed wall-region (fix-up: a whole room in one click). In draw mode,
   // each click drops an outline node; a click near the first node closes it.
@@ -555,21 +529,12 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       if (tapBusy) return;
       setTapBusy(true);
       try {
-        // Beta: let SAM (AI) segment the room at the tap; fall back to the
-        // flood-fill region if SAM is unavailable or returns nothing usable.
-        let nodes = null;
-        if (samMode) {
-          try { nodes = await samOutline(deck, x, y); }
-          catch (err) { console.error('[deck-plan] SAM outline error:', err); nodes = null; }
-        }
-        if (!nodes) {
-          const seg = await getSeg(deck);
-          const region = regionAtPoint(seg, x, y);
-          nodes = region ? regionContour(seg, region) : null;
-        }
+        const seg = await getSeg(deck);
+        const region = regionAtPoint(seg, x, y);
+        const nodes = region ? regionContour(seg, region) : null;
         if (nodes) {
           saveShape(tracing.spaceId, { closed: true, nodes });
-          captureSample(deck, tracing.spaceId, nodes, samMode ? 'tap_sam' : 'tap');
+          captureSample(deck, tracing.spaceId, nodes, 'tap');
           const c = centroidOf(nodes);
           if (c) applyPos(tracing.spaceId, c.x, c.y);
           setTracing(null);
@@ -653,40 +618,6 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     setTracing(null);
     setDetecting(deck.id);
     try {
-      // SAM Detect (beta): outline each room the crew has pinned, precisely, with
-      // Segment Anything. No AI seeds and no unnamed drafts — just clean outlines
-      // of the rooms you marked. (Open-deck/teak noise disappears because nothing
-      // unpinned is traced.)
-      if (samMode) {
-        const placed = spacesOf(deck).filter((s) => posOf(s));
-        if (!placed.length) {
-          setDetectError({ deckId: deck.id, message: 'AI trace outlines the rooms you’ve pinned. Drop a pin inside each room first, then Detect.' });
-          return;
-        }
-        // A box around each room (the flood-fill region the pin sits in) keeps SAM
-        // on the room instead of a furniture symbol under the point.
-        const seg = await getSeg(deck).catch(() => null);
-        const items = [];
-        let lastErr = null;
-        for (const s of placed) {
-          const pin = posOf(s);
-          let nbox = null;
-          if (seg) {
-            const region = regionAtPoint(seg, pin.x, pin.y);
-            if (region) nbox = { x0: region.minx / seg.W, y0: region.miny / seg.H, x1: region.maxx / seg.W, y1: region.maxy / seg.H };
-          }
-          try {
-            const nodes = await samOutline(deck, pin.x, pin.y, nbox);
-            if (nodes && nodes.length >= 3) items.push({ name: s.name, matchedSpaceId: s.id, create: false, nodes, traced: true, anchored: true });
-          } catch (err) { lastErr = err; console.error('[deck-plan] SAM detect pin failed:', s.name, err); }
-        }
-        if (!items.length) {
-          setDetectError({ deckId: deck.id, message: `AI trace returned no outlines${lastErr ? ` — ${lastErr.message}` : ''}.` });
-          return;
-        }
-        setProposals({ deckId: deck.id, items });
-        return;
-      }
       const { imageData, cropSub } = await prepareDeck(crop);
       const spaces = spacesOf(deck);
       const names = spaces.map((s) => s.name);
@@ -990,23 +921,13 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               )}
               {crop && gaDims && !traceMode && (
                 <button
-                  className={`dp-linkbtn ${samMode ? 'is-on' : ''}`}
-                  onClick={() => setSamMode((v) => !v)}
-                  title="Beta: when on, Detect outlines your pinned rooms with Segment Anything (AI) instead of the built-in tracer"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /></svg>
-                  <span className="dp-linkbtn-label">{samMode ? 'AI trace: on' : 'AI trace: off'}</span>
-                </button>
-              )}
-              {crop && gaDims && !traceMode && (
-                <button
                   className="dp-linkbtn dp-aibtn"
                   onClick={() => detectRooms(deck)}
                   disabled={detecting === deck.id}
-                  title={samMode ? 'Outline your pinned rooms with Segment Anything (AI)' : 'Let Claude read this deck and propose room outlines'}
+                  title="Let Claude read this deck and propose room outlines"
                 >
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><path d="M18.5 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" /></svg>
-                  <span className="dp-linkbtn-label">{detecting === deck.id ? (samMode ? 'AI tracing…' : 'Reading plan…') : 'Detect rooms'}</span>
+                  <span className="dp-linkbtn-label">{detecting === deck.id ? 'Reading plan…' : 'Detect rooms'}</span>
                 </button>
               )}
               {!traceMode && <button className="lg-btn sm" onClick={() => addRoom(deck)} title="Add a room to this deck">+ Add room</button>}
@@ -1057,13 +978,6 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       onClick={() => setTapMode((v) => !v)}
                       title="Tap inside a room to auto-outline it, or switch to drawing corners by hand"
                     >{tapMode ? 'Tap room' : 'Draw points'}</button>
-                    {tapMode && (
-                      <button
-                        className={`dp-smooth-toggle ${samMode ? 'is-on' : ''}`}
-                        onClick={() => setSamMode((v) => !v)}
-                        title="Beta: use Segment Anything (AI) to outline the tapped room instead of the built-in tracer"
-                      >{samMode ? '✨ AI trace' : 'AI trace off'}</button>
-                    )}
                     {!tapMode && <button className="lg-btn sm" disabled={!tracing.nodes.length} onClick={finishTrace}>Finish</button>}
                     {!tapMode && <button className="lg-btn sm" disabled={!tracing.nodes.length} onClick={undoTraceNode}>Undo point</button>}
                     <button className="lg-btn sm" onClick={cancelTrace}>Cancel</button>
