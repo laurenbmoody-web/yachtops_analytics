@@ -510,10 +510,13 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   // Beta AI outline (SAM): send the deck image + one point (0..1) to Segment
   // Anything, decode the returned mask, and trace its boundary → outline nodes.
   // Falls back to null so the caller can drop to the flood-fill path.
-  const samOutline = async (deck, nx, ny) => {
+  const samOutline = async (deck, nx, ny, nbox) => {
     const { deckJpeg } = await prepareDeck(cropOf(deck));
     const { base64, w, h } = deckJpeg();
-    const { maskUrl } = await samSegment({ imageBase64: base64, x: Math.round(nx * w), y: Math.round(ny * h) });
+    // nbox is the room's bounding box normalized 0..1 (from the flood-fill region
+    // the pin sits in) → convert to pixels so SAM stays inside the room.
+    const box = nbox ? { x_min: nbox.x0 * w, y_min: nbox.y0 * h, x_max: nbox.x1 * w, y_max: nbox.y1 * h } : null;
+    const { maskUrl } = await samSegment({ imageBase64: base64, x: Math.round(nx * w), y: Math.round(ny * h), box });
     const maskData = await new Promise((resolve, reject) => {
       const im = new Image();
       im.crossOrigin = 'anonymous'; // fal media is CORS-open → canvas stays readable
@@ -651,16 +654,25 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           setDetectError({ deckId: deck.id, message: 'AI trace outlines the rooms you’ve pinned. Drop a pin inside each room first, then Detect.' });
           return;
         }
+        // A box around each room (the flood-fill region the pin sits in) keeps SAM
+        // on the room instead of a furniture symbol under the point.
+        const seg = await getSeg(deck).catch(() => null);
         const items = [];
+        let lastErr = null;
         for (const s of placed) {
           const pin = posOf(s);
+          let nbox = null;
+          if (seg) {
+            const region = regionAtPoint(seg, pin.x, pin.y);
+            if (region) nbox = { x0: region.minx / seg.W, y0: region.miny / seg.H, x1: region.maxx / seg.W, y1: region.maxy / seg.H };
+          }
           try {
-            const nodes = await samOutline(deck, pin.x, pin.y);
+            const nodes = await samOutline(deck, pin.x, pin.y, nbox);
             if (nodes && nodes.length >= 3) items.push({ name: s.name, matchedSpaceId: s.id, create: false, nodes, traced: true, anchored: true });
-          } catch (err) { console.error('[deck-plan] SAM detect pin failed:', s.name, err); }
+          } catch (err) { lastErr = err; console.error('[deck-plan] SAM detect pin failed:', s.name, err); }
         }
         if (!items.length) {
-          setDetectError({ deckId: deck.id, message: 'AI trace returned no outlines — check the FAL_KEY secret is set on the Cargo Supabase project (Edge Functions → Secrets).' });
+          setDetectError({ deckId: deck.id, message: `AI trace returned no outlines${lastErr ? ` — ${lastErr.message}` : ''}.` });
           return;
         }
         setProposals({ deckId: deck.id, items });
