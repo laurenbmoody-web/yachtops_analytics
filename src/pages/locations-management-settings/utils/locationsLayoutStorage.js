@@ -119,6 +119,29 @@ export const samSegment = async ({ imageBase64, x, y, box }) => {
   return data; // { maskUrl, width, height }
 };
 
+// Bank a finalised room outline as training data for a future room-shape model.
+// Shapes only — no names. Fire-and-forget: never block or surface errors to the
+// crew (a failed capture must never interrupt tracing).
+export const recordDeckShapeSample = async ({ deckId, spaceId, crop, gaImageUrl, nodes, source }) => {
+  try {
+    if (!Array.isArray(nodes) || nodes.length < 3) return;
+    const tenantId = await getTenantId();
+    if (!tenantId) return;
+    await supabase.from('deck_room_shape_samples').insert({
+      tenant_id: tenantId,
+      deck_location_id: deckId || null,
+      space_location_id: spaceId || null,
+      ga_image_url: gaImageUrl || null,
+      crop: crop || null,
+      polygon: nodes.map((n) => ({ x: n.x, y: n.y })),
+      source: source || null,
+    });
+  } catch (err) {
+    // Non-fatal — capture is best-effort.
+    console.debug?.('[layout] shape sample capture skipped:', err?.message || err);
+  }
+};
+
 // Doorway links between rooms (undirected). Stored canonically a < b.
 const orderPair = (a, b) => (a < b ? [a, b] : [b, a]);
 
