@@ -37,6 +37,7 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const [name, setName] = useState(item?.name || '');
   const [imageUrl, setImageUrl] = useState(item?.imageUrl || '');
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
   const [removingBg, setRemovingBg] = useState(false);
   const [originalUrl, setOriginalUrl] = useState(''); // pre-cutout image, for undo
   const [bgError, setBgError] = useState('');
@@ -66,22 +67,41 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
 
   const total = sizes.reduce((a, s) => a + (Number(s.qty) || 0), 0);
 
+  // item-images bucket accepts JPEG/PNG/WebP/GIF up to 5 MB. Check up front so a
+  // HEIC phone photo or an oversized file gives a clear message instead of
+  // silently failing (which left the item with no image and blocked the AI cutout).
+  const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  const MAX_BYTES = 5 * 1024 * 1024;
+
   const upload = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    setUploading(true);
+    setBgError('');
+    if (file.type && !ACCEPTED.includes(file.type)) {
+      setUploadError('That format isn’t supported — use JPG, PNG, WebP or GIF (iPhone “HEIC” photos won’t upload; switch Camera → Formats to “Most Compatible”).');
+      return;
+    }
+    if (file.size > MAX_BYTES) {
+      setUploadError('That image is over 5 MB — please use a smaller one.');
+      return;
+    }
+    setUploading(true); setUploadError('');
     try {
       const { data: ctx } = await supabase?.rpc('get_my_context');
-      const tenantId = ctx?.[0]?.tenant_id;
-      const ext = file?.name?.split('.')?.pop() || 'jpg';
+      const tenantId = ctx?.[0]?.tenant_id || 'shared';
+      const ext = (file.type.split('/')[1] || file?.name?.split('.')?.pop() || 'jpg').replace('jpeg', 'jpg');
       const path = `inventory/${tenantId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase?.storage?.from('item-images')?.upload(path, file, { upsert: true });
-      if (!upErr) {
+      const { error: upErr } = await supabase?.storage?.from('item-images')?.upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' });
+      if (upErr) {
+        setUploadError('Upload failed — ' + (upErr?.message || 'please try again.'));
+      } else {
         const { data: urlData } = supabase?.storage?.from('item-images')?.getPublicUrl(path);
         setImageUrl(urlData?.publicUrl || '');
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      setUploadError('Upload failed — ' + (err?.message || 'please try again.'));
+    }
     setUploading(false);
   };
 
@@ -158,6 +178,7 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
                   <button type="button" className="uim-mini" onClick={removeBg} disabled={removingBg}><Icon name="Scissors" size={12} /> {removingBg ? 'Removing…' : 'Remove background'}</button>
                 )
               )}
+              {uploadError && <span className="uim-bg-err">{uploadError}</span>}
               {bgError && <span className="uim-bg-err">{bgError}</span>}
             </div>
             <div className="uim-top-fields">
