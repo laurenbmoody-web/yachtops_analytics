@@ -2921,6 +2921,9 @@ const LocationFirstInventory = () => {
 
   const handleItemSaved = () => {
     markTutorialStep(session?.user?.id, 'inventory_done').catch(() => {});
+    // Reveal the All Items list so a freshly added item isn't hidden in the
+    // collapsed section (it lands there, alongside items from sub-folders).
+    setItemsCollapsedOverride(false);
     handleModalClose();
   };
 
@@ -3849,7 +3852,7 @@ const LocationFirstInventory = () => {
               >
                 <Icon name="ChevronRight" size={15} className={`inv-sectchevron${itemsCollapsed ? '' : ' open'}`} />
                 <h2 className="inv-sectlabel">
-                  Items ({filteredItems?.length})
+                  All Items ({filteredItems?.length})
                 </h2>
               </button>
               {!itemsCollapsed && (
