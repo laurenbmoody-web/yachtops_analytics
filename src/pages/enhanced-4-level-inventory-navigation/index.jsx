@@ -1192,25 +1192,30 @@ const ItemActionsMenu = ({ item, onEdit, onAppearance, onMove, onClone, onDelete
 
   // Anchor the menu to the trigger with fixed positioning so a card's
   // overflow:hidden can't clip it (the old absolute dropdown was invisible).
+  // Position is finalised in a layout effect once the real menu size is known,
+  // so a flip near the viewport edge sits flush against the trigger.
   const toggle = (e) => {
     e?.stopPropagation();
-    if (open) { setOpen(false); return; }
-    const r = triggerRef?.current?.getBoundingClientRect();
-    if (r) {
-      const W = window?.innerWidth || 800;
-      const H = window?.innerHeight || 600;
-      const width = 200;
-      const rowCount = 4 + (onAppearance ? 1 : 0);
-      const estH = 60 + rowCount * 40;
-      let left = r.right - width;
-      if (left < 8) left = 8;
-      if (left + width > W - 8) left = W - width - 8;
-      let top = r.bottom + 6;
-      if (top + estH > H - 8) top = Math.max(8, r.top - estH - 6);
-      setMenuStyle({ position: 'fixed', top, left, right: 'auto', width, zIndex: 'var(--z-overlay, 1000)' });
-    }
-    setOpen(true);
+    setOpen((o) => !o);
   };
+
+  React.useLayoutEffect(() => {
+    if (!open) { setMenuStyle(null); return; }
+    const t = triggerRef?.current?.getBoundingClientRect();
+    const m = menuRef?.current?.getBoundingClientRect();
+    if (!t) return;
+    const W = window?.innerWidth || 800;
+    const H = window?.innerHeight || 600;
+    const width = m?.width || 200;
+    const height = m?.height || 240;
+    let left = t.right - width;
+    if (left < 8) left = 8;
+    if (left + width > W - 8) left = W - width - 8;
+    // Prefer below the trigger; flip flush above if it would overflow the bottom.
+    let top = t.bottom + 6;
+    if (top + height > H - 8) top = Math.max(8, t.top - height - 6);
+    setMenuStyle({ position: 'fixed', top, left, right: 'auto', width: 200, zIndex: 'var(--z-overlay, 1000)' });
+  }, [open, onAppearance]);
 
   const rowBtn = (iconName, label, fn, opts = {}) => (
     <button className={`inv-menuitem${opts?.danger ? ' danger' : ''}`} onClick={(e) => { e?.stopPropagation(); setOpen(false); fn?.(item); }}>
@@ -1223,8 +1228,8 @@ const ItemActionsMenu = ({ item, onEdit, onAppearance, onMove, onClone, onDelete
       <button ref={triggerRef} className="inv-menutrigger" title="Item actions" style={{ width: size, height: size }} onClick={toggle}>
         <Icon name="MoreHorizontal" size={16} />
       </button>
-      {open && menuStyle && createPortal(
-        <div ref={menuRef} className="inv-menu" style={menuStyle} onClick={(e) => e?.stopPropagation()}>
+      {open && createPortal(
+        <div ref={menuRef} className="inv-menu" style={menuStyle || { position: 'fixed', top: -9999, left: -9999, width: 200, visibility: 'hidden', zIndex: 'var(--z-overlay, 1000)' }} onClick={(e) => e?.stopPropagation()}>
           {item?.name && <div className="inv-menu-head" title={item?.name}>{item?.name}</div>}
           {onEdit && rowBtn('Pencil', 'Edit', onEdit)}
           {onAppearance && (
