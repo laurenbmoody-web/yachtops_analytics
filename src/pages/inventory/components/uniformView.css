@@ -25,6 +25,8 @@
 .uv-size-lbl { font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.5px; text-transform: uppercase; color: #8B8478; }
 .uv-size-qty { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #1C1B3A; line-height: 1; }
 .uv-empty { font-size: 13px; color: #8B8478; }
+.uv-stored { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: #1C1B3A; background: #FBEFE9; border: 1px solid #F3D9CB; border-radius: 999px; padding: 6px 13px; }
+.uv-stored svg { color: #C65A1A; flex: none; }
 
 .uv-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 7px 0; border-bottom: 1px solid #F5F6F8; }
 .uv-row:last-child { border-bottom: none; }

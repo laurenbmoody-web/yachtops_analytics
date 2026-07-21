@@ -26,6 +26,8 @@ const UniformItemView = ({ item, canEdit, onEdit, onClose }) => {
   const brandingLine = [b.colour, b.logo, b.placement].filter(Boolean).join(' · ');
   const branding = (b.type && b.type !== 'None') ? [b.type, brandingLine].filter(Boolean).join(' — ') : null;
   const cost = item?.unitCost != null && item?.unitCost !== '' ? money(item.unitCost, item.currency || 'EUR') : null;
+  const stock = (item?.stockLocations || [])[0] || {};
+  const storedAt = stock.locationName || stock.location_name || stock.subLocation || '';
 
   return (
     <>
@@ -54,6 +56,13 @@ const UniformItemView = ({ item, canEdit, onEdit, onClose }) => {
                 ))}
               </div>
             ) : <p className="uv-empty">No size breakdown recorded.</p>}
+          </div>
+
+          <div className="uv-sec">
+            <div className="uv-sec-h"><span>Storage on board</span></div>
+            {storedAt ? (
+              <p className="uv-stored"><Icon name="MapPin" size={14} /> {storedAt}</p>
+            ) : <p className="uv-empty">No storage location set — add one so Interior can find it.</p>}
           </div>
 
           <div className="uv-sec">

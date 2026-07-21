@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabaseClient';
 import { saveItem } from '../utils/inventoryStorage';
+import { LocationPicker } from './AddEditItemModal';
 import './uniformItem.css';
 
 // The uniform-specific add/edit modal — opened by the inventory page when the
@@ -64,6 +65,41 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const [notes, setNotes] = useState(item?.notes || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Physical storage on board — the vessel_locations node (the GA / location-
+  // management map) so Interior can find where the uniform is actually kept.
+  const existingStock = (item?.stockLocations || [])[0] || {};
+  const [storageLocId, setStorageLocId] = useState(existingStock.vesselLocationId || existingStock.locationId || '');
+  const [storageLabel, setStorageLabel] = useState(existingStock.locationName || existingStock.location_name || existingStock.subLocation || '');
+  const [vesselLocations, setVesselLocations] = useState([]);
+  const [vesselLoading, setVesselLoading] = useState(false);
+  const [showLocPicker, setShowLocPicker] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      setVesselLoading(true);
+      try {
+        const { data: ctx } = await supabase?.rpc('get_my_context');
+        const tenantId = ctx?.[0]?.tenant_id;
+        if (tenantId) {
+          const { data } = await supabase?.from('vessel_locations')?.select('*')?.eq('tenant_id', tenantId);
+          if (alive && data) setVesselLocations(data);
+        }
+      } catch { /* ignore */ }
+      if (alive) setVesselLoading(false);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // Keep the stored label fresh once locations load (covers edits saved before).
+  useEffect(() => {
+    if (!storageLocId || !vesselLocations.length) return;
+    const byId = new Map(vesselLocations.map((n) => [n.id, n]));
+    const chain = []; const seen = new Set(); let cur = byId.get(storageLocId);
+    while (cur && !seen.has(cur.id)) { chain.unshift(cur); seen.add(cur.id); cur = cur.parent_id ? byId.get(cur.parent_id) : null; }
+    if (chain.length) setStorageLabel(chain.map((n) => n.name).join(' › '));
+  }, [storageLocId, vesselLocations]);
 
   const total = sizes.reduce((a, s) => a + (Number(s.qty) || 0), 0);
 
@@ -136,13 +172,22 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
       branding: { type: brandingType, colour: brandingColour.trim(), logo: brandingLogo.trim(), placement: brandingPlacement.trim() },
       fabric: fabric.trim(), care: care.trim(), season,
     };
+    // One physical storage location holds the whole size run (the uniform locker).
+    const stockLocations = storageLocId
+      ? [{
+          vesselLocationId: storageLocId, locationId: storageLocId,
+          locationName: storageLabel, location_name: storageLabel, subLocation: storageLabel,
+          quantity: total, qty: total,
+        }]
+      : [];
     const payload = {
       ...(isEdit ? { id: item.id, cargoItemId: item.cargoItemId } : {}),
       name: name.trim(), imageUrl, brand: brand.trim(), supplier: supplier.trim(), notes,
       unitCost: unitCost === '' ? null : parseFloat(unitCost), currency,
       location: loc, subLocation: sub,
       hasVariants: true, variantType: 'size', variants,
-      quantity: total, totalQty: total, stockLocations: [],
+      quantity: total, totalQty: total, stockLocations,
+      defaultLocationId: storageLocId || null,
       isUniform: true, customFields, condition: item?.condition || 'New',
     };
     const res = await saveItem(payload, { dedupe: false });
@@ -221,6 +266,30 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
             </div>
           </div>
 
+          {/* Storage on board — links to the location-management / GA map */}
+          <div className="uim-sec">
+            <div className="uim-sec-h"><span>Storage on board</span></div>
+            <L opt>Where it’s kept</L>
+            <button type="button" className="uim-locpick" onClick={() => setShowLocPicker(true)} disabled={vesselLoading}>
+              <span className="uim-locpick-l">
+                <Icon name="MapPin" size={15} />
+                <span className={storageLocId ? 'uim-locpick-val' : 'uim-locpick-ph'}>
+                  {storageLocId ? (storageLabel || 'Selected location') : (vesselLoading ? 'Loading map…' : 'Link to a location on the vessel map')}
+                </span>
+              </span>
+              <span className="uim-locpick-r">
+                {storageLocId && (
+                  <span role="button" tabIndex={0} className="uim-locpick-clear" title="Clear"
+                    onClick={(e) => { e.stopPropagation(); setStorageLocId(''); setStorageLabel(''); }}>
+                    <Icon name="X" size={13} />
+                  </span>
+                )}
+                <Icon name="ChevronRight" size={15} />
+              </span>
+            </button>
+            <p className="uim-hint">So Interior can see where the uniform is stored. Manage the map in Location management.</p>
+          </div>
+
           {/* Branding */}
           <div className="uim-sec">
             <div className="uim-sec-h"><span>Branding</span></div>
@@ -275,6 +344,15 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
           <button type="button" className="uim-btn primary" disabled={!name.trim() || saving} onClick={save}>{saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add uniform'}</button>
         </div>
       </div>
+
+      {showLocPicker && (
+        <LocationPicker
+          vesselLocations={vesselLocations}
+          selectedId={storageLocId}
+          onSelect={({ id, label }) => { setStorageLocId(id); setStorageLabel(label); setShowLocPicker(false); }}
+          onClose={() => setShowLocPicker(false)}
+        />
+      )}
     </div>
   );
 };
