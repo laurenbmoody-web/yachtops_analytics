@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { dateLocale, formatDate } from '../../utils/dateFormat';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -619,50 +619,143 @@ const FolderSettingsModal = ({ folderName, parentSegments, currentVisibility, on
   );
 };
 
-// ─── Move Folder Modal ────────────────────────────────────────────────────────
-const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose, onMove, isCommand, isChief, isHOD, userDepartment }) => {
-  const [selectedPath, setSelectedPath] = useState(null);
-  const [moving, setMoving] = useState(false);
+// ─── Folder Tree Picker (drill-in navigator) ─────────────────────────────────
+// A Finder-style destination picker: breadcrumb + one level of folders at a
+// time + a global search. Replaces the old flat indented list, which was
+// unusable with many folders or duplicate names (you couldn't tell two
+// "General" folders apart). `onPick` reports the currently-browsed segments
+// (or null at the root) so the parent can enable/disable "Move here".
+const FolderTreePicker = ({ folderTree, onPick, disablePath, blockPath, isCommand, userDepartment }) => {
+  const [browse, setBrowse] = useState([]);
+  const [query, setQuery] = useState('');
 
-  // Build a flat list of all available destination folders from the tree
-  const buildDestinations = () => {
-    const destinations = [];
-    const currentFullPath = [...currentPathSegments, folderName]?.join(' > ');
-    const currentParentPath = currentPathSegments?.join(' > ');
+  const childrenOf = (segments) => folderTree?.[segments?.join('|||')]?.subFolders || [];
+  const metaOf = (segments, name) => folderTree?.[segments?.join('|||')]?.folderMeta?.[name] || {};
 
-    const traverse = (segments, depth) => {
-      const key = segments?.join('|||');
-      const children = folderTree?.[key]?.subFolders || [];
-      children?.forEach(childName => {
-        const childSegments = [...segments, childName];
-        const childPath = childSegments?.join(' > ');
-        const isSelf = childPath === currentFullPath;
-        const isDescendant = childPath?.startsWith(currentFullPath + ' > ');
-        const isCurrentParent = childPath === currentParentPath;
+  const rootAllowed = (seg0) => isCommand || ((seg0 || '')?.toLowerCase() === (userDepartment || '')?.toLowerCase());
+  const isBlocked = (path) => !!blockPath && (path === blockPath || path?.startsWith(blockPath + ' > '));
 
-        let isAllowed = true;
-        if (!isCommand && (isChief || isHOD)) {
-          const rootSegment = childSegments?.[0] || '';
-          isAllowed = rootSegment?.toLowerCase() === userDepartment?.toLowerCase();
-        }
-
-        if (!isSelf && !isDescendant && !isCurrentParent && isAllowed) {
-          destinations?.push({ segments: childSegments, depth, label: childName, path: childPath });
-        }
-        traverse(childSegments, depth + 1);
+  const allFolders = useMemo(() => {
+    const out = [];
+    const walk = (segs) => {
+      childrenOf(segs)?.forEach(name => {
+        const s = [...segs, name];
+        out?.push({ segments: s, name, path: s?.join(' > ') });
+        walk(s);
       });
     };
+    walk([]);
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folderTree]);
 
-    traverse([], 0);
-    return destinations;
+  const q = query?.trim()?.toLowerCase();
+  const searchResults = q
+    ? allFolders?.filter(f => f?.name?.toLowerCase()?.includes(q) && rootAllowed(f?.segments?.[0]) && !isBlocked(f?.path))
+    : null;
+
+  useEffect(() => {
+    onPick(browse?.length > 0 ? browse : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [browse?.join('|||')]);
+
+  const rows = childrenOf(browse);
+
+  const row = (name, segments) => {
+    const path = segments?.join(' > ');
+    const kids = childrenOf(segments)?.length;
+    const blocked = isBlocked(path) || !rootAllowed(segments?.[0]);
+    const isCurrent = path === disablePath;
+    return (
+      <div key={path} className={`inv-pickrow${blocked ? ' blocked' : ''}`}>
+        <button
+          className="inv-pickrow-main"
+          disabled={blocked}
+          onClick={() => setBrowse(segments)}
+          title={blocked ? 'Not available' : `Open ${name}`}
+        >
+          <Icon name={metaOf(browse, name)?.icon || 'Folder'} size={15} />
+          <span className="inv-pickrow-name">{name}</span>
+          {isCurrent && <span className="inv-pickrow-tag">current</span>}
+          {kids > 0 && <span className="inv-pickrow-count">{kids}</span>}
+        </button>
+        {kids > 0 && !blocked && (
+          <button className="inv-pickrow-drill" onClick={() => setBrowse(segments)} title={`Open ${name}`}>
+            <Icon name="ChevronRight" size={16} />
+          </button>
+        )}
+      </div>
+    );
   };
 
-  const destinations = buildDestinations();
+  return (
+    <div className="inv-picker">
+      <div className="inv-picker-search">
+        <Icon name="Search" size={14} />
+        <input
+          type="text"
+          placeholder="Search all folders…"
+          value={query}
+          onChange={(e) => setQuery(e?.target?.value)}
+          autoFocus
+        />
+        {query && <button onClick={() => setQuery('')}><Icon name="X" size={13} /></button>}
+      </div>
+
+      {!q && (
+        <div className="inv-picker-crumbs">
+          <button className="inv-picker-crumb" onClick={() => setBrowse([])}>
+            <Icon name="Home" size={13} /> All
+          </button>
+          {browse?.map((seg, i) => (
+            <React.Fragment key={i}>
+              <Icon name="ChevronRight" size={13} />
+              <button className="inv-picker-crumb" onClick={() => setBrowse(browse?.slice(0, i + 1))}>{seg}</button>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+
+      <div className="inv-picker-list">
+        {q ? (
+          searchResults?.length > 0 ? (
+            searchResults?.map(f => (
+              <button key={f?.path} className="inv-pickrow-main search" onClick={() => { setBrowse(f?.segments); setQuery(''); }}>
+                <Icon name="Folder" size={15} />
+                <span className="inv-pickrow-name">{f?.name}</span>
+                <span className="inv-pickrow-path">{f?.segments?.slice(0, -1)?.join(' › ') || 'Department'}</span>
+              </button>
+            ))
+          ) : (
+            <p className="inv-picker-empty">No folders match “{query}”</p>
+          )
+        ) : rows?.length > 0 ? (
+          rows?.map(name => row(name, [...browse, name]))
+        ) : (
+          <p className="inv-picker-empty">{browse?.length === 0 ? 'No departments' : 'No sub-folders here'}</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Move Folder Modal ────────────────────────────────────────────────────────
+const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose, onMove, isCommand, isChief, isHOD, userDepartment }) => {
+  const [target, setTarget] = useState(null);
+  const [moving, setMoving] = useState(false);
+
+  const selfPath = [...currentPathSegments, folderName]?.join(' > ');
+  const parentPath = currentPathSegments?.join(' > ');
+  const targetPath = target?.join(' > ') || '';
+  const canMoveHere = !!target
+    && targetPath !== selfPath
+    && targetPath !== parentPath
+    && !targetPath?.startsWith(selfPath + ' > ');
 
   const handleConfirm = async () => {
-    if (!selectedPath) return;
+    if (!canMoveHere) return;
     setMoving(true);
-    await onMove(currentPathSegments, selectedPath?.segments, folderName);
+    await onMove(currentPathSegments, target, folderName);
     setMoving(false);
     onClose();
   };
@@ -677,43 +770,27 @@ const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose,
         <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
       </div>
 
-      <label className="inv-flabel">Destination folder</label>
-      <div className="inv-movetree">
-        {destinations?.length === 0 ? (
-          <p className="inv-confirm-text" style={{ textAlign: 'center', padding: '20px 0' }}>No other folders available</p>
-        ) : (
-          destinations?.map((dest) => {
-            const isSelected = selectedPath?.path === dest?.path;
-            return (
-              <button
-                key={dest?.path}
-                onClick={() => setSelectedPath(dest)}
-                className={`inv-moveitem${isSelected ? ' on' : ''}`}
-                style={{ paddingLeft: `${10 + dest?.depth * 16}px` }}
-              >
-                <Icon name={isSelected ? 'FolderOpen' : 'Folder'} size={14} />
-                <span className="truncate">{dest?.label}</span>
-                {dest?.depth > 0 && (
-                  <span className="ml-auto truncate" style={{ fontSize: 11, color: '#AEB4C2', maxWidth: 110 }}>
-                    {dest?.segments?.slice(0, -1)?.join(' › ')}
-                  </span>
-                )}
-                {isSelected && <Icon name="Check" size={13} className="ml-auto shrink-0" />}
-              </button>
-            );
-          })
-        )}
-      </div>
+      <label className="inv-flabel">Pick a destination — open a folder, then Move here</label>
+      <FolderTreePicker
+        folderTree={folderTree}
+        onPick={setTarget}
+        disablePath={parentPath}
+        blockPath={selfPath}
+        isCommand={isCommand}
+        userDepartment={userDepartment}
+      />
 
-      {selectedPath && (
-        <p className="inv-modal-sub" style={{ margin: '10px 0 0' }}>
-          Moving to <b>{selectedPath?.segments?.join(' › ')}</b>
-        </p>
-      )}
+      <p className="inv-modal-sub" style={{ margin: '10px 0 0', minHeight: 18 }}>
+        {target
+          ? (canMoveHere
+              ? <>Moving into <b>{target?.join(' › ')}</b></>
+              : <span style={{ color: '#B14E16' }}>Can’t move here — pick a different folder</span>)
+          : 'Open a folder to move into it'}
+      </p>
 
       <div className="inv-modal-actions">
         <button onClick={onClose} className="inv-btn ghost">Cancel</button>
-        <button onClick={handleConfirm} disabled={!selectedPath || moving} className="inv-btn primary">
+        <button onClick={handleConfirm} disabled={!canMoveHere || moving} className="inv-btn primary">
           {moving && <LogoSpinner size={14} />}
           {moving ? 'Moving…' : 'Move here'}
         </button>
@@ -724,46 +801,17 @@ const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose,
 
 // ─── Bulk Move Items Modal ────────────────────────────────────────────────────
 const BulkMoveItemsModal = ({ selectedCount, itemLabel, folderTree, currentPathSegments, onClose, onMove, isCommand, isChief, isHOD, userDepartment }) => {
-  const [selectedPath, setSelectedPath] = useState(null);
+  const [target, setTarget] = useState(null);
   const [moving, setMoving] = useState(false);
 
-  const buildDestinations = () => {
-    const destinations = [];
-    const currentFullPath = currentPathSegments?.join(' > ');
-
-    const traverse = (segments, depth) => {
-      const key = segments?.join('|||');
-      const children = folderTree?.[key]?.subFolders || [];
-      children?.forEach(childName => {
-        const childSegments = [...segments, childName];
-        const childPath = childSegments?.join(' > ');
-        const isCurrent = childPath === currentFullPath;
-
-        // Non-Command (Chief, HOD and crew) can only move items within their
-        // own department.
-        let isAllowed = true;
-        if (!isCommand) {
-          const rootSegment = childSegments?.[0] || '';
-          isAllowed = rootSegment?.toLowerCase() === userDepartment?.toLowerCase();
-        }
-
-        if (!isCurrent && isAllowed) {
-          destinations?.push({ segments: childSegments, depth, label: childName, path: childPath });
-        }
-        traverse(childSegments, depth + 1);
-      });
-    };
-
-    traverse([], 0);
-    return destinations;
-  };
-
-  const destinations = buildDestinations();
+  const currentPath = currentPathSegments?.join(' > ');
+  const targetPath = target?.join(' > ') || '';
+  const canMoveHere = !!target && targetPath !== currentPath;
 
   const handleConfirm = async () => {
-    if (!selectedPath) return;
+    if (!canMoveHere) return;
     setMoving(true);
-    await onMove(selectedPath?.segments);
+    await onMove(target);
     setMoving(false);
     onClose();
   };
@@ -779,43 +827,26 @@ const BulkMoveItemsModal = ({ selectedCount, itemLabel, folderTree, currentPathS
         <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
       </div>
 
-      <label className="inv-flabel">Destination folder</label>
-      <div className="inv-movetree">
-        {destinations?.length === 0 ? (
-          <p className="inv-confirm-text" style={{ textAlign: 'center', padding: '20px 0' }}>No other folders available</p>
-        ) : (
-          destinations?.map((dest) => {
-            const isSelected = selectedPath?.path === dest?.path;
-            return (
-              <button
-                key={dest?.path}
-                onClick={() => setSelectedPath(dest)}
-                className={`inv-moveitem${isSelected ? ' on' : ''}`}
-                style={{ paddingLeft: `${10 + dest?.depth * 16}px` }}
-              >
-                <Icon name={isSelected ? 'FolderOpen' : 'Folder'} size={14} />
-                <span className="truncate">{dest?.label}</span>
-                {dest?.depth > 0 && (
-                  <span className="ml-auto truncate" style={{ fontSize: 11, color: '#AEB4C2', maxWidth: 110 }}>
-                    {dest?.segments?.slice(0, -1)?.join(' › ')}
-                  </span>
-                )}
-                {isSelected && <Icon name="Check" size={13} className="ml-auto shrink-0" />}
-              </button>
-            );
-          })
-        )}
-      </div>
+      <label className="inv-flabel">Pick a destination — open a folder, then Move here</label>
+      <FolderTreePicker
+        folderTree={folderTree}
+        onPick={setTarget}
+        disablePath={currentPath}
+        isCommand={isCommand}
+        userDepartment={userDepartment}
+      />
 
-      {selectedPath && (
-        <p className="inv-modal-sub" style={{ margin: '10px 0 0' }}>
-          Moving to <b>{selectedPath?.segments?.join(' › ')}</b>
-        </p>
-      )}
+      <p className="inv-modal-sub" style={{ margin: '10px 0 0', minHeight: 18 }}>
+        {target
+          ? (canMoveHere
+              ? <>Moving into <b>{target?.join(' › ')}</b></>
+              : <span style={{ color: '#B14E16' }}>Items are already here — pick another folder</span>)
+          : 'Open a folder to move into it'}
+      </p>
 
       <div className="inv-modal-actions">
         <button onClick={onClose} className="inv-btn ghost">Cancel</button>
-        <button onClick={handleConfirm} disabled={!selectedPath || moving} className="inv-btn primary">
+        <button onClick={handleConfirm} disabled={!canMoveHere || moving} className="inv-btn primary">
           {moving && <LogoSpinner size={14} />}
           {moving ? 'Moving…' : 'Move here'}
         </button>
