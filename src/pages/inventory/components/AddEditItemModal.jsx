@@ -8,6 +8,7 @@ import { supabase } from '../../../lib/supabaseClient';
 
 import ModalShell from '../../../components/ui/ModalShell';
 import { UNIT_GROUP_VALUES, STOCK_UNIT_GROUPS, STOCK_UNIT_VALUES, BOUGHT_BY_GROUPS, normalizeUnit } from '../../../data/unitGroups';
+import './locationPicker.css';
 
 const SUGGESTED_TAGS = ['drinks', 'wine', 'cleaning', 'spares', 'linen', 'snacks', 'bar', 'medical', 'food', 'tools', 'safety', 'toiletries', 'laundry'];
 
@@ -63,41 +64,36 @@ export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose 
   const iconFor = (n) => (n?.level === 'deck' ? 'Layers' : n?.level === 'zone' ? 'MapPin' : 'Box');
 
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl shadow-2xl w-full max-w-sm flex flex-col" panelStyle={{ maxHeight: '70vh' }}>
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
-        <div className="flex items-center gap-2">
-          {path.length > 0 && (
-            <button onClick={() => setPath((p) => p.slice(0, -1))} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-              <Icon name="ChevronLeft" size={18} />
-            </button>
-          )}
-          <h3 className="text-base font-semibold text-foreground">Select Location</h3>
+    <ModalShell onClose={onClose} panelClassName="locp-panel">
+      <div className="locp-head">
+        {path.length > 0 && (
+          <button onClick={() => setPath((p) => p.slice(0, -1))} className="locp-back" aria-label="Back">
+            <Icon name="ChevronLeft" size={17} />
+          </button>
+        )}
+        <div className="locp-head-t">
+          <span className="locp-eyebrow">Vessel map</span>
+          <h3 className="locp-title">Select location</h3>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
-          <Icon name="X" size={18} />
-        </button>
+        <button onClick={onClose} className="locp-x" aria-label="Close"><Icon name="X" size={17} /></button>
       </div>
 
       {current && (
-        <div className="px-5 py-2.5 bg-muted/40 border-b border-border shrink-0 flex items-center justify-between gap-2">
-          <p className="text-xs text-muted-foreground font-medium truncate">
-            <span className="text-foreground/60">📍</span>{' '}{pathLabel(current.id)}
-          </p>
+        <div className="locp-crumb">
+          <span className="locp-crumb-path">
+            <Icon name="MapPin" size={13} />
+            <span>{pathLabel(current.id)}</span>
+          </span>
           {/* Select the container itself (not only its leaves). */}
-          <button
-            onClick={() => onSelect({ id: current.id, label: pathLabel(current.id) })}
-            className="text-xs font-semibold text-primary hover:underline shrink-0"
-          >
-            Place here
+          <button onClick={() => onSelect({ id: current.id, label: pathLabel(current.id) })} className="locp-here">
+            <Icon name="Check" size={12} /> Place here
           </button>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto pb-3">
+      <div className="locp-list">
         {items?.length === 0 ? (
-          <div className="px-5 py-6 text-center">
-            <p className="text-sm text-muted-foreground">{current ? 'Nothing nested here — use “Place here” above.' : 'No locations yet.'}</p>
-          </div>
+          <p className="locp-empty">{current ? 'Nothing nested here — use “Place here” above.' : 'No locations yet. Add them in Location management.'}</p>
         ) : (
           items?.map((loc) => {
             const isSelected = loc?.id === selectedId;
@@ -106,17 +102,17 @@ export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose 
               <button
                 key={loc?.id}
                 onClick={() => (childCount > 0 ? setPath((p) => [...p, loc]) : onSelect({ id: loc?.id, label: pathLabel(loc?.id) }))}
-                className={`w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-muted/60 transition-colors ${isSelected ? 'bg-primary/10' : ''}`}
+                className={`locp-row${isSelected ? ' sel' : ''}`}
               >
-                <Icon name={iconFor(loc)} size={16} className={isSelected ? 'text-primary' : 'text-muted-foreground'} />
-                <span className={`flex-1 text-sm font-medium ${isSelected ? 'text-primary' : 'text-foreground'}`}>{loc?.name}</span>
+                <span className="locp-row-ic"><Icon name={iconFor(loc)} size={16} /></span>
+                <span className="locp-row-name">{loc?.name}</span>
                 {childCount > 0 ? (
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <span className="text-xs">{childCount}</span>
-                    <Icon name="ChevronRight" size={14} />
-                  </div>
+                  <span className="locp-row-r">
+                    <span className="locp-count">{childCount}</span>
+                    <Icon name="ChevronRight" size={15} />
+                  </span>
                 ) : isSelected ? (
-                  <Icon name="Check" size={14} className="text-primary" />
+                  <span className="locp-row-r sel"><Icon name="Check" size={15} /></span>
                 ) : null}
               </button>
             );
@@ -124,10 +120,8 @@ export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose 
         )}
       </div>
 
-      <div className="px-5 py-3 border-t border-border shrink-0">
-        <button onClick={onClose} className="w-full py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-          Cancel
-        </button>
+      <div className="locp-foot">
+        <button onClick={onClose} className="locp-cancel">Cancel</button>
       </div>
     </ModalShell>
   );
