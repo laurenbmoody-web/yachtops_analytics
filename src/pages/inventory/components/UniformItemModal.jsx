@@ -40,6 +40,7 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [removingBg, setRemovingBg] = useState(false);
+  const [isolating, setIsolating] = useState(false);
   const [originalUrl, setOriginalUrl] = useState(''); // pre-cutout image, for undo
   const [bgError, setBgError] = useState('');
   const [garmentType, setGarmentType] = useState(cf.garmentType || folder.garment || '');
@@ -193,6 +194,72 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
     setRemovingBg(false);
   };
 
+  // Isolate just the garment (drop the person too). SAM2 segments the object at
+  // a point; for these product shots the garment dominates the frame, so we
+  // auto-point at the upper-centre. The mask is composited onto the photo client-
+  // side (canvas destination-in) and the transparent cut-out uploaded.
+  const loadImg = (src) => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('image load'));
+    img.src = src;
+  });
+
+  const isolateGarment = async () => {
+    if (!imageUrl || isolating || removingBg) return;
+    setIsolating(true); setBgError('');
+    try {
+      const img = await loadImg(imageUrl);
+      // Work at a capped size (SAM is fine at ~1024; keeps the base64 payload small).
+      const scale = Math.min(1, 1024 / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
+      const b64 = c.toDataURL('image/jpeg', 0.9).split(',')[1];
+
+      const { data, error: fnErr } = await supabase.functions.invoke('deck-plan-sam', {
+        body: { imageBase64: b64, x: Math.round(w / 2), y: Math.round(h * 0.42), mediaType: 'image/jpeg' },
+      });
+      if (fnErr || !data?.maskUrl) {
+        let detail = fnErr?.message || '';
+        try { const body = await fnErr?.context?.json?.(); if (body?.detail || body?.error) detail = body.detail || body.error; } catch { /* not json */ }
+        setBgError(`Couldn’t isolate the garment — ${detail || 'try again.'}`.slice(0, 280));
+        setIsolating(false); return;
+      }
+
+      // Composite: keep the photo only where the mask is white (the garment).
+      const mask = await loadImg(data.maskUrl);
+      const mc = document.createElement('canvas'); mc.width = w; mc.height = h;
+      const mctx = mc.getContext('2d'); mctx.drawImage(mask, 0, 0, w, h);
+      const md = mctx.getImageData(0, 0, w, h);
+      // Turn the mask into an alpha layer (luminance → alpha).
+      for (let i = 0; i < md.data.length; i += 4) {
+        const a = md.data[i]; // white ≈ keep
+        md.data[i] = 0; md.data[i + 1] = 0; md.data[i + 2] = 0; md.data[i + 3] = a;
+      }
+      mctx.putImageData(md, 0, 0);
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.drawImage(mc, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+
+      const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
+      if (!blob) { setBgError('Couldn’t isolate the garment — try again.'); setIsolating(false); return; }
+      const { data: ctx2 } = await supabase?.rpc('get_my_context');
+      const tenantId = ctx2?.[0]?.tenant_id || 'shared';
+      const path = `inventory/${tenantId}/isolated-${Date.now()}.png`;
+      const { error: upErr } = await supabase?.storage?.from('item-images')?.upload(path, blob, { upsert: true, contentType: 'image/png' });
+      if (upErr) { setBgError(`Couldn’t save the cut-out — ${upErr.message || 'try again.'}`); setIsolating(false); return; }
+      const { data: urlData } = supabase?.storage?.from('item-images')?.getPublicUrl(path);
+      setOriginalUrl(imageUrl); setImageUrl(urlData?.publicUrl || '');
+    } catch (e) {
+      // A canvas taint (cross-origin without CORS) lands here.
+      setBgError(`Couldn’t isolate the garment — ${e?.message || 'try again.'}`);
+    }
+    setIsolating(false);
+  };
+
   const addSize = (s) => {
     const v = (s || '').trim();
     if (!v || sizes.some((x) => x.size.toLowerCase() === v.toLowerCase())) return;
@@ -271,7 +338,10 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
                 originalUrl ? (
                   <button type="button" className="uim-mini" onClick={() => { setImageUrl(originalUrl); setOriginalUrl(''); }}>↺ Use original</button>
                 ) : (
-                  <button type="button" className="uim-mini" onClick={removeBg} disabled={removingBg}><Icon name="Scissors" size={12} /> {removingBg ? 'Removing…' : 'Remove background'}</button>
+                  <>
+                    <button type="button" className="uim-mini" onClick={removeBg} disabled={removingBg || isolating}><Icon name="Scissors" size={12} /> {removingBg ? 'Removing…' : 'Remove background'}</button>
+                    <button type="button" className="uim-mini" onClick={isolateGarment} disabled={removingBg || isolating}><Icon name="Shirt" size={12} /> {isolating ? 'Isolating…' : 'Isolate garment'}</button>
+                  </>
                 )
               )}
               {uploadError && <span className="uim-bg-err">{uploadError}</span>}
