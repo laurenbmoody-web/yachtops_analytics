@@ -1403,6 +1403,23 @@ export const fetchSupplierProfileById = async (supplierId) => {
   return data;
 };
 
+// Start Stripe Connect (Express) onboarding for the caller's supplier. Calls
+// the connect-onboard Netlify function (which creates/reuses the connected
+// account and mints a fresh Account Link) and returns the Stripe-hosted URL to
+// redirect to. Same status covers "start onboarding" and "finish onboarding".
+export const startStripeConnectOnboarding = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const res = await fetch('/.netlify/functions/connect-onboard', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token || ''}` },
+    body: JSON.stringify({}),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.url) throw new Error(data?.error || 'Could not start Stripe onboarding');
+  return data.url;
+};
+
 // Upload a supplier logo to the public `supplier-logos` bucket and write the
 // resulting public URL onto invoice_logo_url. Path scheme:
 //   supplier-logos/{supplier_id}/logo.{ext}
