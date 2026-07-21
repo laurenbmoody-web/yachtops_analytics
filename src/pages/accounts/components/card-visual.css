@@ -1,17 +1,23 @@
-/* Cargo Accounts — CardVisual. Scoped under .cv-*. */
-.cv-card {
-  position: relative; border-radius: 16px; padding: 18px; color: #fff; overflow: hidden;
-  background: linear-gradient(140deg, #2A2952 0%, #1C1B3A 60%);
-  box-shadow: 0 22px 44px -22px rgba(28,27,58,0.55);
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-}
+/* Cargo Accounts — CardVisual. Scoped .cv-*. */
+
+/* size envelope (applies to flip container + cash tile) */
 .cv-md { width: 300px; height: 184px; }
-.cv-lg { width: 320px; height: 196px; padding: 22px; }
-.cv-sm { width: 234px; height: 150px; padding: 14px; }
-.cv-sm .cv-chip { margin-top: 12px; width: 32px; height: 24px; }
-.cv-sm .cv-cashglyph { margin-top: 12px; }
-.cv-sm .cv-btm { left: 14px; right: 14px; bottom: 12px; }
-.cv-sm .cv-no { margin-top: 10px; }
+.cv-lg { width: 320px; height: 196px; }
+.cv-sm { width: 234px; height: 150px; }
+
+/* ── flip card ─────────────────────────────────────────────────────────────── */
+.cv-flip { perspective: 1100px; }
+.cv-flip-inner { position: relative; width: 100%; height: 100%; transition: transform 0.58s cubic-bezier(.2,.75,.2,1); transform-style: preserve-3d; }
+.cv-flip:not(.cv-noflip):hover .cv-flip-inner,
+.cv-flip.cv-flipped .cv-flip-inner { transform: rotateY(180deg); }
+.cv-face { position: absolute; inset: 0; -webkit-backface-visibility: hidden; backface-visibility: hidden;
+  border-radius: 16px; overflow: hidden; padding: 18px; color: #fff;
+  background: linear-gradient(140deg, #2A2952 0%, #1C1B3A 60%); box-shadow: 0 22px 44px -22px rgba(28,27,58,0.55);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+.cv-back { transform: rotateY(180deg); }
+.cv-sm .cv-face { padding: 14px; }
+.cv-lg .cv-face { padding: 22px; }
+
 .cv-glow { position: absolute; inset: 0; pointer-events: none; }
 .cv-top { display: flex; align-items: flex-start; justify-content: space-between; position: relative; }
 .cv-brand { font-weight: 800; letter-spacing: 2px; font-size: 13px; }
@@ -19,21 +25,14 @@
 .cv-type { font-size: 9px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; color: rgba(255,255,255,0.7); text-align: right; }
 .cv-chip { width: 38px; height: 28px; border-radius: 6px; margin-top: 20px; position: relative;
   background: linear-gradient(135deg, #E7CE8A, #C6A04A); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25); }
+.cv-sm .cv-chip { width: 32px; height: 24px; margin-top: 12px; }
 .cv-lg .cv-chip { width: 40px; height: 30px; margin-top: 22px; }
 .cv-chip::after { content: ''; position: absolute; inset: 6px 8px; border: 1px solid rgba(120,90,30,0.35); border-radius: 3px; }
 .cv-no { margin-top: 16px; font-size: 16px; letter-spacing: 2px; font-variant-numeric: tabular-nums; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
 .cv-lg .cv-no { font-size: 18px; letter-spacing: 2.5px; }
-.cv-sm .cv-no { font-size: 14px; letter-spacing: 1.5px; margin-top: 12px; }
-/* cash / petty-cash = a wallet float, not a card */
-.cv-cash { background: linear-gradient(140deg, #2C5344 0%, #17281F 65%); }
-.cv-cash .cv-brand { letter-spacing: 1.5px; }
-.cv-wallet { margin-top: 20px; width: 52px; height: 52px; border-radius: 13px; background: rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; }
-.cv-wallet svg { width: 28px; height: 28px; color: #C7E8D3; }
-.cv-sm .cv-wallet { margin-top: 12px; width: 42px; height: 42px; border-radius: 11px; }
-.cv-sm .cv-wallet svg { width: 23px; height: 23px; }
-.cv-lg .cv-wallet { margin-top: 22px; }
-.cv-cashword { font-size: 10px; font-weight: 800; letter-spacing: 2px; color: rgba(255,255,255,0.5); }
+.cv-sm .cv-no { font-size: 14px; letter-spacing: 1.5px; margin-top: 10px; }
 .cv-btm { position: absolute; left: 18px; right: 18px; bottom: 16px; display: flex; align-items: flex-end; justify-content: space-between; }
+.cv-sm .cv-btm { left: 14px; right: 14px; bottom: 12px; }
 .cv-lg .cv-btm { left: 22px; right: 22px; bottom: 20px; }
 .cv-holder { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; }
 .cv-hsub { font-size: 9px; color: rgba(255,255,255,0.55); margin-top: 3px; letter-spacing: 0.4px; }
@@ -41,3 +40,31 @@
 .cv-mc i { width: 20px; height: 20px; border-radius: 999px; display: block; }
 .cv-mc i:first-child { background: #EB6A2E; }
 .cv-mc i:last-child { background: #F0A94B; margin-left: -9px; mix-blend-mode: screen; }
+
+/* card back — just the total */
+.cv-back { display: flex; flex-direction: column; justify-content: space-between; }
+.cv-bk-top { display: flex; align-items: center; justify-content: space-between; position: relative; }
+.cv-bk-id { font-size: 10px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; color: rgba(255,255,255,0.82); }
+.cv-bk-cur { font-size: 8px; font-weight: 800; letter-spacing: 0.5px; color: rgba(255,255,255,0.55); }
+.cv-bk-mid { position: relative; }
+.cv-bk-lbl { font-size: 8px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: rgba(255,255,255,0.55); }
+.cv-bk-amt { font-family: 'DM Serif Display', Georgia, serif; font-size: 34px; line-height: 1; margin-top: 3px; }
+.cv-lg .cv-bk-amt { font-size: 38px; }
+.cv-sm .cv-bk-amt { font-size: 28px; }
+.cv-bk-foot { display: flex; align-items: center; justify-content: space-between; position: relative;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: rgba(255,255,255,0.55); }
+
+/* ── cash float tile (light, no flip) ──────────────────────────────────────── */
+.cv-cashtile { position: relative; border-radius: 16px; background: #fff; border: 1px solid #E6E8EF;
+  padding: 17px 18px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;
+  box-shadow: 0 12px 26px -18px rgba(28,27,58,0.24); font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+.cv-cashtile.cv-sm { padding: 14px; }
+.cv-ct-strip { position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #3F7A52; }
+.cv-ct-top { display: flex; align-items: center; justify-content: space-between; }
+.cv-ct-lbl { font-size: 9px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #3F7A52; }
+.cv-ct-ic { width: 36px; height: 36px; border-radius: 10px; background: #EAF1EC; color: #3F7A52; display: flex; align-items: center; justify-content: center; }
+.cv-sm .cv-ct-ic { width: 30px; height: 30px; }
+.cv-ct-ic svg { width: 19px; height: 19px; }
+.cv-ct-amt { font-family: 'DM Serif Display', Georgia, serif; font-size: 32px; line-height: 1; color: #1C1B3A; }
+.cv-sm .cv-ct-amt { font-size: 26px; }
+.cv-ct-who { font-size: 10.5px; color: #8B8478; margin-top: 5px; }

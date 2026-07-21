@@ -114,9 +114,9 @@ export default function DepartmentCards() {
     const st = statusFor(a.id);
     return (
       <button key={a.id} type="button" className="dc-card" onClick={() => openReconcile(holder, a.id)}>
-        <CardVisual account={a} size="sm" />
+        <CardVisual account={a} size="sm" status={{ text: st.label, tone: st.cls }} />
         <div className="dc-cfoot">
-          <div className="dc-cbal ca-num">{formatMoney(a.balance, a.currency)}</div>
+          <span className="dc-chint">{a.kind === 'petty_cash' ? 'Ship’s float' : 'Hover to see balance'}</span>
           <span className={`dc-cstat ${st.cls}`}><i />{st.label}</span>
         </div>
       </button>

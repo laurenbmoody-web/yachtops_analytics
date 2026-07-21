@@ -169,7 +169,11 @@ export default function MyReconcile() {
                     {cards.map((c) => (
                       <div key={c.id} className="mr-cardslot" style={cardStyle(c.id)}
                         onClick={() => c.id !== activeId && setActive(c.id)}>
-                        <CardVisual account={c} size="lg" />
+                        <CardVisual account={c} size="lg"
+                          flip={c.id === activeId ? 'hover' : 'none'}
+                          status={c.id === activeId
+                            ? (counts.toSort > 0 ? { text: `${counts.toSort} to sort`, tone: 'due' } : { text: 'Balanced', tone: 'ok' })
+                            : undefined} />
                       </div>
                     ))}
                   </div>
