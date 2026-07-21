@@ -1014,7 +1014,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     <button className="lg-btn sm" onClick={cancelTrace}>Cancel</button>
                   </>
                 ) : (
-                  <span>Click a room, then click points on the plan to draw its outline (close on the first point). Turn on <b>Tap room</b> to auto-outline instead. Click an outlined room to adjust it.</span>
+                  <span>Click on a room pin to edit its points. Turn on <b>Tap room</b> to auto-outline instead.</span>
                 )}
               </div>
             )}
