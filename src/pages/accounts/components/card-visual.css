@@ -7,7 +7,11 @@
 }
 .cv-md { width: 300px; height: 184px; }
 .cv-lg { width: 320px; height: 196px; padding: 22px; }
-.cv-sm { width: 234px; height: 144px; padding: 15px; }
+.cv-sm { width: 234px; height: 150px; padding: 14px; }
+.cv-sm .cv-chip { margin-top: 12px; width: 32px; height: 24px; }
+.cv-sm .cv-cashglyph { margin-top: 12px; }
+.cv-sm .cv-btm { left: 14px; right: 14px; bottom: 12px; }
+.cv-sm .cv-no { margin-top: 10px; }
 .cv-glow { position: absolute; inset: 0; pointer-events: none; }
 .cv-top { display: flex; align-items: flex-start; justify-content: space-between; position: relative; }
 .cv-brand { font-weight: 800; letter-spacing: 2px; font-size: 13px; }
