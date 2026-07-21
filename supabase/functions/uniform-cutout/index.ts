@@ -1,7 +1,7 @@
 // Supabase Edge Function: uniform-cutout
 //
 // Background removal for uniform item photos. The client sends the public URL of
-// an uploaded item image; we run it through fal.ai's BiRefNet background-removal
+// an uploaded item image; we run it through fal.ai's rembg background-removal
 // model (garment isolated on transparent), download the result and store it in
 // the item-images bucket, then hand back the permanent public URL. The uniform
 // modal swaps the item's image for this clean cutout.
@@ -41,8 +41,9 @@ Deno.serve(async (req: Request) => {
     const { imageUrl } = await req.json();
     if (!imageUrl || typeof imageUrl !== 'string') return json({ error: 'imageUrl is required' }, 400);
 
-    // 1. Background removal via fal BiRefNet — returns the cutout on transparent.
-    const falRes = await fetch('https://fal.run/fal-ai/birefnet', {
+    // 1. Background removal via fal's rembg — returns the cutout on transparent.
+    // (fal-ai/birefnet isn't a sync fal.run endpoint; rembg is the stable one.)
+    const falRes = await fetch('https://fal.run/fal-ai/imageutils/rembg', {
       method: 'POST',
       headers: { Authorization: `Key ${FAL_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ image_url: imageUrl }),
