@@ -401,8 +401,15 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-swatch.is-scanned{background:var(--lg-terra);}
 .dp-swatch.is-empty{background:#6B7280;}
 /* Category picker in the adjust bar — labelled colour chips. */
-.dp-adjhdr{white-space:nowrap;}
+.dp-adjhdr{white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
 .dp-hint-faint{color:var(--lg-faint,#AEB4C2);font-size:11px;margin-left:6px;}
+/* Info dot in the Adjust header — carries the how-to in its tooltip. */
+.dp-adj-info{display:inline-flex;align-items:center;color:var(--lg-faint,#AEB4C2);cursor:help;}
+.dp-adj-info svg{width:15px;height:15px;}
+.dp-adj-info:hover{color:var(--lg-muted,#8B8478);}
+/* Compact icon buttons in the Adjust bar (tooltips carry the label). */
+.dp-adj-ic{padding:0;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;}
+.dp-adj-ic svg{width:16px;height:16px;}
 .dp-cat-pick{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;}
 .dp-cat-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;cursor:pointer;
   font-family:var(--lg-sans);font-size:11.5px;font-weight:600;color:var(--lg-muted,#6B7280);

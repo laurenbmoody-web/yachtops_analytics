@@ -958,7 +958,12 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               <div className="dp-tracehint">
                 {editing && editing.deckId === deck.id ? (
                   <>
-                    <span className="dp-adjhdr">Adjusting <em>{editing.name}</em> · <b>{editing.nodes.length}</b> pts <span className="dp-hint-faint" title="Drag a corner to move · click a + midpoint to add · click a corner then Delete/⌫ to remove · hold Alt to move without snapping">drag · + add · ⌫ remove</span></span>
+                    <span className="dp-adjhdr">
+                      Adjusting <em>{editing.name}</em>
+                      <span className="dp-adj-info" title={`${editing.nodes.length} points · drag a corner to move · click a + midpoint to add · select a corner then Delete/⌫ to remove · hold Alt to move freely`} aria-label="How to adjust">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" /><path d="M12 11v5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /><circle cx="12" cy="8" r="1.1" fill="currentColor" /></svg>
+                      </span>
+                    </span>
                     {(() => {
                       const eSpace = spaces.find((s) => s.id === editing.spaceId) || { id: editing.spaceId, name: editing.name };
                       const cur = categoryOf(eSpace);
@@ -972,12 +977,22 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       );
                     })()}
                     <span className="dp-spring" />
-                    <button className="lg-btn sm" onClick={() => renameRoom(spaces.find((s) => s.id === editing.spaceId) || { id: editing.spaceId, name: editing.name })} title="Rename this room">Rename</button>
-                    <button className="lg-btn sm" disabled={editing.nodes.length <= 4} onClick={simplifyEdit} title="Reduce the number of corners">Simplify</button>
-                    <button className="lg-btn sm" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => deleteNodeAt(editSel)}>Delete point</button>
+                    <button className="lg-btn sm dp-adj-ic" onClick={() => renameRoom(spaces.find((s) => s.id === editing.spaceId) || { id: editing.spaceId, name: editing.name })} title="Rename room" aria-label="Rename room">
+                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20h9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg>
+                    </button>
+                    <button className="lg-btn sm dp-adj-ic" disabled={editing.nodes.length <= 4} onClick={simplifyEdit} title="Simplify — fewer corners" aria-label="Simplify">
+                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 18c5 0 3-12 8-12s3 8 8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
+                    </button>
+                    <button className="lg-btn sm dp-adj-ic" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => deleteNodeAt(editSel)} title="Delete selected point" aria-label="Delete selected point">
+                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" /><path d="M8 12h8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
+                    </button>
+                    <button className="lg-btn sm dp-adj-ic" onClick={retraceFromEdit} title="Re-trace from scratch" aria-label="Re-trace">
+                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2-5.3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /><path d="M4 4v4h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </button>
+                    <button className="lg-btn sm dp-adj-ic dp-btn-danger" onClick={deleteOutline} title="Delete outline (keeps the room)" aria-label="Delete outline">
+                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /><path d="M9 7V4h6v3" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><path d="M6 7l1 13h10l1-13" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg>
+                    </button>
                     <button className="lg-btn-primary sm" onClick={saveEdit}>Save</button>
-                    <button className="lg-btn sm" onClick={retraceFromEdit}>Re-trace</button>
-                    <button className="lg-btn sm dp-btn-danger" onClick={deleteOutline} title="Remove this outline entirely (keeps the room)">Delete outline</button>
                     <button className="lg-btn sm" onClick={cancelEdit}>Cancel</button>
                   </>
                 ) : tracing && tracing.deckId === deck.id ? (
