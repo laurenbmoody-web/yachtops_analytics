@@ -50,3 +50,5 @@
 .dc-lcur { font-size: 11px; color: #AEB4C2; letter-spacing: 0.5px; text-align: right; }
 .dc-lbal { font-family: 'DM Serif Display', Georgia, serif; font-size: 19px; color: #1C1B3A; text-align: right; }
 .dc-lrow .dc-cstat { justify-self: end; }
+
+.dc-chint { font-size: 10px; font-weight: 600; color: #AEB4C2; letter-spacing: 0.2px; }
