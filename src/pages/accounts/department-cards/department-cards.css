@@ -18,3 +18,23 @@
 .dc-cstat.ok { color: #3F7A52; border: 1px solid #BFE0C9; } .dc-cstat.ok i { background: #6FBF8B; }
 .dc-cstat.sub { color: #3B6EA5; border: 1px solid #C4D6E8; } .dc-cstat.sub i { background: #3B6EA5; }
 .dc-cstat.due { color: #B5762B; border: 1px solid #EAD3B4; } .dc-cstat.due i { background: #D98A3D; }
+
+/* toolbar */
+.dc-tool { display: flex; align-items: center; gap: 10px; margin: 18px 0 4px; flex-wrap: wrap; }
+.dc-search { flex: 1; min-width: 200px; display: flex; align-items: center; gap: 8px; border: 1px solid #E6E8EF; border-radius: 10px; padding: 9px 13px; background: #fff; color: #AEB4C2; }
+.dc-search input { border: 0; background: transparent; outline: none; font: inherit; font-size: 13.5px; flex: 1; color: #1C1B3A; }
+.dc-sel { border: 1px solid #E6E8EF; border-radius: 10px; padding: 9px 12px; font: inherit; font-size: 13px; font-weight: 600; color: #4B4A66; background: #fff; cursor: pointer; }
+.dc-toggle { display: inline-flex; background: #F1F5F9; border-radius: 10px; padding: 3px; }
+.dc-toggle button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; font: inherit; font-size: 12.5px; font-weight: 700; color: #8B8478; padding: 7px 13px; border-radius: 8px; cursor: pointer; }
+.dc-toggle button.on { background: #fff; color: #1C1B3A; box-shadow: 0 1px 3px rgba(28,27,58,0.14); }
+
+/* compact account boxes */
+.dc-boxes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.dc-abox { text-align: left; background: #fff; border: 1px solid #E6E8EF; border-radius: 14px; padding: 14px 16px; cursor: pointer; font-family: inherit; transition: border-color 0.14s, box-shadow 0.14s; display: flex; flex-direction: column; gap: 12px; }
+.dc-abox:hover { border-color: #D5D2CB; box-shadow: 0 8px 20px -14px rgba(28,27,58,0.35); }
+.dc-abox-top { display: flex; align-items: center; gap: 11px; }
+.dc-abox-id { min-width: 0; flex: 1; }
+.dc-abox-name { font-size: 14px; font-weight: 700; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dc-abox-sub { font-size: 10.5px; color: #8B8478; margin-top: 2px; }
+.dc-abox-bot { display: flex; align-items: center; justify-content: space-between; }
+.dc-abox-bal { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: #1C1B3A; }
