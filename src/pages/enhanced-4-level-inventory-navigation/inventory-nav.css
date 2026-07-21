@@ -404,13 +404,17 @@
   display: flex; flex-direction: column; overflow: hidden;
   background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 14px;
   transition: border-color 0.14s, box-shadow 0.14s;
+  /* Fixed tile shape so folder and item tiles are always the same size; the
+     media area flexes to absorb any difference in body height. */
+  aspect-ratio: 5 / 6;
 }
 .inv-card:hover { border-color: #D6C3B4; box-shadow: 0 12px 28px -18px rgba(28,27,58,0.28); }
 .inv-card.selected { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 .inv-card-media {
-  position: relative; aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center;
+  position: relative; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center;
   overflow: hidden; cursor: pointer; background: #F5F6F8;
 }
+.inv-card-body { flex: 0 0 auto; }
 .inv-card-media img { width: 100%; height: 100%; object-fit: cover; }
 .inv-card-media .inv-placeholder svg { color: #D3D7DF; }
 .inv-card-body { padding: 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
@@ -455,11 +459,15 @@
 .inv-card-media.drag:active { cursor: grabbing; }
 .inv-card.itemdragging { opacity: 0.4; }
 
-/* folder rendered as a same-size tile (unified grid with items) */
+/* folder rendered as a same-size tile (unified grid with items) — clean white
+   card with a small tinted icon badge (NOT a cream fill). */
 .inv-card.foldercard { cursor: pointer; }
-.inv-card.foldercard .inv-card-media { background: #FBEFE9; }
-.inv-card.foldercard .inv-foldericon-lg { display: flex; align-items: center; justify-content: center; }
-.inv-card.foldercard .inv-foldericon-lg svg { color: #C65A1A; width: 36px; height: 36px; }
+.inv-card.foldercard .inv-card-media { background: #FFFFFF; }
+.inv-card.foldercard .inv-foldericon-lg {
+  width: 64px; height: 64px; border-radius: 17px; background: #FBEFE9;
+  display: flex; align-items: center; justify-content: center;
+}
+.inv-card.foldercard .inv-foldericon-lg svg { color: #C65A1A; width: 30px; height: 30px; }
 .inv-card.foldercard .inv-card-body { gap: 4px; }
 .inv-card.foldercard .inv-folder-name {
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
@@ -470,8 +478,10 @@
   margin-top: auto; padding-top: 8px; border-top: 1px solid #F0F1F5;
   display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #8B8478;
 }
-.inv-card.foldercard.droptarget .inv-card-media,
-.inv-card.foldercard.droptarget-ready .inv-card-media { background: #F8E1D3; }
+.inv-card.foldercard.droptarget .inv-foldericon-lg,
+.inv-card.foldercard.droptarget-ready .inv-foldericon-lg { background: #C65A1A; }
+.inv-card.foldercard.droptarget .inv-foldericon-lg svg,
+.inv-card.foldercard.droptarget-ready .inv-foldericon-lg svg { color: #FFFFFF; }
 .inv-card.foldercard.droptarget, .inv-card.foldercard.droptarget-ready { border-color: #C65A1A; }
 .inv-card.foldercard.droptarget-ready { box-shadow: 0 0 0 3px #FAECE7; }
 .inv-card.foldercard.dragging { opacity: 0.4; }
