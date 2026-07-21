@@ -3351,12 +3351,45 @@ export const fetchOutstandingInvoices = async (tenantId) => {
   if (!tenantId) return [];
   const { data, error } = await supabase
     .from('supplier_invoices')
-    .select('id, order_id, invoice_number, amount, currency, status, pdf_url, issue_date, due_date, yacht_name, supplier:supplier_profiles(name)')
+    .select('id, order_id, invoice_number, amount, currency, status, pdf_url, issue_date, due_date, yacht_name, supplier:supplier_profiles(name, stripe_charges_enabled)')
     .eq('tenant_id', tenantId)
     .in('status', ['sent', 'overdue'])
     .order('due_date', { ascending: true });
   if (error) throw error;
   return data ?? [];
+};
+
+// Platform card-payment config (fee %, card floor). Best-effort — returns
+// sensible defaults if the row/read fails so the UI can still decide.
+export const fetchCardPaymentConfig = async () => {
+  try {
+    const { data } = await supabase
+      .from('platform_payment_config')
+      .select('fee_percent, card_min_amount')
+      .eq('id', 1)
+      .single();
+    return {
+      feePercent: Number(data?.fee_percent ?? 0.75),
+      cardMinAmount: Number(data?.card_min_amount ?? 50),
+    };
+  } catch {
+    return { feePercent: 0.75, cardMinAmount: 50 };
+  }
+};
+
+// Crew "Pay by card": open a Stripe Checkout (direct charge on the supplier's
+// connected account). Returns the Checkout URL to redirect to.
+export const startSupplierCardPayment = async (invoiceId) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  const res = await fetch('/.netlify/functions/create-supplier-payment-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token || ''}` },
+    body: JSON.stringify({ supplier_invoice_id: invoiceId }),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.url) throw new Error(data?.error || 'Could not start the card payment');
+  return data.url;
 };
 
 // Sprint 9c.2 Phase 5 — vessel-side editable surfaces on supplier_profiles.

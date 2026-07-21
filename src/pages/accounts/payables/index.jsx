@@ -15,6 +15,8 @@ import {
   fetchOutstandingInvoices,
   markInvoicePaid,
   fetchInvoiceSignedUrl,
+  fetchCardPaymentConfig,
+  startSupplierCardPayment,
 } from '../../provisioning/utils/provisioningStorage';
 import '../accounts.css';
 import './payables.css';
@@ -28,12 +30,15 @@ const fmtDmy = (iso) => {
 export default function Payables() {
   const navigate = useNavigate();
   const { activeTenantId } = useTenant();
-  const { hasCommandAccess } = useAuth();
+  const { hasCommandAccess, hasChiefAccess } = useAuth();
   const canSettle = hasCommandAccess();
+  const canPayCard = hasChiefAccess(); // CHIEF+ can pay by card
 
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
   const [busyId, setBusyId] = useState(null);
+  const [payingId, setPayingId] = useState(null);
+  const [cardMin, setCardMin] = useState(50);
   const [toast, setToast] = useState('');
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
 
@@ -45,6 +50,24 @@ export default function Payables() {
     finally { setLoading(false); }
   }, [activeTenantId]);
   useEffect(() => { load(); }, [load]);
+
+  // Card floor for the "Pay by card" gate.
+  useEffect(() => { fetchCardPaymentConfig().then((c) => setCardMin(c.cardMinAmount)).catch(() => {}); }, []);
+
+  // Returning from Stripe Checkout — the webhook marks it paid a moment later.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('paid') === '1') { flash('Payment received — updating…'); const t = setTimeout(load, 1800); return () => clearTimeout(t); }
+  }, [load]);
+
+  const payByCard = async (r) => {
+    if (payingId) return;
+    setPayingId(r.id);
+    try { window.location.href = await startSupplierCardPayment(r.id); }
+    catch (e) { flash(e.message || 'Could not start card payment'); setPayingId(null); }
+  };
+
+  const cardEligible = (r) => canPayCard && r.supplier?.stripe_charges_enabled && Number(r.amount || 0) >= cardMin;
 
   const today = new Date().toISOString().slice(0, 10);
   const isOverdue = (r) => r.due_date && String(r.due_date).slice(0, 10) < today;
@@ -145,6 +168,11 @@ export default function Payables() {
                   <div className="pay-amt ca-num">{formatMoney(r.amount, r.currency)}</div>
                   <div className="pay-act">
                     <button type="button" className="ca-link is-mut" onClick={() => openPdf(r)}>Open</button>
+                    {cardEligible(r) && (
+                      <button type="button" className="pay-card" disabled={payingId === r.id} onClick={() => payByCard(r)}>
+                        {payingId === r.id ? 'Opening…' : 'Pay by card'}
+                      </button>
+                    )}
                     {canSettle && (
                       <button type="button" className="pay-settle" disabled={busyId === r.id} onClick={() => settle(r)}>
                         {busyId === r.id ? 'Saving…' : 'Mark paid'}
