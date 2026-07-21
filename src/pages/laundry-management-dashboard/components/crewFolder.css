@@ -132,7 +132,7 @@
 .cf-folder-ct { font: 700 8px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.6px; text-transform: uppercase; color: #9A93A0; }
 
 /* Item tiles — image-forward, select square overlaid, allocator when picked. */
-.cf-item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.cf-item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 12px; }
 .cf-itile { border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; background: #FFFFFF; display: flex; flex-direction: column; }
 .cf-itile.on { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 /* Bulletproof square image box — padding-ratio holds even where aspect-ratio
@@ -150,3 +150,11 @@
 .cf-qbtn:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
 .cf-qbtn:disabled { opacity: 0.4; cursor: default; }
 .cf-qnum { min-width: 24px; text-align: center; font-weight: 700; font-size: 15px; color: #1C1B3A; font-variant-numeric: tabular-nums; }
+/* per-size steppers (size-run uniforms) */
+.cf-sizes { display: flex; flex-direction: column; gap: 6px; padding: 2px 11px 12px; }
+.cf-sizerow { display: flex; align-items: center; gap: 8px; }
+.cf-sizelbl { min-width: 32px; font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.5px; text-transform: uppercase; color: #8B8478; }
+.cf-sizes .cf-itile-qty { padding: 0; gap: 5px; }
+.cf-sizes .cf-qbtn { width: 25px; height: 25px; font-size: 15px; border-radius: 7px; }
+.cf-sizes .cf-qnum { min-width: 18px; font-size: 13px; }
+.cf-sizes .cf-itile-of { margin-left: auto; }
