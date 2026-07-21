@@ -78,8 +78,16 @@ const TeamJobListWidget = () => {
         urgent: j.metadata?.priority === 'urgent',
         assignee: j.assigned_to ? (nameByUser.get(j.assigned_to) || null) : null,
         unassigned: !j.assigned_to,
+        dueRaw: j.due_date || null,
         due: dueState(j.due_date, todayStr),
-      })).sort((a, b) => a.due.rank - b.due.rank || (b.urgent - a.urgent));
+      })).sort((a, b) => {
+        // Overdue → today → soon → undated. Within a group, the earliest due
+        // date wins (most-overdue leads; soonest-upcoming first), so the lead
+        // is always the single most pressing job. Urgent breaks exact ties.
+        if (a.due.rank !== b.due.rank) return a.due.rank - b.due.rank;
+        if (a.dueRaw && b.dueRaw && a.dueRaw !== b.dueRaw) return a.dueRaw < b.dueRaw ? -1 : 1;
+        return b.urgent - a.urgent;
+      });
 
       setJobs(shaped);
       setDoneToday(doneRes.count || 0);
