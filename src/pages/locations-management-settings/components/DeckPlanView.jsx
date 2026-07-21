@@ -11,7 +11,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck, recordDeckShapeSample } from '../utils/locationsLayoutStorage';
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
-import { createZone, createSpace, archiveSpace } from '../utils/locationsHierarchyStorage';
+import { createZone, createSpace, archiveSpace, updateSpace } from '../utils/locationsHierarchyStorage';
 import { simplifyClosed } from '../utils/deckTrace';
 import { segmentDeck, regionAtPoint, regionContour, splitRegionBySeeds } from '../utils/deckSegment';
 import { pdfToPngBlob } from '../utils/pdfRaster';
@@ -129,6 +129,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const flashTimerRef = useRef(null);
   const [localShapes, setLocalShapes] = useState({}); // spaceId -> shape | null (override)
   const [localCats, setLocalCats] = useState({}); // spaceId -> category (override for instant recolour)
+  const [localNames, setLocalNames] = useState({}); // spaceId -> name (override for instant rename)
   const [traceMode, setTraceMode] = useState(false);
   const [tracing, setTracing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } in progress
   const [editing, setEditing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } adjusting an existing outline
@@ -257,6 +258,19 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     if (!Array.isArray(nodes) || nodes.length < 3) return;
     recordDeckShapeSample({ deckId: deck?.id, spaceId, crop: cropOf(deck), gaImageUrl: layout?.gaImageUrl, nodes, source });
   };
+  // Room name: local override wins (instant rename), else the saved name.
+  const nameOf = (space) => (space.id in localNames ? localNames[space.id] : space.name);
+  // Rename a room from the plan (e.g. after a trace is applied). Persists and
+  // reflects instantly via the local override; the pin/label update at once.
+  const renameRoom = async (space) => {
+    // eslint-disable-next-line no-alert
+    const name = window.prompt('Rename room:', nameOf(space))?.trim();
+    if (!name || name === nameOf(space)) return;
+    setLocalNames((p) => ({ ...p, [space.id]: name }));
+    if (editing?.spaceId === space.id) setEditing((ed) => (ed ? { ...ed, name } : ed));
+    try { await updateSpace(space.id, name); }
+    catch (err) { console.error('[deck-plan] rename error:', err); }
+  };
   // Room zoning category: local override wins, else the saved one, else inferred
   // from the room name. Drives the outline/fill colour on the plan.
   const categoryOf = (space) => normCategory((space.id in localCats ? localCats[space.id] : space.planCategory) || inferCategory(space.name));
@@ -264,7 +278,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     setLocalCats((p) => ({ ...p, [spaceId]: cat }));
     setSpaceCategory(spaceId, cat).catch((err) => console.error('[deck-plan] save category error:', err));
   };
-  const startTrace = (space, deck, fromPin) => { if (fromPin) traceStartRef.current = true; setTracing({ spaceId: space.id, deckId: deck.id, name: space.name, nodes: [] }); };
+  const startTrace = (space, deck, fromPin) => { if (fromPin) traceStartRef.current = true; setTracing({ spaceId: space.id, deckId: deck.id, name: nameOf(space), nodes: [] }); };
   const addTraceNode = (x, y) => setTracing((t) => (t ? { ...t, nodes: [...t.nodes, { x, y }] } : t));
   const undoTraceNode = () => setTracing((t) => (t && t.nodes.length ? { ...t, nodes: t.nodes.slice(0, -1) } : t));
   const cancelTrace = () => setTracing(null);
@@ -308,7 +322,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       (shapeOf(s)?.nodes || []).forEach((n) => targets.push({ x: n.x, y: n.y }));
     });
     snapTargetsRef.current = targets;
-    setEditing({ spaceId: space.id, deckId: deck.id, name: space.name, nodes: (sh?.nodes || []).map((n) => ({ x: n.x, y: n.y })) });
+    setEditing({ spaceId: space.id, deckId: deck.id, name: nameOf(space), nodes: (sh?.nodes || []).map((n) => ({ x: n.x, y: n.y })) });
   };
   // Adjust a PROPOSED outline's corners in the review stage, before anything is
   // committed. Reuses the same drag/snap/insert/delete machinery as startEdit;
@@ -779,7 +793,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   // leftover / wrong rooms sitting in the tray.
   const deleteRoom = async (space, deck) => {
     // eslint-disable-next-line no-alert
-    if (!window.confirm(`Delete "${space.name}"? This removes the room from the vessel.`)) return;
+    if (!window.confirm(`Delete "${nameOf(space)}"? This removes the room from the vessel.`)) return;
     try {
       await archiveSpace(space.id);
       await onReloadRef.current?.();
@@ -958,6 +972,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       );
                     })()}
                     <span className="dp-spring" />
+                    <button className="lg-btn sm" onClick={() => renameRoom(spaces.find((s) => s.id === editing.spaceId) || { id: editing.spaceId, name: editing.name })} title="Rename this room">Rename</button>
                     <button className="lg-btn sm" disabled={editing.nodes.length <= 4} onClick={simplifyEdit} title="Reduce the number of corners">Simplify</button>
                     <button className="lg-btn sm" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => deleteNodeAt(editSel)}>Delete point</button>
                     <button className="lg-btn-primary sm" onClick={saveEdit}>Save</button>
@@ -1125,9 +1140,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                         className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''} ${pending ? 'is-pending' : ''} ${flashSpace === s.id ? 'is-flash' : ''}`}
                         style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
                         onPointerDown={(e) => onDotDown(e, s, deck, true)}
-                        title={linkMode ? s.name : scanned ? `${s.name} — open on map` : `${s.name} — add a scan`}
+                        title={linkMode ? nameOf(s) : scanned ? `${nameOf(s)} — open on map` : `${nameOf(s)} — add a scan`}
                       >
-                        <span className="dp-pin-label">{s.name}</span>
+                        <span className="dp-pin-label">{nameOf(s)}</span>
                       </div>
                     );
                   })}
@@ -1194,7 +1209,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                         className={`dp-chip ${isScanned(s) ? 'is-scanned' : 'is-empty'} ${tracing?.spaceId === s.id ? 'is-tracing' : ''}`}
                         onPointerDown={(e) => onDotDown(e, s, deck, false)}
                       >
-                        <span className="dp-pin-dot" />{s.name}
+                        <span className="dp-pin-dot" />{nameOf(s)}
                         <button
                           className="dp-chip-x"
                           title="Delete this room"
