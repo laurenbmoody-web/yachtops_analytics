@@ -49,7 +49,7 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const [brand, setBrand] = useState(item?.brand || '');
   const [styleCode, setStyleCode] = useState(cf.styleCode || '');
   const [sizes, setSizes] = useState(
-    (item?.variants || []).map((v) => ({ size: v.size || v.label || '', qty: v.qty ?? v.quantity ?? '' }))
+    (item?.variants || []).map((v) => ({ size: v.size || v.label || '', qty: v.qty ?? v.quantity ?? '', locId: v.locationId || '', locLabel: v.locationName || '' }))
   );
   const [customSize, setCustomSize] = useState('');
   const [brandingType, setBrandingType] = useState(cf.branding?.type || 'None');
@@ -73,7 +73,9 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const [storageLabel, setStorageLabel] = useState(existingStock.locationName || existingStock.location_name || existingStock.subLocation || '');
   const [vesselLocations, setVesselLocations] = useState([]);
   const [vesselLoading, setVesselLoading] = useState(false);
-  const [showLocPicker, setShowLocPicker] = useState(false);
+  // Location picker target: null = closed, 'main' = the item's default storage,
+  // or a size index = that size's own storage (split storage across locations).
+  const [pickerTarget, setPickerTarget] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -103,32 +105,56 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
 
   const total = sizes.reduce((a, s) => a + (Number(s.qty) || 0), 0);
 
-  // item-images bucket accepts JPEG/PNG/WebP/GIF up to 5 MB. Check up front so a
-  // HEIC phone photo or an oversized file gives a clear message instead of
-  // silently failing (which left the item with no image and blocked the AI cutout).
-  const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-  const MAX_BYTES = 5 * 1024 * 1024;
+  // The item-images bucket only accepts JPEG/PNG/WebP/GIF up to 5 MB — but most
+  // crew shoot on iPhones (HEIC, often >5 MB). So re-encode every picked photo to
+  // JPEG through a canvas and downscale it: this makes HEIC work (iOS can decode
+  // it to draw), guarantees an accepted format, and keeps us under the size cap.
+  const MAX_DIM = 1600;
+  const toJpeg = (file) => new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (Math.max(width, height) > MAX_DIM) {
+        const scale = MAX_DIM / Math.max(width, height);
+        width = Math.round(width * scale); height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d')?.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('encode'))), 'image/jpeg', 0.9);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+    img.src = url;
+  });
 
   const upload = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     setBgError('');
-    if (file.type && !ACCEPTED.includes(file.type)) {
-      setUploadError('That format isn’t supported — use JPG, PNG, WebP or GIF (iPhone “HEIC” photos won’t upload; switch Camera → Formats to “Most Compatible”).');
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      setUploadError('That image is over 5 MB — please use a smaller one.');
-      return;
-    }
     setUploading(true); setUploadError('');
     try {
+      let blob;
+      try {
+        blob = await toJpeg(file); // HEIC/large → downscaled JPEG
+      } catch {
+        // Browser couldn't decode it (e.g. HEIC on desktop Chrome). Fall back to
+        // the original if it's already an accepted type and small enough.
+        const ok = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) && file.size <= 5 * 1024 * 1024;
+        if (!ok) {
+          setUploadError('Couldn’t read that image — please try a JPG or PNG.');
+          setUploading(false); return;
+        }
+        blob = file;
+      }
       const { data: ctx } = await supabase?.rpc('get_my_context');
       const tenantId = ctx?.[0]?.tenant_id || 'shared';
-      const ext = (file.type.split('/')[1] || file?.name?.split('.')?.pop() || 'jpg').replace('jpeg', 'jpg');
+      const ext = blob === file ? ((file.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')) : 'jpg';
+      const contentType = blob === file ? (file.type || 'image/jpeg') : 'image/jpeg';
       const path = `inventory/${tenantId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase?.storage?.from('item-images')?.upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' });
+      const { error: upErr } = await supabase?.storage?.from('item-images')?.upload(path, blob, { upsert: true, contentType });
       if (upErr) {
         setUploadError('Upload failed — ' + (upErr?.message || 'please try again.'));
       } else {
@@ -158,7 +184,7 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const addSize = (s) => {
     const v = (s || '').trim();
     if (!v || sizes.some((x) => x.size.toLowerCase() === v.toLowerCase())) return;
-    setSizes((p) => [...p, { size: v, qty: '' }]);
+    setSizes((p) => [...p, { size: v, qty: '', locId: '', locLabel: '' }]);
   };
   const setQty = (i, q) => setSizes((p) => p.map((s, idx) => (idx === i ? { ...s, qty: q } : s)));
   const removeSize = (i) => setSizes((p) => p.filter((_, idx) => idx !== i));
@@ -166,20 +192,33 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const save = async () => {
     if (!name.trim() || saving) return;
     setSaving(true); setError('');
-    const variants = sizes.filter((s) => s.size).map((s) => ({ size: s.size, qty: Number(s.qty) || 0 }));
+    const variants = sizes.filter((s) => s.size).map((s) => ({
+      size: s.size, qty: Number(s.qty) || 0,
+      ...(s.locId ? { locationId: s.locId, locationName: s.locLabel } : {}),
+    }));
     const customFields = {
       fit, garmentType, subType: subType.trim(), colour: colour.trim(), styleCode: styleCode.trim(),
       branding: { type: brandingType, colour: brandingColour.trim(), logo: brandingLogo.trim(), placement: brandingPlacement.trim() },
       fabric: fabric.trim(), care: care.trim(), season,
     };
-    // One physical storage location holds the whole size run (the uniform locker).
-    const stockLocations = storageLocId
-      ? [{
-          vesselLocationId: storageLocId, locationId: storageLocId,
-          locationName: storageLabel, location_name: storageLabel, subLocation: storageLabel,
-          quantity: total, qty: total,
-        }]
-      : [];
+    // Physical storage on the vessel map. Each size lands at its own location if
+    // one is set, otherwise the item's default ('all sizes') location. Group by
+    // location so the map/stock rows show a quantity (and size breakdown) per spot.
+    const groups = new Map();
+    for (const s of sizes.filter((x) => x.size)) {
+      const locId = s.locId || storageLocId;
+      const label = s.locId ? s.locLabel : storageLabel;
+      if (!locId) continue;
+      const g = groups.get(locId) || { label, qty: 0, sizes: [] };
+      g.qty += Number(s.qty) || 0;
+      g.sizes.push({ size: s.size, qty: Number(s.qty) || 0 });
+      groups.set(locId, g);
+    }
+    const stockLocations = Array.from(groups.entries()).map(([locId, g]) => ({
+      vesselLocationId: locId, locationId: locId,
+      locationName: g.label, location_name: g.label, subLocation: g.label,
+      quantity: g.qty, qty: g.qty, sizes: g.sizes,
+    }));
     const payload = {
       ...(isEdit ? { id: item.id, cargoItemId: item.cargoItemId } : {}),
       name: name.trim(), imageUrl, brand: brand.trim(), supplier: supplier.trim(), notes,
@@ -249,8 +288,22 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
                   <div className="uim-size" key={s.size}>
                     <span className="uim-size-lbl">{s.size}</span>
                     <input className="uim-size-qty" type="number" min="0" value={s.qty} onChange={(e) => setQty(i, e.target.value)} placeholder="0" />
+                    <button type="button" className={`uim-size-loc${s.locId ? ' on' : ''}`}
+                      title={s.locId ? `Stored at ${s.locLabel}` : 'Stored with the rest — tap to store this size elsewhere'}
+                      onClick={() => setPickerTarget(i)}><Icon name="MapPin" size={12} /></button>
                     <button type="button" className="uim-size-x" onClick={() => removeSize(i)} aria-label="Remove"><Icon name="X" size={13} /></button>
                   </div>
+                ))}
+              </div>
+            )}
+            {sizes.some((s) => s.locId) && (
+              <div className="uim-split">
+                <span className="uim-split-h">Split storage</span>
+                {sizes.filter((s) => s.locId).map((s) => (
+                  <span className="uim-split-row" key={s.size}>
+                    <b>{s.size}</b><Icon name="MapPin" size={11} />{s.locLabel}
+                    <button type="button" onClick={() => setSizes((p) => p.map((x) => (x.size === s.size ? { ...x, locId: '', locLabel: '' } : x)))} aria-label="Clear"><Icon name="X" size={11} /></button>
+                  </span>
                 ))}
               </div>
             )}
@@ -269,8 +322,8 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
           {/* Storage on board — links to the location-management / GA map */}
           <div className="uim-sec">
             <div className="uim-sec-h"><span>Storage on board</span></div>
-            <L opt>Where it’s kept</L>
-            <button type="button" className="uim-locpick" onClick={() => setShowLocPicker(true)} disabled={vesselLoading}>
+            <L opt>Where it’s kept <span className="uim-opt">all sizes</span></L>
+            <button type="button" className="uim-locpick" onClick={() => setPickerTarget('main')} disabled={vesselLoading}>
               <span className="uim-locpick-l">
                 <Icon name="MapPin" size={15} />
                 <span className={storageLocId ? 'uim-locpick-val' : 'uim-locpick-ph'}>
@@ -345,12 +398,16 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
         </div>
       </div>
 
-      {showLocPicker && (
+      {pickerTarget !== null && (
         <LocationPicker
           vesselLocations={vesselLocations}
-          selectedId={storageLocId}
-          onSelect={({ id, label }) => { setStorageLocId(id); setStorageLabel(label); setShowLocPicker(false); }}
-          onClose={() => setShowLocPicker(false)}
+          selectedId={pickerTarget === 'main' ? storageLocId : (sizes[pickerTarget]?.locId || '')}
+          onSelect={({ id, label }) => {
+            if (pickerTarget === 'main') { setStorageLocId(id); setStorageLabel(label); }
+            else setSizes((p) => p.map((s, idx) => (idx === pickerTarget ? { ...s, locId: id, locLabel: label } : s)));
+            setPickerTarget(null);
+          }}
+          onClose={() => setPickerTarget(null)}
         />
       )}
     </div>
