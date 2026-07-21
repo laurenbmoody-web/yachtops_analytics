@@ -104,6 +104,11 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   }, [storageLocId, vesselLocations]);
 
   const total = sizes.reduce((a, s) => a + (Number(s.qty) || 0), 0);
+  // Partial-gap nudge: some sizes pinned to their own spot but no default set, so
+  // the unpinned sizes have nowhere to land. (Not shown when nothing is pinned —
+  // that's just "no location yet", handled elsewhere.)
+  const anyPinned = sizes.some((s) => s.size && s.locId);
+  const gapSizes = (anyPinned && !storageLocId) ? sizes.filter((s) => s.size && !s.locId) : [];
 
   // The item-images bucket only accepts JPEG/PNG/WebP/GIF up to 5 MB — but most
   // crew shoot on iPhones (HEIC, often >5 MB). So re-encode every picked photo to
@@ -322,7 +327,7 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
           {/* Storage on board — links to the location-management / GA map */}
           <div className="uim-sec">
             <div className="uim-sec-h"><span>Storage on board</span></div>
-            <L opt>Where it’s kept <span className="uim-opt">all sizes</span></L>
+            <L opt>Default location <span className="uim-opt">all sizes</span></L>
             <button type="button" className="uim-locpick" onClick={() => setPickerTarget('main')} disabled={vesselLoading}>
               <span className="uim-locpick-l">
                 <Icon name="MapPin" size={15} />
@@ -340,7 +345,13 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
                 <Icon name="ChevronRight" size={15} />
               </span>
             </button>
-            <p className="uim-hint">So Interior can see where the uniform is stored. Manage the map in Location management.</p>
+            <p className="uim-hint">Applies to every size that isn’t pinned to its own location in the size run above. So Interior can see where the uniform is kept — manage the map in Location management.</p>
+            {gapSizes.length > 0 && (
+              <p className="uim-nudge">
+                <Icon name="AlertCircle" size={14} />
+                <span><b>{gapSizes.map((s) => s.size).join(', ')}</b> {gapSizes.length === 1 ? 'isn’t' : 'aren’t'} stored anywhere yet — set a default location above, or pin {gapSizes.length === 1 ? 'it' : 'them'} in the size run.</span>
+              </p>
+            )}
           </div>
 
           {/* Branding */}
