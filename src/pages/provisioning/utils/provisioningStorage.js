@@ -3230,7 +3230,7 @@ export const fetchSupplierOrderById = async (orderId) => {
       *,
       supplier_order_items(*),
       supplier_invoices(id, invoice_number, amount, currency, status, pdf_url, created_at, due_date),
-      supplier_profile:supplier_profile_id(id, name, business_country, business_city)
+      supplier_profile:supplier_profile_id(id, name, business_country, business_city, stripe_charges_enabled)
     `)
     .eq('id', orderId)
     .maybeSingle();
@@ -3257,7 +3257,7 @@ export const fetchAllSupplierOrders = async (tenantId) => {
       currency, departments, is_favourite,
       supplier_order_items(id),
       supplier_invoices(id, invoice_number, amount, currency, status, pdf_url, created_at, due_date),
-      supplier_profile:supplier_profile_id(id, name, business_country, business_city),
+      supplier_profile:supplier_profile_id(id, name, business_country, business_city, stripe_charges_enabled),
       provisioning_list:list_id(id, title)
     `)
     ?.eq('tenant_id', tenantId)
@@ -3276,7 +3276,7 @@ export const fetchSupplierOrders = async (listId) => {
       *,
       supplier_order_items(*),
       supplier_invoices(id, invoice_number, amount, currency, status, pdf_url, created_at, due_date),
-      supplier_profile:supplier_profile_id(id, name, business_country, business_city)
+      supplier_profile:supplier_profile_id(id, name, business_country, business_city, stripe_charges_enabled)
     `)
     .eq('list_id', listId)
     .order('created_at', { ascending: false });

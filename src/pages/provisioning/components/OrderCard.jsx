@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { dateLocale } from '../../../utils/dateFormat';
-import { fetchInvoiceSignedUrl } from '../utils/provisioningStorage';
+import { fetchInvoiceSignedUrl, startSupplierCardPayment } from '../utils/provisioningStorage';
+import { useAuth } from '../../../contexts/AuthContext';
 
 // ── OrderCard ──────────────────────────────────────────────────────────────
 // Canonical visual for a supplier_order. Same card used by:
@@ -83,6 +84,22 @@ export default function OrderCard({
   const invoice = invoices.length > 0
     ? [...invoices].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0]
     : null;
+
+  // "Pay by card" appears on an unpaid invoice when the supplier is card-ready
+  // and the viewer is CHIEF+. The Netlify function re-checks eligibility (floor,
+  // tier), so this is just the surfacing gate.
+  const { hasChiefAccess } = useAuth();
+  const canPayCard = typeof hasChiefAccess === 'function' ? hasChiefAccess() : false;
+  const [paying, setPaying] = useState(false);
+  const showPay = invoice && invoice.status !== 'paid'
+    && order.supplier_profile?.stripe_charges_enabled && canPayCard;
+  const payByCard = async (e) => {
+    e.stopPropagation();
+    if (paying) return;
+    setPaying(true);
+    try { window.location.href = await startSupplierCardPayment(invoice.id); }
+    catch (err) { window.alert(err.message || 'Could not start card payment'); setPaying(false); }
+  };
 
   const handleClick = () => onNavigate?.(order.id);
   const handleKeyDown = (e) => {
@@ -190,6 +207,19 @@ export default function OrderCard({
           >
             <span aria-hidden="true">📄</span>
             Invoice · {fmtCur(invoice.amount, invoice.currency)}
+          </button>
+        )}
+        {showPay && (
+          <button
+            type="button"
+            onClick={payByCard}
+            disabled={paying}
+            title={`Pay ${invoice.invoice_number} by card`}
+            className="cargo-ribbon-btn"
+            style={{ fontSize: 11, color: '#C65A1A', borderColor: '#E7C9B6' }}
+          >
+            <span aria-hidden="true">💳</span>
+            {paying ? 'Opening…' : 'Pay by card'}
           </button>
         )}
         {order.sent_via && (
