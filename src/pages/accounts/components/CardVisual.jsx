@@ -18,29 +18,49 @@ export default function CardVisual({ account, size = 'md', className = '' }) {
     : a.kind === 'bank' ? 'Bank' : 'General';
   const glow = `radial-gradient(circle at 82% 8%, ${accent}55, transparent 55%), radial-gradient(circle at 12% 96%, ${accent}22, transparent 45%)`;
 
+  // Petty cash / cash render as a wallet float, not a payment card — no card
+  // number, chip or Mastercard mark.
+  if (isCash) {
+    return (
+      <div className={`cv-card cv-${size} cv-cash ${className}`}>
+        <div className="cv-glow" style={{ background: glow }} />
+        <div className="cv-top">
+          <span className="cv-brand">PETTY CASH</span>
+          <span className="cv-type">{a.currency || 'EUR'}</span>
+        </div>
+        <div className="cv-wallet">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+            <path d="M3 7a2 2 0 012-2h12a2 2 0 012 2v1H5a2 2 0 00-2 2v-3z" />
+            <rect x="3" y="7" width="18" height="12" rx="2.5" />
+            <path d="M16 12.5h4" /><circle cx="17" cy="12.5" r="0.6" fill="currentColor" />
+          </svg>
+        </div>
+        <div className="cv-btm">
+          <div>
+            <div className="cv-holder">{(a.holder_role || 'Vessel').toUpperCase()}</div>
+            <div className="cv-hsub">Ship's float</div>
+          </div>
+          <span className="cv-cashword">CASH</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={`cv-card cv-${size} ${isCash ? 'cv-cash' : ''} ${className}`}>
+    <div className={`cv-card cv-${size} ${className}`}>
       <div className="cv-glow" style={{ background: glow }} />
       <div className="cv-top">
         <span className="cv-brand">CARGO</span>
         <span className="cv-type">{typeLabel} · {a.currency || 'EUR'}</span>
       </div>
-      {isCash ? (
-        <div className="cv-cashglyph">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /></svg>
-        </div>
-      ) : (
-        <>
-          <div className="cv-chip" />
-          <div className="cv-no">•••• •••• •••• {a.card_last4 || '0000'}</div>
-        </>
-      )}
+      <div className="cv-chip" />
+      <div className="cv-no">•••• •••• •••• {a.card_last4 || '0000'}</div>
       <div className="cv-btm">
         <div>
           <div className="cv-holder">{(a.holder_role || 'Vessel').toUpperCase()}</div>
-          <div className="cv-hsub">{isCash ? "Ship's float" : (a.provider || 'Prepaid')}</div>
+          <div className="cv-hsub">{a.provider || 'Prepaid'}</div>
         </div>
-        {!isCash && <span className="cv-mc"><i /><i /></span>}
+        <span className="cv-mc"><i /><i /></span>
       </div>
     </div>
   );
