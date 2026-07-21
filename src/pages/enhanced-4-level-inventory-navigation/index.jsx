@@ -2921,9 +2921,6 @@ const LocationFirstInventory = () => {
 
   const handleItemSaved = () => {
     markTutorialStep(session?.user?.id, 'inventory_done').catch(() => {});
-    // Reveal the All Items list so a freshly added item isn't hidden in the
-    // collapsed section (it lands there, alongside items from sub-folders).
-    setItemsCollapsedOverride(false);
     handleModalClose();
   };
 
@@ -3208,16 +3205,84 @@ const LocationFirstInventory = () => {
   };
 
   const hasActiveFilters = activeFilterChips?.length > 0;
-  // Items are collapsed by default when the folder also has sub-folders (keep
-  // folders as the primary view). A leaf folder with no sub-folders stays open.
-  // An active search/filter always forces items open so matches are visible.
-  const itemsCollapsed = (searchQuery || hasActiveFilters)
-    ? false
-    : (itemsCollapsedOverride ?? (filteredSubFolders?.length > 0));
   const availableTags = [...new Set(items?.flatMap(i => i?.tags || []))];
   const currentSortLabel = SORT_OPTIONS?.find(o => o?.value === sortBy)?.label || 'Sort';
 
   const currentStorageFields = segmentsToStorageFields(pathSegments);
+
+  // Split the folder's items into "direct" (pinned to THIS folder — shown as
+  // tiles beside the sub-folders) and the recursive rollup (direct + every
+  // descendant, in the collapsible "All Items" section). On the root search
+  // launchpad or while a search/filter is active, skip the split and show one
+  // flat result list instead.
+  const flatItemsView = isRoot || !!searchQuery || hasActiveFilters;
+  const currentSubLower = (currentStorageFields?.subLocation || '')?.trim()?.toLowerCase();
+  const directItems = flatItemsView
+    ? filteredItems
+    : (filteredItems?.filter(it => (it?.subLocation || '')?.trim()?.toLowerCase() === currentSubLower) || []);
+  const hasDeeperItems = !flatItemsView && (filteredItems?.length || 0) > (directItems?.length || 0);
+  // The recursive "All Items" rollup is collapsed by default (its contents are
+  // already visible as tiles / inside sub-folders); the header toggle overrides.
+  const allItemsCollapsed = itemsCollapsedOverride ?? true;
+
+  const isAllSelected = (list) => (list?.length || 0) > 0 && list?.every(i => selectedItemIds?.has(i?.id));
+  const toggleSelectAllOf = (list) => {
+    const ids = (list || [])?.map(i => i?.id);
+    const allSel = isAllSelected(list);
+    setSelectedItemIds(prev => {
+      const next = new Set(prev);
+      ids?.forEach(id => { if (allSel) next?.delete(id); else next?.add(id); });
+      return next;
+    });
+  };
+
+  // Shared renderer for an item list (list rows or grid cards per viewMode).
+  const renderItemList = (list) => (
+    viewMode === 'list' ? (
+      <div className="inv-items">
+        {list?.map(item => (
+          <ItemRow
+            key={item?.id}
+            item={item}
+            canEdit={canEdit}
+            onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
+            onDelete={canManageItems ? (i) => setDeletingItem(i) : undefined}
+            onMove={(i) => setMovingItem(i)}
+            onClone={canManageItems ? handleCloneItem : undefined}
+            onUpdate={loadData}
+            onQuickView={(i) => setQuickViewItem(i)}
+            isSelected={selectedItemIds?.has(item?.id)}
+            onToggleSelect={handleToggleSelectItem}
+            onAppearanceChange={handleItemAppearanceChange}
+          />
+        ))}
+      </div>
+    ) : (
+      <div
+        className="inv-cardgrid"
+        style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(tileZoom * 0.7)}px, 1fr))` }}
+      >
+        {list?.map(item => (
+          <ItemGridCard
+            key={item?.id}
+            item={item}
+            canEdit={canEdit}
+            onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
+            onDelete={canManageItems ? (i) => setDeletingItem(i) : undefined}
+            onMove={(i) => setMovingItem(i)}
+            onClone={canManageItems ? handleCloneItem : undefined}
+            onUpdate={loadData}
+            onQuickView={(i) => setQuickViewItem(i)}
+            isSelected={selectedItemIds?.has(item?.id)}
+            onToggleSelect={handleToggleSelectItem}
+            onAppearanceChange={handleItemAppearanceChange}
+          />
+        ))}
+      </div>
+    )
+  );
+
+  const directItemsLabel = isRoot ? 'Results' : 'Items';
 
   const pageTitle = currentFolderName || 'Inventory';
   const pageSubtitle = isRoot
@@ -3841,79 +3906,54 @@ const LocationFirstInventory = () => {
           </DragOverlay>
         </DndContext>
 
-        {/* Items section */}
-        {filteredItems?.length > 0 && (
+        {/* Items pinned directly to this folder — tiles beside the sub-folders */}
+        {directItems?.length > 0 && (
           <div style={filteredSubFolders?.length > 0 ? { marginTop: 28 } : undefined}>
+            <div className="inv-sectrow">
+              <h2 className="inv-sectlabel">
+                {directItemsLabel} ({directItems?.length})
+              </h2>
+              <button
+                onClick={() => toggleSelectAllOf(directItems)}
+                className="inv-selbtn"
+              >
+                <div className={`inv-minicheck${isAllSelected(directItems) ? ' on' : ''}`}>
+                  {isAllSelected(directItems) ? <Icon name="Check" size={9} /> : null}
+                </div>
+                {isAllSelected(directItems) ? 'Deselect All' : 'Select All'}
+              </button>
+            </div>
+            {renderItemList(directItems)}
+          </div>
+        )}
+
+        {/* Recursive rollup — everything inside this folder and every sub-folder */}
+        {hasDeeperItems && (
+          <div style={{ marginTop: 28 }}>
             <div className="inv-sectrow">
               <button
                 className="inv-secttoggle"
-                onClick={() => setItemsCollapsedOverride(!itemsCollapsed)}
-                title={itemsCollapsed ? 'Show items' : 'Hide items'}
+                onClick={() => setItemsCollapsedOverride(!allItemsCollapsed)}
+                title={allItemsCollapsed ? 'Show all items' : 'Hide all items'}
               >
-                <Icon name="ChevronRight" size={15} className={`inv-sectchevron${itemsCollapsed ? '' : ' open'}`} />
+                <Icon name="ChevronRight" size={15} className={`inv-sectchevron${allItemsCollapsed ? '' : ' open'}`} />
                 <h2 className="inv-sectlabel">
                   All Items ({filteredItems?.length})
                 </h2>
               </button>
-              {!itemsCollapsed && (
+              {!allItemsCollapsed && (
                 <button
-                  onClick={handleSelectAll}
+                  onClick={() => toggleSelectAllOf(filteredItems)}
                   className="inv-selbtn"
                 >
-                  <div className={`inv-minicheck${selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0 ? ' on' : ''}`}>
-                    {selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0
-                      ? <Icon name="Check" size={9} />
-                      : null
-                    }
+                  <div className={`inv-minicheck${isAllSelected(filteredItems) ? ' on' : ''}`}>
+                    {isAllSelected(filteredItems) ? <Icon name="Check" size={9} /> : null}
                   </div>
-                  {selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0
-                    ? 'Deselect All' :'Select All'
-                  }
+                  {isAllSelected(filteredItems) ? 'Deselect All' : 'Select All'}
                 </button>
               )}
             </div>
-            {itemsCollapsed ? null : viewMode === 'list' ? (
-              <div className="inv-items">
-                {filteredItems?.map(item => (
-                  <ItemRow
-                    key={item?.id}
-                    item={item}
-                    canEdit={canEdit}
-                    onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
-                    onDelete={canManageItems ? (i) => setDeletingItem(i) : undefined}
-                    onMove={(i) => setMovingItem(i)}
-                    onClone={canManageItems ? handleCloneItem : undefined}
-                    onUpdate={loadData}
-                    onQuickView={(i) => setQuickViewItem(i)}
-                    isSelected={selectedItemIds?.has(item?.id)}
-                    onToggleSelect={handleToggleSelectItem}
-                    onAppearanceChange={handleItemAppearanceChange}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div
-                className="inv-cardgrid"
-                style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(tileZoom * 0.7)}px, 1fr))` }}
-              >
-                {filteredItems?.map(item => (
-                  <ItemGridCard
-                    key={item?.id}
-                    item={item}
-                    canEdit={canEdit}
-                    onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
-                    onDelete={canManageItems ? (i) => setDeletingItem(i) : undefined}
-                    onMove={(i) => setMovingItem(i)}
-                    onClone={canManageItems ? handleCloneItem : undefined}
-                    onUpdate={loadData}
-                    onQuickView={(i) => setQuickViewItem(i)}
-                    isSelected={selectedItemIds?.has(item?.id)}
-                    onToggleSelect={handleToggleSelectItem}
-                    onAppearanceChange={handleItemAppearanceChange}
-                  />
-                ))}
-              </div>
-            )}
+            {allItemsCollapsed ? null : renderItemList(filteredItems)}
           </div>
         )}
 
