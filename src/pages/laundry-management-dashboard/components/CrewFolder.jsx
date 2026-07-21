@@ -7,7 +7,7 @@ import { fetchTenantCrew } from '../../crew-profile/utils/tenantCrew';
 import {
   fetchTenantUniformKit, saveKitItem, deleteKitItem, recordKitReturn, logKitEvent, fmtKitDate, CONDITIONS,
 } from '../../crew-profile/utils/crewKit';
-import { getAllItems, adjustItemQuantity } from '../../inventory/utils/inventoryStorage';
+import { getAllItems, adjustItemQuantity, saveItem } from '../../inventory/utils/inventoryStorage';
 import { canViewCost } from '../../../utils/costPermissions';
 import { money } from '../utils/laundryBilling';
 import PersonTiles from './PersonTiles';
@@ -72,7 +72,8 @@ const uniformRel = (item) => {
 // issue the lot to the crew member in one go.
 const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onClose }) => {
   const [trail, setTrail] = useState([]); // folder segments below Uniform
-  const [sel, setSel] = useState({});     // itemId -> allocated qty
+  const [open, setOpen] = useState({});   // itemId -> ticked open for allocation
+  const [sel, setSel] = useState({});     // `${itemId}|${size}` -> allocated qty
   const [busy, setBusy] = useState(false);
 
   const withRel = useMemo(() => stock.map((i) => ({ i, rel: uniformRel(i) })), [stock]);
@@ -92,11 +93,29 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onCl
   }, [folderRels, atLevel, trail]);
   const itemsHere = useMemo(() => atLevel.filter((x) => x.rel.length === trail.length).map((x) => x.i), [atLevel, trail]);
 
+  // Size-run uniforms expose a stepper PER SIZE (pull out 2 × M, 1 × L); plain
+  // items keep the single stepper. `sel` is keyed `${itemId}|${size}` (size '' = plain).
+  const variantsOf = (i) => (i.variants || []).filter((v) => v && (v.size || v.label));
+  const vSize = (v) => v.size || v.label;
+  const vQty = (v) => Number(v.qty ?? v.quantity) || 0;
   const stockOf = (i) => Number(i.totalQty ?? i.quantity) || 0;
-  const toggle = (i) => setSel((p) => { const n = { ...p }; if (i.id in n) delete n[i.id]; else n[i.id] = 0; return n; });
-  const bump = (i, d) => setSel((p) => ({ ...p, [i.id]: Math.max(0, Math.min(stockOf(i), (p[i.id] || 0) + d)) }));
+  const skey = (id, size) => `${id}|${size || ''}`;
+  const toggle = (i) => setOpen((p) => {
+    const n = { ...p };
+    if (i.id in n) {
+      delete n[i.id];
+      setSel((s) => { const ns = { ...s }; Object.keys(ns).forEach((k) => { if (k.startsWith(`${i.id}|`)) delete ns[k]; }); return ns; });
+    } else n[i.id] = true;
+    return n;
+  });
+  const bump = (id, size, d, cap) => setSel((p) => ({ ...p, [skey(id, size)]: Math.max(0, Math.min(cap, (p[skey(id, size)] || 0) + d)) }));
 
-  const alloc = stock.filter((i) => (sel[i.id] || 0) > 0).map((i) => ({ invItem: i, qty: sel[i.id] }));
+  const alloc = [];
+  stock.forEach((i) => {
+    const vs = variantsOf(i);
+    if (vs.length) vs.forEach((v) => { const q = sel[skey(i.id, vSize(v))] || 0; if (q > 0) alloc.push({ invItem: i, size: vSize(v), qty: q }); });
+    else { const q = sel[skey(i.id, '')] || 0; if (q > 0) alloc.push({ invItem: i, size: i.size || null, qty: q }); }
+  });
   const totalUnits = alloc.reduce((a, x) => a + x.qty, 0);
 
   const submit = async () => {
@@ -144,26 +163,45 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onCl
                 <div className="cf-item-grid">
                   {itemsHere.map((i) => {
                     const onboard = stockOf(i);
-                    const picked = i.id in sel;
-                    const qty = sel[i.id] || 0;
+                    const opened = i.id in open;
+                    const vs = variantsOf(i);
+                    const plainQty = sel[skey(i.id, '')] || 0;
                     return (
-                      <div className={`cf-itile${picked ? ' on' : ''}`} key={i.id}>
+                      <div className={`cf-itile${opened ? ' on' : ''}`} key={i.id}>
                         <button type="button" className="cf-itile-media" onClick={() => toggle(i)}>
                           {i.imageUrl ? <img src={i.imageUrl} alt={i.name} /> : <span className="cf-itile-ph"><Icon name="Shirt" size={26} /></span>}
-                          <span className="cf-itile-check"><Icon name={picked ? 'CheckSquare' : 'Square'} size={18} /></span>
+                          <span className="cf-itile-check"><Icon name={opened ? 'CheckSquare' : 'Square'} size={18} /></span>
                         </button>
                         <div className="cf-itile-body">
-                          <span className="cf-itile-nm">{i.name}{i.size ? ` · ${i.size}` : ''}</span>
+                          <span className="cf-itile-nm">{i.name}{!vs.length && i.size ? ` · ${i.size}` : ''}</span>
                           <span className="cf-itile-sub">{onboard} on board{showValue && i.unitCost != null ? ` · ${money(i.unitCost, i.currency)}` : ''}</span>
                         </div>
-                        {picked && (
+                        {opened && (vs.length ? (
+                          <div className="cf-sizes">
+                            {vs.map((v) => {
+                              const cap = vQty(v);
+                              const q = sel[skey(i.id, vSize(v))] || 0;
+                              return (
+                                <div className="cf-sizerow" key={vSize(v)}>
+                                  <span className="cf-sizelbl">{vSize(v)}</span>
+                                  <div className="cf-itile-qty">
+                                    <button type="button" className="cf-qbtn" onClick={() => bump(i.id, vSize(v), -1, cap)} disabled={q <= 0} aria-label="Less">−</button>
+                                    <span className="cf-qnum">{q}</span>
+                                    <button type="button" className="cf-qbtn" onClick={() => bump(i.id, vSize(v), 1, cap)} disabled={q >= cap} aria-label="More">+</button>
+                                  </div>
+                                  <span className="cf-itile-of">of {cap}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
                           <div className="cf-itile-qty">
-                            <button type="button" className="cf-qbtn" onClick={() => bump(i, -1)} disabled={qty <= 0} aria-label="Less">−</button>
-                            <span className="cf-qnum">{qty}</span>
-                            <button type="button" className="cf-qbtn" onClick={() => bump(i, 1)} disabled={qty >= onboard} aria-label="More">+</button>
+                            <button type="button" className="cf-qbtn" onClick={() => bump(i.id, '', -1, onboard)} disabled={plainQty <= 0} aria-label="Less">−</button>
+                            <span className="cf-qnum">{plainQty}</span>
+                            <button type="button" className="cf-qbtn" onClick={() => bump(i.id, '', 1, onboard)} disabled={plainQty >= onboard} aria-label="More">+</button>
                             <span className="cf-itile-of">of {onboard}</span>
                           </div>
-                        )}
+                        ))}
                       </div>
                     );
                   })}
@@ -335,20 +373,51 @@ const CrewFolder = ({ onBack }) => {
     [kit, selectedId]
   );
 
-  // Issue a batch of allocations [{ invItem, qty }] to the selected crew member:
-  // one kit row each, drawing the quantity from master stock.
+  // Issue a batch of allocations [{ invItem, size, qty }] to the selected crew
+  // member: one kit row per size, drawing each size from master stock. For a
+  // size-run item the specific size variant (and its stock-location tally) is
+  // decremented; plain items fall back to the aggregate quantity.
   const doIssue = async (allocations) => {
     const issuerName = user?.user_metadata?.full_name || user?.email;
-    for (const { invItem, qty } of allocations) {
+    for (const { invItem, size, qty } of allocations) {
       await saveKitItem({
         userId: selectedId, tenantId: activeTenantId, category: 'uniform',
-        item: invItem.name, size: invItem.size || null, quantity: qty,
+        item: invItem.name, size: size || null, quantity: qty,
         conditionIssued: 'New', issuedDate: today(),
         issuedBy: user?.id, issuedByName: issuerName,
         value: invItem.unitCost ?? null, inventoryItemId: invItem.id, createdBy: user?.id,
       });
-      await adjustItemQuantity(invItem.id, -Math.abs(qty));
-      await logKitEvent({ userId: selectedId, tenantId: activeTenantId, action: 'issued', detail: { item: invItem.name, quantity: qty }, actorId: user?.id, actorName: issuerName });
+      await logKitEvent({ userId: selectedId, tenantId: activeTenantId, action: 'issued', detail: { item: invItem.name, size: size || null, quantity: qty }, actorId: user?.id, actorName: issuerName });
+    }
+
+    // Decrement master stock, grouped by item so we write each item once.
+    const byItem = new Map();
+    for (const a of allocations) {
+      const g = byItem.get(a.invItem.id) || { item: a.invItem, sizes: {}, total: 0 };
+      if (a.size) g.sizes[a.size] = (g.sizes[a.size] || 0) + a.qty;
+      g.total += a.qty;
+      byItem.set(a.invItem.id, g);
+    }
+    for (const { item, sizes, total } of byItem.values()) {
+      const vs = (item.variants || []).filter((v) => v && (v.size || v.label));
+      if (vs.length) {
+        const variants = item.variants.map((v) => {
+          const s = v.size || v.label;
+          const rem = sizes[s] || 0;
+          return { ...v, qty: Math.max(0, (Number(v.qty ?? v.quantity) || 0) - rem) };
+        });
+        const newTotal = variants.reduce((a, v) => a + (Number(v.qty) || 0), 0);
+        // Reduce the matching size within whichever storage location holds it.
+        const stockLocations = (item.stockLocations || []).map((sl) => {
+          if (!Array.isArray(sl.sizes)) return sl;
+          const newSizes = sl.sizes.map((z) => ({ ...z, qty: Math.max(0, (Number(z.qty) || 0) - (sizes[z.size] || 0)) })).filter((z) => z.qty > 0);
+          const q = newSizes.reduce((a, z) => a + z.qty, 0);
+          return { ...sl, sizes: newSizes, quantity: q, qty: q };
+        }).filter((sl) => !Array.isArray(sl.sizes) || (sl.quantity || 0) > 0);
+        await saveItem({ ...item, variants, totalQty: newTotal, quantity: newTotal, stockLocations }, { dedupe: false });
+      } else {
+        await adjustItemQuantity(item.id, -Math.abs(total));
+      }
     }
     setIssuing(false); load();
   };
