@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { formatTime } from '../../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { supabase } from '../../../lib/supabaseClient';
-import { getCurrentUser } from '../../../utils/authStorage';
+import { useAuth } from '../../../contexts/AuthContext';
 import { fetchExpiringDocuments, getExpiryStatus } from '../../crew-profile/utils/crewDocuments';
 import { getDocTypeLabel } from '../../crew-profile/documentTypes';
-
-const getActiveTenantId = () => localStorage.getItem('cargo_active_tenant_id') || null;
-
 
 const getTodayLocalRange = () => {
   const now = new Date();
@@ -53,53 +50,50 @@ const getActionMeta = (action) => ACTION_ICON_MAP?.[action] || ACTION_ICON_MAP?.
 
 const TodaySnapshotWidget = () => {
   const navigate = useNavigate();
+  const { user, activeTenantId } = useAuth();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const currentUser = getCurrentUser();
-        const tenantId = getActiveTenantId();
-        if (!currentUser?.id || !tenantId) {
-          setActivities([]);
-          setLoading(false);
-          return;
-        }
-
+  const load = useCallback(async () => {
+    if (!user?.id || !activeTenantId) { setActivities([]); setLoading(false); return; }
+    setLoading(true); setError(false);
+    try {
+        const tenantId = activeTenantId;
         const { todayStr, startISO, endISO } = getTodayLocalRange();
         const items = [];
 
         // 1. Jobs due today (status = OPEN, due_date = today, assigned_to = current user)
-        const { data: dueJobs } = await supabase?.from('team_jobs')?.select('id, title, due_date, created_at, status')?.eq('tenant_id', tenantId)?.eq('assigned_to', currentUser?.id)?.eq('due_date', todayStr)?.in('status', ['OPEN', 'open', 'Open']);
+        const dueRes = await supabase?.from('team_jobs')?.select('id, title, due_date, created_at, status')?.eq('tenant_id', tenantId)?.eq('assigned_to', user?.id)?.eq('due_date', todayStr)?.in('status', ['OPEN', 'open', 'Open']);
+        if (dueRes?.error) throw dueRes.error;
 
-        (dueJobs || [])?.forEach((job) => {
+        (dueRes?.data || [])?.forEach((job) => {
           items?.push({
             sortKey: job?.due_date + 'T00:00:00',
             time: 'Due today',
             icon: 'Clock',
-            color: 'text-amber-500',
+            color: C_WARN,
             title: job?.title || 'Untitled job'
           });
         });
 
         // 2. Jobs completed today (status = completed, completion_date = today, assigned_to = current user)
-        const { data: completedJobs } = await supabase?.from('team_jobs')?.select('id, title, completion_date, completed_at')?.eq('tenant_id', tenantId)?.eq('assigned_to', currentUser?.id)?.in('status', ['COMPLETED', 'completed', 'Completed'])?.or(`completion_date.eq.${todayStr},completed_at.gte.${startISO}`);
+        const completedRes = await supabase?.from('team_jobs')?.select('id, title, completion_date, completed_at')?.eq('tenant_id', tenantId)?.eq('assigned_to', user?.id)?.in('status', ['COMPLETED', 'completed', 'Completed'])?.or(`completion_date.eq.${todayStr},completed_at.gte.${startISO}`);
+        if (completedRes?.error) throw completedRes.error;
 
-        (completedJobs || [])?.forEach((job) => {
+        (completedRes?.data || [])?.forEach((job) => {
           const ts = job?.completed_at || (job?.completion_date ? job?.completion_date + 'T00:00:00' : null);
           items?.push({
             sortKey: ts || startISO,
             time: job?.completed_at ? formatTime(job?.completed_at) : 'Today',
             icon: 'CheckCircle',
-            color: 'text-green-500',
+            color: C_OK,
             title: `Completed: ${job?.title || 'Untitled job'}`
           });
         });
 
         // 3. Recent activity events today for current user
-        const { data: activityRows } = await supabase?.from('activity_events')?.select('id, action, summary, created_at')?.eq('tenant_id', tenantId)?.eq('actor_user_id', currentUser?.id)?.gte('created_at', startISO)?.lt('created_at', endISO)?.order('created_at', { ascending: false })?.limit(20);
+        const { data: activityRows } = await supabase?.from('activity_events')?.select('id, action, summary, created_at')?.eq('tenant_id', tenantId)?.eq('actor_user_id', user?.id)?.gte('created_at', startISO)?.lt('created_at', endISO)?.order('created_at', { ascending: false })?.limit(20);
 
         (activityRows || [])?.forEach((event) => {
           const meta = getActionMeta(event?.action);
@@ -132,9 +126,9 @@ const TodaySnapshotWidget = () => {
             const icon = s?.level === 'expired' ? 'AlertOctagon'
                        : s?.level === 'urgent'  ? 'AlertTriangle'
                        : 'Calendar';
-            const color = s?.level === 'expired' ? 'text-red-500'
-                        : s?.level === 'urgent'  ? 'text-amber-500'
-                        : 'text-muted-foreground';
+            const color = s?.level === 'expired' ? C_BAD
+                        : s?.level === 'urgent'  ? C_WARN
+                        : 'text-[#8B95A5]';
             // Negative offset on sortKey so expiries pin to the top
             // when there are jobs/activities later in the day.
             const urgencyOffset = days == null ? -1000 : Math.min(0, days) * 60 * 1000;
@@ -158,13 +152,19 @@ const TodaySnapshotWidget = () => {
       } catch (err) {
         console.error('[TodaySnapshotWidget] fetch error:', err?.message);
         setActivities([]);
+        setError(true);
       } finally {
         setLoading(false);
       }
-    };
+  }, [activeTenantId, user?.id]);
 
-    fetchData();
-  }, []);
+  // Refetch when the tenant/user changes (this widget used to read them once
+  // from localStorage, so it went stale on a vessel switch) and on window focus.
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    window.addEventListener('focus', load);
+    return () => window.removeEventListener('focus', load);
+  }, [load]);
 
   // Live status headline — orange-italic when a job is due today in the
   // feed; otherwise a navy count of today's updates.
@@ -201,6 +201,17 @@ const TodaySnapshotWidget = () => {
       {loading ? (
         <div className="py-8 flex items-center justify-center">
           <LogoSpinner size={20} />
+        </div>
+      ) : error ? (
+        <div className="flex items-center gap-2 flex-wrap py-3 text-[13px]" style={{ color: '#9A2B12' }}>
+          <Icon name="AlertTriangle" size={16} /> Couldn’t load today.
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); load(); }}
+            style={{ background: 'none', border: 0, padding: 0, fontWeight: 700, color: '#9A2B12', textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            Retry
+          </button>
         </div>
       ) : activities?.length > 0 ? (
         <div className="space-y-3">
