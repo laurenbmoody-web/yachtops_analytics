@@ -134,6 +134,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [tracing, setTracing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } in progress
   const [editing, setEditing] = useState(null); // { spaceId, deckId, name, nodes:[{x,y}] } adjusting an existing outline
   const [editSel, setEditSel] = useState(null); // index of the selected corner while editing
+  const [adjMenu, setAdjMenu] = useState(false); // "More" overflow menu open in the Adjust bar
   const editDragRef = useRef(null); // node being dragged while editing
   const snapTargetsRef = useRef([]); // other rooms' corners on this deck, to snap to
   const [tapMode, setTapMode] = useState(false); // false = draw points by hand (default); true = tap to auto-outline
@@ -954,7 +955,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               <p className="dp-linkhint">{pendingLink ? 'Now click the room it connects to — on this deck for a doorway, or on another deck for a stair connection (or the same dot again to cancel).' : 'Click two rooms to link them: same deck makes a doorway, two different decks makes a ↕ stair connection. Click a line or ↕ badge to remove it.'}</p>
             )}
 
-            {traceMode && crop && gaDims && (
+            {traceMode && crop && gaDims && !(editing?.propIdx != null && editing.deckId === deck.id) && (
               <div className="dp-tracehint">
                 {editing && editing.deckId === deck.id ? (
                   <>
@@ -977,23 +978,23 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       );
                     })()}
                     <span className="dp-spring" />
-                    <button className="lg-btn sm dp-adj-ic" onClick={() => renameRoom(spaces.find((s) => s.id === editing.spaceId) || { id: editing.spaceId, name: editing.name })} title="Rename room" aria-label="Rename room">
-                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20h9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg>
-                    </button>
-                    <button className="lg-btn sm dp-adj-ic" disabled={editing.nodes.length <= 4} onClick={simplifyEdit} title="Simplify — fewer corners" aria-label="Simplify">
-                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 18c5 0 3-12 8-12s3 8 8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
-                    </button>
-                    <button className="lg-btn sm dp-adj-ic" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => deleteNodeAt(editSel)} title="Delete selected point" aria-label="Delete selected point">
-                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" /><path d="M8 12h8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>
-                    </button>
-                    <button className="lg-btn sm dp-adj-ic" onClick={retraceFromEdit} title="Re-trace from scratch" aria-label="Re-trace">
-                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2-5.3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /><path d="M4 4v4h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                    </button>
-                    <button className="lg-btn sm dp-adj-ic dp-btn-danger" onClick={deleteOutline} title="Delete outline (keeps the room)" aria-label="Delete outline">
-                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /><path d="M9 7V4h6v3" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><path d="M6 7l1 13h10l1-13" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg>
-                    </button>
-                    <button className="lg-btn-primary sm" onClick={saveEdit}>Save</button>
-                    <button className="lg-btn sm" onClick={cancelEdit}>Cancel</button>
+                    <button className="lg-btn-primary sm" onClick={() => { setAdjMenu(false); saveEdit(); }}>Save</button>
+                    <button className="lg-btn sm" onClick={() => { setAdjMenu(false); cancelEdit(); }}>Cancel</button>
+                    <span className="dp-adj-more">
+                      <button className="lg-btn sm" onClick={() => setAdjMenu((v) => !v)} title="More actions" aria-haspopup="true" aria-expanded={adjMenu}>More ▾</button>
+                      {adjMenu && (
+                        <>
+                          <div className="dp-adj-backdrop" onClick={() => setAdjMenu(false)} />
+                          <div className="dp-adj-menu" role="menu">
+                            <button role="menuitem" onClick={() => { setAdjMenu(false); renameRoom(spaces.find((s) => s.id === editing.spaceId) || { id: editing.spaceId, name: editing.name }); }}>Rename room</button>
+                            <button role="menuitem" disabled={editing.nodes.length <= 4} onClick={() => { setAdjMenu(false); simplifyEdit(); }}>Simplify — fewer corners</button>
+                            <button role="menuitem" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => { setAdjMenu(false); deleteNodeAt(editSel); }}>Delete selected point</button>
+                            <button role="menuitem" onClick={() => { setAdjMenu(false); retraceFromEdit(); }}>Re-trace from scratch</button>
+                            <button role="menuitem" className="is-danger" onClick={() => { setAdjMenu(false); deleteOutline(); }}>Delete outline</button>
+                          </div>
+                        </>
+                      )}
+                    </span>
                   </>
                 ) : tracing && tracing.deckId === deck.id ? (
                   <>
