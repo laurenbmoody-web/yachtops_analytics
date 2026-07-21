@@ -42,21 +42,32 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (!FAL_KEY) return json({ error: 'FAL_KEY not configured' }, 500);
   try {
-    const { imageBase64, x, y, mediaType } = await req.json();
+    const { imageBase64, x, y, box, mediaType } = await req.json();
     if (!imageBase64) return json({ error: 'imageBase64 is required' }, 400);
     if (typeof x !== 'number' || typeof y !== 'number') return json({ error: 'x and y (pixels) are required' }, 400);
 
     const media = (mediaType || 'image/jpeg').split(';')[0].trim();
     const dataUri = `data:${media};base64,${imageBase64}`;
 
+    const payload: any = {
+      image_url: dataUri,
+      prompts: [{ label: 1, x: Math.round(x), y: Math.round(y) }],
+      output_format: 'png',
+    };
+    // A box constrains SAM to the room's rough extent, so it segments the whole
+    // room rather than the furniture symbol under the point (line-art GAs have no
+    // photographic "object" at a point). Box is pixels: {x_min,y_min,x_max,y_max}.
+    if (box && [box.x_min, box.y_min, box.x_max, box.y_max].every((n) => typeof n === 'number')) {
+      payload.box_prompts = [{
+        x_min: Math.round(box.x_min), y_min: Math.round(box.y_min),
+        x_max: Math.round(box.x_max), y_max: Math.round(box.y_max),
+      }];
+    }
+
     const falRes = await fetch('https://fal.run/fal-ai/sam2/image', {
       method: 'POST',
       headers: { Authorization: `Key ${FAL_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        image_url: dataUri,
-        prompts: [{ label: 1, x: Math.round(x), y: Math.round(y) }],
-        output_format: 'png',
-      }),
+      body: JSON.stringify(payload),
     });
     if (!falRes.ok) {
       const t = await falRes.text();
