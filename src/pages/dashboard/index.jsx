@@ -18,7 +18,7 @@ import BlueprintNavigator from '../../components/dashboard/BlueprintNavigator';
 import TeamJobListWidget from './components/TeamJobListWidget';
 import RotaWidget from './components/RotaWidget';
 import HoursOfRestWidget from './components/HoursOfRestWidget';
-import TodaySnapshotWidget from './components/TodaySnapshotWidget';
+import UpcomingCalendarWidget from './components/UpcomingCalendarWidget';
 import RecentActivityWidget from './components/RecentActivityWidget';
 import VesselStatusWidget from './components/VesselStatusWidget';
 import AccountsWidget from './components/AccountsWidget';
@@ -474,7 +474,7 @@ const Dashboard = () => {
         supabase.from('inventory_locations').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('is_archived', false).is('sub_location', null).eq('is_department_root', false),
         supabase.from('inventory_items').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId),
         supabase.from('tenant_members').select('user_id', { count: 'exact', head: true }).eq('tenant_id', tenantId).eq('active', true),
-        // team_jobs — status values from TodaySnapshotWidget: 'OPEN' | 'open' | 'Open'
+        // team_jobs — open-job status values: 'OPEN' | 'open' | 'Open'
         supabase.from('team_jobs').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId).in('status', ['OPEN', 'open', 'Open']),
       ]);
       setTaskCounts({
@@ -630,7 +630,7 @@ const Dashboard = () => {
       case 'hoursOfRest':
         return <HoursOfRestWidget />;
       case 'todaySnapshot':
-        return <TodaySnapshotWidget />;
+        return <UpcomingCalendarWidget />;
       case 'recentActivity':
         return <RecentActivityWidget />;
       case 'vesselStatus':

@@ -26,7 +26,7 @@ export const WIDGET_META = {
   },
   todaySnapshot: {
     id: 'todaySnapshot',
-    title: "Today's Snapshot",
+    title: 'Calendar',
     allowedTiers: WIDGET_PERMISSIONS.ALL,
     defaultColumn: 'left',
   },
