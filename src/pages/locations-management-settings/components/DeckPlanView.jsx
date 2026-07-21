@@ -9,7 +9,7 @@
 //            doorway; links render as lines on the plan (vessel_space_links).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck, samSegment } from '../utils/locationsLayoutStorage';
+import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck, samSegment, recordDeckShapeSample } from '../utils/locationsLayoutStorage';
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace, archiveSpace } from '../utils/locationsHierarchyStorage';
 import { simplifyClosed } from '../utils/deckTrace';
@@ -252,6 +252,12 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     setLocalShapes((p) => ({ ...p, [spaceId]: shape }));
     setSpaceShape(spaceId, shape).catch((err) => console.error('[deck-plan] save shape error:', err));
   };
+  // Bank a finalised outline as room-shape training data (shapes only, no names).
+  // Best-effort; never blocks tracing. Skips deletions (null nodes).
+  const captureSample = (deck, spaceId, nodes, source) => {
+    if (!Array.isArray(nodes) || nodes.length < 3) return;
+    recordDeckShapeSample({ deckId: deck?.id, spaceId, crop: cropOf(deck), gaImageUrl: layout?.gaImageUrl, nodes, source });
+  };
   // Room zoning category: local override wins, else the saved one, else inferred
   // from the room name. Drives the outline/fill colour on the plan.
   const categoryOf = (space) => normCategory((space.id in localCats ? localCats[space.id] : space.planCategory) || inferCategory(space.name));
@@ -274,6 +280,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       return;
     }
     saveShape(tracing.spaceId, { closed: true, nodes: tracing.nodes });
+    captureSample(decks.find((d) => d.id === tracing.deckId), tracing.spaceId, tracing.nodes, 'manual');
     const c = centroidOf(tracing.nodes); // anchor the point/label at the outline centre
     if (c) applyPos(tracing.spaceId, c.x, c.y);
     setTracing(null);
@@ -405,6 +412,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       return;
     }
     saveShape(editing.spaceId, { closed: true, nodes: editing.nodes });
+    captureSample(decks.find((d) => d.id === editing.deckId), editing.spaceId, editing.nodes, 'reshape');
     const c = centroidOf(editing.nodes);
     if (c) applyPos(editing.spaceId, c.x, c.y);
     setEditing(null); setEditSel(null);
@@ -561,6 +569,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         }
         if (nodes) {
           saveShape(tracing.spaceId, { closed: true, nodes });
+          captureSample(deck, tracing.spaceId, nodes, samMode ? 'tap_sam' : 'tap');
           const c = centroidOf(nodes);
           if (c) applyPos(tracing.spaceId, c.x, c.y);
           setTracing(null);
@@ -877,6 +886,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         }
         if (!spaceId) continue;
         await setSpaceShape(spaceId, { closed: true, nodes: it.nodes }).catch((e) => console.error('[deck-plan] shape save', e));
+        captureSample(deck, spaceId, it.nodes, 'detect_apply');
         const c = centroidOf(it.nodes);
         if (c) await setSpacePosition(spaceId, c.x, c.y).catch((e) => console.error('[deck-plan] pos save', e));
       }
