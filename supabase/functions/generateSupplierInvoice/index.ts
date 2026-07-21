@@ -918,7 +918,7 @@ Deno.serve(async (req: Request) => {
             title: `${supplier.name || 'Supplier'} sent an invoice`,
             message: `${invoiceNumber} · ${curCode} ${total.toFixed(2)} · due ${dueDmy}`,
             severity: 'info',
-            action_url: '/provisioning/orders',
+            action_url: '/accounts/payables',
             read: false,
           }));
         if (notifRows.length) await restPost('notifications', notifRows);
