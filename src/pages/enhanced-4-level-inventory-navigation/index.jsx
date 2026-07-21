@@ -1574,7 +1574,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, o
 };
 
 // ─── Item Grid Card (Grid View) ────────────────────────────────────────────────
-const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false, onAppearanceChange }) => {
+const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, onUpdate, onQuickView, isSelected, onToggleSelect, selectionMode = false, onAppearanceChange, dragHandleProps, isDragging }) => {
   const [item, setItem] = useState(itemProp);
   useEffect(() => { setItem(itemProp); }, [itemProp]);
   const [appearanceAnchor, setAppearanceAnchor] = useState(null);
@@ -1615,14 +1615,15 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
   return (
     <>
     <div
-      className={`inv-card${isSelected ? ' selected' : ''}`}
+      className={`inv-card itemcard${isSelected ? ' selected' : ''}${isDragging ? ' itemdragging' : ''}`}
       style={accentColor ? { borderTopColor: accentColor, borderTopWidth: 3 } : {}}
     >
       <div
-        className="inv-card-media"
+        className={`inv-card-media${dragHandleProps ? ' drag' : ''}`}
         style={accentColor && !imageUrl ? { backgroundColor: accentColor + '22' } : {}}
         onClick={() => onQuickView?.(item)}
-        title="Quick view"
+        title={dragHandleProps ? 'Drag to move · click to view' : 'Quick view'}
+        {...(dragHandleProps || {})}
       >
         {imageUrl ? (
           <img src={imageUrl} alt={item?.name} />
@@ -1975,14 +1976,30 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
     );
   }
 
-  // Grid → square, centred tile.
+  // Grid → card tile with the SAME footprint as an item card, so folders and
+  // items sit in one grid at identical sizes and the zoom slider scales both.
+  const cardCls = [
+    'inv-card', 'foldercard',
+    isDragging ? 'dragging' : '',
+    isFolderDropTarget && isDropTargetReady ? 'droptarget-ready' : isFolderDropTarget ? 'droptarget' : '',
+  ]?.join(' ');
   return (
-    <div onClick={handleTileClick} className={cls}>
-      {gripEl}
-      <div className="inv-folder-corner">{actions}</div>
-      {iconEl}
-      {nameEl}
-      {meta}
+    <div onClick={handleTileClick} className={cardCls}>
+      <div className="inv-card-media">
+        <div className="inv-foldericon-lg">
+          <Icon
+            name={icon || (depth === 0 ? 'MapPin' : 'FolderOpen')}
+            size={36}
+            style={color ? { color } : undefined}
+          />
+        </div>
+        {gripEl}
+        {actions}
+      </div>
+      <div className="inv-card-body">
+        {nameEl}
+        {meta}
+      </div>
     </div>
   );
 };
@@ -2037,6 +2054,22 @@ const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, 
         canMove={undefined}
         layout={layout}
       />
+    </div>
+  );
+};
+
+// ─── Sortable Item Card Wrapper (drag an item onto a folder to move it) ───────
+const SortableItemCard = ({ item, draggable, ...props }) => {
+  const {
+    attributes, listeners, setNodeRef, transform, transition, isDragging,
+  } = useSortable({ id: `item:${item?.id}`, disabled: !draggable });
+
+  const style = { transform: CSS?.Transform?.toString(transform), transition };
+  const dragHandleProps = draggable ? { ...attributes, ...listeners } : undefined;
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <ItemGridCard item={item} dragHandleProps={dragHandleProps} isDragging={isDragging} {...props} />
     </div>
   );
 };
@@ -2148,6 +2181,9 @@ const segmentsToStorageFields = (segments) => ({
   location: segments?.[0] || null,
   subLocation: segments?.length > 1 ? segments?.slice(1)?.join(' > ') : null,
 });
+
+// Drag ids: folders use their bare name, items use an `item:<id>` prefix.
+const isItemDragId = (id) => typeof id === 'string' && id?.startsWith('item:');
 
 // ─── Filter Panel ─────────────────────────────────────────────────────────────
 const FilterPanel = ({ items, filters, onChange, onClose }) => {
@@ -3290,8 +3326,8 @@ const LocationFirstInventory = () => {
       </div>
     ) : (
       <div
-        className="inv-cardgrid"
-        style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(tileZoom * 0.7)}px, 1fr))` }}
+        className="inv-grid"
+        style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${tileZoom}px, 1fr))` }}
       >
         {list?.map(item => (
           <ItemGridCard
@@ -3313,7 +3349,11 @@ const LocationFirstInventory = () => {
     )
   );
 
-  const directItemsLabel = isRoot ? 'Results' : 'Items';
+  // Folders + this folder's own items share one SortableContext so either can
+  // be dragged. Items are draggable in grid view only (list view uses rows).
+  const unifiedSortableIds = viewMode === 'grid'
+    ? [...(filteredSubFolders || []), ...(directItems || [])?.map(i => `item:${i?.id}`)]
+    : [...(filteredSubFolders || [])];
 
   const pageTitle = currentFolderName || 'Inventory';
   const pageSubtitle = isRoot
@@ -3514,26 +3554,37 @@ const LocationFirstInventory = () => {
   };
 
   const handleDragOver = ({ active, over }) => {
-    if (!over || active?.id === over?.id) {
+    const overId = over?.id;
+    const overIsFolder = overId && subFolders?.includes(overId);
+
+    if (!over || active?.id === over?.id || !overIsFolder) {
       if (folderHoverIdRef?.current !== null) {
         clearFolderHoverTimer();
         setFolderDropTargetId(null);
         setFolderDropTargetReady(false);
+        folderHoverIdRef.current = null;
       }
       return;
     }
 
-    const overId = over?.id;
     if (folderHoverIdRef?.current === overId) return;
 
+    // Dragging an item onto a folder → highlight immediately (drop = move in).
+    // Dragging a folder onto a folder → require a 600ms hold to disambiguate
+    // from a reorder.
+    const draggingItem = isItemDragId(active?.id);
     clearFolderHoverTimer();
-    setFolderDropTargetReady(false);
     setFolderDropTargetId(overId);
     folderHoverIdRef.current = overId;
 
-    folderHoverTimerRef.current = setTimeout(() => {
+    if (draggingItem) {
       setFolderDropTargetReady(true);
-    }, 600);
+    } else {
+      setFolderDropTargetReady(false);
+      folderHoverTimerRef.current = setTimeout(() => {
+        setFolderDropTargetReady(true);
+      }, 600);
+    }
   };
 
   const handleDragEnd = async ({ active, over }) => {
@@ -3541,8 +3592,28 @@ const LocationFirstInventory = () => {
     setActiveDragId(null);
     setFolderDropTargetId(null);
     setFolderDropTargetReady(false);
+    folderHoverIdRef.current = null;
 
-    if (!over || active?.id === over?.id) return;
+    if (!over) return;
+
+    // Dragging an item onto a folder tile → move the item into that folder.
+    if (isItemDragId(active?.id)) {
+      const itemId = String(active?.id)?.slice(5);
+      const overId = over?.id;
+      if (itemId && overId && subFolders?.includes(overId)) {
+        const { location, subLocation } = segmentsToStorageFields([...pathSegments, overId]);
+        try {
+          await bulkMoveItemsByIds([itemId], location, subLocation);
+          setSelectedItemIds(prev => { const n = new Set(prev); n?.delete(itemId); return n; });
+        } catch (err) {
+          console.error('[LocationFirstInventory] item drag-move error:', err?.message);
+        }
+        loadData();
+      }
+      return;
+    }
+
+    if (active?.id === over?.id) return;
 
     if (folderDropTargetReady && folderDropTargetId && folderDropTargetId !== active?.id) {
       setIsMovingFolder(true);
@@ -3860,58 +3931,93 @@ const LocationFirstInventory = () => {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <SortableContext items={filteredSubFolders} strategy={rectSortingStrategy}>
-            {filteredSubFolders?.length > 0 && (
-              <div>
-                {!isRoot && <h2 className="inv-sectlabel">Folders</h2>}
-                <div
-                  className={viewMode === 'list' ? 'inv-grid list' : 'inv-grid'}
-                  style={viewMode === 'grid' ? { gridTemplateColumns: `repeat(auto-fill, minmax(${tileZoom}px, 1fr))` } : undefined}
-                >
-                  {filteredSubFolders?.map(folderName => {
-                    const folderSegments = [...pathSegments, folderName];
-                    const isReadOnly = isFolderReadOnly(folderName);
-                    const showCog = shouldShowCog(folderName);
-                    const meta = folderTree?.[pathKey(pathSegments)]?.folderMeta?.[folderName] || {};
-                    const folderIcon = meta?.icon || (isRoot ? departmentIcon(folderName) : 'FolderOpen');
-                    const folderColor = meta?.color || null;
-                    return (
-                      <SortableFolderCard
-                        key={folderName}
-                        id={folderName}
-                        name={folderName}
-                        icon={folderIcon}
-                        color={folderColor}
-                        itemCount={itemCounts?.[folderName] ?? 0}
-                        subFolderCount={getSubFoldersFromTree(folderTree, folderSegments)?.length}
-                        depth={pathSegments?.length}
-                        onClick={() => navigate(segmentsToUrl(folderSegments))}
-                        canEdit={canEdit && !isReadOnly}
-                        onEdit={() => setEditingFolderName(folderName)}
-                        onRenameSubmit={(newName) => handleInlineRename(folderName, newName)}
-                        onDelete={canDeleteFolder(folderName) ? () => setDeletingFolderName(folderName) : undefined}
-                        onCog={() => setCogFolderName(folderName)}
-                        onPalette={canEdit && !isFolderReadOnly(folderName) ? () => setAppearanceFolderName(folderName) : undefined}
-                        onMove={() => setMovingFolderName(folderName)}
-                        onPermissions={() => setPermsFolderName(folderName)}
-                        onDuplicate={() => handleDuplicateFolder(folderName)}
-                        onExport={() => handleExportFolder(folderSegments)}
-                        onArchive={() => setArchivingFolderName(folderName)}
-                        canMove={!isRoot}
-                        showCog={showCog}
-                        folderDropTargetId={folderDropTargetId}
-                        folderDropTargetReady={folderDropTargetReady}
-                        layout={viewMode}
-                      />
-                    );
-                  })}
-                </div>
+          {/* One unified grid — folders and this folder's own items together,
+              same-size tiles, no section titles. Drag a folder to reorder or
+              hold it over another folder to move inside; drag an item onto a
+              folder to move it there. */}
+          <SortableContext items={unifiedSortableIds} strategy={rectSortingStrategy}>
+            {(filteredSubFolders?.length > 0 || directItems?.length > 0) && (
+              <div
+                className={viewMode === 'list' ? 'inv-grid list' : 'inv-grid'}
+                style={viewMode === 'grid' ? { gridTemplateColumns: `repeat(auto-fill, minmax(${tileZoom}px, 1fr))` } : undefined}
+              >
+                {filteredSubFolders?.map(folderName => {
+                  const folderSegments = [...pathSegments, folderName];
+                  const isReadOnly = isFolderReadOnly(folderName);
+                  const showCog = shouldShowCog(folderName);
+                  const meta = folderTree?.[pathKey(pathSegments)]?.folderMeta?.[folderName] || {};
+                  const folderIcon = meta?.icon || (isRoot ? departmentIcon(folderName) : 'FolderOpen');
+                  const folderColor = meta?.color || null;
+                  return (
+                    <SortableFolderCard
+                      key={folderName}
+                      id={folderName}
+                      name={folderName}
+                      icon={folderIcon}
+                      color={folderColor}
+                      itemCount={itemCounts?.[folderName] ?? 0}
+                      subFolderCount={getSubFoldersFromTree(folderTree, folderSegments)?.length}
+                      depth={pathSegments?.length}
+                      onClick={() => navigate(segmentsToUrl(folderSegments))}
+                      canEdit={canEdit && !isReadOnly}
+                      onEdit={() => setEditingFolderName(folderName)}
+                      onRenameSubmit={(newName) => handleInlineRename(folderName, newName)}
+                      onDelete={canDeleteFolder(folderName) ? () => setDeletingFolderName(folderName) : undefined}
+                      onCog={() => setCogFolderName(folderName)}
+                      onPalette={canEdit && !isFolderReadOnly(folderName) ? () => setAppearanceFolderName(folderName) : undefined}
+                      onMove={() => setMovingFolderName(folderName)}
+                      onPermissions={() => setPermsFolderName(folderName)}
+                      onDuplicate={() => handleDuplicateFolder(folderName)}
+                      onExport={() => handleExportFolder(folderSegments)}
+                      onArchive={() => setArchivingFolderName(folderName)}
+                      canMove={!isRoot}
+                      showCog={showCog}
+                      folderDropTargetId={folderDropTargetId}
+                      folderDropTargetReady={folderDropTargetReady}
+                      layout={viewMode}
+                    />
+                  );
+                })}
+                {directItems?.map(item => (
+                  viewMode === 'list' ? (
+                    <ItemRow
+                      key={item?.id}
+                      item={item}
+                      canEdit={canEdit}
+                      onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
+                      onDelete={canManageItems ? (i) => setDeletingItem(i) : undefined}
+                      onMove={(i) => setMovingItem(i)}
+                      onClone={canManageItems ? handleCloneItem : undefined}
+                      onUpdate={loadData}
+                      onQuickView={(i) => setQuickViewItem(i)}
+                      isSelected={selectedItemIds?.has(item?.id)}
+                      onToggleSelect={handleToggleSelectItem}
+                      onAppearanceChange={handleItemAppearanceChange}
+                    />
+                  ) : (
+                    <SortableItemCard
+                      key={item?.id}
+                      item={item}
+                      draggable={canEdit}
+                      canEdit={canEdit}
+                      onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
+                      onDelete={canManageItems ? (i) => setDeletingItem(i) : undefined}
+                      onMove={(i) => setMovingItem(i)}
+                      onClone={canManageItems ? handleCloneItem : undefined}
+                      onUpdate={loadData}
+                      onQuickView={(i) => setQuickViewItem(i)}
+                      isSelected={selectedItemIds?.has(item?.id)}
+                      onToggleSelect={handleToggleSelectItem}
+                      onAppearanceChange={handleItemAppearanceChange}
+                    />
+                  )
+                ))}
               </div>
             )}
           </SortableContext>
 
           <DragOverlay>
-            {activeDragId ? (
+            {activeDragId && !isItemDragId(activeDragId) ? (
               <FolderCard
                 name={activeDragId}
                 icon={folderTree?.[pathKey(pathSegments)]?.folderMeta?.[activeDragId]?.icon || (isRoot ? departmentIcon(activeDragId) : 'FolderOpen')}
@@ -3933,30 +4039,14 @@ const LocationFirstInventory = () => {
                 showCog={false}
                 layout={viewMode}
               />
+            ) : activeDragId && isItemDragId(activeDragId) ? (
+              <div className="inv-dragchip">
+                <Icon name="Package" size={14} />
+                <span>{directItems?.find(i => `item:${i?.id}` === activeDragId)?.name || 'Item'}</span>
+              </div>
             ) : null}
           </DragOverlay>
         </DndContext>
-
-        {/* Items pinned directly to this folder — tiles beside the sub-folders */}
-        {directItems?.length > 0 && (
-          <div style={filteredSubFolders?.length > 0 ? { marginTop: 28 } : undefined}>
-            <div className="inv-sectrow">
-              <h2 className="inv-sectlabel">
-                {directItemsLabel} ({directItems?.length})
-              </h2>
-              <button
-                onClick={() => toggleSelectAllOf(directItems)}
-                className="inv-selbtn"
-              >
-                <div className={`inv-minicheck${isAllSelected(directItems) ? ' on' : ''}`}>
-                  {isAllSelected(directItems) ? <Icon name="Check" size={9} /> : null}
-                </div>
-                {isAllSelected(directItems) ? 'Deselect All' : 'Select All'}
-              </button>
-            </div>
-            {renderItemList(directItems)}
-          </div>
-        )}
 
         {/* Recursive rollup — everything inside this folder and every sub-folder */}
         {hasDeeperItems && (
