@@ -11,6 +11,7 @@ import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
 import AddEditItemModal from '../inventory/components/AddEditItemModal';
 import UniformItemModal from '../inventory/components/UniformItemModal';
+import UniformItemView from '../inventory/components/UniformItemView';
 import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
 import PartialBottleModal from '../inventory/components/PartialBottleModal';
 import { supabase } from '../../lib/supabaseClient';
@@ -4010,14 +4011,29 @@ const LocationFirstInventory = () => {
           onSave={handleSaveAppearance}
         />
       )}
-      {quickViewItem && (
-        <ItemQuickViewPanel
-          item={quickViewItem}
-          onClose={() => setQuickViewItem(null)}
-          onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
-          canEdit={canEdit}
-        />
-      )}
+      {quickViewItem && (() => {
+        // Uniform items get the editorial size-run drawer; everything else the
+        // generic panel. Detect the same way the add/edit modal does — filed
+        // anywhere under a "Uniform" folder (or flagged is_uniform).
+        const qvSegs = [quickViewItem.location, ...String(quickViewItem.subLocation || '').split('>').map((s) => s.trim())];
+        const qvUniform = quickViewItem.isUniform || qvSegs.some((s) => /(^|\b)uniform(\b|$)/i.test(String(s || '')));
+        const onEditItem = (i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); };
+        return qvUniform ? (
+          <UniformItemView
+            item={quickViewItem}
+            canEdit={canEdit}
+            onEdit={onEditItem}
+            onClose={() => setQuickViewItem(null)}
+          />
+        ) : (
+          <ItemQuickViewPanel
+            item={quickViewItem}
+            onClose={() => setQuickViewItem(null)}
+            onEdit={onEditItem}
+            canEdit={canEdit}
+          />
+        );
+      })()}
       {showExportModal && (
         <ExportInventoryModal
           isOpen={showExportModal}
