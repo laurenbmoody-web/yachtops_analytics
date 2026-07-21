@@ -2319,6 +2319,9 @@ const LocationFirstInventory = () => {
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem('cargo_inventory_view_mode') || 'list'; } catch { return 'list'; }
   });
+  // Whether the folder's "Items" section is collapsed. null = use the default
+  // (collapsed when the folder also holds sub-folders, so folders lead the view).
+  const [itemsCollapsedOverride, setItemsCollapsedOverride] = useState(null);
   // Grid tile size (min column width in px) — user-adjustable zoom. 160=small, 360=large.
   const [tileZoom, setTileZoom] = useState(() => {
     try {
@@ -2834,6 +2837,7 @@ const LocationFirstInventory = () => {
     setActiveTagFilter(null);
     setActiveFilters({ tags: [] });
     setSortBy('name_asc');
+    setItemsCollapsedOverride(null);
   }, [pathSegments?.join('/')]);
 
   const handleBack = () => {
@@ -3172,6 +3176,12 @@ const LocationFirstInventory = () => {
   };
 
   const hasActiveFilters = activeFilterChips?.length > 0;
+  // Items are collapsed by default when the folder also has sub-folders (keep
+  // folders as the primary view). A leaf folder with no sub-folders stays open.
+  // An active search/filter always forces items open so matches are visible.
+  const itemsCollapsed = (searchQuery || hasActiveFilters)
+    ? false
+    : (itemsCollapsedOverride ?? (filteredSubFolders?.length > 0));
   const availableTags = [...new Set(items?.flatMap(i => i?.tags || []))];
   const currentSortLabel = SORT_OPTIONS?.find(o => o?.value === sortBy)?.label || 'Sort';
 
@@ -3803,25 +3813,34 @@ const LocationFirstInventory = () => {
         {filteredItems?.length > 0 && (
           <div style={filteredSubFolders?.length > 0 ? { marginTop: 28 } : undefined}>
             <div className="inv-sectrow">
-              <h2 className="inv-sectlabel">
-                Items ({filteredItems?.length})
-              </h2>
               <button
-                onClick={handleSelectAll}
-                className="inv-selbtn"
+                className="inv-secttoggle"
+                onClick={() => setItemsCollapsedOverride(!itemsCollapsed)}
+                title={itemsCollapsed ? 'Show items' : 'Hide items'}
               >
-                <div className={`inv-minicheck${selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0 ? ' on' : ''}`}>
-                  {selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0
-                    ? <Icon name="Check" size={9} />
-                    : null
-                  }
-                </div>
-                {selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0
-                  ? 'Deselect All' :'Select All'
-                }
+                <Icon name="ChevronRight" size={15} className={`inv-sectchevron${itemsCollapsed ? '' : ' open'}`} />
+                <h2 className="inv-sectlabel">
+                  Items ({filteredItems?.length})
+                </h2>
               </button>
+              {!itemsCollapsed && (
+                <button
+                  onClick={handleSelectAll}
+                  className="inv-selbtn"
+                >
+                  <div className={`inv-minicheck${selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0 ? ' on' : ''}`}>
+                    {selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0
+                      ? <Icon name="Check" size={9} />
+                      : null
+                    }
+                  </div>
+                  {selectedItemIds?.size === filteredItems?.length && filteredItems?.length > 0
+                    ? 'Deselect All' :'Select All'
+                  }
+                </button>
+              )}
             </div>
-            {viewMode === 'list' ? (
+            {itemsCollapsed ? null : viewMode === 'list' ? (
               <div className="inv-items">
                 {filteredItems?.map(item => (
                   <ItemRow
