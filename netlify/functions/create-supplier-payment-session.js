@@ -120,6 +120,7 @@ exports.handler = async (event) => {
       supplier_order_id: invoice.order_id || '',
       tenant_id: invoice.tenant_id,
     };
+    const payerEmail = user?.email || '';
     const session = await stripePost('checkout/sessions', {
       mode: 'payment',
       'line_items[0][price_data][currency]': currency,
@@ -130,6 +131,10 @@ exports.handler = async (event) => {
       'payment_intent_data[metadata][supplier_invoice_id]': meta.supplier_invoice_id,
       'payment_intent_data[metadata][supplier_order_id]': meta.supplier_order_id,
       'payment_intent_data[metadata][tenant_id]': meta.tenant_id,
+      // Stripe emails the payer a branded receipt for the charge — the payment
+      // is processed by Stripe, so the confirmation comes from Stripe.
+      'payment_intent_data[receipt_email]': payerEmail || undefined,
+      customer_email: payerEmail || undefined,
       'metadata[supplier_invoice_id]': meta.supplier_invoice_id,
       'metadata[supplier_order_id]': meta.supplier_order_id,
       'metadata[tenant_id]': meta.tenant_id,
