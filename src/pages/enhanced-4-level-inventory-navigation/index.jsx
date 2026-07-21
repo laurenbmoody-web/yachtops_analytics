@@ -939,7 +939,28 @@ const AddDropdownButton = ({ isRoot, onAddFolder, onAddItem }) => {
 };
 
 // ─── Quick Quantity Control ────────────────────────────────────────────────────
-const QuickQtyControl = ({ item, onUpdate, locationQtys, setLocationQtys, showLocations, onToggleLocations }) => {
+// Size-run helpers — a uniform item stores per-size stock in `variants`. The
+// single Qty ± can't know which size to draw from, so the card expands to a
+// per-size stepper; this persists a size change back into variants (+ the
+// matching size inside each storage location) and recomputes the total.
+const variantsOfItem = (item) => (item?.variants || []).filter((v) => v && (v.size || v.label));
+const persistVariantQtys = async (item, vqtys) => {
+  const bySize = new Map(vqtys.map((v) => [v.size, Number(v.qty) || 0]));
+  const variants = (item?.variants || []).map((v) => {
+    const s = v.size || v.label;
+    return bySize.has(s) ? { ...v, qty: bySize.get(s) } : v;
+  });
+  const total = variants.reduce((a, v) => a + (Number(v.qty) || 0), 0);
+  const stockLocations = (item?.stockLocations || []).map((sl) => {
+    if (!Array.isArray(sl.sizes)) return sl;
+    const sizes = sl.sizes.map((z) => (bySize.has(z.size) ? { ...z, qty: bySize.get(z.size) } : z));
+    const q = sizes.reduce((a, z) => a + (Number(z.qty) || 0), 0);
+    return { ...sl, sizes, quantity: q, qty: q };
+  });
+  await saveItem({ ...item, variants, totalQty: total, quantity: total, stockLocations }, { dedupe: false });
+};
+
+const QuickQtyControl = ({ item, onUpdate, locationQtys, setLocationQtys, showLocations, onToggleLocations, variantQtys, showSizes, onToggleSizes }) => {
   const [loading, setLoading] = useState(false);
   const [localQty, setLocalQty] = useState(item?.quantity ?? item?.totalQty ?? 0);
   const pendingUpdateRef = useRef(false);
@@ -948,10 +969,15 @@ const QuickQtyControl = ({ item, onUpdate, locationQtys, setLocationQtys, showLo
 
   const stockLocations = item?.stockLocations || [];
   const isMultiLocation = stockLocations?.length > 1;
+  const hasVariants = variantsOfItem(item).length > 0;
 
-  const displayQty = isMultiLocation && locationQtys?.length > 0
-    ? locationQtys?.reduce((sum, loc) => sum + (loc?.qty || 0), 0)
-    : localQty;
+  const variantTotal = (variantQtys?.length ? variantQtys : variantsOfItem(item).map((v) => ({ qty: Number(v.qty ?? v.quantity) || 0 })))
+    .reduce((sum, v) => sum + (Number(v.qty) || 0), 0);
+  const displayQty = hasVariants
+    ? variantTotal
+    : (isMultiLocation && locationQtys?.length > 0
+      ? locationQtys?.reduce((sum, loc) => sum + (loc?.qty || 0), 0)
+      : localQty);
 
   useEffect(() => {
     const total = stockLocations?.length > 0
@@ -990,9 +1016,15 @@ const QuickQtyControl = ({ item, onUpdate, locationQtys, setLocationQtys, showLo
     await updateItemStockLocations(item?.id, updated);
   };
 
+  // Variants take priority over locations: a size-run item expands per size.
+  const expandable = hasVariants || isMultiLocation;
+  const expanded = hasVariants ? showSizes : showLocations;
+
   const handleButtonClick = (e, delta) => {
     e?.stopPropagation();
-    if (isMultiLocation) {
+    if (hasVariants) {
+      onToggleSizes?.();
+    } else if (isMultiLocation) {
       onToggleLocations?.();
     } else {
       adjustSingle(delta);
@@ -1003,18 +1035,20 @@ const QuickQtyControl = ({ item, onUpdate, locationQtys, setLocationQtys, showLo
     <div className="inv-qty">
       <button
         onClick={(e) => handleButtonClick(e, -1)}
-        disabled={loading || (!isMultiLocation && localQty <= 0)}
-        className={`inv-qtybtn ${isMultiLocation ? 'neutral' : 'minus'}`}
+        disabled={loading || (!expandable && localQty <= 0)}
+        className={`inv-qtybtn ${expandable ? 'neutral' : 'minus'}`}
+        title={hasVariants ? 'Adjust stock by size' : undefined}
       >
-        <Icon name={isMultiLocation ? (showLocations ? 'ChevronUp' : 'ChevronDown') : 'Minus'} size={12} />
+        <Icon name={expandable ? (expanded ? 'ChevronUp' : 'ChevronDown') : 'Minus'} size={12} />
       </button>
       <span className="inv-qtyval">{displayQty}</span>
       <button
         onClick={(e) => handleButtonClick(e, 1)}
-        disabled={loading || (!isMultiLocation && false)}
-        className={`inv-qtybtn ${isMultiLocation ? 'neutral' : 'plus'}`}
+        disabled={loading}
+        className={`inv-qtybtn ${expandable ? 'neutral' : 'plus'}`}
+        title={hasVariants ? 'Adjust stock by size' : undefined}
       >
-        <Icon name={isMultiLocation ? (showLocations ? 'ChevronUp' : 'ChevronDown') : 'Plus'} size={12} />
+        <Icon name={expandable ? (expanded ? 'ChevronUp' : 'ChevronDown') : 'Plus'} size={12} />
       </button>
     </div>
   );
@@ -1363,6 +1397,9 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, o
   const isMultiLocation = stockLocations?.length > 1;
   const [locationQtys, setLocationQtys] = useState(stockLocations?.map(loc => ({ ...loc })));
   const [showLocations, setShowLocations] = useState(false);
+  const [showSizes, setShowSizes] = useState(false);
+  const [variantQtys, setVariantQtys] = useState(variantsOfItem(item).map((v) => ({ size: v.size || v.label, qty: Number(v.qty ?? v.quantity) || 0 })));
+  useEffect(() => { setVariantQtys(variantsOfItem(itemProp).map((v) => ({ size: v.size || v.label, qty: Number(v.qty ?? v.quantity) || 0 }))); }, [itemProp]);
   const pendingLocUpdateRef = useRef(false);
   const onUpdateRef = useRef(onUpdate);
   useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
@@ -1374,6 +1411,13 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, o
       }
     };
   }, []);
+
+  const adjustSize = (idx, delta) => {
+    const updated = variantQtys.map((r, i) => (i === idx ? { ...r, qty: Math.max(0, (r.qty || 0) + delta) } : r));
+    setVariantQtys(updated);
+    pendingLocUpdateRef.current = true;
+    persistVariantQtys(item, updated);
+  };
 
   // Category label. NOTE: still reads DEPRECATED legacy l1..l3 names — this is the
   // last visible dependency on the old taxonomy. When retiring l1..l4, derive this
@@ -1446,7 +1490,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, o
         </div>
 
         <div className="inv-row-right">
-          <QuickQtyControl item={item} onUpdate={onUpdate} locationQtys={locationQtys} setLocationQtys={setLocationQtys} showLocations={showLocations} onToggleLocations={() => setShowLocations(v => !v)} />
+          <QuickQtyControl item={item} onUpdate={onUpdate} locationQtys={locationQtys} setLocationQtys={setLocationQtys} showLocations={showLocations} onToggleLocations={() => setShowLocations(v => !v)} variantQtys={variantQtys} showSizes={showSizes} onToggleSizes={() => setShowSizes(v => !v)} />
           {!isMultiLocation && isAlcoholItem(item) && (
             <button
               onClick={(e) => { e?.stopPropagation(); setBottleModalLocIdx(-1); }}
@@ -1468,6 +1512,20 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, o
           )}
         </div>
       </div>
+      {variantQtys.length > 0 && showSizes && (
+        <div className="inv-locexpand">
+          {variantQtys.map((r, idx) => (
+            <div key={r.size} className="inv-locrow">
+              <span className="inv-locname">{r.size}</span>
+              <div className="flex items-center gap-1.5">
+                <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, -1); }} disabled={r.qty <= 0} className="inv-qtybtn minus" style={{ width: 24, height: 24 }}><Icon name="Minus" size={10} /></button>
+                <span className="min-w-[28px] text-center text-xs font-semibold text-foreground">{r.qty}</span>
+                <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, 1); }} className="inv-qtybtn plus" style={{ width: 24, height: 24 }}><Icon name="Plus" size={10} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       {isMultiLocation && showLocations && locationQtys?.length > 0 && (
         <div className="inv-locexpand">
           {locationQtys?.map((loc, idx) => {
@@ -1588,6 +1646,9 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
   const isMultiLocation = stockLocations?.length > 1;
   const [locationQtys, setLocationQtys] = useState(stockLocations?.map(loc => ({ ...loc })));
   const [showLocations, setShowLocations] = useState(false);
+  const [showSizes, setShowSizes] = useState(false);
+  const [variantQtys, setVariantQtys] = useState(variantsOfItem(item).map((v) => ({ size: v.size || v.label, qty: Number(v.qty ?? v.quantity) || 0 })));
+  useEffect(() => { setVariantQtys(variantsOfItem(itemProp).map((v) => ({ size: v.size || v.label, qty: Number(v.qty ?? v.quantity) || 0 }))); }, [itemProp]);
   const pendingLocUpdateRef = useRef(false);
   const onUpdateRef = useRef(onUpdate);
   useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
@@ -1599,6 +1660,13 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
       }
     };
   }, []);
+
+  const adjustSize = (idx, delta) => {
+    const updated = variantQtys.map((r, i) => (i === idx ? { ...r, qty: Math.max(0, (r.qty || 0) + delta) } : r));
+    setVariantQtys(updated);
+    pendingLocUpdateRef.current = true;
+    persistVariantQtys(item, updated);
+  };
 
   const imageUrl = item?.imageUrl && !item?.imageUrl?.startsWith('blob:') ? item?.imageUrl : null;
   const accentColor = item?.color || null;
@@ -1705,9 +1773,23 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
                 <BottleIconSvg size={13} />
               </button>
             )}
-            <QuickQtyControl item={item} onUpdate={onUpdate} locationQtys={locationQtys} setLocationQtys={setLocationQtys} showLocations={showLocations} onToggleLocations={() => setShowLocations(v => !v)} />
+            <QuickQtyControl item={item} onUpdate={onUpdate} locationQtys={locationQtys} setLocationQtys={setLocationQtys} showLocations={showLocations} onToggleLocations={() => setShowLocations(v => !v)} variantQtys={variantQtys} showSizes={showSizes} onToggleSizes={() => setShowSizes(v => !v)} />
           </div>
         </div>
+        {variantQtys.length > 0 && showSizes && (
+          <div className="inv-locexpand" style={{ padding: '8px 0 0' }}>
+            {variantQtys.map((r, idx) => (
+              <div key={r.size} className="inv-locrow">
+                <span className="inv-locname">{r.size}</span>
+                <div className="flex items-center gap-1">
+                  <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, -1); }} disabled={r.qty <= 0} className="inv-qtybtn minus" style={{ width: 24, height: 24 }}><Icon name="Minus" size={10} /></button>
+                  <span className="min-w-[28px] text-center text-xs font-semibold text-foreground">{r.qty}</span>
+                  <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, 1); }} className="inv-qtybtn plus" style={{ width: 24, height: 24 }}><Icon name="Plus" size={10} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {isMultiLocation && showLocations && locationQtys?.length > 0 && (
           <div className="inv-locexpand" style={{ padding: '8px 0 0' }}>
             {locationQtys?.map((loc, idx) => {
