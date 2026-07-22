@@ -1,7 +1,7 @@
 // Cargo Accounts — owner-statement shaper tests. Run: `node --test`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildStatement, statementHeadline } from './ownerStatement.js';
+import { buildStatement, statementHeadline, buildNarrative } from './ownerStatement.js';
 
 const view = {
   totals: { budgeted: 100000, actual: 62000, committed: 8000, remaining: 30000, pct: 0.7 },
@@ -60,6 +60,27 @@ test('narrative carries the overview insights; charter is null until Phase 2', (
 test('net falls back to revenue.actual - totals.actual when view.net absent', () => {
   const s = buildStatement({ view: { ...view, net: undefined }, overview });
   assert.equal(s.position.net, 180000 - 62000);
+});
+
+test('buildNarrative flags over-budget buckets and formats with fmt', () => {
+  const fmt = (n) => `€${Math.round(n).toLocaleString('en-GB')}`;
+  const n = buildNarrative({
+    buckets: [
+      { bucket: 'Fuel', kind: 'expense', subtotal: { budgeted: 10000, actual: 12000, committed: 0 } },
+      { bucket: 'Deck', kind: 'expense', subtotal: { budgeted: 5000, actual: 2000, committed: 0 } },
+    ],
+    totals: { budgeted: 15000, actual: 14000, committed: 0, remaining: 1000 },
+    net: -3000,
+  }, fmt);
+  assert.equal(n[0].sev, 'crit');
+  assert.match(n[0].text, /Fuel is over by €2,000/);
+  assert.ok(n.some((x) => /still uncommitted/.test(x.text)));
+  assert.ok(n.some((x) => /Net deficit of €3,000/.test(x.text)));
+});
+
+test('buildNarrative with nothing over reports a surplus line', () => {
+  const n = buildNarrative({ buckets: [{ bucket: 'Deck', kind: 'expense', subtotal: { budgeted: 5000, actual: 2000, committed: 0 } }], totals: { remaining: 3000 }, net: 4000 }, (x) => String(x));
+  assert.ok(n.some((x) => x.sev === 'good' && /surplus/.test(x.text)));
 });
 
 test('statementHeadline reads surplus/deficit', () => {

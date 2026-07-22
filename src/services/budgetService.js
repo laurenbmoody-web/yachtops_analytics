@@ -396,6 +396,47 @@ export const getBudgetVsActual = async (budgetId) => {
   return { data: { budget, ...view }, error: null };
 };
 
+// Period-scoped budget vs actual — owner reporting picks an arbitrary period, so
+// actuals come from that period and each line's budget is PRO-RATED by the share
+// of the budget's months the period covers. When period == budget period the
+// factor is 1 (identical to getBudgetVsActual). Lets the owner date picker drive
+// the numbers instead of always showing the full-budget figures.
+const ymNum = (iso) => { const [y, m] = String(iso).slice(0, 7).split('-').map(Number); return (y * 12) + (m - 1); };
+const monthsInclusive = (a, b) => Math.max(0, ymNum(b) - ymNum(a) + 1);
+
+export const getBudgetVsActualForPeriod = async (budgetId, periodStart, periodEnd) => {
+  const { data: budget, error: bErr } = await getBudget(budgetId);
+  if (bErr) return { data: null, error: bErr };
+
+  const [{ data: lines, error: lErr }, actualRes, committedRes, incomeRes, ovRes] = await Promise.all([
+    listLines(budgetId),
+    fetchActualByCategory(budget.tenant_id, periodStart, periodEnd),
+    fetchCommittedByCategory(budget.tenant_id, periodStart, periodEnd),
+    fetchIncomeByCategory(budget.tenant_id, periodStart, periodEnd),
+    listCategoryOverrides(budget.tenant_id),
+  ]);
+  if (lErr) return { data: null, error: lErr };
+  if (actualRes.error) return { data: null, error: actualRes.error };
+  if (committedRes.error) return { data: null, error: committedRes.error };
+  if (incomeRes.error) return { data: null, error: incomeRes.error };
+
+  // Pro-rata factor = overlap(period, budget) months / budget months.
+  const budgetMonths = monthsInclusive(budget.period_start, budget.period_end);
+  const ovStart = periodStart > budget.period_start ? periodStart : budget.period_start;
+  const ovEnd = periodEnd < budget.period_end ? periodEnd : budget.period_end;
+  const overlapMonths = ovStart <= ovEnd ? monthsInclusive(ovStart, ovEnd) : 0;
+  const factor = budgetMonths > 0 ? overlapMonths / budgetMonths : 1;
+  const scaledLines = (lines || []).map((l) => ({ ...l, amount: (Number(l.amount) || 0) * factor }));
+
+  const lineCatSet = new Set((lines || []).map((l) => normKey(l.category)));
+  const resolve = buildResolver(ovRes.data, lineCatSet);
+  const actualResolved = (actualRes.data || []).map((r) => ({ ...r, category: resolve(r) }));
+  const committedResolved = (committedRes.data || []).map((r) => ({ ...r, category: resolve(r) }));
+
+  const view = computeVsActual(scaledLines, actualResolved, committedResolved, incomeRes.data);
+  return { data: { budget, periodStart, periodEnd, factor, ...view }, error: null };
+};
+
 // Month-by-month actuals matrix (Jan–Dec + cumulative), the owner's-office layout.
 // Actuals only (on-order is a summary-view concept); spend and income are dated by
 // txn_date and routed to lines with the same resolver as the summary.

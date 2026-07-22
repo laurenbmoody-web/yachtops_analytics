@@ -7,18 +7,13 @@
 
 import { supabase } from '../lib/supabaseClient';
 import { currentUserId } from './financeService.js';
-import { getBudgetVsActual, getBudgetMonthly } from './budgetService.js';
-import { computeOverview } from './budgetOverview.js';
-import { buildStatement } from './ownerStatement.js';
+import { formatMoney } from './financeCalc.js';
+import { getBudgetVsActualForPeriod } from './budgetService.js';
+import { buildStatement, buildNarrative } from './ownerStatement.js';
 
 const STMT_SELECT =
   'id, tenant_id, title, period_start, period_end, currency, status, snapshot, note, ' +
   'issued_at, issued_by, created_by, created_at, updated_at';
-
-const currentYm = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-};
 
 // The budget that best covers a period: newest one overlapping [start,end].
 async function findBudgetForPeriod(tenantId, periodStart, periodEnd) {
@@ -56,12 +51,12 @@ export async function generateStatementData(tenantId, periodStart, periodEnd, me
     return { data: { ...buildStatement({ meta: baseMeta, view: {}, overview: {} }), noBudget: true }, error: null };
   }
 
-  const [vaRes, mRes] = await Promise.all([getBudgetVsActual(budget.id), getBudgetMonthly(budget.id)]);
+  const vaRes = await getBudgetVsActualForPeriod(budget.id, periodStart, periodEnd);
   if (vaRes.error) return { data: null, error: vaRes.error };
-  if (mRes.error) return { data: null, error: mRes.error };
 
-  const overview = computeOverview(vaRes.data, mRes.data, currentYm());
-  const statement = buildStatement({ meta: baseMeta, view: vaRes.data, overview, note: meta.note });
+  const fmt = (n) => formatMoney(n, currency);
+  const narrative = buildNarrative(vaRes.data, fmt);
+  const statement = buildStatement({ meta: baseMeta, view: vaRes.data, narrative, note: meta.note });
   return { data: { ...statement, budgetId: budget.id, budgetName: budget.name }, error: null };
 }
 

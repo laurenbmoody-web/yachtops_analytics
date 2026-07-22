@@ -115,10 +115,12 @@ export default function OwnerView() {
   };
 
   const pos = data?.position || {};
+  const usedPct = pos.budget ? Math.round(((pos.actual || 0) + (pos.committed || 0)) / pos.budget * 100) : null;
   const kpis = [
-    { l: 'Budget', v: pos.budget }, { l: 'Actual', v: pos.actual },
-    { l: 'Committed', v: pos.committed }, { l: 'Remaining', v: pos.remaining },
-    { l: 'Forecast', v: pos.forecast, sub: pos.forecastOver > 0 ? `~${formatMoney(pos.forecastOver, cur)} over` : 'within budget' },
+    { l: 'Budget', v: pos.budget, sub: 'this period' },
+    { l: 'Actual', v: pos.actual, sub: usedPct != null ? `${usedPct}% used` : null },
+    { l: 'Committed', v: pos.committed, sub: 'on order' },
+    { l: 'Remaining', v: pos.remaining, sub: usedPct != null ? `${Math.max(0, 100 - usedPct)}% left` : null },
   ];
 
   return (
@@ -183,10 +185,13 @@ export default function OwnerView() {
 
               {/* variance narrative */}
               {data?.narrative?.length > 0 && (
-                <div className="ow-narr">
-                  {data.narrative.map((n, i) => (
-                    <div key={i} className="ow-narr-row"><i style={{ background: SEV[n.sev] || '#8B8478' }} /><span>{n.text}</span></div>
-                  ))}
+                <div className="ow-sec">
+                  <div className="ow-sec-h"><span className="ow-sec-t">Where it needs eyes</span></div>
+                  <div className="ow-narr">
+                    {data.narrative.map((n, i) => (
+                      <div key={i} className="ow-narr-row"><i style={{ background: SEV[n.sev] || '#8B8478' }} /><span>{n.text}</span></div>
+                    ))}
+                  </div>
                 </div>
               )}
 
