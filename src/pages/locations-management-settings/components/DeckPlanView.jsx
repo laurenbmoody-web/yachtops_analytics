@@ -918,18 +918,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         // Doorway links: both endpoints placed on THIS deck (drawable as lines).
         const posById = Object.fromEntries(placed.map((s) => [s.id, posOf(s)]));
         const spaceById = Object.fromEntries(placed.map((s) => [s.id, s]));
-        const deckLinks = links.filter((l) => l.kind !== 'stairs' && posById[l.a] && posById[l.b]);
-        // A doorway runs between the two rooms' shared wall, so anchor each end at
-        // the outline corner nearest the other room (a short stub at the boundary)
-        // rather than centre-to-centre across the whole deck — far fewer crossings.
-        const linkEnd = (space, fromPos, toward) => {
-          const nodes = shapeOf(space)?.nodes;
-          if (!nodes?.length) return fromPos;
-          let best = nodes[0];
-          let bd = Infinity;
-          for (const n of nodes) { const d = (n.x - toward.x) ** 2 + (n.y - toward.y) ** 2; if (d < bd) { bd = d; best = n; } }
-          return best;
-        };
+        const deckLinks = links.filter((l) => l.kind !== 'stairs' && posById[l.a] && posById[l.b] && spaceById[l.a] && spaceById[l.b]);
         // Stairs links touching THIS deck: one endpoint is here, the other on
         // another deck — rendered as a ↕ badge that jumps to the other deck.
         const deckStairs = links.filter((l) => l.kind === 'stairs').map((l) => {
@@ -1146,11 +1135,10 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   {!focusMode && deckLinks.length > 0 && (
                     <svg className="dp-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
                       {deckLinks.map((l) => {
-                        const pa = posById[l.a]; const pb = posById[l.b];
-                        const a = linkEnd(spaceById[l.a], pa, pb);
-                        const b = linkEnd(spaceById[l.b], pb, pa);
+                        const a = posById[l.a]; const b = posById[l.b];
                         const label = `${nameOf(spaceById[l.a])} ↔ ${nameOf(spaceById[l.b])}`;
-                        const cls = selLink === l.id ? 'is-sel' : (selLink ? 'is-dim' : '');
+                        const selHere = selLink && deckLinks.some((x) => x.id === selLink);
+                        const cls = selLink === l.id ? 'is-sel' : (selHere ? 'is-dim' : '');
                         return (
                           <g key={l.id} className={`dp-link-g ${cls}`} onClick={() => linkMode && tapLink(l.id)}>
                             <line className="dp-link" x1={a.x * 100} y1={a.y * 100} x2={b.x * 100} y2={b.y * 100} />
@@ -1167,9 +1155,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   {!focusMode && linkMode && selLink && (() => {
                     const l = deckLinks.find((x) => x.id === selLink);
                     if (!l) return null;
-                    const pa = posById[l.a]; const pb = posById[l.b];
-                    const a = linkEnd(spaceById[l.a], pa, pb);
-                    const b = linkEnd(spaceById[l.b], pb, pa);
+                    const a = posById[l.a]; const b = posById[l.b];
                     return (
                       <button
                         type="button"
