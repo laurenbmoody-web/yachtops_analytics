@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess, hasAccountsAccess, setCurrentUser as saveCurrentUser } from '../utils/authStorage';
+import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess, hasAccountsAccess, hasOwnerReporting, setCurrentUser as saveCurrentUser } from '../utils/authStorage';
 import { isDevMode } from '../utils/devMode';
 
 import { supabase } from '../lib/supabaseClient';
@@ -427,7 +427,7 @@ export const AuthProvider = ({ children }) => {
           
           const { data: membership, error: membershipError } = await supabase
             ?.from('tenant_members')
-            ?.select('tenant_id, permission_tier, role, department_id, active, rota_requires_acceptance, can_access_accounts')
+            ?.select('tenant_id, permission_tier, role, department_id, active, rota_requires_acceptance, can_access_accounts, can_view_owner_reporting')
             ?.eq('user_id', currentUserId)
             ?.eq('tenant_id', profile?.last_active_tenant_id)
             ?.neq('active', false)
@@ -497,6 +497,7 @@ export const AuthProvider = ({ children }) => {
               department_id: membership?.department_id || existingUser?.department_id || null,
               rota_requires_acceptance: membership?.rota_requires_acceptance ?? null,
               can_access_accounts: membership?.can_access_accounts ?? false,
+              can_view_owner_reporting: membership?.can_view_owner_reporting ?? false,
             };
             setCurrentUser(enrichedUser);
             saveCurrentUser(enrichedUser);
@@ -518,7 +519,7 @@ export const AuthProvider = ({ children }) => {
           
           const { data: memberships, error: membershipError } = await supabase
             ?.from('tenant_members')
-            ?.select('tenant_id, permission_tier, role, department_id, active, rota_requires_acceptance, can_access_accounts')
+            ?.select('tenant_id, permission_tier, role, department_id, active, rota_requires_acceptance, can_access_accounts, can_view_owner_reporting')
             ?.eq('user_id', currentUserId)
             ?.eq('active', true)
             ?.order('joined_at', { ascending: false })
@@ -579,6 +580,7 @@ export const AuthProvider = ({ children }) => {
               department_id: membership?.department_id || existingUser?.department_id || null,
               rota_requires_acceptance: membership?.rota_requires_acceptance ?? null,
               can_access_accounts: membership?.can_access_accounts ?? false,
+              can_view_owner_reporting: membership?.can_view_owner_reporting ?? false,
             };
             setCurrentUser(enrichedUser);
             saveCurrentUser(enrichedUser);
@@ -775,6 +777,7 @@ export const AuthProvider = ({ children }) => {
         hasChiefAccess: () => hasChiefAccess(currentUser),
         hasHODAccess: () => hasHODAccess(currentUser),
         hasAccountsAccess: () => hasAccountsAccess(currentUser),
+        hasOwnerReporting: () => hasOwnerReporting(currentUser),
       }}
     >
       <TenantProvider authSession={session} authUser={user}>

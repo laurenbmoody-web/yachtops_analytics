@@ -352,6 +352,18 @@ export const hasAccountsAccess = (user) => {
   return user?.can_access_accounts === true || user?.canAccessAccounts === true;
 };
 
+// Owner reporting (read-only) access: anyone with full Accounts access, PLUS a
+// dedicated read-only owner/viewer seat granted the `can_view_owner_reporting`
+// capability (an owner's office, often not crew). Grant-only.
+export const hasOwnerReporting = (user) => {
+  if (hasAccountsAccess(user)) return true;
+  return user?.can_view_owner_reporting === true || user?.canViewOwnerReporting === true;
+};
+
+// True when the user is a *pure* owner/viewer — owner reporting only, no editing
+// or other accounts surfaces. Drives read-only affordances + a viewer landing.
+export const isOwnerViewerOnly = (user) => hasOwnerReporting(user) && !hasAccountsAccess(user);
+
 // Department display names
 export const getDepartmentDisplayName = (department) => {
   const mapping = {

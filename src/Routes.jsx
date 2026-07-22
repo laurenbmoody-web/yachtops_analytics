@@ -289,7 +289,7 @@ const FallbackRoute = () => {
 };
 
 // Protected Route wrapper - uses AuthContext for session state
-const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null, requireAccounts = false }) => {
+const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null, requireAccounts = false, requireOwnerReporting = false }) => {
   // Check DEV MODE flag
   if (isDevMode()) {
     console.log('[ProtectedRoute] 🔧 DEV MODE: Bypassing all auth checks');
@@ -310,7 +310,8 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null,
     activeTenantId: tenant_id,
     tenantRole: role,
     retryBootstrap,
-    hasAccountsAccess
+    hasAccountsAccess,
+    hasOwnerReporting
   } = useAuth();
 
   // Auto-retry once if bootstrap completed but found no tenant (transient failure on first login)
@@ -342,6 +343,12 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null,
     decision = 'NO_TENANT';
   } else if (requiresTenant && !role) {
     decision = 'NO_ROLE';
+  } else if (requireOwnerReporting) {
+    // Owner reporting is reachable by anyone with Accounts access AND by a
+    // dedicated read-only owner/viewer seat (any tier) — so it gates on the
+    // owner-reporting capability, not on requiredRoles.
+    const ok = typeof hasOwnerReporting === 'function' && hasOwnerReporting();
+    decision = ok ? 'ALLOWED' : 'DENIED';
   } else if (requiredRoles && requiredRoles?.length > 0) {
     const normalizedRole = (role || '')?.toUpperCase()?.trim();
     let allowed = requiredRoles?.some(r => r?.toUpperCase() === normalizedRole);
@@ -1456,7 +1463,7 @@ const Routes = () => {
         <Route path="/accounts" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Accounts /></ProtectedRoute>} />
         <Route path="/accounts/cards" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><DepartmentCards /></ProtectedRoute>} />
         <Route path="/accounts/my" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><MyReconcile /></ProtectedRoute>} />
-        <Route path="/accounts/owner" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><OwnerView /></ProtectedRoute>} />
+        <Route path="/accounts/owner" element={<ProtectedRoute requireOwnerReporting><OwnerView /></ProtectedRoute>} />
         <Route path="/accounts/ledger" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Ledger /></ProtectedRoute>} />
         <Route path="/accounts/payables" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Payables /></ProtectedRoute>} />
         <Route path="/accounts/budgets" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Budgets /></ProtectedRoute>} />

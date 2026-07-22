@@ -141,7 +141,7 @@ export default function OwnerView() {
               <div className="ca-head-act ow-noprint">
                 <button type="button" className="ca-btn ca-btn-ghost" onClick={() => window.print()}><Icon name="Printer" size={16} /> Print / PDF</button>
                 <button type="button" className="ca-btn ca-btn-ghost" onClick={exportExcel}><Icon name="Download" size={16} /> Excel</button>
-                <button type="button" className="ca-btn ca-btn-primary" onClick={onGenerate} disabled={busy}><Icon name="FileText" size={16} /> Generate statement</button>
+                {canIssue && <button type="button" className="ca-btn ca-btn-primary" onClick={onGenerate} disabled={busy}><Icon name="FileText" size={16} /> Generate statement</button>}
               </div>
             </div>
           </div>
@@ -227,7 +227,8 @@ export default function OwnerView() {
                 </div>
               )}
 
-              {/* saved statements */}
+              {/* saved statements — management is COMMAND; viewers get the live lens + export */}
+              {canIssue && (
               <div className="ow-sec ow-noprint">
                 <div className="ow-sec-h"><span className="ow-sec-t">Statements</span><span className="ow-sec-n">{statements.length}</span></div>
                 {statements.length === 0 ? (
@@ -243,6 +244,7 @@ export default function OwnerView() {
                   </div>
                 ))}
               </div>
+              )}
 
               {data?.note && <div className="ow-note"><b>Notes</b><p>{data.note}</p></div>}
             </>
