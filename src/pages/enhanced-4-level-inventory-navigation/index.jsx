@@ -1515,18 +1515,20 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, o
         </div>
       </div>
       {variantQtys.length > 0 && showSizes && (
-        <div className="inv-szgrid" style={{ padding: '4px 0 2px' }}>
+        <div className="inv-sizelist" style={{ padding: '4px 0 2px' }}>
           {variantQtys.map((r, idx) => (
-            singleLoc ? (
-              <span key={r.size} className="inv-szchip edit">
-                <span className="s">{r.size}</span>
-                <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, -1); }} disabled={r.qty <= 0} className="inv-szbtn minus" aria-label={`Less ${r.size}`}><Icon name="Minus" size={9} /></button>
-                <span className="v">{r.qty}</span>
-                <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, 1); }} className="inv-szbtn plus" aria-label={`More ${r.size}`}><Icon name="Plus" size={9} /></button>
-              </span>
-            ) : (
-              <span key={r.size} className="inv-szchip"><span className="s">{r.size}</span><span className="v">{r.qty}</span></span>
-            )
+            <div key={r.size} className="inv-sizerow">
+              <span className="inv-sizename">{r.size}</span>
+              {singleLoc ? (
+                <div className="flex items-center gap-1.5">
+                  <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, -1); }} disabled={r.qty <= 0} className="inv-qtybtn minus" style={{ width: 24, height: 24 }}><Icon name="Minus" size={10} /></button>
+                  <span className="inv-sizeqty" style={{ textAlign: 'center' }}>{r.qty}</span>
+                  <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, 1); }} className="inv-qtybtn plus" style={{ width: 24, height: 24 }}><Icon name="Plus" size={10} /></button>
+                </div>
+              ) : (
+                <span className="inv-sizeqty">{r.qty}</span>
+              )}
+            </div>
           ))}
           {!singleLoc && <p className="inv-szsplit">Split across locations — edit stock in the item.</p>}
         </div>
@@ -1796,18 +1798,20 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
           </div>
         </div>
         {variantQtys.length > 0 && showSizes && (
-          <div className="inv-szgrid" style={{ padding: '8px 0 0' }}>
+          <div className="inv-sizelist" style={{ padding: '8px 0 0' }}>
             {variantQtys.map((r, idx) => (
-              singleLoc ? (
-                <span key={r.size} className="inv-szchip edit">
-                  <span className="s">{r.size}</span>
-                  <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, -1); }} disabled={r.qty <= 0} className="inv-szbtn minus" aria-label={`Less ${r.size}`}><Icon name="Minus" size={9} /></button>
-                  <span className="v">{r.qty}</span>
-                  <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, 1); }} className="inv-szbtn plus" aria-label={`More ${r.size}`}><Icon name="Plus" size={9} /></button>
-                </span>
-              ) : (
-                <span key={r.size} className="inv-szchip"><span className="s">{r.size}</span><span className="v">{r.qty}</span></span>
-              )
+              <div key={r.size} className="inv-sizerow">
+                <span className="inv-sizename">{r.size}</span>
+                {singleLoc ? (
+                  <div className="flex items-center gap-1">
+                    <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, -1); }} disabled={r.qty <= 0} className="inv-qtybtn minus" style={{ width: 24, height: 24 }}><Icon name="Minus" size={10} /></button>
+                    <span className="inv-sizeqty" style={{ textAlign: 'center' }}>{r.qty}</span>
+                    <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, 1); }} className="inv-qtybtn plus" style={{ width: 24, height: 24 }}><Icon name="Plus" size={10} /></button>
+                  </div>
+                ) : (
+                  <span className="inv-sizeqty">{r.qty}</span>
+                )}
+              </div>
             ))}
             {!singleLoc && <p className="inv-szsplit">Split across locations — edit stock in the item.</p>}
           </div>
@@ -1917,12 +1921,48 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
 // ─── Folder actions menu (⋯) — consolidates all tile actions, touch-friendly ────
 const FolderActionsMenu = ({ canEdit, showCog, canMove, onOpen, onRename, onAppearance, onMove, onPermissions, onDuplicate, onExport, onArchive, onDelete }) => {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const [menuStyle, setMenuStyle] = useState(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+
   useEffect(() => {
-    const handleClick = (e) => { if (ref?.current && !ref?.current?.contains(e?.target)) setOpen(false); };
+    if (!open) return;
+    const handleClick = (e) => {
+      if (menuRef?.current?.contains(e?.target) || triggerRef?.current?.contains(e?.target)) return;
+      setOpen(false);
+    };
+    const handleKey = (e) => { if (e?.key === 'Escape') setOpen(false); };
+    const handleScroll = () => setOpen(false);
     document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
+    document.addEventListener('keydown', handleKey);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [open]);
+
+  // Position from the real menu height in a layout effect, so it's never clipped
+  // by the folder tile's overflow and sits flush to the trigger.
+  React.useLayoutEffect(() => {
+    if (!open) { setMenuStyle(null); return; }
+    const t = triggerRef?.current?.getBoundingClientRect();
+    const m = menuRef?.current?.getBoundingClientRect();
+    if (!t) return;
+    const W = window?.innerWidth || 800;
+    const H = window?.innerHeight || 600;
+    const height = m?.height || 300;
+    let left = t.right - 200;
+    if (left < 8) left = 8;
+    if (left + 200 > W - 8) left = W - 200 - 8;
+    let top = t.bottom + 6;
+    if (top + height > H - 8) top = Math.max(8, t.top - height - 6);
+    setMenuStyle({ position: 'fixed', top, left, right: 'auto', width: 200, zIndex: 'var(--z-overlay, 1000)' });
+  }, [open]);
+
   const row = (iconName, label, fn, opts = {}) => (
     <button
       className={`inv-menuitem${opts?.danger ? ' danger' : ''}`}
@@ -1933,16 +1973,17 @@ const FolderActionsMenu = ({ canEdit, showCog, canMove, onOpen, onRename, onAppe
     </button>
   );
   return (
-    <div className="inv-actionsmenu" ref={ref}>
+    <div className="inv-actionsmenu">
       <button
+        ref={triggerRef}
         className="inv-menutrigger"
         title="Folder actions"
         onClick={(e) => { e?.stopPropagation(); setOpen(o => !o); }}
       >
         <Icon name="MoreHorizontal" size={17} />
       </button>
-      {open && (
-        <div className="inv-menu" onClick={(e) => e?.stopPropagation()}>
+      {open && createPortal(
+        <div ref={menuRef} className="inv-menu" style={menuStyle || { position: 'fixed', top: -9999, left: -9999, width: 200, visibility: 'hidden', zIndex: 'var(--z-overlay, 1000)' }} onClick={(e) => e?.stopPropagation()}>
           {onOpen && row('FolderOpen', 'Open', onOpen)}
           {canEdit && onRename && row('Pencil', 'Rename', onRename)}
           {canEdit && onAppearance && row('Palette', 'Icon & colour', onAppearance)}
@@ -1953,7 +1994,8 @@ const FolderActionsMenu = ({ canEdit, showCog, canMove, onOpen, onRename, onAppe
           {((canEdit && showCog && onArchive) || (canEdit && onDelete)) && <div className="inv-menu-sep" />}
           {canEdit && showCog && onArchive && row('Archive', 'Archive', onArchive)}
           {canEdit && onDelete && row('Trash2', 'Delete', onDelete, { danger: true })}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
