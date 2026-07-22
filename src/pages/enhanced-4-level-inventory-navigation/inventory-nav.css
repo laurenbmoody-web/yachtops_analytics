@@ -427,37 +427,10 @@
 .inv-card-media .inv-placeholder svg { color: #D3D7DF; }
 /* Body is compact and centred; the media flexes to fill the tile so there is
    no dead space and folders + items stay identical in size. */
-/* Image-forward tiles: the image fills the tile; revealing flips it to a details
-   panel (name pinned at the top, the rest scrolls) so the name is always
-   visible. Desktop reveals on hover; touch via the round toggle button. */
 .inv-card-body {
-  position: absolute; inset: 0;
-  padding: 12px; display: flex; flex-direction: column; gap: 5px;
-  align-items: center; text-align: center; justify-content: flex-start;
-  background: rgba(255,255,255,0.97); overflow-y: auto;
-  opacity: 0; transform: translateY(6px); pointer-events: none;
-  transition: opacity 0.16s ease, transform 0.16s ease;
+  padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 5px;
+  flex: 0 0 auto; align-items: center; text-align: center;
 }
-.inv-card:hover .inv-card-body,
-.inv-card:focus-within .inv-card-body,
-.inv-card.revealed .inv-card-body { opacity: 1; transform: translateY(0); pointer-events: auto; }
-@media (prefers-reduced-motion: reduce) { .inv-card-body { transition: none; } }
-
-/* No photo → nothing to hide behind, so the details stay visible by default
-   (no hover / toggle needed). */
-.inv-card.no-img .inv-card-body { opacity: 1; transform: none; pointer-events: auto; }
-.inv-card.no-img .inv-card-reveal { display: none; }
-
-/* reveal toggle — shown on touch (hover devices use hover instead) */
-.inv-card-reveal {
-  position: absolute; bottom: 8px; right: 8px; z-index: 3;
-  width: 30px; height: 30px; border-radius: 999px; padding: 0;
-  background: rgba(255,255,255,0.94); border: 1px solid #E5E7EB; color: #6B7280;
-  display: grid; place-items: center; cursor: pointer;
-  box-shadow: 0 2px 8px -3px rgba(28,27,58,0.25);
-}
-.inv-card.revealed .inv-card-reveal { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
-@media (hover: hover) and (pointer: fine) { .inv-card-reveal { display: none; } }
 .inv-card-name {
   font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A; line-height: 1.25; cursor: pointer; transition: color 0.14s;
