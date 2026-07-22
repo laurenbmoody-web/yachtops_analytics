@@ -287,7 +287,11 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-plan.is-linking{cursor:default;}
 .dp-plan.is-linking .dp-pin{cursor:pointer;}
 .dp-plan.is-linking .dp-link-hit{pointer-events:stroke;cursor:pointer;}
-.dp-plan.is-linking .dp-link-g:hover .dp-link{stroke:#B14E16;opacity:1;stroke-width:3;stroke-dasharray:3 3;}
+.dp-plan.is-linking .dp-link-g:hover .dp-link{stroke:#B14E16;opacity:1;stroke-width:3.5;}
+/* Hovering one doorway fades all the others, so it's clear which two rooms a
+   crossing line actually connects (its tooltip names both). */
+.dp-plan.is-linking .dp-links:has(.dp-link-g:hover) .dp-link{opacity:.12;}
+.dp-plan.is-linking .dp-links:has(.dp-link-g:hover) .dp-link-g:hover .dp-link{opacity:1;}
 .dp-pin.is-pending{box-shadow:0 0 0 3px var(--lg-terra), 0 2px 6px rgba(28,27,58,.5);transform:translate(-50%,-50%) scale(1.2);z-index:7;}
 /* Briefly ring a pin after a stairs jump lands on it, so the eye finds it. */
 .dp-pin.is-flash{z-index:8;animation:dp-pin-flash 1.6s ease-out;}
