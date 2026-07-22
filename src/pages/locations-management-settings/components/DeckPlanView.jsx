@@ -446,17 +446,34 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     setTracing({ spaceId: e.spaceId, deckId: e.deckId, name: e.name, nodes: [] });
   };
   useEffect(() => () => { window.removeEventListener('pointermove', onEditNodeMove); window.removeEventListener('pointerup', onEditNodeUp); }, [onEditNodeMove, onEditNodeUp]);
-  // Delete/Backspace removes the selected corner while adjusting an outline.
+  // While adjusting an outline: Enter saves, Esc cancels, Delete/⌫ removes the
+  // selected corner. Ignored while typing in a field.
   useEffect(() => {
     if (!editing) return undefined;
     const onKey = (e) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && editSel != null) { e.preventDefault(); deleteNodeAt(editSel); }
-      if (e.key === 'Escape') cancelEdit();
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      if (e.key === 'Enter') { e.preventDefault(); saveEdit(); }
+      else if (e.key === 'Escape') cancelEdit();
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && editSel != null) { e.preventDefault(); deleteNodeAt(editSel); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, editSel]);
+  // While drawing a fresh outline: Enter finishes it (closes the shape), Esc cancels.
+  useEffect(() => {
+    if (!tracing) return undefined;
+    const onKey = (e) => {
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+      if (e.key === 'Enter' && tracing.nodes.length >= 3) { e.preventDefault(); finishTrace(); }
+      else if (e.key === 'Escape') cancelTrace();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tracing]);
   const startDrag = (e, space, deck, fromPlaced) => {
     if (e.button != null && e.button !== 0) return;
     e.preventDefault();
