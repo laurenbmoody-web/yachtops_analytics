@@ -27,6 +27,11 @@
 .uv-empty { font-size: 13px; color: #8B8478; }
 .uv-stored { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: #1C1B3A; background: #FBEFE9; border: 1px solid #F3D9CB; border-radius: 999px; padding: 6px 13px; }
 .uv-stored svg { color: #C65A1A; flex: none; }
+.uv-storelist { display: flex; flex-direction: column; gap: 8px; }
+.uv-storerow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.uv-storesizes { font-size: 13px; font-weight: 700; color: #1C1B3A; text-align: right; font-variant-numeric: tabular-nums; flex: none; }
+.uv-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.uv-tag { display: inline-flex; align-items: center; background: #FBEFE9; border: 1px solid #F3D9CB; color: #C65A1A; border-radius: 999px; padding: 4px 11px; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; }
 
 /* stock-by-location matrix (read-only) */
 .uv-mtx-wrap { overflow-x: auto; }
