@@ -1,0 +1,74 @@
+/* Today widget — a vessel-anchored "today": live weather + sun times at the
+   vessel's AIS position, an expandable 7-day → month date strip, and the
+   selected day's agenda. Category colour: vessel = terracotta, crew = navy,
+   personal = sage. Sits in the ce-card family. */
+
+.td-cats { --g: #C65A1A; --c: #334066; --p: #4F8A5E; }
+
+/* ── Weather hero ─────────────────────────────────────────── */
+.td-wx { display: flex; align-items: center; gap: 14px; padding: 2px 2px 15px; }
+.td-wx-ic { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px; background: #F1F5FA; display: flex; align-items: center; justify-content: center; color: #C65A1A; }
+.td-wx-mid { flex: 1; min-width: 0; }
+.td-wx-temp { font-family: 'Inter', system-ui, sans-serif; font-size: 27px; font-weight: 700; color: #1C1B3A; line-height: 1; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
+.td-wx-temp .deg { color: #C9CDD8; font-weight: 600; }
+.td-wx-cond { font-size: 12px; color: #6B7280; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.td-wx-cond .loc { color: #1C1B3A; font-weight: 600; }
+.td-wx-sun { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; text-align: right; }
+.td-wx-s { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 11.5px; color: #8B8478; font-variant-numeric: tabular-nums; }
+.td-wx-s svg { color: #C99A5B; }
+.td-wx-skel { height: 42px; border-radius: 12px; background: #EEF0F4; animation: td-pulse 1.3s ease-in-out infinite; }
+.td-wx-off { font-size: 11.5px; color: #AEB4C2; display: inline-flex; align-items: center; gap: 6px; }
+
+/* ── Date strip / month ───────────────────────────────────── */
+.td-strip-hd { display: flex; align-items: center; justify-content: space-between; margin: 0 0 7px; }
+.td-strip-mo { font-size: 12px; font-weight: 700; color: #1C1B3A; letter-spacing: .2px; }
+.td-strip-nav { display: flex; align-items: center; gap: 2px; }
+.td-ex { background: none; border: 0; padding: 4px; border-radius: 7px; color: #8B8478; cursor: pointer; display: inline-flex; }
+.td-ex:hover { background: #F1F3F7; color: #C65A1A; }
+
+.td-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 4px; }
+.td-dow span { text-align: center; font-size: 8.5px; font-weight: 700; letter-spacing: .5px; color: #AEB4C2; }
+
+.td-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.td-cell { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px 0 5px; border-radius: 9px; border: 1px solid transparent; background: none; cursor: pointer; font-family: inherit; transition: background .1s, border-color .1s; }
+.td-cell:hover { background: #F6F8FB; }
+.td-cell .dowm { font-size: 8.5px; font-weight: 700; letter-spacing: .5px; color: #AEB4C2; line-height: 1; }
+.td-cell.is-today .dowm { color: #C65A1A; }
+.td-cell.is-today.is-sel .dowm { color: rgba(255,255,255,.85); }
+.td-cell .n { font-size: 12.5px; font-weight: 600; color: #1C1B3A; font-variant-numeric: tabular-nums; line-height: 1; }
+.td-cell.out .n { color: #C9CDD8; }
+.td-cell.is-today .n { color: #C65A1A; }
+.td-cell.is-sel { border-color: #C65A1A; background: #FBEFE9; }
+.td-cell.is-today.is-sel { background: #C65A1A; }
+.td-cell.is-today.is-sel .n { color: #fff; }
+.td-dots { display: flex; gap: 2px; height: 4px; align-items: center; }
+.td-dot { width: 3.5px; height: 3.5px; border-radius: 999px; }
+.td-dot.is-group { background: var(--g); }
+.td-dot.is-crew { background: var(--c); }
+.td-dot.is-personal { background: var(--p); }
+.td-cell.is-today.is-sel .td-dot { background: rgba(255,255,255,.85); }
+
+/* ── Day agenda ───────────────────────────────────────────── */
+.td-divider { height: 1px; background: #F0F1F5; margin: 13px 0 3px; }
+.td-daylab { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #AEB4C2; margin: 11px 0 4px; }
+.td-daylab.is-today { color: #C65A1A; }
+
+.td-ev { display: flex; align-items: center; gap: 11px; padding: 8px 4px; border-radius: 8px; cursor: pointer; transition: background .1s; }
+.td-ev:hover { background: #FAFAF8; }
+.td-ev-rail { flex: 0 0 auto; width: 3px; align-self: stretch; border-radius: 999px; background: #DADEE6; }
+.td-ev.is-group .td-ev-rail { background: var(--g); }
+.td-ev.is-crew .td-ev-rail { background: var(--c); }
+.td-ev.is-personal .td-ev-rail { background: var(--p); }
+.td-ev-main { flex: 1; min-width: 0; }
+.td-ev-t { font-size: 13px; font-weight: 600; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.td-ev-t .tag { font-size: 8.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: #C65A1A; margin-right: 6px; vertical-align: 1px; }
+.td-ev-s { font-size: 11px; color: #8B8478; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.td-ev-s .arr { color: #C9CDD8; margin: 0 3px; }
+.td-ev-when { flex: 0 0 auto; align-self: center; font-size: 11px; color: #AEB4C2; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.td-ev-when.is-now { color: #C65A1A; font-weight: 700; font-size: 9px; letter-spacing: .5px; text-transform: uppercase; }
+
+.td-none { font-size: 12px; color: #AEB4C2; padding: 8px 4px 4px; }
+.td-err { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: #9A2B12; padding: 12px 0; }
+.td-retry { background: none; border: 0; padding: 0; font-family: inherit; font-size: 12.5px; font-weight: 700; color: #9A2B12; text-decoration: underline; cursor: pointer; }
+.td-skel { border-radius: 10px; background: #EEF0F4; animation: td-pulse 1.3s ease-in-out infinite; }
+@keyframes td-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
