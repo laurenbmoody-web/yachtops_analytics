@@ -41,6 +41,7 @@ const TIMELINE_STEPS = [
   { key: 'dispatched', label: 'Dispatched' },
   { key: 'delivered',  label: 'Delivered' },
   { key: 'invoiced',   label: 'Invoiced' },
+  { key: 'paid',       label: 'Paid' },
 ];
 
 const STATUS_TO_STEP_INDEX = {
@@ -62,7 +63,7 @@ const STATUS_TO_STEP_INDEX = {
   // separate and renders these natively.
   out_for_delivery:    4,    // → 'Dispatched' display
   received:            5,    // → 'Delivered' display
-  paid:                6,    // → 'Invoiced' display
+  paid:                7,    // → dedicated 'Paid' step (supplier sees payment)
 };
 
 // ─── Date / number helpers ──────────────────────────────────────────────────
@@ -677,6 +678,7 @@ const Timeline = ({ order, items }) => {
     4: order.dispatched_at,
     5: order.delivered_at,
     6: order.invoiced_at,
+    7: order.paid_at,
   };
 
   const stepWhen = (idx) => {
@@ -687,6 +689,8 @@ const Timeline = ({ order, items }) => {
       if (TIMELINE_STEPS[idx].key === 'confirming' && totalCount > 0) {
         return `${actioned} of ${totalCount}`;
       }
+      // Paid is terminal — never "in progress" once reached.
+      if (TIMELINE_STEPS[idx].key === 'paid') return 'Done';
       return 'In progress';
     }
     // Future delivery step shows the planned date (dd/mm/yyyy) when we have one.
