@@ -138,8 +138,14 @@ exports.handler = async (event) => {
       'metadata[supplier_invoice_id]': meta.supplier_invoice_id,
       'metadata[supplier_order_id]': meta.supplier_order_id,
       'metadata[tenant_id]': meta.tenant_id,
-      success_url: `${SITE_URL}/accounts/payables?paid=1`,
-      cancel_url: `${SITE_URL}/accounts/payables?cancelled=1`,
+      // Return to the order they paid so the in-app receipt pops and the
+      // invoice shows Paid; fall back to payables if the invoice has no order.
+      success_url: invoice.order_id
+        ? `${SITE_URL}/provisioning/orders/${invoice.order_id}?paid=1&inv=${invoice.id}`
+        : `${SITE_URL}/accounts/payables?paid=1`,
+      cancel_url: invoice.order_id
+        ? `${SITE_URL}/provisioning/orders/${invoice.order_id}?cancelled=1`
+        : `${SITE_URL}/accounts/payables?cancelled=1`,
     }, supplier.stripe_account_id);
 
     // Audit row (idempotency + reconciliation). PI id lands via the webhook.

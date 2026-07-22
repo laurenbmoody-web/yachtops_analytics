@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { dateLocale } from '../../utils/dateFormat';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import EditorialMetaStrip from '../../components/editorial/EditorialMetaStrip';
 import { useAuth } from '../../contexts/AuthContext';
@@ -912,6 +912,7 @@ function FooterBar({ status, onBack, onMarkReceived, onReceiveOnBoard, receiveBu
 export default function SupplierOrderPage() {
   const { boardId, orderId } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { tenantRole } = useAuth();
   // Favourite star — UI gate only. Server gate is the RPC
   // toggle_supplier_order_favourite which checks tier + dept intersect.
@@ -939,6 +940,8 @@ export default function SupplierOrderPage() {
   const [dnPopoverOpen, setDnPopoverOpen] = useState(false);
   // Invoiced over-budget breakdown dialog.
   const [varianceDialog, setVarianceDialog] = useState(null);
+  // Card payment success — in-app receipt shown on return from Stripe.
+  const [paidReceipt, setPaidReceipt] = useState(null);
   // Async row state.
   const [resendBusy, setResendBusy] = useState(false);
   const [markPaidBusy, setMarkPaidBusy] = useState(null); // invoiceId currently saving
@@ -999,6 +1002,46 @@ export default function SupplierOrderPage() {
       });
     return () => { cancelled = true; };
   }, [orderId, boardId, navigate]);
+
+  // Silent re-fetch (no spinner) — used after a card payment lands so the
+  // invoice flips to Paid without a full page reload.
+  const reloadOrder = useCallback(async () => {
+    if (!orderId) return;
+    try {
+      const o = await fetchSupplierOrderById(orderId);
+      if (o) setOrder(o);
+    } catch (err) {
+      console.error('[SupplierOrderPage] reload failed:', err);
+    }
+  }, [orderId]);
+
+  // Return from Stripe Checkout (?paid=1[&inv=<id>]). Pop the in-app receipt
+  // from the freshly-paid invoice, strip the query so a refresh won't re-open
+  // it, and re-fetch shortly after to reflect Paid once the webhook lands.
+  useEffect(() => {
+    if (searchParams.get('paid') !== '1' || !order) return;
+    const invId = searchParams.get('inv');
+    const invs = order.supplier_invoices || [];
+    const inv = (invId && invs.find((i) => i.id === invId))
+      || [...invs].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0];
+    if (inv) {
+      setPaidReceipt({
+        invoice_number: inv.invoice_number,
+        amount: inv.amount,
+        currency: inv.currency || order.currency || 'EUR',
+        supplierName: order.supplier_profile?.name || order.supplier_name || 'the supplier',
+        invoiceId: inv.id,
+      });
+    }
+    // Drop paid/inv/cancelled from the URL without adding a history entry.
+    const next = new URLSearchParams(searchParams);
+    next.delete('paid'); next.delete('inv'); next.delete('cancelled');
+    setSearchParams(next, { replace: true });
+    // Give the webhook a moment, then refresh to show Paid.
+    const t = setTimeout(reloadOrder, 1800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order?.id, searchParams]);
 
   // ── Quote handlers (mirror ProvisioningBoardDetail) ─────────────────
   const mergeUpdatedItem = useCallback((updated) => {
@@ -1490,6 +1533,62 @@ export default function SupplierOrderPage() {
                 className="cargo-ribbon-btn"
                 onClick={() => setVarianceDialog(null)}
               >Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {paidReceipt && (
+        <div
+          onClick={() => setPaidReceipt(null)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 'var(--z-overlay)', padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="cargo-od-paid-dialog"
+            role="dialog"
+            aria-label="Payment confirmation"
+          >
+            <div className="cargo-od-paid-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            </div>
+            <span className="cargo-od-paid-eyebrow">Payment sent</span>
+            <div className="cargo-od-paid-amount">
+              {fmtMoney(paidReceipt.amount, paidReceipt.currency)}
+            </div>
+            <p className="cargo-od-paid-to">
+              to <strong>{paidReceipt.supplierName}</strong>
+            </p>
+            <dl className="cargo-od-paid-grid">
+              <dt>Invoice</dt>
+              <dd>{paidReceipt.invoice_number || '—'}</dd>
+              <dt>Date</dt>
+              <dd>{new Date().toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })}</dd>
+              <dt>Method</dt>
+              <dd>Card · via Stripe</dd>
+            </dl>
+            <p className="cargo-od-paid-note">
+              The invoice is now marked paid. Stripe emails your card receipt
+              once payments are live.
+            </p>
+            <div className="cargo-od-paid-actions">
+              <button
+                type="button"
+                className="cargo-ribbon-btn"
+                onClick={() => openSignedInvoice(paidReceipt.invoiceId)}
+              >View invoice</button>
+              <button
+                type="button"
+                className="cargo-od-paid-done"
+                onClick={() => setPaidReceipt(null)}
+              >Done</button>
             </div>
           </div>
         </div>
