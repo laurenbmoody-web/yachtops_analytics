@@ -1412,7 +1412,9 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, o
     };
   }, []);
 
+  const singleLoc = (item?.stockLocations || []).length <= 1;
   const adjustSize = (idx, delta) => {
+    if (!singleLoc) return;
     const updated = variantQtys.map((r, i) => (i === idx ? { ...r, qty: Math.max(0, (r.qty || 0) + delta) } : r));
     setVariantQtys(updated);
     pendingLocUpdateRef.current = true;
@@ -1517,13 +1519,18 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, o
           {variantQtys.map((r, idx) => (
             <div key={r.size} className="inv-locrow">
               <span className="inv-locname">{r.size}</span>
-              <div className="flex items-center gap-1.5">
-                <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, -1); }} disabled={r.qty <= 0} className="inv-qtybtn minus" style={{ width: 24, height: 24 }}><Icon name="Minus" size={10} /></button>
+              {singleLoc ? (
+                <div className="flex items-center gap-1.5">
+                  <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, -1); }} disabled={r.qty <= 0} className="inv-qtybtn minus" style={{ width: 24, height: 24 }}><Icon name="Minus" size={10} /></button>
+                  <span className="min-w-[28px] text-center text-xs font-semibold text-foreground">{r.qty}</span>
+                  <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, 1); }} className="inv-qtybtn plus" style={{ width: 24, height: 24 }}><Icon name="Plus" size={10} /></button>
+                </div>
+              ) : (
                 <span className="min-w-[28px] text-center text-xs font-semibold text-foreground">{r.qty}</span>
-                <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, 1); }} className="inv-qtybtn plus" style={{ width: 24, height: 24 }}><Icon name="Plus" size={10} /></button>
-              </div>
+              )}
             </div>
           ))}
+          {!singleLoc && <p style={{ fontSize: 10.5, color: '#8B8478', padding: '2px 0 0' }}>Split across locations — edit stock in the item.</p>}
         </div>
       )}
       {isMultiLocation && showLocations && locationQtys?.length > 0 && (
@@ -1661,7 +1668,11 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
     };
   }, []);
 
+  // Quick per-size edit is only unambiguous when the item lives in one place;
+  // for split-across-locations stock the matrix is edited in the item modal.
+  const singleLoc = (item?.stockLocations || []).length <= 1;
   const adjustSize = (idx, delta) => {
+    if (!singleLoc) return;
     const updated = variantQtys.map((r, i) => (i === idx ? { ...r, qty: Math.max(0, (r.qty || 0) + delta) } : r));
     setVariantQtys(updated);
     pendingLocUpdateRef.current = true;
@@ -1781,13 +1792,18 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
             {variantQtys.map((r, idx) => (
               <div key={r.size} className="inv-locrow">
                 <span className="inv-locname">{r.size}</span>
-                <div className="flex items-center gap-1">
-                  <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, -1); }} disabled={r.qty <= 0} className="inv-qtybtn minus" style={{ width: 24, height: 24 }}><Icon name="Minus" size={10} /></button>
+                {singleLoc ? (
+                  <div className="flex items-center gap-1">
+                    <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, -1); }} disabled={r.qty <= 0} className="inv-qtybtn minus" style={{ width: 24, height: 24 }}><Icon name="Minus" size={10} /></button>
+                    <span className="min-w-[28px] text-center text-xs font-semibold text-foreground">{r.qty}</span>
+                    <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, 1); }} className="inv-qtybtn plus" style={{ width: 24, height: 24 }}><Icon name="Plus" size={10} /></button>
+                  </div>
+                ) : (
                   <span className="min-w-[28px] text-center text-xs font-semibold text-foreground">{r.qty}</span>
-                  <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, 1); }} className="inv-qtybtn plus" style={{ width: 24, height: 24 }}><Icon name="Plus" size={10} /></button>
-                </div>
+                )}
               </div>
             ))}
+            {!singleLoc && <p style={{ fontSize: 10.5, color: '#8B8478', padding: '4px 0 0' }}>Split across locations — edit stock in the item.</p>}
           </div>
         )}
         {isMultiLocation && showLocations && locationQtys?.length > 0 && (
