@@ -427,10 +427,41 @@
 .inv-card-media .inv-placeholder svg { color: #D3D7DF; }
 /* Body is compact and centred; the media flexes to fill the tile so there is
    no dead space and folders + items stay identical in size. */
+/* base body — folders (and fallback): static, in flow */
 .inv-card-body {
   padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 5px;
   flex: 0 0 auto; align-items: center; text-align: center;
 }
+/* ITEM tiles: details overlay the bottom. Photo tiles (.has-img) hide it and
+   reveal on hover (or the touch toggle); photo-less tiles (.no-img) keep it
+   always visible. Controls (select, ⋯ menu, badge) sit above the overlay. */
+.inv-card.itemcard .inv-card-body {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; flex: none;
+  padding: 26px 12px 12px; max-height: 86%; overflow-y: auto;
+  background: linear-gradient(to top, #FFFFFF 60%, rgba(255,255,255,0.92) 82%, rgba(255,255,255,0) 100%);
+}
+.inv-card.itemcard.has-img .inv-card-body {
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+.inv-card.itemcard.has-img:hover .inv-card-body,
+.inv-card.itemcard.has-img:focus-within .inv-card-body,
+.inv-card.itemcard.has-img.revealed .inv-card-body { opacity: 1; transform: translateY(0); pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .inv-card.itemcard.has-img .inv-card-body { transition: none; } }
+
+/* controls above the overlay */
+.inv-media-check, .inv-media-badge-low, .inv-card.itemcard > .inv-card-menu { z-index: 5; }
+
+/* touch reveal toggle — photo tiles only; hover devices use hover */
+.inv-card-reveal {
+  position: absolute; bottom: 8px; right: 8px; z-index: 6; padding: 0;
+  width: 30px; height: 30px; border-radius: 999px;
+  background: rgba(255,255,255,0.94); border: 1px solid #E5E7EB; color: #6B7280;
+  display: grid; place-items: center; cursor: pointer;
+  box-shadow: 0 2px 8px -3px rgba(28,27,58,0.25);
+}
+.inv-card.revealed .inv-card-reveal { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+@media (hover: hover) and (pointer: fine) { .inv-card-reveal { display: none; } }
 .inv-card-name {
   font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A; line-height: 1.25; cursor: pointer; transition: color 0.14s;
