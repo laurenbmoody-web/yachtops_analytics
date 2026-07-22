@@ -2368,6 +2368,21 @@
   cursor: not-allowed;
   opacity: 0.6;
 }
+/* Pay by card is a primary action — always visible (not hover-gated) and
+   filled terracotta so it reads as the call to action on the invoice row. */
+.cargo-od-doc-hover-btn.is-pay {
+  opacity: 1;
+  color: #FFFFFF;
+  background: var(--accent, #C65A1A);
+  border-color: var(--accent, #C65A1A);
+}
+.cargo-od-doc-hover-btn.is-pay:hover {
+  background: #B14E16;
+  border-color: #B14E16;
+}
+.cargo-od-doc-hover-btn.is-pay:disabled {
+  opacity: 0.6;
+}
 
 /* Inline popover for the "Awaiting signature" delivery-note row. Anchored
    below the row via a relative wrapper. */
