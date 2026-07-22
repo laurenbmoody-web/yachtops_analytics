@@ -371,40 +371,51 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
               </span>
             </div>
 
-            {blocks.map((b, bi) => (
-              <div className="uim-locblock" key={bi}>
-                <div className="uim-locblock-h">
-                  <button type="button" className="uim-locpick sm" onClick={() => setPickerTarget(bi)} disabled={vesselLoading}>
-                    <span className="uim-locpick-l">
-                      <Icon name="MapPin" size={14} />
-                      <span className={b.locId ? 'uim-locpick-val' : 'uim-locpick-ph'}>
-                        {b.locId ? (b.locLabel || 'Selected location') : (vesselLoading ? 'Loading map…' : 'Set a location')}
-                      </span>
-                    </span>
-                    <Icon name="ChevronRight" size={14} />
-                  </button>
-                  <span className="uim-locblock-sub">{blockTotal(b)}</span>
-                  {blocks.length > 1 && (
-                    <button type="button" className="uim-locblock-x" onClick={() => removeBlock(bi)} aria-label="Remove location"><Icon name="Trash2" size={14} /></button>
-                  )}
-                </div>
-                {sizeCols.length === 0 ? (
-                  <p className="uim-hint">Add sizes above, then enter quantities here.</p>
-                ) : (
-                  <div className="uim-matrix">
-                    {sizeCols.map((s) => (
-                      <label className="uim-cell" key={s}>
-                        <span className="uim-cell-lbl">{s}</span>
-                        <input className="uim-cell-in" type="number" min="0" value={b.qty[s] ?? ''} onChange={(e) => setCell(bi, s, e.target.value)} placeholder="0" />
-                      </label>
+            {sizeCols.length === 0 ? (
+              <p className="uim-hint" style={{ marginTop: 12 }}>Add sizes above to start logging quantities by location.</p>
+            ) : (
+              <div className="uim-mtx-wrap">
+                <table className="uim-mtx">
+                  <thead>
+                    <tr>
+                      <th className="loc">Location</th>
+                      {sizeCols.map((s) => <th key={s}>{s}</th>)}
+                      <th className="tot">Total</th>
+                      <th aria-label="Remove" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {blocks.map((b, bi) => (
+                      <tr key={bi}>
+                        <th className="loc">
+                          <button type="button" className="uim-mtx-loc" onClick={() => setPickerTarget(bi)} disabled={vesselLoading}>
+                            <Icon name="MapPin" size={13} />
+                            <span className={b.locId ? 'val' : 'ph'}>{b.locId ? (b.locLabel || 'Location') : (vesselLoading ? 'Loading…' : 'Set location')}</span>
+                            <Icon name="ChevronRight" size={13} />
+                          </button>
+                        </th>
+                        {sizeCols.map((s) => (
+                          <td key={s}><input className="uim-mtx-in" type="number" min="0" value={b.qty[s] ?? ''} onChange={(e) => setCell(bi, s, e.target.value)} placeholder="0" /></td>
+                        ))}
+                        <td className="tot">{blockTotal(b)}</td>
+                        <td>{blocks.length > 1 && <button type="button" className="uim-mtx-x" onClick={() => removeBlock(bi)} aria-label="Remove location"><Icon name="X" size={13} /></button>}</td>
+                      </tr>
                     ))}
-                  </div>
-                )}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th className="loc">Per size</th>
+                      {sizeCols.map((s) => <td key={s} className="tot">{sizeTotal(s)}</td>)}
+                      <td className="tot">{total}</td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
-            ))}
+            )}
 
             <button type="button" className="uim-addloc" onClick={addBlock}><Icon name="Plus" size={14} /> Add another location</button>
-            <p className="uim-hint">Enter how many of each size are kept in each location. Leave a location unset to log stock that isn’t placed yet.</p>
+            <p className="uim-hint">One row per location, one column per size — tab across like a sheet. Leave a location unset to log stock that isn’t placed yet.</p>
           </div>
 
           {/* Branding */}

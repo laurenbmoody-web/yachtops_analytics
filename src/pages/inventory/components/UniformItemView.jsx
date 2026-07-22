@@ -26,9 +26,16 @@ const UniformItemView = ({ item, canEdit, onEdit, onClose }) => {
   const brandingLine = [b.colour, b.logo, b.placement].filter(Boolean).join(' · ');
   const branding = (b.type && b.type !== 'None') ? [b.type, brandingLine].filter(Boolean).join(' — ') : null;
   const cost = item?.unitCost != null && item?.unitCost !== '' ? money(item.unitCost, item.currency || 'EUR') : null;
-  const stockLocs = (item?.stockLocations || []).filter((s) => s && (s.locationName || s.location_name || s.subLocation));
-  const locName = (s) => s.locationName || s.location_name || s.subLocation || '';
-  const isSplit = stockLocs.length > 1 || stockLocs.some((s) => Array.isArray(s.sizes) && s.sizes.length);
+  const locName = (s) => s?.locationName || s?.location_name || s?.subLocation || '';
+  const sizeCols = variants.map((v) => v.size || v.label);
+  const cellOf = (row, size) => {
+    const z = (row?.sizes || []).find((x) => x.size === size);
+    return z ? (Number(z.qty) || 0) : 0;
+  };
+  const stockLocs = (item?.stockLocations || []).filter((s) => s && Array.isArray(s.sizes) && s.sizes.length);
+  const matrixRows = stockLocs.length
+    ? stockLocs
+    : (variants.length ? [{ locationName: '', sizes: variants.map((v) => ({ size: v.size || v.label, qty: Number(v.qty ?? v.quantity) || 0 })) }] : []);
 
   return (
     <>
@@ -46,38 +53,37 @@ const UniformItemView = ({ item, canEdit, onEdit, onClose }) => {
           {item?.imageUrl && <div className="uv-photo"><img src={item.imageUrl} alt={item?.name || ''} /></div>}
 
           <div className="uv-sec">
-            <div className="uv-sec-h"><span>Size run</span><span className="uv-total">{total} total</span></div>
-            {variants.length ? (
-              <div className="uv-sizes">
-                {variants.map((v, i) => (
-                  <div className="uv-size" key={i}>
-                    <span className="uv-size-lbl">{v.size || v.label}</span>
-                    <span className="uv-size-qty">{v.qty ?? v.quantity ?? 0}</span>
-                  </div>
-                ))}
-              </div>
-            ) : <p className="uv-empty">No size breakdown recorded.</p>}
-          </div>
-
-          <div className="uv-sec">
-            <div className="uv-sec-h"><span>Storage on board</span>{isSplit && <span className="uv-total">split</span>}</div>
-            {stockLocs.length === 0 ? (
-              <p className="uv-empty">No storage location set — add one so Interior can find it.</p>
-            ) : isSplit ? (
-              <div className="uv-storelist">
-                {stockLocs.map((s, i) => (
-                  <div className="uv-storerow" key={i}>
-                    <span className="uv-stored"><Icon name="MapPin" size={14} /> {locName(s)}</span>
-                    <span className="uv-storesizes">
-                      {Array.isArray(s.sizes) && s.sizes.length
-                        ? s.sizes.map((z) => `${z.size} ×${z.qty}`).join(' · ')
-                        : `×${s.quantity ?? s.qty ?? 0}`}
-                    </span>
-                  </div>
-                ))}
-              </div>
+            <div className="uv-sec-h"><span>Stock by location</span><span className="uv-total">{total} total</span></div>
+            {matrixRows.length === 0 || sizeCols.length === 0 ? (
+              <p className="uv-empty">No stock recorded yet.</p>
             ) : (
-              <p className="uv-stored"><Icon name="MapPin" size={14} /> {locName(stockLocs[0])}</p>
+              <div className="uv-mtx-wrap">
+                <table className="uv-mtx">
+                  <thead>
+                    <tr>
+                      <th className="loc">Location</th>
+                      {sizeCols.map((s) => <th key={s}>{s}</th>)}
+                      <th className="all">All</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matrixRows.map((row, ri) => (
+                      <tr key={ri}>
+                        <th className="loc"><Icon name="MapPin" size={12} /> {locName(row) || 'Not placed'}</th>
+                        {sizeCols.map((s) => <td key={s}>{cellOf(row, s)}</td>)}
+                        <td className="all">{sizeCols.reduce((a, s) => a + cellOf(row, s), 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th className="loc">Total</th>
+                      {sizeCols.map((s) => <td key={s}>{matrixRows.reduce((a, r) => a + cellOf(r, s), 0)}</td>)}
+                      <td>{total}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             )}
           </div>
 
