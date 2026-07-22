@@ -125,6 +125,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [links, setLinks] = useState([]); // room links [{id,a,b,kind:'door'|'stairs'}]
   const [linkMode, setLinkMode] = useState(false);
   const [pendingLink, setPendingLink] = useState(null); // {spaceId, deckId} first-picked dot
+  const [selLink, setSelLink] = useState(null); // linkId tapped to inspect/remove (touch-friendly)
   const [flashSpace, setFlashSpace] = useState(null); // spaceId briefly highlighted after a stairs jump
   const flashTimerRef = useRef(null);
   const [localShapes, setLocalShapes] = useState({}); // spaceId -> shape | null (override)
@@ -501,6 +502,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     }
     if (!linkMode) { startDrag(e, space, deck, fromPlaced); return; }
     e.preventDefault();
+    setSelLink(null); // picking rooms clears any inspected doorway
     if (!pendingLink) { setPendingLink({ spaceId: space.id, deckId: deck.id }); return; }
     if (pendingLink.spaceId === space.id) { setPendingLink(null); return; } // toggle off
     const a = pendingLink.spaceId; const b = space.id;
@@ -529,7 +531,14 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     flashTimerRef.current = setTimeout(() => setFlashSpace(null), 1800);
   };
 
-  const toggleLinkMode = () => { setPendingLink(null); setTraceMode(false); setTracing(null); setLinkMode((v) => !v); };
+  const toggleLinkMode = () => { setPendingLink(null); setSelLink(null); setTraceMode(false); setTracing(null); setLinkMode((v) => !v); };
+  // Tap a doorway: first tap selects it (highlights it, names both rooms, fades
+  // the rest — works on touch where hover can't); tapping the selected one again
+  // removes it.
+  const tapLink = (linkId) => {
+    if (selLink === linkId) { deleteLink(linkId); setSelLink(null); }
+    else setSelLink(linkId);
+  };
 
   // Cached deck segmentation (for tap-to-outline). Recomputed if the crop changes.
   const getSeg = async (deck) => {
@@ -978,7 +987,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
             </div>
 
             {linkMode && crop && gaDims && (
-              <p className="dp-linkhint">{pendingLink ? 'Now click the room it connects to — on this deck for a doorway, or on another deck for a stair connection (or the same dot again to cancel).' : 'Click two rooms to link them: same deck makes a doorway, two different decks makes a ↕ stair connection. Click a line or ↕ badge to remove it.'}</p>
+              <p className="dp-linkhint">{pendingLink ? 'Now click the room it connects to — on this deck for a doorway, or on another deck for a stair connection (or the same dot again to cancel).' : 'Click two rooms to link them: same deck makes a doorway, two different decks makes a ↕ stair connection. Tap a line to see the two rooms it joins; tap it again to remove it.'}</p>
             )}
 
             {traceMode && crop && gaDims && !(editing?.propIdx != null && editing.deckId === deck.id) && (
@@ -1141,8 +1150,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                         const a = linkEnd(spaceById[l.a], pa, pb);
                         const b = linkEnd(spaceById[l.b], pb, pa);
                         const label = `${nameOf(spaceById[l.a])} ↔ ${nameOf(spaceById[l.b])}`;
+                        const cls = selLink === l.id ? 'is-sel' : (selLink ? 'is-dim' : '');
                         return (
-                          <g key={l.id} className="dp-link-g" onClick={() => linkMode && deleteLink(l.id)}>
+                          <g key={l.id} className={`dp-link-g ${cls}`} onClick={() => linkMode && tapLink(l.id)}>
                             <line className="dp-link" x1={a.x * 100} y1={a.y * 100} x2={b.x * 100} y2={b.y * 100} />
                             <line className="dp-link-hit" x1={a.x * 100} y1={a.y * 100} x2={b.x * 100} y2={b.y * 100}>
                               <title>{linkMode ? `Remove doorway · ${label}` : label}</title>
@@ -1152,6 +1162,25 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       })}
                     </svg>
                   )}
+                  {/* Selected doorway label (touch has no hover tooltip): names both
+                      rooms at the link's midpoint, with a tap-again-to-remove hint. */}
+                  {!focusMode && linkMode && selLink && (() => {
+                    const l = deckLinks.find((x) => x.id === selLink);
+                    if (!l) return null;
+                    const pa = posById[l.a]; const pb = posById[l.b];
+                    const a = linkEnd(spaceById[l.a], pa, pb);
+                    const b = linkEnd(spaceById[l.b], pb, pa);
+                    return (
+                      <button
+                        type="button"
+                        className="dp-link-label"
+                        style={{ left: `${((a.x + b.x) / 2) * 100}%`, top: `${((a.y + b.y) / 2) * 100}%` }}
+                        onClick={(e) => { e.stopPropagation(); tapLink(l.id); }}
+                      >
+                        {nameOf(spaceById[l.a])} ↔ {nameOf(spaceById[l.b])} <span className="dp-link-label-x">· tap to remove</span>
+                      </button>
+                    );
+                  })()}
                   {/* Stairs: a ↕ badge sitting on the local pin. Tap to jump to
                       the connected deck (or, while linking, to remove it). */}
                   {!focusMode && deckStairs.map(({ link, remoteId, pos, remote }) => (
