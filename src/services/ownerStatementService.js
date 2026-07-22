@@ -8,7 +8,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { currentUserId } from './financeService.js';
 import { formatMoney } from './financeCalc.js';
-import { getBudgetVsActualForPeriod } from './budgetService.js';
+import { getBudgetVsActualForPeriod, getBudgetVsActual, getBudgetMonthly } from './budgetService.js';
 import { buildStatement, buildNarrative } from './ownerStatement.js';
 
 const STMT_SELECT =
@@ -51,13 +51,22 @@ export async function generateStatementData(tenantId, periodStart, periodEnd, me
     return { data: { ...buildStatement({ meta: baseMeta, view: {}, overview: {} }), noBudget: true }, error: null };
   }
 
-  const vaRes = await getBudgetVsActualForPeriod(budget.id, periodStart, periodEnd);
+  // Period-scoped position/table/narrative + the full-season view & monthly for
+  // the visuals (burn-down / risk / seasonal are inherently season-level).
+  const [vaRes, seasonRes, monthlyRes] = await Promise.all([
+    getBudgetVsActualForPeriod(budget.id, periodStart, periodEnd),
+    getBudgetVsActual(budget.id),
+    getBudgetMonthly(budget.id),
+  ]);
   if (vaRes.error) return { data: null, error: vaRes.error };
 
   const fmt = (n) => formatMoney(n, currency);
   const narrative = buildNarrative(vaRes.data, fmt);
   const statement = buildStatement({ meta: baseMeta, view: vaRes.data, narrative, note: meta.note });
-  return { data: { ...statement, budgetId: budget.id, budgetName: budget.name }, error: null };
+  const season = (!seasonRes.error && !monthlyRes.error)
+    ? { view: seasonRes.data, monthly: monthlyRes.data, periodStart: budget.period_start, periodEnd: budget.period_end }
+    : null;
+  return { data: { ...statement, budgetId: budget.id, budgetName: budget.name, season }, error: null };
 }
 
 // ── persistence ────────────────────────────────────────────────────────────
