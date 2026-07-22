@@ -57,9 +57,19 @@ async function restPatch(path, body) {
 // webhook retries.
 async function markInvoicePaid(invoiceId) {
   if (!invoiceId) return;
-  await restPatch(`supplier_invoices?id=eq.${invoiceId}&status=neq.paid`, {
-    status: 'paid', payment_method: 'card', paid_at: new Date().toISOString(),
-  });
+  // Flip the invoice iff not already paid; capture order_id from the row so we
+  // can advance the parent order in the same idempotent step.
+  const rows = await restPatch(
+    `supplier_invoices?id=eq.${invoiceId}&status=neq.paid&select=id,order_id`,
+    { status: 'paid', payment_method: 'card', paid_at: new Date().toISOString() },
+  );
+  const orderId = Array.isArray(rows) ? rows[0]?.order_id : null;
+  // Advance the parent order to 'paid' so the lifecycle bar reaches PAID on
+  // both crew and supplier views. Guarded on status so retries are no-ops, and
+  // only runs when the invoice actually transitioned this call.
+  if (orderId) {
+    await restPatch(`supplier_orders?id=eq.${orderId}&status=neq.paid`, { status: 'paid' });
+  }
 }
 
 async function setPaymentStatus(match, patch) {

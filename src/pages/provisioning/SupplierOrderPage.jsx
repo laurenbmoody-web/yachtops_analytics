@@ -1032,6 +1032,18 @@ export default function SupplierOrderPage() {
         supplierName: order.supplier_profile?.name || order.supplier_name || 'the supplier',
         invoiceId: inv.id,
       });
+      // Optimistically reflect Paid — Stripe only redirects here on a
+      // completed Checkout, so mark the invoice + advance the order to 'paid'
+      // right away. This lights the PAID lifecycle step without waiting on the
+      // webhook; reloadOrder below reconciles from the DB (source of truth).
+      setOrder((prev) => prev ? {
+        ...prev,
+        status: 'paid',
+        supplier_invoices: (prev.supplier_invoices || []).map((i) =>
+          i.id === inv.id
+            ? { ...i, status: 'paid', paid_at: i.paid_at || new Date().toISOString() }
+            : i),
+      } : prev);
     }
     // Drop paid/inv/cancelled from the URL without adding a history entry.
     const next = new URLSearchParams(searchParams);
