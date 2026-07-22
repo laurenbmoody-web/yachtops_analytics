@@ -15,7 +15,9 @@ import { formatMoney } from '../../../services/financeCalc';
 import {
   generateStatementData, listStatements, createStatement, issueStatement, deleteStatement,
 } from '../../../services/ownerStatementService';
+import BudgetOverview from '../budgets/components/BudgetOverview';
 import '../accounts.css';
+import '../budgets/budgets.css';
 import './owner.css';
 
 const pad = (n) => String(n).padStart(2, '0');
@@ -114,6 +116,7 @@ export default function OwnerView() {
     XLSX.writeFile(wb, `owner-statement-${range[0]}_${range[1]}.xlsx`);
   };
 
+  const currentYmStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
   const pos = data?.position || {};
   const usedPct = pos.budget ? Math.round(((pos.actual || 0) + (pos.committed || 0)) / pos.budget * 100) : null;
   const kpis = [
@@ -150,7 +153,7 @@ export default function OwnerView() {
 
           {/* period picker */}
           <div className="ow-period ow-noprint">
-            {[['month', 'This month'], ['quarter', 'This quarter'], ['year', 'Season / year']].map(([v, l]) => (
+            {[['month', 'This month'], ['quarter', 'This quarter'], ['year', 'Year']].map(([v, l]) => (
               <button key={v} className={`ow-preset ${preset === v ? 'on' : ''}`} onClick={() => setPresetRange(v)}>{l}</button>
             ))}
             <span className="ow-or">or</span>
@@ -195,9 +198,17 @@ export default function OwnerView() {
                 </div>
               )}
 
+              {/* season visuals — pace/forecast, category risk, seasonal heat */}
+              {data?.season && (
+                <div className="ow-sec">
+                  <div className="ow-sec-h"><span className="ow-sec-t">Season overview</span><span className="ow-sec-n">pace · risk · seasonal</span></div>
+                  <BudgetOverview view={data.season.view} monthly={data.season.monthly} cur={cur} todayYm={currentYmStr} />
+                </div>
+              )}
+
               {/* budget vs actual by bucket */}
               <div className="ow-sec">
-                <div className="ow-sec-h"><span className="ow-sec-t">Budget vs actual</span><span className="ow-sec-n">by bucket</span></div>
+                <div className="ow-sec-h"><span className="ow-sec-t">Budget vs actual</span><span className="ow-sec-n">{preset === 'year' ? 'by bucket' : 'this period, by bucket'}</span></div>
                 {(data?.expenseBuckets || []).length === 0 ? (
                   <div className="ca-empty"><p className="ca-empty-sub">No expenditure in this period.</p></div>
                 ) : (
