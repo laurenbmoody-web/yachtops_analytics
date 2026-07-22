@@ -1677,6 +1677,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
     persistVariantQtys(item, updated);
   };
 
+  const [revealed, setRevealed] = useState(false); // touch: toggle the detail overlay
   const imageUrl = item?.imageUrl && !item?.imageUrl?.startsWith('blob:') ? item?.imageUrl : null;
   const accentColor = item?.color || null;
   const accentIcon = item?.icon || null;
@@ -1692,7 +1693,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
   return (
     <>
     <div
-      className={`inv-card itemcard${isSelected ? ' selected' : ''}${isDragging ? ' itemdragging' : ''}`}
+      className={`inv-card itemcard${isSelected ? ' selected' : ''}${isDragging ? ' itemdragging' : ''}${revealed ? ' revealed' : ''}`}
       style={accentColor ? { borderTopColor: accentColor, borderTopWidth: 3 } : {}}
     >
       <div
@@ -1729,6 +1730,15 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
           </div>
         )}
       </div>
+      <button
+        className="inv-card-reveal"
+        onClick={(e) => { e?.stopPropagation(); setRevealed((v) => !v); }}
+        title={revealed ? 'Hide details' : 'Show details'}
+        aria-label={revealed ? 'Hide details' : 'Show details'}
+        aria-expanded={revealed}
+      >
+        <Icon name={revealed ? 'ChevronDown' : 'Info'} size={15} />
+      </button>
       <div className="inv-card-body">
         {/* Item Name */}
         <p
