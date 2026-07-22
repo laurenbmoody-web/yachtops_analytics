@@ -136,6 +136,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [editSel, setEditSel] = useState(null); // index of the selected corner while editing
   const [adjMenu, setAdjMenu] = useState(false); // "More" overflow menu open in the Adjust bar
   const editDragRef = useRef(null); // node being dragged while editing
+  const lastTapRef = useRef({ i: -1, t: 0 }); // for double-tap-to-delete a corner
   const snapTargetsRef = useRef([]); // other rooms' corners on this deck, to snap to
   const [tapMode, setTapMode] = useState(false); // false = draw points by hand (default); true = tap to auto-outline
   const [tapBusy, setTapBusy] = useState(false); // segmenting on a tap
@@ -362,21 +363,25 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       let snapY = null;
       if (!free) {
         const targets = snapTargetsRef.current || [];
-        // 1) vertex snap — nearest other-room corner within ~11px
+        // 1) vertex snap — only when the cursor is right on another room's corner
+        // (so shared walls meet). Tight radius so it doesn't grab from a distance.
         let best = null;
-        let bestD = 11;
+        let bestD = 8;
         for (const t of targets) {
           const dd = Math.hypot(pxv(t.x) - mx, pyv(t.y) - my);
           if (dd < bestD) { bestD = dd; best = t; }
         }
         if (best) { snapX = best.x; snapY = best.y; }
         else {
-          // 2) axis-align x or y to a neighbour or another corner within ~7px
+          // 2) axis-align only to THIS room's own adjacent corners, so a wall stays
+          // straight relative to itself. We deliberately do NOT align to every
+          // other room's corner — that made a dense lattice the point jumped
+          // between, so you couldn't rest it in the gaps.
           const prev = ed.nodes[(i - 1 + n) % n];
           const next = ed.nodes[(i + 1) % n];
-          const AX = 7;
-          const xC = [prev.x, next.x, ...targets.map((t) => t.x)];
-          const yC = [prev.y, next.y, ...targets.map((t) => t.y)];
+          const AX = 5;
+          const xC = [prev.x, next.x];
+          const yC = [prev.y, next.y];
           for (const c of xC) { if (Math.abs(pxv(c) - mx) < AX) { snapX = c; break; } }
           for (const c of yC) { if (Math.abs(pyv(c) - my) < AX) { snapY = c; break; } }
         }
@@ -394,7 +399,17 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const onEditNodeDown = (e, i, deck) => {
     if (e.button != null && e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
-    setEditSel(i); // clicking a corner selects it (so Delete point / ⌫ can remove it)
+    // Double-tap a corner to delete it. We detect it here rather than via
+    // onDoubleClick because preventDefault() above suppresses the browser's
+    // synthetic dblclick — and this way it also works on touch.
+    const now = (typeof performance !== 'undefined' ? performance.now() : 0);
+    if (lastTapRef.current.i === i && now - lastTapRef.current.t < 320) {
+      lastTapRef.current = { i: -1, t: 0 };
+      deleteNodeAt(i);
+      return;
+    }
+    lastTapRef.current = { i, t: now };
+    setEditSel(i); // clicking a corner selects it (so ⌫ / the menu can remove it)
     editDragRef.current = { index: i, deckId: deck.id };
     window.addEventListener('pointermove', onEditNodeMove);
     window.addEventListener('pointerup', onEditNodeUp);
@@ -413,7 +428,6 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     setEditing((ed) => (ed && i != null && ed.nodes.length > 3 ? { ...ed, nodes: ed.nodes.filter((_, idx) => idx !== i) } : ed));
     setEditSel(null);
   };
-  const deleteEditNode = (e, i) => { e.preventDefault(); e.stopPropagation(); deleteNodeAt(i); };
   const simplifyEdit = () => setEditing((ed) => (ed && ed.nodes.length > 4 ? { ...ed, nodes: simplifyClosed(ed.nodes, 0.012) } : ed));
   const saveEdit = () => {
     if (!editing || editing.nodes.length < 3) { setEditing(null); setEditSel(null); return; }
@@ -961,7 +975,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   <>
                     <span className="dp-adjhdr">
                       Adjusting <em>{editing.name}</em>
-                      <span className="dp-adj-info" title={`${editing.nodes.length} points · drag a corner to move · click a + midpoint to add · select a corner then Delete/⌫ to remove · hold Alt to move freely`} aria-label="How to adjust">
+                      <span className="dp-adj-info" title={`${editing.nodes.length} points · drag a corner to move · click a + midpoint to add · double-click a corner (or select it then ⌫) to delete · hold Alt to move freely`} aria-label="How to adjust">
                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" /><path d="M12 11v5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /><circle cx="12" cy="8" r="1.1" fill="currentColor" /></svg>
                       </span>
                     </span>
@@ -1210,8 +1224,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       className={`dp-edit-handle ${editSel === i ? 'is-sel' : ''}`}
                       style={{ left: `${n.x * 100}%`, top: `${n.y * 100}%` }}
                       onPointerDown={(e) => onEditNodeDown(e, i, deck)}
-                      onDoubleClick={(e) => deleteEditNode(e, i)}
-                      title="Drag to move · click to select, then Delete"
+                      title="Drag to move · double-click to delete"
                     />
                   ))}
                 </div>
