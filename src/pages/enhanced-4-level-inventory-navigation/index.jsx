@@ -1679,6 +1679,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
     persistVariantQtys(item, updated);
   };
 
+  const [revealed, setRevealed] = useState(false); // touch: toggle the detail overlay (photo tiles)
   const imageUrl = item?.imageUrl && !item?.imageUrl?.startsWith('blob:') ? item?.imageUrl : null;
   const accentColor = item?.color || null;
   const accentIcon = item?.icon || null;
@@ -1694,7 +1695,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
   return (
     <>
     <div
-      className={`inv-card itemcard${isSelected ? ' selected' : ''}${isDragging ? ' itemdragging' : ''}`}
+      className={`inv-card itemcard${imageUrl ? ' has-img' : ' no-img'}${isSelected ? ' selected' : ''}${isDragging ? ' itemdragging' : ''}${revealed ? ' revealed' : ''}`}
       style={accentColor ? { borderTopColor: accentColor, borderTopWidth: 3 } : {}}
     >
       <div
@@ -1715,22 +1716,31 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
             />
           </span>
         )}
-        {isLow && (
-          <div className="inv-media-badge-low">Low</div>
-        )}
-        <button
-          onClick={(e) => { e?.stopPropagation(); onToggleSelect?.(item); }}
-          className={`inv-media-check${isSelected ? ' on' : ''}`}
-          title={isSelected ? 'Deselect' : 'Select'}
-        >
-          {isSelected && <Icon name="Check" size={11} />}
-        </button>
-        {canEdit && (
-          <div className="inv-card-media-bl inv-card-menu">
-            <ItemActionsMenu item={item} onEdit={onEdit} onAppearance={(r) => setAppearanceAnchor(r)} onMove={onMove} onClone={onClone} onDelete={onDelete} size={28} />
-          </div>
-        )}
       </div>
+      {/* Controls sit above the reveal overlay (card-level, not inside media). */}
+      {isLow && <div className="inv-media-badge-low">Low</div>}
+      <button
+        onClick={(e) => { e?.stopPropagation(); onToggleSelect?.(item); }}
+        className={`inv-media-check${isSelected ? ' on' : ''}`}
+        title={isSelected ? 'Deselect' : 'Select'}
+      >
+        {isSelected && <Icon name="Check" size={11} />}
+      </button>
+      {canEdit && (
+        <div className="inv-card-media-bl inv-card-menu">
+          <ItemActionsMenu item={item} onEdit={onEdit} onAppearance={(r) => setAppearanceAnchor(r)} onMove={onMove} onClone={onClone} onDelete={onDelete} size={28} />
+        </div>
+      )}
+      {imageUrl && (
+        <button
+          className="inv-card-reveal"
+          onClick={(e) => { e?.stopPropagation(); setRevealed((v) => !v); }}
+          title={revealed ? 'Hide details' : 'Show details'}
+          aria-label={revealed ? 'Hide details' : 'Show details'}
+        >
+          <Icon name={revealed ? 'ChevronDown' : 'Info'} size={15} />
+        </button>
+      )}
       <div className="inv-card-body">
         {/* Item Name */}
         <p
