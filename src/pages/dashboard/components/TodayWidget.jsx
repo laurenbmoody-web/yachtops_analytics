@@ -283,15 +283,15 @@ const TodayWidget = () => {
         <div className="td-wx-skel" style={{ marginBottom: 15 }} />
       ) : weather ? (
         <div className="td-wx">
-          <div className="td-wx-ic"><Icon name={wxIcon} size={24} /></div>
-          <div className="td-wx-mid">
-            <div className="td-wx-temp">{weather.temp}<span className="deg">°</span></div>
-            <div className="td-wx-cond">{wxLabel}{weather.place ? <> · <span className="loc">{weather.place}</span></> : null}</div>
+          <div className="td-wx-l">
+            <span className="td-wx-ic"><Icon name={wxIcon} size={20} /></span>
+            <span className="td-wx-temp">{weather.temp}<span className="deg">°</span></span>
+            <span className="td-wx-txt">{wxLabel}{weather.place ? <> · <b>{weather.place}</b></> : null}</span>
           </div>
           {(weather.sunrise || weather.sunset) && (
             <div className="td-wx-sun">
-              <span className="td-wx-s"><Icon name="Sunrise" size={13} /> {weather.sunrise}</span>
-              <span className="td-wx-s"><Icon name="Sunset" size={13} /> {weather.sunset}</span>
+              <span className="td-wx-s"><Icon name="Sunrise" size={12} /> {weather.sunrise}</span>
+              <span className="td-wx-s"><Icon name="Sunset" size={12} /> {weather.sunset}</span>
             </div>
           )}
         </div>
