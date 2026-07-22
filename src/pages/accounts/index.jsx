@@ -129,6 +129,9 @@ export default function Accounts() {
                 <button type="button" className="ca-btn ca-btn-ghost" onClick={() => navigate('/accounts/budgets')}>
                   <Icon name="Target" size={16} /> Budgets
                 </button>
+                <button type="button" className="ca-btn ca-btn-ghost" onClick={() => navigate('/accounts/owner')}>
+                  <Icon name="FileText" size={16} /> Owner
+                </button>
                 {canEdit && (
                   <button type="button" className="ca-btn ca-btn-primary" onClick={openAdd}>
                     <Icon name="Plus" size={16} /> Add account
