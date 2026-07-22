@@ -1695,7 +1695,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
   return (
     <>
     <div
-      className={`inv-card itemcard${isSelected ? ' selected' : ''}${isDragging ? ' itemdragging' : ''}${revealed ? ' revealed' : ''}`}
+      className={`inv-card itemcard${imageUrl ? '' : ' no-img'}${isSelected ? ' selected' : ''}${isDragging ? ' itemdragging' : ''}${revealed ? ' revealed' : ''}`}
       style={accentColor ? { borderTopColor: accentColor, borderTopWidth: 3 } : {}}
     >
       <div
