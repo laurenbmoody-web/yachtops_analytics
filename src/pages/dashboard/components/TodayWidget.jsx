@@ -189,8 +189,9 @@ const TodayWidget = () => {
       let place = countryName(ccFallback);
       try {
         const g = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`).then((r) => r.json());
+        // Just the town/locality — not "town, city, county, country".
         const local = g.locality || g.city || g.principalSubdivision;
-        if (local) place = g.countryName && local !== g.countryName ? `${local}, ${g.countryName}` : local;
+        if (local) place = local;
       } catch { /* keep country fallback */ }
 
       const w = {
