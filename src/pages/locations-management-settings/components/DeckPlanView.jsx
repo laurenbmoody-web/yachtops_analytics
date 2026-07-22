@@ -344,7 +344,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   };
   // Drag a corner, snapping for clean lines: to a nearby other-room corner
   // (shared walls join), else axis-align to a neighbour/other corner's x or y
-  // (walls go straight/flush). Hold Alt to move freely without snapping.
+  // Corner drag: exact by default (goes where you drop it); hold Shift to align.
   const onEditNodeMove = useCallback((e) => {
     const d = editDragRef.current;
     if (!d) return;
@@ -352,42 +352,25 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     if (!rect) return;
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const free = e.altKey;
+    // Default: the corner goes EXACTLY where the cursor is — pixel-precise, no
+    // snapping fighting you. Hold Shift to keep the wall straight (align this
+    // corner to one of its own neighbours' x/y).
+    const align = e.shiftKey;
     setEditing((ed) => {
       if (!ed) return ed;
       const n = ed.nodes.length;
       const i = d.index;
-      const pxv = (nx) => nx * rect.width;
-      const pyv = (ny) => ny * rect.height;
-      let snapX = null;
-      let snapY = null;
-      if (!free) {
-        const targets = snapTargetsRef.current || [];
-        // 1) vertex snap — only when the cursor is right on another room's corner
-        // (so shared walls meet). Tight radius so it doesn't grab from a distance.
-        let best = null;
-        let bestD = 8;
-        for (const t of targets) {
-          const dd = Math.hypot(pxv(t.x) - mx, pyv(t.y) - my);
-          if (dd < bestD) { bestD = dd; best = t; }
-        }
-        if (best) { snapX = best.x; snapY = best.y; }
-        else {
-          // 2) axis-align only to THIS room's own adjacent corners, so a wall stays
-          // straight relative to itself. We deliberately do NOT align to every
-          // other room's corner — that made a dense lattice the point jumped
-          // between, so you couldn't rest it in the gaps.
-          const prev = ed.nodes[(i - 1 + n) % n];
-          const next = ed.nodes[(i + 1) % n];
-          const AX = 5;
-          const xC = [prev.x, next.x];
-          const yC = [prev.y, next.y];
-          for (const c of xC) { if (Math.abs(pxv(c) - mx) < AX) { snapX = c; break; } }
-          for (const c of yC) { if (Math.abs(pyv(c) - my) < AX) { snapY = c; break; } }
-        }
+      let x = clamp01(mx / rect.width);
+      let y = clamp01(my / rect.height);
+      if (align) {
+        const prev = ed.nodes[(i - 1 + n) % n];
+        const next = ed.nodes[(i + 1) % n];
+        const AX = 9;
+        if (Math.abs(prev.x * rect.width - mx) < AX) x = prev.x;
+        else if (Math.abs(next.x * rect.width - mx) < AX) x = next.x;
+        if (Math.abs(prev.y * rect.height - my) < AX) y = prev.y;
+        else if (Math.abs(next.y * rect.height - my) < AX) y = next.y;
       }
-      const x = clamp01(snapX != null ? snapX : mx / rect.width);
-      const y = clamp01(snapY != null ? snapY : my / rect.height);
       return { ...ed, nodes: ed.nodes.map((nd, idx) => (idx === i ? { x, y } : nd)) };
     });
   }, []);
@@ -975,7 +958,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                   <>
                     <span className="dp-adjhdr">
                       Adjusting <em>{editing.name}</em>
-                      <span className="dp-adj-info" title={`${editing.nodes.length} points · drag a corner to move · click a + midpoint to add · double-click a corner (or select it then ⌫) to delete · hold Alt to move freely`} aria-label="How to adjust">
+                      <span className="dp-adj-info" title={`${editing.nodes.length} points · drag a corner to move (goes exactly where you drop it) · hold Shift to keep a wall straight · click a + midpoint to add · double-click a corner (or select it then ⌫) to delete`} aria-label="How to adjust">
                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.7" /><path d="M12 11v5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /><circle cx="12" cy="8" r="1.1" fill="currentColor" /></svg>
                       </span>
                     </span>
@@ -1042,7 +1025,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               // the post-apply Adjust tool; Done writes the corners back to the
               // proposal only.
               <div className="dp-tracehint dp-ai-review">
-                <span className="dp-adjhdr">Reshaping <em>{editing.name || 'outline'}</em> · <b>{editing.nodes.length}</b> pts <span className="dp-hint-faint" title="Drag a corner to move · click a + midpoint to add · click a corner then Delete/⌫ to remove · hold Alt to move without snapping">drag · + add · ⌫ remove</span></span>
+                <span className="dp-adjhdr">Reshaping <em>{editing.name || 'outline'}</em> · <b>{editing.nodes.length}</b> pts <span className="dp-hint-faint" title="Drag a corner to move (goes exactly where you drop it) · hold Shift to keep a wall straight · click a + midpoint to add · double-click a corner to delete">drag · + add · double-click to delete</span></span>
                 <span className="dp-spring" />
                 <button className="lg-btn sm" disabled={editing.nodes.length <= 4} onClick={simplifyEdit} title="Reduce the number of corners">Simplify</button>
                 <button className="lg-btn sm" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => deleteNodeAt(editSel)}>Delete point</button>
