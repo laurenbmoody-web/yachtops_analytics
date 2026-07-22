@@ -5,18 +5,18 @@
 
 .td-cats { --g: #C65A1A; --c: #334066; --p: #4F8A5E; }
 
-/* ── Weather hero ─────────────────────────────────────────── */
-.td-wx { display: flex; align-items: center; gap: 14px; padding: 2px 2px 15px; }
-.td-wx-ic { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 12px; background: #F1F5FA; display: flex; align-items: center; justify-content: center; color: #C65A1A; }
-.td-wx-mid { flex: 1; min-width: 0; }
-.td-wx-temp { font-family: 'Inter', system-ui, sans-serif; font-size: 27px; font-weight: 700; color: #1C1B3A; line-height: 1; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
-.td-wx-temp .deg { color: #C9CDD8; font-weight: 600; }
-.td-wx-cond { font-size: 12px; color: #6B7280; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.td-wx-cond .loc { color: #1C1B3A; font-weight: 600; }
-.td-wx-sun { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; text-align: right; }
-.td-wx-s { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 11.5px; color: #8B8478; font-variant-numeric: tabular-nums; }
+/* ── Weather hero — editorial line ────────────────────────── */
+.td-wx { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 2px 14px; border-bottom: 1px solid #F0F1F5; margin-bottom: 2px; }
+.td-wx-l { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.td-wx-ic { flex: 0 0 auto; color: #C99A5B; display: inline-flex; }
+.td-wx-temp { flex: 0 0 auto; font-size: 20px; font-weight: 700; color: #1C1B3A; line-height: 1; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
+.td-wx-temp .deg { color: #C9CDD8; }
+.td-wx-txt { font-size: 12px; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.td-wx-txt b { color: #1C1B3A; font-weight: 600; }
+.td-wx-sun { flex: 0 0 auto; display: flex; flex-direction: column; gap: 2px; text-align: right; }
+.td-wx-s { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 11px; color: #8B8478; font-variant-numeric: tabular-nums; }
 .td-wx-s svg { color: #C99A5B; }
-.td-wx-skel { height: 42px; border-radius: 12px; background: #EEF0F4; animation: td-pulse 1.3s ease-in-out infinite; }
+.td-wx-skel { height: 34px; border-radius: 10px; background: #EEF0F4; animation: td-pulse 1.3s ease-in-out infinite; }
 .td-wx-off { font-size: 11.5px; color: #AEB4C2; display: inline-flex; align-items: center; gap: 6px; }
 
 /* ── Date strip / month ───────────────────────────────────── */
@@ -30,8 +30,9 @@
 .td-dow span { text-align: center; font-size: 8.5px; font-weight: 700; letter-spacing: .5px; color: #AEB4C2; }
 
 .td-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-.td-cell { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px 0 5px; border-radius: 9px; border: 1px solid transparent; background: none; cursor: pointer; font-family: inherit; transition: background .1s, border-color .1s; }
-.td-cell:hover { background: #F6F8FB; }
+.td-cell { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 0; border-radius: 11px; border: 1px solid #ECEDF3; background: #fff; cursor: pointer; font-family: inherit; transition: background .1s, border-color .1s; }
+.td-cell:hover { background: #F6F8FB; border-color: #DCE0E8; }
+.td-cell.out { border-color: #F4F6F9; }
 .td-cell .dowm { font-size: 8.5px; font-weight: 700; letter-spacing: .5px; color: #AEB4C2; line-height: 1; }
 .td-cell.is-today .dowm { color: #C65A1A; }
 .td-cell.is-today.is-sel .dowm { color: rgba(255,255,255,.85); }
