@@ -309,7 +309,7 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const L = ({ children, opt }) => <label className="uim-l">{children}{opt && <span className="uim-opt">optional</span>}</label>;
 
   return (
-    <div className="uim-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+    <div className="uim-overlay" role="dialog" aria-modal="true" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="uim-modal" onClick={(e) => e.stopPropagation()}>
         <div className="uim-head">
           <div>
