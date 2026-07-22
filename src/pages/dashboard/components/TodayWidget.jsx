@@ -47,6 +47,29 @@ const countryName = (cc) => {
   try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(cc.toUpperCase()); } catch { return cc; }
 };
 
+// Great-circle distance (km) between two {lat, lon} — used to tell "aboard"
+// (device near the vessel) from "ashore" (on leave in another region).
+const distKm = (a, b) => {
+  const R = 6371; const toR = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toR; const dLon = (b.lon - a.lon) * toR;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toR) * Math.cos(b.lat * toR) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+};
+// If the device is within this of the vessel's last fix, treat it as aboard and
+// prefer the phone's live GPS. Generous, so a day's steaming since the daily AIS
+// fix still counts as aboard, while on-leave (different region) does not.
+const ABOARD_KM = 250;
+// The browser's device position (like a phone's location services). Resolves
+// null on denial / unavailable / timeout — never throws.
+const getDevicePos = () => new Promise((resolve) => {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
+  navigator.geolocation.getCurrentPosition(
+    (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
+    () => resolve(null),
+    { timeout: 8000, maximumAge: 10 * 60 * 1000, enableHighAccuracy: false },
+  );
+});
+
 // Monday-led matrix of the month containing `anchor` (6 weeks of YMD strings).
 function monthMatrix(anchor) {
   const d = parse(anchor); const y = d.getFullYear(); const m = d.getMonth();
@@ -137,11 +160,25 @@ const TodayWidget = () => {
     if (!activeTenantId) { setWxLoading(false); return; }
     setWxLoading(true);
     try {
-      const { data: pos } = await supabase.from('vessel_positions')
-        .select('latitude, longitude, country_code, observed_at')
-        .eq('tenant_id', activeTenantId).order('observed_at', { ascending: false }).limit(1).maybeSingle();
-      if (!pos?.latitude || !pos?.longitude) { setWeather(null); setWxLoading(false); return; }
-      const lat = pos.latitude; const lon = pos.longitude;
+      // The vessel's last AIS fix (daily) and the device's live GPS (like a
+      // phone). Fetch both in parallel; getDevicePos never throws.
+      const [posRes, device] = await Promise.all([
+        supabase.from('vessel_positions')
+          .select('latitude, longitude, country_code, observed_at')
+          .eq('tenant_id', activeTenantId).order('observed_at', { ascending: false }).limit(1).maybeSingle(),
+        getDevicePos(),
+      ]);
+      const pos = posRes?.data;
+      const vessel = pos?.latitude && pos?.longitude ? { lat: pos.latitude, lon: pos.longitude } : null;
+
+      // Prefer the device's live position when it's plausibly aboard (near the
+      // vessel, or there's no vessel fix). Ashore on leave → fall back to the
+      // vessel so the widget still shows the boat's weather.
+      let coords = vessel;
+      if (device && (!vessel || distKm(device, vessel) <= ABOARD_KM)) coords = device;
+      if (!coords) { setWeather(null); setWxLoading(false); return; }
+      const lat = coords.lat; const lon = coords.lon;
+      const ccFallback = coords === vessel ? pos.country_code : null;
 
       const key = `cargo_wx_${lat.toFixed(2)}_${lon.toFixed(2)}`;
       const cached = (() => { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } })();
@@ -149,7 +186,7 @@ const TodayWidget = () => {
 
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&daily=sunrise,sunset&timezone=auto&forecast_days=1`;
       const wxData = await fetch(url).then((r) => r.json());
-      let place = countryName(pos.country_code);
+      let place = countryName(ccFallback);
       try {
         const g = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`).then((r) => r.json());
         const local = g.locality || g.city || g.principalSubdivision;
@@ -260,7 +297,7 @@ const TodayWidget = () => {
         </div>
       ) : (
         <div className="td-wx" style={{ paddingBottom: 12 }}>
-          <span className="td-wx-off"><Icon name="MapPinOff" size={14} /> No vessel position yet</span>
+          <span className="td-wx-off"><Icon name="MapPinOff" size={14} /> Location unavailable</span>
         </div>
       )}
 
