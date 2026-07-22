@@ -233,7 +233,7 @@ function renderInvoiceHtml(input: InvoiceRenderInput): string {
     const unitCell = renderUnitCell(it, cat);
     const sku = cat?.sku ? escapeHtml(cat.sku) : '';
     const category = cat?.category ? escapeHtml(cat.category) : '';
-    const unitPrice = `${cur} ${fmtAmount(Number(it.agreed_price ?? it.unit_price) || 0)}`;
+    const unitPrice = `${cur} ${fmtAmount(Number(it.agreed_price ?? it.quoted_price ?? it.unit_price) || 0)}`;
     const rate = `${(it._effectiveRate ?? 0).toFixed(1)}%`;
     // Net (ex-VAT) so line amounts sum to the Subtotal; VAT is added below.
     const netAmount = `${cur} ${fmtAmount(it._net ?? 0)}`;
@@ -606,10 +606,11 @@ function computeLines(items: any[], optionsLines: any[], bonded: boolean, revers
     const rawRate = zeroRated ? 0 : (Number(meta.rate) || 0);
     const rate = Math.max(0, Math.min(100, rawRate));
     const qty = Number(it.quantity) || 0;
-    // Sprint 9.5: read agreed_price (the negotiated value). Fall back to
-    // unit_price for legacy rows backfilled from before the split.
-    const price = Number(it.agreed_price ?? it.unit_price) || 0;
-    const currency = it.agreed_currency ?? it.estimated_currency ?? null;
+    // Price precedence: agreed_price (vessel-approved) → quoted_price (the
+    // supplier's firm quote, used when the order progressed without a formal
+    // agree step) → unit_price (legacy rows from before the split).
+    const price = Number(it.agreed_price ?? it.quoted_price ?? it.unit_price) || 0;
+    const currency = it.agreed_currency ?? it.quoted_currency ?? it.estimated_currency ?? null;
     const taxable = qty * price;
     const discountedNet = taxable * discFactor;
     const vat = discountedNet * rate / 100;
@@ -701,12 +702,16 @@ Deno.serve(async (req: Request) => {
     const items: any[] = order.supplier_order_items || [];
     if (items.length === 0) return jsonResponse({ error: 'Order has no line items' }, 400);
 
-    // Sprint 9.5 precondition: every line must be agreed or unavailable
-    // before we'll generate an invoice. The Generate Invoice modal surfaces
-    // the same check client-side, but this is the canonical guard.
+    // Precondition: every line must carry a firm price before we'll invoice.
+    // Billable statuses are agreed (vessel-approved), quoted (the supplier's
+    // own firm quote — valid when the order progressed to received without a
+    // formal agree step) and unavailable (excluded, priced at 0). Only lines
+    // still being priced (pending / in_discussion) block. The Generate Invoice
+    // modal mirrors this, but this is the canonical guard.
+    const BILLABLE_QUOTE_STATUS = new Set(['agreed', 'quoted', 'unavailable']);
     const blockingLines = items.filter((it: any) => {
       const qs = it.quote_status;
-      return qs && qs !== 'agreed' && qs !== 'unavailable';
+      return qs && !BILLABLE_QUOTE_STATUS.has(qs);
     });
     if (blockingLines.length > 0) {
       return jsonResponse({

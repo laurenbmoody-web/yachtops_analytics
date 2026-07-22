@@ -163,11 +163,16 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
   // in generateSupplierInvoice/index.ts is the canonical guard; this banner
   // surfaces the same constraint client-side so the supplier doesn't waste
   // a click.
+  // Billable statuses carry a firm price: agreed (vessel-approved), quoted
+  // (the supplier's own firm quote — valid when an order reached received
+  // without a formal agree step) and unavailable (excluded). Only lines still
+  // being priced (pending / in_discussion) block. Mirrors the edge function.
   const blockingItems = useMemo(() => {
     if (!Array.isArray(items)) return [];
+    const billable = new Set(['agreed', 'quoted', 'unavailable']);
     return items.filter((it) => {
       const qs = it.quote_status;
-      return qs && qs !== 'agreed' && qs !== 'unavailable';
+      return qs && !billable.has(qs);
     });
   }, [items]);
 
@@ -184,7 +189,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
       const rate = zeroRated ? 0 : (cat?.rate ?? 0);
       const label = bondedSupply ? 'Bonded supply' : reverseCharge ? 'Reverse charge' : (cat?.label || 'Standard');
       const qty = Number(it.quantity) || 0;
-      const price = Number(it.agreed_price ?? it.unit_price) || 0;
+      const price = Number(it.agreed_price ?? it.quoted_price ?? it.unit_price) || 0;
       const taxable = qty * price;
       const discountedNet = taxable * discFactor;
       const vat = discountedNet * rate / 100;
@@ -408,7 +413,7 @@ export default function GenerateInvoiceModal({ orderId, items, supplierId, open,
               <div className="gi-line-name">
                 <span className="gi-line-title"><b>{it.item_name}</b></span>
                 <span className="gi-line-meta">
-                  {it.quantity}{it.unit ? ' ' + it.unit : ''} · {fmtMoney(it.agreed_price ?? it.unit_price, currency)}
+                  {it.quantity}{it.unit ? ' ' + it.unit : ''} · {fmtMoney(it.agreed_price ?? it.quoted_price ?? it.unit_price, currency)}
                 </span>
               </div>
               {zeroRated ? (
