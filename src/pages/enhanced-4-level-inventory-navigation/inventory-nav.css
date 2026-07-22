@@ -414,6 +414,7 @@
   gap: 14px;
 }
 .inv-card {
+  position: relative;
   display: flex; flex-direction: column; overflow: hidden;
   background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 14px;
   transition: border-color 0.14s, box-shadow 0.14s;
@@ -434,6 +435,24 @@
 .inv-card-body {
   padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 5px;
   flex: 0 0 auto; align-items: center; text-align: center;
+}
+/* Image-forward tiles on hover-capable devices (desktop): the image fills the
+   tile and the details (name, code, qty, sizes) reveal over the bottom on hover.
+   Touch devices — where there is no hover — keep the body visible (above). */
+@media (hover: hover) and (pointer: fine) {
+  .inv-card-body {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 34px 12px 12px;
+    background: linear-gradient(to top, #FFFFFF 58%, rgba(255,255,255,0.9) 80%, rgba(255,255,255,0) 100%);
+    max-height: calc(100% - 4px); overflow: hidden;
+    opacity: 0; transform: translateY(8px); pointer-events: none;
+    transition: opacity 0.16s ease, transform 0.16s ease;
+  }
+  .inv-card:hover .inv-card-body,
+  .inv-card:focus-within .inv-card-body { opacity: 1; transform: translateY(0); pointer-events: auto; }
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: reduce) {
+  .inv-card-body { transition: none; }
 }
 .inv-card-name {
   font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif;
