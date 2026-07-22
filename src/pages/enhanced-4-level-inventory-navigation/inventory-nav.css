@@ -444,6 +444,11 @@
 .inv-card.revealed .inv-card-body { opacity: 1; transform: translateY(0); pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) { .inv-card-body { transition: none; } }
 
+/* No photo → nothing to hide behind, so the details stay visible by default
+   (no hover / toggle needed). */
+.inv-card.no-img .inv-card-body { opacity: 1; transform: none; pointer-events: auto; }
+.inv-card.no-img .inv-card-reveal { display: none; }
+
 /* reveal toggle — shown on touch (hover devices use hover instead) */
 .inv-card-reveal {
   position: absolute; bottom: 8px; right: 8px; z-index: 3;
