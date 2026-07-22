@@ -2559,6 +2559,103 @@
   gap: 8px;
 }
 
+/* Card-payment success — in-app receipt shown on return from Stripe. */
+.cargo-od-paid-dialog {
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 380px;
+  padding: 30px 30px 24px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  font-family: 'Inter', system-ui, sans-serif;
+  text-align: center;
+}
+.cargo-od-paid-badge {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+  background: #E7F6EC;
+  color: #12855A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cargo-od-paid-eyebrow {
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #12855A;
+  margin-bottom: 8px;
+}
+.cargo-od-paid-amount {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 34px;
+  line-height: 1.1;
+  color: #1C1B3A;
+}
+.cargo-od-paid-to {
+  font-size: 13.5px;
+  color: #6B7280;
+  margin: 6px 0 20px;
+}
+.cargo-od-paid-to strong { color: #1C1B3A; font-weight: 600; }
+.cargo-od-paid-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 9px 16px;
+  text-align: left;
+  margin: 0 0 18px;
+  padding: 16px 4px;
+  border-top: 1px solid #F0F1F5;
+  border-bottom: 1px solid #F0F1F5;
+}
+.cargo-od-paid-grid dt {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8B8478;
+  padding-top: 2px;
+}
+.cargo-od-paid-grid dd {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1C1B3A;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.cargo-od-paid-note {
+  font-size: 12px;
+  color: #8B8478;
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+.cargo-od-paid-actions {
+  display: flex;
+  gap: 10px;
+}
+.cargo-od-paid-actions .cargo-ribbon-btn { flex: 1; justify-content: center; }
+.cargo-od-paid-done {
+  flex: 1;
+  appearance: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: var(--accent, #C65A1A);
+  border: 1px solid var(--accent, #C65A1A);
+  border-radius: 10px;
+  padding: 9px 14px;
+  transition: background 0.12s;
+}
+.cargo-od-paid-done:hover { background: #B14E16; border-color: #B14E16; }
+
 /* Sprint 9c.2 Commit 2 follow-up — orders table on the supplier detail
    page. Same .cargo-od-table chrome, plus row hover lift + cursor so the
    row reads as clickable. */
