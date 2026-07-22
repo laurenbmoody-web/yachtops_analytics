@@ -19,6 +19,7 @@ import {
   markInvoicePaid,
   markSupplierOrderReceived,
   toggleSupplierOrderFavourite,
+  startSupplierCardPayment,
 } from './utils/provisioningStorage';
 import { showToast } from '../../utils/toast';
 
@@ -268,8 +269,13 @@ function HeroStats({ order, onOpenVariance }) {
     const val = Number(it.agreed_price ?? it.quoted_price ?? it.estimated_price) || 0;
     return s + val * (Number(it.quantity) || 0);
   }, 0);
-  const invoicedTotal = invoices.reduce((s, inv) => s + (Number(inv.amount) || 0), 0);
-  const overInvoice = invoicedTotal - agreedTotal;
+  // Compare like-for-like: the agreed total is ex-VAT (sum of line prices), so
+  // the variance must use the invoice NET (subtotal), not the VAT-inclusive
+  // grand total — otherwise VAT reads as an overage. Legacy invoices predating
+  // the subtotal column fall back to amount.
+  const invoicedNet = invoices.reduce((s, inv) => s + (Number(inv.subtotal ?? inv.amount) || 0), 0);
+  const invoicedGross = invoices.reduce((s, inv) => s + (Number(inv.amount) || 0), 0);
+  const overInvoice = invoicedNet - agreedTotal;
   const isOverBudget = invoices.length > 0 && overInvoice > 0.01;
 
   const dDelta = daysUntil(order.delivery_date);
@@ -324,11 +330,11 @@ function HeroStats({ order, onOpenVariance }) {
         className={`cargo-od-stat${isOverBudget ? ' is-action is-clickable' : ''}`}
         role={isOverBudget ? 'button' : undefined}
         tabIndex={isOverBudget ? 0 : undefined}
-        onClick={isOverBudget ? () => onOpenVariance({ overInvoice, agreedTotal, invoicedTotal, currency }) : undefined}
+        onClick={isOverBudget ? () => onOpenVariance({ overInvoice, agreedTotal, invoicedNet, invoicedGross, currency }) : undefined}
         onKeyDown={isOverBudget ? (e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            onOpenVariance({ overInvoice, agreedTotal, invoicedTotal, currency });
+            onOpenVariance({ overInvoice, agreedTotal, invoicedNet, invoicedGross, currency });
           }
         } : undefined}
         title={isOverBudget
@@ -337,7 +343,7 @@ function HeroStats({ order, onOpenVariance }) {
       >
         <span className="cargo-od-stat-label">Invoiced</span>
         <span className={`cargo-od-stat-value is-money${isOverBudget ? ' is-action' : ''}`}>
-          {invoices.length > 0 ? fmtMoney(invoicedTotal, currency) : '—'}
+          {invoices.length > 0 ? fmtMoney(invoicedGross, currency) : '—'}
         </span>
         <span className={`cargo-od-stat-sub${isOverBudget ? ' is-action' : ''}`}>
           {invoices.length === 0
@@ -404,7 +410,7 @@ function DocRow({ name, stateNode, interactive, onClick, hoverActions }) {
   );
 }
 
-function DocumentsSection({ order, dnPopoverOpen, setDnPopoverOpen, resendBusy, onResendSigningEmail, markPaidBusy, onMarkPaid }) {
+function DocumentsSection({ order, dnPopoverOpen, setDnPopoverOpen, resendBusy, onResendSigningEmail, markPaidBusy, onMarkPaid, canPayCard, payingCardId, onPayByCard }) {
   // Order PDF — clickable iff a stored URL exists.
   const orderPdfInteractive = !!order.order_pdf_url;
   const orderPdfState = order.order_pdf_url
@@ -464,16 +470,33 @@ function DocumentsSection({ order, dnPopoverOpen, setDnPopoverOpen, resendBusy, 
     invOnClick = () => openSignedInvoice(inv.id);
     if (!isPaid) {
       const isBusy = markPaidBusy === inv.id;
+      // Pay by card shows when the supplier is card-ready and the viewer is
+      // CHIEF+. Mirrors the board OrderCard so both surfaces offer it.
+      const showPay = canPayCard && order.supplier_profile?.stripe_charges_enabled;
+      const isPaying = payingCardId === inv.id;
       invHoverActions = (
-        <button
-          type="button"
-          className="cargo-od-doc-hover-btn"
-          onClick={(e) => { e.stopPropagation(); onMarkPaid(inv); }}
-          disabled={isBusy}
-          title="Mark this invoice as paid"
-        >
-          {isBusy ? 'Saving…' : 'Mark paid'}
-        </button>
+        <>
+          {showPay && (
+            <button
+              type="button"
+              className="cargo-od-doc-hover-btn is-pay"
+              onClick={(e) => { e.stopPropagation(); onPayByCard(inv); }}
+              disabled={isPaying}
+              title={`Pay ${inv.invoice_number || 'invoice'} by card`}
+            >
+              {isPaying ? 'Opening…' : '💳 Pay by card'}
+            </button>
+          )}
+          <button
+            type="button"
+            className="cargo-od-doc-hover-btn"
+            onClick={(e) => { e.stopPropagation(); onMarkPaid(inv); }}
+            disabled={isBusy}
+            title="Mark this invoice as paid"
+          >
+            {isBusy ? 'Saving…' : 'Mark paid'}
+          </button>
+        </>
       );
     }
   } else {
@@ -895,7 +918,11 @@ export default function SupplierOrderPage() {
   // CREW / VIEW_ONLY don't get the affordance; CHIEF/HOD/COMMAND do.
   const userTier = (tenantRole || '').toUpperCase();
   const canFavouriteOrder = ['COMMAND', 'CHIEF', 'HOD'].includes(userTier);
+  // "Pay by card" surfacing gate — CHIEF+ only. The Netlify function re-checks
+  // tier, supplier card-readiness and the amount floor, so this is UI-only.
+  const canPayCard = ['COMMAND', 'CHIEF'].includes(userTier);
   const [favouriting, setFavouriting] = useState(false);
+  const [payingCardId, setPayingCardId] = useState(null); // invoiceId opening checkout
 
   const [order, setOrder] = useState(null);
   const [list, setList] = useState(null);
@@ -1138,6 +1165,19 @@ export default function SupplierOrderPage() {
     }
   }, []);
 
+  // "Pay by card" → Stripe Checkout on the supplier's connected account. The
+  // Netlify function returns a hosted URL we redirect to.
+  const handlePayByCard = useCallback(async (invoice) => {
+    if (!invoice?.id || payingCardId) return;
+    setPayingCardId(invoice.id);
+    try {
+      window.location.href = await startSupplierCardPayment(invoice.id);
+    } catch (e) {
+      showToast(e.message || 'Could not start card payment', 'error');
+      setPayingCardId(null);
+    }
+  }, [payingCardId]);
+
   // Click-outside dismissal for the delivery-note popover. The anchor
   // carries a data attribute so the document listener can tell whether
   // the click originated inside the open popover.
@@ -1306,6 +1346,9 @@ export default function SupplierOrderPage() {
                 onResendSigningEmail={handleResendSigningEmail}
                 markPaidBusy={markPaidBusy}
                 onMarkPaid={handleMarkInvoicePaid}
+                canPayCard={canPayCard}
+                payingCardId={payingCardId}
+                onPayByCard={handlePayByCard}
               />
             </div>
           </div>
@@ -1410,23 +1453,30 @@ export default function SupplierOrderPage() {
               Invoice <em>variance</em>.
             </h3>
             <p className="cargo-od-variance-subtitle">
-              Invoice total exceeds agreed total by{' '}
-              <strong>{fmtMoney(varianceDialog.overInvoice, varianceDialog.currency)}</strong>.
+              Invoiced goods exceed the agreed total by{' '}
+              <strong>{fmtMoney(varianceDialog.overInvoice, varianceDialog.currency)}</strong>{' '}
+              before tax.
             </p>
             <dl className="cargo-od-variance-grid">
-              <dt>Agreed</dt>
+              <dt>Agreed (ex-VAT)</dt>
               <dd>{fmtMoney(varianceDialog.agreedTotal, varianceDialog.currency)}</dd>
-              <dt>Invoiced</dt>
-              <dd>{fmtMoney(varianceDialog.invoicedTotal, varianceDialog.currency)}</dd>
+              <dt>Invoiced (ex-VAT)</dt>
+              <dd>{fmtMoney(varianceDialog.invoicedNet, varianceDialog.currency)}</dd>
               <dt>Delta</dt>
               <dd className="is-over">
                 {fmtMoneyDelta(varianceDialog.overInvoice, varianceDialog.currency)}
               </dd>
+              <dt>VAT</dt>
+              <dd>{fmtMoney((varianceDialog.invoicedGross || 0) - (varianceDialog.invoicedNet || 0), varianceDialog.currency)}</dd>
+              <dt>Invoice total</dt>
+              <dd>{fmtMoney(varianceDialog.invoicedGross, varianceDialog.currency)}</dd>
             </dl>
             <p className="cargo-od-variance-note">
-              Per-line variance attribution lands in a future sprint. For now,
-              cross-reference the supplier invoice PDF with the Lines table
-              above to spot which entries came in higher than agreed.
+              This compares the net (ex-VAT) invoiced goods against the agreed
+              total, so tax isn’t counted as an overage. Per-line attribution
+              lands in a future sprint — for now, cross-reference the supplier
+              invoice PDF with the Lines table above to spot which entries came
+              in higher than agreed.
             </p>
             <div className="cargo-od-variance-actions">
               <button
