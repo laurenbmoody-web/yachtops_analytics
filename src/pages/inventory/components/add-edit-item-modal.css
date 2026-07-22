@@ -1,0 +1,39 @@
+/* Add/Edit item modal — editorial chrome-up. The modal is built on tailwind
+   theme tokens (bg-primary, text-foreground, border-border, …) that resolve to
+   the OLD blue/slate palette. Rather than rewrite ~1,200 lines of markup, we
+   re-point those tokens to the editorial palette on a scoped wrapper, so every
+   input, label, ring and primary button adopts the Cargo look at once. */
+.aei-scope {
+  --color-primary: #C65A1A;
+  --color-primary-foreground: #FFFFFF;
+  --color-foreground: #1C1B3A;
+  --color-muted: #F0F1F5;
+  --color-muted-foreground: #8B8478;
+  --color-border: #E5E7EB;
+  --color-background: #FAFAF8;
+  --color-card: #FFFFFF;
+  --color-accent: #C65A1A;
+  --color-accent-foreground: #FFFFFF;
+  --color-ring: #C65A1A;
+  border: 1px solid #ECEAE3;
+}
+
+/* Editorial header — serif title + tracked-caps eyebrow. */
+.aei-scope .aei-head {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 18px 22px 14px; background: #fff;
+  border-bottom: 1px solid #ECEAE3; border-radius: 16px 16px 0 0;
+}
+.aei-scope .aei-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 3px; }
+.aei-scope .aei-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 22px; color: #1C1B3A; line-height: 1.1; letter-spacing: -.2px; }
+.aei-scope .aei-x { color: #8B8478; padding: 5px; border: 0; background: none; cursor: pointer; border-radius: 8px; display: inline-flex; transition: background .12s, color .12s; }
+.aei-scope .aei-x:hover { background: #F1F3F7; color: #1C1B3A; }
+
+/* Softer, rounder inputs to match the editorial field (radius already xl). */
+.aei-scope input,
+.aei-scope textarea,
+.aei-scope select { transition: border-color .12s, box-shadow .12s; }
+.aei-scope input:focus,
+.aei-scope textarea:focus,
+.aei-scope select:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }

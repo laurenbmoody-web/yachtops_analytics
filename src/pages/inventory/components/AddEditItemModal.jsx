@@ -9,6 +9,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import ModalShell from '../../../components/ui/ModalShell';
 import { UNIT_GROUP_VALUES, STOCK_UNIT_GROUPS, STOCK_UNIT_VALUES, BOUGHT_BY_GROUPS, normalizeUnit } from '../../../data/unitGroups';
 import './locationPicker.css';
+import './add-edit-item-modal.css';
 
 const SUGGESTED_TAGS = ['drinks', 'wine', 'cleaning', 'spares', 'linen', 'snacks', 'bar', 'medical', 'food', 'tools', 'safety', 'toiletries', 'laundry'];
 
@@ -664,12 +665,15 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
 
   return (
     <>
-      <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
+      <ModalShell onClose={onClose} panelClassName="aei-scope bg-card rounded-2xl shadow-xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
-          <h2 className="text-xl font-bold text-foreground">{isEdit ? 'Edit Item' : 'Add Item'}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1">
-            <Icon name="X" size={22} />
+        <div className="aei-head">
+          <div>
+            <div className="aei-eyebrow">Inventory</div>
+            <h2 className="aei-title">{isEdit ? 'Edit item' : 'Add item'}</h2>
+          </div>
+          <button onClick={onClose} className="aei-x" aria-label="Close">
+            <Icon name="X" size={20} />
           </button>
         </div>
 
