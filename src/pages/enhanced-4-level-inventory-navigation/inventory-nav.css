@@ -394,6 +394,11 @@
 }
 .inv-locrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .inv-locname { font-size: 12px; color: #8B8478; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* per-size rows in the qty expander — even rhythm, aligned numerals */
+.inv-sizerow { padding: 6px 0; border-bottom: 1px solid #F5F6F8; }
+.inv-sizerow:last-child { border-bottom: none; }
+.inv-sizerow .inv-locname { flex: none; min-width: 40px; font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.6px; text-transform: uppercase; color: #8B8478; }
+.inv-sizeqty { min-width: 32px; text-align: right; font: 700 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; font-variant-numeric: tabular-nums; }
 
 /* ── item grid cards ────────────────────────────────────────── */
 .inv-cardgrid {

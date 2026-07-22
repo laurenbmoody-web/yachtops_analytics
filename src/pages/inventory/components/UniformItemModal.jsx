@@ -3,6 +3,7 @@ import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabaseClient';
 import { saveItem } from '../utils/inventoryStorage';
 import { LocationPicker } from './AddEditItemModal';
+import { spaceLeaf, spaceSegments } from '../utils/vesselPath';
 import './uniformItem.css';
 
 // The uniform-specific add/edit modal — opened by the inventory page when the
@@ -388,9 +389,10 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
                     {blocks.map((b, bi) => (
                       <tr key={bi}>
                         <th className="loc">
-                          <button type="button" className="uim-mtx-loc" onClick={() => setPickerTarget(bi)} disabled={vesselLoading}>
+                          <button type="button" className="uim-mtx-loc" onClick={() => setPickerTarget(bi)} disabled={vesselLoading}
+                            title={b.locId ? spaceSegments(b.locLabel).join(' › ') : undefined}>
                             <Icon name="MapPin" size={13} />
-                            <span className={b.locId ? 'val' : 'ph'}>{b.locId ? (b.locLabel || 'Location') : (vesselLoading ? 'Loading…' : 'Set location')}</span>
+                            <span className={b.locId ? 'val' : 'ph'}>{b.locId ? (spaceLeaf(b.locLabel) || 'Location') : (vesselLoading ? 'Loading…' : 'Set location')}</span>
                             <Icon name="ChevronRight" size={13} />
                           </button>
                         </th>

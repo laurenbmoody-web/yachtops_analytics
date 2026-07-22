@@ -1517,20 +1517,20 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, o
       {variantQtys.length > 0 && showSizes && (
         <div className="inv-locexpand">
           {variantQtys.map((r, idx) => (
-            <div key={r.size} className="inv-locrow">
+            <div key={r.size} className="inv-locrow inv-sizerow">
               <span className="inv-locname">{r.size}</span>
               {singleLoc ? (
                 <div className="flex items-center gap-1.5">
                   <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, -1); }} disabled={r.qty <= 0} className="inv-qtybtn minus" style={{ width: 24, height: 24 }}><Icon name="Minus" size={10} /></button>
-                  <span className="min-w-[28px] text-center text-xs font-semibold text-foreground">{r.qty}</span>
+                  <span className="inv-sizeqty" style={{ textAlign: 'center' }}>{r.qty}</span>
                   <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, 1); }} className="inv-qtybtn plus" style={{ width: 24, height: 24 }}><Icon name="Plus" size={10} /></button>
                 </div>
               ) : (
-                <span className="min-w-[28px] text-center text-xs font-semibold text-foreground">{r.qty}</span>
+                <span className="inv-sizeqty">{r.qty}</span>
               )}
             </div>
           ))}
-          {!singleLoc && <p style={{ fontSize: 10.5, color: '#8B8478', padding: '2px 0 0' }}>Split across locations — edit stock in the item.</p>}
+          {!singleLoc && <p style={{ fontSize: 10.5, color: '#8B8478', padding: '4px 0 0' }}>Split across locations — edit stock in the item.</p>}
         </div>
       )}
       {isMultiLocation && showLocations && locationQtys?.length > 0 && (
@@ -1790,20 +1790,20 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
         {variantQtys.length > 0 && showSizes && (
           <div className="inv-locexpand" style={{ padding: '8px 0 0' }}>
             {variantQtys.map((r, idx) => (
-              <div key={r.size} className="inv-locrow">
+              <div key={r.size} className="inv-locrow inv-sizerow">
                 <span className="inv-locname">{r.size}</span>
                 {singleLoc ? (
                   <div className="flex items-center gap-1">
                     <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, -1); }} disabled={r.qty <= 0} className="inv-qtybtn minus" style={{ width: 24, height: 24 }}><Icon name="Minus" size={10} /></button>
-                    <span className="min-w-[28px] text-center text-xs font-semibold text-foreground">{r.qty}</span>
+                    <span className="inv-sizeqty" style={{ textAlign: 'center' }}>{r.qty}</span>
                     <button onClick={(e) => { e?.stopPropagation(); adjustSize(idx, 1); }} className="inv-qtybtn plus" style={{ width: 24, height: 24 }}><Icon name="Plus" size={10} /></button>
                   </div>
                 ) : (
-                  <span className="min-w-[28px] text-center text-xs font-semibold text-foreground">{r.qty}</span>
+                  <span className="inv-sizeqty">{r.qty}</span>
                 )}
               </div>
             ))}
-            {!singleLoc && <p style={{ fontSize: 10.5, color: '#8B8478', padding: '4px 0 0' }}>Split across locations — edit stock in the item.</p>}
+            {!singleLoc && <p style={{ fontSize: 10.5, color: '#8B8478', padding: '6px 0 0' }}>Split across locations — edit stock in the item.</p>}
           </div>
         )}
         {isMultiLocation && showLocations && locationQtys?.length > 0 && (

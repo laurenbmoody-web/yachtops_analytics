@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
 import { money } from '../../laundry-management-dashboard/utils/laundryBilling';
+import LocPath from './LocPath';
 import './uniformView.css';
 
 // Read-only quick view for a uniform inventory item — the editorial counterpart
@@ -69,7 +70,7 @@ const UniformItemView = ({ item, canEdit, onEdit, onClose }) => {
                   <tbody>
                     {matrixRows.map((row, ri) => (
                       <tr key={ri}>
-                        <th className="loc"><Icon name="MapPin" size={12} /> {locName(row) || 'Not placed'}</th>
+                        <th className="loc"><Icon name="MapPin" size={12} /> <LocPath label={locName(row)} fallback="Not placed" /></th>
                         {sizeCols.map((s) => <td key={s}>{cellOf(row, s)}</td>)}
                         <td className="all">{sizeCols.reduce((a, s) => a + cellOf(row, s), 0)}</td>
                       </tr>
