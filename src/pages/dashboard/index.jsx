@@ -28,6 +28,7 @@ import QuickActionsCenter from './components/QuickActionsCenter';
 import LaundryLogWidget from './components/LaundryLogWidget';
 import QuickAddDefectModal from '../defects/components/QuickAddDefectModal';
 import ComprehensiveJobModal from '../team-jobs-management/components/ComprehensiveJobModal';
+import AddEditItemModal from '../inventory/components/AddEditItemModal';
 import SortableWidget from './components/SortableWidget';
 import DashboardEditBar from './components/DashboardEditBar';
 import ProvisioningWidget from './components/ProvisioningWidget';
@@ -397,6 +398,7 @@ const Dashboard = () => {
   const [activeTenantId, setActiveTenantId] = useState(null);
   const [showReportDefectModal, setShowReportDefectModal] = useState(false);
   const [showCreateJobModal, setShowCreateJobModal] = useState(false);
+  const [showAddInventoryModal, setShowAddInventoryModal] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [activeId, setActiveId] = useState(null); // widget being dragged
@@ -652,7 +654,7 @@ const Dashboard = () => {
       case 'quickActions':
         return (
           <QuickActionsCenter
-            onAddInventory={() => navigate('/folder-based-inventory-dashboard')}
+            onAddInventory={() => setShowAddInventoryModal(true)}
             onLogDelivery={() => navigate('/provisioning?receive=true')}
             onReportDefect={() => setShowReportDefectModal(true)}
             onCreateJob={() => setShowCreateJobModal(true)}
@@ -897,6 +899,9 @@ const Dashboard = () => {
         )}
 
         {/* Modals */}
+        {showAddInventoryModal && (
+          <AddEditItemModal onClose={() => setShowAddInventoryModal(false)} />
+        )}
         {showReportDefectModal && (
           <QuickAddDefectModal
             onClose={() => setShowReportDefectModal(false)}
