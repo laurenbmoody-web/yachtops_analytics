@@ -427,16 +427,15 @@
 .inv-card-media .inv-placeholder svg { color: #D3D7DF; }
 /* Body is compact and centred; the media flexes to fill the tile so there is
    no dead space and folders + items stay identical in size. */
-/* Image-forward tiles: the image fills the tile and the details (name, code,
-   qty, sizes) reveal over the bottom. Desktop reveals on hover; touch reveals
-   via the round toggle button (image tap still opens the item). */
+/* Image-forward tiles: the image fills the tile; revealing flips it to a details
+   panel (name pinned at the top, the rest scrolls) so the name is always
+   visible. Desktop reveals on hover; touch via the round toggle button. */
 .inv-card-body {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  padding: 34px 12px 12px; display: flex; flex-direction: column; gap: 5px;
-  align-items: center; text-align: center;
-  background: linear-gradient(to top, #FFFFFF 58%, rgba(255,255,255,0.9) 80%, rgba(255,255,255,0) 100%);
-  max-height: calc(100% - 4px); overflow: hidden;
-  opacity: 0; transform: translateY(8px); pointer-events: none;
+  position: absolute; inset: 0;
+  padding: 12px; display: flex; flex-direction: column; gap: 5px;
+  align-items: center; text-align: center; justify-content: flex-start;
+  background: rgba(255,255,255,0.97); overflow-y: auto;
+  opacity: 0; transform: translateY(6px); pointer-events: none;
   transition: opacity 0.16s ease, transform 0.16s ease;
 }
 .inv-card:hover .inv-card-body,
