@@ -289,9 +289,17 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-plan.is-linking .dp-link-hit{pointer-events:stroke;cursor:pointer;}
 .dp-plan.is-linking .dp-link-g:hover .dp-link{stroke:#B14E16;opacity:1;stroke-width:3.5;}
 /* Hovering one doorway fades all the others, so it's clear which two rooms a
-   crossing line actually connects (its tooltip names both). */
+   crossing line actually connects (its tooltip names both). Mouse only. */
 .dp-plan.is-linking .dp-links:has(.dp-link-g:hover) .dp-link{opacity:.12;}
 .dp-plan.is-linking .dp-links:has(.dp-link-g:hover) .dp-link-g:hover .dp-link{opacity:1;}
+/* Tap-selected doorway (works on touch): highlight it, fade the rest. */
+.dp-link-g.is-sel .dp-link{stroke:#B14E16;opacity:1;stroke-width:3.5;}
+.dp-link-g.is-dim .dp-link{opacity:.1;}
+/* Label naming the two rooms of the selected doorway, at its midpoint. */
+.dp-link-label{position:absolute;transform:translate(-50%,-50%);z-index:6;white-space:nowrap;
+  border:0;cursor:pointer;padding:4px 10px;border-radius:999px;background:var(--lg-terra);color:#fff;
+  font-family:var(--lg-sans);font-size:11px;font-weight:700;box-shadow:0 3px 10px -2px rgba(28,27,58,.5);}
+.dp-link-label-x{font-weight:600;opacity:.85;}
 .dp-pin.is-pending{box-shadow:0 0 0 3px var(--lg-terra), 0 2px 6px rgba(28,27,58,.5);transform:translate(-50%,-50%) scale(1.2);z-index:7;}
 /* Briefly ring a pin after a stairs jump lands on it, so the eye finds it. */
 .dp-pin.is-flash{z-index:8;animation:dp-pin-flash 1.6s ease-out;}
