@@ -48,9 +48,38 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const [colour, setColour] = useState(cf.colour || '');
   const [brand, setBrand] = useState(item?.brand || '');
   const [styleCode, setStyleCode] = useState(cf.styleCode || '');
-  const [sizes, setSizes] = useState(
-    (item?.variants || []).map((v) => ({ size: v.size || v.label || '', qty: v.qty ?? v.quantity ?? '', locId: v.locationId || '', locLabel: v.locationName || '' }))
-  );
+  // Stock is a size × location matrix: `sizeCols` are the sizes (columns) and
+  // `blocks` are locations (rows), each holding a qty per size. The same size can
+  // sit in several locations (3 M in a cabin, 5 M in the lazarette, …).
+  const initStock = () => {
+    const sls = (item?.stockLocations || []).filter((s) => Array.isArray(s.sizes) && s.sizes.length);
+    if (sls.length) {
+      const cols = [];
+      sls.forEach((sl) => sl.sizes.forEach((z) => { if (z.size && !cols.includes(z.size)) cols.push(z.size); }));
+      const blocks = sls.map((sl) => ({
+        locId: sl.vesselLocationId || sl.locationId || '',
+        locLabel: sl.locationName || sl.location_name || sl.subLocation || '',
+        qty: Object.fromEntries((sl.sizes || []).map((z) => [z.size, z.qty])),
+      }));
+      return { cols, blocks };
+    }
+    const vs = (item?.variants || []).filter((v) => v && (v.size || v.label));
+    if (vs.length) {
+      const first = (item?.stockLocations || [])[0] || {};
+      return {
+        cols: vs.map((v) => v.size || v.label),
+        blocks: [{
+          locId: first.vesselLocationId || first.locationId || '',
+          locLabel: first.locationName || first.location_name || first.subLocation || '',
+          qty: Object.fromEntries(vs.map((v) => [v.size || v.label, v.qty ?? v.quantity ?? 0])),
+        }],
+      };
+    }
+    return { cols: [], blocks: [{ locId: '', locLabel: '', qty: {} }] };
+  };
+  const _init = useMemo(() => initStock(), []);
+  const [sizeCols, setSizeCols] = useState(_init.cols);
+  const [blocks, setBlocks] = useState(_init.blocks);
   const [customSize, setCustomSize] = useState('');
   const [brandingType, setBrandingType] = useState(cf.branding?.type || 'None');
   const [brandingColour, setBrandingColour] = useState(cf.branding?.colour || '');
@@ -66,15 +95,9 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // Physical storage on board — the vessel_locations node (the GA / location-
-  // management map) so Interior can find where the uniform is actually kept.
-  const existingStock = (item?.stockLocations || [])[0] || {};
-  const [storageLocId, setStorageLocId] = useState(existingStock.vesselLocationId || existingStock.locationId || '');
-  const [storageLabel, setStorageLabel] = useState(existingStock.locationName || existingStock.location_name || existingStock.subLocation || '');
   const [vesselLocations, setVesselLocations] = useState([]);
   const [vesselLoading, setVesselLoading] = useState(false);
-  // Location picker target: null = closed, 'main' = the item's default storage,
-  // or a size index = that size's own storage (split storage across locations).
+  // Location picker target: a block index (which location row we're setting), or null.
   const [pickerTarget, setPickerTarget] = useState(null);
 
   useEffect(() => {
@@ -94,21 +117,29 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
     return () => { alive = false; };
   }, []);
 
-  // Keep the stored label fresh once locations load (covers edits saved before).
+  // Refresh block location labels once the map loads (covers items saved before).
   useEffect(() => {
-    if (!storageLocId || !vesselLocations.length) return;
+    if (!vesselLocations.length) return;
     const byId = new Map(vesselLocations.map((n) => [n.id, n]));
-    const chain = []; const seen = new Set(); let cur = byId.get(storageLocId);
-    while (cur && !seen.has(cur.id)) { chain.unshift(cur); seen.add(cur.id); cur = cur.parent_id ? byId.get(cur.parent_id) : null; }
-    if (chain.length) setStorageLabel(chain.map((n) => n.name).join(' › '));
-  }, [storageLocId, vesselLocations]);
+    const labelOf = (id) => {
+      const chain = []; const seen = new Set(); let cur = byId.get(id);
+      while (cur && !seen.has(cur.id)) { chain.unshift(cur); seen.add(cur.id); cur = cur.parent_id ? byId.get(cur.parent_id) : null; }
+      return chain.length ? chain.map((n) => n.name).join(' › ') : '';
+    };
+    setBlocks((prev) => prev.map((b) => (b.locId && byId.has(b.locId) ? { ...b, locLabel: labelOf(b.locId) } : b)));
+  }, [vesselLocations]);
 
-  const total = sizes.reduce((a, s) => a + (Number(s.qty) || 0), 0);
-  // Partial-gap nudge: some sizes pinned to their own spot but no default set, so
-  // the unpinned sizes have nowhere to land. (Not shown when nothing is pinned —
-  // that's just "no location yet", handled elsewhere.)
-  const anyPinned = sizes.some((s) => s.size && s.locId);
-  const gapSizes = (anyPinned && !storageLocId) ? sizes.filter((s) => s.size && !s.locId) : [];
+  // Matrix helpers.
+  const cellQty = (b, s) => Number(b.qty[s]) || 0;
+  const blockTotal = (b) => sizeCols.reduce((a, s) => a + cellQty(b, s), 0);
+  const sizeTotal = (s) => blocks.reduce((a, b) => a + cellQty(b, s), 0);
+  const total = blocks.reduce((a, b) => a + blockTotal(b), 0);
+
+  const addSizeCol = (s) => { const v = (s || '').trim(); if (!v || sizeCols.some((x) => x.toLowerCase() === v.toLowerCase())) return; setSizeCols((p) => [...p, v]); };
+  const removeSizeCol = (s) => { setSizeCols((p) => p.filter((x) => x !== s)); setBlocks((p) => p.map((b) => { const q = { ...b.qty }; delete q[s]; return { ...b, qty: q }; })); };
+  const setCell = (bi, s, val) => setBlocks((p) => p.map((b, i) => (i === bi ? { ...b, qty: { ...b.qty, [s]: val } } : b)));
+  const addBlock = () => setBlocks((p) => [...p, { locId: '', locLabel: '', qty: {} }]);
+  const removeBlock = (bi) => setBlocks((p) => (p.length > 1 ? p.filter((_, i) => i !== bi) : p));
 
   // The item-images bucket only accepts JPEG/PNG/WebP/GIF up to 5 MB — but most
   // crew shoot on iPhones (HEIC, often >5 MB). So re-encode every picked photo to
@@ -238,44 +269,28 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
     setIsolating(false);
   };
 
-  const addSize = (s) => {
-    const v = (s || '').trim();
-    if (!v || sizes.some((x) => x.size.toLowerCase() === v.toLowerCase())) return;
-    setSizes((p) => [...p, { size: v, qty: '', locId: '', locLabel: '' }]);
-  };
-  const setQty = (i, q) => setSizes((p) => p.map((s, idx) => (idx === i ? { ...s, qty: q } : s)));
-  const removeSize = (i) => setSizes((p) => p.filter((_, idx) => idx !== i));
-
   const save = async () => {
     if (!name.trim() || saving) return;
     setSaving(true); setError('');
-    const variants = sizes.filter((s) => s.size).map((s) => ({
-      size: s.size, qty: Number(s.qty) || 0,
-      ...(s.locId ? { locationId: s.locId, locationName: s.locLabel } : {}),
-    }));
     const customFields = {
       fit, garmentType, subType: subType.trim(), colour: colour.trim(), styleCode: styleCode.trim(),
       branding: { type: brandingType, colour: brandingColour.trim(), logo: brandingLogo.trim(), placement: brandingPlacement.trim() },
       fabric: fabric.trim(), care: care.trim(), season,
     };
-    // Physical storage on the vessel map. Each size lands at its own location if
-    // one is set, otherwise the item's default ('all sizes') location. Group by
-    // location so the map/stock rows show a quantity (and size breakdown) per spot.
-    const groups = new Map();
-    for (const s of sizes.filter((x) => x.size)) {
-      const locId = s.locId || storageLocId;
-      const label = s.locId ? s.locLabel : storageLabel;
-      if (!locId) continue;
-      const g = groups.get(locId) || { label, qty: 0, sizes: [] };
-      g.qty += Number(s.qty) || 0;
-      g.sizes.push({ size: s.size, qty: Number(s.qty) || 0 });
-      groups.set(locId, g);
-    }
-    const stockLocations = Array.from(groups.entries()).map(([locId, g]) => ({
-      vesselLocationId: locId, locationId: locId,
-      locationName: g.label, location_name: g.label, subLocation: g.label,
-      quantity: g.qty, qty: g.qty, sizes: g.sizes,
-    }));
+    // stock_locations IS the size × location matrix: one row per location, each
+    // with a size breakdown. variants are the per-size totals (summed across
+    // locations) used for the size-run display and issue-by-size.
+    const stockLocations = blocks.map((b) => {
+      const szs = sizeCols.map((s) => ({ size: s, qty: cellQty(b, s) })).filter((x) => x.qty > 0);
+      const quantity = szs.reduce((a, x) => a + x.qty, 0);
+      return {
+        vesselLocationId: b.locId || '', locationId: b.locId || '',
+        locationName: b.locLabel || '', location_name: b.locLabel || '', subLocation: b.locLabel || '',
+        sizes: szs, quantity, qty: quantity,
+      };
+    }).filter((sl) => sl.quantity > 0);
+    const variants = sizeCols.map((s) => ({ size: s, qty: sizeTotal(s) }));
+    const firstLoc = blocks.find((b) => b.locId);
     const payload = {
       ...(isEdit ? { id: item.id, cargoItemId: item.cargoItemId } : {}),
       name: name.trim(), imageUrl, brand: brand.trim(), supplier: supplier.trim(), notes,
@@ -283,7 +298,7 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
       location: loc, subLocation: sub,
       hasVariants: true, variantType: 'size', variants,
       quantity: total, totalQty: total, stockLocations,
-      defaultLocationId: storageLocId || null,
+      defaultLocationId: firstLoc?.locId || null,
       isUniform: true, customFields, condition: item?.condition || 'New',
     };
     const res = await saveItem(payload, { dedupe: false });
@@ -336,74 +351,60 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
             </div>
           </div>
 
-          {/* Size run */}
+          {/* Stock by location — a size × location matrix. The same size can sit
+              in several places (3 M in a cabin, 5 M in the lazarette, …). */}
           <div className="uim-sec">
-            <div className="uim-sec-h"><span>Size run</span><span className="uim-total">{total} total</span></div>
-            {sizes.length > 0 && (
-              <div className="uim-sizes">
-                {sizes.map((s, i) => (
-                  <div className="uim-size" key={s.size}>
-                    <span className="uim-size-lbl">{s.size}</span>
-                    <input className="uim-size-qty" type="number" min="0" value={s.qty} onChange={(e) => setQty(i, e.target.value)} placeholder="0" />
-                    <button type="button" className={`uim-size-loc${s.locId ? ' on' : ''}`}
-                      title={s.locId ? `Stored at ${s.locLabel}` : 'Stored with the rest — tap to store this size elsewhere'}
-                      onClick={() => setPickerTarget(i)}><Icon name="MapPin" size={12} /></button>
-                    <button type="button" className="uim-size-x" onClick={() => removeSize(i)} aria-label="Remove"><Icon name="X" size={13} /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {sizes.some((s) => s.locId) && (
-              <div className="uim-split">
-                <span className="uim-split-h">Split storage</span>
-                {sizes.filter((s) => s.locId).map((s) => (
-                  <span className="uim-split-row" key={s.size}>
-                    <b>{s.size}</b><Icon name="MapPin" size={11} />{s.locLabel}
-                    <button type="button" onClick={() => setSizes((p) => p.map((x) => (x.size === s.size ? { ...x, locId: '', locLabel: '' } : x)))} aria-label="Clear"><Icon name="X" size={11} /></button>
-                  </span>
-                ))}
-              </div>
-            )}
+            <div className="uim-sec-h"><span>Stock by location</span><span className="uim-total">{total} total</span></div>
+
+            <L opt>Sizes</L>
             <div className="uim-size-add">
-              {COMMON_SIZES.filter((s) => !sizes.some((x) => x.size === s)).map((s) => (
-                <button type="button" key={s} className="uim-chip" onClick={() => addSize(s)}>+ {s}</button>
+              {sizeCols.map((s) => (
+                <span className="uim-szchip" key={s}>{s}<button type="button" onClick={() => removeSizeCol(s)} aria-label={`Remove ${s}`}><Icon name="X" size={11} /></button></span>
+              ))}
+              {COMMON_SIZES.filter((s) => !sizeCols.includes(s)).map((s) => (
+                <button type="button" key={s} className="uim-chip" onClick={() => addSizeCol(s)}>+ {s}</button>
               ))}
               <span className="uim-size-custom">
                 <input className="uim-input sm" value={customSize} onChange={(e) => setCustomSize(e.target.value)} placeholder="e.g. 42, One size"
-                  onKeyDown={(e) => { if (e.key === 'Enter') { addSize(customSize); setCustomSize(''); } }} />
-                <button type="button" className="uim-chip" onClick={() => { addSize(customSize); setCustomSize(''); }}>Add</button>
+                  onKeyDown={(e) => { if (e.key === 'Enter') { addSizeCol(customSize); setCustomSize(''); } }} />
+                <button type="button" className="uim-chip" onClick={() => { addSizeCol(customSize); setCustomSize(''); }}>Add</button>
               </span>
             </div>
-          </div>
 
-          {/* Storage on board — links to the location-management / GA map */}
-          <div className="uim-sec">
-            <div className="uim-sec-h"><span>Storage on board</span></div>
-            <L opt>Default location <span className="uim-opt">all sizes</span></L>
-            <button type="button" className="uim-locpick" onClick={() => setPickerTarget('main')} disabled={vesselLoading}>
-              <span className="uim-locpick-l">
-                <Icon name="MapPin" size={15} />
-                <span className={storageLocId ? 'uim-locpick-val' : 'uim-locpick-ph'}>
-                  {storageLocId ? (storageLabel || 'Selected location') : (vesselLoading ? 'Loading map…' : 'Link to a location on the vessel map')}
-                </span>
-              </span>
-              <span className="uim-locpick-r">
-                {storageLocId && (
-                  <span role="button" tabIndex={0} className="uim-locpick-clear" title="Clear"
-                    onClick={(e) => { e.stopPropagation(); setStorageLocId(''); setStorageLabel(''); }}>
-                    <Icon name="X" size={13} />
-                  </span>
+            {blocks.map((b, bi) => (
+              <div className="uim-locblock" key={bi}>
+                <div className="uim-locblock-h">
+                  <button type="button" className="uim-locpick sm" onClick={() => setPickerTarget(bi)} disabled={vesselLoading}>
+                    <span className="uim-locpick-l">
+                      <Icon name="MapPin" size={14} />
+                      <span className={b.locId ? 'uim-locpick-val' : 'uim-locpick-ph'}>
+                        {b.locId ? (b.locLabel || 'Selected location') : (vesselLoading ? 'Loading map…' : 'Set a location')}
+                      </span>
+                    </span>
+                    <Icon name="ChevronRight" size={14} />
+                  </button>
+                  <span className="uim-locblock-sub">{blockTotal(b)}</span>
+                  {blocks.length > 1 && (
+                    <button type="button" className="uim-locblock-x" onClick={() => removeBlock(bi)} aria-label="Remove location"><Icon name="Trash2" size={14} /></button>
+                  )}
+                </div>
+                {sizeCols.length === 0 ? (
+                  <p className="uim-hint">Add sizes above, then enter quantities here.</p>
+                ) : (
+                  <div className="uim-matrix">
+                    {sizeCols.map((s) => (
+                      <label className="uim-cell" key={s}>
+                        <span className="uim-cell-lbl">{s}</span>
+                        <input className="uim-cell-in" type="number" min="0" value={b.qty[s] ?? ''} onChange={(e) => setCell(bi, s, e.target.value)} placeholder="0" />
+                      </label>
+                    ))}
+                  </div>
                 )}
-                <Icon name="ChevronRight" size={15} />
-              </span>
-            </button>
-            <p className="uim-hint">Applies to every size that isn’t pinned to its own location in the size run above. So Interior can see where the uniform is kept — manage the map in Location management.</p>
-            {gapSizes.length > 0 && (
-              <p className="uim-nudge">
-                <Icon name="AlertCircle" size={14} />
-                <span><b>{gapSizes.map((s) => s.size).join(', ')}</b> {gapSizes.length === 1 ? 'isn’t' : 'aren’t'} stored anywhere yet — set a default location above, or pin {gapSizes.length === 1 ? 'it' : 'them'} in the size run.</span>
-              </p>
-            )}
+              </div>
+            ))}
+
+            <button type="button" className="uim-addloc" onClick={addBlock}><Icon name="Plus" size={14} /> Add another location</button>
+            <p className="uim-hint">Enter how many of each size are kept in each location. Leave a location unset to log stock that isn’t placed yet.</p>
           </div>
 
           {/* Branding */}
@@ -464,10 +465,9 @@ const UniformItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
       {pickerTarget !== null && (
         <LocationPicker
           vesselLocations={vesselLocations}
-          selectedId={pickerTarget === 'main' ? storageLocId : (sizes[pickerTarget]?.locId || '')}
+          selectedId={blocks[pickerTarget]?.locId || ''}
           onSelect={({ id, label }) => {
-            if (pickerTarget === 'main') { setStorageLocId(id); setStorageLabel(label); }
-            else setSizes((p) => p.map((s, idx) => (idx === pickerTarget ? { ...s, locId: id, locLabel: label } : s)));
+            setBlocks((p) => p.map((b, idx) => (idx === pickerTarget ? { ...b, locId: id, locLabel: label } : b)));
             setPickerTarget(null);
           }}
           onClose={() => setPickerTarget(null)}

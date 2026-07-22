@@ -407,10 +407,16 @@ const CrewFolder = ({ onBack }) => {
           return { ...v, qty: Math.max(0, (Number(v.qty ?? v.quantity) || 0) - rem) };
         });
         const newTotal = variants.reduce((a, v) => a + (Number(v.qty) || 0), 0);
-        // Reduce the matching size within whichever storage location holds it.
+        // Pull each issued size across its storage locations in order (a size can
+        // sit in several places), decrementing until that size's qty is consumed.
+        const remaining = { ...sizes };
         const stockLocations = (item.stockLocations || []).map((sl) => {
           if (!Array.isArray(sl.sizes)) return sl;
-          const newSizes = sl.sizes.map((z) => ({ ...z, qty: Math.max(0, (Number(z.qty) || 0) - (sizes[z.size] || 0)) })).filter((z) => z.qty > 0);
+          const newSizes = sl.sizes.map((z) => {
+            const take = Math.min(Number(z.qty) || 0, remaining[z.size] || 0);
+            remaining[z.size] = (remaining[z.size] || 0) - take;
+            return { ...z, qty: (Number(z.qty) || 0) - take };
+          }).filter((z) => z.qty > 0);
           const q = newSizes.reduce((a, z) => a + z.qty, 0);
           return { ...sl, sizes: newSizes, quantity: q, qty: q };
         }).filter((sl) => !Array.isArray(sl.sizes) || (sl.quantity || 0) > 0);
