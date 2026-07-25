@@ -28,7 +28,7 @@ import QuickActionsCenter from './components/QuickActionsCenter';
 import LaundryLogWidget from './components/LaundryLogWidget';
 import QuickAddDefectModal from '../defects/components/QuickAddDefectModal';
 import ComprehensiveJobModal from '../team-jobs-management/components/ComprehensiveJobModal';
-import AddEditItemModal from '../inventory/components/AddEditItemModal';
+import ItemFormModal from '../inventory/components/ItemFormModal';
 import SortableWidget from './components/SortableWidget';
 import DashboardEditBar from './components/DashboardEditBar';
 import ProvisioningWidget from './components/ProvisioningWidget';
@@ -900,7 +900,7 @@ const Dashboard = () => {
 
         {/* Modals */}
         {showAddInventoryModal && (
-          <AddEditItemModal onClose={() => setShowAddInventoryModal(false)} />
+          <ItemFormModal onClose={() => setShowAddInventoryModal(false)} />
         )}
         {showReportDefectModal && (
           <QuickAddDefectModal
