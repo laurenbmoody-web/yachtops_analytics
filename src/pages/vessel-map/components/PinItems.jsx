@@ -23,7 +23,6 @@ export default function PinItems({
   const [rows, setRows] = useState(null);       // items here; null = loading
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
-  const [placeQty, setPlaceQty] = useState('');
   const [openItem, setOpenItem] = useState(null); // itemId shown in the quick-view drawer
 
   // The stock location's display name = the pin's full path, so pins in the
@@ -33,7 +32,7 @@ export default function PinItems({
     .filter(Boolean)
     .join(' › ') || (scanName || 'this pin');
 
-  useEffect(() => { setNodeId(hotspot?.location_node_id || null); setError(null); setPlaceQty(''); }, [hotspot?.id]);
+  useEffect(() => { setNodeId(hotspot?.location_node_id || null); setError(null); }, [hotspot?.id]);
 
   const load = async (nid) => {
     if (!nid) { setRows([]); return; }
@@ -66,12 +65,12 @@ export default function PinItems({
     setBusy('place'); setError(null);
     const nid = await ensureNode();
     if (!nid) { setBusy(null); return; }
-    const addNew = Number(placeQty) || 0;
-    const { error: e } = await placeStock(placingItem.id, { pin: { nodeId: nid, name: pinName }, addNew, moves: [] });
+    // Link the item to this pin (qty 0) and stay on the map — the crew set how
+    // many are here with the inline −/+ counter that now appears below.
+    const { error: e } = await placeStock(placingItem.id, { pin: { nodeId: nid, name: pinName }, addNew: 0, moves: [], link: true });
     setBusy(null);
     if (e) { setError(e); return; }
     await load(nid);
-    onPlaced?.();
   };
 
   // Correct how many are on this pin (a stock-take). The delta flows to the
@@ -103,10 +102,8 @@ export default function PinItems({
       {canManage && placingItem && (
         <div className="vm-pinitems-place">
           <p className="vm-pinitems-place-lead">Place <strong>{placingItem.name}</strong> on this pin</p>
-          <div className="vm-pinitems-new-row">
-            <input className="vm-check-input vm-pinitems-new-qty" type="number" min="0" placeholder="Qty" value={placeQty} onChange={(e) => setPlaceQty(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') placeHere(); }} autoFocus />
-            <button className="vm-btn-primary" onClick={placeHere} disabled={busy === 'place'}>{busy === 'place' ? 'Placing…' : 'Place here'}</button>
-          </div>
+          <button className="vm-btn-primary vm-pinitems-place-btn" onClick={placeHere} disabled={busy === 'place'}>{busy === 'place' ? 'Placing…' : 'Place here'}</button>
+          <p className="vm-pinitems-place-hint">Then set how many are here with −/+ below.</p>
         </div>
       )}
 

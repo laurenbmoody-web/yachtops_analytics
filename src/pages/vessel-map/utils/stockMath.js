@@ -53,7 +53,7 @@ export function sources({ stockLocations = [], total = 0 }, pinNodeId) {
 // pulled from other places (total unchanged). moves: [{ key, qty }] where key
 // is a source key from sources() (or '__unplaced__'). Returns { stockLocations,
 // totalQty }.
-export function applyPlacement({ stockLocations = [], total = 0 }, { pin, addNew = 0, moves = [] }) {
+export function applyPlacement({ stockLocations = [], total = 0 }, { pin, addNew = 0, moves = [], link = false }) {
   const arr = normalize(stockLocations);
   const add = Math.max(0, num(addNew));
   let moved = 0;
@@ -67,7 +67,7 @@ export function applyPlacement({ stockLocations = [], total = 0 }, { pin, addNew
   const delta = add + moved;
   const pe = arr.find((x) => entryKey(x) === pin.nodeId);
   if (pe) pe.qty += delta;
-  else if (delta > 0) arr.push(pinEntry(pin, delta));
+  else if (delta > 0 || link) arr.push(pinEntry(pin, delta)); // link:true keeps a 0-qty spot so it can be counted inline
   return finish(arr, num(total) + add); // moves are internal; only new stock changes the total
 }
 
