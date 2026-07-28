@@ -499,17 +499,15 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     if (id) onClose?.();
   };
 
-  const setOnMap = async () => {
-    if (!name.trim()) {
-      setError('Give the item a name first — then you can pin it on the map.');
-      setOpen((o) => ({ ...o, identity: true }));
-      nameRef.current?.focus();
-      nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      return;
-    }
-    // Save without notifying the parent (which may close us) so the map can open.
-    const id = await persist(false);
-    if (id) setMapItem({ id, name: name.trim() });
+  // "Set from map" just picks a location visually — no save, no stock write. The
+  // chosen pin comes back as a stock row where per-size quantities are set.
+  const setOnMap = () => setMapItem({ id: savedId || item?.id || null, name: name.trim() || 'this item', pickOnly: true });
+  const addMapLocation = ({ nodeId, name: locName }) => {
+    setUniLocs((ls) => {
+      if (ls.some((l) => l.id === nodeId)) return ls;
+      const withoutEmpty = ls.filter((l) => l.label || l.id);
+      return [...withoutEmpty, { label: locName, id: nodeId }];
+    });
   };
 
   const pickProfile = (p) => {
@@ -810,7 +808,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       <LocationPicker vesselLocations={vesselLocations} selectedId={locTarget?.kind === 'uni' ? (uniLocs[locTarget?.idx]?.id || '') : (locRows[locTarget?.idx]?.id || '')} onSelect={handleLocPicked} onClose={() => setLocTarget(null)} onMap={() => { setLocTarget(null); setOnMap(); }} />
     )}
     {mapItem && (
-      <MapPickerModal placingItem={mapItem} onPlaced={() => { setMapItem(null); onSaved?.(); onClose?.(); }} onClose={() => { setMapItem(null); onSaved?.(); onClose?.(); }} />
+      <MapPickerModal placingItem={mapItem} onPlaced={(payload) => { if (payload?.nodeId) addMapLocation(payload); setMapItem(null); }} onClose={() => setMapItem(null)} />
     )}
     </>
   );
