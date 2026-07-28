@@ -157,8 +157,19 @@
 .ca-ov-kv.owner { color: #3B6EA5; } .ca-ov-kv.apa { color: #7A4FA3; }
 .ca-ov-km { font-size: 10.5px; color: #AEB4C2; }
 
-.ca-ov-group { margin-top: 24px; }
-.ca-ov-gh { display: flex; align-items: center; gap: 11px; margin-bottom: 2px; }
+.ca-ov-listhead { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; margin: 30px 0 4px; flex-wrap: wrap; }
+.ca-ov-listtitle { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.ca-ov-note { font-size: 12px; color: #8B8478; }
+.ca-ov-link { font: inherit; color: #C65A1A; font-weight: 600; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.ca-ov-link:hover { color: #B14E16; }
+
+.ca-ov-group { margin-top: 6px; }
+.ca-ov-gh { display: flex; align-items: center; gap: 11px; padding: 10px 8px; border-radius: 10px; cursor: pointer; transition: background 0.12s ease; }
+.ca-ov-gh:hover { background: #F5F7FA; }
+.ca-ov-gh.open { background: #F5F7FA; }
+.ca-ov-gchev { color: #AEB4C2; flex: 0 0 auto; transition: transform 0.15s ease; }
+.ca-ov-gchev.open { transform: rotate(180deg); }
+.ca-ov-gaccts { padding: 2px 0 6px; }
 .ca-ov-ga { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: #F1F5F9; color: #4B4A66; flex: 0 0 auto; font-weight: 700; font-size: 12px; letter-spacing: 0.5px; }
 .ca-ov-ga.vessel { color: #4B4A66; }
 .ca-ov-gn { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #1C1B3A; }

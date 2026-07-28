@@ -41,6 +41,8 @@ export default function Accounts() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [toast, setToast] = useState('');
+  const [expanded, setExpanded] = useState({}); // holder → open? (dashboard drills in on demand)
+  const toggleHolder = (h) => setExpanded((e) => ({ ...e, [h]: !e[h] }));
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
 
@@ -79,7 +81,7 @@ export default function Accounts() {
 
   const reconcilePill = (toReconcile) => (
     toReconcile > 0
-      ? <button type="button" className="ca-ov-grec due link" onClick={() => navigate('/accounts/checkoff')}>{toReconcile} to check off</button>
+      ? <button type="button" className="ca-ov-grec due link" onClick={(e) => { e.stopPropagation(); navigate('/accounts/checkoff'); }}>{toReconcile} to check off</button>
       : <span className="ca-ov-grec ok">Checked off</span>
   );
 
@@ -172,21 +174,37 @@ export default function Accounts() {
               </p>
             </div>
           ) : (
-            groups.map((g) => (
-              <div key={g.holder} className="ca-ov-group">
-                <div className="ca-ov-gh">
-                  <span className={`ca-ov-ga ${g.holder === 'Vessel' ? 'vessel' : ''}`}>
-                    {g.holder === 'Vessel' ? <Icon name="Landmark" size={17} /> : initials(g.holder)}
-                  </span>
-                  <span className="ca-ov-gn">{g.holder}</span>
-                  <span className="ca-ov-grole">{g.holder === 'Vessel' ? 'Command' : `${g.accounts.length} accounts`}</span>
-                  <span className="ca-ov-grule" />
-                  <span className="ca-ov-gtot">balance <b className="ca-num">{formatMoney(g.total, positionCurrency)}</b></span>
-                  {reconcilePill(g.toReconcile)}
-                </div>
-                {g.accounts.map(renderRow)}
+            <>
+              <div className="ca-ov-listhead">
+                <span className="ca-ov-listtitle">By holder</span>
+                <span className="ca-ov-note">
+                  Balances are worked out from the ledger — {' '}
+                  <button type="button" className="ca-ov-link" onClick={() => navigate('/accounts/ledger')}>log spend or import a statement</button>
+                  {' '} to keep them current. Open a holder to see or edit their accounts.
+                </span>
               </div>
-            ))
+              {groups.map((g) => {
+                const open = !!expanded[g.holder];
+                return (
+                  <div key={g.holder} className="ca-ov-group">
+                    <div className={`ca-ov-gh ${open ? 'open' : ''}`} role="button" tabIndex={0}
+                      onClick={() => toggleHolder(g.holder)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleHolder(g.holder); } }}>
+                      <span className={`ca-ov-ga ${g.holder === 'Vessel' ? 'vessel' : ''}`}>
+                        {g.holder === 'Vessel' ? <Icon name="Landmark" size={17} /> : initials(g.holder)}
+                      </span>
+                      <span className="ca-ov-gn">{g.holder}</span>
+                      <span className="ca-ov-grole">{g.holder === 'Vessel' ? 'Command' : `${g.accounts.length} ${g.accounts.length === 1 ? 'account' : 'accounts'}`}</span>
+                      <span className="ca-ov-grule" />
+                      <span className="ca-ov-gtot">balance <b className="ca-num">{formatMoney(g.total, positionCurrency)}</b></span>
+                      {reconcilePill(g.toReconcile)}
+                      <Icon name="ChevronDown" size={16} className={`ca-ov-gchev ${open ? 'open' : ''}`} />
+                    </div>
+                    {open && <div className="ca-ov-gaccts">{g.accounts.map(renderRow)}</div>}
+                  </div>
+                );
+              })}
+            </>
           )}
         </div>
 
