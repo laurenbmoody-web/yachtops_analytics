@@ -155,19 +155,26 @@
 .itf-keep-sep{width:1px;height:34px;background:var(--hair);margin:0 2px;}
 .itf-keep-x,.itf-keep-unit{font-size:12.5px;color:var(--muted);padding-bottom:10px;}
 
+/* stock header row — label + "counted in [unit]" */
+.itf-stockhd{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px;}
+.itf-unitpick{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap;}
+.itf-unitpick select{border:1px solid var(--border);border-radius:8px;background:var(--field);font-family:inherit;font-size:12px;font-weight:600;color:var(--ink);padding:5px 8px;outline:none;cursor:pointer;}
+.itf-unitpick select:focus{border-color:var(--g);box-shadow:0 0 0 3px #FAECE7;}
+
 /* unified size × location matrix (uniform + consumable pack-sizes) */
 .itf-mtxwrap{overflow-x:auto;border:1px solid var(--hair);border-radius:12px;margin-top:2px;}
 .itf-mtx{display:grid;min-width:100%;font-variant-numeric:tabular-nums;}
 .itf-mtx > *{display:flex;align-items:center;padding:8px 7px;min-width:0;}
 .itf-mh{background:#F7F9FC;}
-.itf-mh.sz{justify-content:center;position:relative;}
-.itf-mh.sz input{width:100%;text-align:center;border:0;background:none;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);outline:none;padding:2px;border-bottom:1px dashed transparent;}
-.itf-mh.sz input::placeholder{color:var(--faint);text-transform:none;letter-spacing:0;font-weight:600;}
-.itf-mh.sz input:focus{border-bottom-color:var(--g);color:var(--ink);}
+/* editable size header — looks like a field so it clearly invites typing */
+.itf-mh.sz{justify-content:center;position:relative;padding:5px 6px;}
+.itf-mh.sz input{width:100%;text-align:center;border:1px solid var(--border);border-radius:7px;background:#fff;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--ink);outline:none;padding:5px 3px;}
+.itf-mh.sz input::placeholder{color:var(--g);text-transform:none;letter-spacing:0;font-weight:700;font-size:10.5px;}
+.itf-mh.sz input:focus{border-color:var(--g);box-shadow:0 0 0 2px #FAECE7;}
 .itf-mh.sz.static{justify-content:center;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);}
-.itf-mh.sz .x{position:absolute;top:1px;right:1px;width:14px;height:14px;border:0;border-radius:50%;background:transparent;color:var(--faint);font-size:9px;cursor:pointer;opacity:0;display:grid;place-items:center;padding:0;}
+.itf-mh.sz .x{position:absolute;top:-4px;right:-2px;width:15px;height:15px;border:1px solid var(--border);border-radius:50%;background:#fff;color:var(--faint);font-size:9px;cursor:pointer;opacity:0;display:grid;place-items:center;padding:0;z-index:1;}
 .itf-mh.sz:hover .x{opacity:1;}
-.itf-mh.sz .x:hover{color:var(--g);background:#FBEFE9;}
+.itf-mh.sz .x:hover{color:var(--g);border-color:var(--g);background:#FBEFE9;}
 .itf-mh.add{justify-content:center;}
 .itf-mh.add button{width:24px;height:24px;border:1px dashed var(--border);border-radius:7px;background:none;color:var(--g);font-size:14px;cursor:pointer;padding:0;line-height:1;}
 .itf-mh.add button:hover{background:#FBEFE9;border-color:var(--g);}
@@ -186,8 +193,11 @@
 .itf-maddloc:hover{color:var(--gh,#B14E16);}
 .itf-mhave{border-top:1px solid var(--border);background:#F7F9FC;justify-content:center;font-size:13.5px;font-weight:800;color:var(--g);}
 .itf-mgtot{border-top:1px solid var(--border);background:#F7F9FC;justify-content:center;font-size:13.5px;font-weight:800;color:var(--g);}
-.itf-mminlab{background:#FBFCFE;font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);}
-.itf-mmin{background:#FBFCFE;justify-content:center;}
+.itf-mminlab{background:#FBFCFE;font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);border-top:1px solid var(--hair);}
+.itf-mminlab.sub{border-top:0;}
+.itf-mmin{background:#FBFCFE;justify-content:center;border-top:1px solid var(--hair);}
+.itf-mmin.gap{border-top:1px solid var(--hair);}
+.itf-mminlab.sub ~ .itf-mmin{border-top:0;}
 .itf-mmin input{width:100%;max-width:58px;text-align:center;border:1px solid var(--border);border-radius:8px;padding:7px 4px;font-family:inherit;font-size:12.5px;font-weight:600;background:#fff;color:#6B7280;outline:none;font-variant-numeric:tabular-nums;}
 .itf-mmin input:focus{border-color:var(--g);box-shadow:0 0 0 3px #FAECE7;color:var(--ink);}
 .itf-mmin.low input{border-color:#D98A5A;color:var(--g);}
