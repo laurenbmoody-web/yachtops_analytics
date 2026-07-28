@@ -5,7 +5,7 @@ import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
-import { ITEM_STATUS_CONFIG, ITEM_STATUS_FILTER_ORDER, deriveDisplayStatus } from './data/statusConfig';
+import { ITEM_STATUS_CONFIG, ITEM_STATUS_FILTER_ORDER, derivePhysicalStatus, deriveFinancialStatus } from './data/statusConfig';
 import BoardColumn from './components/BoardColumn';
 import BoardDrawer from './components/BoardDrawer';
 import ItemDrawer from './components/ItemDrawer';
@@ -961,8 +961,11 @@ const ProvisioningWorkspace = () => {
         // items where the supplier's response set that state even when
         // raw item.status is still 'ordered'.
         const supplierEntry = supplierMap[(item.name || '').toLowerCase().trim()];
-        const derived = deriveDisplayStatus(item, supplierEntry, supplierEntry?.parentOrder);
-        if (derived !== statusFilter) return false;
+        // Match either axis — physical (fulfilment) or financial — so the
+        // filter aligns with the two-chip display on the cards.
+        const phys = derivePhysicalStatus(item, supplierEntry);
+        const fin = deriveFinancialStatus(item, supplierEntry?.parentOrder);
+        if (phys !== statusFilter && fin !== statusFilter) return false;
       }
       if (deptFilter !== 'all' && item.department !== deptFilter) return false;
       if (searchQuery) {

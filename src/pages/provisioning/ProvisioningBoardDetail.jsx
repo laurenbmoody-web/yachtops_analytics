@@ -84,7 +84,7 @@ import { fetchListReviewableOrders } from './utils/marketplaceStorage';
 import { loadTrips, findTripByAnyId } from '../trips-management-dashboard/utils/tripStorage';
 import { loadGuests } from '../guest-management-dashboard/utils/guestStorage';
 import { showToast } from '../../utils/toast';
-import { getItemStatusConfig, deriveDisplayStatus, ITEM_STATUS_FILTER_ORDER, ITEM_STATUS_CONFIG } from './data/statusConfig';
+import { getItemStatusConfig, derivePhysicalStatus, deriveFinancialStatus, ITEM_STATUS_FILTER_ORDER, ITEM_STATUS_CONFIG } from './data/statusConfig';
 import {
   DETAIL_GRID,
   getStatusCfg,
@@ -2315,8 +2315,11 @@ const SUPPLIER_MIRROR_FIELD = {
       // "Paid" matches items where the derive function returns those
       // values even when item.status is still 'ordered' / 'received'.
       const itemOrder = itemStatusMap[(item.name || '').toLowerCase().trim()];
-      const derived = deriveDisplayStatus(item, itemOrder, itemOrder?.parentOrder);
-      if (derived !== statusFilter) return false;
+      // Match either axis — physical (fulfilment) or financial — so filtering
+      // "Received" still finds a line that's also been paid, and vice versa.
+      const phys = derivePhysicalStatus(item, itemOrder);
+      const fin = deriveFinancialStatus(item, itemOrder?.parentOrder);
+      if (phys !== statusFilter && fin !== statusFilter) return false;
     }
     if (deptFilter !== 'all' && item.department !== deptFilter) return false;
     if (searchQuery) {
@@ -4050,15 +4053,23 @@ const SUPPLIER_MIRROR_FIELD = {
                         // Unified pill: derive across (item, supplier_order_item,
                         // supplier_order). Single source of truth — no SUPPLIER_BADGE
                         // swap, no displayBadge fork.
-                        let derived = deriveDisplayStatus(item, itemOrder, itemOrder?.parentOrder);
+                        // Delivery and payment are independent axes — render a
+                        // physical (fulfilment) dot plus a separate money dot so
+                        // a paid line that hasn't arrived still shows its
+                        // delivery state (matches the kanban ItemCard).
+                        let physical = derivePhysicalStatus(item, itemOrder);
                         // A manual quote-confirmed line reads as 'confirmed'
                         // (green) even without a supplier order — otherwise a
                         // locked line would still show a grey 'draft' dot.
-                        if (quoteConfirmed && (derived === 'draft' || derived === 'ordered')) {
-                          derived = 'confirmed';
+                        if (quoteConfirmed && (physical === 'draft' || physical === 'ordered')) {
+                          physical = 'confirmed';
                         }
-                        const derivedCfg = getItemStatusConfig(derived);
-                        const badge = { ...derivedCfg.badge, label: derivedCfg.label };
+                        const financial = deriveFinancialStatus(item, itemOrder?.parentOrder);
+                        const physCfg = physical ? getItemStatusConfig(physical) : null;
+                        const finCfg = financial ? getItemStatusConfig(financial) : null;
+                        const badge = physCfg
+                          ? { ...physCfg.badge, label: physCfg.label }
+                          : { ...finCfg.badge, label: finCfg.label };
 
                         return (
                           <div
@@ -4378,19 +4389,35 @@ const SUPPLIER_MIRROR_FIELD = {
                                   <Icon name="Lock" style={{ width: 11, height: 11 }} />
                                 </span>
                               )}
-                              {/* Read-only status indicator. Status is now
+                              {/* Read-only status indicators — a physical
+                                  (fulfilment) dot plus a separate money dot for
+                                  invoiced/paid, so both axes show. Status is
                                   changed via the selection bar's "Set status"
                                   control, not an inline picker. */}
-                              <span
-                                title={badge.label}
-                                aria-label={badge.label}
-                                style={{
-                                  display: 'inline-block',
-                                  width: 10, height: 10,
-                                  borderRadius: '50%',
-                                  background: badge.dot,
-                                }}
-                              />
+                              {physCfg && (
+                                <span
+                                  title={physCfg.label}
+                                  aria-label={physCfg.label}
+                                  style={{
+                                    display: 'inline-block',
+                                    width: 10, height: 10,
+                                    borderRadius: '50%',
+                                    background: physCfg.badge.dot,
+                                  }}
+                                />
+                              )}
+                              {finCfg && (
+                                <span
+                                  title={finCfg.label}
+                                  aria-label={finCfg.label}
+                                  style={{
+                                    display: 'inline-block',
+                                    width: 10, height: 10,
+                                    borderRadius: '50%',
+                                    background: finCfg.badge.dot,
+                                  }}
+                                />
+                              )}
                             </div>
                             {/* Actions */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', padding: '11px 0', gap: 2 }}>
