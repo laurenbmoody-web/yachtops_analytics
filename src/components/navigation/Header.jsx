@@ -802,10 +802,12 @@ const Header = () => {
                         items: [
                           { show: isCommandRole || isChiefRole, icon: 'Users', label: 'Crew Management', path: '/crew-management', onClick: () => handleNavigation('/crew-management', 'Crew Management') },
                           { show: isCommandRole || isChiefRole, icon: 'CalendarCheck', label: 'Month-end', path: '/month-end', onClick: () => handleNavigation('/month-end', 'Month-end') },
-                          { show: accountsAccess, icon: 'Wallet', label: 'Accounts', path: '/accounts', onClick: () => handleNavigation('/accounts', 'Accounts') },
-                          { show: accountsAccess, icon: 'BookOpen', label: 'Ledger', path: '/accounts/ledger', onClick: () => handleNavigation('/accounts/ledger', 'Ledger') },
-                          { show: accountsAccess, icon: 'Target', label: 'Budgets', path: '/accounts/budgets', onClick: () => handleNavigation('/accounts/budgets', 'Budgets') },
-                          { show: ownerReporting, icon: 'FileText', label: 'Owner reporting', path: '/accounts/owner', onClick: () => handleNavigation('/accounts/owner', 'Owner reporting') },
+                          // Single entry into the Accounts workspace — its own nav
+                          // covers Overview, Cards, Check-off, Spending, Plan and the
+                          // Owner report, so those no longer need their own menu rows.
+                          // Gated on ownerReporting so an owner/viewer seat still gets
+                          // in (/accounts redirects them straight to the report).
+                          { show: ownerReporting, icon: 'Wallet', label: 'Accounts', path: '/accounts', onClick: () => handleNavigation('/accounts', 'Accounts') },
                           { show: isCommandRole || isChiefRole, icon: 'FolderArchive', label: 'Vessel Documents', path: '/vessel-documents', onClick: () => handleNavigation('/vessel-documents', 'Vessel Documents') },
                         ],
                       },
