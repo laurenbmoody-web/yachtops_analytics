@@ -167,7 +167,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   // consumable pack-size variants (250ml / 500ml / 5L …) — reuses the run machinery.
   // No toggle: adding a size chip turns it multi-size, removing them all reverts.
   const [formats, setFormats] = useState(variantInit?.formats || []);
-  const [formatDraft, setFormatDraft] = useState('');
   const [varBuy, setVarBuy] = useState(variantInit?.buy || {}); // format -> {supplier, cost}
   const [moreUni, setMoreUni] = useState(false);
   const [brandingType, setBrandingType] = useState(item?.customFields?.branding?.type || 'None');
@@ -226,11 +225,32 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   }, [profile, multiSize, formats, sizeList, sizeOn]);
   const cell = (loc, s) => Number(matrix[`${loc}||${s}`]) || 0;
   const setCell = (loc, s, v) => setMatrix((m) => ({ ...m, [`${loc}||${s}`]: v }));
+  // matrix render columns: uniform → chosen sizes; consumable → the raw formats
+  // (so an empty column you're typing into still shows)
+  const cols = profile === 'uniform' ? activeSizes : formats;
+  const rowTot = (loc) => cols.reduce((a, c) => a + cell(loc, c), 0);
   const locTotal = (loc) => activeSizes.reduce((a, s) => a + cell(loc, s), 0);
+  const colHave = (c) => uniLocs.reduce((a, l) => a + cell(l.label, c), 0);
+  const grandTotal = uniLocs.reduce((a, l) => a + rowTot(l.label), 0);
   const addUniLoc = () => { const idx = uniLocs.length; setUniLocs((ls) => [...ls, { label: '', id: '' }]); setLocTarget({ kind: 'uni', idx }); };
-  const addFormat = () => { const v = formatDraft.trim(); if (v && !formats.includes(v)) setFormats((fs) => [...fs, v]); setFormatDraft(''); };
-  const removeFormat = (f) => setFormats((fs) => fs.filter((x) => x !== f));
   const setVarBuy2 = (f, patch) => setVarBuy((b) => ({ ...b, [f]: { ...(b[f] || {}), ...patch } }));
+  // consumable pack-sizes as editable column headers (no chips)
+  const addFormat = () => setFormats((fs) => (fs.some((f) => !String(f).trim()) ? fs : [...fs, '']));
+  const renameFormat = (j, val) => {
+    const old = formats[j];
+    setFormats((fs) => fs.map((f, k) => (k === j ? val : f)));
+    if (old === val) return;
+    setMatrix((m) => { const n = { ...m }; uniLocs.forEach((l) => { const ok = `${l.label}||${old}`; if (n[ok] != null) { n[`${l.label}||${val}`] = n[ok]; delete n[ok]; } }); return n; });
+    setParSizes((p) => { if (p[old] == null) return p; const n = { ...p }; n[val] = n[old]; delete n[old]; return n; });
+    setVarBuy((b) => { if (!b[old]) return b; const n = { ...b }; n[val] = b[old]; delete n[old]; return n; });
+  };
+  const removeFormatAt = (j) => {
+    const old = formats[j];
+    setFormats((fs) => fs.filter((_, k) => k !== j));
+    setMatrix((m) => { const n = { ...m }; uniLocs.forEach((l) => delete n[`${l.label}||${old}`]); return n; });
+    setParSizes((p) => { if (p[old] == null) return p; const n = { ...p }; delete n[old]; return n; });
+    setVarBuy((b) => { if (!b[old]) return b; const n = { ...b }; delete n[old]; return n; });
+  };
 
   const toArr = (obj) => Object.keys(obj).filter((k) => obj[k]);
 
@@ -599,41 +619,52 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
         {/* 3 STOCK */}
         <Sec icon="Boxes" name="Stock & location" open={open.stock} onToggle={() => toggle('stock')}>
-          {profile !== 'uniform' && (
-            <div className="itf-fmtwrap">
-              <span className="itf-fl">Sizes / units <span className="opt">· optional · add 250ml, 5L…</span></span>
-              <div className="itf-formats">
-                {formats.map((f) => <span key={f} className="itf-fmt">{f}<b onClick={() => removeFormat(f)} aria-label={`Remove ${f}`}>✕</b></span>)}
-                <input className="itf-fmt-in" value={formatDraft} onChange={(e) => setFormatDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFormat(); } if (e.key === 'Backspace' && !formatDraft && formats.length) removeFormat(formats[formats.length - 1]); }} placeholder={formats.length ? 'Add another…' : 'e.g. 500ml'} />
-              </div>
-            </div>
-          )}
           {variantMode ? (
             <>
-              <span className="itf-fl">Where it's stowed & how much <span className="opt">· {profile === 'uniform' ? 'per size' : 'per pack-size'}</span></span>
-              {uniLocs.map((loc, li) => (
-                <div className="itf-ustow" key={li}>
-                  <div className="itf-ustow-h">
-                    <button type="button" className="itf-pick pin" onClick={() => setLocTarget({ kind: 'uni', idx: li })}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}><Icon name="MapPin" size={15} style={{ color: '#C65A1A', flexShrink: 0 }} /><span className={loc.label ? '' : 'ph'} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.label || 'Select location…'}</span></span>
-                      <Icon name="ChevronRight" size={15} style={{ color: '#AEB4C2', flexShrink: 0 }} />
-                    </button>
-                    {uniLocs.length > 1 && <button type="button" className="itf-rmrow" onClick={() => setUniLocs((ls) => ls.filter((_, j) => j !== li))}>✕</button>}
+              <span className="itf-fl">Where it's stowed & how much <span className="opt">· quantities per size{uniLocs.length > 1 ? ', per location' : ''}</span></span>
+              {cols.length === 0 ? (
+                <div className="itf-usizes-empty">Turn on some sizes in <b>Details</b> to log quantities.</div>
+              ) : (
+                <div className="itf-mtxwrap">
+                  <div className="itf-mtx" style={{ gridTemplateColumns: `minmax(104px,1.4fr) repeat(${cols.length}, minmax(46px,1fr)) ${multiSize ? '30px ' : ''}54px` }}>
+                    {/* header — size labels (editable for consumables) */}
+                    <div className="itf-mh blank" />
+                    {cols.map((c, j) => (multiSize
+                      ? <div className="itf-mh sz" key={j}><input value={c} onChange={(e) => renameFormat(j, e.target.value)} placeholder="size" aria-label="Size name" /><button type="button" className="x" onClick={() => removeFormatAt(j)} aria-label="Remove size">✕</button></div>
+                      : <div className="itf-mh sz static" key={j}>{c}</div>
+                    ))}
+                    {multiSize && <div className="itf-mh add"><button type="button" onClick={addFormat} aria-label="Add a size">＋</button></div>}
+                    <div className="itf-mh tot">Total</div>
+
+                    {/* one row per stow location */}
+                    {uniLocs.map((loc, i) => (
+                      <React.Fragment key={i}>
+                        <button type="button" className="itf-mloc" onClick={() => setLocTarget({ kind: 'uni', idx: i })}>
+                          <Icon name="MapPin" size={13} style={{ color: '#C65A1A', flexShrink: 0 }} />
+                          <span className={loc.label ? 'nm' : 'nm ph'}>{loc.label || 'Select location…'}</span>
+                          {uniLocs.length > 1 && <span className="rm" onClick={(e) => { e.stopPropagation(); setUniLocs((ls) => ls.filter((_, k) => k !== i)); }}>✕</span>}
+                        </button>
+                        {cols.map((c, j) => <div className="itf-mq" key={j}><input value={matrix[`${loc.label}||${c}`] ?? ''} onChange={(e) => setCell(loc.label, c, Number(e.target.value) || 0)} placeholder="0" inputMode="numeric" aria-label={`${loc.label || 'location'} ${c}`} /></div>)}
+                        {multiSize && <div className="itf-mgap" />}
+                        <div className="itf-mrtot">{rowTot(loc.label)}</div>
+                      </React.Fragment>
+                    ))}
+
+                    {/* totals row doubles as the add-location line */}
+                    <button type="button" className="itf-maddloc" onClick={addUniLoc}>＋ Add location</button>
+                    {cols.map((c, j) => <div className="itf-mhave" key={j}>{colHave(c)}</div>)}
+                    {multiSize && <div className="itf-mhave gap" />}
+                    <div className="itf-mgtot">{grandTotal}</div>
+
+                    {/* keep-min tallies, one under each size column */}
+                    <div className="itf-mminlab">Keep min</div>
+                    {cols.map((c, j) => { const low = c && colHave(c) < (Number(parSizes[c]) || 0); return <div className={`itf-mmin${low ? ' low' : ''}`} key={j}><input value={parSizes[c] ?? ''} onChange={(e) => setParSizes((p) => ({ ...p, [c]: Number(e.target.value) || 0 }))} placeholder="0" inputMode="numeric" aria-label={`Minimum ${c}`} /></div>; })}
+                    {multiSize && <div className="itf-mmin gap" />}
+                    <div className="itf-mmin gap" />
                   </div>
-                  {activeSizes.length === 0 ? (
-                    <div className="itf-usizes-empty">{profile === 'uniform' ? <>Turn on some sizes in <b>Details</b> to log quantities.</> : <>Add a size / pack above to log quantities.</>}</div>
-                  ) : (
-                    <div className="itf-usizes">
-                      {activeSizes.map((s) => (
-                        <label className="itf-usz" key={s}><span className="l">{s}</span><input value={matrix[`${loc.label}||${s}`] ?? ''} onChange={(e) => setCell(loc.label, s, Number(e.target.value) || 0)} placeholder="0" inputMode="numeric" /></label>
-                      ))}
-                      <span className="itf-usz tot"><span className="l">Total</span><b>{locTotal(loc.label)}</b></span>
-                    </div>
-                  )}
                 </div>
-              ))}
+              )}
               <div className="itf-locactions">
-                <button type="button" className="itf-addloc" onClick={addUniLoc}>＋ Add location</button>
                 <button type="button" className="itf-setmap2" onClick={setOnMap} disabled={saving}><Icon name="Crosshair" size={13} /> {saving ? 'Saving…' : 'Set from map'}</button>
               </div>
             </>
@@ -654,28 +685,15 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                 <button type="button" className="itf-addloc" onClick={() => setLocRows((rs) => [...rs, { label: '', id: '', qty: 0 }])}>＋ Add another location</button>
                 <button type="button" className="itf-setmap2" onClick={setOnMap} disabled={saving}><Icon name="Crosshair" size={13} /> {saving ? 'Saving…' : 'Set from map'}</button>
               </div>
-            </>
-          )}
-          {variantMode ? (
-            activeSizes.length > 0 && (
-              <>
-                <span className="itf-fl">Keep aboard <span className="opt">· minimum per {profile === 'uniform' ? 'size' : 'pack-size'}</span></span>
-                <div className="itf-usizes itf-par">
-                  {activeSizes.map((s) => (
-                    <label className="itf-usz" key={s}><span className="l">{s}</span><input value={parSizes[s] ?? ''} onChange={(e) => setParSizes((p) => ({ ...p, [s]: Number(e.target.value) || 0 }))} placeholder="0" inputMode="numeric" /></label>
-                  ))}
-                  <span className="itf-usz" aria-hidden="true" style={{ visibility: 'hidden' }}><span className="l">·</span></span>
+              <div className="itf-keep">
+                <div className="itf-keep-row">
+                  <label className="itf-keep-f"><span className="itf-lab">Keep aboard</span><input className="itf-keep-in" value={keep} onChange={(e) => setKeep(e.target.value)} placeholder="e.g. 12" inputMode="numeric" /></label>
+                  <span className="itf-keep-sep" />
+                  <label className="itf-keep-f"><span className="itf-lab">Reorder at</span><input className="itf-keep-in" value={reorder} onChange={(e) => setReorder(e.target.value)} placeholder="e.g. 6" inputMode="numeric" /></label>
                 </div>
-              </>
-            )
-          ) : (
-            <div className="itf-keep">
-              <div className="itf-keep-row">
-                <label className="itf-keep-f"><span className="itf-lab">Keep aboard</span><input className="itf-keep-in" value={keep} onChange={(e) => setKeep(e.target.value)} placeholder="e.g. 12" inputMode="numeric" /></label>
-                <span className="itf-keep-sep" />
-                <label className="itf-keep-f"><span className="itf-lab">Reorder at</span><input className="itf-keep-in" value={reorder} onChange={(e) => setReorder(e.target.value)} placeholder="e.g. 6" inputMode="numeric" /></label>
               </div>
-            </div>
+              <button type="button" className="itf-convertlink" onClick={() => setFormats([''])}>＋ This comes in multiple sizes / packs</button>
+            </>
           )}
           {!variantMode && (
             <>
