@@ -2044,7 +2044,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
   const handlePushToInventory = async () => {
     setPushing(true);
     const receivedItems = items.filter(i => receiving[i.id]?.checked && (parseFloat(receiving[i.id]?.qty) || 0) > 0);
-    let pushed = 0, skipped = 0;
+    let pushed = 0, skipped = 0, variantSkipped = 0;
 
     for (const item of receivedItems) {
       const qty = parseFloat(receiving[item.id]?.qty) || 0;
@@ -2064,9 +2064,11 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       if (match && typeof match === 'object') {
         const splits = locationSplits[item.id] || [{ locationName: match.location || '', currentQty: 0, addQty: qty * ratio }];
         const ok = await pushReceivedSplitsToInventory({ inventoryItemId: match.id, splits, tenantId, provisioningItemId: item.id, listId: item.list_id || null, unit: stockUnit, size: item.size, purchaseUnit, unitsPerPack: upp });
-        if (ok) {
+        if (ok === true) {
           try { await supabase?.from('provisioning_items')?.update({ inventory_item_id: match.id })?.eq('id', item.id); } catch { /* non-fatal */ }
           pushed++;
+        } else if (ok === 'variant') {
+          variantSkipped++;
         } else {
           skipped++;
         }
@@ -2077,9 +2079,11 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
       if (choice === 'link' && inlineLink) {
         const splits = locationSplits[item.id] || [{ locationName: inlineLink.location || '', currentQty: 0, addQty: qty * ratio }];
         const ok = await pushReceivedSplitsToInventory({ inventoryItemId: inlineLink.id, splits, tenantId, provisioningItemId: item.id, listId: item.list_id || null, unit: stockUnit, size: item.size, purchaseUnit, unitsPerPack: upp });
-        if (ok) {
+        if (ok === true) {
           try { await supabase?.from('provisioning_items')?.update({ inventory_item_id: inlineLink.id })?.eq('id', item.id); } catch { /* non-fatal */ }
           pushed++;
+        } else if (ok === 'variant') {
+          variantSkipped++;
         } else {
           skipped++;
         }
@@ -2118,6 +2122,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
 
     setPushing(false);
     if (pushed > 0) showToast(`${pushed} item${pushed > 1 ? 's' : ''} pushed to inventory`, 'success');
+    if (variantSkipped > 0) showToast(`${variantSkipped} size-tracked item${variantSkipped > 1 ? 's' : ''} skipped — receive from the item editor`, 'info');
     if (skipped > 0) showToast(`${skipped} item${skipped > 1 ? 's' : ''} skipped`, 'info');
     onComplete?.();
   };
