@@ -919,6 +919,12 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         const posById = Object.fromEntries(placed.map((s) => [s.id, posOf(s)]));
         const spaceById = Object.fromEntries(placed.map((s) => [s.id, s]));
         const deckLinks = links.filter((l) => l.kind !== 'stairs' && posById[l.a] && posById[l.b] && spaceById[l.a] && spaceById[l.b]);
+        // The two rooms the selected doorway link actually joins — light up their
+        // pins so a line crossing over an unrelated pin can't be misread.
+        const selEndIds = (() => {
+          const l = selLink && deckLinks.find((x) => x.id === selLink);
+          return l ? new Set([l.a, l.b]) : null;
+        })();
         // Stairs links touching THIS deck: one endpoint is here, the other on
         // another deck — rendered as a ↕ badge that jumps to the other deck.
         const deckStairs = links.filter((l) => l.kind === 'stairs').map((l) => {
@@ -1197,7 +1203,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     return (
                       <div
                         key={s.id}
-                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''} ${pending ? 'is-pending' : ''} ${flashSpace === s.id ? 'is-flash' : ''}`}
+                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''} ${pending ? 'is-pending' : ''} ${flashSpace === s.id ? 'is-flash' : ''} ${selEndIds?.has(s.id) ? 'is-linkend' : ''}`}
                         style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
                         onPointerDown={(e) => onDotDown(e, s, deck, true)}
                         title={linkMode ? nameOf(s) : scanned ? `${nameOf(s)} — open on map` : `${nameOf(s)} — add a scan`}
