@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import ModalShell from '../../../components/ui/ModalShell';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabaseClient';
 import InventoryFolderPicker from './InventoryFolderPicker';
 import { LocationPicker } from './AddEditItemModal';
+import MapPickerModal from '../../vessel-map/components/MapPickerModal';
 import { getFolderTree } from '../utils/inventoryStorage';
 import './item-form.css';
 
@@ -70,7 +71,23 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const isEdit = !!item;
   const folderDisplay = defaultSubLocation ? `${defaultLocation} > ${defaultSubLocation}` : (defaultLocation || '');
 
-  const [profile, setProfile] = useState(item?.customFields?.profile || autoProfile(folderDisplay));
+  const [profile, setProfile] = useState(
+    item?.customFields?.profile
+    || ((item?.isUniform || item?.is_uniform || item?.customFields?.garmentType) ? 'uniform' : autoProfile(folderDisplay))
+  );
+
+  // Hydrate the uniform size run / quantities when editing an existing item.
+  const uniInit = useMemo(() => {
+    if (!item?.customFields?.garmentType && !item?.isUniform && !item?.is_uniform) return null;
+    const sl = item?.stockLocations || item?.stock_locations || [];
+    const first = sl[0] || {};
+    const loc = first.locationName || first.location_name || "Owner's Cabin";
+    const on = {}; const mx = {};
+    const sizes = (first.sizes && first.sizes.length ? first.sizes : (item?.variants || [])) || [];
+    sizes.forEach((v) => { if (v?.size != null) { on[v.size] = true; mx[`${loc}||${v.size}`] = v.qty || 0; } });
+    return { loc, locId: first.vesselLocationId || first.vessel_location_id || '', on, mx };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [open, setOpen] = useState({ identity: true, details: true, stock: true, buying: false, handling: false, docs: false, ref: false });
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
 
@@ -88,7 +105,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [vesselLocations, setVesselLocations] = useState([]);
   const [locRows, setLocRows] = useState([{ label: '', id: '', qty: 0 }]);
   const updateRow = (i, patch) => setLocRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const [uniLocId, setUniLocId] = useState('');
+  const [uniLocId, setUniLocId] = useState(uniInit?.locId || '');
   const [locTarget, setLocTarget] = useState(null); // {kind:'stock',idx} | {kind:'uni'}
   const [unit, setUnit] = useState(item?.unit || 'each');
   const [keep, setKeep] = useState(item?.parLevel ?? '');
@@ -123,18 +140,23 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [moreEng, setMoreEng] = useState(false);
 
   // uniform
-  const [garment, setGarment] = useState(item?.customFields?.uniform?.garment || 'Top');
-  const [subType, setSubType] = useState(item?.customFields?.uniform?.subType || '');
-  const [fit, setFit] = useState(item?.customFields?.uniform?.fit || 'Womens');
-  const [colour, setColour] = useState(item?.customFields?.uniform?.colour || '');
+  const [garment, setGarment] = useState(item?.customFields?.garmentType || 'Top');
+  const [subType, setSubType] = useState(item?.customFields?.subType || '');
+  const [fit, setFit] = useState(item?.customFields?.fit || 'Womens');
+  const [colour, setColour] = useState(item?.customFields?.colour || '');
   const [sizeType, setSizeType] = useState(item?.variantType || 'alpha');
   const [region, setRegion] = useState('uk');
-  const [sizeOn, setSizeOn] = useState({}); // label -> true
-  const [matrix, setMatrix] = useState({}); // "loc||size" -> qty
-  const [uniLoc, setUniLoc] = useState("Owner's Cabin");
+  const [sizeOn, setSizeOn] = useState(uniInit?.on || {}); // label -> true
+  const [matrix, setMatrix] = useState(uniInit?.mx || {}); // "loc||size" -> qty
+  const [uniLoc, setUniLoc] = useState(uniInit?.loc || "Owner's Cabin");
   const [moreUni, setMoreUni] = useState(false);
-  const [branding, setBranding] = useState(item?.customFields?.uniform?.branding || '');
-  const [care, setCare] = useState(item?.customFields?.uniform?.care || '');
+  const [brandingType, setBrandingType] = useState(item?.customFields?.branding?.type || 'None');
+  const [brandingColour, setBrandingColour] = useState(item?.customFields?.branding?.colour || '');
+  const [brandingLogo, setBrandingLogo] = useState(item?.customFields?.branding?.logo || '');
+  const [brandingPlacement, setBrandingPlacement] = useState(item?.customFields?.branding?.placement || '');
+  const [fabric, setFabric] = useState(item?.customFields?.fabric || '');
+  const [care, setCare] = useState(item?.customFields?.care || '');
+  const [styleCode, setStyleCode] = useState(item?.customFields?.styleCode || '');
 
   // handling
   const [addonOn, setAddonOn] = useState({});
@@ -151,6 +173,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [mapItem, setMapItem] = useState(null);
 
   // size labels for the current system
   const sizeList = useMemo(() => {
@@ -159,9 +182,12 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     return SIZE_SETS[sizeType] || [];
   }, [sizeType, region]);
 
-  // default first-4 sizes on when the system changes
+  // default first-4 sizes on when the size system changes — but keep the
+  // hydrated run intact on the very first render of an edit.
+  const sizeInit = useRef(!!uniInit);
   useEffect(() => {
     if (profile !== 'uniform') return;
+    if (sizeInit.current) { sizeInit.current = false; return; }
     const next = {};
     sizeList.forEach((s, i) => { if (i < 4) next[s] = true; });
     setSizeOn(next);
@@ -195,15 +221,39 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     return () => { alive = false; };
   }, []);
 
+  // Re-encode any picked photo to a downscaled JPEG via canvas. This makes
+  // HEIC/AVIF/large iPhone shots work (the item-images bucket only accepts
+  // jpeg/png/webp/gif ≤5MB), matching how uniforms already handle it.
+  const toJpeg = (file) => new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url); let { width, height } = img; const MAX = 1600;
+      if (Math.max(width, height) > MAX) { const s = MAX / Math.max(width, height); width = Math.round(width * s); height = Math.round(height * s); }
+      const c = document.createElement('canvas'); c.width = width; c.height = height;
+      c.getContext('2d')?.drawImage(img, 0, 0, width, height);
+      c.toBlob((b) => (b ? resolve(b) : reject(new Error('encode'))), 'image/jpeg', 0.9);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+    img.src = url;
+  });
+
   const uploadPhoto = async (file) => {
     if (!file) return;
     setPhotoBusy(true); setPhotoErr('');
     try {
+      let blob;
+      try { blob = await toJpeg(file); }
+      catch {
+        const ok = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) && file.size <= 5 * 1024 * 1024;
+        if (!ok) { setPhotoErr('Couldn’t read that image — try a JPG or PNG.'); setPhotoBusy(false); return; }
+        blob = file;
+      }
       const { data: ctx } = await supabase.rpc('get_my_context');
       const tenantId = ctx?.[0]?.tenant_id || 'shared';
-      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const ext = blob === file ? ((file.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')) : 'jpg';
+      const contentType = blob === file ? (file.type || 'image/jpeg') : 'image/jpeg';
       const path = `inventory/${tenantId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('item-images').upload(path, file, { upsert: true });
+      const { error: upErr } = await supabase.storage.from('item-images').upload(path, blob, { upsert: true, contentType });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from('item-images').getPublicUrl(path);
       setOriginalUrl('');
@@ -253,8 +303,8 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     finally { setPhotoBusy(false); }
   };
 
-  const save = async () => {
-    if (!name.trim()) { setError('Item name is required.'); setOpen((o) => ({ ...o, identity: true })); return; }
+  const persist = async () => {
+    if (!name.trim()) { setError('Item name is required.'); setOpen((o) => ({ ...o, identity: true })); return null; }
     setSaving(true); setError('');
     try {
       const { data: ctx } = await supabase.rpc('get_my_context');
@@ -284,7 +334,11 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         sku: sku || undefined,
         bonded: profile === 'bonded' ? { kind: bKind, volume, abv, perPack, perCarton } : undefined,
         eng: profile === 'eng' ? eng : undefined,
-        uniform: profile === 'uniform' ? { garment, subType, fit, colour, sizeType, region, branding, care } : undefined,
+        ...(profile === 'uniform' ? {
+          garmentType: garment, subType, fit, colour, styleCode: styleCode || undefined,
+          branding: brandingType === 'None' ? undefined : { type: brandingType, colour: brandingColour, logo: brandingLogo, placement: brandingPlacement },
+          fabric: fabric || undefined, care: care || undefined, sizeType, region,
+        } : {}),
         flags: toArr(flagOn).length ? flagOn : undefined,
         medical: addonOn.medical ? { form: medForm, mca: medMca, controlled: medControlled } : undefined,
         food: addonOn.food ? { origin: foodOrigin, allergens: foodAllergens } : undefined,
@@ -325,17 +379,28 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       };
 
       let res;
-      if (isEdit) res = await supabase.from('inventory_items').update(payload).eq('id', item.id).eq('tenant_id', tenantId);
-      else res = await supabase.from('inventory_items').insert(payload);
+      if (isEdit) res = await supabase.from('inventory_items').update(payload).eq('id', item.id).eq('tenant_id', tenantId).select('id').single();
+      else res = await supabase.from('inventory_items').insert(payload).select('id').single();
       if (res.error) throw res.error;
       onSaved?.();
-      onClose?.();
+      return res.data?.id || item?.id || null;
     } catch (err) {
       console.error('[ItemFormModal] save failed:', err);
       setError(err?.message || 'Couldn’t save — try again.');
+      return null;
     } finally {
       setSaving(false);
     }
+  };
+
+  const save = async () => {
+    const id = await persist();
+    if (id) onClose?.();
+  };
+
+  const setOnMap = async () => {
+    const id = await persist();
+    if (id) setMapItem({ id, name: name.trim() });
   };
 
   const pickProfile = (p) => {
@@ -452,7 +517,14 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                 <div className="itf-f" style={{ marginBottom: 0 }}><label className="itf-lab">Sizes in use <span className="opt">· quantities go in Stock</span></label><div className="itf-chips">{sizeList.map((s) => <span key={s} className={`itf-chip${sizeOn[s] ? ' on' : ''}`} onClick={() => setSizeOn((o) => ({ ...o, [s]: !o[s] }))}>{s}</span>)}</div></div>
                 <div className="itf-more" onClick={() => setMoreUni((v) => !v)}><span className="pl">{moreUni ? '–' : '+'}</span> Branding & care</div>
                 <div className={`itf-morebody${moreUni ? ' show' : ''}`}>
-                  <div className="itf-g2" style={{ margin: 0 }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Branding</label><input className="itf-in" value={branding} onChange={(e) => setBranding(e.target.value)} placeholder="Embroidery" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Care</label><input className="itf-in" value={care} onChange={(e) => setCare(e.target.value)} placeholder="40° wash" /></div></div>
+                  <div className="itf-g2" style={{ margin: 0 }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Branding</label><select className="itf-sel" value={brandingType} onChange={(e) => setBrandingType(e.target.value)}><option>None</option><option>Embroidery</option><option>Print</option><option>Woven badge</option></select></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Style code <span className="opt">(opt)</span></label><input className="itf-in" value={styleCode} onChange={(e) => setStyleCode(e.target.value)} placeholder="SKU / style ref" /></div></div>
+                  {brandingType !== 'None' && (
+                    <>
+                      <div className="itf-g2" style={{ margin: 0 }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Thread / print colour <span className="opt">(opt)</span></label><input className="itf-in" value={brandingColour} onChange={(e) => setBrandingColour(e.target.value)} placeholder="Gold" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Placement <span className="opt">(opt)</span></label><input className="itf-in" value={brandingPlacement} onChange={(e) => setBrandingPlacement(e.target.value)} placeholder="Left chest" /></div></div>
+                      <div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Logo / text <span className="opt">(opt)</span></label><input className="itf-in" value={brandingLogo} onChange={(e) => setBrandingLogo(e.target.value)} placeholder="Vessel name / crest" /></div>
+                    </>
+                  )}
+                  <div className="itf-g2" style={{ margin: 0 }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Fabric <span className="opt">(opt)</span></label><input className="itf-in" value={fabric} onChange={(e) => setFabric(e.target.value)} placeholder="Cotton piqué" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Care <span className="opt">(opt)</span></label><input className="itf-in" value={care} onChange={(e) => setCare(e.target.value)} placeholder="40° wash" /></div></div>
                 </div>
               </>
             )}
@@ -506,6 +578,10 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               </div>
             </>
           )}
+          <button type="button" className="itf-mapline" onClick={setOnMap} disabled={saving}>
+            <Icon name="Crosshair" size={14} /> {saving ? 'Saving…' : 'Set on the map'}
+            <span className="itf-mapline-sub">pin the exact spot on the deck plan</span>
+          </button>
         </Sec>
 
         {/* 4 BUYING */}
@@ -562,6 +638,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     )}
     {locTarget && (
       <LocationPicker vesselLocations={vesselLocations} selectedId={locTarget?.kind === 'uni' ? uniLocId : (locRows[locTarget?.idx]?.id || '')} onSelect={handleLocPicked} onClose={() => setLocTarget(null)} />
+    )}
+    {mapItem && (
+      <MapPickerModal placingItem={mapItem} onPlaced={() => setMapItem(null)} onClose={() => setMapItem(null)} />
     )}
     </>
   );

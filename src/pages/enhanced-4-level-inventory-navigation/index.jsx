@@ -11,7 +11,7 @@ import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
 import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
 import AddEditItemModal from '../inventory/components/AddEditItemModal';
-import UniformItemModal from '../inventory/components/UniformItemModal';
+import ItemFormModal from '../inventory/components/ItemFormModal';
 import UniformItemView from '../inventory/components/UniformItemView';
 import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
 import PartialBottleModal from '../inventory/components/PartialBottleModal';
@@ -4276,11 +4276,12 @@ const LocationFirstInventory = () => {
           : pathSegments;
         const isUniform = (editSegs || []).some((s) => /(^|\b)uniform(\b|$)/i.test(String(s || '')));
         return isUniform ? (
-          <UniformItemModal
+          <ItemFormModal
             item={editingItem}
             defaultLocation={currentStorageFields?.location}
             defaultSubLocation={currentStorageFields?.subLocation}
             onClose={handleModalClose}
+            onSaved={handleItemSaved}
           />
         ) : (
           <AddEditItemModal
