@@ -1,8 +1,12 @@
 /* Item form modal — the type-driven, sectioned add/edit inventory form.
    All classes scoped under .itf so the generic names don't leak. Editorial
    palette; ports the agreed prototype. */
-.itf{--g:#C65A1A;--c:#334066;--p:#4F8A5E;--ink:#1C1B3A;--muted:#8B8478;--faint:#AEB4C2;--hair:#EEF0F4;--field:#FAFAF8;--border:#E5E7EB;}
+.itf{--g:#C65A1A;--c:#334066;--p:#4F8A5E;--ink:#1C1B3A;--muted:#8B8478;--faint:#AEB4C2;--hair:#EEF0F4;--field:#F7F9FC;--border:#E5E7EB;background:#FFFFFF !important;}
 .itf *{box-sizing:border-box;}
+.itf-pick{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;font-size:13.5px;background:var(--field);border:1px solid var(--border);border-radius:11px;color:var(--ink);font-family:inherit;cursor:pointer;text-align:left;}
+.itf-pick:hover{border-color:#DCC7B8;}
+.itf-pick .ph{color:var(--faint);}
+.itf-pick.pin{flex:1;min-width:0;}
 .itf-head{position:sticky;top:0;z-index:10;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 22px 14px;background:#fff;border-bottom:1px solid #ECEAE3;border-radius:16px 16px 0 0;}
 .itf-eyebrow{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:3px;}
 .itf-title{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-size:22px;color:var(--ink);line-height:1.1;letter-spacing:-.2px;}
@@ -93,7 +97,7 @@
 /* uniform matrix */
 .itf-umtx{border:1px solid var(--hair);border-radius:10px;overflow:auto;}
 .itf-umtx-hd,.itf-umtx-row{display:grid;align-items:center;min-width:100%;}
-.itf-umtx-hd{background:#FCFCFB;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--muted);padding:8px 10px;}
+.itf-umtx-hd{background:#F7F9FC;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--muted);padding:8px 10px;}
 .itf-umtx-hd span{text-align:center;}.itf-umtx-hd .loc{text-align:left;}
 .itf-umtx-row{padding:7px 10px;border-top:1px solid #F0F1F5;}
 .itf-umtx-row .loc{font-size:12px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:6px;}
@@ -114,7 +118,7 @@
 .itf-addon.on{background:#FBEFE9;border-style:solid;border-color:#E7C3AE;color:var(--g);}
 .itf-block{display:none;margin-top:10px;border:1px solid var(--hair);border-radius:12px;overflow:hidden;}
 .itf-block.show{display:block;}
-.itf-block-h{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:#FBFBFA;border-bottom:1px solid #F0F1F5;}
+.itf-block-h{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:#F7F9FC;border-bottom:1px solid #F0F1F5;}
 .itf-block-h .t{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--g);}
 .itf-block-h .rm{font-size:11px;color:var(--faint);cursor:pointer;}
 .itf-block-h .rm:hover{color:#9A2B12;}
