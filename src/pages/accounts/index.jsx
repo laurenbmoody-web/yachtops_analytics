@@ -72,8 +72,8 @@ export default function Accounts() {
 
   const reconcilePill = (toReconcile) => (
     toReconcile > 0
-      ? <span className="ca-ov-grec due">{toReconcile} to reconcile</span>
-      : <span className="ca-ov-grec ok">Reconciled</span>
+      ? <span className="ca-ov-grec due">{toReconcile} to check off</span>
+      : <span className="ca-ov-grec ok">Checked off</span>
   );
 
   const renderRow = (a) => {
@@ -94,7 +94,7 @@ export default function Accounts() {
         <span className="ca-acur">{cur}</span>
         <span className={`ca-abal ca-num ${a.balance < 0 ? 'ca-neg' : ''}`}>{formatMoney(a.balance, cur)}</span>
         <span className={`ca-arec ${a.unreconciled > 0 ? 'rev' : 'ok'}`}>
-          <i className="ca-arec-dot" />{a.unreconciled > 0 ? `${a.unreconciled} to review` : 'Reconciled'}
+          <i className="ca-arec-dot" />{a.unreconciled > 0 ? `${a.unreconciled} to look at` : 'Checked off'}
         </span>
       </button>
     );
@@ -112,14 +112,14 @@ export default function Accounts() {
           <div className="ca-head">
             <p className="editorial-meta">
               <span className="dot">●</span>
-              <span>Accounts</span>
+              <span>Overview</span>
               <span className="bar" />
               <span className="muted">{funds.holders} holders · {activeCount} accounts</span>
               <span className="bar" />
-              <span className="muted">Financial core</span>
+              <span className="muted">The boat’s money</span>
             </p>
             <div className="ca-titlerow">
-              <h1 className="ca-title">Cash <em>position</em>.</h1>
+              <h1 className="ca-title">The boat’s <em>money</em>.</h1>
               <div className="ca-head-act">
                 {canEdit && (
                   <button type="button" className="ca-btn ca-btn-primary" onClick={openAdd}>
@@ -135,7 +135,7 @@ export default function Accounts() {
           {/* KPI strip */}
           <div className="ca-ov-kpis">
             <div className="ca-ov-hero">
-              <span className="ca-ov-hl">Total cash position · {positionCurrency}</span>
+              <span className="ca-ov-hl">In the accounts · {positionCurrency}</span>
               <b className="ca-ov-hbig ca-num">{formatMoney(cashPosition, positionCurrency)}</b>
               <span className="ca-ov-hsub">across {activeCount} accounts · {funds.holders} holders</span>
             </div>
@@ -145,7 +145,7 @@ export default function Accounts() {
               <span className="ca-ov-km">{funds.ownerCards} cards</span>
             </div>
             <div className="ca-ov-kpi">
-              <span className="ca-ov-kl">Charter APA</span>
+              <span className="ca-ov-kl">Charter (APA)</span>
               <b className="ca-ov-kv apa ca-num">{formatMoney(funds.charterApa, positionCurrency)}</b>
               <span className="ca-ov-km">{funds.apaCards} cards</span>
             </div>
@@ -155,7 +155,7 @@ export default function Accounts() {
               <span className="ca-ov-km">{funds.pettyFloats} floats</span>
             </div>
             <div className="ca-ov-kpi">
-              <span className="ca-ov-kl">To reconcile</span>
+              <span className="ca-ov-kl">To check off</span>
               <b className="ca-ov-kv ca-num">{funds.toReconcile}</b>
               <span className="ca-ov-km">this month-end</span>
             </div>

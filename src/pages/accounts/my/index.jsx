@@ -143,12 +143,12 @@ export default function MyReconcile() {
 
           <div className="ca-head">
             <p className="editorial-meta">
-              <span className="dot">●</span><span>My accounts</span>
+              <span className="dot">●</span><span>My money</span>
               <span className="bar" /><span className="muted">{holder || 'Holder'}</span>
               <span className="bar" /><span className="muted">Month-end</span>
             </p>
             <div className="ca-titlerow">
-              <h1 className="ca-title">My card<span>,</span> <em>to balance</em>.</h1>
+              <h1 className="ca-title">My card<span>,</span> <em>to tidy</em>.</h1>
             </div>
           </div>
 
@@ -229,7 +229,7 @@ export default function MyReconcile() {
                 <div className="mr-rtool">
                   <div className="mr-filters">
                     <button className={filter === 'sort' ? 'on' : ''} onClick={() => setFilter('sort')}>To sort <span className="b">{counts.toSort}</span></button>
-                    <button className={filter === 'cleared' ? 'on' : ''} onClick={() => setFilter('cleared')}>Cleared <span className="b">{view.sorted}</span></button>
+                    <button className={filter === 'cleared' ? 'on' : ''} onClick={() => setFilter('cleared')}>Sorted <span className="b">{view.sorted}</span></button>
                     <button className={filter === 'all' ? 'on' : ''} onClick={() => setFilter('all')}>All <span className="b">{view.total}</span></button>
                   </div>
                 </div>
@@ -252,7 +252,7 @@ export default function MyReconcile() {
                       <span className={`mr-amt ca-num ${spend ? 'ca-neg' : ''}`} style={!spend ? { color: '#3F7A52' } : undefined}>{formatMoney(t.amount, t.currency)}</span>
                       <span className="mr-stat">
                         {need
-                          ? <button type="button" className="mr-bsm pri" disabled={busy} onClick={(e) => openPicker(e, t.id)}>Categorise</button>
+                          ? <button type="button" className="mr-bsm pri" disabled={busy} onClick={(e) => openPicker(e, t.id)}>What for?</button>
                           : <span className="mr-ok"><Icon name="Check" size={13} /> Sorted</span>}
                       </span>
                     </div>
@@ -272,9 +272,9 @@ export default function MyReconcile() {
                 <span className={`mr-fmsg ${msg.tone === 'ok' ? 'ok' : ''}`}>{msg.text}</span>
                 <button type="button" className={`mr-submit ${status === 'submitted' || status === 'approved' ? 'sent' : ready ? 'ready' : 'locked'}`}
                   disabled={!ready || busy} onClick={doSubmit}>
-                  {status === 'submitted' ? <><Icon name="Check" size={16} /> Submitted — awaiting Command</>
-                    : status === 'approved' ? <><Icon name="Check" size={16} /> Signed off</>
-                    : <><Icon name="Send" size={16} /> Submit for sign-off</>}
+                  {status === 'submitted' ? <><Icon name="Check" size={16} /> Sent — waiting on the Purser</>
+                    : status === 'approved' ? <><Icon name="Check" size={16} /> Checked off</>
+                    : <><Icon name="Send" size={16} /> Send to check off</>}
                 </button>
               </div>
             </div>

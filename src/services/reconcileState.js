@@ -16,12 +16,12 @@ export function canSubmit(counts) {
 
 // The one-line status message the footer shows, mirroring the approved mock.
 export function reconcileMessage(counts, status) {
-  if (status === 'submitted') return { text: 'Sent to Command — locked until sign-off', tone: 'sent' };
-  if (status === 'approved') return { text: 'Signed off by Command', tone: 'ok' };
+  if (status === 'submitted') return { text: 'Sent — the Purser will check it off', tone: 'sent' };
+  if (status === 'approved') return { text: 'Checked off', tone: 'ok' };
   const toSort = counts?.toSort || 0;
-  if (toSort > 0) return { text: `${toSort} to sort before you submit`, tone: 'due' };
-  if ((counts?.matched || 0) < (counts?.total || 0)) return { text: 'Sorted — now import your statement', tone: 'due' };
-  return { text: 'Balanced. Ready to submit', tone: 'ok' };
+  if (toSort > 0) return { text: `${toSort} to sort first`, tone: 'due' };
+  if ((counts?.matched || 0) < (counts?.total || 0)) return { text: 'Sorted — import your statement to finish', tone: 'due' };
+  return { text: 'All done — ready to send', tone: 'ok' };
 }
 
 // Closing = opening + sum(signed amounts). Kept here so the equation the UI shows
