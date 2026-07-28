@@ -301,6 +301,10 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
   font-family:var(--lg-sans);font-size:11px;font-weight:700;box-shadow:0 3px 10px -2px rgba(28,27,58,.5);}
 .dp-link-label-x{font-weight:600;opacity:.85;}
 .dp-pin.is-pending{box-shadow:0 0 0 3px var(--lg-terra), 0 2px 6px rgba(28,27,58,.5);transform:translate(-50%,-50%) scale(1.2);z-index:7;}
+/* Endpoints of the selected doorway link — ring both rooms the line truly joins,
+   so a line crossing over an unrelated pin can't be misread as connecting it. */
+.dp-pin.is-linkend{z-index:9;box-shadow:0 0 0 3px #fff, 0 0 0 6px var(--lg-terra), 0 4px 14px -2px rgba(198,90,26,.6);transform:translate(-50%,-50%) scale(1.15);}
+.dp-pin.is-linkend .dp-pin-label{background:var(--lg-terra);color:#fff;font-weight:700;}
 /* Briefly ring a pin after a stairs jump lands on it, so the eye finds it. */
 .dp-pin.is-flash{z-index:8;animation:dp-pin-flash 1.6s ease-out;}
 @keyframes dp-pin-flash{
