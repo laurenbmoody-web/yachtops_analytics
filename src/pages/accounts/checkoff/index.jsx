@@ -5,7 +5,6 @@
 // "Send to check off" on /accounts/my. Editorial (Cargo) system per CLAUDE.md.
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
 import { useTenant } from '../../../contexts/TenantContext';
@@ -14,7 +13,7 @@ import { listReconciliationsForMonth, approveReconciliation, reopenReconciliatio
 import { periodMonthISO } from '../../../services/reconcileState';
 import { buildCheckoffRows, groupByLane, checkoffCounts } from '../../../services/checkoffState';
 import { formatMoney } from '../../../services/financeCalc';
-import AccountsNav from '../components/AccountsNav';
+import AccountsShell from '../components/AccountsShell';
 import '../accounts.css';
 import './checkoff.css';
 
@@ -125,14 +124,9 @@ export default function Checkoff() {
   };
 
   return (
-    <>
-      <Header />
+    <AccountsShell active="checkoff">
       <div className="ca-page">
         <div className="ca-wrap">
-          <button type="button" className="ca-back" onClick={() => navigate('/accounts')}>
-            <Icon name="ChevronLeft" size={16} /> Back to Accounts
-          </button>
-
           <div className="ca-head">
             <p className="editorial-meta">
               <span className="dot">●</span><span>Check-off</span>
@@ -140,7 +134,7 @@ export default function Checkoff() {
               <span className="bar" /><span className="muted">{counts.waiting} waiting on you</span>
             </p>
             <div className="ca-titlerow">
-              <h1 className="ca-title">Month-end<span>,</span> <em>signed off</em>.</h1>
+              <h1 className="ca-title">Cards<span>,</span> <em>signed off</em>.</h1>
               <div className="ca-head-act">
                 <div className="co-step">
                   <button type="button" onClick={() => stepMonth(-1)} aria-label="Previous month"><Icon name="ChevronLeft" size={16} /></button>
@@ -150,8 +144,6 @@ export default function Checkoff() {
               </div>
             </div>
           </div>
-
-          <AccountsNav active="checkoff" />
 
           {loading ? (
             <div className="ca-empty"><p>Loading…</p></div>
@@ -177,6 +169,6 @@ export default function Checkoff() {
         </div>
         {toast && <div className="ca-toast">{toast}</div>}
       </div>
-    </>
+    </AccountsShell>
   );
 }

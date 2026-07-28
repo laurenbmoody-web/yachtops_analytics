@@ -4,7 +4,6 @@
 // supplier-invoice queue; assigning an account clears it. COMMAND adds / voids.
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
 import { useTenant } from '../../../contexts/TenantContext';
@@ -16,7 +15,7 @@ import {
 import { formatMoney, isLiveTxn } from '../../../services/financeCalc';
 import { ManualTxnModal, AssignAccountModal } from '../components/TransactionModals';
 import StatementReconcileModal from '../components/StatementReconcileModal';
-import AccountsNav from '../components/AccountsNav';
+import AccountsShell from '../components/AccountsShell';
 import '../accounts.css';
 
 const SOURCE_LABEL = {
@@ -193,14 +192,9 @@ export default function Ledger() {
   const attentionCount = txns.filter((t) => (!t.account_id || t.status === 'unreconciled') && t.status !== 'void').length;
 
   return (
-    <>
-      <Header />
+    <AccountsShell active="spending">
       <div className="ca-page">
         <div className="ca-wrap">
-          <button type="button" className="ca-back" onClick={() => navigate('/accounts')}>
-            <Icon name="ChevronLeft" size={16} /> Back to Accounts
-          </button>
-
           <div className="ca-head">
             <p className="editorial-meta">
               <span className="dot">●</span>
@@ -225,8 +219,6 @@ export default function Ledger() {
               </div>
             </div>
           </div>
-
-          <AccountsNav active="spending" />
 
           <div className="ca-filters">
             <select className="ca-field" value={filters.accountId} onChange={(e) => setF({ accountId: e.target.value })} aria-label="Account">
@@ -270,6 +262,6 @@ export default function Ledger() {
       <AssignAccountModal open={Boolean(assignTxn)} onClose={() => setAssignTxn(null)} onAssign={handleAssign} txn={assignTxn} accounts={accounts} />
       <StatementReconcileModal open={importOpen} onClose={() => setImportOpen(false)} accounts={accounts} tenantId={activeTenantId}
         onDone={() => { flash('Statement reconciled'); loadTxns(); }} />
-    </>
+    </AccountsShell>
   );
 }

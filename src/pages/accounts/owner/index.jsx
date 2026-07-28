@@ -6,7 +6,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
 import { useTenant } from '../../../contexts/TenantContext';
@@ -16,7 +15,7 @@ import {
   generateStatementData, listStatements, createStatement, issueStatement, deleteStatement,
 } from '../../../services/ownerStatementService';
 import BudgetOverview from '../budgets/components/BudgetOverview';
-import AccountsNav from '../components/AccountsNav';
+import AccountsShell from '../components/AccountsShell';
 import '../accounts.css';
 import '../budgets/budgets.css';
 import './owner.css';
@@ -128,14 +127,9 @@ export default function OwnerView() {
   ];
 
   return (
-    <>
-      <Header />
+    <AccountsShell active="owner">
       <div className="ca-page">
         <div className="ca-wrap ow-print">
-          <button type="button" className="ca-back ow-noprint" onClick={() => navigate('/accounts')}>
-            <Icon name="ChevronLeft" size={16} /> Accounts
-          </button>
-
           <div className="ca-head">
             <p className="editorial-meta">
               <span className="dot">●</span><span>Owner reporting</span>
@@ -151,8 +145,6 @@ export default function OwnerView() {
               </div>
             </div>
           </div>
-
-          <AccountsNav active="owner" />
 
           {/* period picker */}
           <div className="ow-period ow-noprint">
@@ -271,6 +263,6 @@ export default function OwnerView() {
         </div>
         {toast && <div className="ca-toast">{toast}</div>}
       </div>
-    </>
+    </AccountsShell>
   );
 }

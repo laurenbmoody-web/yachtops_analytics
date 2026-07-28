@@ -150,6 +150,8 @@
 .ca-ov-hbig { font-family: 'DM Serif Display', Georgia, serif; font-size: 38px; line-height: 0.98; margin: 4px 0 2px; }
 .ca-ov-hsub { font-size: 11px; color: #AEB4C2; }
 .ca-ov-kpi { background: #fff; border: 1px solid #E5E7EB; border-radius: 14px; padding: 15px 17px; display: flex; flex-direction: column; gap: 4px; }
+.ca-ov-kpi-btn { font: inherit; text-align: left; cursor: pointer; transition: border-color 0.12s ease, box-shadow 0.12s ease; }
+.ca-ov-kpi-btn:hover { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 .ca-ov-kl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .ca-ov-kv { font-family: 'DM Serif Display', Georgia, serif; font-size: 24px; line-height: 1; color: #1C1B3A; }
 .ca-ov-kv.owner { color: #3B6EA5; } .ca-ov-kv.apa { color: #7A4FA3; }
@@ -164,9 +166,11 @@
 .ca-ov-grule { flex: 1; height: 1px; background: #EEF0F4; }
 .ca-ov-gtot { font-size: 12px; color: #8B8478; }
 .ca-ov-gtot b { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 16px; color: #1C1B3A; margin-left: 5px; }
-.ca-ov-grec { font-size: 9px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; margin-left: 4px; }
+.ca-ov-grec { font-size: 9px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; margin-left: 4px; background: none; }
 .ca-ov-grec.ok { color: #3F7A52; border: 1px solid #BFE0C9; }
 .ca-ov-grec.due { color: #B5762B; border: 1px solid #EAD3B4; }
+.ca-ov-grec.link { cursor: pointer; font-family: inherit; transition: background 0.12s ease, color 0.12s ease; }
+.ca-ov-grec.link:hover { background: #C65A1A; color: #fff; border-color: #C65A1A; }
 
 .ca-arow { display: grid; grid-template-columns: 34px minmax(0,1fr) 150px 52px 118px 140px; align-items: center; gap: 16px; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid #EEF0F4; padding: 0 6px; height: 56px; cursor: pointer; font-family: inherit; transition: background 0.12s; }
 .ca-arow:hover { background: #F8FAFC; }
