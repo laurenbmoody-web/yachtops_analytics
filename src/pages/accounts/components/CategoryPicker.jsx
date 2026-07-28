@@ -25,7 +25,9 @@ export default function CategoryPicker({ anchorRect, groups, onPick, onClose }) 
   useEffect(() => { const t = setTimeout(() => inputRef.current?.focus(), 10); return () => clearTimeout(t); }, []);
   useEffect(() => {
     const onDoc = (e) => { if (popRef.current && !popRef.current.contains(e.target)) onClose(); };
-    const onScroll = () => onClose();
+    // Close when the PAGE scrolls (the popover is pinned to an anchor point), but
+    // NOT when scrolling the list inside the popover — capture mode catches both.
+    const onScroll = (e) => { if (popRef.current && popRef.current.contains(e.target)) return; onClose(); };
     document.addEventListener('mousedown', onDoc);
     window.addEventListener('scroll', onScroll, true);
     return () => { document.removeEventListener('mousedown', onDoc); window.removeEventListener('scroll', onScroll, true); };
