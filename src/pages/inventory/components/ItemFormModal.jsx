@@ -76,26 +76,31 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     || ((item?.isUniform || item?.is_uniform || item?.customFields?.garmentType) ? 'uniform' : autoProfile(folderDisplay))
   );
 
-  // Hydrate the uniform size run / quantities across every stowage location
-  // when editing an existing item.
-  const uniInit = useMemo(() => {
-    if (!item?.customFields?.garmentType && !item?.isUniform && !item?.is_uniform) return null;
+  // Hydrate a variant run (uniform sizes OR consumable pack-sizes) with its
+  // quantities across every stowage location, plus per-variant buying.
+  const variantInit = useMemo(() => {
     const sl = item?.stockLocations || item?.stock_locations || [];
-    const on = {}; const mx = {}; const locs = [];
+    const hasVar = item?.hasVariants || item?.has_variants || item?.variants?.length || sl.some((r) => (r.sizes || []).length);
+    if (!hasVar) return null;
+    const on = {}; const mx = {}; const locs = []; const order = [];
+    const note = (s) => { if (!order.includes(String(s))) order.push(String(s)); };
     sl.forEach((row) => {
-      const label = row.locationName || row.location_name || 'Location';
+      const label = row.locationName || row.location_name || '';
       const id = row.vesselLocationId || row.vessel_location_id || '';
       locs.push({ label, id });
-      (row.sizes || []).forEach((v) => { if (v?.size != null) { on[v.size] = true; mx[`${label}||${v.size}`] = v.qty || 0; } });
+      (row.sizes || []).forEach((v) => { if (v?.size != null) { on[v.size] = true; note(v.size); mx[`${label}||${v.size}`] = v.qty || 0; } });
     });
     // No per-location size breakdown but variants exist → seed the first location.
     if (!Object.keys(mx).length && item?.variants?.length) {
       if (!locs.length) locs.push({ label: '', id: '' });
       const label = locs[0].label;
-      item.variants.forEach((v) => { if (v?.size != null) { on[v.size] = true; mx[`${label}||${v.size}`] = v.qty || 0; } });
+      item.variants.forEach((v) => { if (v?.size != null) { on[v.size] = true; note(v.size); mx[`${label}||${v.size}`] = v.qty || 0; } });
     }
     if (!locs.length) locs.push({ label: '', id: '' });
-    return { locs, on, mx };
+    const formats = item?.variants?.length ? item.variants.map((v) => String(v.size)) : order;
+    const buy = {};
+    (item?.variants || []).forEach((v) => { if (v?.size != null) buy[String(v.size)] = { supplier: v.supplier || '', cost: v.unitCost ?? v.unit_cost ?? '' }; });
+    return { locs, on, mx, formats, buy };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [open, setOpen] = useState({ identity: true, details: true, stock: true, buying: false, handling: false, docs: false, ref: false });
@@ -155,10 +160,15 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [colour, setColour] = useState(item?.customFields?.colour || '');
   const [sizeType, setSizeType] = useState(item?.variantType || 'alpha');
   const [region, setRegion] = useState('uk');
-  const [sizeOn, setSizeOn] = useState(uniInit?.on || {}); // label -> true
-  const [matrix, setMatrix] = useState(uniInit?.mx || {}); // "loc||size" -> qty
-  const [uniLocs, setUniLocs] = useState(uniInit?.locs || [{ label: '', id: '' }]);
+  const [sizeOn, setSizeOn] = useState(variantInit?.on || {}); // label -> true
+  const [matrix, setMatrix] = useState(variantInit?.mx || {}); // "loc||size" -> qty
+  const [uniLocs, setUniLocs] = useState(variantInit?.locs || [{ label: '', id: '' }]);
   const [parSizes, setParSizes] = useState(item?.customFields?.parSizes || {}); // size -> min qty
+  // consumable pack-size variants (250ml / 500ml / 5L …) — reuses the run machinery
+  const [multiSize, setMultiSize] = useState(profile !== 'uniform' && !!variantInit);
+  const [formats, setFormats] = useState(variantInit?.formats || []);
+  const [formatDraft, setFormatDraft] = useState('');
+  const [varBuy, setVarBuy] = useState(variantInit?.buy || {}); // format -> {supplier, cost}
   const [moreUni, setMoreUni] = useState(false);
   const [brandingType, setBrandingType] = useState(item?.customFields?.branding?.type || 'None');
   const [brandingColour, setBrandingColour] = useState(item?.customFields?.branding?.colour || '');
@@ -195,7 +205,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
   // default first-4 sizes on when the size system changes — but keep the
   // hydrated run intact on the very first render of an edit.
-  const sizeInit = useRef(!!uniInit);
+  const sizeInit = useRef(!!variantInit);
   useEffect(() => {
     if (profile !== 'uniform') return;
     if (sizeInit.current) { sizeInit.current = false; return; }
@@ -206,11 +216,20 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sizeType, profile]);
 
-  const activeSizes = useMemo(() => sizeList.filter((s) => sizeOn[s]), [sizeList, sizeOn]);
+  // Variant mode = a size/pack run (uniform sizes, or a consumable's pack-sizes).
+  const variantMode = profile === 'uniform' || multiSize;
+  const activeSizes = useMemo(() => {
+    if (profile === 'uniform') return sizeList.filter((s) => sizeOn[s]);
+    if (multiSize) return formats.filter(Boolean);
+    return [];
+  }, [profile, multiSize, formats, sizeList, sizeOn]);
   const cell = (loc, s) => Number(matrix[`${loc}||${s}`]) || 0;
   const setCell = (loc, s, v) => setMatrix((m) => ({ ...m, [`${loc}||${s}`]: v }));
   const locTotal = (loc) => activeSizes.reduce((a, s) => a + cell(loc, s), 0);
   const addUniLoc = () => { const idx = uniLocs.length; setUniLocs((ls) => [...ls, { label: '', id: '' }]); setLocTarget({ kind: 'uni', idx }); };
+  const addFormat = () => { const v = formatDraft.trim(); if (v && !formats.includes(v)) setFormats((fs) => [...fs, v]); setFormatDraft(''); };
+  const removeFormat = (f) => setFormats((fs) => fs.filter((x) => x !== f));
+  const setVarBuy2 = (f, patch) => setVarBuy((b) => ({ ...b, [f]: { ...(b[f] || {}), ...patch } }));
 
   const toArr = (obj) => Object.keys(obj).filter((k) => obj[k]);
 
@@ -327,14 +346,22 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       const location = segs[0] || null;
       const sub_location = segs.length ? segs.join(' > ') : null;
 
-      // uniform → variants (one per active size, qty summed across the matrix)
+      // variant run (uniform sizes OR consumable pack-sizes) → variants + per-location sizes
       let variants = null; let has_variants = false; let variant_type = null; let totalQty = 0;
       let stock_locations = [];
-      const uniformParTotal = activeSizes.reduce((a, s) => a + (Number(parSizes[s]) || 0), 0);
-      if (profile === 'uniform') {
-        has_variants = true; variant_type = sizeType;
-        // variants = per-size totals aggregated across every stowage location
-        variants = activeSizes.map((s) => ({ size: s, qty: uniLocs.reduce((a, l) => a + cell(l.label, s), 0) }));
+      const parTotal = activeSizes.reduce((a, s) => a + (Number(parSizes[s]) || 0), 0);
+      if (variantMode) {
+        has_variants = true; variant_type = profile === 'uniform' ? sizeType : 'format';
+        // variants = per-size totals aggregated across every stowage location; the
+        // consumable case also carries its own supplier + price per pack-size.
+        variants = activeSizes.map((s) => {
+          const v = { size: s, qty: uniLocs.reduce((a, l) => a + cell(l.label, s), 0) };
+          if (profile !== 'uniform') {
+            if (varBuy[s]?.supplier) v.supplier = varBuy[s].supplier;
+            if (varBuy[s]?.cost !== '' && varBuy[s]?.cost != null) v.unitCost = Number(varBuy[s].cost);
+          }
+          return v;
+        });
         totalQty = variants.reduce((a, v) => a + (v.qty || 0), 0);
         stock_locations = uniLocs
           .filter((l) => l.label)
@@ -344,6 +371,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         stock_locations = rows.map((r) => ({ locationName: r.label || '—', vesselLocationId: r.id || undefined, qty: r.qty || 0 }));
         totalQty = rows.reduce((a, r) => a + (r.qty || 0), 0);
       }
+      // For list display, surface the first priced variant at item level.
+      const primaryCost = variants?.find((v) => v.unitCost != null)?.unitCost;
+      const primarySupplier = variants?.find((v) => v.supplier)?.supplier;
 
       const custom_fields = {
         profile,
@@ -354,8 +384,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
           garmentType: garment, subType, fit, colour, styleCode: styleCode || undefined,
           branding: brandingType === 'None' ? undefined : { type: brandingType, colour: brandingColour, logo: brandingLogo, placement: brandingPlacement },
           fabric: fabric || undefined, care: care || undefined, sizeType, region,
-          parSizes: activeSizes.some((s) => Number(parSizes[s]) > 0) ? activeSizes.reduce((o, s) => { o[s] = Number(parSizes[s]) || 0; return o; }, {}) : undefined,
         } : {}),
+        ...(multiSize ? { formats: activeSizes, variantKind: 'format' } : {}),
+        parSizes: variantMode && activeSizes.some((s) => Number(parSizes[s]) > 0) ? activeSizes.reduce((o, s) => { o[s] = Number(parSizes[s]) || 0; return o; }, {}) : undefined,
         flags: toArr(flagOn).length ? flagOn : undefined,
         medical: addonOn.medical ? { form: medForm, mca: medMca, controlled: medControlled } : undefined,
         food: addonOn.food ? { origin: foodOrigin, allergens: foodAllergens } : undefined,
@@ -368,20 +399,20 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         description: description || null,
         image_url: imageUrl || null,
         brand: brand || null,
-        supplier: supplier || null,
+        supplier: multiSize ? (primarySupplier || supplier || null) : (supplier || null),
         unit: unit || 'each',
-        size: profile === 'bonded' ? (volume || size || null) : (profile === 'uniform' ? null : size || null),
-        unit_cost: unitCost === '' ? null : Number(unitCost),
+        size: profile === 'bonded' ? (volume || size || null) : (variantMode ? null : size || null),
+        unit_cost: multiSize ? (primaryCost ?? (unitCost === '' ? null : Number(unitCost))) : (unitCost === '' ? null : Number(unitCost)),
         currency: currency || null,
         purchase_unit: purchaseUnit || null,
         units_per_pack: unitsPerPack === '' ? null : Number(unitsPerPack),
-        par_level: profile === 'uniform' ? (uniformParTotal || null) : (keep === '' ? null : Number(keep)),
-        reorder_point: profile === 'uniform' ? (uniformParTotal || null) : (reorder === '' ? null : Number(reorder)),
-        restock_level: profile === 'uniform' ? (uniformParTotal || null) : (reorder === '' ? null : Number(reorder)),
+        par_level: variantMode ? (parTotal || null) : (keep === '' ? null : Number(keep)),
+        reorder_point: variantMode ? (parTotal || null) : (reorder === '' ? null : Number(reorder)),
+        restock_level: variantMode ? (parTotal || null) : (reorder === '' ? null : Number(reorder)),
         barcode: barcode || null,
         tags: tags.length ? tags : null,
         notes: notes || null,
-        expiry_date: profile === 'uniform' ? null : (expiry || null),
+        expiry_date: variantMode ? null : (expiry || null),
         year: profile === 'bonded' && vintage !== '' ? Number(vintage) : null,
         tasting_notes: profile === 'bonded' ? (tasting || null) : null,
         condition: profile === 'eng' ? condition : null,
@@ -567,9 +598,24 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
         {/* 3 STOCK */}
         <Sec icon="Boxes" name="Stock & location" open={open.stock} onToggle={() => toggle('stock')}>
-          {profile === 'uniform' ? (
+          {profile !== 'uniform' && (
+            <div className="itf-msize">
+              <label className="itf-switch">
+                <input type="checkbox" checked={multiSize} onChange={(e) => setMultiSize(e.target.checked)} />
+                <span className="tk" /><span className="lb">Sold in multiple sizes / packs <span className="opt">· e.g. 250ml · 500ml · 5L</span></span>
+              </label>
+              {multiSize && (
+                <div className="itf-formats">
+                  {formats.map((f) => <span key={f} className="itf-fmt">{f}<b onClick={() => removeFormat(f)}>✕</b></span>)}
+                  <input className="itf-fmt-in" value={formatDraft} onChange={(e) => setFormatDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFormat(); } }} placeholder="Add a size…" />
+                  <button type="button" className="itf-addloc" onClick={addFormat}>＋ Add</button>
+                </div>
+              )}
+            </div>
+          )}
+          {variantMode ? (
             <>
-              <span className="itf-fl">Where it's stowed & how much <span className="opt">· per size</span></span>
+              <span className="itf-fl">Where it's stowed & how much <span className="opt">· {profile === 'uniform' ? 'per size' : 'per pack-size'}</span></span>
               {uniLocs.map((loc, li) => (
                 <div className="itf-ustow" key={li}>
                   <div className="itf-ustow-h">
@@ -580,7 +626,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                     {uniLocs.length > 1 && <button type="button" className="itf-rmrow" onClick={() => setUniLocs((ls) => ls.filter((_, j) => j !== li))}>✕</button>}
                   </div>
                   {activeSizes.length === 0 ? (
-                    <div className="itf-usizes-empty">Turn on some sizes in <b>Details</b> to log quantities.</div>
+                    <div className="itf-usizes-empty">{profile === 'uniform' ? <>Turn on some sizes in <b>Details</b> to log quantities.</> : <>Add a size / pack above to log quantities.</>}</div>
                   ) : (
                     <div className="itf-usizes">
                       {activeSizes.map((s) => (
@@ -615,10 +661,10 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               </div>
             </>
           )}
-          {profile === 'uniform' ? (
+          {variantMode ? (
             activeSizes.length > 0 && (
               <>
-                <span className="itf-fl">Keep aboard <span className="opt">· minimum per size</span></span>
+                <span className="itf-fl">Keep aboard <span className="opt">· minimum per {profile === 'uniform' ? 'size' : 'pack-size'}</span></span>
                 <div className="itf-usizes itf-par">
                   {activeSizes.map((s) => (
                     <label className="itf-usz" key={s}><span className="l">{s}</span><input value={parSizes[s] ?? ''} onChange={(e) => setParSizes((p) => ({ ...p, [s]: Number(e.target.value) || 0 }))} placeholder="0" inputMode="numeric" /></label>
@@ -636,7 +682,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               </div>
             </div>
           )}
-          {profile !== 'uniform' && (
+          {!variantMode && (
             <>
               <div className="itf-more" onClick={() => setMoreStock((v) => !v)}><span className="pl">{moreStock ? '–' : '+'}</span> {profile === 'bonded' ? 'Expiry' : 'Size, expiry'}</div>
               <div className={`itf-morebody${moreStock ? ' show' : ''}`}>
@@ -651,24 +697,53 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
         {/* 4 BUYING */}
         <Sec icon="ShoppingBag" name="Buying" open={open.buying} onToggle={() => toggle('buying')} summary={<span className="sc muted">optional</span>}>
-          <span className="itf-fl">What it costs</span>
-          <div className="itf-adorn" style={{ maxWidth: 230 }}><span className="pre">{currency === 'EUR' ? '€' : currency === 'USD' ? '$' : '£'}</span><input value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="0.00" /><span className="tail"><select value={currency} onChange={(e) => setCurrency(e.target.value)}><option>EUR</option><option>USD</option><option>GBP</option></select></span></div>
-          <div style={{ height: 16 }} />
-          <span className="itf-fl">How you order it</span>
-          <div className="itf-keep">
-            <div className="itf-keep-row">
-              <label className="itf-keep-f"><span className="itf-lab">Bought by</span><input className="itf-keep-in wide" value={purchaseUnit} onChange={(e) => setPurchaseUnit(e.target.value)} placeholder="Case" /></label>
-              <span className="itf-keep-x">of</span>
-              <label className="itf-keep-f"><span className="itf-lab">Qty per {purchaseUnit ? purchaseUnit.toLowerCase() : 'pack'}</span><input className="itf-keep-in" value={unitsPerPack} onChange={(e) => setUnitsPerPack(e.target.value)} placeholder="e.g. 12" inputMode="numeric" /></label>
-              <span className="itf-keep-unit">{unit}</span>
-            </div>
-          </div>
-          {purchaseUnit && Number(unitsPerPack) > 0 && <div className="itf-hint">↺ 1 {purchaseUnit.toLowerCase()} = <b>{unitsPerPack}</b> {unit}</div>}
-          <div className="itf-more" onClick={() => setMoreBuy((v) => !v)}><span className="pl">{moreBuy ? '–' : '+'}</span> Brand, supplier, SKU</div>
-          <div className={`itf-morebody${moreBuy ? ' show' : ''}`}>
-            <div className="itf-g2"><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Brand</label><input className="itf-in" value={brand} onChange={(e) => setBrand(e.target.value)} /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Supplier</label><input className="itf-in" value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div></div>
-            <div className="itf-f" style={{ margin: '12px 0 0' }}><label className="itf-lab">Supplier SKU</label><input className="itf-in" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="reorder ref" /></div>
-          </div>
+          {multiSize ? (
+            <>
+              <div className="itf-vbuy-top">
+                <span className="itf-fl" style={{ margin: 0 }}>Supplier &amp; price <span className="opt">· per pack-size</span></span>
+                <select className="itf-sel cur" value={currency} onChange={(e) => setCurrency(e.target.value)}><option>EUR</option><option>USD</option><option>GBP</option></select>
+              </div>
+              {activeSizes.length === 0 ? (
+                <div className="itf-usizes-empty">Add a size / pack in <b>Stock</b> first.</div>
+              ) : (
+                <div className="itf-vbuy">
+                  <div className="itf-vbuy-hd"><span>Size</span><span>Supplier</span><span>Price</span></div>
+                  {activeSizes.map((s) => (
+                    <div className="itf-vbuy-row" key={s}>
+                      <span className="fmt">{s}</span>
+                      <input value={varBuy[s]?.supplier || ''} onChange={(e) => setVarBuy2(s, { supplier: e.target.value })} placeholder="Supplier" />
+                      <div className="itf-adorn sm"><span className="pre">{currency === 'EUR' ? '€' : currency === 'USD' ? '$' : '£'}</span><input value={varBuy[s]?.cost ?? ''} onChange={(e) => setVarBuy2(s, { cost: e.target.value })} placeholder="0.00" inputMode="decimal" /></div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="itf-more" onClick={() => setMoreBuy((v) => !v)}><span className="pl">{moreBuy ? '–' : '+'}</span> Brand, SKU</div>
+              <div className={`itf-morebody${moreBuy ? ' show' : ''}`}>
+                <div className="itf-g2" style={{ margin: 0 }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Brand</label><input className="itf-in" value={brand} onChange={(e) => setBrand(e.target.value)} /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Supplier SKU</label><input className="itf-in" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="reorder ref" /></div></div>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="itf-fl">What it costs</span>
+              <div className="itf-adorn" style={{ maxWidth: 230 }}><span className="pre">{currency === 'EUR' ? '€' : currency === 'USD' ? '$' : '£'}</span><input value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="0.00" /><span className="tail"><select value={currency} onChange={(e) => setCurrency(e.target.value)}><option>EUR</option><option>USD</option><option>GBP</option></select></span></div>
+              <div style={{ height: 16 }} />
+              <span className="itf-fl">How you order it</span>
+              <div className="itf-keep">
+                <div className="itf-keep-row">
+                  <label className="itf-keep-f"><span className="itf-lab">Bought by</span><input className="itf-keep-in wide" value={purchaseUnit} onChange={(e) => setPurchaseUnit(e.target.value)} placeholder="Case" /></label>
+                  <span className="itf-keep-x">of</span>
+                  <label className="itf-keep-f"><span className="itf-lab">Qty per {purchaseUnit ? purchaseUnit.toLowerCase() : 'pack'}</span><input className="itf-keep-in" value={unitsPerPack} onChange={(e) => setUnitsPerPack(e.target.value)} placeholder="e.g. 12" inputMode="numeric" /></label>
+                  <span className="itf-keep-unit">{unit}</span>
+                </div>
+              </div>
+              {purchaseUnit && Number(unitsPerPack) > 0 && <div className="itf-hint">↺ 1 {purchaseUnit.toLowerCase()} = <b>{unitsPerPack}</b> {unit}</div>}
+              <div className="itf-more" onClick={() => setMoreBuy((v) => !v)}><span className="pl">{moreBuy ? '–' : '+'}</span> Brand, supplier, SKU</div>
+              <div className={`itf-morebody${moreBuy ? ' show' : ''}`}>
+                <div className="itf-g2"><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Brand</label><input className="itf-in" value={brand} onChange={(e) => setBrand(e.target.value)} /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Supplier</label><input className="itf-in" value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div></div>
+                <div className="itf-f" style={{ margin: '12px 0 0' }}><label className="itf-lab">Supplier SKU</label><input className="itf-in" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="reorder ref" /></div>
+              </div>
+            </>
+          )}
         </Sec>
 
         {/* 5 HANDLING */}
