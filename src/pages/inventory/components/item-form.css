@@ -69,6 +69,8 @@
 .itf-ph:hover{border-color:var(--g);}
 .itf-ph img{width:100%;height:100%;object-fit:cover;}
 .itf-idf{flex:1;min-width:0;}
+.itf-brandline{width:100%;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;border:0;padding:0 2px 3px;outline:none;font-family:inherit;color:var(--g);background:none;}
+.itf-brandline::placeholder{color:#C4C9D4;font-weight:600;letter-spacing:.3px;text-transform:none;}
 .itf-nm{width:100%;font-size:16px;font-weight:600;border:0;border-bottom:1.5px solid #E9EBF0;padding:5px 2px;outline:none;font-family:inherit;color:var(--ink);background:none;}
 .itf-nm:focus{border-color:var(--g);}
 .itf-nm::placeholder{color:#C4C9D4;font-weight:400;}

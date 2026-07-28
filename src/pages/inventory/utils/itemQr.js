@@ -23,23 +23,58 @@ const makeQr = async (text) => {
   return QR.toDataURL(text, { margin: 1, width: 360, color: { dark: '#1C1B3A', light: '#FFFFFF' } });
 };
 
-const CARD_CSS = `
+// Common label-printer stock. `w`/`h` are the physical label size in mm; the
+// print window sets @page to match so the browser's print dialog sends the
+// right dimensions straight to a Brother / Dymo / Zebra device. `sheet` is the
+// office-printer fallback (a card on A4).
+const LABEL_SIZES = [
+  { id: 'sheet', name: 'Office printer (A4 sheet)', w: 0, h: 0 },
+  { id: 'dymo', name: 'Dymo 89 × 36 mm (99012)', w: 89, h: 36 },
+  { id: 'brother', name: 'Brother QL 62 × 29 mm (DK-11209)', w: 62, h: 29 },
+  { id: 'zebra', name: 'Zebra 51 × 25 mm (2 × 1")', w: 51, h: 25 },
+];
+
+const LABEL_CSS = `
   * { box-sizing: border-box; }
-  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1C1B3A; margin: 0; padding: 32px; background: #FFFFFF; display: flex; justify-content: center; }
-  .card { width: 320px; border: 1px solid #E5E2DA; border-radius: 14px; padding: 22px; text-align: center; }
-  .eyebrow { font: 700 9px system-ui; letter-spacing: 0.16em; text-transform: uppercase; color: #C65A1A; }
-  .name { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; line-height: 1.1; margin: 6px 0 2px; word-break: break-word; }
-  .sub { font-size: 12px; color: #6B7280; margin-bottom: 16px; }
-  .qr { width: 200px; height: 200px; margin: 0 auto; }
-  .qr img { width: 100%; height: 100%; }
-  .code { margin-top: 14px; font: 700 13px 'Inter', system-ui; letter-spacing: 0.06em; color: #1C1B3A; word-break: break-all; }
-  .foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0F1F5; font: 700 8px system-ui; letter-spacing: 0.1em; text-transform: uppercase; color: #AEB4C2; }
-  @media print { body { padding: 12mm; } }
+  html, body { margin: 0; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1C1B3A; background: #EEF0F4; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 18px; background: #FFFFFF; border-bottom: 1px solid #E5E2DA; position: sticky; top: 0; }
+  .bar label { font: 700 9px system-ui; letter-spacing: .12em; text-transform: uppercase; color: #8B8478; }
+  .bar select { font: 500 13px 'Inter', system-ui; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E5E2DA; border-radius: 9px; padding: 8px 10px; }
+  .bar button { font: 600 13px 'Inter', system-ui; border-radius: 9px; padding: 9px 15px; border: 1px solid transparent; cursor: pointer; }
+  .bar .print { background: #C65A1A; color: #fff; }
+  .bar .png { background: #fff; color: #C65A1A; border-color: #E5E2DA; }
+  .bar .hint { flex-basis: 100%; font-size: 11.5px; color: #6B7280; }
+  .stage { display: flex; justify-content: center; padding: 26px; }
+  .label { background: #fff; display: flex; align-items: center; gap: 12px; }
+  .label.card { width: 320px; flex-direction: column; text-align: center; border: 1px solid #E5E2DA; border-radius: 14px; padding: 22px; }
+  .label.tag { border: 1px dashed #C9CDD6; padding: 3mm 4mm; }
+  .label .qr { flex: none; }
+  .label.card .qr { width: 200px; height: 200px; }
+  .label.tag .qr { width: 20mm; height: 20mm; }
+  .label .qr img { width: 100%; height: 100%; display: block; }
+  .label .meta { min-width: 0; }
+  .label.card .meta { width: 100%; }
+  .label.tag .meta { text-align: left; }
+  .eyebrow { font: 700 9px system-ui; letter-spacing: .16em; text-transform: uppercase; color: #C65A1A; }
+  .label.card .name { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; line-height: 1.1; margin: 6px 0 2px; word-break: break-word; }
+  .label.tag .name { font: 700 11px system-ui; line-height: 1.15; margin: 0 0 1mm; word-break: break-word; }
+  .sub { font-size: 11px; color: #6B7280; }
+  .label.card .code { margin-top: 14px; }
+  .code { font: 700 12px 'Inter', system-ui; letter-spacing: .04em; color: #1C1B3A; word-break: break-all; }
+  @media print {
+    body { background: #fff; }
+    .bar { display: none; }
+    .stage { padding: 0; }
+    .label.tag { border: 0; }
+  }
 `;
 
 // Open a print window with one QR label for an item. `code` is the string the
-// QR encodes (and that the scanner will read back). Pass `win` when the caller
-// already opened the window synchronously (popup-safe across an async mint).
+// QR encodes (and that the scanner reads back). The window lets the user pick a
+// label-printer size (Dymo / Brother / Zebra) or download the QR as a PNG for
+// their label software. Pass `win` when the caller already opened the window
+// synchronously (popup-safe across an async mint).
 export async function printItemQr({ code, name, brand, location, win }) {
   const value = String(code || '').trim();
   if (!value) return;
@@ -51,15 +86,52 @@ export async function printItemQr({ code, name, brand, location, win }) {
 
   const qr = await makeQr(value).catch(() => '');
   const sub = [brand, location].filter(Boolean).map(esc).join(' · ');
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>QR — ${esc(name || value)}</title><style>${CARD_CSS}</style></head><body>
-    <div class="card">
-      <div class="eyebrow">Cargo · Inventory</div>
-      <div class="name">${esc(name || 'Inventory item')}</div>
-      ${sub ? `<div class="sub">${sub}</div>` : '<div class="sub"></div>'}
-      <div class="qr">${qr ? `<img src="${esc(qr)}" alt="QR code" />` : ''}</div>
-      <div class="code">${esc(value)}</div>
-      <div class="foot">Scan to match this item</div>
+  const options = LABEL_SIZES.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  const data = JSON.stringify({ sizes: LABEL_SIZES, qr, code: value, filename: (value || 'qr').replace(/[^\w.\-]+/g, '_') }).replace(/</g, '\\u003c');
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>QR — ${esc(name || value)}</title>
+    <style id="page">@page{size:A4;margin:12mm}</style>
+    <style>${LABEL_CSS}</style></head><body>
+    <div class="bar">
+      <label for="sz">Label size</label>
+      <select id="sz">${options}</select>
+      <button class="print" onclick="window.print()">Print</button>
+      <button class="png" id="dl">Download PNG</button>
+      <span class="hint">Pick your label stock, then <b>Print</b> and choose your Brother / Dymo / Zebra printer — or <b>Download PNG</b> to drop into P-touch Editor, Dymo Connect or Zebra software.</span>
     </div>
+    <div class="stage">
+      <div class="label card" id="label">
+        <div class="qr">${qr ? `<img src="${esc(qr)}" alt="QR code" />` : ''}</div>
+        <div class="meta">
+          <div class="eyebrow">Cargo · Inventory</div>
+          <div class="name">${esc(name || 'Inventory item')}</div>
+          ${sub ? `<div class="sub">${sub}</div>` : ''}
+          <div class="code">${esc(value)}</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      var D = ${data};
+      var byId = function (i) { return document.getElementById(i); };
+      function applySize(id) {
+        var p = D.sizes.filter(function (s) { return s.id === id; })[0] || D.sizes[0];
+        var label = byId('label');
+        if (p.w) {
+          byId('page').textContent = '@page{size:' + p.w + 'mm ' + p.h + 'mm;margin:0}';
+          label.className = 'label tag';
+          label.style.width = p.w + 'mm'; label.style.height = p.h + 'mm';
+        } else {
+          byId('page').textContent = '@page{size:A4;margin:12mm}';
+          label.className = 'label card';
+          label.style.width = ''; label.style.height = '';
+        }
+      }
+      byId('sz').addEventListener('change', function (e) { applySize(e.target.value); });
+      byId('dl').addEventListener('click', function () {
+        if (!D.qr) return;
+        var a = document.createElement('a'); a.href = D.qr; a.download = D.filename + '.png'; a.click();
+      });
+    </script>
   </body></html>`;
 
   try {
@@ -69,6 +141,5 @@ export async function printItemQr({ code, name, brand, location, win }) {
     w.document.write(html);
     w.document.close();
     w.focus();
-    setTimeout(() => { try { w.print(); } catch (e) { /* user can print manually */ } }, 350);
   } catch (e) { /* user can print manually */ }
 }
