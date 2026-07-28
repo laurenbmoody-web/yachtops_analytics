@@ -135,7 +135,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     return { locs, on, mx, formats: [''], buy: {}, reord, simple: true };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const [open, setOpen] = useState({ identity: true, details: true, stock: true, buying: false, handling: false, docs: false, ref: false });
+  const [open, setOpen] = useState({ identity: true, details: true, stock: true, buying: false, handling: false, ref: false });
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
 
   // core fields
@@ -150,13 +150,10 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [folderTree, setFolderTree] = useState({});
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [vesselLocations, setVesselLocations] = useState([]);
-  const [locRows, setLocRows] = useState([{ label: '', id: '', qty: 0 }]);
-  const updateRow = (i, patch) => setLocRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const [locTarget, setLocTarget] = useState(null); // {kind:'stock',idx} | {kind:'uni',idx}
+  const [locTarget, setLocTarget] = useState(null); // {kind:'uni',idx}
   const [unit, setUnit] = useState(item?.unit || 'each');
-  const [keep, setKeep] = useState(item?.parLevel ?? '');
-  const [reorder, setReorder] = useState(item?.reorderPoint ?? '');
-  const [size, setSize] = useState(item?.size || '');
+  // No editor for `size` — kept only to preserve an existing item's size on edit.
+  const [size] = useState(item?.size || '');
   const [expiry, setExpiry] = useState(item?.expiryDate || '');
   const [brand, setBrand] = useState(item?.brand || '');
   const [supplier, setSupplier] = useState(item?.supplier || '');
@@ -170,12 +167,12 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [tags, setTags] = useState(item?.tags || []);
   const [tagDraft, setTagDraft] = useState('');
   const [notes, setNotes] = useState(item?.notes || '');
-  const [moreStock, setMoreStock] = useState(false);
   const [moreBuy, setMoreBuy] = useState(false);
 
   // bonded
   const [bKind, setBKind] = useState(item?.customFields?.bonded?.kind || 'wine');
   const [volume, setVolume] = useState(item?.customFields?.bonded?.volume || '');
+  const [volUnit, setVolUnit] = useState(item?.customFields?.bonded?.volUnit || 'ml');
   const [abv, setAbv] = useState(item?.customFields?.bonded?.abv || '');
   const [vintage, setVintage] = useState(item?.year ?? '');
   const [tasting, setTasting] = useState(item?.tastingNotes || '');
@@ -256,7 +253,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
   // default first-4 sizes on when the size system changes — but keep the
   // hydrated run intact on the very first render of an edit.
-  const sizeInit = useRef(!!variantInit);
+  const sizeInit = useRef(isEdit);
   useEffect(() => {
     if (profile !== 'uniform') return;
     if (sizeInit.current) { sizeInit.current = false; return; }
@@ -281,8 +278,8 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const setCell = (loc, s, v) => setMatrix((m) => ({ ...m, [`${loc}||${s}`]: v }));
   const rowTot = (loc) => cols.reduce((a, c) => a + cell(loc, c), 0);
   const locTotal = (loc) => activeSizes.reduce((a, s) => a + cell(loc, s), 0);
-  const colHave = (c) => uniLocs.reduce((a, l) => a + cell(l.label, c), 0);
-  const grandTotal = uniLocs.reduce((a, l) => a + rowTot(l.label), 0);
+  const colHave = (c) => uniLocs.reduce((a, l) => a + (l.label ? cell(l.label, c) : 0), 0);
+  const grandTotal = uniLocs.reduce((a, l) => a + (l.label ? rowTot(l.label) : 0), 0);
   const setVarBuy2 = (f, patch) => setVarBuy((b) => ({ ...b, [f]: { ...(b[f] || {}), ...patch } }));
   // consumable pack-sizes as editable column headers (no chips)
   const addFormat = () => setFormats((fs) => (fs.some((f) => !String(f).trim()) ? fs : [...fs, '']));
@@ -475,7 +472,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         // variants = per-size totals aggregated across every stowage location; the
         // consumable case also carries its own supplier + price per pack-size.
         variants = activeSizes.map((s) => {
-          const v = { size: s, qty: uniLocs.reduce((a, l) => a + cell(l.label, s), 0) };
+          const v = { size: s, qty: uniLocs.reduce((a, l) => a + (l.label ? cell(l.label, s) : 0), 0) };
           if (profile !== 'uniform') {
             if (varBuy[s]?.supplier) v.supplier = varBuy[s].supplier;
             if (varBuy[s]?.sku) v.sku = varBuy[s].sku;
@@ -490,7 +487,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       } else {
         // plain single item — the one blank-labelled column
         stock_locations = uniLocs.filter((l) => l.label).map((l) => ({ locationName: l.label, vesselLocationId: l.id || undefined, qty: cell(l.label, '') }));
-        totalQty = uniLocs.reduce((a, l) => a + cell(l.label, ''), 0);
+        totalQty = uniLocs.reduce((a, l) => a + (l.label ? cell(l.label, '') : 0), 0);
       }
       const reorderVal = hasVar ? reorderTotal : (Number(reorderSizes['']) || 0);
       // For list display, surface the first priced variant at item level.
@@ -500,7 +497,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       const custom_fields = {
         profile,
         sku: sku || undefined,
-        bonded: profile === 'bonded' ? { kind: bKind, volume, abv, perPack, perCarton } : undefined,
+        bonded: profile === 'bonded' ? { kind: bKind, volume, volUnit, abv, perPack, perCarton } : undefined,
         eng: profile === 'eng' ? eng : undefined,
         ...(profile === 'uniform' ? {
           garmentType: garment, subType, fit, colour, styleCode: styleCode || undefined,
@@ -523,7 +520,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         brand: brand || null,
         supplier: multiSize ? (primarySupplier || supplier || null) : (supplier || null),
         unit: unit || 'each',
-        size: profile === 'bonded' ? (volume || size || null) : (hasVar ? null : size || null),
+        size: profile === 'bonded' ? (volume ? `${volume} ${volUnit}` : (size || null)) : (hasVar ? null : size || null),
         unit_cost: multiSize ? (primaryCost ?? (unitCost === '' ? null : Number(unitCost))) : (unitCost === '' ? null : Number(unitCost)),
         currency: currency || null,
         purchase_unit: purchaseUnit || null,
@@ -541,7 +538,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         is_alcohol: profile === 'bonded' && (bKind === 'wine' || bKind === 'spirit' || bKind === 'beer'),
         is_uniform: profile === 'uniform',
         location, sub_location,
-        default_location_id: locRows[0]?.id || uniLocs[0]?.id || null,
+        default_location_id: uniLocs[0]?.id || null,
         quantity: totalQty, total_qty: totalQty,
         has_variants, variant_type, variants,
         stock_locations,
@@ -613,7 +610,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
           return next;
         });
       }
-    } else if (locTarget?.kind === 'stock') { updateRow(locTarget.idx, { label, id }); }
+    }
     setLocTarget(null);
   };
 
@@ -681,7 +678,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                 </div>
                 {(bKind === 'wine' || bKind === 'spirit' || bKind === 'beer') ? (
                   <>
-                    <div className="itf-g2"><div className="itf-f"><label className="itf-lab">Volume</label><div className="itf-adorn"><input value={volume} onChange={(e) => setVolume(e.target.value)} placeholder="750" /><span className="tail"><select><option>ml</option><option>cl</option><option>L</option></select></span></div></div><div className="itf-f"><label className="itf-lab">ABV %</label><input className="itf-in" value={abv} onChange={(e) => setAbv(e.target.value)} placeholder="13.5" /></div></div>
+                    <div className="itf-g2"><div className="itf-f"><label className="itf-lab">Volume</label><div className="itf-adorn"><input value={volume} onChange={(e) => setVolume(e.target.value)} placeholder="750" /><span className="tail"><select value={volUnit} onChange={(e) => setVolUnit(e.target.value)}><option>ml</option><option>cl</option><option>L</option></select></span></div></div><div className="itf-f"><label className="itf-lab">ABV %</label><input className="itf-in" value={abv} onChange={(e) => setAbv(e.target.value)} placeholder="13.5" /></div></div>
                     <div className="itf-f" style={{ marginBottom: 0 }}><label className="itf-lab">Vintage <span className="opt">(wine)</span></label><input className="itf-in" value={vintage} onChange={(e) => setVintage(e.target.value)} placeholder="2019" /></div>
                   </>
                 ) : (
@@ -900,7 +897,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       <InventoryFolderPicker tree={folderTree} onSelect={handleFolderSelect} onClose={() => setShowFolderPicker(false)} onFolderCreated={(t) => setFolderTree(t || {})} />
     )}
     {locTarget && (
-      <LocationPicker vesselLocations={vesselLocations} selectedId={locTarget?.kind === 'uni' ? (uniLocs[locTarget?.idx]?.id || '') : (locRows[locTarget?.idx]?.id || '')} onSelect={handleLocPicked} onClose={() => setLocTarget(null)} onMap={() => { setLocTarget(null); setOnMap(); }} />
+      <LocationPicker vesselLocations={vesselLocations} selectedId={uniLocs[locTarget?.idx]?.id || ''} onSelect={handleLocPicked} onClose={() => setLocTarget(null)} onMap={() => { setLocTarget(null); setOnMap(); }} />
     )}
     {mapItem && (
       <MapPickerModal placingItem={mapItem} onPlaced={(payload) => { if (payload?.nodeId) addMapLocation(payload); setMapItem(null); }} onClose={() => setMapItem(null)} />
