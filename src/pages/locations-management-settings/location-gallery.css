@@ -321,7 +321,10 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
   cursor:pointer;white-space:nowrap;box-shadow:0 2px 5px rgba(28,27,58,.16);
   transition:background .15s,border-color .15s,transform .12s;}
 .dp-stair-badge:hover{background:#F6DFD1;border-color:var(--lg-terra);transform:translate(-50%,10px) scale(1.06);}
-.dp-stair-ic{font-size:12px;line-height:1;font-weight:800;}
+.dp-stair-ic{width:13px;height:13px;display:block;}
+/* Non-interactive marker (not link mode): just shows a stair connection exists. */
+.dp-stair-badge.is-static{cursor:default;}
+.dp-stair-badge.is-static:hover{background:var(--lg-terra-tint,#FBEFE9);border-color:#E4CBB9;transform:translate(-50%,10px);}
 .dp-stair-badge.is-removable{border-style:dashed;}
 .dp-stair-badge.is-removable:hover{background:#FBE3DA;border-color:#B14E16;color:#B14E16;}
 .dp-plan.is-focus .dp-stair-badge{display:none;}
