@@ -391,3 +391,37 @@ export const deriveDisplayStatus = (item, supplierOrderItem, supplierOrder) => {
   // 6. Pre-response: ordered (dispatched, awaiting supplier) or draft (on board).
   return item.status;
 };
+
+// Delivery and payment are INDEPENDENT axes — an order can be paid before its
+// goods are received, or received long before it's paid. deriveDisplayStatus
+// (above) collapses them into one chip (financial wins), which is right for
+// single-chip surfaces but hides the physical state once money moves. The two
+// helpers below split the axes so a surface can show BOTH — a physical chip
+// plus a money badge.
+
+// Financial close-out only: 'paid' | 'invoiced' | null. Reads the manual
+// item.status first (non-Cargo suppliers track this themselves), then the
+// order-level supplier_orders.status (Cargo-supplier path).
+export const deriveFinancialStatus = (item, supplierOrder) => {
+  if (item?.status === 'paid' || supplierOrder?.status === 'paid') return 'paid';
+  if (item?.status === 'invoiced' || supplierOrder?.status === 'invoiced') return 'invoiced';
+  return null;
+};
+
+// Physical / fulfilment status only — never collapses into paid/invoiced.
+// Same precedence as deriveDisplayStatus minus the financial override (step 3).
+// Returns null when the ONLY signal is financial (item manually marked
+// paid/invoiced with no physical state known), so callers can show just the
+// money badge in that case.
+export const derivePhysicalStatus = (item, supplierOrderItem) => {
+  if (!item) return 'draft';
+  if (['returned', 'not_received', 'unavailable'].includes(item.status)) return item.status;
+  if (Number(item.returns_qty) > 0) return 'partially_returned';
+  if (item.status === 'received') return 'received';
+  if (item.status === 'partial')  return 'partial';
+  if (supplierOrderItem && ['confirmed', 'unavailable', 'substituted'].includes(supplierOrderItem.status)) {
+    return supplierOrderItem.status;
+  }
+  if (['paid', 'invoiced'].includes(item.status)) return null;  // financial-only
+  return item.status;
+};

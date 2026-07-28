@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ITEM_STATUS_ORDER, getItemStatusConfig, deriveDisplayStatus } from '../data/statusConfig';
+import { ITEM_STATUS_ORDER, getItemStatusConfig, derivePhysicalStatus, deriveFinancialStatus } from '../data/statusConfig';
 import { formatBoughtIn } from '../../../data/unitGroups';
 
 // Per-card status pill + right-click status picker. Pipes item + supplier_
@@ -9,8 +9,14 @@ import { formatBoughtIn } from '../../../data/unitGroups';
 // only offers crew-controllable states.
 
 const ItemCard = ({ item, supplierOrderItem, supplierOrder, onClick, onStatusChange, onQuantityChange }) => {
-  const derived = deriveDisplayStatus(item, supplierOrderItem, supplierOrder);
-  const cfg = getItemStatusConfig(derived);
+  // Physical + financial are independent axes — show both so a paid line that
+  // hasn't arrived (or a received line not yet paid) reads honestly, e.g.
+  // "Confirmed · Paid" rather than just "Paid". When only one axis has a
+  // signal, only that chip renders.
+  const physical = derivePhysicalStatus(item, supplierOrderItem);
+  const financial = deriveFinancialStatus(item, supplierOrder);
+  const physCfg = physical ? getItemStatusConfig(physical) : null;
+  const finCfg = financial ? getItemStatusConfig(financial) : null;
   const [menu, setMenu] = useState(null);
   const menuRef = useRef(null);
   const longPressTimer = useRef(null);
@@ -172,12 +178,26 @@ const ItemCard = ({ item, supplierOrderItem, supplierOrder, onClick, onStatusCha
           </div>
         )}
 
-        {/* Status badge — consumes the cell-variant palette from the unified config */}
-        <span
-          className="pv-item-status"
-          style={{ background: cfg.cell.bg, color: cfg.cell.color }}
-        >
-          {cfg.label}
+        {/* Status badges — physical (fulfilment) chip + separate money badge.
+            Two independent axes; either may be null. Falls back to the money
+            badge alone when a line is financial-only. */}
+        <span className="pv-item-status-group">
+          {physCfg && (
+            <span
+              className="pv-item-status"
+              style={{ background: physCfg.cell.bg, color: physCfg.cell.color }}
+            >
+              {physCfg.label}
+            </span>
+          )}
+          {finCfg && (
+            <span
+              className="pv-item-status"
+              style={{ background: finCfg.cell.bg, color: finCfg.cell.color }}
+            >
+              {finCfg.label}
+            </span>
+          )}
         </span>
       </div>
 
