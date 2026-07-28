@@ -118,7 +118,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       if (!locs.length) locs.push({ label: '', id: '' });
       const formats = item?.variants?.length ? item.variants.map((v) => String(v.size)) : order;
       const buy = {};
-      (item?.variants || []).forEach((v) => { if (v?.size != null) buy[String(v.size)] = { supplier: v.supplier || '', cost: v.unitCost ?? v.unit_cost ?? '' }; });
+      (item?.variants || []).forEach((v) => { if (v?.size != null) buy[String(v.size)] = { supplier: v.supplier || '', sku: v.sku || '', cost: v.unitCost ?? v.unit_cost ?? '' }; });
       return { locs, on, mx, formats, buy, reord };
     }
 
@@ -478,6 +478,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
           const v = { size: s, qty: uniLocs.reduce((a, l) => a + cell(l.label, s), 0) };
           if (profile !== 'uniform') {
             if (varBuy[s]?.supplier) v.supplier = varBuy[s].supplier;
+            if (varBuy[s]?.sku) v.sku = varBuy[s].sku;
             if (varBuy[s]?.cost !== '' && varBuy[s]?.cost != null) v.unitCost = Number(varBuy[s].cost);
           }
           return v;
@@ -650,6 +651,10 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               {photoErr && <div className="itf-err" style={{ marginTop: 4 }}>{photoErr}</div>}
             </div>
           </div>
+          <div className="itf-f" style={{ marginTop: 12, marginBottom: 0, maxWidth: 300 }}>
+            <label className="itf-lab">Brand <span className="opt">(optional)</span></label>
+            <input className="itf-in" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Fairy, Moët, Caterpillar" />
+          </div>
           <div className="itf-slab" style={{ marginTop: 16 }}>Profile</div>
           <div className="itf-types">
             {PROFILES.map((p) => (
@@ -787,21 +792,18 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               {activeSizes.length === 0 ? (
                 <div className="itf-usizes-empty">Add a size / pack in <b>Stock</b> first.</div>
               ) : (
-                <div className="itf-vbuy">
-                  <div className="itf-vbuy-hd"><span>Size</span><span>Supplier</span><span>Price</span></div>
+                <div className="itf-vbuy sku">
+                  <div className="itf-vbuy-hd"><span>Size</span><span>Supplier</span><span>SKU</span><span>Price</span></div>
                   {activeSizes.map((s) => (
                     <div className="itf-vbuy-row" key={s}>
                       <span className="fmt">{s}</span>
                       <input value={varBuy[s]?.supplier || ''} onChange={(e) => setVarBuy2(s, { supplier: e.target.value })} placeholder="Supplier" />
+                      <input value={varBuy[s]?.sku || ''} onChange={(e) => setVarBuy2(s, { sku: e.target.value })} placeholder="order ref" />
                       <div className="itf-adorn sm"><span className="pre">{currency === 'EUR' ? '€' : currency === 'USD' ? '$' : '£'}</span><input value={varBuy[s]?.cost ?? ''} onChange={(e) => setVarBuy2(s, { cost: e.target.value })} placeholder="0.00" inputMode="decimal" /></div>
                     </div>
                   ))}
                 </div>
               )}
-              <div className="itf-more" onClick={() => setMoreBuy((v) => !v)}><span className="pl">{moreBuy ? '–' : '+'}</span> Brand, SKU</div>
-              <div className={`itf-morebody${moreBuy ? ' show' : ''}`}>
-                <div className="itf-g2" style={{ margin: 0 }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Brand</label><input className="itf-in" value={brand} onChange={(e) => setBrand(e.target.value)} /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Supplier SKU</label><input className="itf-in" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="reorder ref" /></div></div>
-              </div>
             </>
           ) : (
             <>
@@ -818,10 +820,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                 </div>
               </div>
               {purchaseUnit && Number(unitsPerPack) > 0 && <div className="itf-hint">↺ 1 {purchaseUnit.toLowerCase()} = <b>{unitsPerPack}</b> {unit}</div>}
-              <div className="itf-more" onClick={() => setMoreBuy((v) => !v)}><span className="pl">{moreBuy ? '–' : '+'}</span> Brand, supplier, SKU</div>
+              <div className="itf-more" onClick={() => setMoreBuy((v) => !v)}><span className="pl">{moreBuy ? '–' : '+'}</span> Supplier, SKU</div>
               <div className={`itf-morebody${moreBuy ? ' show' : ''}`}>
-                <div className="itf-g2"><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Brand</label><input className="itf-in" value={brand} onChange={(e) => setBrand(e.target.value)} /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Supplier</label><input className="itf-in" value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div></div>
-                <div className="itf-f" style={{ margin: '12px 0 0' }}><label className="itf-lab">Supplier SKU</label><input className="itf-in" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="reorder ref" /></div>
+                <div className="itf-g2"><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Supplier</label><input className="itf-in" value={supplier} onChange={(e) => setSupplier(e.target.value)} /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Supplier SKU</label><input className="itf-in" value={sku} onChange={(e) => setSku(e.target.value)} placeholder="reorder ref" /></div></div>
               </div>
             </>
           )}
