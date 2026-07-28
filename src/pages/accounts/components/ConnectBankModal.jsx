@@ -1,50 +1,54 @@
-// Cargo Accounts — Connect a bank (Open Banking via Enable Banking). Pick a
-// country + bank, then hand off to the bank's own consent screen. We never see
-// the login or card number — the bank redirects back to /accounts/connect/callback
-// with a one-time code the edge function exchanges server-side.
+// Cargo Accounts — Connect a bank via Plaid. The button opens Plaid Link (the
+// bank's own secure login runs inside Plaid's widget — we never see credentials),
+// then we exchange the public token, create the accounts and pull the first batch
+// of transactions into the ledger.
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import { useTenant } from '../../../contexts/TenantContext';
-import { listBanks, connectBank } from '../../../services/bankFeedService';
+import { useAuth } from '../../../contexts/AuthContext';
+import { createLinkToken, exchangePublicToken, syncConnection, openPlaidLink } from '../../../services/plaidService';
 import './connect-bank.css';
 
-const COUNTRIES = [
-  ['', 'All countries'],
-  ['GB', 'United Kingdom'], ['FR', 'France'], ['ES', 'Spain'], ['IT', 'Italy'],
-  ['DE', 'Germany'], ['NL', 'Netherlands'], ['IE', 'Ireland'], ['PT', 'Portugal'],
-  ['BE', 'Belgium'], ['FI', 'Finland'], ['SE', 'Sweden'], ['MC', 'Monaco'], ['MT', 'Malta'],
-];
-
 export default function ConnectBankModal({ open, onClose }) {
+  const navigate = useNavigate();
   const { activeTenantId } = useTenant();
-  const [country, setCountry] = useState('');
-  const [psuType, setPsuType] = useState('personal');
-  const [banks, setBanks] = useState(null);
-  const [q, setQ] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [connecting, setConnecting] = useState('');
+  const { user } = useAuth();
+  const [phase, setPhase] = useState('intro'); // intro | working | done | error
+  const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [accounts, setAccounts] = useState(0);
+  const [posted, setPosted] = useState(0);
 
   if (!open) return null;
 
-  const load = async () => {
-    setLoading(true); setError(''); setBanks(null);
-    const { data, error: e } = await listBanks(country);
-    if (e) setError(e.message);
-    else setBanks(data?.aspsps || []);
-    setLoading(false);
+  const start = async () => {
+    setError(''); setPhase('working'); setStatus('Opening Plaid…');
+    const { data, error: e } = await createLinkToken({ tenantId: activeTenantId, userId: user?.id, countryCodes: ['GB'] });
+    if (e || !data?.link_token) { setError(e?.message || 'Could not start Plaid.'); setPhase('error'); return; }
+    try {
+      await openPlaidLink({
+        token: data.link_token,
+        onSuccess: async (publicToken, metadata) => {
+          setPhase('working'); setStatus('Linking your accounts…');
+          const inst = metadata?.institution?.name;
+          const { data: ex, error: xe } = await exchangePublicToken({ publicToken, tenantId: activeTenantId, institution: inst });
+          if (xe || !ex?.connectionId) { setError(xe?.message || 'Could not link your accounts.'); setPhase('error'); return; }
+          setAccounts(ex.accounts || 0);
+          setStatus('Pulling your transactions…');
+          const { data: sy, error: se } = await syncConnection(ex.connectionId);
+          if (se) { setError(se.message); setPhase('error'); return; }
+          setPosted(sy?.posted || 0);
+          setPhase('done');
+        },
+        onExit: (err) => {
+          if (err) { setError(err.display_message || err.error_message || 'Connection cancelled.'); setPhase('error'); }
+          else setPhase('intro'); // closed without finishing
+        },
+      });
+    } catch (e2) { setError(String(e2?.message || e2)); setPhase('error'); }
   };
-
-  const choose = async (aspsp) => {
-    setConnecting(aspsp.name); setError('');
-    const { data, error: e } = await connectBank({ tenantId: activeTenantId, country: aspsp.country || country || 'GB', aspsp: aspsp.name, psuType });
-    if (e) { setError(e.message); setConnecting(''); return; }
-    if (data?.url) window.location.href = data.url;  // hand off to the bank
-    else { setError('No consent URL returned.'); setConnecting(''); }
-  };
-
-  const shown = (banks || []).filter((b) => !q || b.name.toLowerCase().includes(q.toLowerCase()));
 
   return createPortal(
     <div className="cb-overlay" onClick={onClose}>
@@ -57,61 +61,39 @@ export default function ConnectBankModal({ open, onClose }) {
           <button type="button" className="cb-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
         </div>
 
-        <p className="cb-lede">
-          Pick your bank and approve <b>read-only</b> access on its own secure page. Cargo never sees your login or
-          card number — transactions just start flowing into the ledger.
-        </p>
-
-        <div className="cb-controls">
-          <label className="cb-field">
-            <span>Country</span>
-            <select value={country} onChange={(e) => { setCountry(e.target.value); setBanks(null); }}>
-              {COUNTRIES.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
-            </select>
-          </label>
-          <label className="cb-field">
-            <span>Account type</span>
-            <select value={psuType} onChange={(e) => setPsuType(e.target.value)}>
-              <option value="personal">Personal</option>
-              <option value="business">Business</option>
-            </select>
-          </label>
-          <button type="button" className="cb-load" onClick={load} disabled={loading}>
-            {loading ? 'Loading…' : banks ? 'Reload banks' : 'Find banks'}
-          </button>
-        </div>
-
-        {error && <div className="cb-error"><Icon name="AlertCircle" size={15} /> {error}</div>}
-
-        {banks && (
+        {phase === 'intro' && (
           <>
-            <div className="cb-count">
-              {banks.length} {banks.length === 1 ? 'bank' : 'banks'} {country ? `for ${country}` : 'available'}
-              <span className="cb-sandbox">Sandbox — test banks only (not Revolut/Monzo etc.)</span>
-            </div>
-            <div className="cb-search">
-              <Icon name="Search" size={15} />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search banks…" />
-            </div>
-            <div className="cb-list">
-              {shown.length === 0 ? (
-                <div className="cb-empty">
-                  {banks.length === 0
-                    ? `No banks came back${country ? ` for ${country}` : ''}. In Sandbox you only see the Mock ASPSP test bank — make sure it's set up in your Enable Banking Control Panel (Sandbox → Mock ASPSP), then reload. Real banks appear once you register a Production app.`
-                    : `No banks match “${q}”. Clear the search to see the ${banks.length} test ${banks.length === 1 ? 'bank' : 'banks'}.`}
-                </div>
-              ) : shown.map((b) => (
-                <button key={b.name} type="button" className="cb-bank" disabled={!!connecting} onClick={() => choose(b)}>
-                  {b.logo ? <img src={b.logo} alt="" className="cb-logo" /> : <span className="cb-logo cb-logo-ph"><Icon name="Landmark" size={16} /></span>}
-                  <span className="cb-bname">{b.name}</span>
-                  {connecting === b.name ? <span className="cb-going">Opening…</span> : <Icon name="ChevronRight" size={16} className="cb-chev" />}
-                </button>
-              ))}
-            </div>
+            <p className="cb-lede">
+              Connect your bank through <b>Plaid</b> and approve <b>read-only</b> access on your bank’s own secure page.
+              Cargo never sees your login or card number — transactions flow straight into the ledger.
+            </p>
+            <button type="button" className="cb-load cb-full" onClick={start}>Choose your bank</button>
           </>
         )}
 
-        <p className="cb-foot"><Icon name="ShieldCheck" size={13} /> Read-only · you can disconnect any time · consent renews every ~90 days</p>
+        {phase === 'working' && (
+          <div className="cb-working"><span className="cb-spin" /> {status}</div>
+        )}
+
+        {phase === 'done' && (
+          <>
+            <div className="cb-done">
+              <Icon name="CheckCircle" size={40} />
+              <p className="cb-donet">Connected</p>
+              <p className="cb-donesub">{accounts} {accounts === 1 ? 'account' : 'accounts'} linked · {posted} {posted === 1 ? 'transaction' : 'transactions'} pulled in. New spend keeps flowing on each sync.</p>
+            </div>
+            <button type="button" className="cb-load cb-full" onClick={() => { onClose(); navigate('/accounts/ledger'); }}>See spending</button>
+          </>
+        )}
+
+        {phase === 'error' && (
+          <>
+            <div className="cb-error"><Icon name="AlertCircle" size={15} /> {error}</div>
+            <button type="button" className="cb-load cb-full" style={{ marginTop: 12 }} onClick={() => setPhase('intro')}>Try again</button>
+          </>
+        )}
+
+        <p className="cb-foot"><Icon name="ShieldCheck" size={13} /> Read-only · powered by Plaid · you can disconnect any time</p>
       </div>
     </div>,
     document.body,
