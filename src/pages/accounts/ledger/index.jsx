@@ -3,7 +3,7 @@
 // categorised inline — confident lines get a one-tap File, two-sided vendors
 // (airline, supermarket, taxi) offer a guest-vs-crew choice instead of a guess.
 // Tag chips deep-link to the operational record that caused the spend.
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
@@ -101,7 +101,6 @@ export default function Ledger() {
   const [merchantRules, setMerchantRules] = useState([]);
   const [chart, setChart] = useState([]);         // grouped chart lines for the picker
   const [picker, setPicker] = useState(null);     // { rect, txn } for the category popover
-  const stripRef = useRef(null);
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
   const accountsById = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
@@ -173,11 +172,15 @@ export default function Ledger() {
     const m = {};
     rows.forEach((t) => {
       const ym = ymOf(t.txn_date); if (!ym) return;
-      const s = (m[ym] ||= { entries: 0, look: 0, filed: 0, net: 0 });
+      const s = (m[ym] ||= { entries: 0, look: 0, filed: 0, net: 0, inSum: 0, outSum: 0 });
       s.entries += 1;
       if (isLookRow(t)) s.look += 1;
       if (isFiledRow(t)) s.filed += 1;
-      if (isLiveTxn(t)) s.net += Number(t.amount || 0);
+      if (isLiveTxn(t)) {
+        const a = Number(t.amount || 0);
+        s.net += a;
+        if (a >= 0) s.inSum += a; else s.outSum += a;
+      }
     });
     return m;
   }, [rows]);
@@ -197,15 +200,11 @@ export default function Ledger() {
     return list;
   }, [rows, activeMonth, status, sortOldest]);
 
-  const monthStat = statsByMonth[activeMonth] || { entries: 0, look: 0, filed: 0, net: 0 };
+  const monthStat = statsByMonth[activeMonth] || { entries: 0, look: 0, filed: 0, net: 0, inSum: 0, outSum: 0 };
   const axisIdx = axis.indexOf(activeMonth);
   const totalLook = txns.filter(isLookRow).length;
-
-  // Keep the selected month chip in view (the newest sits at the right end).
-  useEffect(() => {
-    const el = stripRef.current?.querySelector('[aria-current="true"]');
-    if (el) el.scrollIntoView({ inline: 'center', block: 'nearest' });
-  }, [activeMonth, axis.length]);
+  const filedPct = monthStat.entries ? Math.round((monthStat.filed / monthStat.entries) * 100) : 0;
+  const monthCur = monthRows[0]?.currency;
 
   const setF = (patch) => setFilters((p) => ({ ...p, ...patch }));
   const stepMonth = (delta) => { const i = axisIdx + delta; if (i >= 0 && i < axis.length) setActiveMonth(axis[i]); };
@@ -446,38 +445,37 @@ export default function Ledger() {
             </button>
           </div>
 
-          {/* month navigator */}
-          <div className="ca-monthnav">
-            <div className="ca-mn-l">
-              <button type="button" className="ca-mn-arrow" onClick={() => stepMonth(-1)} disabled={axisIdx <= 0} aria-label="Previous month">
+          {/* month stepper (left) + KPIs (right) — borderless */}
+          <div className="ca-monthbar">
+            <div className="ca-stepper">
+              <button type="button" className="ca-step-arrow" onClick={() => stepMonth(-1)} disabled={axisIdx <= 0} aria-label="Previous month">
                 <Icon name="ChevronLeft" size={18} />
               </button>
-              <div className="ca-mn-name">{ymLabel(activeMonth)}</div>
-              <button type="button" className="ca-mn-arrow" onClick={() => stepMonth(1)} disabled={axisIdx >= axis.length - 1} aria-label="Next month">
+              <div className="ca-step-name">{ymLabel(activeMonth)}</div>
+              <button type="button" className="ca-step-arrow" onClick={() => stepMonth(1)} disabled={axisIdx >= axis.length - 1} aria-label="Next month">
                 <Icon name="ChevronRight" size={18} />
               </button>
             </div>
-            <div className="ca-mn-stats">
-              <span className="s"><b>{monthStat.entries}</b> entries</span>
-              <span className="vbar" />
-              <span className="s look"><b>{monthStat.look}</b> need a look</span>
-              <span className="vbar" />
-              <span className="s net">net <b>{formatMoney(monthStat.net, monthRows[0]?.currency, { signed: true })}</b></span>
+            <div className="ca-kpis">
+              <div className="ca-kpi meter">
+                <span className="ca-kpi-l">Categorised</span>
+                <span className="ca-kpi-v">{filedPct}%</span>
+                <div className="ca-meter-track"><div className="ca-meter-fill" style={{ width: `${filedPct}%` }} /></div>
+                <span className="ca-kpi-sub">{monthStat.filed} of {monthStat.entries} filed · {monthStat.look} to go</span>
+              </div>
+              <div className="ca-kpi">
+                <span className="ca-kpi-l">Money out</span>
+                <span className="ca-kpi-v neg">{formatMoney(monthStat.outSum, monthCur, { signed: true })}</span>
+              </div>
+              <div className="ca-kpi">
+                <span className="ca-kpi-l">Money in</span>
+                <span className="ca-kpi-v">{formatMoney(monthStat.inSum, monthCur, { signed: true })}</span>
+              </div>
+              <div className="ca-kpi">
+                <span className="ca-kpi-l">Net</span>
+                <span className="ca-kpi-v net">{formatMoney(monthStat.net, monthCur, { signed: true })}</span>
+              </div>
             </div>
-          </div>
-
-          <div className="ca-mstrip" ref={stripRef}>
-            {axis.map((ym) => {
-              const s = statsByMonth[ym];
-              const [y, m] = ym.split('-');
-              return (
-                <button key={ym} type="button" className="ca-mchip" aria-current={ym === activeMonth}
-                  onClick={() => setActiveMonth(ym)}>
-                  {MONTHS[+m - 1].slice(0, 3)} <span className="yy">’{y.slice(2)}</span>
-                  <span className="ca-mchip-n">{s ? (s.look ? `${s.look}●` : '✓') : '–'}</span>
-                </button>
-              );
-            })}
           </div>
 
           {/* list */}
