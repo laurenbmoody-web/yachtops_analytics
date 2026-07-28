@@ -2,7 +2,7 @@
 // by Owner / Charter APA / Petty cash, and every account grouped by the holder who
 // carries it (Vessel/Command first, then each Chief) with a month-end reconcile
 // indicator. Editorial (Cargo) system per CLAUDE.md.
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import '../../styles/editorial.css';
@@ -11,10 +11,20 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getAccountsOverview, createAccount, updateAccount } from '../../services/financeService';
 import { formatMoney } from '../../services/financeCalc';
 import { groupAccountsByHolder, fundsTotals } from '../../services/accountsView';
+import { listConnections, syncAll, syncConnection, disconnectConnection } from '../../services/plaidService';
 import AccountFormModal from './components/AccountFormModal';
 import AccountsShell from './components/AccountsShell';
 import ConnectBankModal from './components/ConnectBankModal';
 import './accounts.css';
+
+const timeAgo = (iso) => {
+  if (!iso) return '';
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 90) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)}m ago`;
+  if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+  return `${Math.round(s / 86400)}d ago`;
+};
 
 const KIND_ICON = { bank: 'Landmark', card: 'CreditCard', cash: 'Wallet', petty_cash: 'Wallet' };
 const FUNDS_LABEL = { owner: 'Owner', charter_apa: 'Charter APA', general: 'General' };
@@ -46,15 +56,70 @@ export default function Accounts() {
   const [expanded, setExpanded] = useState({}); // holder → open? (dashboard drills in on demand)
   const toggleHolder = (h) => setExpanded((e) => ({ ...e, [h]: !e[h] }));
 
+  const [connections, setConnections] = useState([]);
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState(null);
+  const autoRan = useRef(false);
+
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
+
+  const loadConnections = useCallback(async () => {
+    if (!activeTenantId) return;
+    const { data } = await listConnections(activeTenantId);
+    setConnections(data || []);
+  }, [activeTenantId]);
 
   const load = useCallback(async () => {
     if (!activeTenantId) return;
     setLoading(true);
-    const { data, error } = await getAccountsOverview(activeTenantId);
+    const [{ data, error }] = await Promise.all([getAccountsOverview(activeTenantId), loadConnections()]);
     if (!error && data) { setAccounts(data.accounts); setCashPosition(data.cashPosition); }
     setLoading(false);
-  }, [activeTenantId]);
+  }, [activeTenantId, loadConnections]);
+
+  // Manual "Sync now" — pull every connected bank, then refresh balances.
+  const runSyncAll = useCallback(async () => {
+    if (!activeTenantId || syncing) return;
+    setSyncing(true);
+    const { data } = await syncAll(activeTenantId);
+    setLastSync(new Date().toISOString());
+    await load();
+    setSyncing(false);
+    if (data) flash(data.posted > 0 ? `${data.posted} new ${data.posted === 1 ? 'transaction' : 'transactions'}` : 'Up to date');
+  }, [activeTenantId, syncing, load]);
+
+  // Auto-sync once per session so balances are fresh when Command opens Accounts.
+  useEffect(() => {
+    if (!activeTenantId || autoRan.current) return;
+    const key = `cargo_synced_${activeTenantId}`;
+    if (sessionStorage.getItem(key)) return;
+    autoRan.current = true;
+    (async () => {
+      const { data } = await listConnections(activeTenantId);
+      if ((data || []).some((c) => c.status === 'linked')) {
+        sessionStorage.setItem(key, '1');
+        setSyncing(true);
+        await syncAll(activeTenantId);
+        setLastSync(new Date().toISOString());
+        await load();
+        setSyncing(false);
+      }
+    })();
+  }, [activeTenantId, load]);
+
+  const syncOne = async (id) => {
+    setSyncing(true);
+    await syncConnection(id);
+    setLastSync(new Date().toISOString());
+    await load();
+    setSyncing(false);
+  };
+  const disconnect = async (c) => {
+    if (!window.confirm(`Disconnect ${c.institution_name || 'this bank'}? The feed stops; existing accounts and history stay.`)) return;
+    await disconnectConnection(c.id);
+    await loadConnections();
+    flash('Bank disconnected');
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -129,6 +194,11 @@ export default function Accounts() {
               <div className="ca-head-act">
                 {canEdit && (
                   <>
+                    {connections.some((c) => c.status === 'linked') && (
+                      <button type="button" className="ca-btn ca-btn-ghost" onClick={runSyncAll} disabled={syncing}>
+                        <Icon name="RefreshCw" size={15} className={syncing ? 'ca-spin' : undefined} /> {syncing ? 'Syncing…' : 'Sync now'}
+                      </button>
+                    )}
                     <button type="button" className="ca-btn ca-btn-ghost" onClick={() => setConnectOpen(true)}>
                       <Icon name="Link" size={16} /> Connect a bank
                     </button>
@@ -169,6 +239,31 @@ export default function Accounts() {
               <span className="ca-ov-km">this month-end →</span>
             </button>
           </div>
+
+          {/* Connected banks (live feed) */}
+          {connections.length > 0 && (
+            <div className="ca-conn">
+              <div className="ca-conn-head">
+                <span className="ca-ov-listtitle">Connected banks</span>
+                <span className="ca-conn-sub">{lastSync ? `Synced ${timeAgo(lastSync)}` : 'Live feed via Plaid'}</span>
+              </div>
+              {connections.map((c) => (
+                <div key={c.id} className={`ca-conn-row ${c.status}`}>
+                  <span className="ca-conn-ico"><Icon name="Landmark" size={16} /></span>
+                  <span className="ca-conn-name">{c.institution_name || 'Bank'}</span>
+                  <span className={`ca-conn-stat ${c.status}`}>
+                    <i />{c.status === 'linked' ? 'Connected' : c.status === 'error' ? 'Needs attention' : c.status}
+                  </span>
+                  <span className="ca-conn-rule" />
+                  {c.status === 'error' && c.error_detail && <span className="ca-conn-err" title={c.error_detail}>{c.error_detail.slice(0, 40)}…</span>}
+                  <button type="button" className="ca-conn-btn" disabled={syncing} onClick={() => syncOne(c.id)}>
+                    <Icon name="RefreshCw" size={13} className={syncing ? 'ca-spin' : undefined} /> Sync
+                  </button>
+                  <button type="button" className="ca-conn-btn danger" onClick={() => disconnect(c)}>Disconnect</button>
+                </div>
+              ))}
+            </div>
+          )}
 
           {loading ? (
             <div className="ca-empty"><p>Loading accounts…</p></div>

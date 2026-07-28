@@ -157,6 +157,29 @@
 .ca-ov-kv.owner { color: #3B6EA5; } .ca-ov-kv.apa { color: #7A4FA3; }
 .ca-ov-km { font-size: 10.5px; color: #AEB4C2; }
 
+/* Connected banks (live feed) */
+.ca-spin { animation: ca-spin 0.8s linear infinite; }
+@keyframes ca-spin { to { transform: rotate(360deg); } }
+.ca-conn { margin-top: 26px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 14px; padding: 14px 16px; }
+.ca-conn-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.ca-conn-sub { font-size: 11.5px; color: #8B8478; }
+.ca-conn-row { display: flex; align-items: center; gap: 11px; padding: 10px 0; border-bottom: 1px solid #F0F1F5; }
+.ca-conn-row:last-child { border-bottom: 0; }
+.ca-conn-ico { width: 30px; height: 30px; border-radius: 8px; background: #EAF0F7; color: #3B6EA5; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.ca-conn-name { font-size: 14px; font-weight: 600; color: #1C1B3A; }
+.ca-conn-stat { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; }
+.ca-conn-stat i { width: 7px; height: 7px; border-radius: 999px; }
+.ca-conn-stat.linked { color: #3F7A52; } .ca-conn-stat.linked i { background: #6FBF8B; }
+.ca-conn-stat.error { color: #B14E16; } .ca-conn-stat.error i { background: #C65A1A; }
+.ca-conn-stat.pending { color: #8B8478; } .ca-conn-stat.pending i { background: #AEB4C2; }
+.ca-conn-err { font-size: 11px; color: #B14E16; }
+.ca-conn-rule { flex: 1; }
+.ca-conn-btn { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; font-weight: 600; color: #6B7280; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 8px; padding: 6px 11px; cursor: pointer; transition: border-color 0.12s ease, color 0.12s ease; }
+.ca-conn-btn:hover { color: #1C1B3A; border-color: #D6D9E0; }
+.ca-conn-btn:disabled { opacity: 0.5; cursor: default; }
+.ca-conn-btn.danger { color: #B14E16; }
+.ca-conn-btn.danger:hover { border-color: #E7C9B6; background: #FBEFE9; }
+
 .ca-ov-listhead { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; margin: 30px 0 4px; flex-wrap: wrap; }
 .ca-ov-listtitle { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .ca-ov-note { font-size: 12px; color: #8B8478; }
