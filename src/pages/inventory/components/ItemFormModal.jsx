@@ -646,14 +646,11 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               )}
             </div>
             <div className="itf-idf">
+              <input className="itf-brandline" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand (optional)" aria-label="Brand" />
               <input ref={nameRef} className="itf-nm" value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" />
               <textarea className="itf-ds" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description (optional)" />
               {photoErr && <div className="itf-err" style={{ marginTop: 4 }}>{photoErr}</div>}
             </div>
-          </div>
-          <div className="itf-f" style={{ marginTop: 12, marginBottom: 0, maxWidth: 300 }}>
-            <label className="itf-lab">Brand <span className="opt">(optional)</span></label>
-            <input className="itf-in" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Fairy, Moët, Caterpillar" />
           </div>
           <div className="itf-slab" style={{ marginTop: 16 }}>Profile</div>
           <div className="itf-types">
