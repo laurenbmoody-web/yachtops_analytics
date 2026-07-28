@@ -1237,7 +1237,6 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       }}
                     >
                       <span className="dp-stair-ic" aria-hidden="true">↕</span>
-                      <span className="dp-stair-txt">{remote?.deckName || 'Stairs'}</span>
                     </button>
                   ))}
                   {placed.map((s) => {
