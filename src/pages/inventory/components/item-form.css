@@ -53,6 +53,9 @@
 .itf-chips{display:flex;flex-wrap:wrap;gap:6px;}
 .itf-chip{padding:5px 11px;border-radius:999px;border:1px solid var(--border);font-size:11.5px;color:#6B7280;background:#fff;cursor:pointer;transition:.12s;}
 .itf-chip.on{background:#FBEFE9;border-color:#E7C3AE;color:var(--g);font-weight:600;}
+.itf-chip-in{width:88px;padding:5px 11px;border-radius:999px;border:1px dashed var(--border);font-size:11.5px;font-family:inherit;color:var(--ink);background:none;outline:none;}
+.itf-chip-in:focus{border-color:var(--g);border-style:solid;box-shadow:0 0 0 3px #FAECE7;}
+.itf-chip-in::placeholder{color:var(--g);}
 
 /* identity card */
 .itf-idcard{display:flex;gap:14px;align-items:flex-start;}
@@ -191,6 +194,7 @@
 .itf-mrtot{border-top:1px solid var(--hair);justify-content:center;font-size:13px;font-weight:700;color:var(--ink);}
 .itf-maddloc{border-top:1px solid var(--border);background:none;color:var(--g);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;border-left:0;border-right:0;border-bottom:0;justify-content:flex-start;padding:11px 8px;}
 .itf-maddloc:hover{color:#B14E16;}
+.itf-mhavelbl{border-top:1px solid var(--border);font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);}
 .itf-mhave{border-top:1px solid var(--border);justify-content:center;font-size:13.5px;font-weight:800;color:var(--g);}
 .itf-mgtot{border-top:1px solid var(--border);justify-content:center;font-size:13.5px;font-weight:800;color:var(--g);}
 .itf-mminlab{font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);}
