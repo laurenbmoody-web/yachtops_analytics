@@ -197,17 +197,26 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [medForm, setMedForm] = useState(item?.customFields?.medical?.form || '');
   const [medMca, setMedMca] = useState(item?.customFields?.medical?.mca || '');
   const [medControlled, setMedControlled] = useState(!!item?.customFields?.medical?.controlled);
+  const [medActive, setMedActive] = useState(item?.customFields?.medical?.active || '');
+  const [medBatch, setMedBatch] = useState(item?.customFields?.medical?.batch || '');
+  const [medStorage, setMedStorage] = useState(item?.customFields?.medical?.storage || 'Ambient');
   const [foodOrigin, setFoodOrigin] = useState(item?.customFields?.food?.origin || '');
   const [foodAllergens, setFoodAllergens] = useState(item?.customFields?.food?.allergens || []);
+  const [foodStorage, setFoodStorage] = useState(item?.customFields?.food?.storage || 'Ambient');
+  const [foodBatch, setFoodBatch] = useState(item?.customFields?.food?.batch || '');
   const [mFreq, setMFreq] = useState(item?.customFields?.maintenance?.every || 'Monthly');
   const [mNext, setMNext] = useState(item?.customFields?.maintenance?.nextDue || '');
   const [mDays, setMDays] = useState(item?.customFields?.maintenance?.days || []);
   const [mCheck, setMCheck] = useState(item?.customFields?.maintenance?.check || '');
+  const [mResponsible, setMResponsible] = useState(item?.customFields?.maintenance?.responsible || '');
+  const [mEstTime, setMEstTime] = useState(item?.customFields?.maintenance?.estTime || '');
+  const [mLink, setMLink] = useState(item?.customFields?.maintenance?.link || '');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [mapItem, setMapItem] = useState(null);
   const [savedId, setSavedId] = useState(item?.id || null);
+  const nameRef = useRef(null);
 
   // size labels for the current system
   const sizeList = useMemo(() => {
@@ -368,7 +377,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     finally { setPhotoBusy(false); }
   };
 
-  const persist = async () => {
+  const persist = async (notify = true) => {
     if (!name.trim()) { setError('Item name is required.'); setOpen((o) => ({ ...o, identity: true })); return null; }
     setSaving(true); setError('');
     try {
@@ -426,9 +435,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         ...(multiSize ? { formats: activeSizes, variantKind: 'format' } : {}),
         reorderSizes: hasVar && activeSizes.some((s) => Number(reorderSizes[s]) > 0) ? activeSizes.reduce((o, s) => { o[s] = Number(reorderSizes[s]) || 0; return o; }, {}) : undefined,
         flags: toArr(flagOn).length ? flagOn : undefined,
-        medical: addonOn.medical ? { form: medForm, mca: medMca, controlled: medControlled } : undefined,
-        food: addonOn.food ? { origin: foodOrigin, allergens: foodAllergens } : undefined,
-        maintenance: addonOn.maint ? { every: mFreq, nextDue: mNext, days: mDays, check: mCheck } : undefined,
+        medical: addonOn.medical ? { form: medForm, mca: medMca, controlled: medControlled, active: medActive || undefined, batch: medBatch || undefined, storage: medStorage } : undefined,
+        food: addonOn.food ? { origin: foodOrigin, allergens: foodAllergens, storage: foodStorage, batch: foodBatch || undefined } : undefined,
+        maintenance: addonOn.maint ? { every: mFreq, nextDue: mNext, days: mDays, check: mCheck, responsible: mResponsible || undefined, estTime: mEstTime || undefined, link: mLink || undefined } : undefined,
       };
 
       const payload = {
@@ -473,7 +482,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       if (res.error) throw res.error;
       const newId = res.data?.id || existingId || null;
       if (!isEdit && newId) setSavedId(newId);
-      onSaved?.();
+      if (notify) onSaved?.();
       return newId;
     } catch (err) {
       console.error('[ItemFormModal] save failed:', err);
@@ -490,7 +499,15 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   };
 
   const setOnMap = async () => {
-    const id = await persist();
+    if (!name.trim()) {
+      setError('Give the item a name first — then you can pin it on the map.');
+      setOpen((o) => ({ ...o, identity: true }));
+      nameRef.current?.focus();
+      nameRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    // Save without notifying the parent (which may close us) so the map can open.
+    const id = await persist(false);
     if (id) setMapItem({ id, name: name.trim() });
   };
 
@@ -550,7 +567,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               )}
             </div>
             <div className="itf-idf">
-              <input className="itf-nm" value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" />
+              <input ref={nameRef} className="itf-nm" value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" />
               <textarea className="itf-ds" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description (optional)" />
               {photoErr && <div className="itf-err" style={{ marginTop: 4 }}>{photoErr}</div>}
             </div>
@@ -636,19 +653,12 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
         {/* 3 STOCK */}
         <Sec icon="Boxes" name="Stock & location" open={open.stock} onToggle={() => toggle('stock')}>
-          <div className="itf-stockhd">
-            <span className="itf-fl" style={{ margin: 0 }}>Where it's stowed &amp; how much{cols.length > 1 ? <span className="opt"> · per size{uniLocs.length > 1 ? ', per location' : ''}</span> : null}</span>
-            {profile !== 'uniform' && (
-              <label className="itf-unitpick">counted in
-                <select value={unit} onChange={(e) => setUnit(e.target.value)}><option>each</option><option>bottle</option><option>case</option><option>kg</option><option>L</option><option>pack</option></select>
-              </label>
-            )}
-          </div>
+          <span className="itf-fl">Where it's stowed &amp; how much{cols.length > 1 ? <span className="opt"> · per size{uniLocs.length > 1 ? ', per location' : ''}</span> : null}</span>
           {cols.length === 0 ? (
             <div className="itf-usizes-empty">Turn on some sizes in <b>Details</b> to log quantities.</div>
           ) : (
             <div className="itf-mtxwrap">
-              <div className="itf-mtx" style={{ gridTemplateColumns: `minmax(104px,1.4fr) repeat(${cols.length}, minmax(52px,1fr)) ${profile !== 'uniform' ? '32px ' : ''}54px` }}>
+              <div className="itf-mtx" style={{ gridTemplateColumns: `minmax(136px,1.5fr) repeat(${cols.length}, minmax(50px,1fr)) ${profile !== 'uniform' ? '30px ' : ''}52px` }}>
                 {/* header — editable size labels for non-uniform, static for uniform */}
                 <div className="itf-mh blank" />
                 {cols.map((c, j) => (profile !== 'uniform'
@@ -689,14 +699,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
           <div className="itf-locactions">
             <button type="button" className="itf-setmap2" onClick={setOnMap} disabled={saving}><Icon name="Crosshair" size={13} /> {saving ? 'Saving…' : 'Set from map'}</button>
           </div>
-          {profile !== 'uniform' && (
-            <>
-              <div className="itf-more" onClick={() => setMoreStock((v) => !v)}><span className="pl">{moreStock ? '–' : '+'}</span> Expiry date</div>
-              <div className={`itf-morebody${moreStock ? ' show' : ''}`}>
-                <div className="itf-f" style={{ margin: 0, maxWidth: 220 }}><label className="itf-lab">Expiry <span className="opt">(optional)</span></label><input className="itf-in" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} /></div>
-              </div>
-            </>
-          )}
         </Sec>
 
         {/* 4 BUYING */}
@@ -752,14 +754,30 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
         {/* 5 HANDLING */}
         <Sec icon="ShieldCheck" name="Handling & maintenance" open={open.handling} onToggle={() => toggle('handling')} summary={handSummary.length ? handSummary.map((h) => <span key={h} className="sc hot">{h}</span>) : <span className="sc muted">none set</span>}>
+          {profile !== 'uniform' && (
+            <div className="itf-f" style={{ maxWidth: 240 }}><label className="itf-lab">Expiry / best before <span className="opt">(optional)</span></label><input className="itf-in" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} /></div>
+          )}
           <div className="itf-clu">
             <div className="itf-mlab"><span>Add details</span><span className="rule" /><span className="free">inserts fields</span></div>
             <div className="itf-addons">
               {ADDONS.map((a) => <span key={a.id} className={`itf-addon${addonOn[a.id] ? ' on' : ''}`} onClick={() => setAddonOn((o) => ({ ...o, [a.id]: !o[a.id] }))}><span className="sign">{addonOn[a.id] ? '✓' : '+'}</span>{a.label}</span>)}
             </div>
-            {addonOn.medical && <div className="itf-block show"><div className="itf-block-h"><span className="t">Medical</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, medical: false }))}>✕ remove</span></div><div className="itf-block-b"><div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Form / dose</label><input className="itf-in" value={medForm} onChange={(e) => setMedForm(e.target.value)} placeholder="Tablet 500mg" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">MCA kit</label><input className="itf-in" value={medMca} onChange={(e) => setMedMca(e.target.value)} placeholder="Cat A/B/C" /></div></div><div className="itf-chips"><span className={`itf-chip${medControlled ? ' on' : ''}`} onClick={() => setMedControlled((v) => !v)}>Controlled drug — logbook</span></div></div></div>}
-            {addonOn.food && <div className="itf-block show"><div className="itf-block-h"><span className="t">Food</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, food: false }))}>✕ remove</span></div><div className="itf-block-b"><div className="itf-f"><label className="itf-lab">Origin <span className="opt">(customs)</span></label><input className="itf-in" value={foodOrigin} onChange={(e) => setFoodOrigin(e.target.value)} placeholder="Italy" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Allergens</label><div className="itf-chips">{ALLERGENS.map((a) => <span key={a} className={`itf-chip${foodAllergens.includes(a) ? ' on' : ''}`} onClick={() => setFoodAllergens((xs) => xs.includes(a) ? xs.filter((x) => x !== a) : [...xs, a])}>{a}</span>)}</div></div></div></div>}
-            {addonOn.maint && <div className="itf-block show"><div className="itf-block-h"><span className="t">Scheduled checks</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, maint: false }))}>✕ remove</span></div><div className="itf-block-b"><div className="itf-g2"><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Every</label><select className="itf-sel" value={mFreq} onChange={(e) => setMFreq(e.target.value)}>{FREQS.map((f) => <option key={f}>{f}</option>)}</select></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Next due</label><input className="itf-in" type="date" value={mNext} onChange={(e) => setMNext(e.target.value)} /></div></div>{(mFreq === 'Weekly' || mFreq === 'Daily') && <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">On days</label><div className="itf-days">{DOW.map((d, i) => <span key={i} className={`itf-day${mDays.includes(i) ? ' on' : ''}`} onClick={() => setMDays((xs) => xs.includes(i) ? xs.filter((x) => x !== i) : [...xs, i])}>{d}</span>)}</div></div>}<div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">What to check</label><input className="itf-in" value={mCheck} onChange={(e) => setMCheck(e.target.value)} placeholder="Gauge in green, seal intact, pin secure" /></div><div className="itf-note" style={{ marginTop: 11 }}><span>↻</span><span>Drops a <b>recurring job</b> onto Team Jobs each cycle.</span></div></div></div>}
+            {addonOn.medical && <div className="itf-block show"><div className="itf-block-h"><span className="t">Medical</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, medical: false }))}>✕ remove</span></div><div className="itf-block-b">
+              <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Form / dose</label><input className="itf-in" value={medForm} onChange={(e) => setMedForm(e.target.value)} placeholder="Tablet 500mg" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Active ingredient</label><input className="itf-in" value={medActive} onChange={(e) => setMedActive(e.target.value)} placeholder="Paracetamol" /></div></div>
+              <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">MCA category</label><input className="itf-in" value={medMca} onChange={(e) => setMedMca(e.target.value)} placeholder="Cat A/B/C" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Batch / lot no</label><input className="itf-in" value={medBatch} onChange={(e) => setMedBatch(e.target.value)} placeholder="Optional" /></div></div>
+              <div className="itf-f" style={{ margin: '0 0 11px' }}><label className="itf-lab">Storage</label><select className="itf-sel" value={medStorage} onChange={(e) => setMedStorage(e.target.value)}><option>Ambient</option><option>Chilled 2–8°C</option><option>Controlled / locked</option></select></div>
+              <div className="itf-chips"><span className={`itf-chip${medControlled ? ' on' : ''}`} onClick={() => setMedControlled((v) => !v)}>Controlled drug — logbook</span></div></div></div>}
+            {addonOn.food && <div className="itf-block show"><div className="itf-block-h"><span className="t">Food</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, food: false }))}>✕ remove</span></div><div className="itf-block-b">
+              <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Origin <span className="opt">(customs)</span></label><input className="itf-in" value={foodOrigin} onChange={(e) => setFoodOrigin(e.target.value)} placeholder="Italy" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Storage</label><select className="itf-sel" value={foodStorage} onChange={(e) => setFoodStorage(e.target.value)}><option>Ambient</option><option>Chilled</option><option>Frozen</option></select></div></div>
+              <div className="itf-f" style={{ margin: '0 0 11px' }}><label className="itf-lab">Batch / lot no <span className="opt">(recall trace)</span></label><input className="itf-in" value={foodBatch} onChange={(e) => setFoodBatch(e.target.value)} placeholder="Optional" /></div>
+              <div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Allergens</label><div className="itf-chips">{ALLERGENS.map((a) => <span key={a} className={`itf-chip${foodAllergens.includes(a) ? ' on' : ''}`} onClick={() => setFoodAllergens((xs) => xs.includes(a) ? xs.filter((x) => x !== a) : [...xs, a])}>{a}</span>)}</div></div></div></div>}
+            {addonOn.maint && <div className="itf-block show"><div className="itf-block-h"><span className="t">Scheduled checks</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, maint: false }))}>✕ remove</span></div><div className="itf-block-b">
+              <div className="itf-g2"><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Every</label><select className="itf-sel" value={mFreq} onChange={(e) => setMFreq(e.target.value)}>{FREQS.map((f) => <option key={f}>{f}</option>)}</select></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Next due</label><input className="itf-in" type="date" value={mNext} onChange={(e) => setMNext(e.target.value)} /></div></div>
+              <div className="itf-g2" style={{ margin: '11px 0 0' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Responsible</label><select className="itf-sel" value={mResponsible} onChange={(e) => setMResponsible(e.target.value)}><option value="">Any dept</option><option>Deck</option><option>Engineering</option><option>Interior</option><option>Galley</option><option>Bridge</option><option>Medical</option></select></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Est. time <span className="opt">(mins)</span></label><input className="itf-in" value={mEstTime} onChange={(e) => setMEstTime(e.target.value)} placeholder="15" inputMode="numeric" /></div></div>
+              {(mFreq === 'Weekly' || mFreq === 'Daily') && <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">On days</label><div className="itf-days">{DOW.map((d, i) => <span key={i} className={`itf-day${mDays.includes(i) ? ' on' : ''}`} onClick={() => setMDays((xs) => xs.includes(i) ? xs.filter((x) => x !== i) : [...xs, i])}>{d}</span>)}</div></div>}
+              <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">What to check</label><input className="itf-in" value={mCheck} onChange={(e) => setMCheck(e.target.value)} placeholder="Gauge in green, seal intact, pin secure" /></div>
+              <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">Link a checklist / SOP <span className="opt">(optional)</span></label><input className="itf-in" value={mLink} onChange={(e) => setMLink(e.target.value)} placeholder="Checklist name or link" /></div>
+              <div className="itf-note" style={{ marginTop: 11 }}><span>↻</span><span>Drops a <b>recurring job</b> onto Team Jobs each cycle.</span></div></div></div>}
           </div>
           <div className="itf-clu">
             <div className="itf-mlab"><span>Flags</span><span className="rule" /><span className="free">on / off · hover</span></div>
