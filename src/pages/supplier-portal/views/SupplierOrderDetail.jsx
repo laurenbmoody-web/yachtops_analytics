@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import {formatTime, dateLocale } from '../../../utils/dateFormat';
 import { useParams, useNavigate } from 'react-router-dom';
-import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, sendDeliveryNoteEmails, quoteOrderItem, confirmOrderItem, markVesselApprovedSeen, supplierRequestLineReopen, fetchSupplierTeam, assignInternalDriver, setExternalCourier, setDriverStatus, clearDriver } from '../utils/supplierStorage';
+import { fetchOrderById, updateOrderStatus, updateOrderItem, fetchOrderActivity, fetchInvoiceSignedUrl, generateSupplierPaymentReceipt, fetchDocumentSignedUrl, generateOrderPdf, generateDeliveryNote, sendDeliveryNoteEmails, quoteOrderItem, confirmOrderItem, markVesselApprovedSeen, supplierRequestLineReopen, fetchSupplierTeam, assignInternalDriver, setExternalCourier, setDriverStatus, clearDriver } from '../utils/supplierStorage';
 import { fetchReturnTasksByOrderId, fetchReturnTasksCountForOrder, acknowledgeSupplierReturnTask, completeSupplierReturnTask } from '../utils/supplierReturnTasks';
 import { TaskRow, TaskDetail } from '../components/SupplierReturnTaskCard';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -731,7 +731,7 @@ const Timeline = ({ order, items }) => {
 // the timeline. Each stage's action routes to the existing flow for that
 // stage (confirm-all, the picking screen, the invoice modal, status advance)
 // rather than duplicating it.
-const DoStation = ({ order, items, canEdit, invoice, onConfirmAll, onStartPicking, onGenerateInvoice, onAdvance }) => {
+const DoStation = ({ order, items, canEdit, invoice, onConfirmAll, onStartPicking, onGenerateInvoice, onAdvance, onDownloadReceipt, receiptBusy }) => {
   const total = items.length;
   const pending = items.filter((i) => (i.status || 'pending') === 'pending').length;
   const actioned = total - pending;
@@ -813,6 +813,16 @@ const DoStation = ({ order, items, canEdit, invoice, onConfirmAll, onStartPickin
         {hint && <div className="sod-station-hint">{hint}</div>}
       </div>
       <div className="sod-station-actions">
+        {status === 'paid' && invoice && onDownloadReceipt && (
+          <button
+            type="button"
+            className="sod-station-btn sod-station-btn-ghost"
+            disabled={receiptBusy}
+            onClick={() => onDownloadReceipt(invoice)}
+          >
+            {receiptBusy ? 'Preparing…' : 'Download receipt'}
+          </button>
+        )}
         {secondary && (
           <button
             type="button"
@@ -2601,6 +2611,23 @@ const SupplierOrderDetail = () => {
     }
   }, []);
 
+  // Download the payment-receipt PDF (proof of payment incl. the Stripe
+  // payment ID). Generated on demand by the edge function; opens in a new tab.
+  const [receiptBusy, setReceiptBusy] = useState(false);
+  const handleDownloadReceipt = useCallback(async (invoice) => {
+    if (!invoice?.id || receiptBusy) return;
+    setReceiptBusy(true);
+    try {
+      const res = await generateSupplierPaymentReceipt(invoice.id);
+      if (res?.signed_url) window.open(res.signed_url, '_blank', 'noopener');
+      else window.alert('Could not prepare the receipt — please try again.');
+    } catch (e) {
+      window.alert(`Could not prepare the receipt: ${e.message}`);
+    } finally {
+      setReceiptBusy(false);
+    }
+  }, [receiptBusy]);
+
   // After a fresh invoice is generated, refetch the order so the
   // Documents row flips from "Generate" to "Open".
   const handleInvoiceGenerated = useCallback(() => {
@@ -3035,6 +3062,8 @@ const SupplierOrderDetail = () => {
         onStartPicking={() => navigate(`/supplier/orders/${order.id}/pick`)}
         onGenerateInvoice={() => setGenerateInvoiceOpen(true)}
         onAdvance={handleStatusAdvance}
+        onDownloadReceipt={handleDownloadReceipt}
+        receiptBusy={receiptBusy}
       />
       <DriverStation order={order} canEdit={canEdit} onUpdate={applyOrderUpdate} />
 

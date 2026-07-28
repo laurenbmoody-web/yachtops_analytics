@@ -1475,6 +1475,20 @@ export const generateSupplierInvoice = async (orderId, options = {}) => {
   return data;
 };
 
+// Render a payment RECEIPT PDF (proof of payment, incl. the Stripe payment
+// ID) for a settled invoice and return a short-lived signed URL. The edge
+// function authorises the supplier OR the paying tenant, and reads the Stripe
+// reference from supplier_payments (service-role) which neither side can read
+// directly. Resolves to { signed_url, expires_at, pdf_path }.
+export const generateSupplierPaymentReceipt = async (invoiceId) => {
+  const { data, error } = await supabase.functions.invoke('generateSupplierPaymentReceipt', {
+    body: { invoiceId },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
+
 // Mint a short-lived signed URL for an invoice PDF via the
 // getInvoiceSignedUrl edge function. The function handles the auth check
 // (supplier-owner OR vessel tenant-member of the order's tenant) so this
