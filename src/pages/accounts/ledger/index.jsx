@@ -10,17 +10,50 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
   listAccounts, listTransactions, createTransaction, voidTransaction, assignTransactionAccount,
-  uploadReceipt, listAttachments,
+  uploadReceipt, listAttachments, fileTransaction, fileTransactions,
+  listMerchantRules, setMerchantRule,
 } from '../../../services/financeService';
+import { getChartGrouped } from '../../../services/chartService';
+import { suggestWithRules, normalizeMerchant } from '../../../services/merchantClassify';
+import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
 import { formatMoney, isLiveTxn } from '../../../services/financeCalc';
 import { ManualTxnModal, AssignAccountModal } from '../components/TransactionModals';
 import StatementReconcileModal from '../components/StatementReconcileModal';
+import CategoryPicker from '../components/CategoryPicker';
 import AccountsShell from '../components/AccountsShell';
 import '../accounts.css';
 
 const SOURCE_LABEL = {
   manual: 'Manual', supplier_invoice: 'Supplier invoice', provisioning: 'Provisioning',
-  defect_repair: 'Defect repair', charter: 'Charter', import: 'Import',
+  defect_repair: 'Defect repair', charter: 'Charter', import: 'Import', bank_feed: 'Bank feed',
+};
+
+// Fallback picker groups from the standard MYBA chart, for tenants who haven't yet
+// applied a chart template (so "Change category" always has lines to choose from).
+const STANDARD_GROUPS = STANDARD_BUCKET_ORDER.map((bucket) => ({
+  bucket,
+  lines: STANDARD_CHART_OF_ACCOUNTS.filter((l) => l.bucket === bucket)
+    .map((l) => ({ category: l.category, code: l.code })),
+})).filter((g) => g.lines.length);
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
+const monthKey = (iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? 'undated' : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+const monthLabel = (iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? 'Undated' : `${MONTHS[d.getMonth()].toUpperCase()} ${d.getFullYear()}`; };
+
+// Group already-sorted (newest-first) rows into months, preserving order, with a
+// per-month net total from the lines that actually move a balance.
+const groupByMonth = (rows) => {
+  const groups = [];
+  const idx = {};
+  for (const t of rows) {
+    const k = monthKey(t.txn_date);
+    if (!(k in idx)) { idx[k] = groups.length; groups.push({ key: k, label: monthLabel(t.txn_date), items: [], total: 0, currency: t.currency }); }
+    const g = groups[idx[k]];
+    g.items.push(t);
+    if (isLiveTxn(t)) g.total += Number(t.amount || 0);
+  }
+  return groups;
 };
 
 // Operational tag → { label, path }. Deep-links to the module that owns the record.
@@ -54,14 +87,30 @@ export default function Ledger() {
   const [assignTxn, setAssignTxn] = useState(null);
   const [attByTxn, setAttByTxn] = useState({});   // txnId → [attachment w/ signed url]
   const [toast, setToast] = useState('');
+  const [merchantRules, setMerchantRules] = useState([]);
+  const [chart, setChart] = useState([]);         // grouped chart lines for the picker
+  const [picker, setPicker] = useState(null);     // { rect, txn } for the category popover
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
   const accountsById = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
+
+  // Tier-A learned map: normalised merchant → MYBA line, for the suggestion engine.
+  const ruleMap = useMemo(
+    () => new Map((merchantRules || []).map((r) => [r.merchant_key, { bucket: r.bucket, category: r.category, code: r.code }])),
+    [merchantRules],
+  );
+  const pickerGroups = chart.length ? chart : STANDARD_GROUPS;
 
   const loadAccounts = useCallback(async () => {
     if (!activeTenantId) return;
     const { data } = await listAccounts(activeTenantId);
     if (data) setAccounts(data);
+  }, [activeTenantId]);
+
+  const loadRules = useCallback(async () => {
+    if (!activeTenantId) return;
+    const { data } = await listMerchantRules(activeTenantId);
+    setMerchantRules(data || []);
   }, [activeTenantId]);
 
   const loadTxns = useCallback(async () => {
@@ -85,6 +134,11 @@ export default function Ledger() {
 
   useEffect(() => { loadAccounts(); }, [loadAccounts]);
   useEffect(() => { loadTxns(); }, [loadTxns]);
+  useEffect(() => { loadRules(); }, [loadRules]);
+  useEffect(() => {
+    if (!activeTenantId) return;
+    getChartGrouped(activeTenantId).then(({ data }) => setChart(data || []));
+  }, [activeTenantId]);
 
   // Running balance only when a single account is filtered: cumulate opening + live
   // amounts oldest→newest, then present newest-first.
@@ -100,6 +154,8 @@ export default function Ledger() {
     });
     return withRun.reverse();
   }, [txns, filters.accountId, accountsById]);
+
+  const monthGroups = useMemo(() => groupByMonth(rows), [rows]);
 
   const setF = (patch) => setFilters((p) => ({ ...p, ...patch }));
 
@@ -120,6 +176,34 @@ export default function Ledger() {
     if (!res.error) { await Promise.all([loadTxns(), loadAccounts()]); flash('Account assigned'); }
     return res;
   };
+
+  // File a line onto a MYBA category. When `learn`, remember the merchant so every
+  // future charge from it auto-files, and backfill any sibling lines already on
+  // screen from the same merchant — so confirming once clears the whole vendor.
+  const handleFile = async (t, line, { learn = true } = {}) => {
+    setPicker(null);
+    const target = { bucket: line.bucket, category: line.category, code: line.code || null };
+    const res = await fileTransaction(t.id, { category: target.category, category_code: target.code });
+    if (res.error) { flash('Could not file — please try again'); return; }
+    let cleared = 1;
+    if (learn && t.payee) {
+      await setMerchantRule(activeTenantId, t.payee, target);
+      const key = normalizeMerchant(t.payee);
+      const siblingIds = txns
+        .filter((x) => x.id !== t.id && !x.category && x.status === 'unreconciled'
+          && normalizeMerchant(x.payee) === key)
+        .map((x) => x.id);
+      if (siblingIds.length) { await fileTransactions(siblingIds, { category: target.category, category_code: target.code }); cleared += siblingIds.length; }
+    }
+    await Promise.all([loadTxns(), loadRules()]);
+    flash(cleared > 1 ? `Filed to ${target.category} · ${cleared} lines` : `Filed to ${target.category}`);
+  };
+
+  const openPicker = (e, t) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setPicker({ rect, txn: t });
+  };
+  const pickCategory = (o) => { if (picker) handleFile(picker.txn, o); };
 
   const handleVoid = async (t) => {
     if (!window.confirm('Void this transaction? It will no longer affect any balance.')) return;
@@ -147,6 +231,9 @@ export default function Ledger() {
     const attention = !t.account_id || t.status === 'unreconciled';
     const acct = t.account_id ? accountsById[t.account_id] : null;
     const voided = t.status === 'void';
+    // Suggest a MYBA line for un-categorised attention rows (learned map → seed → text).
+    const needsCategory = attention && !voided && !t.category;
+    const sug = needsCategory ? suggestWithRules(t, ruleMap).suggestion : null;
     return (
       <div key={t.id} className={`ca-txn${voided ? ' is-void' : ''}${attention && !voided ? ' is-attention' : ''}`}>
         <span className="ca-txn-date">{fmtDMY(t.txn_date)}</span>
@@ -156,6 +243,25 @@ export default function Ledger() {
             {t.category ? `${t.category} · ` : ''}{SOURCE_LABEL[t.source] || t.source}
             {voided ? ' · voided' : ''}
           </div>
+          {needsCategory && canEdit && (
+            <div className="ca-suggest">
+              {sug ? (
+                <>
+                  <span className={`ca-sug-pill is-${sug.confidence}`} title={sug.reason}>
+                    <i className="ca-sug-dot" />
+                    {sug.code ? `${sug.code} · ` : ''}{sug.category}
+                    {sug.confidence === 'low' ? <em className="ca-sug-check"> · check</em> : null}
+                  </span>
+                  <button type="button" className="ca-sug-file" onClick={() => handleFile(t, sug)}>File</button>
+                  <button type="button" className="ca-sug-change" onClick={(e) => openPicker(e, t)}>Change</button>
+                </>
+              ) : (
+                <button type="button" className="ca-sug-change" onClick={(e) => openPicker(e, t)}>
+                  <Icon name="Tag" size={12} /> Categorise…
+                </button>
+              )}
+            </div>
+          )}
           {renderChips(t)}
           {attByTxn[t.id]?.length > 0 && (
             <div className="ca-chips">
@@ -176,7 +282,7 @@ export default function Ledger() {
           )}
         </span>
         <span className="ca-txn-act">
-          {attention && !voided && canEdit && (
+          {!t.account_id && !voided && canEdit && (
             <button type="button" className="ca-link" onClick={() => setAssignTxn(t)}>Assign →</button>
           )}
           {!voided && canEdit && (
@@ -249,8 +355,16 @@ export default function Ledger() {
               <p className="ca-empty-sub">Adjust the filters, or add a manual transaction.</p>
             </div>
           ) : (
-            <div className="ca-cat" style={{ marginTop: 18 }}>
-              {rows.map(renderRow)}
+            <div className="ca-months" style={{ marginTop: 18 }}>
+              {monthGroups.map((g) => (
+                <section key={g.key} className="ca-month">
+                  <div className="ca-month-head">
+                    <span className="ca-month-label">{g.label}</span>
+                    <span className="ca-month-total">{formatMoney(g.total, g.currency, { signed: true })}</span>
+                  </div>
+                  <div className="ca-cat">{g.items.map(renderRow)}</div>
+                </section>
+              ))}
             </div>
           )}
         </div>
@@ -262,6 +376,10 @@ export default function Ledger() {
       <AssignAccountModal open={Boolean(assignTxn)} onClose={() => setAssignTxn(null)} onAssign={handleAssign} txn={assignTxn} accounts={accounts} />
       <StatementReconcileModal open={importOpen} onClose={() => setImportOpen(false)} accounts={accounts} tenantId={activeTenantId}
         onDone={() => { flash('Statement reconciled'); loadTxns(); }} />
+      {picker && (
+        <CategoryPicker anchorRect={picker.rect} groups={pickerGroups}
+          onPick={pickCategory} onClose={() => setPicker(null)} />
+      )}
     </AccountsShell>
   );
 }
