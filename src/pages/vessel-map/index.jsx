@@ -1161,7 +1161,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   childCount={selectedHotspot ? hotspots.filter((h) => h.parent_id === selectedHotspot.id).length : 0}
                   autoFocusName={justCreatedId === selectedHotspot?.id}
                   raised={!!openContainer}
-                  allowedLayers={placingStorage ? ['storage', 'inventory'] : (placingItem ? ['inventory', 'storage', 'safety', 'general'] : null)}
+                  allowedLayers={placingStorage ? ['storage', 'inventory'] : (placingItem ? ['inventory', 'storage', 'safety'] : null)}
                 />
 
                 {/* Defect pin → open its view modal directly (no drawer). Pin
@@ -1300,7 +1300,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                     )}
                     {canPlaceHotspots ? (
                       <div className="vm-swatch-row" role="radiogroup" aria-label="Category">
-                        {LAYERS.filter((l) => (placingStorage ? ['storage', 'inventory'].includes(l.key) : (placingItem ? ['inventory', 'storage', 'safety', 'general'].includes(l.key) : true))).map((l) => {
+                        {LAYERS.filter((l) => (placingStorage ? ['storage', 'inventory'].includes(l.key) : (placingItem ? ['inventory', 'storage', 'safety'].includes(l.key) : true))).map((l) => {
                           const on = (selectedHotspot.layer || 'general') === l.key;
                           return (
                             <button key={l.key} type="button" role="radio" aria-checked={on} title={l.label}

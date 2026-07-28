@@ -150,6 +150,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [sku, setSku] = useState(item?.customFields?.sku || '');
   const [barcode, setBarcode] = useState(item?.barcode || '');
   const [tags, setTags] = useState(item?.tags || []);
+  const [tagDraft, setTagDraft] = useState('');
   const [notes, setNotes] = useState(item?.notes || '');
   const [moreStock, setMoreStock] = useState(false);
   const [moreBuy, setMoreBuy] = useState(false);
@@ -200,11 +201,12 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [medControlled, setMedControlled] = useState(!!item?.customFields?.medical?.controlled);
   const [medActive, setMedActive] = useState(item?.customFields?.medical?.active || '');
   const [medBatch, setMedBatch] = useState(item?.customFields?.medical?.batch || '');
-  const [medStorage, setMedStorage] = useState(item?.customFields?.medical?.storage || 'Ambient');
+  const [medStorage, setMedStorage] = useState(item?.customFields?.medical?.storage || 'Room temp');
   const [foodOrigin, setFoodOrigin] = useState(item?.customFields?.food?.origin || '');
   const [foodAllergens, setFoodAllergens] = useState(item?.customFields?.food?.allergens || []);
-  const [foodStorage, setFoodStorage] = useState(item?.customFields?.food?.storage || 'Ambient');
+  const [foodStorage, setFoodStorage] = useState(item?.customFields?.food?.storage || 'Room temp');
   const [foodBatch, setFoodBatch] = useState(item?.customFields?.food?.batch || '');
+  const [allergenDraft, setAllergenDraft] = useState('');
   const [mFreq, setMFreq] = useState(item?.customFields?.maintenance?.every || 'Monthly');
   const [mNext, setMNext] = useState(item?.customFields?.maintenance?.nextDue || '');
   const [mDays, setMDays] = useState(item?.customFields?.maintenance?.days || []);
@@ -681,8 +683,8 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                   </React.Fragment>
                 ))}
 
-                {/* totals row doubles as the add-location line */}
-                <button type="button" className="itf-maddloc" onClick={addUniLoc}>＋ Add location</button>
+                {/* totals row */}
+                <div className="itf-mhavelbl">Held</div>
                 {cols.map((c, j) => <div className="itf-mhave" key={j}>{colHave(c)}</div>)}
                 {profile !== 'uniform' && <div className="itf-mhave gap" />}
                 <div className="itf-mgtot">{grandTotal}</div>
@@ -696,7 +698,8 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
             </div>
           )}
           <div className="itf-locactions">
-            <button type="button" className="itf-setmap2" onClick={setOnMap} disabled={saving}><Icon name="Crosshair" size={13} /> {saving ? 'Saving…' : 'Set from map'}</button>
+            <button type="button" className="itf-addloc" onClick={addUniLoc}>＋ Add location</button>
+            <button type="button" className="itf-setmap2" onClick={setOnMap} disabled={saving}><Icon name="Crosshair" size={13} /> Set from map</button>
           </div>
         </Sec>
 
@@ -760,13 +763,13 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
             </div>
             {addonOn.medical && <div className="itf-block show"><div className="itf-block-h"><span className="t">Medical</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, medical: false }))}>✕ remove</span></div><div className="itf-block-b">
               <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Form / dose</label><input className="itf-in" value={medForm} onChange={(e) => setMedForm(e.target.value)} placeholder="Tablet 500mg" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Active ingredient</label><input className="itf-in" value={medActive} onChange={(e) => setMedActive(e.target.value)} placeholder="Paracetamol" /></div></div>
-              <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">MCA category</label><input className="itf-in" value={medMca} onChange={(e) => setMedMca(e.target.value)} placeholder="Cat A/B/C" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Batch / lot no</label><input className="itf-in" value={medBatch} onChange={(e) => setMedBatch(e.target.value)} placeholder="Optional" /></div></div>
-              <div className="itf-f" style={{ margin: '0 0 11px' }}><label className="itf-lab">Storage</label><select className="itf-sel" value={medStorage} onChange={(e) => setMedStorage(e.target.value)}><option>Ambient</option><option>Chilled 2–8°C</option><option>Controlled / locked</option></select></div>
+              <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab" title="Maritime & Coastguard Agency medical-stores category — which MCA kit (A / B / C) this belongs to, set by the vessel's size and voyage area">MCA category <span className="opt">(?)</span></label><input className="itf-in" value={medMca} onChange={(e) => setMedMca(e.target.value)} placeholder="Cat A / B / C" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Batch / lot no</label><input className="itf-in" value={medBatch} onChange={(e) => setMedBatch(e.target.value)} placeholder="Optional" /></div></div>
+              <div className="itf-f" style={{ margin: '0 0 11px' }}><label className="itf-lab">Storage</label><select className="itf-sel" value={medStorage} onChange={(e) => setMedStorage(e.target.value)}><option>Room temp</option><option>Chilled 2–8°C</option><option>Controlled / locked</option></select></div>
               <div className="itf-chips"><span className={`itf-chip${medControlled ? ' on' : ''}`} onClick={() => setMedControlled((v) => !v)}>Controlled drug — logbook</span></div></div></div>}
             {addonOn.food && <div className="itf-block show"><div className="itf-block-h"><span className="t">Food</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, food: false }))}>✕ remove</span></div><div className="itf-block-b">
-              <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Origin <span className="opt">(customs)</span></label><input className="itf-in" value={foodOrigin} onChange={(e) => setFoodOrigin(e.target.value)} placeholder="Italy" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Storage</label><select className="itf-sel" value={foodStorage} onChange={(e) => setFoodStorage(e.target.value)}><option>Ambient</option><option>Chilled</option><option>Frozen</option></select></div></div>
+              <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Origin <span className="opt">(customs)</span></label><input className="itf-in" value={foodOrigin} onChange={(e) => setFoodOrigin(e.target.value)} placeholder="Italy" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Storage</label><select className="itf-sel" value={foodStorage} onChange={(e) => setFoodStorage(e.target.value)}><option>Room temp</option><option>Chilled</option><option>Frozen</option></select></div></div>
               <div className="itf-f" style={{ margin: '0 0 11px' }}><label className="itf-lab">Batch / lot no <span className="opt">(recall trace)</span></label><input className="itf-in" value={foodBatch} onChange={(e) => setFoodBatch(e.target.value)} placeholder="Optional" /></div>
-              <div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Allergens</label><div className="itf-chips">{ALLERGENS.map((a) => <span key={a} className={`itf-chip${foodAllergens.includes(a) ? ' on' : ''}`} onClick={() => setFoodAllergens((xs) => xs.includes(a) ? xs.filter((x) => x !== a) : [...xs, a])}>{a}</span>)}</div></div></div></div>}
+              <div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Allergens</label><div className="itf-chips">{ALLERGENS.map((a) => <span key={a} className={`itf-chip${foodAllergens.includes(a) ? ' on' : ''}`} onClick={() => setFoodAllergens((xs) => xs.includes(a) ? xs.filter((x) => x !== a) : [...xs, a])}>{a}</span>)}{foodAllergens.filter((a) => !ALLERGENS.includes(a)).map((a) => <span key={a} className="itf-chip on" onClick={() => setFoodAllergens((xs) => xs.filter((x) => x !== a))}>{a} ✕</span>)}<input className="itf-chip-in" value={allergenDraft} onChange={(e) => setAllergenDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const v = allergenDraft.trim(); if (v && !foodAllergens.includes(v)) setFoodAllergens((xs) => [...xs, v]); setAllergenDraft(''); } }} placeholder="+ custom" /></div></div></div></div>}
             {addonOn.maint && <div className="itf-block show"><div className="itf-block-h"><span className="t">Scheduled checks</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, maint: false }))}>✕ remove</span></div><div className="itf-block-b">
               <div className="itf-g2"><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Every</label><select className="itf-sel" value={mFreq} onChange={(e) => setMFreq(e.target.value)}>{FREQS.map((f) => <option key={f}>{f}</option>)}</select></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Next due</label><EditorialDatePicker value={mNext} onChange={setMNext} placeholder="dd/mm/yyyy" ariaLabel="Next due date" /></div></div>
               <div className="itf-g2" style={{ margin: '11px 0 0' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Responsible</label><select className="itf-sel" value={mResponsible} onChange={(e) => setMResponsible(e.target.value)}><option value="">Any dept</option><option>Deck</option><option>Engineering</option><option>Interior</option><option>Galley</option><option>Bridge</option><option>Medical</option></select></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Est. time <span className="opt">(mins)</span></label><input className="itf-in" value={mEstTime} onChange={(e) => setMEstTime(e.target.value)} placeholder="15" inputMode="numeric" /></div></div>
@@ -789,7 +792,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         {/* 6 REFERENCE */}
         <Sec icon="Tag" name="Reference" open={open.ref} onToggle={() => toggle('ref')} summary={<span className="sc muted">barcode · tags · notes</span>}>
           <div className="itf-f"><label className="itf-lab">Barcode / QR</label><input className="itf-in" value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Scan or enter…" /></div>
-          <div className="itf-f"><label className="itf-lab">Tags</label><div className="itf-chips">{['drinks', 'bar', 'snacks', 'safety', 'cleaning'].map((t) => <span key={t} className={`itf-chip${tags.includes(t) ? ' on' : ''}`} onClick={() => setTags((xs) => xs.includes(t) ? xs.filter((x) => x !== t) : [...xs, t])}>{t}</span>)}</div></div>
+          <div className="itf-f"><label className="itf-lab">Tags</label><div className="itf-chips">{['drinks', 'bar', 'snacks', 'safety', 'cleaning'].map((t) => <span key={t} className={`itf-chip${tags.includes(t) ? ' on' : ''}`} onClick={() => setTags((xs) => xs.includes(t) ? xs.filter((x) => x !== t) : [...xs, t])}>{t}</span>)}{tags.filter((t) => !['drinks', 'bar', 'snacks', 'safety', 'cleaning'].includes(t)).map((t) => <span key={t} className="itf-chip on" onClick={() => setTags((xs) => xs.filter((x) => x !== t))}>{t} ✕</span>)}<input className="itf-chip-in" value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const v = tagDraft.trim(); if (v && !tags.includes(v)) setTags((xs) => [...xs, v]); setTagDraft(''); } }} placeholder="+ custom" /></div></div>
           <div className="itf-f" style={{ marginBottom: 0 }}><label className="itf-lab">Notes</label><input className="itf-in" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any notes…" /></div>
         </Sec>
 
