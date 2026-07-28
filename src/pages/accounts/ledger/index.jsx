@@ -227,30 +227,47 @@ export default function Ledger() {
     return res;
   };
 
-  // File a line onto a MYBA category. Always remembers the merchant. For an
-  // unambiguous vendor it also backfills sibling lines on screen (confirm once,
-  // clear the vendor); for a two-sided vendor it does NOT — each charge is a
-  // separate guest/crew call, so the learned side only pre-highlights next time.
+  // File a line onto a MYBA category. Patches state in place — no full refetch —
+  // so bulk categorising stays smooth (the row updates/leaves the queue without a
+  // reload or scroll jump). Always remembers the merchant. For an unambiguous
+  // vendor it also backfills sibling lines on screen (confirm once, clear the
+  // vendor); for a two-sided vendor it does NOT — each charge is a separate
+  // guest/crew call, so the learned side only pre-highlights next time.
   const handleFile = async (t, line) => {
     setPicker(null);
     const target = { bucket: line.bucket, category: line.category, code: line.code || null };
     const res = await fileTransaction(t.id, { category: target.category, category_code: target.code });
     if (res.error) { flash('Could not file — please try again'); return; }
-    let cleared = 1;
+
+    const filedIds = new Set([t.id]);
     if (t.payee) {
-      await setMerchantRule(activeTenantId, t.payee, target);
+      const key = normalizeMerchant(t.payee);
       const twoSided = resolveSuggestion(t, ruleMap).kind === 'choice';
       if (!twoSided) {
-        const key = normalizeMerchant(t.payee);
         const siblingIds = txns
           .filter((x) => x.id !== t.id && !x.category && x.status === 'unreconciled'
             && normalizeMerchant(x.payee) === key)
           .map((x) => x.id);
-        if (siblingIds.length) { await fileTransactions(siblingIds, { category: target.category, category_code: target.code }); cleared += siblingIds.length; }
+        if (siblingIds.length) {
+          await fileTransactions(siblingIds, { category: target.category, category_code: target.code });
+          siblingIds.forEach((id) => filedIds.add(id));
+        }
+      }
+      // Persist + locally learn the merchant so later rows suggest it without a reload.
+      setMerchantRule(activeTenantId, t.payee, target);
+      if (key) {
+        setMerchantRules((prev) => [
+          ...prev.filter((r) => r.merchant_key !== key),
+          { merchant_key: key, bucket: target.bucket, category: target.category, code: target.code },
+        ]);
       }
     }
-    await Promise.all([loadTxns(), loadRules()]);
-    flash(cleared > 1 ? `Filed to ${target.category} · ${cleared} lines` : `Filed to ${target.category}`);
+
+    // Optimistic in-place patch: mark the filed rows reconciled, no server round-trip.
+    setTxns((prev) => prev.map((x) => (filedIds.has(x.id)
+      ? { ...x, category: target.category, category_code: target.code, status: 'reconciled' }
+      : x)));
+    flash(filedIds.size > 1 ? `Filed to ${target.category} · ${filedIds.size} lines` : `Filed to ${target.category}`);
   };
 
   const openPicker = (e, t) => { setPicker({ rect: e.currentTarget.getBoundingClientRect(), txn: t }); };
