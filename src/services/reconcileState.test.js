@@ -18,7 +18,7 @@ test('canSubmit only when nothing to sort and all matched', () => {
 
 test('reconcileMessage reflects the working state', () => {
   assert.equal(reconcileMessage({ toSort: 3, matched: 31, total: 34 }, 'open').tone, 'due');
-  assert.equal(reconcileMessage({ toSort: 0, matched: 31, total: 34 }, 'open').text, 'Sorted — now import your statement');
+  assert.equal(reconcileMessage({ toSort: 0, matched: 31, total: 34 }, 'open').text, 'Sorted — import your statement to finish');
   assert.equal(reconcileMessage({ toSort: 0, matched: 34, total: 34 }, 'open').tone, 'ok');
   assert.equal(reconcileMessage({ toSort: 0, matched: 34, total: 34 }, 'submitted').tone, 'sent');
   assert.equal(reconcileMessage({}, 'approved').tone, 'ok');
