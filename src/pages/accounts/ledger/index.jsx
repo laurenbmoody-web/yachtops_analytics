@@ -89,7 +89,7 @@ export default function Ledger() {
   const [accounts, setAccounts] = useState([]);
   const [txns, setTxns] = useState([]);
   const [filters, setFilters] = useState({ accountId: '', source: '', category: '', search: '' });
-  const [status, setStatus] = useState('look');   // all | look | filed  (default: the queue)
+  const [status, setStatus] = useState('all');   // all | look | filed  (default: All, so filed rows stay in view)
   const [sortOldest, setSortOldest] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [activeMonth, setActiveMonth] = useState(null);
@@ -415,7 +415,7 @@ export default function Ledger() {
           {/* toolbar: status segmented · search · filters · sort */}
           <div className="ca-toolbar">
             <div className="ca-seg" role="tablist" aria-label="Show">
-              {[['look', 'Needs a look', monthStat.look], ['all', 'All', monthStat.entries], ['filed', 'Filed', monthStat.filed]].map(([k, label, n]) => (
+              {[['all', 'All', monthStat.entries], ['look', 'Needs a look', monthStat.look], ['filed', 'Filed', monthStat.filed]].map(([k, label, n]) => (
                 <button key={k} type="button" role="tab" aria-selected={status === k}
                   data-k={k} onClick={() => setStatus(k)}>
                   {label} <span className="ca-seg-n">{n}</span>
