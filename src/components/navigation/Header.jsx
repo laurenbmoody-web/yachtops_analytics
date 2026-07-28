@@ -793,6 +793,7 @@ const Header = () => {
                         label: 'Personal',
                         items: [
                           { show: true, icon: 'User', label: 'My Profile', path: '/my-profile', onClick: () => handleNavigation(`/profile/${session?.user?.id}`, 'My Profile') },
+                          { show: true, icon: 'Wallet', label: 'My money', path: '/accounts/my', onClick: () => handleNavigation('/accounts/my', 'My money') },
                           { show: true, icon: 'Settings', label: 'Settings', path: '/settings', onClick: () => handleNavigation('/settings', 'Settings') },
                         ],
                       },
@@ -801,6 +802,7 @@ const Header = () => {
                         items: [
                           { show: isCommandRole || isChiefRole, icon: 'Users', label: 'Crew Management', path: '/crew-management', onClick: () => handleNavigation('/crew-management', 'Crew Management') },
                           { show: isCommandRole || isChiefRole, icon: 'CalendarCheck', label: 'Month-end', path: '/month-end', onClick: () => handleNavigation('/month-end', 'Month-end') },
+                          { show: accountsAccess, icon: 'Wallet', label: 'Accounts', path: '/accounts', onClick: () => handleNavigation('/accounts', 'Accounts') },
                           { show: accountsAccess, icon: 'BookOpen', label: 'Ledger', path: '/accounts/ledger', onClick: () => handleNavigation('/accounts/ledger', 'Ledger') },
                           { show: accountsAccess, icon: 'Target', label: 'Budgets', path: '/accounts/budgets', onClick: () => handleNavigation('/accounts/budgets', 'Budgets') },
                           { show: ownerReporting, icon: 'FileText', label: 'Owner reporting', path: '/accounts/owner', onClick: () => handleNavigation('/accounts/owner', 'Owner reporting') },

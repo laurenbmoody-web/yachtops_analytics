@@ -9,7 +9,8 @@ import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
 import { useTenant } from '../../../contexts/TenantContext';
-import { getAccountsOverview, listTransactions, setTransactionCategory } from '../../../services/financeService';
+import { useAuth } from '../../../contexts/AuthContext';
+import { getAccountsOverview, listTransactions, setTransactionCategory, currentUserId } from '../../../services/financeService';
 import { getChartGrouped } from '../../../services/chartService';
 import { getReconciliation, submitReconciliation } from '../../../services/reconcileService';
 import { periodMonthISO, canSubmit as canSubmitFn, reconcileMessage } from '../../../services/reconcileState';
@@ -30,8 +31,12 @@ export default function MyReconcile() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { activeTenantId } = useTenant();
+  const { hasCommandAccess } = useAuth();
   const holder = params.get('holder') || '';
   const accountParam = params.get('account') || '';
+  // Command can look into another holder's cards via ?holder= / ?account=;
+  // everyone else only ever sees their own money.
+  const viewingOther = hasCommandAccess() && (!!holder || !!accountParam);
 
   const now = new Date();
   const period = periodMonthISO(now.getFullYear(), now.getMonth() + 1);
@@ -47,18 +52,23 @@ export default function MyReconcile() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Holder's own cards & floats (not bank accounts).
+  // Holder's own cards & floats (not bank accounts). Self-service by default —
+  // scoped to the signed-in user's holdings; Command may pin another holder.
   const loadCards = useCallback(async () => {
     if (!activeTenantId) return;
     setLoading(true);
-    const { data } = await getAccountsOverview(activeTenantId);
-    const mine = (data?.accounts || []).filter(
-      (a) => a.is_active !== false && a.kind !== 'bank' && (!holder || a.holder_role === holder),
-    );
+    const [{ data }, me] = await Promise.all([
+      getAccountsOverview(activeTenantId),
+      currentUserId(),
+    ]);
+    const all = (data?.accounts || []).filter((a) => a.is_active !== false && a.kind !== 'bank');
+    const mine = viewingOther
+      ? all.filter((a) => (accountParam ? a.id === accountParam : a.holder_role === holder))
+      : all.filter((a) => a.holder_user_id === me);
     setCards(mine);
     setActiveId((cur) => (mine.some((a) => a.id === cur) ? cur : mine[0]?.id || ''));
     setLoading(false);
-  }, [activeTenantId, holder]);
+  }, [activeTenantId, holder, accountParam, viewingOther]);
 
   useEffect(() => { loadCards(); }, [loadCards]);
   useEffect(() => {
@@ -137,14 +147,14 @@ export default function MyReconcile() {
       <Header />
       <div className="ca-page">
         <div className="ca-wrap mr-wrap">
-          <button type="button" className="ca-back" onClick={() => navigate('/accounts/cards')}>
-            <Icon name="ChevronLeft" size={16} /> Department cards
+          <button type="button" className="ca-back" onClick={() => navigate(hasCommandAccess() ? '/accounts/cards' : '/dashboard')}>
+            <Icon name="ChevronLeft" size={16} /> {hasCommandAccess() ? 'Department cards' : 'Back to Dashboard'}
           </button>
 
           <div className="ca-head">
             <p className="editorial-meta">
               <span className="dot">●</span><span>My money</span>
-              <span className="bar" /><span className="muted">{holder || 'Holder'}</span>
+              <span className="bar" /><span className="muted">{viewingOther ? (holder || 'Holder') : 'You'}</span>
               <span className="bar" /><span className="muted">Month-end</span>
             </p>
             <div className="ca-titlerow">
@@ -155,7 +165,11 @@ export default function MyReconcile() {
           {loading ? (
             <div className="ca-empty"><p>Loading…</p></div>
           ) : !active ? (
-            <div className="ca-empty"><Icon name="CreditCard" size={44} /><p>No cards for this holder</p></div>
+            <div className="ca-empty">
+              <Icon name="CreditCard" size={44} />
+              <p>{viewingOther ? 'No cards for this holder' : 'No card yet'}</p>
+              {!viewingOther && <p className="ca-empty-sub">When Command issues you a card or a petty-cash float, it shows up here to tidy at month-end.</p>}
+            </div>
           ) : (
             <>
               <div className="mr-herotop">
