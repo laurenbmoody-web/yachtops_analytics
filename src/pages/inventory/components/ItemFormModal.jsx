@@ -215,7 +215,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [addonOn, setAddonOn] = useState({});
   const [flagOn, setFlagOn] = useState(item?.customFields?.flags || {});
   const [medForm, setMedForm] = useState(item?.customFields?.medical?.form || '');
-  const [medMca, setMedMca] = useState(item?.customFields?.medical?.mca || '');
   const [medControlled, setMedControlled] = useState(!!item?.customFields?.medical?.controlled);
   const [medActive, setMedActive] = useState(item?.customFields?.medical?.active || '');
   const [medBatch, setMedBatch] = useState(item?.customFields?.medical?.batch || '');
@@ -232,7 +231,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [mResponsible, setMResponsible] = useState(item?.customFields?.maintenance?.responsible || '');
   const [mEstTime, setMEstTime] = useState(item?.customFields?.maintenance?.estTime || '');
   const [mLink, setMLink] = useState(() => normChecklist(item?.customFields?.maintenance?.link));
-  const [clMode, setClMode] = useState(() => (normChecklist(item?.customFields?.maintenance?.link)?.type === 'pdf' ? 'pdf' : 'link'));
+  const [clMode, setClMode] = useState(() => (normChecklist(item?.customFields?.maintenance?.link)?.type === 'link' ? 'link' : 'choose'));
   const [clBusy, setClBusy] = useState(false);
   const [clErr, setClErr] = useState('');
 
@@ -479,7 +478,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         ...(multiSize ? { formats: activeSizes, variantKind: 'format' } : {}),
         reorderSizes: hasVar && activeSizes.some((s) => Number(reorderSizes[s]) > 0) ? activeSizes.reduce((o, s) => { o[s] = Number(reorderSizes[s]) || 0; return o; }, {}) : undefined,
         flags: toArr(flagOn).length ? flagOn : undefined,
-        medical: addonOn.medical ? { form: medForm, mca: medMca, controlled: medControlled, active: medActive || undefined, batch: medBatch || undefined, storage: medStorage } : undefined,
+        medical: addonOn.medical ? { form: medForm, controlled: medControlled, active: medActive || undefined, batch: medBatch || undefined, storage: medStorage } : undefined,
         food: addonOn.food ? { origin: foodOrigin, allergens: foodAllergens, storage: foodStorage, batch: foodBatch || undefined } : undefined,
         maintenance: addonOn.maint ? { every: mFreq, nextDue: mNext, days: mDays, check: mCheck, responsible: mResponsible || undefined, estTime: mEstTime || undefined, link: cleanChecklist(mLink) } : undefined,
       };
@@ -697,7 +696,13 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         <Sec icon="Boxes" name="Stock & location" open={open.stock} onToggle={() => toggle('stock')}>
           <span className="itf-fl">Where it's stowed &amp; how much{cols.length > 1 ? <span className="opt"> · per size{uniLocs.length > 1 ? ', per location' : ''}</span> : null}</span>
           {cols.length === 0 ? (
-            <div className="itf-usizes-empty">Turn on some sizes in <b>Details</b> to log quantities.</div>
+            <>
+              <div className="itf-usizes-empty">Turn on some sizes in <b>Details</b> to log quantities.</div>
+              <div className="itf-locactions">
+                <button type="button" className="itf-addloc" onClick={addUniLoc}>＋ Add location</button>
+                <button type="button" className="itf-setmap2" onClick={setOnMap} disabled={saving}><Icon name="Crosshair" size={13} /> Set from map</button>
+              </div>
+            </>
           ) : (
             <div className="itf-mtxwrap">
               <div className="itf-mtx" style={{ gridTemplateColumns: `minmax(122px,1.2fr) repeat(${cols.length}, minmax(62px,1fr)) ${profile !== 'uniform' ? '30px ' : ''}54px` }}>
@@ -724,8 +729,11 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                   </React.Fragment>
                 ))}
 
-                {/* totals row */}
-                <div className="itf-mhavelbl">Held</div>
+                {/* totals row — actions sit on this line, no separate label */}
+                <div className="itf-mhaveact">
+                  <button type="button" className="itf-addloc" onClick={addUniLoc}>＋ Add location</button>
+                  <button type="button" className="itf-setmap2" onClick={setOnMap} disabled={saving}><Icon name="Crosshair" size={13} /> Set from map</button>
+                </div>
                 {cols.map((c, j) => <div className="itf-mhave" key={j}>{colHave(c)}</div>)}
                 {profile !== 'uniform' && <div className="itf-mhave gap" />}
                 <div className="itf-mgtot">{grandTotal}</div>
@@ -738,10 +746,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               </div>
             </div>
           )}
-          <div className="itf-locactions">
-            <button type="button" className="itf-addloc" onClick={addUniLoc}>＋ Add location</button>
-            <button type="button" className="itf-setmap2" onClick={setOnMap} disabled={saving}><Icon name="Crosshair" size={13} /> Set from map</button>
-          </div>
         </Sec>
 
         {/* 4 BUYING */}
@@ -804,8 +808,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
             </div>
             {addonOn.medical && <div className="itf-block show"><div className="itf-block-h"><span className="t">Medical</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, medical: false }))}>✕ remove</span></div><div className="itf-block-b">
               <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Form / dose</label><input className="itf-in" value={medForm} onChange={(e) => setMedForm(e.target.value)} placeholder="Tablet 500mg" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Active ingredient</label><input className="itf-in" value={medActive} onChange={(e) => setMedActive(e.target.value)} placeholder="Paracetamol" /></div></div>
-              <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab" title="Which medical-stores category this belongs to under your flag state's scale. UK / Red Ensign (MCA) vessels use Cat A / B / C; other flags (Cayman, Marshall Islands, USCG, etc.) use their own equivalent — leave blank if not applicable.">Med. stores category <span className="opt">(?)</span></label><input className="itf-in" value={medMca} onChange={(e) => setMedMca(e.target.value)} placeholder="e.g. MCA Cat A / B / C" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Batch / lot no</label><input className="itf-in" value={medBatch} onChange={(e) => setMedBatch(e.target.value)} placeholder="Optional" /></div></div>
-              <div className="itf-f" style={{ margin: '0 0 11px' }}><label className="itf-lab">Storage</label><select className="itf-sel" value={medStorage} onChange={(e) => setMedStorage(e.target.value)}><option>Room temp</option><option>Chilled 2–8°C</option><option>Controlled / locked</option></select></div>
+              <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Batch / lot no</label><input className="itf-in" value={medBatch} onChange={(e) => setMedBatch(e.target.value)} placeholder="Optional" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Storage</label><select className="itf-sel" value={medStorage} onChange={(e) => setMedStorage(e.target.value)}><option>Room temp</option><option>Chilled 2–8°C</option><option>Controlled / locked</option></select></div></div>
               <div className="itf-chips"><span className={`itf-chip${medControlled ? ' on' : ''}`} onClick={() => setMedControlled((v) => !v)}>Controlled drug — logbook</span></div></div></div>}
             {addonOn.food && <div className="itf-block show"><div className="itf-block-h"><span className="t">Food</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, food: false }))}>✕ remove</span></div><div className="itf-block-b">
               <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Origin <span className="opt">(customs)</span></label><input className="itf-in" value={foodOrigin} onChange={(e) => setFoodOrigin(e.target.value)} placeholder="Italy" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Storage</label><select className="itf-sel" value={foodStorage} onChange={(e) => setFoodStorage(e.target.value)}><option>Room temp</option><option>Chilled</option><option>Frozen</option></select></div></div>
@@ -817,16 +820,18 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               {(mFreq === 'Weekly' || mFreq === 'Daily') && <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">On days</label><div className="itf-days">{DOW.map((d, i) => <span key={i} className={`itf-day${mDays.includes(i) ? ' on' : ''}`} onClick={() => setMDays((xs) => xs.includes(i) ? xs.filter((x) => x !== i) : [...xs, i])}>{d}</span>)}</div></div>}
               <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">What to check</label><input className="itf-in" value={mCheck} onChange={(e) => setMCheck(e.target.value)} placeholder="Gauge in green, seal intact, pin secure" /></div>
               <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">Checklist / SOP <span className="opt">(optional)</span></label>
-                <div className="itf-clchoice">
-                  <button type="button" className={`itf-clopt${clMode === 'link' ? ' on' : ''}`} onClick={() => { setClMode('link'); setClErr(''); if (mLink?.type === 'pdf') setMLink(null); }}><Icon name="Link" size={14} /> Link a template</button>
-                  <button type="button" className={`itf-clopt${clMode === 'pdf' ? ' on' : ''}`} onClick={() => { setClMode('pdf'); setClErr(''); if (mLink?.type === 'link') setMLink(null); }}><Icon name="FileText" size={14} /> Upload PDF</button>
-                </div>
-                {clMode === 'link' ? (
-                  <input className="itf-in" value={mLink?.type === 'link' ? (mLink.url || '') : ''} onChange={(e) => setMLink(e.target.value ? { type: 'link', url: e.target.value, name: '' } : null)} placeholder="Paste a template or SOP link (Vessel Documents, SharePoint, Drive…)" />
-                ) : mLink?.type === 'pdf' && mLink.url ? (
-                  <div className="itf-clfile"><span className="ic"><Icon name="FileText" size={16} /></span><a className="nm" href={mLink.url} target="_blank" rel="noopener noreferrer">{mLink.name || 'checklist.pdf'}</a><span className="rm" onClick={() => setMLink(null)} title="Remove"><Icon name="X" size={14} /></span></div>
+                {mLink?.type === 'pdf' && mLink.url ? (
+                  <div className="itf-clfile"><span className="ic"><Icon name="FileText" size={16} /></span><a className="nm" href={mLink.url} target="_blank" rel="noopener noreferrer">{mLink.name || 'checklist.pdf'}</a><span className="rm" onClick={() => { setMLink(null); setClMode('choose'); }} title="Remove"><Icon name="X" size={14} /></span></div>
+                ) : clMode === 'link' ? (
+                  <div className="itf-cllink">
+                    <input className="itf-in" autoFocus value={mLink?.type === 'link' ? (mLink.url || '') : ''} onChange={(e) => setMLink(e.target.value ? { type: 'link', url: e.target.value, name: '' } : null)} placeholder="Paste a link (Vessel Documents, SharePoint, Drive…)" />
+                    <button type="button" className="itf-linkx" onClick={() => { setMLink(null); setClMode('choose'); }} title="Cancel"><Icon name="X" size={15} /></button>
+                  </div>
                 ) : (
-                  <label className={`itf-clup${clBusy ? ' busy' : ''}`}><Icon name="Upload" size={15} /> {clBusy ? 'Uploading…' : 'Choose a PDF'}<input type="file" accept="application/pdf" hidden disabled={clBusy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadChecklist(f); }} /></label>
+                  <div className="itf-clchoice">
+                    <button type="button" className="itf-clopt" onClick={() => { setClErr(''); setClMode('link'); }}><Icon name="Link" size={14} /> Paste a link</button>
+                    <label className={`itf-clopt${clBusy ? ' busy' : ''}`}><Icon name="Upload" size={14} /> {clBusy ? 'Uploading…' : 'Upload PDF'}<input type="file" accept="application/pdf" hidden disabled={clBusy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadChecklist(f); }} /></label>
+                  </div>
                 )}
                 {clErr && <p className="itf-scanhint" style={{ color: '#C24632' }}>{clErr}</p>}
               </div>
