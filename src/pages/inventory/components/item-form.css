@@ -119,6 +119,38 @@
 .itf-umtx-row .tot{text-align:center;font-size:12.5px;font-weight:700;color:var(--g);}
 .itf-umtx-add{font-size:11.5px;font-weight:600;color:var(--g);padding:9px 10px;cursor:pointer;}
 
+/* uniform per-location stow cards — location on its own full-width line, size
+   inputs wrap beneath so long location names never get clipped */
+.itf-ustow{border:1px solid var(--hair);border-radius:12px;padding:12px;margin-bottom:10px;background:#FCFDFE;}
+.itf-ustow-h{display:flex;align-items:center;gap:8px;margin-bottom:11px;}
+.itf-ustow-h .itf-pick{flex:1;min-width:0;}
+.itf-usizes{display:flex;flex-wrap:wrap;gap:8px;}
+.itf-usz{display:flex;flex-direction:column;gap:4px;width:52px;}
+.itf-usz .l{font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);text-align:center;white-space:nowrap;}
+.itf-usz input{width:100%;text-align:center;border:1px solid var(--border);border-radius:8px;padding:8px 0;font-size:13.5px;font-weight:600;background:var(--field);outline:none;color:var(--ink);font-family:inherit;}
+.itf-usz input:focus{border-color:var(--g);box-shadow:0 0 0 3px #FAECE7;background:#fff;}
+.itf-usz.tot b{display:block;text-align:center;font-size:14px;font-weight:800;color:var(--g);padding:8px 0;}
+.itf-usz.tot .l{color:var(--g);}
+.itf-usizes-empty{font-size:12px;color:var(--muted);padding:2px 2px 4px;}
+
+/* location actions row — add + set-from-map sit together */
+.itf-locactions{display:flex;align-items:center;gap:16px;margin:4px 0 18px;}
+.itf-setmap2{display:inline-flex;align-items:center;gap:6px;background:none;border:0;font-family:inherit;font-size:11.5px;font-weight:700;color:var(--g);cursor:pointer;padding:2px 0;}
+.itf-setmap2:disabled{opacity:.55;cursor:default;}
+.itf-setmap2 svg{color:var(--g);}
+
+/* keep-level / bought-by — labelled mini fields on a shared baseline */
+.itf-keep{margin-bottom:4px;}
+.itf-keep-row{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;}
+.itf-keep-f{display:flex;flex-direction:column;gap:5px;}
+.itf-keep-f .itf-lab{margin:0;}
+.itf-keep-in{width:96px;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:var(--field);font-size:13.5px;font-weight:600;color:var(--ink);outline:none;font-family:inherit;}
+.itf-keep-in.wide{width:120px;}
+.itf-keep-in::placeholder{font-weight:500;color:var(--faint);}
+.itf-keep-in:focus{border-color:var(--g);box-shadow:0 0 0 3px #FAECE7;background:#fff;}
+.itf-keep-sep{width:1px;height:34px;background:var(--hair);margin:0 2px;}
+.itf-keep-x,.itf-keep-unit{font-size:12.5px;color:var(--muted);padding-bottom:10px;}
+
 /* handling: add-ons vs flags */
 .itf-clu{margin-bottom:18px;}.itf-clu:last-child{margin-bottom:0;}
 .itf-mlab{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--faint);margin:0 0 9px;display:flex;align-items:center;gap:7px;}

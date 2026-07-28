@@ -42,7 +42,7 @@ const isWineFolder = (folderDisplay) => {
 // depth by parent_id (deck > zone > space > sub-space > …), so it can reach — and
 // select — the vessel-map's pin nodes, letting inventory placement land on the
 // exact same vessel_locations row a pin uses. `level` is only a display hint now.
-export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose }) => {
+export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose, onMap }) => {
   const nodes = vesselLocations || [];
   const byId = new Map(nodes.map((n) => [n?.id, n]));
   const childrenOf = (pid) => nodes.filter((n) => (n?.parent_id || null) === (pid || null));
@@ -123,6 +123,11 @@ export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose 
 
       <div className="locp-foot">
         <button onClick={onClose} className="locp-cancel">Cancel</button>
+        {onMap && (
+          <button onClick={onMap} className="locp-map">
+            <Icon name="Crosshair" size={14} /> Set from map instead
+          </button>
+        )}
       </div>
     </ModalShell>
   );

@@ -76,16 +76,26 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     || ((item?.isUniform || item?.is_uniform || item?.customFields?.garmentType) ? 'uniform' : autoProfile(folderDisplay))
   );
 
-  // Hydrate the uniform size run / quantities when editing an existing item.
+  // Hydrate the uniform size run / quantities across every stowage location
+  // when editing an existing item.
   const uniInit = useMemo(() => {
     if (!item?.customFields?.garmentType && !item?.isUniform && !item?.is_uniform) return null;
     const sl = item?.stockLocations || item?.stock_locations || [];
-    const first = sl[0] || {};
-    const loc = first.locationName || first.location_name || "Owner's Cabin";
-    const on = {}; const mx = {};
-    const sizes = (first.sizes && first.sizes.length ? first.sizes : (item?.variants || [])) || [];
-    sizes.forEach((v) => { if (v?.size != null) { on[v.size] = true; mx[`${loc}||${v.size}`] = v.qty || 0; } });
-    return { loc, locId: first.vesselLocationId || first.vessel_location_id || '', on, mx };
+    const on = {}; const mx = {}; const locs = [];
+    sl.forEach((row) => {
+      const label = row.locationName || row.location_name || 'Location';
+      const id = row.vesselLocationId || row.vessel_location_id || '';
+      locs.push({ label, id });
+      (row.sizes || []).forEach((v) => { if (v?.size != null) { on[v.size] = true; mx[`${label}||${v.size}`] = v.qty || 0; } });
+    });
+    // No per-location size breakdown but variants exist → seed the first location.
+    if (!Object.keys(mx).length && item?.variants?.length) {
+      if (!locs.length) locs.push({ label: "Owner's Cabin", id: '' });
+      const label = locs[0].label;
+      item.variants.forEach((v) => { if (v?.size != null) { on[v.size] = true; mx[`${label}||${v.size}`] = v.qty || 0; } });
+    }
+    if (!locs.length) locs.push({ label: "Owner's Cabin", id: '' });
+    return { locs, on, mx };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [open, setOpen] = useState({ identity: true, details: true, stock: true, buying: false, handling: false, docs: false, ref: false });
@@ -105,8 +115,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [vesselLocations, setVesselLocations] = useState([]);
   const [locRows, setLocRows] = useState([{ label: '', id: '', qty: 0 }]);
   const updateRow = (i, patch) => setLocRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
-  const [uniLocId, setUniLocId] = useState(uniInit?.locId || '');
-  const [locTarget, setLocTarget] = useState(null); // {kind:'stock',idx} | {kind:'uni'}
+  const [locTarget, setLocTarget] = useState(null); // {kind:'stock',idx} | {kind:'uni',idx}
   const [unit, setUnit] = useState(item?.unit || 'each');
   const [keep, setKeep] = useState(item?.parLevel ?? '');
   const [reorder, setReorder] = useState(item?.reorderPoint ?? '');
@@ -148,7 +157,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [region, setRegion] = useState('uk');
   const [sizeOn, setSizeOn] = useState(uniInit?.on || {}); // label -> true
   const [matrix, setMatrix] = useState(uniInit?.mx || {}); // "loc||size" -> qty
-  const [uniLoc, setUniLoc] = useState(uniInit?.loc || "Owner's Cabin");
+  const [uniLocs, setUniLocs] = useState(uniInit?.locs || [{ label: "Owner's Cabin", id: '' }]);
   const [moreUni, setMoreUni] = useState(false);
   const [brandingType, setBrandingType] = useState(item?.customFields?.branding?.type || 'None');
   const [brandingColour, setBrandingColour] = useState(item?.customFields?.branding?.colour || '');
@@ -174,6 +183,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [mapItem, setMapItem] = useState(null);
+  const [savedId, setSavedId] = useState(item?.id || null);
 
   // size labels for the current system
   const sizeList = useMemo(() => {
@@ -196,9 +206,10 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   }, [sizeType, profile]);
 
   const activeSizes = useMemo(() => sizeList.filter((s) => sizeOn[s]), [sizeList, sizeOn]);
-  const cell = (s) => Number(matrix[`${uniLoc}||${s}`]) || 0;
-  const setCell = (s, v) => setMatrix((m) => ({ ...m, [`${uniLoc}||${s}`]: v }));
-  const rowTotal = activeSizes.reduce((a, s) => a + cell(s), 0);
+  const cell = (loc, s) => Number(matrix[`${loc}||${s}`]) || 0;
+  const setCell = (loc, s, v) => setMatrix((m) => ({ ...m, [`${loc}||${s}`]: v }));
+  const locTotal = (loc) => activeSizes.reduce((a, s) => a + cell(loc, s), 0);
+  const addUniLoc = () => { const idx = uniLocs.length; setUniLocs((ls) => [...ls, { label: '', id: '' }]); setLocTarget({ kind: 'uni', idx }); };
 
   const toArr = (obj) => Object.keys(obj).filter((k) => obj[k]);
 
@@ -320,9 +331,12 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       let stock_locations = [];
       if (profile === 'uniform') {
         has_variants = true; variant_type = sizeType;
-        variants = activeSizes.map((s) => ({ size: s, qty: cell(s) }));
+        // variants = per-size totals aggregated across every stowage location
+        variants = activeSizes.map((s) => ({ size: s, qty: uniLocs.reduce((a, l) => a + cell(l.label, s), 0) }));
         totalQty = variants.reduce((a, v) => a + (v.qty || 0), 0);
-        if (activeSizes.length) stock_locations = [{ locationName: uniLoc, vesselLocationId: uniLocId || undefined, qty: totalQty, sizes: variants }];
+        stock_locations = uniLocs
+          .filter((l) => l.label)
+          .map((l) => ({ locationName: l.label, vesselLocationId: l.id || undefined, qty: locTotal(l.label), sizes: activeSizes.map((s) => ({ size: s, qty: cell(l.label, s) })) }));
       } else {
         const rows = locRows.filter((r) => r.label || r.qty);
         stock_locations = rows.map((r) => ({ locationName: r.label || '—', vesselLocationId: r.id || undefined, qty: r.qty || 0 }));
@@ -371,19 +385,24 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         is_alcohol: profile === 'bonded' && (bKind === 'wine' || bKind === 'spirit' || bKind === 'beer'),
         is_uniform: profile === 'uniform',
         location, sub_location,
-        default_location_id: locRows[0]?.id || uniLocId || null,
+        default_location_id: locRows[0]?.id || uniLocs[0]?.id || null,
         quantity: totalQty, total_qty: totalQty,
         has_variants, variant_type, variants,
         stock_locations,
         custom_fields,
       };
 
+      // Idempotent: once we've inserted (e.g. via "Set on the map" before the
+      // final save), keep updating that same row instead of inserting again.
+      const existingId = isEdit ? item.id : savedId;
       let res;
-      if (isEdit) res = await supabase.from('inventory_items').update(payload).eq('id', item.id).eq('tenant_id', tenantId).select('id').single();
+      if (existingId) res = await supabase.from('inventory_items').update(payload).eq('id', existingId).eq('tenant_id', tenantId).select('id').single();
       else res = await supabase.from('inventory_items').insert(payload).select('id').single();
       if (res.error) throw res.error;
+      const newId = res.data?.id || existingId || null;
+      if (!isEdit && newId) setSavedId(newId);
       onSaved?.();
-      return res.data?.id || item?.id || null;
+      return newId;
     } catch (err) {
       console.error('[ItemFormModal] save failed:', err);
       setError(err?.message || 'Couldn’t save — try again.');
@@ -413,8 +432,20 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     setShowFolderPicker(false);
   };
   const handleLocPicked = ({ id, label }) => {
-    if (locTarget?.kind === 'uni') { setUniLoc(label); setUniLocId(id); }
-    else if (locTarget?.kind === 'stock') { updateRow(locTarget.idx, { label, id }); }
+    if (locTarget?.kind === 'uni') {
+      const idx = locTarget.idx;
+      const old = uniLocs[idx]?.label;
+      setUniLocs((ls) => ls.map((l, i) => (i === idx ? { label, id } : l)));
+      if (old && old !== label) {
+        setMatrix((m) => {
+          const next = { ...m };
+          activeSizes.forEach((s) => {
+            if (next[`${old}||${s}`] != null) { next[`${label}||${s}`] = next[`${old}||${s}`]; delete next[`${old}||${s}`]; }
+          });
+          return next;
+        });
+      }
+    } else if (locTarget?.kind === 'stock') { updateRow(locTarget.idx, { label, id }); }
     setLocTarget(null);
   };
 
@@ -536,16 +567,30 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
           {profile === 'uniform' ? (
             <>
               <span className="itf-fl">Where it's stowed & how much <span className="opt">· per size</span></span>
-              <div className="itf-umtx">
-                <div className="itf-umtx-hd" style={{ gridTemplateColumns: `1.4fr ${activeSizes.map(() => 'minmax(38px,1fr)').join(' ')} 50px` }}>
-                  <span className="loc">Location</span>{activeSizes.map((s) => <span key={s}>{s}</span>)}<span>Total</span>
+              {uniLocs.map((loc, li) => (
+                <div className="itf-ustow" key={li}>
+                  <div className="itf-ustow-h">
+                    <button type="button" className="itf-pick pin" onClick={() => setLocTarget({ kind: 'uni', idx: li })}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}><Icon name="MapPin" size={15} style={{ color: '#C65A1A', flexShrink: 0 }} /><span className={loc.label ? '' : 'ph'} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.label || 'Select location…'}</span></span>
+                      <Icon name="ChevronRight" size={15} style={{ color: '#AEB4C2', flexShrink: 0 }} />
+                    </button>
+                    {uniLocs.length > 1 && <button type="button" className="itf-rmrow" onClick={() => setUniLocs((ls) => ls.filter((_, j) => j !== li))}>✕</button>}
+                  </div>
+                  {activeSizes.length === 0 ? (
+                    <div className="itf-usizes-empty">Turn on some sizes in <b>Details</b> to log quantities.</div>
+                  ) : (
+                    <div className="itf-usizes">
+                      {activeSizes.map((s) => (
+                        <label className="itf-usz" key={s}><span className="l">{s}</span><input value={matrix[`${loc.label}||${s}`] ?? ''} onChange={(e) => setCell(loc.label, s, Number(e.target.value) || 0)} placeholder="0" inputMode="numeric" /></label>
+                      ))}
+                      <span className="itf-usz tot"><span className="l">Total</span><b>{locTotal(loc.label)}</b></span>
+                    </div>
+                  )}
                 </div>
-                <div className="itf-umtx-row" style={{ gridTemplateColumns: `1.4fr ${activeSizes.map(() => 'minmax(38px,1fr)').join(' ')} 50px` }}>
-                  <span className="loc" style={{ cursor: 'pointer' }} onClick={() => setLocTarget({ kind: 'uni' })}><Icon name="MapPin" size={13} />{uniLoc} <Icon name="ChevronDown" size={11} /></span>
-                  {activeSizes.map((s) => <input key={s} value={matrix[`${uniLoc}||${s}`] ?? ''} onChange={(e) => setCell(s, Number(e.target.value) || 0)} placeholder="0" />)}
-                  <span className="tot">{rowTotal}</span>
-                </div>
-                <div className="itf-umtx-add">＋ Add location</div>
+              ))}
+              <div className="itf-locactions">
+                <button type="button" className="itf-addloc" onClick={addUniLoc}>＋ Add location</button>
+                <button type="button" className="itf-setmap2" onClick={setOnMap} disabled={saving}><Icon name="Crosshair" size={13} /> {saving ? 'Saving…' : 'Set from map'}</button>
               </div>
             </>
           ) : (
@@ -561,12 +606,19 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                   {locRows.length > 1 && <button type="button" className="itf-rmrow" onClick={() => setLocRows((rs) => rs.filter((_, j) => j !== i))}>✕</button>}
                 </div>
               ))}
-              <button type="button" className="itf-addloc" onClick={() => setLocRows((rs) => [...rs, { label: '', id: '', qty: 0 }])}>＋ Add another location</button>
-              <div style={{ height: 16 }} />
+              <div className="itf-locactions">
+                <button type="button" className="itf-addloc" onClick={() => setLocRows((rs) => [...rs, { label: '', id: '', qty: 0 }])}>＋ Add another location</button>
+                <button type="button" className="itf-setmap2" onClick={setOnMap} disabled={saving}><Icon name="Crosshair" size={13} /> {saving ? 'Saving…' : 'Set from map'}</button>
+              </div>
             </>
           )}
-          <span className="itf-fl">Keep-level <span className="opt">· total</span></span>
-          <div className="itf-sentence">Keep <input className="itf-mini" value={keep} onChange={(e) => setKeep(e.target.value)} /> aboard · reorder at <input className="itf-mini" value={reorder} onChange={(e) => setReorder(e.target.value)} /></div>
+          <div className="itf-keep">
+            <div className="itf-keep-row">
+              <label className="itf-keep-f"><span className="itf-lab">Keep aboard</span><input className="itf-keep-in" value={keep} onChange={(e) => setKeep(e.target.value)} placeholder="e.g. 12" inputMode="numeric" /></label>
+              <span className="itf-keep-sep" />
+              <label className="itf-keep-f"><span className="itf-lab">Reorder at</span><input className="itf-keep-in" value={reorder} onChange={(e) => setReorder(e.target.value)} placeholder="e.g. 6" inputMode="numeric" /></label>
+            </div>
+          </div>
           {profile !== 'uniform' && (
             <>
               <div className="itf-more" onClick={() => setMoreStock((v) => !v)}><span className="pl">{moreStock ? '–' : '+'}</span> {profile === 'bonded' ? 'Expiry' : 'Size, expiry'}</div>
@@ -578,10 +630,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               </div>
             </>
           )}
-          <button type="button" className="itf-mapline" onClick={setOnMap} disabled={saving}>
-            <Icon name="Crosshair" size={14} /> {saving ? 'Saving…' : 'Set on the map'}
-            <span className="itf-mapline-sub">pin the exact spot on the deck plan</span>
-          </button>
         </Sec>
 
         {/* 4 BUYING */}
@@ -590,7 +638,14 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
           <div className="itf-adorn" style={{ maxWidth: 230 }}><span className="pre">{currency === 'EUR' ? '€' : currency === 'USD' ? '$' : '£'}</span><input value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="0.00" /><span className="tail"><select value={currency} onChange={(e) => setCurrency(e.target.value)}><option>EUR</option><option>USD</option><option>GBP</option></select></span></div>
           <div style={{ height: 16 }} />
           <span className="itf-fl">How you order it</span>
-          <div className="itf-sentence">Bought by <input className="itf-mini" style={{ width: 80 }} value={purchaseUnit} onChange={(e) => setPurchaseUnit(e.target.value)} placeholder="Case" /> of <input className="itf-mini" value={unitsPerPack} onChange={(e) => setUnitsPerPack(e.target.value)} /> {unit}</div>
+          <div className="itf-keep">
+            <div className="itf-keep-row">
+              <label className="itf-keep-f"><span className="itf-lab">Bought by</span><input className="itf-keep-in wide" value={purchaseUnit} onChange={(e) => setPurchaseUnit(e.target.value)} placeholder="Case" /></label>
+              <span className="itf-keep-x">of</span>
+              <label className="itf-keep-f"><span className="itf-lab">Qty per {purchaseUnit ? purchaseUnit.toLowerCase() : 'pack'}</span><input className="itf-keep-in" value={unitsPerPack} onChange={(e) => setUnitsPerPack(e.target.value)} placeholder="e.g. 12" inputMode="numeric" /></label>
+              <span className="itf-keep-unit">{unit}</span>
+            </div>
+          </div>
           {purchaseUnit && Number(unitsPerPack) > 0 && <div className="itf-hint">↺ 1 {purchaseUnit.toLowerCase()} = <b>{unitsPerPack}</b> {unit}</div>}
           <div className="itf-more" onClick={() => setMoreBuy((v) => !v)}><span className="pl">{moreBuy ? '–' : '+'}</span> Brand, supplier, SKU</div>
           <div className={`itf-morebody${moreBuy ? ' show' : ''}`}>
@@ -637,7 +692,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       <InventoryFolderPicker tree={folderTree} onSelect={handleFolderSelect} onClose={() => setShowFolderPicker(false)} onFolderCreated={(t) => setFolderTree(t || {})} />
     )}
     {locTarget && (
-      <LocationPicker vesselLocations={vesselLocations} selectedId={locTarget?.kind === 'uni' ? uniLocId : (locRows[locTarget?.idx]?.id || '')} onSelect={handleLocPicked} onClose={() => setLocTarget(null)} />
+      <LocationPicker vesselLocations={vesselLocations} selectedId={locTarget?.kind === 'uni' ? (uniLocs[locTarget?.idx]?.id || '') : (locRows[locTarget?.idx]?.id || '')} onSelect={handleLocPicked} onClose={() => setLocTarget(null)} onMap={() => { setLocTarget(null); setOnMap(); }} />
     )}
     {mapItem && (
       <MapPickerModal placingItem={mapItem} onPlaced={() => setMapItem(null)} onClose={() => setMapItem(null)} />

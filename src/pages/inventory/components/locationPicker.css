@@ -36,8 +36,10 @@
 .locp-row-r .locp-count { font-weight: 600; }
 .locp-row-r.sel { color: #C65A1A; }
 
-.locp-foot { flex: none; padding: 12px 20px; border-top: 1px solid #F0F1F5; }
-.locp-cancel { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid #E5E7EB; background: #FFFFFF; font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; cursor: pointer; }
+.locp-foot { flex: none; padding: 12px 20px; border-top: 1px solid #F0F1F5; display: flex; gap: 10px; }
+.locp-cancel { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #E5E7EB; background: #FFFFFF; font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; cursor: pointer; }
 .locp-cancel:hover { border-color: #C65A1A; color: #C65A1A; }
+.locp-map { flex: 1.4; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px; border-radius: 10px; border: 1px solid #F3D9CB; background: #FBEFE9; font: 700 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; cursor: pointer; }
+.locp-map:hover { background: #F7E2D6; }
 
 @media (max-width: 480px) { .locp-panel { width: 100%; } }
