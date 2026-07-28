@@ -1218,27 +1218,44 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       </button>
                     );
                   })()}
-                  {/* Stairs: a ↕ badge sitting on the local pin. Tap to jump to
-                      the connected deck (or, while linking, to remove it). */}
-                  {!focusMode && deckStairs.map(({ link, remoteId, pos, remote }) => (
-                    <button
-                      key={link.id}
-                      type="button"
-                      className={`dp-stair-badge ${linkMode ? 'is-removable' : ''}`}
-                      style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }}
-                      title={linkMode
-                        ? `Remove stairs to ${remote?.name || 'the other deck'}`
-                        : `Stairs to ${remote?.name || 'room'}${remote?.deckName ? ` · ${remote.deckName}` : ''}`}
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (linkMode) { deleteLink(link.id); return; }
-                        if (remote) jumpToSpace(remote.deckId, remoteId);
-                      }}
-                    >
-                      <span className="dp-stair-ic" aria-hidden="true">↕</span>
-                    </button>
-                  ))}
+                  {/* Stairs: a small stairs marker sitting on the local pin. It's
+                      just an indicator that a stair connection exists here (stairs
+                      are bidirectional, so we don't jump the view either way). In
+                      link mode, tap it to remove the connection. */}
+                  {!focusMode && deckStairs.map(({ link, remoteId, pos, remote }) => {
+                    const stairIc = (
+                      <svg className="dp-stair-ic" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M3 20h4v-4h4v-4h4v-4h5" fill="none" stroke="currentColor"
+                          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    );
+                    const label = `Stairs${remote?.name ? ` to ${remote.name}` : ''}${remote?.deckName ? ` · ${remote.deckName}` : ''}`;
+                    if (!linkMode) {
+                      return (
+                        <span
+                          key={link.id}
+                          className="dp-stair-badge is-static"
+                          style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }}
+                          title={label}
+                        >
+                          {stairIc}
+                        </span>
+                      );
+                    }
+                    return (
+                      <button
+                        key={link.id}
+                        type="button"
+                        className="dp-stair-badge is-removable"
+                        style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }}
+                        title={`Remove ${label.toLowerCase()}`}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); deleteLink(link.id); }}
+                      >
+                        {stairIc}
+                      </button>
+                    );
+                  })}
                   {placed.map((s) => {
                     if (tracing?.spaceId === s.id || editing?.spaceId === s.id) return null; // hide the pin while tracing/adjusting
                     const p = posOf(s);
