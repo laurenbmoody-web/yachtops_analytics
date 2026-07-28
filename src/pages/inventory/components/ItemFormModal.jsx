@@ -379,6 +379,32 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     finally { setClBusy(false); }
   };
 
+  // Mint a QR code no other item is already using (tenant-scoped). The item's
+  // own Barcode field is the registry — so re-printing the same item reuses its
+  // stored code, and a fresh item can never collide with an existing one.
+  const mintUniqueCode = async () => {
+    let tenant;
+    try { const { data: ctx } = await supabase.rpc('get_my_context'); tenant = ctx?.[0]?.tenant_id; } catch { /* offline */ }
+    for (let i = 0; i < 6; i += 1) {
+      const code = mintItemCode();
+      if (!tenant) return code;
+      const { data } = await supabase.from('inventory_items').select('id').eq('tenant_id', tenant).eq('barcode', code).limit(1);
+      if (!data || !data.length) return code;
+    }
+    return mintItemCode();
+  };
+
+  const handleCreateQr = async () => {
+    const existing = barcode.trim();
+    // Open the print window synchronously so the popup blocker doesn't eat it,
+    // then fill it once the (possibly minted) code is ready.
+    let win = null;
+    try { win = window.open('', '_blank'); if (win) { win.document.write('<!doctype html><meta charset="utf-8"><title>QR label</title><body style="font-family:system-ui;padding:40px;color:#6B7280">Preparing label…</body>'); win.document.close(); } } catch { /* blocked */ }
+    let code = existing;
+    if (!code) { code = await mintUniqueCode(); setBarcode(code); }
+    printItemQr({ code, name: name.trim(), brand, location: folder, win });
+  };
+
   const loadImg = (src) => new Promise((resolve, reject) => {
     const img = new Image(); img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img); img.onerror = () => reject(new Error('image load')); img.src = src;
@@ -700,7 +726,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               <div className="itf-usizes-empty">Turn on some sizes in <b>Details</b> to log quantities.</div>
               <div className="itf-locactions">
                 <button type="button" className="itf-addloc" onClick={addUniLoc}>＋ Add location</button>
-                <button type="button" className="itf-setmap2" onClick={setOnMap} disabled={saving}><Icon name="Crosshair" size={13} /> Set from map</button>
               </div>
             </>
           ) : (
@@ -729,10 +754,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                   </React.Fragment>
                 ))}
 
-                {/* totals row — actions sit on this line, no separate label */}
+                {/* totals row — action sits on this line, no separate label */}
                 <div className="itf-mhaveact">
                   <button type="button" className="itf-addloc" onClick={addUniLoc}>＋ Add location</button>
-                  <button type="button" className="itf-setmap2" onClick={setOnMap} disabled={saving}><Icon name="Crosshair" size={13} /> Set from map</button>
                 </div>
                 {cols.map((c, j) => <div className="itf-mhave" key={j}>{colHave(c)}</div>)}
                 {profile !== 'uniform' && <div className="itf-mhave gap" />}
@@ -851,12 +875,12 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         {/* 6 REFERENCE */}
         <Sec icon="Tag" name="Reference" open={open.ref} onToggle={() => toggle('ref')} summary={<span className="sc muted">barcode · tags · notes</span>}>
           <div className="itf-f"><label className="itf-lab">Barcode / QR</label>
-            <div className="itf-scanrow">
-              <input className="itf-in" value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Scan, generate or enter…" />
+            <input className="itf-in" value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Scan, generate or enter…" />
+            <div className="itf-scanbtns">
               <button type="button" className="itf-mini" onClick={() => setShowScan(true)} title="Scan a barcode or QR with the camera"><Icon name="ScanLine" size={15} /> Scan</button>
-              <button type="button" className="itf-mini g" onClick={() => { const code = barcode.trim() || mintItemCode(); if (!barcode.trim()) setBarcode(code); printItemQr({ code, name: name.trim(), brand, location: folder }); }} title="Generate a printable QR code for this item"><Icon name="QrCode" size={15} /> Create QR</button>
+              <button type="button" className="itf-mini g" onClick={handleCreateQr} title="Generate a printable QR code for this item"><Icon name="QrCode" size={15} /> Create QR</button>
             </div>
-            <p className="itf-scanhint">Scan an existing barcode, or <b>Create QR</b> to mint &amp; print a code you can stick on the item — scanning it later brings you back here.</p>
+            <p className="itf-scanhint">Scan a code, or <b>Create QR</b> to mint &amp; print a unique label for this item.</p>
           </div>
           <div className="itf-f"><label className="itf-lab">Tags</label><div className="itf-chips">{['drinks', 'bar', 'snacks', 'safety', 'cleaning'].map((t) => <span key={t} className={`itf-chip${tags.includes(t) ? ' on' : ''}`} onClick={() => setTags((xs) => xs.includes(t) ? xs.filter((x) => x !== t) : [...xs, t])}>{t}</span>)}{tags.filter((t) => !['drinks', 'bar', 'snacks', 'safety', 'cleaning'].includes(t)).map((t) => <span key={t} className="itf-chip on" onClick={() => setTags((xs) => xs.filter((x) => x !== t))}>{t} ✕</span>)}<input className="itf-chip-in" value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const v = tagDraft.trim(); if (v && !tags.includes(v)) setTags((xs) => [...xs, v]); setTagDraft(''); } }} placeholder="+ custom" /></div></div>
           <div className="itf-f" style={{ marginBottom: 0 }}><label className="itf-lab">Notes</label><input className="itf-in" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any notes…" /></div>

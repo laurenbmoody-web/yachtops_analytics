@@ -38,15 +38,15 @@ const CARD_CSS = `
 `;
 
 // Open a print window with one QR label for an item. `code` is the string the
-// QR encodes (and that the scanner will read back). Returns nothing.
-export async function printItemQr({ code, name, brand, location }) {
+// QR encodes (and that the scanner will read back). Pass `win` when the caller
+// already opened the window synchronously (popup-safe across an async mint).
+export async function printItemQr({ code, name, brand, location, win }) {
   const value = String(code || '').trim();
   if (!value) return;
 
-  let w = null;
+  let w = win || null;
   try {
-    w = window.open('', '_blank');
-    if (w) { w.document.open(); w.document.write('<!doctype html><meta charset="utf-8"><title>QR label</title><body style="font-family:system-ui;padding:40px;color:#6B7280">Preparing label…</body>'); w.document.close(); }
+    if (!w) { w = window.open('', '_blank'); if (w) { w.document.open(); w.document.write('<!doctype html><meta charset="utf-8"><title>QR label</title><body style="font-family:system-ui;padding:40px;color:#6B7280">Preparing label…</body>'); w.document.close(); } }
   } catch { /* popup blocked */ }
 
   const qr = await makeQr(value).catch(() => '');

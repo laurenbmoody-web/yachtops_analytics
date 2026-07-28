@@ -258,10 +258,9 @@
 .itf-prim{background:var(--g);color:#fff;}
 .itf-prim:disabled{opacity:.6;cursor:default;}
 
-/* barcode / QR scan row */
-.itf-scanrow{display:flex;gap:8px;align-items:stretch;}
-.itf-scanrow .itf-in{flex:1;min-width:0;}
-.itf-mini{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;padding:0 12px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--ink);font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;transition:.12s;white-space:nowrap;}
+/* barcode / QR — input on its own row, actions beneath so nothing clips */
+.itf-scanbtns{display:flex;gap:8px;margin-top:8px;}
+.itf-mini{display:inline-flex;align-items:center;justify-content:center;gap:5px;flex:1;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--ink);font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;transition:.12s;white-space:nowrap;}
 .itf-mini:hover{border-color:#DCC7B8;}
 .itf-mini svg{stroke:currentColor;}
 .itf-mini.g{color:var(--g);border-color:#E7C3AE;background:#FBEFE9;}
