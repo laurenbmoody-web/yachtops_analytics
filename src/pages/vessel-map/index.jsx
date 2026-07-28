@@ -845,10 +845,11 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
 
   // The item was placed on a pin (or the crew cancelled) — leave placing mode and
   // return to the item they came from.
-  const finishPlacing = useCallback((placed) => {
-    // Embedded in the item modal → hand control back to it; on the standalone
-    // page → clear placing mode and return to the item's page.
-    if (embedded) { if (placed) onPlacedProp?.(); onCloseProp?.(); return; }
+  const finishPlacing = useCallback((placed, payload) => {
+    // Embedded in the item modal → hand control back to it (payload carries the
+    // picked location for "Set from map"); on the standalone page → clear
+    // placing mode and return to the item's page.
+    if (embedded) { if (placed) onPlacedProp?.(payload); onCloseProp?.(); return; }
     setPlacingItem((cur) => {
       if (placed && cur?.id) navigate(`/inventory/item/${cur.id}`);
       return null;
@@ -1148,7 +1149,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   containerTrail={containerTrail}
                   onNodeResolved={onNodeResolved}
                   placingItem={placingItem}
-                  onPlaced={() => finishPlacing(true)}
+                  onPlaced={(payload) => finishPlacing(true, payload)}
                   onClose={closeInspector}
                   onDelete={deleteHotspot}
                   onAdjust={startAdjust}
@@ -1361,7 +1362,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                             containerTrail={containerTrail}
                             onNodeResolved={onNodeResolved}
                             placingItem={placingItem}
-                            onPlaced={() => finishPlacing(true)}
+                            onPlaced={(payload) => finishPlacing(true, payload)}
                           />
                         )}
                         {placingItem && !layerHoldsStock(selectedHotspot.layer) && (

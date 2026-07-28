@@ -65,8 +65,12 @@ export default function PinItems({
     setBusy('place'); setError(null);
     const nid = await ensureNode();
     if (!nid) { setBusy(null); return; }
-    // Link the item to this pin (qty 0) and stay on the map — the crew set how
-    // many are here with the inline −/+ counter that now appears below.
+    // Form "Set from map": just hand the chosen location back so the item form
+    // adds it as a stock row (where per-size quantities are set). No DB write —
+    // the form stays the source of truth for how much is where.
+    if (placingItem.pickOnly) { setBusy(null); onPlaced?.({ nodeId: nid, name: pinName }); return; }
+    // Standalone placement: link the item to this pin (qty 0) and stay on the
+    // map — the crew set how many with the inline −/+ counter below.
     const { error: e } = await placeStock(placingItem.id, { pin: { nodeId: nid, name: pinName }, addNew: 0, moves: [], link: true });
     setBusy(null);
     if (e) { setError(e); return; }
@@ -101,9 +105,9 @@ export default function PinItems({
       {/* Placing an item from its Inventory Location — the pin's primary action. */}
       {canManage && placingItem && (
         <div className="vm-pinitems-place">
-          <p className="vm-pinitems-place-lead">Place <strong>{placingItem.name}</strong> on this pin</p>
-          <button className="vm-btn-primary vm-pinitems-place-btn" onClick={placeHere} disabled={busy === 'place'}>{busy === 'place' ? 'Placing…' : 'Place here'}</button>
-          <p className="vm-pinitems-place-hint">Then set how many are here with −/+ below.</p>
+          <p className="vm-pinitems-place-lead">{placingItem.pickOnly ? <>Store <strong>{placingItem.name}</strong> here</> : <>Place <strong>{placingItem.name}</strong> on this pin</>}</p>
+          <button className="vm-btn-primary vm-pinitems-place-btn" onClick={placeHere} disabled={busy === 'place'}>{busy === 'place' ? '…' : (placingItem.pickOnly ? 'Use this location' : 'Place here')}</button>
+          <p className="vm-pinitems-place-hint">{placingItem.pickOnly ? 'Adds it as a stock location back on the item — set quantities there.' : 'Then set how many are here with −/+ below.'}</p>
         </div>
       )}
 
