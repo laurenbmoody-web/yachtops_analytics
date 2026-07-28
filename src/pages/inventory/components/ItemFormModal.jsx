@@ -90,11 +90,11 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     });
     // No per-location size breakdown but variants exist → seed the first location.
     if (!Object.keys(mx).length && item?.variants?.length) {
-      if (!locs.length) locs.push({ label: "Owner's Cabin", id: '' });
+      if (!locs.length) locs.push({ label: '', id: '' });
       const label = locs[0].label;
       item.variants.forEach((v) => { if (v?.size != null) { on[v.size] = true; mx[`${label}||${v.size}`] = v.qty || 0; } });
     }
-    if (!locs.length) locs.push({ label: "Owner's Cabin", id: '' });
+    if (!locs.length) locs.push({ label: '', id: '' });
     return { locs, on, mx };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -157,7 +157,8 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [region, setRegion] = useState('uk');
   const [sizeOn, setSizeOn] = useState(uniInit?.on || {}); // label -> true
   const [matrix, setMatrix] = useState(uniInit?.mx || {}); // "loc||size" -> qty
-  const [uniLocs, setUniLocs] = useState(uniInit?.locs || [{ label: "Owner's Cabin", id: '' }]);
+  const [uniLocs, setUniLocs] = useState(uniInit?.locs || [{ label: '', id: '' }]);
+  const [parSizes, setParSizes] = useState(item?.customFields?.parSizes || {}); // size -> min qty
   const [moreUni, setMoreUni] = useState(false);
   const [brandingType, setBrandingType] = useState(item?.customFields?.branding?.type || 'None');
   const [brandingColour, setBrandingColour] = useState(item?.customFields?.branding?.colour || '');
@@ -329,6 +330,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       // uniform → variants (one per active size, qty summed across the matrix)
       let variants = null; let has_variants = false; let variant_type = null; let totalQty = 0;
       let stock_locations = [];
+      const uniformParTotal = activeSizes.reduce((a, s) => a + (Number(parSizes[s]) || 0), 0);
       if (profile === 'uniform') {
         has_variants = true; variant_type = sizeType;
         // variants = per-size totals aggregated across every stowage location
@@ -352,6 +354,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
           garmentType: garment, subType, fit, colour, styleCode: styleCode || undefined,
           branding: brandingType === 'None' ? undefined : { type: brandingType, colour: brandingColour, logo: brandingLogo, placement: brandingPlacement },
           fabric: fabric || undefined, care: care || undefined, sizeType, region,
+          parSizes: activeSizes.some((s) => Number(parSizes[s]) > 0) ? activeSizes.reduce((o, s) => { o[s] = Number(parSizes[s]) || 0; return o; }, {}) : undefined,
         } : {}),
         flags: toArr(flagOn).length ? flagOn : undefined,
         medical: addonOn.medical ? { form: medForm, mca: medMca, controlled: medControlled } : undefined,
@@ -372,9 +375,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         currency: currency || null,
         purchase_unit: purchaseUnit || null,
         units_per_pack: unitsPerPack === '' ? null : Number(unitsPerPack),
-        par_level: keep === '' ? null : Number(keep),
-        reorder_point: reorder === '' ? null : Number(reorder),
-        restock_level: reorder === '' ? null : Number(reorder),
+        par_level: profile === 'uniform' ? (uniformParTotal || null) : (keep === '' ? null : Number(keep)),
+        reorder_point: profile === 'uniform' ? (uniformParTotal || null) : (reorder === '' ? null : Number(reorder)),
+        restock_level: profile === 'uniform' ? (uniformParTotal || null) : (reorder === '' ? null : Number(reorder)),
         barcode: barcode || null,
         tags: tags.length ? tags : null,
         notes: notes || null,
@@ -612,13 +615,27 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               </div>
             </>
           )}
-          <div className="itf-keep">
-            <div className="itf-keep-row">
-              <label className="itf-keep-f"><span className="itf-lab">Keep aboard</span><input className="itf-keep-in" value={keep} onChange={(e) => setKeep(e.target.value)} placeholder="e.g. 12" inputMode="numeric" /></label>
-              <span className="itf-keep-sep" />
-              <label className="itf-keep-f"><span className="itf-lab">Reorder at</span><input className="itf-keep-in" value={reorder} onChange={(e) => setReorder(e.target.value)} placeholder="e.g. 6" inputMode="numeric" /></label>
+          {profile === 'uniform' ? (
+            activeSizes.length > 0 && (
+              <>
+                <span className="itf-fl">Keep aboard <span className="opt">· minimum per size</span></span>
+                <div className="itf-usizes itf-par">
+                  {activeSizes.map((s) => (
+                    <label className="itf-usz" key={s}><span className="l">{s}</span><input value={parSizes[s] ?? ''} onChange={(e) => setParSizes((p) => ({ ...p, [s]: Number(e.target.value) || 0 }))} placeholder="0" inputMode="numeric" /></label>
+                  ))}
+                  <span className="itf-usz" aria-hidden="true" style={{ visibility: 'hidden' }}><span className="l">·</span></span>
+                </div>
+              </>
+            )
+          ) : (
+            <div className="itf-keep">
+              <div className="itf-keep-row">
+                <label className="itf-keep-f"><span className="itf-lab">Keep aboard</span><input className="itf-keep-in" value={keep} onChange={(e) => setKeep(e.target.value)} placeholder="e.g. 12" inputMode="numeric" /></label>
+                <span className="itf-keep-sep" />
+                <label className="itf-keep-f"><span className="itf-lab">Reorder at</span><input className="itf-keep-in" value={reorder} onChange={(e) => setReorder(e.target.value)} placeholder="e.g. 6" inputMode="numeric" /></label>
+              </div>
             </div>
-          </div>
+          )}
           {profile !== 'uniform' && (
             <>
               <div className="itf-more" onClick={() => setMoreStock((v) => !v)}><span className="pl">{moreStock ? '–' : '+'}</span> {profile === 'bonded' ? 'Expiry' : 'Size, expiry'}</div>
