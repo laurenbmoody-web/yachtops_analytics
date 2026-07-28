@@ -16,6 +16,7 @@ import {
   computeCashPosition,
   deriveAmountBase,
 } from './financeCalc.js';
+import { normalizeMerchant } from './merchantClassify.js';
 
 const ACCOUNT_SELECT =
   'id, tenant_id, name, kind, currency, opening_balance, is_active, notes, ' +
@@ -224,6 +225,73 @@ export const setTransactionCategory = async (id, { category, category_code }) =>
     .select(TXN_SELECT)
     .single();
   return { data, error };
+};
+
+// File an un-categorised bank-feed line: stamp the MYBA line AND mark it
+// reconciled, clearing it from the "needs a look" queue in one action. (The
+// lighter setTransactionCategory above only sets the category — used mid-review
+// where reconciling isn't wanted yet.)
+export const fileTransaction = async (id, { category, category_code }) => {
+  const { data, error } = await supabase
+    .from('ledger_transactions')
+    .update({ category: category || null, category_code: category_code || null, status: 'reconciled' })
+    .eq('id', id)
+    .select(TXN_SELECT)
+    .single();
+  return { data, error };
+};
+
+// Backfill: file the same MYBA line onto many lines at once — used when a merchant
+// rule is learned and every un-filed charge from that merchant clears together.
+export const fileTransactions = async (ids, { category, category_code }) => {
+  const list = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
+  if (!list.length) return { data: [], error: null };
+  const { data, error } = await supabase
+    .from('ledger_transactions')
+    .update({ category: category || null, category_code: category_code || null, status: 'reconciled' })
+    .in('id', list)
+    .select(TXN_SELECT);
+  return { data, error };
+};
+
+// ── Learned merchant map (bank counterparty → MYBA line) ──────────────────────
+// Tier A of the bank-feed suggestion engine: the authoritative per-vessel memory.
+// Keys are the normalised merchant (see normalizeMerchant) so charges from the same
+// vendor share one rule. Reads/writes are RLS-scoped by tenant.
+
+export const listMerchantRules = async (tenantId) => {
+  const { data, error } = await supabase
+    .from('ledger_merchant_rules')
+    .select('merchant_key, bucket, category, code')
+    .eq('tenant_id', tenantId);
+  return { data, error };
+};
+
+// Remember "this merchant is always this line". Called when Command files a line —
+// payee is normalised here so the caller can pass the raw bank payee.
+export const setMerchantRule = async (tenantId, payee, target) => {
+  const merchant_key = normalizeMerchant(payee);
+  if (!merchant_key) return { data: null, error: new Error('No merchant to learn from') };
+  const created_by = await currentUserId();
+  const { data, error } = await supabase
+    .from('ledger_merchant_rules')
+    .upsert({
+      tenant_id: tenantId,
+      merchant_key,
+      bucket: target.bucket, category: target.category, code: target.code || null,
+      created_by,
+    }, { onConflict: 'tenant_id,merchant_key' })
+    .select('merchant_key, bucket, category, code')
+    .single();
+  return { data, error };
+};
+
+export const clearMerchantRule = async (tenantId, payee) => {
+  const merchant_key = normalizeMerchant(payee);
+  const { error } = await supabase
+    .from('ledger_merchant_rules')
+    .delete().eq('tenant_id', tenantId).eq('merchant_key', merchant_key);
+  return { error };
 };
 
 // ── Receipts / attachments ──────────────────────────────────────────────────

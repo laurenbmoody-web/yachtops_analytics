@@ -227,3 +227,22 @@
 .ca-arec .ca-arec-dot { width: 7px; height: 7px; border-radius: 999px; }
 .ca-arec.ok { color: #3F7A52; } .ca-arec.ok .ca-arec-dot { background: #6FBF8B; }
 .ca-arec.rev { color: #B5762B; } .ca-arec.rev .ca-arec-dot { background: #D98A3D; }
+
+/* ── Month grouping ──────────────────────────────────────────────────────── */
+.ca-month { margin-top: 6px; }
+.ca-month + .ca-month { margin-top: 26px; }
+.ca-month-head { display: flex; align-items: baseline; gap: 13px; padding: 0 8px 6px 14px; border-bottom: 1px solid #E6E8EF; }
+.ca-month-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.ca-month-total { margin-left: auto; font-size: 12.5px; font-weight: 600; color: #6B7280; font-variant-numeric: tabular-nums; }
+
+/* ── Bank-feed category suggestion ───────────────────────────────────────── */
+.ca-suggest { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.ca-sug-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: #1C1B3A; background: #FBEFE9; border: 1px solid #F3DDD0; border-radius: 999px; padding: 3px 11px; }
+.ca-sug-dot { width: 6px; height: 6px; border-radius: 50%; background: #C65A1A; flex: 0 0 auto; }
+.ca-sug-pill.is-low { color: #6B7280; background: #FAFAF8; border-color: #E5E7EB; }
+.ca-sug-pill.is-low .ca-sug-dot { background: #C9A227; }
+.ca-sug-check { font-style: normal; font-size: 10.5px; color: #AEB4C2; font-weight: 600; }
+.ca-sug-file { border: 0; border-radius: 8px; background: #C65A1A; color: #fff; font: inherit; font-size: 12px; font-weight: 600; padding: 4px 12px; cursor: pointer; }
+.ca-sug-file:hover { background: #B14E16; }
+.ca-sug-change { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #E5E7EB; border-radius: 8px; background: #fff; color: #6B7280; font: inherit; font-size: 12px; font-weight: 600; padding: 4px 11px; cursor: pointer; }
+.ca-sug-change:hover { border-color: #C65A1A; color: #C65A1A; }
