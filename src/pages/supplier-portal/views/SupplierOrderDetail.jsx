@@ -706,7 +706,8 @@ const Timeline = ({ order, items }) => {
       <p className="sod-tl-label">Fulfilment</p>
       <div className="sod-tl-scroll">
         <div className="sod-stepper-line">
-          <div className="sod-stepper-progress" style={{ width: `calc((100% - 28px) * ${progressFraction})` }} />
+          {/* Fill spans first→last dot centre: track width is (100% − 8px)·7/8. */}
+          <div className="sod-stepper-progress" style={{ width: `calc((100% - 8px) * 7 / 8 * ${progressFraction})` }} />
           {TIMELINE_STEPS.map((step, idx) => {
             const isDone = idx < currentIdx;
             const isCurrent = idx === currentIdx;
@@ -780,7 +781,18 @@ const DoStation = ({ order, items, canEdit, invoice, onConfirmAll, onStartPickin
   } else if (status === 'paid') {
     eyebrow = 'Complete';
     title = 'Order complete · paid';
-    hint = 'Nothing left to do on this order.';
+    // Proof of payment — date, amount and method from the settled invoice.
+    // The funds themselves land in the supplier's Stripe account (their
+    // authoritative record); this is the in-app confirmation.
+    if (invoice?.paid_at) {
+      const paidOn = new Date(invoice.paid_at).toLocaleDateString(dateLocale(), {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+      });
+      const via = invoice.payment_method === 'card' ? ' · card via Stripe' : '';
+      hint = `Paid ${paidOn} · ${formatCurrency(invoice.amount, invoice.currency)}${via}${invoice.invoice_number ? ` · ${invoice.invoice_number}` : ''}`;
+    } else {
+      hint = 'Nothing left to do on this order.';
+    }
   } else {
     return null;
   }

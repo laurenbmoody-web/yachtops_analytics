@@ -1308,13 +1308,19 @@
   position: relative; display: flex; justify-content: space-between;
   min-width: 560px; padding: 0 4px;
 }
+/* Track runs dot-centre to dot-centre — no overhang past the first/last dot.
+   Each of the 8 steps is an equal flex column inside 4px side padding, so a
+   dot centre sits half a column (── (100% − 8px) / 16 ──) in from each edge. */
 #sp-root .sod-stepper-line::before {
   content: ''; position: absolute;
-  top: 8px; left: 14px; right: 14px;
+  top: 8px;
+  left: calc(4px + (100% - 8px) / 16);
+  right: calc(4px + (100% - 8px) / 16);
   height: 2px; background: var(--line); z-index: 0;
 }
 #sp-root .sod-stepper-progress {
-  position: absolute; top: 8px; left: 14px; height: 2px;
+  position: absolute; top: 8px;
+  left: calc(4px + (100% - 8px) / 16); height: 2px;
   background: var(--orange); z-index: 1;
   transition: width 500ms cubic-bezier(.4, 0, .2, 1);
 }

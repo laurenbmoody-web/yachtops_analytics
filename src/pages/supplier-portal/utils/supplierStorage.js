@@ -125,7 +125,7 @@ export const fetchOrderById = async (orderId) => {
       *,
       supplier_order_items(*, catalogue_item:catalogue_item_id(category, sku)),
       assigned_contact:supplier_contacts!assigned_to_supplier_contact_id(id, name, email, role),
-      invoices:supplier_invoices(id, invoice_number, pdf_url, amount, currency, status, created_at, due_date)
+      invoices:supplier_invoices(id, invoice_number, pdf_url, amount, currency, status, created_at, due_date, paid_at, payment_method)
     `)
     .eq('id', orderId)
     .single();
