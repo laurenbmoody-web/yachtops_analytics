@@ -83,8 +83,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     const hasVar = item?.hasVariants || item?.has_variants || item?.variants?.length || sl.some((r) => (r.sizes || []).length);
     const on = {}; const mx = {}; const locs = []; const order = [];
     const note = (s) => { if (!order.includes(String(s))) order.push(String(s)); };
-    const keep = { ...(item?.customFields?.parSizes || {}) };
-    const reord = { ...(item?.customFields?.reorderSizes || {}) };
+    const reord = { ...(item?.customFields?.reorderSizes || item?.customFields?.parSizes || {}) };
 
     if (hasVar) {
       sl.forEach((row) => {
@@ -102,7 +101,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       const formats = item?.variants?.length ? item.variants.map((v) => String(v.size)) : order;
       const buy = {};
       (item?.variants || []).forEach((v) => { if (v?.size != null) buy[String(v.size)] = { supplier: v.supplier || '', cost: v.unitCost ?? v.unit_cost ?? '' }; });
-      return { locs, on, mx, formats, buy, keep, reord };
+      return { locs, on, mx, formats, buy, reord };
     }
 
     // plain single item → one blank-labelled size column
@@ -112,10 +111,10 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       locs.push({ label, id });
       mx[`${label}||`] = row.qty ?? row.quantity ?? 0;
     });
-    if (item && item.parLevel != null) keep[''] = item.parLevel;
     if (item && item.reorderPoint != null) reord[''] = item.reorderPoint;
+    else if (item && item.parLevel != null) reord[''] = item.parLevel;
     if (!locs.length) locs.push({ label: '', id: '' });
-    return { locs, on, mx, formats: [''], buy: {}, keep, reord, simple: true };
+    return { locs, on, mx, formats: [''], buy: {}, reord, simple: true };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [open, setOpen] = useState({ identity: true, details: true, stock: true, buying: false, handling: false, docs: false, ref: false });
@@ -178,7 +177,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [sizeOn, setSizeOn] = useState(variantInit?.on || {}); // label -> true
   const [matrix, setMatrix] = useState(variantInit?.mx || {}); // "loc||size" -> qty
   const [uniLocs, setUniLocs] = useState(variantInit?.locs || [{ label: '', id: '' }]);
-  const [parSizes, setParSizes] = useState(variantInit?.keep || {}); // size -> keep-aboard qty
   const [reorderSizes, setReorderSizes] = useState(variantInit?.reord || {}); // size -> reorder-at qty
   // Size columns for non-uniform items. Always ≥1 (a blank column = a plain
   // single item); naming it or adding more turns the item multi-size.
@@ -256,14 +254,14 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     setFormats((fs) => fs.map((f, k) => (k === j ? val : f)));
     if (old === val) return;
     setMatrix((m) => { const n = { ...m }; uniLocs.forEach((l) => { const ok = `${l.label}||${old}`; if (n[ok] != null) { n[`${l.label}||${val}`] = n[ok]; delete n[ok]; } }); return n; });
-    setParSizes((p) => { if (p[old] == null) return p; const n = { ...p }; n[val] = n[old]; delete n[old]; return n; });
+    setReorderSizes((p) => { if (p[old] == null) return p; const n = { ...p }; n[val] = n[old]; delete n[old]; return n; });
     setVarBuy((b) => { if (!b[old]) return b; const n = { ...b }; n[val] = b[old]; delete n[old]; return n; });
   };
   const removeFormatAt = (j) => {
     const old = formats[j];
     setFormats((fs) => fs.filter((_, k) => k !== j));
     setMatrix((m) => { const n = { ...m }; uniLocs.forEach((l) => delete n[`${l.label}||${old}`]); return n; });
-    setParSizes((p) => { if (p[old] == null) return p; const n = { ...p }; delete n[old]; return n; });
+    setReorderSizes((p) => { if (p[old] == null) return p; const n = { ...p }; delete n[old]; return n; });
     setVarBuy((b) => { if (!b[old]) return b; const n = { ...b }; delete n[old]; return n; });
   };
 
@@ -388,7 +386,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       let variants = null; let has_variants = false; let variant_type = null; let totalQty = 0;
       let stock_locations = [];
       const hasVar = activeSizes.length > 0;
-      const keepTotal = activeSizes.reduce((a, s) => a + (Number(parSizes[s]) || 0), 0);
       const reorderTotal = activeSizes.reduce((a, s) => a + (Number(reorderSizes[s]) || 0), 0);
       if (hasVar) {
         has_variants = true; variant_type = profile === 'uniform' ? sizeType : 'format';
@@ -411,7 +408,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         stock_locations = uniLocs.filter((l) => l.label).map((l) => ({ locationName: l.label, vesselLocationId: l.id || undefined, qty: cell(l.label, '') }));
         totalQty = uniLocs.reduce((a, l) => a + cell(l.label, ''), 0);
       }
-      const parLevelVal = hasVar ? keepTotal : (Number(parSizes['']) || 0);
       const reorderVal = hasVar ? reorderTotal : (Number(reorderSizes['']) || 0);
       // For list display, surface the first priced variant at item level.
       const primaryCost = variants?.find((v) => v.unitCost != null)?.unitCost;
@@ -428,7 +424,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
           fabric: fabric || undefined, care: care || undefined, sizeType, region,
         } : {}),
         ...(multiSize ? { formats: activeSizes, variantKind: 'format' } : {}),
-        parSizes: hasVar && activeSizes.some((s) => Number(parSizes[s]) > 0) ? activeSizes.reduce((o, s) => { o[s] = Number(parSizes[s]) || 0; return o; }, {}) : undefined,
         reorderSizes: hasVar && activeSizes.some((s) => Number(reorderSizes[s]) > 0) ? activeSizes.reduce((o, s) => { o[s] = Number(reorderSizes[s]) || 0; return o; }, {}) : undefined,
         flags: toArr(flagOn).length ? flagOn : undefined,
         medical: addonOn.medical ? { form: medForm, mca: medMca, controlled: medControlled } : undefined,
@@ -449,7 +444,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         currency: currency || null,
         purchase_unit: purchaseUnit || null,
         units_per_pack: unitsPerPack === '' ? null : Number(unitsPerPack),
-        par_level: parLevelVal || null,
+        par_level: reorderVal || null,
         reorder_point: reorderVal || null,
         restock_level: reorderVal || null,
         barcode: barcode || null,
@@ -683,14 +678,8 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                 {profile !== 'uniform' && <div className="itf-mhave gap" />}
                 <div className="itf-mgtot">{grandTotal}</div>
 
-                {/* keep aboard (par) per column */}
-                <div className="itf-mminlab">Keep aboard</div>
-                {cols.map((c, j) => <div className="itf-mmin" key={j}><input value={parSizes[c] ?? ''} onChange={(e) => setParSizes((p) => ({ ...p, [c]: Number(e.target.value) || 0 }))} placeholder="—" inputMode="numeric" aria-label={`Keep aboard ${c}`} /></div>)}
-                {profile !== 'uniform' && <div className="itf-mmin gap" />}
-                <div className="itf-mmin gap" />
-
                 {/* reorder-at (low-stock trigger) per column */}
-                <div className="itf-mminlab sub">Reorder at</div>
+                <div className="itf-mminlab">Reorder at</div>
                 {cols.map((c, j) => { const low = colHave(c) < (Number(reorderSizes[c]) || 0) && (Number(reorderSizes[c]) || 0) > 0; return <div className={`itf-mmin${low ? ' low' : ''}`} key={j}><input value={reorderSizes[c] ?? ''} onChange={(e) => setReorderSizes((p) => ({ ...p, [c]: Number(e.target.value) || 0 }))} placeholder="—" inputMode="numeric" aria-label={`Reorder at ${c}`} /></div>; })}
                 {profile !== 'uniform' && <div className="itf-mmin gap" />}
                 <div className="itf-mmin gap" />
