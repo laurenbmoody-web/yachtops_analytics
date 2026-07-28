@@ -315,14 +315,13 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 /* Stairs connection: a ↕ pill sitting just below the pin it belongs to,
    pointing at the deck it climbs to. Tap to jump there (or remove in link mode). */
 .dp-stair-badge{position:absolute;transform:translate(-50%,10px);z-index:5;
-  display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 8px 0 6px;
+  display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;
   border-radius:999px;border:1px solid #E4CBB9;background:var(--lg-terra-tint,#FBEFE9);
-  color:#B14E16;font-family:var(--lg-sans);font-size:10.5px;font-weight:700;letter-spacing:.2px;
+  color:#B14E16;font-family:var(--lg-sans);font-weight:700;
   cursor:pointer;white-space:nowrap;box-shadow:0 2px 5px rgba(28,27,58,.16);
   transition:background .15s,border-color .15s,transform .12s;}
 .dp-stair-badge:hover{background:#F6DFD1;border-color:var(--lg-terra);transform:translate(-50%,10px) scale(1.06);}
 .dp-stair-ic{font-size:12px;line-height:1;font-weight:800;}
-.dp-stair-txt{max-width:110px;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;}
 .dp-stair-badge.is-removable{border-style:dashed;}
 .dp-stair-badge.is-removable:hover{background:#FBE3DA;border-color:#B14E16;color:#B14E16;}
 .dp-plan.is-focus .dp-stair-badge{display:none;}
