@@ -1,7 +1,10 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import ModalShell from '../../../components/ui/ModalShell';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabaseClient';
+import InventoryFolderPicker from './InventoryFolderPicker';
+import { LocationPicker } from './AddEditItemModal';
+import { getFolderTree } from '../utils/inventoryStorage';
 import './item-form.css';
 
 // Type-driven inventory item form. Profiles tailor the fields; the folder
@@ -76,7 +79,14 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [description, setDescription] = useState(item?.description || '');
   const [imageUrl, setImageUrl] = useState(item?.imageUrl || '');
   const [folder, setFolder] = useState(folderDisplay);
+  const [folderPath, setFolderPath] = useState(defaultLocation ? (defaultSubLocation ? [defaultLocation, defaultSubLocation] : [defaultLocation]) : []);
+  const [folderTree, setFolderTree] = useState({});
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
+  const [vesselLocations, setVesselLocations] = useState([]);
   const [locName, setLocName] = useState('');
+  const [locId, setLocId] = useState('');
+  const [uniLocId, setUniLocId] = useState('');
+  const [locTarget, setLocTarget] = useState(null); // 'stock' | 'uni'
   const [qty, setQty] = useState(item?.quantity ?? 0);
   const [unit, setUnit] = useState(item?.unit || 'each');
   const [keep, setKeep] = useState(item?.parLevel ?? '');
@@ -164,6 +174,25 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
   const toArr = (obj) => Object.keys(obj).filter((k) => obj[k]);
 
+  // Load the inventory folder tree + vessel locations for the pickers.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try { const tree = await getFolderTree(); if (alive) setFolderTree(tree || {}); } catch { /* ignore */ }
+      try {
+        const { data: ctx } = await supabase.rpc('get_my_context');
+        const tid = ctx?.[0]?.tenant_id;
+        if (tid) {
+          const { data } = await supabase.from('vessel_locations')
+            .select('id, name, level, parent_id').eq('tenant_id', tid).eq('is_archived', false)
+            .order('sort_order', { ascending: true }).order('name', { ascending: true });
+          if (alive && data) setVesselLocations(data);
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { alive = false; };
+  }, []);
+
   const uploadPhoto = async (file) => {
     try {
       const { data: ctx } = await supabase.rpc('get_my_context');
@@ -185,7 +214,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       const tenantId = ctx?.[0]?.tenant_id;
       if (!tenantId) throw new Error('No tenant context');
 
-      const segs = String(folder || '').split('>').map((s) => s.trim()).filter(Boolean);
+      const segs = folderPath.length ? folderPath : String(folder || '').split('>').map((s) => s.trim()).filter(Boolean);
       const location = segs[0] || null;
       const sub_location = segs.length ? segs.join(' > ') : null;
 
@@ -196,9 +225,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         has_variants = true; variant_type = sizeType;
         variants = activeSizes.map((s) => ({ size: s, qty: cell(s) }));
         totalQty = variants.reduce((a, v) => a + (v.qty || 0), 0);
-        if (activeSizes.length) stock_locations = [{ locationName: uniLoc, qty: totalQty, sizes: variants }];
+        if (activeSizes.length) stock_locations = [{ locationName: uniLoc, vesselLocationId: uniLocId || undefined, qty: totalQty, sizes: variants }];
       } else if (locName.trim()) {
-        stock_locations = [{ locationName: locName.trim(), qty: totalQty }];
+        stock_locations = [{ locationName: locName.trim(), vesselLocationId: locId || undefined, qty: totalQty }];
       }
 
       const custom_fields = {
@@ -239,6 +268,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         is_alcohol: profile === 'bonded' && (bKind === 'wine' || bKind === 'spirit' || bKind === 'beer'),
         is_uniform: profile === 'uniform',
         location, sub_location,
+        default_location_id: locId || uniLocId || null,
         quantity: totalQty, total_qty: totalQty,
         has_variants, variant_type, variants,
         stock_locations,
@@ -263,11 +293,22 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     setProfile(p);
     if (p !== 'general') setOpen((o) => ({ ...o, details: true }));
   };
+  const handleFolderSelect = ({ path, displayPath }) => {
+    setFolder(displayPath); setFolderPath(path || []);
+    if (!isEdit) setProfile(autoProfile(displayPath));
+    setShowFolderPicker(false);
+  };
+  const handleLocPicked = ({ id, label }) => {
+    if (locTarget === 'uni') { setUniLoc(label); setUniLocId(id); }
+    else { setLocName(label); setLocId(id); }
+    setLocTarget(null);
+  };
 
   // ── render ──
   const handSummary = [...toArr(addonOn).map((a) => ADDONS.find((x) => x.id === a)?.label), ...toArr(flagOn).map((f) => FLAGS.find((x) => x.id === f)?.label)].filter(Boolean);
 
   return (
+    <>
     <ModalShell onClose={onClose} panelClassName="itf bg-card rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
       <div className="itf-head">
         <div><div className="itf-eyebrow">Inventory {isEdit ? '· Edit' : '· New'}</div><div className="itf-title">{isEdit ? 'Edit item' : 'Add item'}</div></div>
@@ -296,8 +337,11 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
             ))}
           </div>
           <div className="itf-f" style={{ marginTop: 14, marginBottom: 0 }}>
-            <label className="itf-lab">Folder</label>
-            <input className="itf-in" value={folder} onChange={(e) => setFolder(e.target.value)} placeholder="e.g. Interior › Bar" />
+            <label className="itf-lab">Folder <span className="opt">· category in inventory tree</span></label>
+            <button type="button" className="itf-pick" onClick={() => setShowFolderPicker(true)}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}><Icon name="Folder" size={15} style={{ color: '#C65A1A', flexShrink: 0 }} /><span className={folder ? '' : 'ph'} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{folder || 'Select folder…'}</span></span>
+              <Icon name="ChevronRight" size={15} style={{ color: '#AEB4C2', flexShrink: 0 }} />
+            </button>
           </div>
         </Sec>
 
@@ -366,7 +410,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                   <span className="loc">Location</span>{activeSizes.map((s) => <span key={s}>{s}</span>)}<span>Total</span>
                 </div>
                 <div className="itf-umtx-row" style={{ gridTemplateColumns: `1.4fr ${activeSizes.map(() => 'minmax(38px,1fr)').join(' ')} 50px` }}>
-                  <span className="loc"><Icon name="MapPin" size={13} />{uniLoc}</span>
+                  <span className="loc" style={{ cursor: 'pointer' }} onClick={() => setLocTarget('uni')}><Icon name="MapPin" size={13} />{uniLoc} <Icon name="ChevronDown" size={11} /></span>
                   {activeSizes.map((s) => <input key={s} value={matrix[`${uniLoc}||${s}`] ?? ''} onChange={(e) => setCell(s, Number(e.target.value) || 0)} placeholder="0" />)}
                   <span className="tot">{rowTotal}</span>
                 </div>
@@ -377,7 +421,10 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
             <>
               <span className="itf-fl">Where it's stowed & how much</span>
               <div className="itf-locline">
-                <input className="itf-in pin" value={locName} onChange={(e) => setLocName(e.target.value)} placeholder="Owner's Cabin › Locker 3…" />
+                <button type="button" className="itf-pick pin" onClick={() => setLocTarget('stock')}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}><Icon name="MapPin" size={15} style={{ color: '#C65A1A', flexShrink: 0 }} /><span className={locName ? '' : 'ph'} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{locName || 'Select location…'}</span></span>
+                  <Icon name="ChevronRight" size={15} style={{ color: '#AEB4C2', flexShrink: 0 }} />
+                </button>
                 <div className="itf-adorn q"><input value={qty} onChange={(e) => setQty(Number(e.target.value) || 0)} /><span className="tail"><select value={unit} onChange={(e) => setUnit(e.target.value)}><option>each</option><option>bottle</option><option>case</option><option>kg</option><option>L</option><option>pack</option></select></span></div>
               </div>
               <div className="itf-addloc">＋ Add another location</div>
@@ -448,6 +495,13 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         <button className="itf-btn itf-prim" disabled={saving} onClick={save}>{saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add item'}</button>
       </div>
     </ModalShell>
+    {showFolderPicker && (
+      <InventoryFolderPicker tree={folderTree} onSelect={handleFolderSelect} onClose={() => setShowFolderPicker(false)} onFolderCreated={(t) => setFolderTree(t || {})} />
+    )}
+    {locTarget && (
+      <LocationPicker vesselLocations={vesselLocations} selectedId={locTarget === 'uni' ? uniLocId : locId} onSelect={handleLocPicked} onClose={() => setLocTarget(null)} />
+    )}
+    </>
   );
 };
 
