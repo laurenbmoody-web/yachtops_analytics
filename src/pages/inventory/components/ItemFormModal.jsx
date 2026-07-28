@@ -78,16 +78,18 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [name, setName] = useState(item?.name || '');
   const [description, setDescription] = useState(item?.description || '');
   const [imageUrl, setImageUrl] = useState(item?.imageUrl || '');
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoErr, setPhotoErr] = useState('');
+  const [originalUrl, setOriginalUrl] = useState('');
   const [folder, setFolder] = useState(folderDisplay);
   const [folderPath, setFolderPath] = useState(defaultLocation ? (defaultSubLocation ? [defaultLocation, defaultSubLocation] : [defaultLocation]) : []);
   const [folderTree, setFolderTree] = useState({});
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [vesselLocations, setVesselLocations] = useState([]);
-  const [locName, setLocName] = useState('');
-  const [locId, setLocId] = useState('');
+  const [locRows, setLocRows] = useState([{ label: '', id: '', qty: 0 }]);
+  const updateRow = (i, patch) => setLocRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const [uniLocId, setUniLocId] = useState('');
-  const [locTarget, setLocTarget] = useState(null); // 'stock' | 'uni'
-  const [qty, setQty] = useState(item?.quantity ?? 0);
+  const [locTarget, setLocTarget] = useState(null); // {kind:'stock',idx} | {kind:'uni'}
   const [unit, setUnit] = useState(item?.unit || 'each');
   const [keep, setKeep] = useState(item?.parLevel ?? '');
   const [reorder, setReorder] = useState(item?.reorderPoint ?? '');
@@ -194,16 +196,61 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   }, []);
 
   const uploadPhoto = async (file) => {
+    if (!file) return;
+    setPhotoBusy(true); setPhotoErr('');
     try {
       const { data: ctx } = await supabase.rpc('get_my_context');
-      const tenantId = ctx?.[0]?.tenant_id;
+      const tenantId = ctx?.[0]?.tenant_id || 'shared';
       const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
       const path = `inventory/${tenantId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('inventory').upload(path, file, { upsert: true });
+      const { error: upErr } = await supabase.storage.from('item-images').upload(path, file, { upsert: true });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from('inventory').getPublicUrl(path);
+      const { data: pub } = supabase.storage.from('item-images').getPublicUrl(path);
+      setOriginalUrl('');
       setImageUrl(pub?.publicUrl || '');
-    } catch (err) { console.warn('[ItemFormModal] photo upload failed:', err?.message); }
+    } catch (err) { setPhotoErr(`Upload failed — ${err?.message || 'try again.'}`); }
+    finally { setPhotoBusy(false); }
+  };
+
+  const loadImg = (src) => new Promise((resolve, reject) => {
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img); img.onerror = () => reject(new Error('image load')); img.src = src;
+  });
+
+  // Cut the item out of its background via the SAM segmenter (same as uniforms).
+  const cutout = async () => {
+    if (!imageUrl || photoBusy) return;
+    setPhotoBusy(true); setPhotoErr('');
+    try {
+      const img = await loadImg(imageUrl);
+      const scale = Math.min(1, 1024 / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      const cx = c.getContext('2d'); cx.drawImage(img, 0, 0, w, h);
+      const b64 = c.toDataURL('image/jpeg', 0.9).split(',')[1];
+      const { data, error: fnErr } = await supabase.functions.invoke('deck-plan-sam', {
+        body: { imageBase64: b64, x: Math.round(w / 2), y: Math.round(h * 0.42), mediaType: 'image/jpeg' },
+      });
+      if (fnErr || !data?.maskUrl) { setPhotoErr('Couldn’t remove the background — try again.'); setPhotoBusy(false); return; }
+      const mask = await loadImg(data.maskUrl);
+      const mc = document.createElement('canvas'); mc.width = w; mc.height = h;
+      const mctx = mc.getContext('2d'); mctx.drawImage(mask, 0, 0, w, h);
+      const md = mctx.getImageData(0, 0, w, h);
+      for (let i = 0; i < md.data.length; i += 4) { const a = md.data[i]; md.data[i] = 0; md.data[i + 1] = 0; md.data[i + 2] = 0; md.data[i + 3] = a; }
+      mctx.putImageData(md, 0, 0);
+      cx.globalCompositeOperation = 'destination-in'; cx.drawImage(mc, 0, 0); cx.globalCompositeOperation = 'source-over';
+      const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
+      if (!blob) { setPhotoErr('Couldn’t remove the background — try again.'); setPhotoBusy(false); return; }
+      const { data: ctx2 } = await supabase.rpc('get_my_context');
+      const tenantId = ctx2?.[0]?.tenant_id || 'shared';
+      const path = `inventory/${tenantId}/isolated-${Date.now()}.png`;
+      const { error: upErr } = await supabase.storage.from('item-images').upload(path, blob, { upsert: true, contentType: 'image/png' });
+      if (upErr) { setPhotoErr('Couldn’t save the cut-out — try again.'); setPhotoBusy(false); return; }
+      const { data: urlData } = supabase.storage.from('item-images').getPublicUrl(path);
+      setOriginalUrl(imageUrl); setImageUrl(urlData?.publicUrl || '');
+    } catch (e) { setPhotoErr(`Couldn’t remove the background — ${e?.message || 'try again.'}`); }
+    finally { setPhotoBusy(false); }
   };
 
   const save = async () => {
@@ -219,15 +266,17 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       const sub_location = segs.length ? segs.join(' > ') : null;
 
       // uniform → variants (one per active size, qty summed across the matrix)
-      let variants = null; let has_variants = false; let variant_type = null; let totalQty = Number(qty) || 0;
+      let variants = null; let has_variants = false; let variant_type = null; let totalQty = 0;
       let stock_locations = [];
       if (profile === 'uniform') {
         has_variants = true; variant_type = sizeType;
         variants = activeSizes.map((s) => ({ size: s, qty: cell(s) }));
         totalQty = variants.reduce((a, v) => a + (v.qty || 0), 0);
         if (activeSizes.length) stock_locations = [{ locationName: uniLoc, vesselLocationId: uniLocId || undefined, qty: totalQty, sizes: variants }];
-      } else if (locName.trim()) {
-        stock_locations = [{ locationName: locName.trim(), vesselLocationId: locId || undefined, qty: totalQty }];
+      } else {
+        const rows = locRows.filter((r) => r.label || r.qty);
+        stock_locations = rows.map((r) => ({ locationName: r.label || '—', vesselLocationId: r.id || undefined, qty: r.qty || 0 }));
+        totalQty = rows.reduce((a, r) => a + (r.qty || 0), 0);
       }
 
       const custom_fields = {
@@ -268,7 +317,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         is_alcohol: profile === 'bonded' && (bKind === 'wine' || bKind === 'spirit' || bKind === 'beer'),
         is_uniform: profile === 'uniform',
         location, sub_location,
-        default_location_id: locId || uniLocId || null,
+        default_location_id: locRows[0]?.id || uniLocId || null,
         quantity: totalQty, total_qty: totalQty,
         has_variants, variant_type, variants,
         stock_locations,
@@ -299,8 +348,8 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     setShowFolderPicker(false);
   };
   const handleLocPicked = ({ id, label }) => {
-    if (locTarget === 'uni') { setUniLoc(label); setUniLocId(id); }
-    else { setLocName(label); setLocId(id); }
+    if (locTarget?.kind === 'uni') { setUniLoc(label); setUniLocId(id); }
+    else if (locTarget?.kind === 'stock') { updateRow(locTarget.idx, { label, id }); }
     setLocTarget(null);
   };
 
@@ -319,13 +368,23 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         {/* 1 IDENTITY */}
         <Sec icon="Package" name="Identity" open={open.identity} onToggle={() => toggle('identity')}>
           <div className="itf-idcard">
-            <label className="itf-ph">
-              {imageUrl ? <img src={imageUrl} alt="" /> : <>＋<br />Photo</>}
-              <input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && uploadPhoto(e.target.files[0])} />
-            </label>
+            <div className="itf-phcol">
+              <label className="itf-ph">
+                {photoBusy ? <span className="itf-spin" /> : imageUrl ? <img src={imageUrl} alt="" /> : <>＋<br />Photo</>}
+                <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; uploadPhoto(f); }} />
+              </label>
+              {imageUrl && !photoBusy && (
+                <div className="itf-phacts">
+                  {originalUrl ? <button type="button" onClick={() => { setImageUrl(originalUrl); setOriginalUrl(''); }}>↩ Revert</button>
+                    : <button type="button" onClick={cutout}>✂ Cut out</button>}
+                  <button type="button" onClick={() => { setImageUrl(''); setOriginalUrl(''); }}>Remove</button>
+                </div>
+              )}
+            </div>
             <div className="itf-idf">
               <input className="itf-nm" value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" />
               <textarea className="itf-ds" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description (optional)" />
+              {photoErr && <div className="itf-err" style={{ marginTop: 4 }}>{photoErr}</div>}
             </div>
           </div>
           <div className="itf-slab" style={{ marginTop: 16 }}>Profile</div>
@@ -410,7 +469,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                   <span className="loc">Location</span>{activeSizes.map((s) => <span key={s}>{s}</span>)}<span>Total</span>
                 </div>
                 <div className="itf-umtx-row" style={{ gridTemplateColumns: `1.4fr ${activeSizes.map(() => 'minmax(38px,1fr)').join(' ')} 50px` }}>
-                  <span className="loc" style={{ cursor: 'pointer' }} onClick={() => setLocTarget('uni')}><Icon name="MapPin" size={13} />{uniLoc} <Icon name="ChevronDown" size={11} /></span>
+                  <span className="loc" style={{ cursor: 'pointer' }} onClick={() => setLocTarget({ kind: 'uni' })}><Icon name="MapPin" size={13} />{uniLoc} <Icon name="ChevronDown" size={11} /></span>
                   {activeSizes.map((s) => <input key={s} value={matrix[`${uniLoc}||${s}`] ?? ''} onChange={(e) => setCell(s, Number(e.target.value) || 0)} placeholder="0" />)}
                   <span className="tot">{rowTotal}</span>
                 </div>
@@ -420,14 +479,17 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
           ) : (
             <>
               <span className="itf-fl">Where it's stowed & how much</span>
-              <div className="itf-locline">
-                <button type="button" className="itf-pick pin" onClick={() => setLocTarget('stock')}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}><Icon name="MapPin" size={15} style={{ color: '#C65A1A', flexShrink: 0 }} /><span className={locName ? '' : 'ph'} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{locName || 'Select location…'}</span></span>
-                  <Icon name="ChevronRight" size={15} style={{ color: '#AEB4C2', flexShrink: 0 }} />
-                </button>
-                <div className="itf-adorn q"><input value={qty} onChange={(e) => setQty(Number(e.target.value) || 0)} /><span className="tail"><select value={unit} onChange={(e) => setUnit(e.target.value)}><option>each</option><option>bottle</option><option>case</option><option>kg</option><option>L</option><option>pack</option></select></span></div>
-              </div>
-              <div className="itf-addloc">＋ Add another location</div>
+              {locRows.map((r, i) => (
+                <div className="itf-locline" key={i}>
+                  <button type="button" className="itf-pick pin" onClick={() => setLocTarget({ kind: 'stock', idx: i })}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}><Icon name="MapPin" size={15} style={{ color: '#C65A1A', flexShrink: 0 }} /><span className={r.label ? '' : 'ph'} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label || 'Select location…'}</span></span>
+                    <Icon name="ChevronRight" size={15} style={{ color: '#AEB4C2', flexShrink: 0 }} />
+                  </button>
+                  <div className="itf-adorn q"><input value={r.qty || ''} onChange={(e) => updateRow(i, { qty: Number(e.target.value) || 0 })} placeholder="0" /><span className="tail"><select value={unit} onChange={(e) => setUnit(e.target.value)}><option>each</option><option>bottle</option><option>case</option><option>kg</option><option>L</option><option>pack</option></select></span></div>
+                  {locRows.length > 1 && <button type="button" className="itf-rmrow" onClick={() => setLocRows((rs) => rs.filter((_, j) => j !== i))}>✕</button>}
+                </div>
+              ))}
+              <button type="button" className="itf-addloc" onClick={() => setLocRows((rs) => [...rs, { label: '', id: '', qty: 0 }])}>＋ Add another location</button>
               <div style={{ height: 16 }} />
             </>
           )}
@@ -499,7 +561,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       <InventoryFolderPicker tree={folderTree} onSelect={handleFolderSelect} onClose={() => setShowFolderPicker(false)} onFolderCreated={(t) => setFolderTree(t || {})} />
     )}
     {locTarget && (
-      <LocationPicker vesselLocations={vesselLocations} selectedId={locTarget === 'uni' ? uniLocId : locId} onSelect={handleLocPicked} onClose={() => setLocTarget(null)} />
+      <LocationPicker vesselLocations={vesselLocations} selectedId={locTarget?.kind === 'uni' ? uniLocId : (locRows[locTarget?.idx]?.id || '')} onSelect={handleLocPicked} onClose={() => setLocTarget(null)} />
     )}
     </>
   );
