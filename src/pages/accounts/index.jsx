@@ -13,6 +13,7 @@ import { formatMoney } from '../../services/financeCalc';
 import { groupAccountsByHolder, fundsTotals } from '../../services/accountsView';
 import AccountFormModal from './components/AccountFormModal';
 import AccountsShell from './components/AccountsShell';
+import ConnectBankModal from './components/ConnectBankModal';
 import './accounts.css';
 
 const KIND_ICON = { bank: 'Landmark', card: 'CreditCard', cash: 'Wallet', petty_cash: 'Wallet' };
@@ -39,6 +40,7 @@ export default function Accounts() {
   const [accounts, setAccounts] = useState([]);
   const [cashPosition, setCashPosition] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [toast, setToast] = useState('');
   const [expanded, setExpanded] = useState({}); // holder → open? (dashboard drills in on demand)
@@ -126,9 +128,14 @@ export default function Accounts() {
               <h1 className="ca-title">The boat’s <em>money</em>.</h1>
               <div className="ca-head-act">
                 {canEdit && (
-                  <button type="button" className="ca-btn ca-btn-primary" onClick={openAdd}>
-                    <Icon name="Plus" size={16} /> Add account
-                  </button>
+                  <>
+                    <button type="button" className="ca-btn ca-btn-ghost" onClick={() => setConnectOpen(true)}>
+                      <Icon name="Link" size={16} /> Connect a bank
+                    </button>
+                    <button type="button" className="ca-btn ca-btn-primary" onClick={openAdd}>
+                      <Icon name="Plus" size={16} /> Add account
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -217,6 +224,7 @@ export default function Accounts() {
         onSave={handleSave}
         initial={editing}
       />
+      <ConnectBankModal open={connectOpen} onClose={() => setConnectOpen(false)} />
     </AccountsShell>
   );
 }
