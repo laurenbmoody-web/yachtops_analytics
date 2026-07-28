@@ -10,13 +10,15 @@ import { listBanks, connectBank } from '../../../services/bankFeedService';
 import './connect-bank.css';
 
 const COUNTRIES = [
+  ['', 'All countries'],
   ['GB', 'United Kingdom'], ['FR', 'France'], ['ES', 'Spain'], ['IT', 'Italy'],
-  ['DE', 'Germany'], ['NL', 'Netherlands'], ['MC', 'Monaco'], ['MT', 'Malta'],
+  ['DE', 'Germany'], ['NL', 'Netherlands'], ['IE', 'Ireland'], ['PT', 'Portugal'],
+  ['BE', 'Belgium'], ['FI', 'Finland'], ['SE', 'Sweden'], ['MC', 'Monaco'], ['MT', 'Malta'],
 ];
 
 export default function ConnectBankModal({ open, onClose }) {
   const { activeTenantId } = useTenant();
-  const [country, setCountry] = useState('GB');
+  const [country, setCountry] = useState('');
   const [psuType, setPsuType] = useState('personal');
   const [banks, setBanks] = useState(null);
   const [q, setQ] = useState('');
@@ -36,7 +38,7 @@ export default function ConnectBankModal({ open, onClose }) {
 
   const choose = async (aspsp) => {
     setConnecting(aspsp.name); setError('');
-    const { data, error: e } = await connectBank({ tenantId: activeTenantId, country, aspsp: aspsp.name, psuType });
+    const { data, error: e } = await connectBank({ tenantId: activeTenantId, country: aspsp.country || country || 'GB', aspsp: aspsp.name, psuType });
     if (e) { setError(e.message); setConnecting(''); return; }
     if (data?.url) window.location.href = data.url;  // hand off to the bank
     else { setError('No consent URL returned.'); setConnecting(''); }
@@ -83,13 +85,21 @@ export default function ConnectBankModal({ open, onClose }) {
 
         {banks && (
           <>
+            <div className="cb-count">
+              {banks.length} {banks.length === 1 ? 'bank' : 'banks'} {country ? `for ${country}` : 'available'}
+              <span className="cb-sandbox">Sandbox — test banks only (not Revolut/Monzo etc.)</span>
+            </div>
             <div className="cb-search">
               <Icon name="Search" size={15} />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search banks…" />
             </div>
             <div className="cb-list">
               {shown.length === 0 ? (
-                <div className="cb-empty">No banks for {country}. Try another country.</div>
+                <div className="cb-empty">
+                  {banks.length === 0
+                    ? `No banks came back${country ? ` for ${country}` : ''}. In Sandbox you only see the Mock ASPSP test bank — make sure it's set up in your Enable Banking Control Panel (Sandbox → Mock ASPSP), then reload. Real banks appear once you register a Production app.`
+                    : `No banks match “${q}”. Clear the search to see the ${banks.length} test ${banks.length === 1 ? 'bank' : 'banks'}.`}
+                </div>
               ) : shown.map((b) => (
                 <button key={b.name} type="button" className="cb-bank" disabled={!!connecting} onClick={() => choose(b)}>
                   {b.logo ? <img src={b.logo} alt="" className="cb-logo" /> : <span className="cb-logo cb-logo-ph"><Icon name="Landmark" size={16} /></span>}

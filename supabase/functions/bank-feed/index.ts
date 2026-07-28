@@ -92,13 +92,14 @@ Deno.serve(async (req) => {
 
     // ── ping: prove the credentials work (no DB) ─────────────────────────────
     if (action === 'ping') {
-      const data = await eb('/aspsps?country=GB');
+      const data = await eb('/aspsps');
       return json({ ok: true, banks: (data.aspsps || []).length });
     }
 
-    // ── list_banks ───────────────────────────────────────────────────────────
+    // ── list_banks (country optional — omit to list every ASPSP) ─────────────
     if (action === 'list_banks') {
-      const data = await eb(`/aspsps?country=${encodeURIComponent(p.country || 'GB')}`);
+      const c = (p.country || '').trim();
+      const data = await eb(c && c !== 'ALL' ? `/aspsps?country=${encodeURIComponent(c)}` : '/aspsps');
       const aspsps = (data.aspsps || []).map((a: any) => ({
         name: a.name, country: a.country, logo: a.logo || null, psu_types: a.psu_types || [],
       }));
