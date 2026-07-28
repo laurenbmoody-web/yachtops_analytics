@@ -1,0 +1,57 @@
+/* Cargo Accounts — Check-off queue. Scoped under .co-*; editorial system. */
+
+/* Month stepper (reused shape from other Accounts headers) */
+.co-step { display: inline-flex; align-items: center; gap: 4px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px; padding: 4px 6px; }
+.co-step span { font-size: 12.5px; font-weight: 600; color: #1C1B3A; min-width: 116px; text-align: center; }
+.co-step button { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: 0; border-radius: 999px; background: none; color: #6B7280; cursor: pointer; transition: background .12s ease, color .12s ease; }
+.co-step button:hover { background: #F3F4F6; color: #1C1B3A; }
+
+/* Lane */
+.co-lane { margin-top: 22px; }
+.co-lh { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.co-ldot { width: 8px; height: 8px; border-radius: 999px; flex: 0 0 auto; }
+.co-ldot.due { background: #C65A1A; }
+.co-ldot.work { background: #3B6EA5; }
+.co-ldot.idle { background: #AEB4C2; }
+.co-ldot.ok { background: #3F7A52; }
+.co-ll { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.co-lc { font-size: 11px; font-weight: 700; color: #6B7280; background: #F0F1F5; border-radius: 999px; padding: 1px 8px; }
+.co-lrule { flex: 1; height: 1px; background: #EEF0F4; }
+
+/* Row */
+.co-row { display: grid; grid-template-columns: minmax(220px, 1.6fr) minmax(120px, 0.9fr) minmax(110px, 0.8fr) auto; align-items: center; gap: 16px; padding: 13px 4px; border-bottom: 1px solid #F0F1F5; }
+.co-row:last-child { border-bottom: 0; }
+
+.co-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.co-ava { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 999px; background: #FBEFE9; color: #C65A1A; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 700; letter-spacing: .3px; }
+.co-ava.vessel { background: #EAF0F7; color: #3B6EA5; }
+.co-wt { display: flex; flex-direction: column; min-width: 0; }
+.co-name { font-size: 14px; font-weight: 600; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.co-sub { font-size: 11.5px; color: #8B8478; }
+
+.co-bal { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+.co-ball { font-size: 9px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: #AEB4C2; }
+.co-bal b { font-size: 14px; color: #1C1B3A; }
+.co-muted { font-size: 13px; color: #AEB4C2; }
+
+.co-when { font-size: 12px; color: #6B7280; }
+
+.co-act { display: inline-flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.co-btn { display: inline-flex; align-items: center; gap: 5px; border-radius: 8px; padding: 7px 12px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: background .12s ease, border-color .12s ease, color .12s ease; }
+.co-btn.pri { background: #C65A1A; color: #FFFFFF; border: 1px solid #C65A1A; }
+.co-btn.pri:hover { background: #B14E16; border-color: #B14E16; }
+.co-btn.ghost { background: #FFFFFF; color: #6B7280; border: 1px solid #E5E7EB; }
+.co-btn.ghost:hover { color: #1C1B3A; border-color: #D6D9E0; }
+.co-btn:disabled { opacity: .5; cursor: default; }
+
+.co-donetag { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: #3F7A52; }
+
+/* Waiting rows get a faint terracotta wash so they read as the action lane */
+.co-row.waiting { background: #FDF8F5; border-radius: 10px; padding-left: 12px; padding-right: 12px; }
+.co-row.waiting + .co-row.waiting { margin-top: 2px; }
+
+@media (max-width: 720px) {
+  .co-row { grid-template-columns: 1fr auto; row-gap: 8px; }
+  .co-bal, .co-when { grid-column: 1; }
+  .co-act { grid-column: 2; grid-row: 1 / span 3; align-self: center; }
+}

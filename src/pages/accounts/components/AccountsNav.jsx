@@ -12,6 +12,7 @@ import './accounts-nav.css';
 const SECTIONS = [
   { key: 'overview', label: 'Overview', path: '/accounts', icon: 'LayoutDashboard', command: true },
   { key: 'cards', label: 'Cards & cash', path: '/accounts/cards', icon: 'CreditCard', command: true },
+  { key: 'checkoff', label: 'Check-off', path: '/accounts/checkoff', icon: 'CheckCircle', command: true },
   { key: 'spending', label: 'Spending', path: '/accounts/ledger', icon: 'List', command: true },
   { key: 'plan', label: 'The plan', path: '/accounts/budgets', icon: 'Target', command: true },
   { key: 'owner', label: 'Owner report', path: '/accounts/owner', icon: 'FileText', command: false },
