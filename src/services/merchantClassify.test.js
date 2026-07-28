@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { normalizeMerchant, suggestFromMerchant, suggestWithRules } from './merchantClassify.js';
+import { normalizeMerchant, suggest, resolveSuggestion } from './merchantClassify.js';
 
 test('normalizeMerchant collapses legal suffixes to a stable key', () => {
   // Dotted and undotted legal forms of the same vendor land on one key.
@@ -19,52 +19,62 @@ test('normalizeMerchant strips card-scheme + reference noise and digit runs', ()
   assert.equal(normalizeMerchant(null), '');
 });
 
-test('seed: unambiguous marine vendors route high-confidence', () => {
-  assert.equal(suggestFromMerchant({ payee: 'TOTAL MARINE FUELS' }).code, 'FLE');
-  assert.equal(suggestFromMerchant({ payee: 'Pantaenius Yacht Insurance' }).code, 'INS');
-  assert.equal(suggestFromMerchant({ payee: 'Bureau Veritas' }).code, 'CRT');
-  assert.equal(suggestFromMerchant({ payee: 'Port Vauban Capitainerie' }).code, 'HAR');
-  const fuel = suggestFromMerchant({ payee: 'Shell' });
-  assert.equal(fuel.confidence, 'high');
-  assert.equal(fuel.source, 'merchant');
+test('seed: unambiguous marine vendors are a confident single suggestion', () => {
+  assert.equal(suggest({ payee: 'TOTAL MARINE FUELS' }).suggestion.code, 'FLE');
+  assert.equal(suggest({ payee: 'Pantaenius Yacht Insurance' }).suggestion.code, 'INS');
+  assert.equal(suggest({ payee: 'Bureau Veritas' }).suggestion.code, 'CRT');
+  assert.equal(suggest({ payee: 'Port Vauban Capitainerie' }).suggestion.code, 'HAR');
+  const fuel = suggest({ payee: 'Shell' });
+  assert.equal(fuel.kind, 'single');
+  assert.equal(fuel.suggestion.confidence, 'high');
+  assert.equal(fuel.suggestion.source, 'merchant');
 });
 
-test('seed: two-sided vendors match but are flagged low for a human check', () => {
-  const market = suggestFromMerchant({ payee: 'Carrefour Cannes' });
-  assert.equal(market.code, 'GFE');
-  assert.equal(market.confidence, 'low');
-  const air = suggestFromMerchant({ payee: 'RYANAIR' });
-  assert.equal(air.code, 'CTE');
-  assert.equal(air.confidence, 'low');
+test('seed: two-sided vendors return a guest-vs-crew choice, not a guess', () => {
+  const market = suggest({ payee: 'Carrefour Cannes' });
+  assert.equal(market.kind, 'choice');
+  assert.deepEqual(market.options.map((o) => o.code), ['GFE', 'CFC']);
+  const air = suggest({ payee: 'RYANAIR' });
+  assert.equal(air.kind, 'choice');
+  assert.deepEqual(air.options.map((o) => o.code), ['CTE', 'GCT']);
 });
 
 test('description keyword pass catches product words when the merchant is unknown', () => {
-  const s = suggestFromMerchant({ payee: 'BQT SA 0099', description: 'DIESEL GASOIL BUNKERS' });
-  assert.equal(s.code, 'FLE');
-  assert.equal(s.source, 'description');
+  const s = suggest({ payee: 'BQT SA 0099', description: 'DIESEL GASOIL BUNKERS' });
+  assert.equal(s.kind, 'single');
+  assert.equal(s.suggestion.code, 'FLE');
+  assert.equal(s.suggestion.source, 'description');
 });
 
-test('no signal at all → null (stays in the review queue)', () => {
-  assert.equal(suggestFromMerchant({ payee: 'ZZ Untraceable 4471', description: 'ref 8891' }), null);
+test('no signal at all → kind none (stays in the review queue)', () => {
+  assert.equal(suggest({ payee: 'ZZ Untraceable 4471', description: 'ref 8891' }).kind, 'none');
 });
 
-test('suggestWithRules: a learned rule is authoritative over the seed guess', () => {
+test('resolveSuggestion: a learned rule is authoritative for an unknown/single merchant', () => {
+  const rules = new Map([['mystery vendor', { bucket: 'Deck', category: 'Deck Consumables', code: 'DCN' }]]);
+  const r = resolveSuggestion({ payee: 'MYSTERY VENDOR 9910' }, rules);
+  assert.equal(r.kind, 'single');
+  assert.equal(r.suggestion.code, 'DCN');
+  assert.equal(r.suggestion.source, 'learned');
+  assert.equal(r.merchantKey, 'mystery vendor');
+});
+
+test('resolveSuggestion: a two-sided vendor stays a choice even once filed, with a preferred side', () => {
   const rules = new Map([['carrefour cannes', { bucket: 'Crew Cost', category: 'Crew Food & Consumables', code: 'CFC' }]]);
-  const { suggestion, merchantKey } = suggestWithRules({ payee: 'CARREFOUR CANNES 04/26' }, rules);
-  assert.equal(merchantKey, 'carrefour cannes');
-  assert.equal(suggestion.code, 'CFC');          // learned CFC beats seed's default GFE
-  assert.equal(suggestion.confidence, 'high');
-  assert.equal(suggestion.source, 'learned');
+  const r = resolveSuggestion({ payee: 'CARREFOUR CANNES 04/26' }, rules);
+  assert.equal(r.kind, 'choice');                       // still ask
+  assert.deepEqual(r.options.map((o) => o.code), ['GFE', 'CFC']);
+  assert.equal(r.preferred, 'Crew Food & Consumables'); // pre-highlight the learned side
 });
 
-test('suggestWithRules: falls through to seed when no rule, still returns merchantKey', () => {
-  const { suggestion, merchantKey } = suggestWithRules({ payee: 'Shell' }, new Map());
-  assert.equal(suggestion.code, 'FLE');
-  assert.equal(merchantKey, 'shell');
+test('resolveSuggestion: two-sided with no rule yet has no preferred side', () => {
+  const r = resolveSuggestion({ payee: 'Uber *trip' }, new Map());
+  assert.equal(r.kind, 'choice');
+  assert.equal(r.preferred, null);
 });
 
-test('suggestWithRules: unknown merchant returns key so a manual rule can be saved', () => {
-  const { suggestion, merchantKey } = suggestWithRules({ payee: 'Mystery Vendor 9910' }, new Map());
-  assert.equal(suggestion, null);
-  assert.equal(merchantKey, 'mystery vendor');
+test('resolveSuggestion: unknown merchant with no rule → none, still returns key', () => {
+  const r = resolveSuggestion({ payee: 'Mystery Vendor 9910' }, new Map());
+  assert.equal(r.kind, 'none');
+  assert.equal(r.merchantKey, 'mystery vendor');
 });

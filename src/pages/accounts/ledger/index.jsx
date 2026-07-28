@@ -1,8 +1,9 @@
-// Cargo Accounts — Ledger page (/accounts/ledger). Filterable transaction list on
-// the editorial system. Tag chips deep-link to the operational record that caused
-// the spend (the integration moat). "Needs attention" surfaces the auto-posted
-// supplier-invoice queue; assigning an account clears it. COMMAND adds / voids.
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// Cargo Accounts — Ledger page (/accounts/ledger). One month at a time on the
+// editorial system: step months with the navigator, and the bank feed is
+// categorised inline — confident lines get a one-tap File, two-sided vendors
+// (airline, supermarket, taxi) offer a guest-vs-crew choice instead of a guess.
+// Tag chips deep-link to the operational record that caused the spend.
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
@@ -14,7 +15,7 @@ import {
   listMerchantRules, setMerchantRule,
 } from '../../../services/financeService';
 import { getChartGrouped } from '../../../services/chartService';
-import { suggestWithRules, normalizeMerchant } from '../../../services/merchantClassify';
+import { resolveSuggestion, normalizeMerchant } from '../../../services/merchantClassify';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
 import { formatMoney, isLiveTxn } from '../../../services/financeCalc';
 import { ManualTxnModal, AssignAccountModal } from '../components/TransactionModals';
@@ -36,26 +37,6 @@ const STANDARD_GROUPS = STANDARD_BUCKET_ORDER.map((bucket) => ({
     .map((l) => ({ category: l.category, code: l.code })),
 })).filter((g) => g.lines.length);
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'];
-const monthKey = (iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? 'undated' : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
-const monthLabel = (iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? 'Undated' : `${MONTHS[d.getMonth()].toUpperCase()} ${d.getFullYear()}`; };
-
-// Group already-sorted (newest-first) rows into months, preserving order, with a
-// per-month net total from the lines that actually move a balance.
-const groupByMonth = (rows) => {
-  const groups = [];
-  const idx = {};
-  for (const t of rows) {
-    const k = monthKey(t.txn_date);
-    if (!(k in idx)) { idx[k] = groups.length; groups.push({ key: k, label: monthLabel(t.txn_date), items: [], total: 0, currency: t.currency }); }
-    const g = groups[idx[k]];
-    g.items.push(t);
-    if (isLiveTxn(t)) g.total += Number(t.amount || 0);
-  }
-  return groups;
-};
-
 // Operational tag → { label, path }. Deep-links to the module that owns the record.
 const TAGS = [
   { key: 'supplier_invoice_id', label: 'Invoice', path: () => '/provisioning' },
@@ -66,11 +47,37 @@ const TAGS = [
   { key: 'crew_id', label: 'Crew', path: (t) => `/profile/${t.crew_id}` },
 ];
 
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
 const pad2 = (n) => String(n).padStart(2, '0');
 const fmtDMY = (iso) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '' : `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
 };
+const ymOf = (iso) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? null : `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; };
+const ymLabel = (ym) => { if (!ym) return ''; const [y, m] = ym.split('-'); return `${MONTHS[+m - 1]} ${y}`; };
+const thisYm = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`; };
+
+// Every calendar month from the earliest transaction to the latest (or today,
+// whichever is later), ascending — including empty ones, so stepping never
+// silently skips a gap.
+const buildAxis = (rows) => {
+  const yms = rows.map((r) => ymOf(r.txn_date)).filter(Boolean);
+  if (!yms.length) return [thisYm()];
+  const min = yms.reduce((a, b) => (a < b ? a : b));
+  const max = [...yms, thisYm()].reduce((a, b) => (a > b ? a : b));
+  const [y0, m0] = min.split('-').map(Number);
+  const [y1, m1] = max.split('-').map(Number);
+  const out = [];
+  let y = y0; let m = m0;
+  while (y < y1 || (y === y1 && m <= m1)) { out.push(`${y}-${pad2(m)}`); m += 1; if (m > 12) { m = 1; y += 1; } }
+  return out;
+};
+
+// Row state — drives the segmented control and the per-month counts.
+const isVoidRow = (t) => t.status === 'void';
+const isFiledRow = (t) => t.status === 'reconciled';
+const isLookRow = (t) => !isVoidRow(t) && (t.status === 'unreconciled' || !t.account_id);
 
 export default function Ledger() {
   const navigate = useNavigate();
@@ -81,7 +88,11 @@ export default function Ledger() {
   const [loading, setLoading] = useState(true);
   const [accounts, setAccounts] = useState([]);
   const [txns, setTxns] = useState([]);
-  const [filters, setFilters] = useState({ accountId: '', source: '', category: '', from: '', to: '', search: '', needsAttention: false });
+  const [filters, setFilters] = useState({ accountId: '', source: '', category: '', search: '' });
+  const [status, setStatus] = useState('look');   // all | look | filed  (default: the queue)
+  const [sortOldest, setSortOldest] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [activeMonth, setActiveMonth] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [assignTxn, setAssignTxn] = useState(null);
@@ -90,6 +101,7 @@ export default function Ledger() {
   const [merchantRules, setMerchantRules] = useState([]);
   const [chart, setChart] = useState([]);         // grouped chart lines for the picker
   const [picker, setPicker] = useState(null);     // { rect, txn } for the category popover
+  const stripRef = useRef(null);
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
   const accountsById = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
@@ -100,6 +112,7 @@ export default function Ledger() {
     [merchantRules],
   );
   const pickerGroups = chart.length ? chart : STANDARD_GROUPS;
+  const activeFilterCount = ['accountId', 'source', 'category'].filter((k) => filters[k]).length;
 
   const loadAccounts = useCallback(async () => {
     if (!activeTenantId) return;
@@ -116,11 +129,10 @@ export default function Ledger() {
   const loadTxns = useCallback(async () => {
     if (!activeTenantId) return;
     setLoading(true);
-    const clean = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== '' && v !== false));
+    const clean = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''));
     const { data } = await listTransactions(activeTenantId, clean);
     setTxns(data || []);
     setLoading(false);
-    // Receipts for the visible rows (each carries a short-lived signed URL).
     const ids = (data || []).map((t) => t.id);
     if (ids.length) {
       const { data: atts } = await listAttachments(ids);
@@ -155,9 +167,48 @@ export default function Ledger() {
     return withRun.reverse();
   }, [txns, filters.accountId, accountsById]);
 
-  const monthGroups = useMemo(() => groupByMonth(rows), [rows]);
+  // Month axis + per-month stats for the navigator and quick-jump strip.
+  const axis = useMemo(() => buildAxis(rows), [rows]);
+  const statsByMonth = useMemo(() => {
+    const m = {};
+    rows.forEach((t) => {
+      const ym = ymOf(t.txn_date); if (!ym) return;
+      const s = (m[ym] ||= { entries: 0, look: 0, filed: 0, net: 0 });
+      s.entries += 1;
+      if (isLookRow(t)) s.look += 1;
+      if (isFiledRow(t)) s.filed += 1;
+      if (isLiveTxn(t)) s.net += Number(t.amount || 0);
+    });
+    return m;
+  }, [rows]);
+
+  // Keep the active month valid: default to the newest month, re-clamp if the axis
+  // changes (e.g. a filter narrows the set).
+  useEffect(() => {
+    if (!axis.length) return;
+    setActiveMonth((cur) => (cur && axis.includes(cur) ? cur : axis[axis.length - 1]));
+  }, [axis]);
+
+  const monthRows = useMemo(() => {
+    let list = rows.filter((t) => ymOf(t.txn_date) === activeMonth);
+    if (status === 'look') list = list.filter(isLookRow);
+    else if (status === 'filed') list = list.filter(isFiledRow);
+    if (sortOldest) list = [...list].reverse();
+    return list;
+  }, [rows, activeMonth, status, sortOldest]);
+
+  const monthStat = statsByMonth[activeMonth] || { entries: 0, look: 0, filed: 0, net: 0 };
+  const axisIdx = axis.indexOf(activeMonth);
+  const totalLook = txns.filter(isLookRow).length;
+
+  // Keep the selected month chip in view (the newest sits at the right end).
+  useEffect(() => {
+    const el = stripRef.current?.querySelector('[aria-current="true"]');
+    if (el) el.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [activeMonth, axis.length]);
 
   const setF = (patch) => setFilters((p) => ({ ...p, ...patch }));
+  const stepMonth = (delta) => { const i = axisIdx + delta; if (i >= 0 && i < axis.length) setActiveMonth(axis[i]); };
 
   const handleAdd = async (payload) => {
     const res = await createTransaction({ ...payload, tenant_id: activeTenantId });
@@ -177,32 +228,33 @@ export default function Ledger() {
     return res;
   };
 
-  // File a line onto a MYBA category. When `learn`, remember the merchant so every
-  // future charge from it auto-files, and backfill any sibling lines already on
-  // screen from the same merchant — so confirming once clears the whole vendor.
-  const handleFile = async (t, line, { learn = true } = {}) => {
+  // File a line onto a MYBA category. Always remembers the merchant. For an
+  // unambiguous vendor it also backfills sibling lines on screen (confirm once,
+  // clear the vendor); for a two-sided vendor it does NOT — each charge is a
+  // separate guest/crew call, so the learned side only pre-highlights next time.
+  const handleFile = async (t, line) => {
     setPicker(null);
     const target = { bucket: line.bucket, category: line.category, code: line.code || null };
     const res = await fileTransaction(t.id, { category: target.category, category_code: target.code });
     if (res.error) { flash('Could not file — please try again'); return; }
     let cleared = 1;
-    if (learn && t.payee) {
+    if (t.payee) {
       await setMerchantRule(activeTenantId, t.payee, target);
-      const key = normalizeMerchant(t.payee);
-      const siblingIds = txns
-        .filter((x) => x.id !== t.id && !x.category && x.status === 'unreconciled'
-          && normalizeMerchant(x.payee) === key)
-        .map((x) => x.id);
-      if (siblingIds.length) { await fileTransactions(siblingIds, { category: target.category, category_code: target.code }); cleared += siblingIds.length; }
+      const twoSided = resolveSuggestion(t, ruleMap).kind === 'choice';
+      if (!twoSided) {
+        const key = normalizeMerchant(t.payee);
+        const siblingIds = txns
+          .filter((x) => x.id !== t.id && !x.category && x.status === 'unreconciled'
+            && normalizeMerchant(x.payee) === key)
+          .map((x) => x.id);
+        if (siblingIds.length) { await fileTransactions(siblingIds, { category: target.category, category_code: target.code }); cleared += siblingIds.length; }
+      }
     }
     await Promise.all([loadTxns(), loadRules()]);
     flash(cleared > 1 ? `Filed to ${target.category} · ${cleared} lines` : `Filed to ${target.category}`);
   };
 
-  const openPicker = (e, t) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setPicker({ rect, txn: t });
-  };
+  const openPicker = (e, t) => { setPicker({ rect: e.currentTarget.getBoundingClientRect(), txn: t }); };
   const pickCategory = (o) => { if (picker) handleFile(picker.txn, o); };
 
   const handleVoid = async (t) => {
@@ -227,41 +279,61 @@ export default function Ledger() {
     );
   };
 
-  const renderRow = (t) => {
-    const attention = !t.account_id || t.status === 'unreconciled';
-    const acct = t.account_id ? accountsById[t.account_id] : null;
-    const voided = t.status === 'void';
-    // Suggest a MYBA line for un-categorised attention rows (learned map → seed → text).
-    const needsCategory = attention && !voided && !t.category;
-    const sug = needsCategory ? suggestWithRules(t, ruleMap).suggestion : null;
+  // The inline categorise affordance for an un-filed attention row.
+  const renderSuggest = (t) => {
+    const r = resolveSuggestion(t, ruleMap);
+    if (r.kind === 'choice') {
+      // Two-sided vendor — pick the side. Pre-highlight the learned preference.
+      return (
+        <div className="ca-suggest">
+          <span className="ca-ask">{r.reason || 'Guest or crew?'}</span>
+          {r.options.map((o) => (
+            <button key={o.code} type="button"
+              className={`ca-opt${r.preferred === o.category ? ' is-pref' : ''}`}
+              onClick={() => handleFile(t, o)}>
+              <span className="ca-opt-code">{o.code}</span> {o.category}
+            </button>
+          ))}
+          <button type="button" className="ca-sug-change" onClick={(e) => openPicker(e, t)}>Other…</button>
+        </div>
+      );
+    }
+    if (r.kind === 'single') {
+      const s = r.suggestion;
+      return (
+        <div className="ca-suggest">
+          <span className="ca-sug-pill" title={s.reason}>
+            <i className="ca-sug-dot" />{s.code ? `${s.code} · ` : ''}{s.category}
+          </span>
+          <button type="button" className="ca-sug-file" onClick={() => handleFile(t, s)}>File</button>
+          <button type="button" className="ca-sug-change" onClick={(e) => openPicker(e, t)}>Change</button>
+        </div>
+      );
+    }
     return (
-      <div key={t.id} className={`ca-txn${voided ? ' is-void' : ''}${attention && !voided ? ' is-attention' : ''}`}>
+      <div className="ca-suggest">
+        <button type="button" className="ca-sug-change" onClick={(e) => openPicker(e, t)}>
+          <Icon name="Tag" size={12} /> Categorise…
+        </button>
+      </div>
+    );
+  };
+
+  const renderRow = (t) => {
+    const acct = t.account_id ? accountsById[t.account_id] : null;
+    const voided = isVoidRow(t);
+    const look = isLookRow(t);
+    return (
+      <div key={t.id} className={`ca-txn${voided ? ' is-void' : ''}${look ? ' is-attention' : ''}`}>
         <span className="ca-txn-date">{fmtDMY(t.txn_date)}</span>
         <div className="ca-txn-desc">
           <div className="ca-txn-title">{t.description || SOURCE_LABEL[t.source] || 'Transaction'}</div>
           <div className="ca-txn-cat">
-            {t.category ? `${t.category} · ` : ''}{SOURCE_LABEL[t.source] || t.source}
+            {t.category ? <span className="ca-txn-filed">✓ {t.category_code ? `${t.category_code} · ` : ''}{t.category}</span> : null}
+            {t.category ? ' · ' : ''}{SOURCE_LABEL[t.source] || t.source}
             {voided ? ' · voided' : ''}
           </div>
-          {needsCategory && canEdit && (
-            <div className="ca-suggest">
-              {sug ? (
-                <>
-                  <span className={`ca-sug-pill is-${sug.confidence}`} title={sug.reason}>
-                    <i className="ca-sug-dot" />
-                    {sug.code ? `${sug.code} · ` : ''}{sug.category}
-                    {sug.confidence === 'low' ? <em className="ca-sug-check"> · check</em> : null}
-                  </span>
-                  <button type="button" className="ca-sug-file" onClick={() => handleFile(t, sug)}>File</button>
-                  <button type="button" className="ca-sug-change" onClick={(e) => openPicker(e, t)}>Change</button>
-                </>
-              ) : (
-                <button type="button" className="ca-sug-change" onClick={(e) => openPicker(e, t)}>
-                  <Icon name="Tag" size={12} /> Categorise…
-                </button>
-              )}
-            </div>
-          )}
+          {look && !voided && canEdit && renderSuggest(t)}
           {renderChips(t)}
           {attByTxn[t.id]?.length > 0 && (
             <div className="ca-chips">
@@ -295,8 +367,6 @@ export default function Ledger() {
     );
   };
 
-  const attentionCount = txns.filter((t) => (!t.account_id || t.status === 'unreconciled') && t.status !== 'void').length;
-
   return (
     <AccountsShell active="spending">
       <div className="ca-page">
@@ -307,7 +377,7 @@ export default function Ledger() {
               <span>Spending</span>
               <span className="bar" />
               <span className="muted">{txns.length} entries</span>
-              {attentionCount > 0 && (<><span className="bar" /><span className="muted">{attentionCount} need a look</span></>)}
+              {totalLook > 0 && (<><span className="bar" /><span className="muted">{totalLook} need a look</span></>)}
             </p>
             <div className="ca-titlerow">
               <h1 className="ca-title">Money <em>in &amp; out</em>.</h1>
@@ -326,45 +396,102 @@ export default function Ledger() {
             </div>
           </div>
 
-          <div className="ca-filters">
-            <select className="ca-field" value={filters.accountId} onChange={(e) => setF({ accountId: e.target.value })} aria-label="Account">
-              <option value="">All accounts</option>
-              {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-            <select className="ca-field" value={filters.source} onChange={(e) => setF({ source: e.target.value })} aria-label="Source">
-              <option value="">All sources</option>
-              {Object.entries(SOURCE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-            <input className="ca-field" value={filters.category} onChange={(e) => setF({ category: e.target.value })} placeholder="Category" aria-label="Category" />
-            <input className="ca-field" type="date" value={filters.from} onChange={(e) => setF({ from: e.target.value })} aria-label="From date" />
-            <input className="ca-field" type="date" value={filters.to} onChange={(e) => setF({ to: e.target.value })} aria-label="To date" />
-            <input className="ca-field" value={filters.search} onChange={(e) => setF({ search: e.target.value })} placeholder="Search description" aria-label="Search" />
-            <div className="ca-filters-spacer" />
-            <button type="button" className="ca-toggle" aria-pressed={filters.needsAttention}
-              onClick={() => setF({ needsAttention: !filters.needsAttention })}>
-              <Icon name="AlertCircle" size={14} /> Needs attention
+          {/* toolbar: status segmented · search · filters · sort */}
+          <div className="ca-toolbar">
+            <div className="ca-seg" role="tablist" aria-label="Show">
+              {[['look', 'Needs a look', monthStat.look], ['all', 'All', monthStat.entries], ['filed', 'Filed', monthStat.filed]].map(([k, label, n]) => (
+                <button key={k} type="button" role="tab" aria-selected={status === k}
+                  data-k={k} onClick={() => setStatus(k)}>
+                  {label} <span className="ca-seg-n">{n}</span>
+                </button>
+              ))}
+            </div>
+            <div className="ca-toolbar-sp" />
+            <label className="ca-search">
+              <Icon name="Search" size={15} />
+              <input value={filters.search} onChange={(e) => setF({ search: e.target.value })}
+                placeholder="Search this month…" aria-label="Search description" />
+            </label>
+            <div className="ca-filterwrap">
+              <button type="button" className="ca-toolbtn" aria-expanded={filtersOpen}
+                onClick={() => setFiltersOpen((v) => !v)}>
+                <Icon name="SlidersHorizontal" size={14} /> Filters
+                {activeFilterCount > 0 && <span className="ca-toolbtn-badge">{activeFilterCount}</span>}
+              </button>
+              {filtersOpen && (
+                <div className="ca-filterpop">
+                  <label className="ca-fp-row"><span>Account</span>
+                    <select className="ca-field" value={filters.accountId} onChange={(e) => setF({ accountId: e.target.value })}>
+                      <option value="">All accounts</option>
+                      {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="ca-fp-row"><span>Source</span>
+                    <select className="ca-field" value={filters.source} onChange={(e) => setF({ source: e.target.value })}>
+                      <option value="">All sources</option>
+                      {Object.entries(SOURCE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </label>
+                  <label className="ca-fp-row"><span>Category</span>
+                    <input className="ca-field" value={filters.category} onChange={(e) => setF({ category: e.target.value })} placeholder="Any category" />
+                  </label>
+                  {activeFilterCount > 0 && (
+                    <button type="button" className="ca-fp-clear" onClick={() => setF({ accountId: '', source: '', category: '' })}>Clear filters</button>
+                  )}
+                </div>
+              )}
+            </div>
+            <button type="button" className="ca-toolbtn" onClick={() => setSortOldest((v) => !v)} title="Sort by date">
+              <Icon name={sortOldest ? 'ArrowUpNarrowWide' : 'ArrowDownWideNarrow'} size={14} /> {sortOldest ? 'Oldest' : 'Newest'}
             </button>
           </div>
 
+          {/* month navigator */}
+          <div className="ca-monthnav">
+            <div className="ca-mn-l">
+              <button type="button" className="ca-mn-arrow" onClick={() => stepMonth(-1)} disabled={axisIdx <= 0} aria-label="Previous month">
+                <Icon name="ChevronLeft" size={18} />
+              </button>
+              <div className="ca-mn-name">{ymLabel(activeMonth)}</div>
+              <button type="button" className="ca-mn-arrow" onClick={() => stepMonth(1)} disabled={axisIdx >= axis.length - 1} aria-label="Next month">
+                <Icon name="ChevronRight" size={18} />
+              </button>
+            </div>
+            <div className="ca-mn-stats">
+              <span className="s"><b>{monthStat.entries}</b> entries</span>
+              <span className="vbar" />
+              <span className="s look"><b>{monthStat.look}</b> need a look</span>
+              <span className="vbar" />
+              <span className="s net">net <b>{formatMoney(monthStat.net, monthRows[0]?.currency, { signed: true })}</b></span>
+            </div>
+          </div>
+
+          <div className="ca-mstrip" ref={stripRef}>
+            {axis.map((ym) => {
+              const s = statsByMonth[ym];
+              const [y, m] = ym.split('-');
+              return (
+                <button key={ym} type="button" className="ca-mchip" aria-current={ym === activeMonth}
+                  onClick={() => setActiveMonth(ym)}>
+                  {MONTHS[+m - 1].slice(0, 3)} <span className="yy">’{y.slice(2)}</span>
+                  <span className="ca-mchip-n">{s ? (s.look ? `${s.look}●` : '✓') : '–'}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* list */}
           {loading ? (
             <div className="ca-empty"><p>Loading transactions…</p></div>
-          ) : rows.length === 0 ? (
+          ) : monthRows.length === 0 ? (
             <div className="ca-empty">
               <Icon name="Receipt" size={44} />
-              <p>No transactions match</p>
-              <p className="ca-empty-sub">Adjust the filters, or add a manual transaction.</p>
+              <p>{statsByMonth[activeMonth] ? 'Nothing here for this filter' : `No transactions in ${ymLabel(activeMonth)}`}</p>
+              <p className="ca-empty-sub">{status !== 'all' ? 'Try “All”, or step to another month.' : 'Step to another month, or add a manual transaction.'}</p>
             </div>
           ) : (
-            <div className="ca-months" style={{ marginTop: 18 }}>
-              {monthGroups.map((g) => (
-                <section key={g.key} className="ca-month">
-                  <div className="ca-month-head">
-                    <span className="ca-month-label">{g.label}</span>
-                    <span className="ca-month-total">{formatMoney(g.total, g.currency, { signed: true })}</span>
-                  </div>
-                  <div className="ca-cat">{g.items.map(renderRow)}</div>
-                </section>
-              ))}
+            <div className="ca-cat" style={{ marginTop: 8 }}>
+              {monthRows.map(renderRow)}
             </div>
           )}
         </div>

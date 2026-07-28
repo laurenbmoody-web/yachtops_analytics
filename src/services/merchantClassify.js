@@ -103,22 +103,31 @@ const MERCHANT_SEED = [
   // Streaming / AV subscriptions → audiovisual & entertainment.
   { re: /\b(netflix|spotify|disney\s*plus|apple\.com\/bill|itunes|sky\b)\b/, code: 'AUD', confidence: 'high', reason: 'AV / entertainment subscription' },
 
-  // ── Two-sided vendors: real match, but who benefits is ambiguous ──────────
-  // Supermarkets / provisioners: guest or crew food? Suggest guest food, flag it.
-  { re: /\b(carrefour|mercadona|metro\b|transgourmet|grand\s*frais|monoprix|lidl|aldi|coop\b|migros|supermarch|provision|grocer|deli\b)\b/, code: 'GFE', confidence: 'low', reason: 'provisioner — confirm guest vs crew' },
+  // ── Two-sided vendors: real match, but who benefits is genuinely ambiguous ─
+  // We do NOT pre-commit a guess for these — the resolver returns both plausible
+  // lines as a choice so a human picks the side (guest vs crew). `alts` = the two
+  // candidate codes, most-likely first.
+  // Supermarkets / provisioners: guest food or crew food?
+  { re: /\b(carrefour|mercadona|metro\b|transgourmet|grand\s*frais|monoprix|lidl|aldi|coop\b|migros|supermarch|provision|grocer|deli\b)\b/, alts: ['GFE', 'CFC'], reason: 'provisioner — guest or crew food?' },
 
-  // Airlines: guest travel or crew travel? Suggest crew travel, flag it.
-  { re: /\b(ryanair|easyjet|air\s*france|klm|lufthansa|emirates|british\s*airways|iberia|vueling|wizz|swiss\s*air|airlines?)\b/, code: 'CTE', confidence: 'low', reason: 'airline — confirm crew vs guest' },
+  // Airlines: crew travel or guest travel?
+  { re: /\b(ryanair|easyjet|air\s*france|klm|lufthansa|emirates|british\s*airways|iberia|vueling|wizz|swiss\s*air|airlines?)\b/, alts: ['CTE', 'GCT'], reason: 'airline — crew or guest travel?' },
 
-  // Car hire / taxi / transport.
-  { re: /\b(uber|taxi|hertz|avis|europcar|sixt|enterprise\s*rent|car\s*hire|rental)\b/, code: 'CAR', confidence: 'low', reason: 'transport / car hire' },
+  // Car hire / taxi / transport: ship transport or guest car hire?
+  { re: /\b(uber|taxi|hertz|avis|europcar|sixt|enterprise\s*rent|car\s*hire|rental)\b/, alts: ['CAR', 'GCT'], reason: 'transport — ship or guest?' },
 ];
 
+// Returns { kind: 'single', suggestion } for an unambiguous vendor, or
+// { kind: 'choice', options: [lineA, lineB], reason } for a two-sided one, else null.
 const matchMerchantSeed = (norm) => {
   for (const s of MERCHANT_SEED) {
-    if (s.re.test(norm)) {
+    if (!s.re.test(norm)) continue;
+    if (s.alts) {
+      const options = s.alts.map(line).filter(Boolean);
+      if (options.length === 2) return { kind: 'choice', options, reason: s.reason };
+    } else {
       const l = line(s.code);
-      if (l) return { ...l, confidence: s.confidence, reason: s.reason, source: 'merchant' };
+      if (l) return { kind: 'single', suggestion: { ...l, confidence: 'high', reason: s.reason, source: 'merchant' } };
     }
   }
   return null;
@@ -137,43 +146,48 @@ const matchDescription = (description, department) => {
   return null;
 };
 
-// ── Public: suggest a MYBA line for one bank-feed transaction ─────────────────
-// Deterministic tiers B → C. Returns { bucket, category, code, confidence, reason,
-// source } or null when nothing is confident enough (the line then stays in the
-// review queue). The learned per-merchant map is applied by the caller ahead of
-// this, as the authoritative tier A.
-export const suggestFromMerchant = ({ payee, description, department } = {}) => {
+// ── Public: seed/description suggestion for one bank-feed transaction ──────────
+// Deterministic tiers B → C. Returns one of:
+//   { kind: 'single', suggestion }  — a confident, unambiguous line
+//   { kind: 'choice', options, reason } — a two-sided vendor: pick guest vs crew
+//   { kind: 'none' } — nothing confident (line stays in the review queue)
+// The learned per-merchant map is layered on top by resolveSuggestion below.
+export const suggest = ({ payee, description, department } = {}) => {
   const norm = normalizeMerchant(payee);
   if (norm) {
     const seed = matchMerchantSeed(norm);
     if (seed) return seed;
   }
   const desc = matchDescription(description, department);
-  if (desc) return desc;
-  return null;
+  if (desc) return { kind: 'single', suggestion: desc };
+  return { kind: 'none' };
 };
 
-// ── Public: full three-tier resolve, learned map first ────────────────────────
+// ── Public: full resolve with the learned map ─────────────────────────────────
 // `rules` is a Map of normalised merchant_key -> { bucket, category, code } (built
-// from ledger_merchant_rules). A learned rule is authoritative — once Command has
-// filed a merchant, every future charge from it is 'high' confidence, no guessing.
-// Falls through to the seed dictionary + description pass. Always returns
-// { suggestion, merchantKey }: `suggestion` is null when nothing is confident (the
-// line stays in review), and `merchantKey` is the normalised payee so the caller
-// can still offer "always file this merchant here" on a manual pick.
-export const suggestWithRules = (txn = {}, rules) => {
+// from ledger_merchant_rules). Behaviour by vendor type:
+//   • Two-sided vendor (airline, supermarket, taxi) → ALWAYS a 'choice', even once
+//     filed before. A prior choice is remembered only as `preferred` (the side to
+//     pre-highlight) — we still ask, because these genuinely go both ways.
+//   • Unambiguous vendor, or any merchant Command has filed before → 'single',
+//     auto-suggested at high confidence (a learned rule is authoritative).
+// Always carries `merchantKey` so the caller can learn/backfill from the raw payee.
+export const resolveSuggestion = (txn = {}, rules) => {
   const merchantKey = normalizeMerchant(txn.payee) || null;
-  if (merchantKey && rules) {
-    const learned = typeof rules.get === 'function' ? rules.get(merchantKey) : rules[merchantKey];
-    if (learned) {
-      return {
-        merchantKey,
-        suggestion: {
-          bucket: learned.bucket, category: learned.category, code: learned.code || null,
-          confidence: 'high', reason: 'learned — filed here before', source: 'learned',
-        },
-      };
-    }
+  const learned = merchantKey && rules
+    ? (typeof rules.get === 'function' ? rules.get(merchantKey) : rules[merchantKey])
+    : null;
+  const base = suggest(txn);
+
+  if (base.kind === 'choice') {
+    return { kind: 'choice', merchantKey, options: base.options, reason: base.reason,
+      preferred: learned ? learned.category : null };
   }
-  return { merchantKey, suggestion: suggestFromMerchant(txn) };
+  if (learned) {
+    return { kind: 'single', merchantKey,
+      suggestion: { bucket: learned.bucket, category: learned.category, code: learned.code || null,
+        confidence: 'high', reason: 'learned — filed here before', source: 'learned' } };
+  }
+  if (base.kind === 'single') return { kind: 'single', merchantKey, suggestion: base.suggestion };
+  return { kind: 'none', merchantKey };
 };
