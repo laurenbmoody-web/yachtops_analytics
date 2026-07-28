@@ -196,7 +196,13 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [region, setRegion] = useState('uk');
   const [sizeOn, setSizeOn] = useState(variantInit?.on || {}); // label -> true
   const [matrix, setMatrix] = useState(variantInit?.mx || {}); // "loc||size" -> qty
-  const [uniLocs, setUniLocs] = useState(variantInit?.locs || [{ label: '', id: '' }]);
+  // Always keep one empty "Select location…" row trailing — picking a location
+  // into it spawns the next, so no separate "Add location" button is needed.
+  const [uniLocs, setUniLocs] = useState(() => {
+    const base = variantInit?.locs?.length ? [...variantInit.locs] : [];
+    if (!base.length || base[base.length - 1].label) base.push({ label: '', id: '' });
+    return base;
+  });
   const [reorderSizes, setReorderSizes] = useState(variantInit?.reord || {}); // size -> reorder-at qty
   // Size columns for non-uniform items. Always ≥1 (a blank column = a plain
   // single item); naming it or adding more turns the item multi-size.
@@ -277,7 +283,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const locTotal = (loc) => activeSizes.reduce((a, s) => a + cell(loc, s), 0);
   const colHave = (c) => uniLocs.reduce((a, l) => a + cell(l.label, c), 0);
   const grandTotal = uniLocs.reduce((a, l) => a + rowTot(l.label), 0);
-  const addUniLoc = () => { const idx = uniLocs.length; setUniLocs((ls) => [...ls, { label: '', id: '' }]); setLocTarget({ kind: 'uni', idx }); };
   const setVarBuy2 = (f, patch) => setVarBuy((b) => ({ ...b, [f]: { ...(b[f] || {}), ...patch } }));
   // consumable pack-sizes as editable column headers (no chips)
   const addFormat = () => setFormats((fs) => (fs.some((f) => !String(f).trim()) ? fs : [...fs, '']));
@@ -574,7 +579,8 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     setUniLocs((ls) => {
       if (ls.some((l) => l.id === nodeId)) return ls;
       const withoutEmpty = ls.filter((l) => l.label || l.id);
-      return [...withoutEmpty, { label: locName, id: nodeId }];
+      // keep one empty "Select location…" row trailing so more can be added
+      return [...withoutEmpty, { label: locName, id: nodeId }, { label: '', id: '' }];
     });
   };
 
@@ -591,7 +597,12 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     if (locTarget?.kind === 'uni') {
       const idx = locTarget.idx;
       const old = uniLocs[idx]?.label;
-      setUniLocs((ls) => ls.map((l, i) => (i === idx ? { label, id } : l)));
+      setUniLocs((ls) => {
+        const next = ls.map((l, i) => (i === idx ? { label, id } : l));
+        // filled the trailing empty row → add a fresh one so more can be added
+        if (idx === ls.length - 1 && !old) next.push({ label: '', id: '' });
+        return next;
+      });
       if (old && old !== label) {
         setMatrix((m) => {
           const next = { ...m };
@@ -722,12 +733,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         <Sec icon="Boxes" name="Stock & location" open={open.stock} onToggle={() => toggle('stock')}>
           <span className="itf-fl">Where it's stowed &amp; how much{cols.length > 1 ? <span className="opt"> · per size{uniLocs.length > 1 ? ', per location' : ''}</span> : null}</span>
           {cols.length === 0 ? (
-            <>
-              <div className="itf-usizes-empty">Turn on some sizes in <b>Details</b> to log quantities.</div>
-              <div className="itf-locactions">
-                <button type="button" className="itf-addloc" onClick={addUniLoc}>＋ Add location</button>
-              </div>
-            </>
+            <div className="itf-usizes-empty">Turn on some sizes in <b>Details</b> to log quantities.</div>
           ) : (
             <div className="itf-mtxwrap">
               <div className="itf-mtx" style={{ gridTemplateColumns: `minmax(122px,1.2fr) repeat(${cols.length}, minmax(62px,1fr)) ${profile !== 'uniform' ? '30px ' : ''}54px` }}>
@@ -746,7 +752,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                     <button type="button" className="itf-mloc" onClick={() => setLocTarget({ kind: 'uni', idx: i })}>
                       <Icon name="MapPin" size={13} style={{ color: '#C65A1A', flexShrink: 0 }} />
                       <span className={loc.label ? 'nm' : 'nm ph'}>{loc.label || 'Select location…'}</span>
-                      {uniLocs.length > 1 && <span className="rm" onClick={(e) => { e.stopPropagation(); setUniLocs((ls) => ls.filter((_, k) => k !== i)); }}>✕</span>}
+                      {loc.label && <span className="rm" onClick={(e) => { e.stopPropagation(); setUniLocs((ls) => ls.filter((_, k) => k !== i)); }}>✕</span>}
                     </button>
                     {cols.map((c, j) => <div className="itf-mq" key={j}><input value={matrix[`${loc.label}||${c}`] ?? ''} onChange={(e) => setCell(loc.label, c, Number(e.target.value) || 0)} placeholder="0" inputMode="numeric" aria-label={`${loc.label || 'location'} ${c || 'qty'}`} /></div>)}
                     {profile !== 'uniform' && <div className="itf-mgap" />}
@@ -754,10 +760,8 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                   </React.Fragment>
                 ))}
 
-                {/* totals row — action sits on this line, no separate label */}
-                <div className="itf-mhaveact">
-                  <button type="button" className="itf-addloc" onClick={addUniLoc}>＋ Add location</button>
-                </div>
+                {/* totals row — blank leader cell (rows add themselves) */}
+                <div className="itf-mhaveact" />
                 {cols.map((c, j) => <div className="itf-mhave" key={j}>{colHave(c)}</div>)}
                 {profile !== 'uniform' && <div className="itf-mhave gap" />}
                 <div className="itf-mgtot">{grandTotal}</div>

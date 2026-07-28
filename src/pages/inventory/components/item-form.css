@@ -87,7 +87,6 @@
 .itf-locline .pin{flex:1;}.itf-locline .q{width:138px;flex:0 0 auto;}
 .itf-rmrow{flex:0 0 auto;width:28px;height:28px;border:0;background:none;color:var(--faint);cursor:pointer;border-radius:7px;font-size:13px;line-height:1;}
 .itf-rmrow:hover{background:#FBEFE9;color:#9A2B12;}
-.itf-addloc{font-size:11.5px;font-weight:600;color:var(--g);cursor:pointer;display:inline-flex;align-items:center;gap:5px;background:none;border:0;padding:2px 0;font-family:inherit;}
 .itf-setmap{font-size:11px;font-weight:600;color:var(--g);cursor:pointer;}
 .itf-mapline{margin-top:16px;display:inline-flex;align-items:center;gap:8px;background:#FBEFE9;border:1px solid #F3D9CB;color:var(--g);border-radius:999px;padding:9px 16px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .12s;}
 .itf-mapline:hover{background:#F7E2D6;}
@@ -140,11 +139,6 @@
 .itf-usizes.itf-par{padding:2px 12px 4px;margin-bottom:6px;}
 .itf-usizes.itf-par .itf-usz input{font-weight:600;}
 
-/* location actions row — add + set-from-map sit together */
-.itf-locactions{display:flex;align-items:center;gap:16px;margin:4px 0 18px;}
-.itf-setmap2{display:inline-flex;align-items:center;gap:6px;background:none;border:0;font-family:inherit;font-size:11.5px;font-weight:700;color:var(--g);cursor:pointer;padding:2px 0;}
-.itf-setmap2:disabled{opacity:.55;cursor:default;}
-.itf-setmap2 svg{color:var(--g);}
 
 /* keep-level / bought-by — labelled mini fields on a shared baseline */
 .itf-keep{margin-bottom:4px;}
