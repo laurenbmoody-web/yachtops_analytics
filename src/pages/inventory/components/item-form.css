@@ -124,14 +124,18 @@
 .itf-ustow{border:1px solid var(--hair);border-radius:12px;padding:12px;margin-bottom:10px;background:#FCFDFE;}
 .itf-ustow-h{display:flex;align-items:center;gap:8px;margin-bottom:11px;}
 .itf-ustow-h .itf-pick{flex:1;min-width:0;}
-.itf-usizes{display:flex;flex-wrap:wrap;gap:8px;}
-.itf-usz{display:flex;flex-direction:column;gap:4px;width:52px;}
+.itf-usizes{display:flex;flex-wrap:wrap;gap:10px 8px;justify-content:space-between;}
+.itf-usz{display:flex;flex-direction:column;gap:4px;flex:1 1 44px;max-width:72px;}
 .itf-usz .l{font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);text-align:center;white-space:nowrap;}
 .itf-usz input{width:100%;text-align:center;border:1px solid var(--border);border-radius:8px;padding:8px 0;font-size:13.5px;font-weight:600;background:var(--field);outline:none;color:var(--ink);font-family:inherit;}
 .itf-usz input:focus{border-color:var(--g);box-shadow:0 0 0 3px #FAECE7;background:#fff;}
 .itf-usz.tot b{display:block;text-align:center;font-size:14px;font-weight:800;color:var(--g);padding:8px 0;}
 .itf-usz.tot .l{color:var(--g);}
 .itf-usizes-empty{font-size:12px;color:var(--muted);padding:2px 2px 4px;}
+/* the standalone per-size minimum row sits outside a card — pad it to line up
+   with the size inputs inside the stow cards above */
+.itf-usizes.itf-par{padding:2px 12px 4px;margin-bottom:6px;}
+.itf-usizes.itf-par .itf-usz input{font-weight:600;}
 
 /* location actions row — add + set-from-map sit together */
 .itf-locactions{display:flex;align-items:center;gap:16px;margin:4px 0 18px;}

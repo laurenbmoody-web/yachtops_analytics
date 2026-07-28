@@ -86,7 +86,7 @@ export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose,
             <span>{pathLabel(current.id)}</span>
           </span>
           {/* Select the container itself (not only its leaves). */}
-          <button onClick={() => onSelect({ id: current.id, label: pathLabel(current.id) })} className="locp-here">
+          <button onClick={() => onSelect({ id: current.id, label: current.name, path: pathLabel(current.id) })} className="locp-here">
             <Icon name="Check" size={12} /> Place here
           </button>
         </div>
@@ -102,7 +102,7 @@ export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose,
             return (
               <button
                 key={loc?.id}
-                onClick={() => (childCount > 0 ? setPath((p) => [...p, loc]) : onSelect({ id: loc?.id, label: pathLabel(loc?.id) }))}
+                onClick={() => (childCount > 0 ? setPath((p) => [...p, loc]) : onSelect({ id: loc?.id, label: loc?.name, path: pathLabel(loc?.id) }))}
                 className={`locp-row${isSelected ? ' sel' : ''}`}
               >
                 <span className="locp-row-ic"><Icon name={iconFor(loc)} size={16} /></span>
