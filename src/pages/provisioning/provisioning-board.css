@@ -680,6 +680,20 @@
   text-align: center;
 }
 
+/* Physical chip + money badge stacked compactly at the row's right edge.
+   Two independent axes (e.g. "Received" over "Paid") without widening the
+   kanban row; single-axis lines still render one pill. */
+.pv-item-status-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.pv-item-status-group .pv-item-status {
+  min-width: 58px;
+}
+
 /* Supplier pips on the kanban ItemCard — small terracotta-tinted dots
    between the item name and the qty stepper. Lights when the supplier
    left a note or overrode qty/unit/size on this line, so the chief
