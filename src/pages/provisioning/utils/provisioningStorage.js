@@ -1520,7 +1520,7 @@ export const findMatchingInventoryItem = async (provItem, tenantId) => {
     if (provItem?.inventory_item_id) {
       const { data } = await supabase
         ?.from('inventory_items')
-        ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency')
+        ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency, has_variants, variants')
         ?.eq('id', provItem.inventory_item_id)
         ?.eq('tenant_id', tenantId)
         ?.maybeSingle();
@@ -1530,7 +1530,7 @@ export const findMatchingInventoryItem = async (provItem, tenantId) => {
     if (provItem?.cargo_item_id) {
       const { data } = await supabase
         ?.from('inventory_items')
-        ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency')
+        ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency, has_variants, variants')
         ?.eq('cargo_item_id', provItem.cargo_item_id)
         ?.eq('tenant_id', tenantId)
         ?.maybeSingle();
@@ -1540,7 +1540,7 @@ export const findMatchingInventoryItem = async (provItem, tenantId) => {
     if (provItem?.barcode) {
       const { data } = await supabase
         ?.from('inventory_items')
-        ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency')
+        ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency, has_variants, variants')
         ?.eq('barcode', provItem.barcode)
         ?.eq('tenant_id', tenantId)
         ?.maybeSingle();
@@ -1550,7 +1550,7 @@ export const findMatchingInventoryItem = async (provItem, tenantId) => {
     if (provItem?.name && provItem?.brand && provItem?.size) {
       const { data } = await supabase
         ?.from('inventory_items')
-        ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency')
+        ?.select('id, name, brand, size, unit, cargo_item_id, barcode, stock_locations, location, sub_location, total_qty, unit_cost, currency, has_variants, variants')
         ?.ilike('name', provItem.name.trim())
         ?.ilike('brand', provItem.brand.trim())
         ?.ilike('size', provItem.size.trim())
@@ -1597,17 +1597,39 @@ export const logInventoryMovements = async ({ inventoryItemId, tenantId, movemen
   }
 };
 
+// Map-link support: resolve a stock-location name to its vessel_locations id so
+// a newly-received location aligns with the vessel map (the item form stores
+// this under `vesselLocationId`). Matches the last path segment, case-insensitively.
+const buildVesselLocIndex = async (tenantId) => {
+  const rows = await fetchVesselLocations(tenantId);
+  const idx = new Map();
+  (rows || []).forEach((r) => { if (r?.name) idx.set(String(r.name).trim().toLowerCase(), r.id); });
+  return idx;
+};
+const resolveVesselLocId = (idx, locationName) => {
+  if (!idx || !locationName) return '';
+  const segs = String(locationName).split('>').map((s) => s.trim()).filter(Boolean);
+  const key = (segs[segs.length - 1] || String(locationName).trim()).toLowerCase();
+  return idx.get(key) || '';
+};
+
+// A size-tracked (variant) item keeps per-size quantities in stock_locations[].sizes
+// and variants[]; a flat qty add would desync that breakdown, so provisioning
+// refuses it and signals the caller to receive it from the item editor instead.
+const isVariantItem = (item) => !!item?.has_variants || (Array.isArray(item?.variants) && item.variants.length > 0);
+
 export const pushReceivedQtyToLocation = async ({ inventoryItemId, locationName, qtyToAdd, tenantId, provisioningItemId = null, listId = null }) => {
   if (!inventoryItemId || !tenantId || !qtyToAdd) return false;
   try {
     // Fetch current stock_locations
     const { data: item, error: fetchErr } = await supabase
       ?.from('inventory_items')
-      ?.select('stock_locations, total_qty')
+      ?.select('stock_locations, total_qty, has_variants, variants')
       ?.eq('id', inventoryItemId)
       ?.eq('tenant_id', tenantId)
       ?.single();
     if (fetchErr) throw fetchErr;
+    if (isVariantItem(item)) { console.warn('[provisioningStorage] skipped flat push to size-tracked item', inventoryItemId); return 'variant'; }
 
     let locs = Array.isArray(item?.stock_locations) ? [...item.stock_locations] : [];
     const normName = (locationName || '').trim();
@@ -1618,7 +1640,8 @@ export const pushReceivedQtyToLocation = async ({ inventoryItemId, locationName,
       const existing = locs[idx];
       locs[idx] = { ...existing, qty: (existing?.qty ?? existing?.quantity ?? 0) + qtyToAdd };
     } else {
-      locs.push({ locationName: normName, locationId: '', qty: qtyToAdd });
+      const vlIdx = await buildVesselLocIndex(tenantId);
+      locs.push({ locationName: normName, vesselLocationId: resolveVesselLocId(vlIdx, normName), qty: qtyToAdd });
     }
     const newTotal = locs.reduce((s, l) => s + (l?.qty ?? l?.quantity ?? 0), 0);
 
@@ -1627,6 +1650,7 @@ export const pushReceivedQtyToLocation = async ({ inventoryItemId, locationName,
       ?.update({
         stock_locations: locs,
         total_qty: newTotal,
+        quantity: newTotal,
         last_provisioning_date: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -1655,11 +1679,12 @@ export const createInventoryItemFromProvItem = async ({ provItem, categoryPath, 
     // categoryPath → inventory hierarchy (location + sub_location fields)
     // storageLocations → physical storage with qty splits
     const catPath = categoryPath || locationName || null;
+    const vlIdx = await buildVesselLocIndex(tenantId);
     const stockLocations = storageLocations?.length > 0
       ? storageLocations
           .filter(s => (parseFloat(s.addQty) || 0) > 0 && (s.locationName || '').trim())
-          .map(s => ({ locationName: s.locationName.trim(), locationId: '', qty: parseFloat(s.addQty) || 0 }))
-      : locationName ? [{ locationName: locationName.trim(), locationId: '', qty: qty || 0 }] : [];
+          .map(s => ({ locationName: s.locationName.trim(), vesselLocationId: resolveVesselLocId(vlIdx, s.locationName), qty: parseFloat(s.addQty) || 0 }))
+      : locationName ? [{ locationName: locationName.trim(), vesselLocationId: resolveVesselLocId(vlIdx, locationName), qty: qty || 0 }] : [];
     const totalQty = storageLocations?.length > 0
       ? stockLocations.reduce((sum, l) => sum + (l.qty || 0), 0)
       : qty || 0;
@@ -1680,6 +1705,7 @@ export const createInventoryItemFromProvItem = async ({ provItem, categoryPath, 
         sub_location: catPath?.split(' > ')?.slice(1)?.join(' > ') || null,
         stock_locations: stockLocations,
         total_qty: totalQty,
+        quantity: totalQty,
         notes: provItem?.notes || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -1728,14 +1754,17 @@ export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, t
   try {
     const { data: item, error: fetchErr } = await supabase
       ?.from('inventory_items')
-      ?.select('stock_locations, total_qty, unit, size, purchase_unit, units_per_pack')
+      ?.select('stock_locations, total_qty, unit, size, purchase_unit, units_per_pack, has_variants, variants')
       ?.eq('id', inventoryItemId)
       ?.eq('tenant_id', tenantId)
       ?.single();
     if (fetchErr) throw fetchErr;
+    // Size-tracked items keep a per-size breakdown a flat add would corrupt.
+    if (isVariantItem(item)) { console.warn('[provisioningStorage] skipped flat push to size-tracked item', inventoryItemId); return 'variant'; }
 
     let locs = Array.isArray(item?.stock_locations) ? [...item.stock_locations] : [];
     let totalAdded = 0;
+    let vlIdx = null; // vessel-location index, fetched lazily only if a new location is created
 
     for (const split of activeSplits) {
       const normName = (split.locationName || '').trim();
@@ -1746,7 +1775,8 @@ export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, t
           const existing = locs[idx];
           locs[idx] = { ...existing, qty: (existing?.qty ?? existing?.quantity ?? 0) + addQty };
         } else {
-          locs.push({ locationName: normName, locationId: '', qty: addQty });
+          if (!vlIdx) vlIdx = await buildVesselLocIndex(tenantId);
+          locs.push({ locationName: normName, vesselLocationId: resolveVesselLocId(vlIdx, normName), qty: addQty });
         }
       }
       totalAdded += addQty;
@@ -1756,9 +1786,11 @@ export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, t
     // STOCKING unit (the caller resolves a bulk line's inner unit, never the
     // 'case'); fill it only if missing/default. Fill a missing size. Stamp the
     // purchasing pack (purchase_unit + units_per_pack) if the item has none yet.
+    const newTotal = (item.total_qty ?? 0) + totalAdded;
     const patch = {
       stock_locations: locs,
-      total_qty: (item.total_qty ?? 0) + totalAdded,
+      total_qty: newTotal,
+      quantity: newTotal,
       last_provisioning_date: new Date().toISOString(),
     };
     const inUnit = normalizeUnit(unit);
