@@ -164,8 +164,8 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [matrix, setMatrix] = useState(variantInit?.mx || {}); // "loc||size" -> qty
   const [uniLocs, setUniLocs] = useState(variantInit?.locs || [{ label: '', id: '' }]);
   const [parSizes, setParSizes] = useState(item?.customFields?.parSizes || {}); // size -> min qty
-  // consumable pack-size variants (250ml / 500ml / 5L …) — reuses the run machinery
-  const [multiSize, setMultiSize] = useState(profile !== 'uniform' && !!variantInit);
+  // consumable pack-size variants (250ml / 500ml / 5L …) — reuses the run machinery.
+  // No toggle: adding a size chip turns it multi-size, removing them all reverts.
   const [formats, setFormats] = useState(variantInit?.formats || []);
   const [formatDraft, setFormatDraft] = useState('');
   const [varBuy, setVarBuy] = useState(variantInit?.buy || {}); // format -> {supplier, cost}
@@ -217,6 +217,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   }, [sizeType, profile]);
 
   // Variant mode = a size/pack run (uniform sizes, or a consumable's pack-sizes).
+  const multiSize = profile !== 'uniform' && formats.length > 0;
   const variantMode = profile === 'uniform' || multiSize;
   const activeSizes = useMemo(() => {
     if (profile === 'uniform') return sizeList.filter((s) => sizeOn[s]);
@@ -599,18 +600,12 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         {/* 3 STOCK */}
         <Sec icon="Boxes" name="Stock & location" open={open.stock} onToggle={() => toggle('stock')}>
           {profile !== 'uniform' && (
-            <div className="itf-msize">
-              <label className="itf-switch">
-                <input type="checkbox" checked={multiSize} onChange={(e) => setMultiSize(e.target.checked)} />
-                <span className="tk" /><span className="lb">Sold in multiple sizes / packs <span className="opt">· e.g. 250ml · 500ml · 5L</span></span>
-              </label>
-              {multiSize && (
-                <div className="itf-formats">
-                  {formats.map((f) => <span key={f} className="itf-fmt">{f}<b onClick={() => removeFormat(f)}>✕</b></span>)}
-                  <input className="itf-fmt-in" value={formatDraft} onChange={(e) => setFormatDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFormat(); } }} placeholder="Add a size…" />
-                  <button type="button" className="itf-addloc" onClick={addFormat}>＋ Add</button>
-                </div>
-              )}
+            <div className="itf-fmtwrap">
+              <span className="itf-fl">Sizes / units <span className="opt">· optional · add 250ml, 5L…</span></span>
+              <div className="itf-formats">
+                {formats.map((f) => <span key={f} className="itf-fmt">{f}<b onClick={() => removeFormat(f)} aria-label={`Remove ${f}`}>✕</b></span>)}
+                <input className="itf-fmt-in" value={formatDraft} onChange={(e) => setFormatDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFormat(); } if (e.key === 'Backspace' && !formatDraft && formats.length) removeFormat(formats[formats.length - 1]); }} placeholder={formats.length ? 'Add another…' : 'e.g. 500ml'} />
+              </div>
             </div>
           )}
           {variantMode ? (
