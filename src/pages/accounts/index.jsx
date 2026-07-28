@@ -3,7 +3,7 @@
 // carries it (Vessel/Command first, then each Chief) with a month-end reconcile
 // indicator. Editorial (Cargo) system per CLAUDE.md.
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import '../../styles/editorial.css';
@@ -27,8 +27,14 @@ const initials = (role) => {
 export default function Accounts() {
   const navigate = useNavigate();
   const { activeTenantId } = useTenant();
-  const { hasCommandAccess } = useAuth();
+  const { hasCommandAccess, hasAccountsAccess, hasOwnerReporting } = useAuth();
   const canEdit = hasCommandAccess();
+
+  // Role-aware landing — "you land where you live". The vessel Overview is for
+  // Command/those with full Accounts access; everyone else is sent to their own
+  // home (an owner/viewer seat → the report, a card holder → My money).
+  const canSeeOverview = hasAccountsAccess();
+  const ownerOnly = !canSeeOverview && hasOwnerReporting();
 
   const [loading, setLoading] = useState(true);
   const [accounts, setAccounts] = useState([]);
@@ -69,6 +75,8 @@ export default function Accounts() {
 
   const openAdd = () => { setEditing(null); setModalOpen(true); };
   const openEdit = (a) => { setEditing(a); setModalOpen(true); };
+
+  if (!canSeeOverview) return <Navigate to={ownerOnly ? '/accounts/owner' : '/accounts/my'} replace />;
 
   const reconcilePill = (toReconcile) => (
     toReconcile > 0

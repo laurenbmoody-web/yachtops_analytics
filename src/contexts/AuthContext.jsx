@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess, hasAccountsAccess, hasOwnerReporting, setCurrentUser as saveCurrentUser } from '../utils/authStorage';
+import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess, hasAccountsAccess, hasOwnerReporting, isOwnerViewerOnly, setCurrentUser as saveCurrentUser } from '../utils/authStorage';
 import { isDevMode } from '../utils/devMode';
 
 import { supabase } from '../lib/supabaseClient';
@@ -778,6 +778,7 @@ export const AuthProvider = ({ children }) => {
         hasHODAccess: () => hasHODAccess(currentUser),
         hasAccountsAccess: () => hasAccountsAccess(currentUser),
         hasOwnerReporting: () => hasOwnerReporting(currentUser),
+        isOwnerViewerOnly: () => isOwnerViewerOnly(currentUser),
       }}
     >
       <TenantProvider authSession={session} authUser={user}>

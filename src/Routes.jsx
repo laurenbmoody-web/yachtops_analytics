@@ -1460,9 +1460,14 @@ const Routes = () => {
         <Route path="/provisioning/:boardId/orders/:orderId" element={<ProtectedRoute><SupplierOrderPage /></ProtectedRoute>} />
 
         {/* Accounts */}
-        <Route path="/accounts" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Accounts /></ProtectedRoute>} />
+        {/* /accounts is the workspace entry: it resolves a role-aware landing —
+            full Accounts access sees the vessel Overview, an owner/viewer seat is
+            sent to the report, and any card holder to their own My money. */}
+        <Route path="/accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
         <Route path="/accounts/cards" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><DepartmentCards /></ProtectedRoute>} />
-        <Route path="/accounts/my" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><MyReconcile /></ProtectedRoute>} />
+        {/* My money is personal — any tenant member reaches it; the page scopes to
+            their own holdings (Command can pin another holder via ?holder=). */}
+        <Route path="/accounts/my" element={<ProtectedRoute><MyReconcile /></ProtectedRoute>} />
         <Route path="/accounts/owner" element={<ProtectedRoute requireOwnerReporting><OwnerView /></ProtectedRoute>} />
         <Route path="/accounts/ledger" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Ledger /></ProtectedRoute>} />
         <Route path="/accounts/payables" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Payables /></ProtectedRoute>} />
