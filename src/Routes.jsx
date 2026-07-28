@@ -10,6 +10,7 @@ import TeamJobsManagement from './pages/team-jobs-management';
 import Accounts from './pages/accounts';
 import DepartmentCards from './pages/accounts/department-cards';
 import MyReconcile from './pages/accounts/my';
+import Checkoff from './pages/accounts/checkoff';
 import OwnerView from './pages/accounts/owner';
 import Ledger from './pages/accounts/ledger';
 import Payables from './pages/accounts/payables';
@@ -1468,6 +1469,8 @@ const Routes = () => {
         {/* My money is personal — any tenant member reaches it; the page scopes to
             their own holdings (Command can pin another holder via ?holder=). */}
         <Route path="/accounts/my" element={<ProtectedRoute><MyReconcile /></ProtectedRoute>} />
+        {/* Command's month-end review queue — approve a submitted card/float or send it back. */}
+        <Route path="/accounts/checkoff" element={<ProtectedRoute requiredRoles={['COMMAND']} requireAccounts><Checkoff /></ProtectedRoute>} />
         <Route path="/accounts/owner" element={<ProtectedRoute requireOwnerReporting><OwnerView /></ProtectedRoute>} />
         <Route path="/accounts/ledger" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Ledger /></ProtectedRoute>} />
         <Route path="/accounts/payables" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><Payables /></ProtectedRoute>} />
