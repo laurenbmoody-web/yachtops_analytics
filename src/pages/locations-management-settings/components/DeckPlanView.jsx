@@ -925,6 +925,49 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           const l = selLink && deckLinks.find((x) => x.id === selLink);
           return l ? new Set([l.a, l.b]) : null;
         })();
+        // Displayed aspect ratio (screen width / height) of this deck's plan, so
+        // link routing can measure distances the way the eye sees them on a wide,
+        // short deck strip (the links <svg> is preserveAspectRatio="none").
+        const planAR = (crop && gaDims?.width && gaDims?.height)
+          ? (crop.w * gaDims.width) / (crop.h * gaDims.height) : 1;
+        // Route a doorway line so it bows AROUND any pin it would otherwise run
+        // over — a straight centre-to-centre line crossing an unrelated pin reads
+        // as if it connects there. Returns an SVG path (0..100 space) + the curve
+        // midpoint (for the touch label). All maths in screen-proportional units.
+        const routeLink = (a, b, aId, bId) => {
+          const ax = a.x * 100, ay = a.y * 100, bx = b.x * 100, by = b.y * 100;
+          const A = { x: ax * planAR, y: ay }, B = { x: bx * planAR, y: by };
+          const vx = B.x - A.x, vy = B.y - A.y;
+          const len = Math.hypot(vx, vy) || 1;
+          const ux = vx / len, uy = vy / len;   // unit along the line
+          const nx = -uy, ny = ux;              // unit normal (perpendicular)
+          const CLEAR = 6;                      // clearance a pin needs (screen-% units)
+          let worst = null;                     // deepest-crossing intervening pin
+          for (const s of placed) {
+            if (s.id === aId || s.id === bId) continue;
+            const q = posOf(s); if (!q) continue;
+            const P = { x: q.x * 100 * planAR, y: q.y * 100 };
+            const t = ((P.x - A.x) * ux + (P.y - A.y) * uy) / len; // 0..1 along
+            if (t <= 0.12 || t >= 0.88) continue;                  // near an endpoint — ignore
+            const perp = (P.x - A.x) * nx + (P.y - A.y) * ny;      // signed distance
+            if (Math.abs(perp) >= CLEAR) continue;
+            if (!worst || Math.abs(perp) < Math.abs(worst.perp)) worst = { perp };
+          }
+          if (!worst) {
+            return { d: `M ${ax} ${ay} L ${bx} ${by}`, mx: (ax + bx) / 2, my: (ay + by) / 2 };
+          }
+          // Bow away from the pin: push the curve's midpoint to the far side by
+          // enough to clear it, then set the quad control point to 2× that (a
+          // quadratic's midpoint moves half as far as its control point).
+          const side = worst.perp >= 0 ? -1 : 1;                 // -sign(perp) → away
+          const off = (CLEAR - Math.abs(worst.perp)) + 4;        // clearance + margin
+          const midS = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
+          const cS = { x: midS.x + nx * side * 2 * off, y: midS.y + ny * side * 2 * off };
+          const cx = cS.x / planAR, cy = cS.y;                   // back to link space
+          const mx = 0.25 * ax + 0.5 * cx + 0.25 * bx;           // curve midpoint (t=0.5)
+          const my = 0.25 * ay + 0.5 * cy + 0.25 * by;
+          return { d: `M ${ax} ${ay} Q ${cx} ${cy} ${bx} ${by}`, mx, my };
+        };
         // Stairs links touching THIS deck: one endpoint is here, the other on
         // another deck — rendered as a ↕ badge that jumps to the other deck.
         const deckStairs = links.filter((l) => l.kind === 'stairs').map((l) => {
@@ -1145,12 +1188,13 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                         const label = `${nameOf(spaceById[l.a])} ↔ ${nameOf(spaceById[l.b])}`;
                         const selHere = selLink && deckLinks.some((x) => x.id === selLink);
                         const cls = selLink === l.id ? 'is-sel' : (selHere ? 'is-dim' : '');
+                        const { d } = routeLink(a, b, l.a, l.b);
                         return (
                           <g key={l.id} className={`dp-link-g ${cls}`} onClick={() => linkMode && tapLink(l.id)}>
-                            <line className="dp-link" x1={a.x * 100} y1={a.y * 100} x2={b.x * 100} y2={b.y * 100} />
-                            <line className="dp-link-hit" x1={a.x * 100} y1={a.y * 100} x2={b.x * 100} y2={b.y * 100}>
+                            <path className="dp-link" d={d} />
+                            <path className="dp-link-hit" d={d}>
                               <title>{linkMode ? `Remove doorway · ${label}` : label}</title>
-                            </line>
+                            </path>
                           </g>
                         );
                       })}
@@ -1162,11 +1206,12 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     const l = deckLinks.find((x) => x.id === selLink);
                     if (!l) return null;
                     const a = posById[l.a]; const b = posById[l.b];
+                    const { mx, my } = routeLink(a, b, l.a, l.b);
                     return (
                       <button
                         type="button"
                         className="dp-link-label"
-                        style={{ left: `${((a.x + b.x) / 2) * 100}%`, top: `${((a.y + b.y) / 2) * 100}%` }}
+                        style={{ left: `${mx}%`, top: `${my}%` }}
                         onClick={(e) => { e.stopPropagation(); tapLink(l.id); }}
                       >
                         {nameOf(spaceById[l.a])} ↔ {nameOf(spaceById[l.b])} <span className="dp-link-label-x">· tap to remove</span>

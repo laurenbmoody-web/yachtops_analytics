@@ -282,8 +282,8 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 /* Doorway links (Phase 4): lines between connected room dots. Always visible;
    a fat transparent hit-line makes them easy to click-to-remove in link mode. */
 .dp-links{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;z-index:1;}
-.dp-link{stroke:var(--lg-terra);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linecap:round;opacity:.7;}
-.dp-link-hit{stroke:transparent;stroke-width:16;vector-effect:non-scaling-stroke;stroke-linecap:round;pointer-events:none;}
+.dp-link{fill:none;stroke:var(--lg-terra);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linecap:round;opacity:.7;}
+.dp-link-hit{fill:none;stroke:transparent;stroke-width:16;vector-effect:non-scaling-stroke;stroke-linecap:round;pointer-events:none;}
 .dp-plan.is-linking{cursor:default;}
 .dp-plan.is-linking .dp-pin{cursor:pointer;}
 .dp-plan.is-linking .dp-link-hit{pointer-events:stroke;cursor:pointer;}
