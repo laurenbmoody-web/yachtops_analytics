@@ -2,9 +2,8 @@
 // budgets; COMMAND creates a new one. Each row links to its vs-actual detail.
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
-import AccountsNav from '../components/AccountsNav';
+import AccountsShell from '../components/AccountsShell';
 import '../../../styles/editorial.css';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -49,14 +48,9 @@ export default function Budgets() {
   };
 
   return (
-    <>
-      <Header />
+    <AccountsShell active="plan">
       <div className="bg-page">
         <div className="bg-wrap">
-          <button type="button" className="bg-back" onClick={() => navigate('/accounts')}>
-            <Icon name="ChevronLeft" size={16} /> Back to Accounts
-          </button>
-
           <div className="bg-head">
             <p className="editorial-meta">
               <span className="dot">●</span>
@@ -77,8 +71,6 @@ export default function Budgets() {
               </div>
             </div>
           </div>
-
-          <AccountsNav active="plan" />
 
           {loading ? (
             <div className="bg-empty"><p>Loading budgets…</p></div>
@@ -108,6 +100,6 @@ export default function Budgets() {
       </div>
 
       <GuidedBudgetCreate open={modalOpen} onClose={() => setModalOpen(false)} onCreated={handleCreated} tenantId={activeTenantId} />
-    </>
+    </AccountsShell>
   );
 }

@@ -4,7 +4,6 @@
 // indicator. Editorial (Cargo) system per CLAUDE.md.
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import '../../styles/editorial.css';
 import { useTenant } from '../../contexts/TenantContext';
@@ -13,7 +12,7 @@ import { getAccountsOverview, createAccount, updateAccount } from '../../service
 import { formatMoney } from '../../services/financeCalc';
 import { groupAccountsByHolder, fundsTotals } from '../../services/accountsView';
 import AccountFormModal from './components/AccountFormModal';
-import AccountsNav from './components/AccountsNav';
+import AccountsShell from './components/AccountsShell';
 import './accounts.css';
 
 const KIND_ICON = { bank: 'Landmark', card: 'CreditCard', cash: 'Wallet', petty_cash: 'Wallet' };
@@ -80,7 +79,7 @@ export default function Accounts() {
 
   const reconcilePill = (toReconcile) => (
     toReconcile > 0
-      ? <span className="ca-ov-grec due">{toReconcile} to check off</span>
+      ? <button type="button" className="ca-ov-grec due link" onClick={() => navigate('/accounts/checkoff')}>{toReconcile} to check off</button>
       : <span className="ca-ov-grec ok">Checked off</span>
   );
 
@@ -109,14 +108,9 @@ export default function Accounts() {
   };
 
   return (
-    <>
-      <Header />
+    <AccountsShell active="overview">
       <div className="ca-page">
         <div className="ca-wrap">
-          <button type="button" className="ca-back" onClick={() => navigate('/dashboard')}>
-            <Icon name="ChevronLeft" size={16} /> Back to Dashboard
-          </button>
-
           <div className="ca-head">
             <p className="editorial-meta">
               <span className="dot">●</span>
@@ -137,8 +131,6 @@ export default function Accounts() {
               </div>
             </div>
           </div>
-
-          <AccountsNav active="overview" />
 
           {/* KPI strip */}
           <div className="ca-ov-kpis">
@@ -162,11 +154,11 @@ export default function Accounts() {
               <b className="ca-ov-kv ca-num">{formatMoney(funds.pettyCash, positionCurrency)}</b>
               <span className="ca-ov-km">{funds.pettyFloats} floats</span>
             </div>
-            <div className="ca-ov-kpi">
+            <button type="button" className="ca-ov-kpi ca-ov-kpi-btn" onClick={() => navigate('/accounts/checkoff')}>
               <span className="ca-ov-kl">To check off</span>
               <b className="ca-ov-kv ca-num">{funds.toReconcile}</b>
-              <span className="ca-ov-km">this month-end</span>
-            </div>
+              <span className="ca-ov-km">this month-end →</span>
+            </button>
           </div>
 
           {loading ? (
@@ -207,6 +199,6 @@ export default function Accounts() {
         onSave={handleSave}
         initial={editing}
       />
-    </>
+    </AccountsShell>
   );
 }

@@ -1,0 +1,61 @@
+/* Cargo Accounts — one-workspace shell. Persistent navy left sidebar (below the
+   fixed 64px global header) + content to its right. Scoped under .aws-*. */
+
+.aws { display: block; }
+
+.aws-side {
+  position: fixed; top: 64px; left: 0; bottom: 0; width: 216px; z-index: 30;
+  background: #1C1B3A; color: #fff; padding: 20px 14px;
+  display: flex; flex-direction: column; overflow-y: auto;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.aws-brand { display: flex; align-items: center; gap: 8px; font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 19px; letter-spacing: .2px; }
+.aws-brand svg { flex: 0 0 auto; opacity: .95; }
+.aws-who { font-size: 9px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: #AEB4C2; margin: 5px 0 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.aws-nav { display: flex; flex-direction: column; }
+.aws-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 9px 11px; border: 0; border-radius: 9px; margin-bottom: 3px;
+  font: inherit; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.72);
+  background: none; cursor: pointer; transition: background .12s ease, color .12s ease;
+}
+.aws-item svg { flex: 0 0 auto; opacity: .9; }
+.aws-item:hover { color: #fff; background: rgba(255,255,255,.06); }
+.aws-item.on { background: rgba(255,255,255,.12); color: #fff; }
+.aws-item.on svg { opacity: 1; }
+.aws-badge { margin-left: auto; font-size: 10px; font-weight: 800; background: #C65A1A; border-radius: 999px; padding: 1px 7px; color: #fff; font-variant-numeric: tabular-nums; }
+.aws-sep { height: 1px; background: rgba(255,255,255,.1); margin: 10px 4px; }
+
+.aws-exit {
+  margin-top: auto; display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 11px; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.55);
+  transition: color .12s ease;
+}
+.aws-exit:hover { color: #fff; }
+
+.aws-main { margin-left: 216px; min-height: calc(100vh - 64px); }
+.aws-solo { min-height: calc(100vh - 64px); }
+
+/* On print (owner report → PDF) the navy sidebar has no place — drop it and
+   reclaim the full width. */
+@media print {
+  .aws-side { display: none; }
+  .aws-main { margin-left: 0; }
+}
+
+/* Below the desktop breakpoint the sidebar becomes a horizontal strip so the
+   content keeps the full width (mirrors the old tab-bar behaviour). */
+@media (max-width: 900px) {
+  .aws-side {
+    position: static; top: auto; bottom: auto; width: auto;
+    flex-direction: row; align-items: center; gap: 4px;
+    padding: 8px 16px; overflow-x: auto;
+  }
+  .aws-brand, .aws-who, .aws-exit { display: none; }
+  .aws-nav { flex-direction: row; gap: 4px; }
+  .aws-item { margin-bottom: 0; white-space: nowrap; }
+  .aws-sep { display: none; }
+  .aws-main { margin-left: 0; }
+}

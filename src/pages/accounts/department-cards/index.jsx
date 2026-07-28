@@ -4,7 +4,6 @@
 // department's cards & floats. Click one → /accounts/my.
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
 import { useTenant } from '../../../contexts/TenantContext';
@@ -14,7 +13,7 @@ import { periodMonthISO } from '../../../services/reconcileState';
 import { groupAccountsByHolder } from '../../../services/accountsView';
 import { formatMoney } from '../../../services/financeCalc';
 import CardVisual from '../components/CardVisual';
-import AccountsNav from '../components/AccountsNav';
+import AccountsShell from '../components/AccountsShell';
 import '../accounts.css';
 import './department-cards.css';
 
@@ -143,14 +142,9 @@ export default function DepartmentCards() {
   };
 
   return (
-    <>
-      <Header />
+    <AccountsShell active="cards">
       <div className="ca-page">
         <div className="ca-wrap">
-          <button type="button" className="ca-back" onClick={() => navigate('/accounts')}>
-            <Icon name="ChevronLeft" size={16} /> Accounts
-          </button>
-
           <div className="ca-head">
             <p className="editorial-meta">
               <span className="dot">●</span><span>Department cards</span>
@@ -161,8 +155,6 @@ export default function DepartmentCards() {
               <h1 className="ca-title">Cards <em>by department</em>.</h1>
             </div>
           </div>
-
-          <AccountsNav active="cards" />
 
           {/* toolbar */}
           <div className="dc-tool" ref={toolRef}>
@@ -237,6 +229,6 @@ export default function DepartmentCards() {
           )}
         </div>
       </div>
-    </>
+    </AccountsShell>
   );
 }

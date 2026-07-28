@@ -4,7 +4,7 @@
 // Committed from open supplier orders. COMMAND edits lines.
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Header from '../../../components/navigation/Header';
+import AccountsShell from '../components/AccountsShell';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -464,8 +464,7 @@ export default function BudgetDetail() {
   const kpiState = stateOf(sT.totals.budgeted || 0, kpiUsed);
 
   return (
-    <>
-      <Header />
+    <AccountsShell active="plan">
       <div className="bg-page">
         <div className="bg-wrap">
           <button type="button" className="bg-back" onClick={() => navigate('/accounts/budgets')}>
@@ -639,6 +638,6 @@ export default function BudgetDetail() {
         buckets={bucketSuggestions}
         categories={categorySuggestions}
       />
-    </>
+    </AccountsShell>
   );
 }
