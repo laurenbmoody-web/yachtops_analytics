@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import InventoryFolderPicker from './InventoryFolderPicker';
 import { LocationPicker } from './AddEditItemModal';
 import MapPickerModal from '../../vessel-map/components/MapPickerModal';
+import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
 import { getFolderTree } from '../utils/inventoryStorage';
 import './item-form.css';
 
@@ -658,11 +659,11 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
             <div className="itf-usizes-empty">Turn on some sizes in <b>Details</b> to log quantities.</div>
           ) : (
             <div className="itf-mtxwrap">
-              <div className="itf-mtx" style={{ gridTemplateColumns: `minmax(136px,1.5fr) repeat(${cols.length}, minmax(50px,1fr)) ${profile !== 'uniform' ? '30px ' : ''}52px` }}>
+              <div className="itf-mtx" style={{ gridTemplateColumns: `minmax(122px,1.2fr) repeat(${cols.length}, minmax(62px,1fr)) ${profile !== 'uniform' ? '30px ' : ''}54px` }}>
                 {/* header — editable size labels for non-uniform, static for uniform */}
                 <div className="itf-mh blank" />
                 {cols.map((c, j) => (profile !== 'uniform'
-                  ? <div className="itf-mh sz" key={j}><input value={c} onChange={(e) => renameFormat(j, e.target.value)} placeholder="+ size" aria-label="Size name" />{cols.length > 1 && <button type="button" className="x" onClick={() => removeFormatAt(j)} aria-label="Remove size">✕</button>}</div>
+                  ? <div className="itf-mh sz" key={j}><input value={c} title={c} onChange={(e) => renameFormat(j, e.target.value)} placeholder="+ size" aria-label="Size name" />{cols.length > 1 && <button type="button" className="x" onClick={() => removeFormatAt(j)} aria-label="Remove size">✕</button>}</div>
                   : <div className="itf-mh sz static" key={j}>{c}</div>
                 ))}
                 {profile !== 'uniform' && <div className="itf-mh add"><button type="button" onClick={addFormat} aria-label="Add a size" title="Add a size">＋</button></div>}
@@ -754,9 +755,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
         {/* 5 HANDLING */}
         <Sec icon="ShieldCheck" name="Handling & maintenance" open={open.handling} onToggle={() => toggle('handling')} summary={handSummary.length ? handSummary.map((h) => <span key={h} className="sc hot">{h}</span>) : <span className="sc muted">none set</span>}>
-          {profile !== 'uniform' && (
-            <div className="itf-f" style={{ maxWidth: 240 }}><label className="itf-lab">Expiry / best before <span className="opt">(optional)</span></label><input className="itf-in" type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} /></div>
-          )}
           <div className="itf-clu">
             <div className="itf-mlab"><span>Add details</span><span className="rule" /><span className="free">inserts fields</span></div>
             <div className="itf-addons">
@@ -772,7 +770,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               <div className="itf-f" style={{ margin: '0 0 11px' }}><label className="itf-lab">Batch / lot no <span className="opt">(recall trace)</span></label><input className="itf-in" value={foodBatch} onChange={(e) => setFoodBatch(e.target.value)} placeholder="Optional" /></div>
               <div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Allergens</label><div className="itf-chips">{ALLERGENS.map((a) => <span key={a} className={`itf-chip${foodAllergens.includes(a) ? ' on' : ''}`} onClick={() => setFoodAllergens((xs) => xs.includes(a) ? xs.filter((x) => x !== a) : [...xs, a])}>{a}</span>)}</div></div></div></div>}
             {addonOn.maint && <div className="itf-block show"><div className="itf-block-h"><span className="t">Scheduled checks</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, maint: false }))}>✕ remove</span></div><div className="itf-block-b">
-              <div className="itf-g2"><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Every</label><select className="itf-sel" value={mFreq} onChange={(e) => setMFreq(e.target.value)}>{FREQS.map((f) => <option key={f}>{f}</option>)}</select></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Next due</label><input className="itf-in" type="date" value={mNext} onChange={(e) => setMNext(e.target.value)} /></div></div>
+              <div className="itf-g2"><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Every</label><select className="itf-sel" value={mFreq} onChange={(e) => setMFreq(e.target.value)}>{FREQS.map((f) => <option key={f}>{f}</option>)}</select></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Next due</label><EditorialDatePicker value={mNext} onChange={setMNext} placeholder="dd/mm/yyyy" ariaLabel="Next due date" /></div></div>
               <div className="itf-g2" style={{ margin: '11px 0 0' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Responsible</label><select className="itf-sel" value={mResponsible} onChange={(e) => setMResponsible(e.target.value)}><option value="">Any dept</option><option>Deck</option><option>Engineering</option><option>Interior</option><option>Galley</option><option>Bridge</option><option>Medical</option></select></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Est. time <span className="opt">(mins)</span></label><input className="itf-in" value={mEstTime} onChange={(e) => setMEstTime(e.target.value)} placeholder="15" inputMode="numeric" /></div></div>
               {(mFreq === 'Weekly' || mFreq === 'Daily') && <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">On days</label><div className="itf-days">{DOW.map((d, i) => <span key={i} className={`itf-day${mDays.includes(i) ? ' on' : ''}`} onClick={() => setMDays((xs) => xs.includes(i) ? xs.filter((x) => x !== i) : [...xs, i])}>{d}</span>)}</div></div>}
               <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">What to check</label><input className="itf-in" value={mCheck} onChange={(e) => setMCheck(e.target.value)} placeholder="Gauge in green, seal intact, pin secure" /></div>
@@ -785,6 +783,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               {FLAGS.map((f) => <span key={f.id} className={`itf-flag${flagOn[f.id] ? ' on' : ''}`} title={f.tip} onClick={() => setFlagOn((o) => ({ ...o, [f.id]: !o[f.id] }))}><Icon name={f.icon} size={17} /><span className="fl-t">{f.label}</span></span>)}
             </div>
           </div>
+          {profile !== 'uniform' && (
+            <div className="itf-f" style={{ maxWidth: 240, marginBottom: 0 }}><label className="itf-lab">Expiry / best before <span className="opt">(optional)</span></label><EditorialDatePicker value={expiry} onChange={setExpiry} placeholder="dd/mm/yyyy" ariaLabel="Expiry date" /></div>
+          )}
         </Sec>
 
         {/* 6 REFERENCE */}
