@@ -810,7 +810,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       <LocationPicker vesselLocations={vesselLocations} selectedId={locTarget?.kind === 'uni' ? (uniLocs[locTarget?.idx]?.id || '') : (locRows[locTarget?.idx]?.id || '')} onSelect={handleLocPicked} onClose={() => setLocTarget(null)} onMap={() => { setLocTarget(null); setOnMap(); }} />
     )}
     {mapItem && (
-      <MapPickerModal placingItem={mapItem} onPlaced={() => setMapItem(null)} onClose={() => setMapItem(null)} />
+      <MapPickerModal placingItem={mapItem} onPlaced={() => { setMapItem(null); onSaved?.(); onClose?.(); }} onClose={() => { setMapItem(null); onSaved?.(); onClose?.(); }} />
     )}
     </>
   );

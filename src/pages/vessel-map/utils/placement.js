@@ -61,7 +61,7 @@ export async function itemStock(itemId) {
 
 // Receive new stock at the pin and/or move existing stock in from elsewhere.
 // `addNew` raises the total; `moves` ([{key, qty}]) just relocate. pin = {nodeId, name}.
-export async function placeStock(itemId, { pin, addNew = 0, moves = [] }) {
+export async function placeStock(itemId, { pin, addNew = 0, moves = [], link = false }) {
   const r = await readItem(itemId);
   if (r.error) return { error: r.error };
   // Resolve each source's label + available qty from the PRE-write stock so the
@@ -71,11 +71,11 @@ export async function placeStock(itemId, { pin, addNew = 0, moves = [] }) {
     const e = (r.stockLocations || []).find((x) => entryKey(x) === key);
     return { label: (e && (e.locationName || e.subLocation)) || 'Location', avail: e ? (Number(e.qty ?? e.quantity) || 0) : 0 };
   };
-  const next = applyPlacement({ stockLocations: r.stockLocations, total: r.total }, { pin, addNew, moves });
+  const next = applyPlacement({ stockLocations: r.stockLocations, total: r.total }, { pin, addNew, moves, link });
   const { error } = await writeStock(itemId, next);
   if (error) return { error: error.message || 'Could not place the stock.' };
   const item = { id: itemId, name: r.name, usage_department: r.department };
-  logReceived(item, { qty: Number(addNew) || 0, pinName: pin.name, nodeId: pin.nodeId });
+  if (Number(addNew) > 0) logReceived(item, { qty: Number(addNew) || 0, pinName: pin.name, nodeId: pin.nodeId });
   for (const m of moves) {
     const src = srcOf(m.key);
     const qty = Math.min(Math.max(0, Number(m.qty) || 0), src.avail);
