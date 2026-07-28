@@ -13,6 +13,7 @@ import { getAccountsOverview, createAccount, updateAccount } from '../../service
 import { formatMoney } from '../../services/financeCalc';
 import { groupAccountsByHolder, fundsTotals } from '../../services/accountsView';
 import AccountFormModal from './components/AccountFormModal';
+import AccountsNav from './components/AccountsNav';
 import './accounts.css';
 
 const KIND_ICON = { bank: 'Landmark', card: 'CreditCard', cash: 'Wallet', petty_cash: 'Wallet' };
@@ -120,18 +121,6 @@ export default function Accounts() {
             <div className="ca-titlerow">
               <h1 className="ca-title">Cash <em>position</em>.</h1>
               <div className="ca-head-act">
-                <button type="button" className="ca-btn ca-btn-ghost" onClick={() => navigate('/accounts/cards')}>
-                  <Icon name="CreditCard" size={16} /> Cards
-                </button>
-                <button type="button" className="ca-btn ca-btn-ghost" onClick={() => navigate('/accounts/ledger')}>
-                  <Icon name="BookOpen" size={16} /> Ledger
-                </button>
-                <button type="button" className="ca-btn ca-btn-ghost" onClick={() => navigate('/accounts/budgets')}>
-                  <Icon name="Target" size={16} /> Budgets
-                </button>
-                <button type="button" className="ca-btn ca-btn-ghost" onClick={() => navigate('/accounts/owner')}>
-                  <Icon name="FileText" size={16} /> Owner
-                </button>
                 {canEdit && (
                   <button type="button" className="ca-btn ca-btn-primary" onClick={openAdd}>
                     <Icon name="Plus" size={16} /> Add account
@@ -140,6 +129,8 @@ export default function Accounts() {
               </div>
             </div>
           </div>
+
+          <AccountsNav active="overview" />
 
           {/* KPI strip */}
           <div className="ca-ov-kpis">

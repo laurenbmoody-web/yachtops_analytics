@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../../components/navigation/Header';
 import Icon from '../../../components/AppIcon';
+import AccountsNav from '../components/AccountsNav';
 import '../../../styles/editorial.css';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -66,7 +67,7 @@ export default function Budgets() {
               <span className="muted">{budgets.length} total</span>
             </p>
             <div className="bg-titlerow">
-              <h1 className="bg-title">The <em>budgets</em>.</h1>
+              <h1 className="bg-title">The <em>plan</em>.</h1>
               <div className="bg-head-act">
                 {canEdit && (
                   <button type="button" className="bg-btn bg-btn-primary" onClick={() => setModalOpen(true)}>
@@ -76,6 +77,8 @@ export default function Budgets() {
               </div>
             </div>
           </div>
+
+          <AccountsNav active="plan" />
 
           {loading ? (
             <div className="bg-empty"><p>Loading budgets…</p></div>
