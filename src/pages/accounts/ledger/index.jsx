@@ -16,6 +16,7 @@ import {
 import { formatMoney, isLiveTxn } from '../../../services/financeCalc';
 import { ManualTxnModal, AssignAccountModal } from '../components/TransactionModals';
 import StatementReconcileModal from '../components/StatementReconcileModal';
+import AccountsNav from '../components/AccountsNav';
 import '../accounts.css';
 
 const SOURCE_LABEL = {
@@ -203,13 +204,13 @@ export default function Ledger() {
           <div className="ca-head">
             <p className="editorial-meta">
               <span className="dot">●</span>
-              <span>Ledger</span>
+              <span>Spending</span>
               <span className="bar" />
-              <span className="muted">{txns.length} transactions</span>
-              {attentionCount > 0 && (<><span className="bar" /><span className="muted">{attentionCount} need attention</span></>)}
+              <span className="muted">{txns.length} entries</span>
+              {attentionCount > 0 && (<><span className="bar" /><span className="muted">{attentionCount} need a look</span></>)}
             </p>
             <div className="ca-titlerow">
-              <h1 className="ca-title">The <em>ledger</em>.</h1>
+              <h1 className="ca-title">Money <em>in &amp; out</em>.</h1>
               <div className="ca-head-act">
                 {canEdit && (
                   <>
@@ -217,13 +218,15 @@ export default function Ledger() {
                       <Icon name="Upload" size={15} /> Import statement
                     </button>
                     <button type="button" className="ca-btn ca-btn-primary" onClick={() => setAddOpen(true)}>
-                      <Icon name="Plus" size={16} /> Add transaction
+                      <Icon name="Plus" size={16} /> Add spending
                     </button>
                   </>
                 )}
               </div>
             </div>
           </div>
+
+          <AccountsNav active="spending" />
 
           <div className="ca-filters">
             <select className="ca-field" value={filters.accountId} onChange={(e) => setF({ accountId: e.target.value })} aria-label="Account">

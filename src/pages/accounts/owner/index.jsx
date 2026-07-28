@@ -16,6 +16,7 @@ import {
   generateStatementData, listStatements, createStatement, issueStatement, deleteStatement,
 } from '../../../services/ownerStatementService';
 import BudgetOverview from '../budgets/components/BudgetOverview';
+import AccountsNav from '../components/AccountsNav';
 import '../accounts.css';
 import '../budgets/budgets.css';
 import './owner.css';
@@ -150,6 +151,8 @@ export default function OwnerView() {
               </div>
             </div>
           </div>
+
+          <AccountsNav active="owner" />
 
           {/* period picker */}
           <div className="ow-period ow-noprint">

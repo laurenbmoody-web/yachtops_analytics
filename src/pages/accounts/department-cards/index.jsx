@@ -14,6 +14,7 @@ import { periodMonthISO } from '../../../services/reconcileState';
 import { groupAccountsByHolder } from '../../../services/accountsView';
 import { formatMoney } from '../../../services/financeCalc';
 import CardVisual from '../components/CardVisual';
+import AccountsNav from '../components/AccountsNav';
 import '../accounts.css';
 import './department-cards.css';
 
@@ -160,6 +161,8 @@ export default function DepartmentCards() {
               <h1 className="ca-title">Cards <em>by department</em>.</h1>
             </div>
           </div>
+
+          <AccountsNav active="cards" />
 
           {/* toolbar */}
           <div className="dc-tool" ref={toolRef}>
