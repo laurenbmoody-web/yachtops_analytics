@@ -66,6 +66,7 @@ const LABEL_CSS = `
     body { background: #fff; }
     .bar { display: none; }
     .stage { padding: 0; }
+    .label.card { margin: 14mm auto; border: 0; }
     .label.tag { border: 0; }
   }
 `;
@@ -90,14 +91,18 @@ export async function printItemQr({ code, name, brand, location, win }) {
   const data = JSON.stringify({ sizes: LABEL_SIZES, qr, code: value, filename: (value || 'qr').replace(/[^\w.\-]+/g, '_') }).replace(/</g, '\\u003c');
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>QR — ${esc(name || value)}</title>
-    <style id="page">@page{size:A4;margin:12mm}</style>
+    <style id="page">@page{size:A4;margin:0}</style>
     <style>${LABEL_CSS}</style></head><body>
     <div class="bar">
       <label for="sz">Label size</label>
-      <select id="sz">${options}</select>
+      <select id="sz">${options}<option value="custom">Custom size…</option></select>
+      <span id="customwrap" style="display:none;align-items:center;gap:6px;font-size:12.5px;color:#6B7280">
+        <input id="cw" type="number" min="10" max="300" step="1" value="50" style="width:64px;font:500 13px 'Inter',system-ui;border:1px solid #E5E2DA;border-radius:8px;padding:7px 8px" /> ×
+        <input id="ch" type="number" min="10" max="300" step="1" value="25" style="width:64px;font:500 13px 'Inter',system-ui;border:1px solid #E5E2DA;border-radius:8px;padding:7px 8px" /> mm
+      </span>
       <button class="print" onclick="window.print()">Print</button>
       <button class="png" id="dl">Download PNG</button>
-      <span class="hint">Pick your label stock, then <b>Print</b> and choose your Brother / Dymo / Zebra printer — or <b>Download PNG</b> to drop into P-touch Editor, Dymo Connect or Zebra software.</span>
+      <span class="hint">Pick your label stock (or set a <b>Custom size</b>), then <b>Print</b> and choose your Brother / Dymo / Zebra printer — or <b>Download PNG</b> to drop into P-touch Editor, Dymo Connect or Zebra software.</span>
     </div>
     <div class="stage">
       <div class="label card" id="label">
@@ -113,20 +118,32 @@ export async function printItemQr({ code, name, brand, location, win }) {
     <script>
       var D = ${data};
       var byId = function (i) { return document.getElementById(i); };
-      function applySize(id) {
-        var p = D.sizes.filter(function (s) { return s.id === id; })[0] || D.sizes[0];
+      function tag(w, h) {
         var label = byId('label');
-        if (p.w) {
-          byId('page').textContent = '@page{size:' + p.w + 'mm ' + p.h + 'mm;margin:0}';
-          label.className = 'label tag';
-          label.style.width = p.w + 'mm'; label.style.height = p.h + 'mm';
-        } else {
-          byId('page').textContent = '@page{size:A4;margin:12mm}';
+        byId('page').textContent = '@page{size:' + w + 'mm ' + h + 'mm;margin:0}';
+        label.className = 'label tag';
+        label.style.width = w + 'mm'; label.style.height = h + 'mm';
+      }
+      function applySize(id) {
+        byId('customwrap').style.display = id === 'custom' ? 'inline-flex' : 'none';
+        if (id === 'custom') {
+          var w = Math.max(10, Number(byId('cw').value) || 50);
+          var h = Math.max(10, Number(byId('ch').value) || 25);
+          tag(w, h);
+          return;
+        }
+        var p = D.sizes.filter(function (s) { return s.id === id; })[0] || D.sizes[0];
+        if (p.w) { tag(p.w, p.h); }
+        else {
+          var label = byId('label');
+          byId('page').textContent = '@page{size:A4;margin:0}';
           label.className = 'label card';
           label.style.width = ''; label.style.height = '';
         }
       }
       byId('sz').addEventListener('change', function (e) { applySize(e.target.value); });
+      byId('cw').addEventListener('input', function () { if (byId('sz').value === 'custom') applySize('custom'); });
+      byId('ch').addEventListener('input', function () { if (byId('sz').value === 'custom') applySize('custom'); });
       byId('dl').addEventListener('click', function () {
         if (!D.qr) return;
         var a = document.createElement('a'); a.href = D.qr; a.download = D.filename + '.png'; a.click();
