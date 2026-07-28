@@ -204,6 +204,8 @@ const HeroActions = ({
   onOpenSignedDeliveryNote,
   onEmailDeliveryNote,
   onMessageVessel,
+  onDownloadReceipt,
+  receiptBusy,
   canEdit,
 }) => {
   const isOpen = (id) => openMenu === id;
@@ -379,6 +381,17 @@ const HeroActions = ({
             name={deliveryNoteBusy ? 'Generating delivery note…' : 'Generate delivery note'}
             disabled={!canEdit || deliveryNoteBusy}
             onClick={canEdit && !deliveryNoteBusy ? onGenerateDeliveryNote : undefined}
+          />
+        )}
+        {/* Payment receipt — proof of payment (with the Stripe payment ID),
+            available once the order is paid. Anyone viewing may download it. */}
+        {order.status === 'paid' && invoice && (
+          <DropdownRow
+            icon="💳"
+            name={receiptBusy ? 'Preparing receipt…' : 'Payment receipt'}
+            link={receiptBusy ? undefined : 'Download'}
+            disabled={receiptBusy}
+            onClick={receiptBusy ? undefined : () => onDownloadReceipt?.(invoice)}
           />
         )}
       </ActionDropdown>
@@ -1713,6 +1726,7 @@ const ItemsCard = ({
   items,
   currency,
   canEdit,
+  invoiced,
   onItemUpdate,
   onItemQuote,
   onConfirmAll,
@@ -1927,10 +1941,6 @@ const ItemsCard = ({
           </div>
         )}
         <div className="sod-totals-row">
-          <div className="sod-totals-label">Delivery</div>
-          <div className="sod-totals-value">{formatCurrency(0, currency)}</div>
-        </div>
-        <div className="sod-totals-row">
           <div className="sod-totals-label">VAT</div>
           <div className="sod-totals-value">
             {anyVatRate
@@ -1939,7 +1949,9 @@ const ItemsCard = ({
           </div>
         </div>
         <div className="sod-totals-row sod-totals-grand">
-          <div className="sod-totals-label">Estimated Total</div>
+          {/* "Estimated" until the order is priced on an invoice; then it's the
+              actual total. */}
+          <div className="sod-totals-label">{invoiced ? 'Total' : 'Estimated Total'}</div>
           <div className="sod-totals-value">{formatCurrency(grandTotal, currency)}</div>
         </div>
       </div>
@@ -3017,7 +3029,8 @@ const SupplierOrderDetail = () => {
           const docsCount =
             (latestInvoice ? 1 : 0) +
             (orderHasPdf ? 1 : 0) +
-            (deliveryNote.hasSigned || deliveryNote.hasUnsigned ? 1 : 0);
+            (deliveryNote.hasSigned || deliveryNote.hasUnsigned ? 1 : 0) +
+            (order.status === 'paid' && latestInvoice ? 1 : 0);
           return (
             <Hero
               order={order}
@@ -3045,6 +3058,8 @@ const SupplierOrderDetail = () => {
               onOpenDeliveryNote={handleOpenDeliveryNote}
               onOpenSignedDeliveryNote={handleOpenSignedDeliveryNote}
               onEmailDeliveryNote={handleEmailDeliveryNote}
+              onDownloadReceipt={handleDownloadReceipt}
+              receiptBusy={receiptBusy}
               canEdit={canEdit}
             />
           );
@@ -3072,6 +3087,7 @@ const SupplierOrderDetail = () => {
         items={items}
         currency={order.currency || 'USD'}
         canEdit={canEdit}
+        invoiced={['invoiced', 'paid'].includes(order.status)}
         onItemUpdate={handleItemUpdate}
         onItemQuote={handleItemQuote}
         onConfirmAll={handleConfirmAll}
