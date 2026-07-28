@@ -6,7 +6,9 @@ import InventoryFolderPicker from './InventoryFolderPicker';
 import { LocationPicker } from './AddEditItemModal';
 import MapPickerModal from '../../vessel-map/components/MapPickerModal';
 import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
+import BarcodeScanModal from './BarcodeScanModal';
 import { getFolderTree } from '../utils/inventoryStorage';
+import { printItemQr, mintItemCode } from '../utils/itemQr';
 import './item-form.css';
 
 // Type-driven inventory item form. Profiles tailor the fields; the folder
@@ -55,6 +57,21 @@ const autoProfile = (folder) => {
   if (/engineer|spare|part|machin|filter/.test(f)) return 'eng';
   if (/uniform|crew.?kit|wardrobe/.test(f)) return 'uniform';
   return 'general';
+};
+
+// The checklist / SOP a maintenance item links to: either a pasted template
+// link/URL, or an uploaded PDF (public URL). Legacy value was a bare string.
+const normChecklist = (v) => {
+  if (!v) return null;
+  if (typeof v === 'string') return { type: 'link', url: v, name: '' };
+  if (v.url || v.name) return { type: v.type === 'pdf' ? 'pdf' : 'link', url: v.url || '', name: v.name || '' };
+  return null;
+};
+const cleanChecklist = (c) => {
+  if (!c) return undefined;
+  if (c.type === 'pdf') return c.url ? { type: 'pdf', url: c.url, name: c.name || '' } : undefined;
+  const url = (c.url || '').trim();
+  return url ? { type: 'link', url } : undefined;
 };
 
 const Sec = ({ id, icon, name, open, onToggle, summary, children }) => (
@@ -149,6 +166,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [unitsPerPack, setUnitsPerPack] = useState(item?.unitsPerPack ?? '');
   const [sku, setSku] = useState(item?.customFields?.sku || '');
   const [barcode, setBarcode] = useState(item?.barcode || '');
+  const [showScan, setShowScan] = useState(false);
   const [tags, setTags] = useState(item?.tags || []);
   const [tagDraft, setTagDraft] = useState('');
   const [notes, setNotes] = useState(item?.notes || '');
@@ -213,7 +231,10 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [mCheck, setMCheck] = useState(item?.customFields?.maintenance?.check || '');
   const [mResponsible, setMResponsible] = useState(item?.customFields?.maintenance?.responsible || '');
   const [mEstTime, setMEstTime] = useState(item?.customFields?.maintenance?.estTime || '');
-  const [mLink, setMLink] = useState(item?.customFields?.maintenance?.link || '');
+  const [mLink, setMLink] = useState(() => normChecklist(item?.customFields?.maintenance?.link));
+  const [clMode, setClMode] = useState(() => (normChecklist(item?.customFields?.maintenance?.link)?.type === 'pdf' ? 'pdf' : 'link'));
+  const [clBusy, setClBusy] = useState(false);
+  const [clErr, setClErr] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -339,6 +360,26 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     finally { setPhotoBusy(false); }
   };
 
+  // Upload a checklist / SOP PDF to the public inventory-docs bucket and pin it
+  // to the maintenance block. Same tenant-scoped path scheme as item photos.
+  const uploadChecklist = async (file) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf') { setClErr('Please choose a PDF file.'); return; }
+    if (file.size > 10 * 1024 * 1024) { setClErr('That PDF is over 10MB — try a smaller file.'); return; }
+    setClBusy(true); setClErr('');
+    try {
+      const { data: ctx } = await supabase.rpc('get_my_context');
+      const tenantId = ctx?.[0]?.tenant_id || 'shared';
+      const safe = (file.name || 'checklist.pdf').replace(/[^\w.\-]+/g, '_').slice(-80);
+      const path = `inventory/checklists/${tenantId}/${Date.now()}-${safe}`;
+      const { error: upErr } = await supabase.storage.from('inventory-docs').upload(path, file, { upsert: false, contentType: 'application/pdf' });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('inventory-docs').getPublicUrl(path);
+      setMLink({ type: 'pdf', url: pub?.publicUrl || '', name: file.name || 'checklist.pdf' });
+    } catch (err) { setClErr(`Upload failed — ${err?.message || 'try again.'}`); }
+    finally { setClBusy(false); }
+  };
+
   const loadImg = (src) => new Promise((resolve, reject) => {
     const img = new Image(); img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img); img.onerror = () => reject(new Error('image load')); img.src = src;
@@ -440,7 +481,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         flags: toArr(flagOn).length ? flagOn : undefined,
         medical: addonOn.medical ? { form: medForm, mca: medMca, controlled: medControlled, active: medActive || undefined, batch: medBatch || undefined, storage: medStorage } : undefined,
         food: addonOn.food ? { origin: foodOrigin, allergens: foodAllergens, storage: foodStorage, batch: foodBatch || undefined } : undefined,
-        maintenance: addonOn.maint ? { every: mFreq, nextDue: mNext, days: mDays, check: mCheck, responsible: mResponsible || undefined, estTime: mEstTime || undefined, link: mLink || undefined } : undefined,
+        maintenance: addonOn.maint ? { every: mFreq, nextDue: mNext, days: mDays, check: mCheck, responsible: mResponsible || undefined, estTime: mEstTime || undefined, link: cleanChecklist(mLink) } : undefined,
       };
 
       const payload = {
@@ -763,7 +804,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
             </div>
             {addonOn.medical && <div className="itf-block show"><div className="itf-block-h"><span className="t">Medical</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, medical: false }))}>✕ remove</span></div><div className="itf-block-b">
               <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Form / dose</label><input className="itf-in" value={medForm} onChange={(e) => setMedForm(e.target.value)} placeholder="Tablet 500mg" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Active ingredient</label><input className="itf-in" value={medActive} onChange={(e) => setMedActive(e.target.value)} placeholder="Paracetamol" /></div></div>
-              <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab" title="Maritime & Coastguard Agency medical-stores category — which MCA kit (A / B / C) this belongs to, set by the vessel's size and voyage area">MCA category <span className="opt">(?)</span></label><input className="itf-in" value={medMca} onChange={(e) => setMedMca(e.target.value)} placeholder="Cat A / B / C" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Batch / lot no</label><input className="itf-in" value={medBatch} onChange={(e) => setMedBatch(e.target.value)} placeholder="Optional" /></div></div>
+              <div className="itf-g2" style={{ margin: '0 0 11px' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab" title="Which medical-stores category this belongs to under your flag state's scale. UK / Red Ensign (MCA) vessels use Cat A / B / C; other flags (Cayman, Marshall Islands, USCG, etc.) use their own equivalent — leave blank if not applicable.">Med. stores category <span className="opt">(?)</span></label><input className="itf-in" value={medMca} onChange={(e) => setMedMca(e.target.value)} placeholder="e.g. MCA Cat A / B / C" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Batch / lot no</label><input className="itf-in" value={medBatch} onChange={(e) => setMedBatch(e.target.value)} placeholder="Optional" /></div></div>
               <div className="itf-f" style={{ margin: '0 0 11px' }}><label className="itf-lab">Storage</label><select className="itf-sel" value={medStorage} onChange={(e) => setMedStorage(e.target.value)}><option>Room temp</option><option>Chilled 2–8°C</option><option>Controlled / locked</option></select></div>
               <div className="itf-chips"><span className={`itf-chip${medControlled ? ' on' : ''}`} onClick={() => setMedControlled((v) => !v)}>Controlled drug — logbook</span></div></div></div>}
             {addonOn.food && <div className="itf-block show"><div className="itf-block-h"><span className="t">Food</span><span className="rm" onClick={() => setAddonOn((o) => ({ ...o, food: false }))}>✕ remove</span></div><div className="itf-block-b">
@@ -775,7 +816,20 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               <div className="itf-g2" style={{ margin: '11px 0 0' }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Responsible</label><select className="itf-sel" value={mResponsible} onChange={(e) => setMResponsible(e.target.value)}><option value="">Any dept</option><option>Deck</option><option>Engineering</option><option>Interior</option><option>Galley</option><option>Bridge</option><option>Medical</option></select></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Est. time <span className="opt">(mins)</span></label><input className="itf-in" value={mEstTime} onChange={(e) => setMEstTime(e.target.value)} placeholder="15" inputMode="numeric" /></div></div>
               {(mFreq === 'Weekly' || mFreq === 'Daily') && <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">On days</label><div className="itf-days">{DOW.map((d, i) => <span key={i} className={`itf-day${mDays.includes(i) ? ' on' : ''}`} onClick={() => setMDays((xs) => xs.includes(i) ? xs.filter((x) => x !== i) : [...xs, i])}>{d}</span>)}</div></div>}
               <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">What to check</label><input className="itf-in" value={mCheck} onChange={(e) => setMCheck(e.target.value)} placeholder="Gauge in green, seal intact, pin secure" /></div>
-              <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">Link a checklist / SOP <span className="opt">(optional)</span></label><input className="itf-in" value={mLink} onChange={(e) => setMLink(e.target.value)} placeholder="Checklist name or link" /></div>
+              <div className="itf-f" style={{ margin: '11px 0 0' }}><label className="itf-lab">Checklist / SOP <span className="opt">(optional)</span></label>
+                <div className="itf-clchoice">
+                  <button type="button" className={`itf-clopt${clMode === 'link' ? ' on' : ''}`} onClick={() => { setClMode('link'); setClErr(''); if (mLink?.type === 'pdf') setMLink(null); }}><Icon name="Link" size={14} /> Link a template</button>
+                  <button type="button" className={`itf-clopt${clMode === 'pdf' ? ' on' : ''}`} onClick={() => { setClMode('pdf'); setClErr(''); if (mLink?.type === 'link') setMLink(null); }}><Icon name="FileText" size={14} /> Upload PDF</button>
+                </div>
+                {clMode === 'link' ? (
+                  <input className="itf-in" value={mLink?.type === 'link' ? (mLink.url || '') : ''} onChange={(e) => setMLink(e.target.value ? { type: 'link', url: e.target.value, name: '' } : null)} placeholder="Paste a template or SOP link (Vessel Documents, SharePoint, Drive…)" />
+                ) : mLink?.type === 'pdf' && mLink.url ? (
+                  <div className="itf-clfile"><span className="ic"><Icon name="FileText" size={16} /></span><a className="nm" href={mLink.url} target="_blank" rel="noopener noreferrer">{mLink.name || 'checklist.pdf'}</a><span className="rm" onClick={() => setMLink(null)} title="Remove"><Icon name="X" size={14} /></span></div>
+                ) : (
+                  <label className={`itf-clup${clBusy ? ' busy' : ''}`}><Icon name="Upload" size={15} /> {clBusy ? 'Uploading…' : 'Choose a PDF'}<input type="file" accept="application/pdf" hidden disabled={clBusy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) uploadChecklist(f); }} /></label>
+                )}
+                {clErr && <p className="itf-scanhint" style={{ color: '#C24632' }}>{clErr}</p>}
+              </div>
               <div className="itf-note" style={{ marginTop: 11 }}><span>↻</span><span>Drops a <b>recurring job</b> onto Team Jobs each cycle.</span></div></div></div>}
           </div>
           <div className="itf-clu">
@@ -791,7 +845,14 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
         {/* 6 REFERENCE */}
         <Sec icon="Tag" name="Reference" open={open.ref} onToggle={() => toggle('ref')} summary={<span className="sc muted">barcode · tags · notes</span>}>
-          <div className="itf-f"><label className="itf-lab">Barcode / QR</label><input className="itf-in" value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Scan or enter…" /></div>
+          <div className="itf-f"><label className="itf-lab">Barcode / QR</label>
+            <div className="itf-scanrow">
+              <input className="itf-in" value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Scan, generate or enter…" />
+              <button type="button" className="itf-mini" onClick={() => setShowScan(true)} title="Scan a barcode or QR with the camera"><Icon name="ScanLine" size={15} /> Scan</button>
+              <button type="button" className="itf-mini g" onClick={() => { const code = barcode.trim() || mintItemCode(); if (!barcode.trim()) setBarcode(code); printItemQr({ code, name: name.trim(), brand, location: folder }); }} title="Generate a printable QR code for this item"><Icon name="QrCode" size={15} /> Create QR</button>
+            </div>
+            <p className="itf-scanhint">Scan an existing barcode, or <b>Create QR</b> to mint &amp; print a code you can stick on the item — scanning it later brings you back here.</p>
+          </div>
           <div className="itf-f"><label className="itf-lab">Tags</label><div className="itf-chips">{['drinks', 'bar', 'snacks', 'safety', 'cleaning'].map((t) => <span key={t} className={`itf-chip${tags.includes(t) ? ' on' : ''}`} onClick={() => setTags((xs) => xs.includes(t) ? xs.filter((x) => x !== t) : [...xs, t])}>{t}</span>)}{tags.filter((t) => !['drinks', 'bar', 'snacks', 'safety', 'cleaning'].includes(t)).map((t) => <span key={t} className="itf-chip on" onClick={() => setTags((xs) => xs.filter((x) => x !== t))}>{t} ✕</span>)}<input className="itf-chip-in" value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const v = tagDraft.trim(); if (v && !tags.includes(v)) setTags((xs) => [...xs, v]); setTagDraft(''); } }} placeholder="+ custom" /></div></div>
           <div className="itf-f" style={{ marginBottom: 0 }}><label className="itf-lab">Notes</label><input className="itf-in" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any notes…" /></div>
         </Sec>
@@ -812,6 +873,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     )}
     {mapItem && (
       <MapPickerModal placingItem={mapItem} onPlaced={(payload) => { if (payload?.nodeId) addMapLocation(payload); setMapItem(null); }} onClose={() => setMapItem(null)} />
+    )}
+    {showScan && (
+      <BarcodeScanModal onDetect={(val) => { setBarcode(val); setShowScan(false); }} onClose={() => setShowScan(false)} />
     )}
     </>
   );
