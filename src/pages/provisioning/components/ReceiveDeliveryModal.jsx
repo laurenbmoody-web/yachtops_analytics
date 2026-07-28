@@ -777,7 +777,7 @@ const FLD = ({ children }) => (
 const PushStep = ({
   items, receiving, matches,
   locationSplits, onSplitChange, onAddSplitLocation, onRemoveSplitLocation,
-  noMatchChoices, inlineLinks, inlineSearch, allLocations, vesselLocations,
+  noMatchChoices, inlineLinks, inlineSearch, suggestions, allLocations, vesselLocations,
   onSetNoMatchChoice, onInlineSearchChange, onInlineLink,
   onUnlinkMatch, onUnlinkInline,
   newItemForms, onInitNewItemForm, onNewItemFormChange,
@@ -1100,6 +1100,28 @@ const PushStep = ({
                 </>
               )}
 
+              {!isLoading && !hasMatch && !choice && (suggestions[item.id] || []).length > 0 && (
+                <div className="rdm-suggest">
+                  <p className="rdm-suggest-lbl">Possible matches — tap to link instead of creating a duplicate</p>
+                  <div className="rdm-search-results">
+                    {(suggestions[item.id] || []).map(sug => (
+                      <button
+                        key={sug.id}
+                        type="button"
+                        onClick={() => onInlineLink(item.id, sug)}
+                        className="rdm-search-result"
+                      >
+                        <div className="rdm-search-result-name">{sug.name}</div>
+                        <div className="rdm-search-result-meta">
+                          {[sug.brand, sug.size, sug.cargo_item_id].filter(Boolean).join(' · ')}
+                          {sug.total_qty != null ? ` · stock: ${sug.total_qty}` : ''}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {!isLoading && !hasMatch && !choice && (
                 <div className="rdm-route-actions-row">
                   <button
@@ -1208,6 +1230,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
   const [noMatchChoices, setNoMatchChoices] = useState({}); // {[id]: 'link'|'create'|'skip'|null}
   const [inlineLinks, setInlineLinks] = useState({});      // {[id]: inventoryRow}
   const [inlineSearch, setInlineSearch] = useState({});    // {[id]: {query, results, loading}}
+  const [suggestions, setSuggestions] = useState({});      // {[id]: inventoryRow[]} likely matches when the strict matcher misses
   const [allLocations, setAllLocations] = useState([]);    // inventory_locations paths (category hierarchy)
   const [vesselLocations, setVesselLocations] = useState([]); // vessel_locations rows (physical storage)
   const [newItemForms, setNewItemForms] = useState({});    // {[id]: {name, brand, size, unit, barcode, categoryPath, splits}}
@@ -1236,6 +1259,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
     setNoMatchChoices({});
     setInlineLinks({});
     setInlineSearch({});
+    setSuggestions({});
     fetchAllInventoryLocations(tenantId).then(locs => setAllLocations(locs || []));
     fetchVesselLocations(tenantId).then(locs => setVesselLocations(locs || []));
     checkedItems.forEach(item => {
@@ -1258,6 +1282,12 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             splits = [{ locationName: match.location || '', currentQty: 0, addQty: stockUnits }];
           }
           setLocationSplits(prev => ({ ...prev, [item.id]: splits }));
+        } else if ((item.name || '').trim().length >= 2) {
+          // No strict match — surface likely candidates (name-contains) so the
+          // user can link to an existing item instead of creating a duplicate.
+          searchInventoryItems(item.name.trim(), tenantId).then(res => {
+            setSuggestions(prev => ({ ...prev, [item.id]: (res || []).slice(0, 3) }));
+          });
         }
       });
     });
@@ -2229,6 +2259,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
             noMatchChoices={noMatchChoices}
             inlineLinks={inlineLinks}
             inlineSearch={inlineSearch}
+            suggestions={suggestions}
             allLocations={allLocations}
             vesselLocations={vesselLocations}
             onSetNoMatchChoice={handleSetNoMatchChoice}

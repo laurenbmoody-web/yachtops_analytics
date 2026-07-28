@@ -905,6 +905,16 @@
   color: var(--d-muted-soft);
   font-style: italic;
 }
+.rdm-suggest {
+  margin-bottom: 10px;
+}
+.rdm-suggest-lbl {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--rdm-sage-deep);
+}
+.rdm-suggest .rdm-search-results { margin-top: 0; }
 .rdm-search-results {
   margin-top: 8px;
   background: var(--d-card);
