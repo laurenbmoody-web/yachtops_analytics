@@ -43,7 +43,13 @@ const txnFields = (tx, acc) => {
   const signed = -Number(tx.amount || 0); // Plaid: +amount = outflow; our ledger: +amount = inflow
   const cur = tx.iso_currency_code || tx.unofficial_currency_code || acc.currency || 'GBP';
   return {
-    tenant_id: acc.tenant_id, account_id: acc.account_id, txn_date: tx.date || null,
+    tenant_id: acc.tenant_id, account_id: acc.account_id,
+    // Two dates: `authorized_date` is when the card was actually used (the
+    // accounting date, so month-end owns the cost in the right month); `date` is
+    // when Plaid says the bank posted it (what we tie to a statement).
+    txn_date: tx.authorized_date || tx.date || null,
+    statement_date: tx.date || null,
+    is_pending: Boolean(tx.pending),
     amount: signed, currency: cur, fx_rate: 1, amount_base: signed, source: 'bank_feed',
     status: 'unreconciled', external_txn_id: tx.transaction_id,
     description: tx.name || tx.merchant_name || null, payee: tx.merchant_name || tx.name || null,
@@ -107,7 +113,11 @@ async function doSync(data, svc, connectionId) {
     const acc = map[tx.account_id]; if (!acc) continue;
     const f = txnFields(tx, acc);
     await data.from('ledger_transactions')
-      .update({ amount: f.amount, amount_base: f.amount_base, txn_date: f.txn_date, currency: f.currency, description: f.description, payee: f.payee })
+      // A pending authorisation settling is the common "modified" case — it can move
+      // the posted date and firm up the amount, so carry both dates + the flag over.
+      .update({ amount: f.amount, amount_base: f.amount_base, txn_date: f.txn_date,
+        statement_date: f.statement_date, is_pending: f.is_pending,
+        currency: f.currency, description: f.description, payee: f.payee })
       .eq('account_id', acc.account_id).eq('external_txn_id', tx.transaction_id).eq('source', 'bank_feed');
   }
 

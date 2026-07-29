@@ -174,7 +174,11 @@ Deno.serve(async (req) => {
         for (const t of (data.transactions || [])) {
           const amt = Math.abs(parseFloat(t.transaction_amount?.amount ?? '0')) || 0;
           const signed = (t.credit_debit_indicator === 'DBIT' ? -1 : 1) * amt;
-          const date = (t.booking_date || t.value_date || t.transaction_date || '').slice(0, 10) || null;
+          // Two dates: when the spend happened (accounting date) vs when the bank
+          // booked it to the statement (reconciliation date). Prefer the real
+          // transaction/value date for txn_date — booking_date can be days later.
+          const date = (t.transaction_date || t.value_date || t.booking_date || '').slice(0, 10) || null;
+          const stmtDate = (t.booking_date || t.value_date || t.transaction_date || '').slice(0, 10) || null;
           const desc = Array.isArray(t.remittance_information) ? t.remittance_information.join(' ')
             : (t.remittance_information || t.creditor?.name || t.debtor?.name || '');
           const payee = t.creditor?.name || t.debtor?.name || null;
@@ -182,7 +186,8 @@ Deno.serve(async (req) => {
           if (seen.has(ext)) continue;
           seen.add(ext);
           const cur = t.transaction_amount?.currency || ca.currency || 'EUR';
-          inserts.push({ tenant_id: ca.tenant_id, account_id: ca.account_id, txn_date: date, amount: signed,
+          inserts.push({ tenant_id: ca.tenant_id, account_id: ca.account_id, txn_date: date,
+            statement_date: stmtDate, amount: signed,
             currency: cur, fx_rate: 1, amount_base: signed, source: 'bank_feed', status: 'unreconciled',
             external_txn_id: ext, description: desc || null, payee });
         }

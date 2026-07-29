@@ -138,6 +138,37 @@ export const baseFromFx = (amount, fxRate) => {
   return round2(a * r);
 };
 
+// ── The two dates ────────────────────────────────────────────────────────────
+// A bank line has a date it HAPPENED (txn_date — the crew tapped the card) and a
+// date it LANDED on the statement (statement_date — the bank posted it). They
+// differ constantly on cards, and at a month boundary that difference decides
+// which month's accounts own the cost.
+//
+//   'spend'     — group/report by when it happened. Correct for management
+//                 accounts and budget-vs-actual: the cost belongs to the month it
+//                 was incurred.
+//   'statement' — group by when the bank posted it. Correct when tying the ledger
+//                 to a bank statement, because that's the month the bank shows.
+export const DATE_BASES = ['spend', 'statement'];
+
+export const effectiveDate = (txn, basis = 'spend') => {
+  if (!txn) return null;
+  if (basis === 'statement') return txn.statement_date || txn.txn_date || null;
+  return txn.txn_date || txn.statement_date || null;
+};
+
+// True when the two dates disagree — worth showing on the line, because it's the
+// case that silently moves money between months.
+export const datesDiffer = (txn) =>
+  Boolean(txn?.statement_date && txn?.txn_date && txn.statement_date !== txn.txn_date);
+
+// Does the posting date fall in a different MONTH from the spend date? This is the
+// one that actually distorts a period, so it earns a visible flag.
+export const straddlesMonth = (txn) => {
+  if (!datesDiffer(txn)) return false;
+  return String(txn.txn_date).slice(0, 7) !== String(txn.statement_date).slice(0, 7);
+};
+
 // ── Completeness ─────────────────────────────────────────────────────────────
 // What "reconciled" really means for a line, as a checklist the UI can render.
 // Category is the only hard requirement; the rest are 'wanted' — flagged when

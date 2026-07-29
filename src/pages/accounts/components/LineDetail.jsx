@@ -34,6 +34,7 @@ export default function LineDetail({
   const [vatRate, setVatRate] = useState(txn.vat_rate ?? '');
   const [currency, setCurrency] = useState(txn.currency || account?.currency || 'GBP');
   const [fxRate, setFxRate] = useState(txn.fx_rate ?? 1);
+  const [spendDate, setSpendDate] = useState((txn.txn_date || '').slice(0, 10));
   const [rows, setRows] = useState(() => (splits.length ? splits.map((s) => ({ ...s })) : []));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -91,6 +92,7 @@ export default function LineDetail({
     setBusy(true); setErr('');
     const res = await onSave(txn.id, {
       detail: {
+        txn_date: spendDate || txn.txn_date,
         description: note.trim() || null,
         department: department || null,
         crew_id: cardholder || null,
@@ -115,6 +117,26 @@ export default function LineDetail({
 
   return (
     <div className="ld">
+      {/* the two dates: when it happened vs when the bank posted it */}
+      <div className="ld-grid">
+        <label className="ld-field">
+          {label('Date spent', 'drives the month')}
+          <input className="ld-input" type="date" value={spendDate}
+            onChange={(e) => setSpendDate(e.target.value)} disabled={!canEdit} />
+          <span className="ld-hint">Which month&rsquo;s accounts this cost belongs to</span>
+        </label>
+        <label className="ld-field">
+          {label('Date on statement', 'from the bank')}
+          <input className="ld-input" type="date" readOnly
+            value={(txn.statement_date || '').slice(0, 10)} />
+          <span className="ld-hint">
+            {txn.statement_date
+              ? (txn.is_pending ? 'Pending — may still change' : 'What the bank statement shows')
+              : 'Not supplied by the feed'}
+          </span>
+        </label>
+      </div>
+
       {/* what it was for + who owns it */}
       <div className="ld-grid">
         <label className="ld-field ld-wide">
