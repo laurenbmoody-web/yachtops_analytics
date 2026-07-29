@@ -82,7 +82,7 @@
 .ca-filters-spacer { flex: 1; }
 
 /* Transaction rows */
-.ca-txn { display: grid; grid-template-columns: 84px 1fr 150px 130px 130px; align-items: center; gap: 18px; padding: 13px 8px 13px 14px; border-bottom: 1px solid #EEF0F4; }
+.ca-txn { display: grid; grid-template-columns: 26px 84px 1fr 150px 130px 130px; align-items: center; gap: 18px; padding: 13px 8px 13px 10px; border-bottom: 1px solid #EEF0F4; }
 .ca-txn.is-void { opacity: 0.45; }
 .ca-txn.is-attention { box-shadow: inset 3px 0 0 0 #C65A1A; }
 .ca-txn-date { font-size: 12px; color: #8B8478; font-variant-numeric: tabular-nums; }
@@ -119,7 +119,7 @@
 @media (max-width: 860px) {
   .ca-acct { grid-template-columns: 24px 1fr auto; gap: 12px; }
   .ca-acct-cur { display: none; }
-  .ca-txn { grid-template-columns: 70px 1fr auto; gap: 12px; }
+  .ca-txn { grid-template-columns: 22px 70px 1fr auto; gap: 10px; }
   .ca-txn-acct, .ca-chips { display: none; }
 }
 
@@ -306,3 +306,25 @@
 .ca-opt:hover{background:#C65A1A; color:#fff; border-color:#C65A1A}
 .ca-opt.is-pref{background:#C65A1A; color:#fff; border-color:#C65A1A}
 .ca-opt.is-pref .ca-opt-code{opacity:.85}
+
+/* ── Row expander chevron + completeness marks ────────────────────────────── */
+.ca-exp-btn{width:24px; height:24px; border:0; background:none; padding:0; cursor:pointer; color:#AEB4C2;
+  display:inline-flex; align-items:center; justify-content:center; border-radius:6px}
+.ca-exp-btn:hover{color:#C65A1A; background:#FBEFE9}
+.ca-exp-btn svg{transition:transform .16s ease}
+.ca-exp-btn.is-open svg{transform:rotate(90deg)}
+.ca-exp-btn.is-open{color:#C65A1A}
+@media (prefers-reduced-motion:reduce){.ca-exp-btn svg{transition:none}}
+.ca-txn.is-open{background:#FCFCFB; border-bottom-color:transparent}
+
+.ca-marks{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px}
+.ca-mark{display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; letter-spacing:.3px;
+  border:0; border-radius:999px; padding:3px 9px; font-family:'Plus Jakarta Sans', system-ui, sans-serif;
+  background:#F1EFEA; color:#6B6455}
+button.ca-mark{cursor:pointer}
+.ca-mark.is-on{background:#EDF3F0; color:#2F7A64}
+button.ca-mark.is-on:hover{background:#E1EDE7}
+.ca-mark.is-alloc{background:#F0F1F5; color:#6B7280; text-transform:uppercase}
+.ca-mark.is-alloc.is-charter{background:#FBEFE9; color:#C65A1A}
+.ca-mark.is-need{background:#FDFBF2; color:#A8871B; border:1px solid #F0E6C8; text-transform:none; letter-spacing:0}
+button.ca-mark.is-need:hover{background:#FBF6E4}
