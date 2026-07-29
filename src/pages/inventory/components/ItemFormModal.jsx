@@ -643,8 +643,8 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               )}
             </div>
             <div className="itf-idf">
-              <input className="itf-brandline" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand (optional)" aria-label="Brand" />
               <input ref={nameRef} className="itf-nm" value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" />
+              <input className="itf-brandline" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand (optional)" aria-label="Brand" />
               <textarea className="itf-ds" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short description (optional)" />
               {photoErr && <div className="itf-err" style={{ marginTop: 4 }}>{photoErr}</div>}
             </div>
