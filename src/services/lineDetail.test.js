@@ -7,6 +7,7 @@ import {
   defaultCardholder, isBorrowedCard,
   splitTotal, splitRemainder, validateSplits,
   netOfVat, vatFromRate, baseFromFx, lineCompleteness,
+  effectiveDate, datesDiffer, straddlesMonth,
 } from './lineDetail.js';
 
 // ── department ──────────────────────────────────────────────────────────────
@@ -117,6 +118,34 @@ test('VAT can be derived from a rate', () => {
 test('base currency comes from the FX rate', () => {
   assert.equal(baseFromFx(-100, 0.85), -85);
   assert.equal(baseFromFx(-100, null), -100);   // no rate → unchanged
+});
+
+// ── the two dates ───────────────────────────────────────────────────────────
+test('effectiveDate picks the spend date or the statement date by basis', () => {
+  const t = { txn_date: '2026-06-30', statement_date: '2026-07-02' };
+  assert.equal(effectiveDate(t, 'spend'), '2026-06-30');       // when it happened
+  assert.equal(effectiveDate(t, 'statement'), '2026-07-02');   // when the bank posted it
+  assert.equal(effectiveDate(t), '2026-06-30');                // spend is the default
+});
+
+test('effectiveDate falls back when one date is missing', () => {
+  assert.equal(effectiveDate({ txn_date: '2026-07-01' }, 'statement'), '2026-07-01');
+  assert.equal(effectiveDate({ statement_date: '2026-07-03' }, 'spend'), '2026-07-03');
+  assert.equal(effectiveDate(null), null);
+});
+
+test('datesDiffer only when both exist and disagree', () => {
+  assert.equal(datesDiffer({ txn_date: '2026-07-01', statement_date: '2026-07-03' }), true);
+  assert.equal(datesDiffer({ txn_date: '2026-07-01', statement_date: '2026-07-01' }), false);
+  assert.equal(datesDiffer({ txn_date: '2026-07-01' }), false);
+});
+
+test('straddlesMonth catches the case that moves a cost between months', () => {
+  // 30 June spend that posts 2 July — June owns the cost, the bank shows it in July.
+  assert.equal(straddlesMonth({ txn_date: '2026-06-30', statement_date: '2026-07-02' }), true);
+  // Same month, just a posting lag — not a period problem.
+  assert.equal(straddlesMonth({ txn_date: '2026-07-01', statement_date: '2026-07-03' }), false);
+  assert.equal(straddlesMonth({ txn_date: '2026-07-01', statement_date: '2026-07-01' }), false);
 });
 
 // ── completeness ────────────────────────────────────────────────────────────

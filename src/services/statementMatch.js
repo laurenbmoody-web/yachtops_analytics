@@ -31,7 +31,10 @@ export const matchStatement = (statementLines, ledgerTxns, opts = {}) => {
   const txns = (ledgerTxns || []).map((t) => ({
     id: t.id,
     amount: r2(t.amount),
-    day: dayNum(t.txn_date),
+    // Match on the date the BANK posted it where we know it — that's the date a
+    // statement line carries. txn_date (when the spend happened) can be days
+    // earlier, which would push a valid match outside the window.
+    day: dayNum(t.statement_date || t.txn_date),
     tok: tokens(`${t.description || ''} ${t.category || ''} ${t.payee || ''}`),
   }));
   const used = new Set();

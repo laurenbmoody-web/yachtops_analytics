@@ -24,8 +24,8 @@ const ACCOUNT_SELECT =
   'created_by, created_at, updated_at';
 
 const TXN_SELECT =
-  'id, tenant_id, account_id, txn_date, amount, currency, fx_rate, amount_base, ' +
-  'category, category_code, department, vat_amount, vat_rate, payee, ' +
+  'id, tenant_id, account_id, txn_date, statement_date, is_pending, amount, currency, fx_rate, amount_base, ' +
+  'category, category_code, department, vat_amount, vat_rate, payee, allocation, ' +
   'description, source, status, fee_parent_id, supplier_order_id, supplier_invoice_id, ' +
   'provisioning_item_id, defect_id, trip_id, crew_id, posting_group_id, created_by, created_at';
 
@@ -262,7 +262,7 @@ export const fileTransactions = async (ids, { category, category_code }) => {
 const DETAIL_KEYS = [
   'description', 'department', 'crew_id', 'allocation', 'trip_id',
   'vat_amount', 'vat_rate', 'currency', 'fx_rate', 'amount_base',
-  'category', 'category_code', 'payee',
+  'category', 'category_code', 'payee', 'txn_date', 'statement_date',
 ];
 
 export const updateTransactionDetail = async (id, patch = {}) => {

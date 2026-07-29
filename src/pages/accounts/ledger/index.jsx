@@ -17,7 +17,9 @@ import {
 } from '../../../services/financeService';
 import { getChartGrouped } from '../../../services/chartService';
 import { resolveSuggestion, normalizeMerchant } from '../../../services/merchantClassify';
-import { lineCompleteness, defaultAllocation } from '../../../services/lineDetail';
+import {
+  lineCompleteness, defaultAllocation, effectiveDate, datesDiffer, straddlesMonth,
+} from '../../../services/lineDetail';
 import LineDetail from '../components/LineDetail';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
 import { formatMoney, isLiveTxn } from '../../../services/financeCalc';
@@ -64,8 +66,8 @@ const thisYm = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d
 // Every calendar month from the earliest transaction to the latest (or today,
 // whichever is later), ascending — including empty ones, so stepping never
 // silently skips a gap.
-const buildAxis = (rows) => {
-  const yms = rows.map((r) => ymOf(r.txn_date)).filter(Boolean);
+const buildAxis = (rows, basis) => {
+  const yms = rows.map((r) => ymOf(effectiveDate(r, basis))).filter(Boolean);
   if (!yms.length) return [thisYm()];
   const min = yms.reduce((a, b) => (a < b ? a : b));
   const max = [...yms, thisYm()].reduce((a, b) => (a > b ? a : b));
@@ -94,6 +96,7 @@ export default function Ledger() {
   const [filters, setFilters] = useState({ accountId: '', source: '', category: '', search: '' });
   const [status, setStatus] = useState('all');   // all | look | filed  (default: All, so filed rows stay in view)
   const [sortOldest, setSortOldest] = useState(false);
+  const [dateBasis, setDateBasis] = useState('spend');   // spend = when it happened | statement = when the bank posted it
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [activeMonth, setActiveMonth] = useState(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -181,11 +184,11 @@ export default function Ledger() {
   }, [txns, filters.accountId, accountsById]);
 
   // Month axis + per-month stats for the navigator and quick-jump strip.
-  const axis = useMemo(() => buildAxis(rows), [rows]);
+  const axis = useMemo(() => buildAxis(rows, dateBasis), [rows, dateBasis]);
   const statsByMonth = useMemo(() => {
     const m = {};
     rows.forEach((t) => {
-      const ym = ymOf(t.txn_date); if (!ym) return;
+      const ym = ymOf(effectiveDate(t, dateBasis)); if (!ym) return;
       const s = (m[ym] ||= { entries: 0, look: 0, filed: 0, net: 0, inSum: 0, outSum: 0 });
       s.entries += 1;
       if (isLookRow(t)) s.look += 1;
@@ -197,7 +200,7 @@ export default function Ledger() {
       }
     });
     return m;
-  }, [rows]);
+  }, [rows, dateBasis]);
 
   // Keep the active month valid: default to the newest month, re-clamp if the axis
   // changes (e.g. a filter narrows the set).
@@ -207,12 +210,12 @@ export default function Ledger() {
   }, [axis]);
 
   const monthRows = useMemo(() => {
-    let list = rows.filter((t) => ymOf(t.txn_date) === activeMonth);
+    let list = rows.filter((t) => ymOf(effectiveDate(t, dateBasis)) === activeMonth);
     if (status === 'look') list = list.filter(isLookRow);
     else if (status === 'filed') list = list.filter(isFiledRow);
     if (sortOldest) list = [...list].reverse();
     return list;
-  }, [rows, activeMonth, status, sortOldest]);
+  }, [rows, activeMonth, status, sortOldest, dateBasis]);
 
   const monthStat = statsByMonth[activeMonth] || { entries: 0, look: 0, filed: 0, net: 0, inSum: 0, outSum: 0 };
   const axisIdx = axis.indexOf(activeMonth);
@@ -403,7 +406,19 @@ export default function Ledger() {
           onClick={() => setExpandedId(open ? null : t.id)}>
           <Icon name="ChevronRight" size={15} />
         </button>
-        <span className="ca-txn-date">{fmtDMY(t.txn_date)}</span>
+        <span className="ca-txn-date">
+          {fmtDMY(effectiveDate(t, dateBasis))}
+          {/* The other date, when it disagrees — a posting lag that can move a cost
+              between months is worth seeing on the line, not buried in the detail. */}
+          {datesDiffer(t) && (
+            <span className={`ca-txn-date2${straddlesMonth(t) ? ' is-straddle' : ''}`}
+              title={dateBasis === 'statement'
+                ? `Spent ${fmtDMY(t.txn_date)}, posted ${fmtDMY(t.statement_date)}`
+                : `Posted to the statement ${fmtDMY(t.statement_date)}`}>
+              {dateBasis === 'statement' ? `spent ${fmtDMY(t.txn_date)}` : `stmt ${fmtDMY(t.statement_date)}`}
+            </span>
+          )}
+        </span>
         <div className="ca-txn-desc">
           <div className="ca-txn-title">{t.description || SOURCE_LABEL[t.source] || 'Transaction'}</div>
           <div className="ca-txn-cat">
@@ -416,6 +431,16 @@ export default function Ledger() {
           {/* What this line still needs, at a glance — click through to fix it. */}
           {!voided && (
             <div className="ca-marks">
+              {t.is_pending && (
+                <span className="ca-mark is-pending" title="Card authorisation not settled — the amount or date may still change">
+                  Pending
+                </span>
+              )}
+              {straddlesMonth(t) && (
+                <span className="ca-mark is-need" title={`Spent ${fmtDMY(t.txn_date)} but posted ${fmtDMY(t.statement_date)} — different months`}>
+                  Crosses month
+                </span>
+              )}
               {atts.length > 0 && (
                 <button type="button" className="ca-mark is-on" title="View receipt"
                   onClick={() => atts[0].url && window.open(atts[0].url, '_blank', 'noopener')}>
@@ -558,14 +583,25 @@ export default function Ledger() {
 
           {/* month stepper (left) + KPIs (right) — borderless */}
           <div className="ca-monthbar">
-            <div className="ca-stepper">
-              <button type="button" className="ca-step-arrow" onClick={() => stepMonth(-1)} disabled={axisIdx <= 0} aria-label="Previous month">
-                <Icon name="ChevronLeft" size={18} />
-              </button>
-              <div className="ca-step-name">{ymLabel(activeMonth)}</div>
-              <button type="button" className="ca-step-arrow" onClick={() => stepMonth(1)} disabled={axisIdx >= axis.length - 1} aria-label="Next month">
-                <Icon name="ChevronRight" size={18} />
-              </button>
+            <div className="ca-stepwrap">
+              <div className="ca-stepper">
+                <button type="button" className="ca-step-arrow" onClick={() => stepMonth(-1)} disabled={axisIdx <= 0} aria-label="Previous month">
+                  <Icon name="ChevronLeft" size={18} />
+                </button>
+                <div className="ca-step-name">{ymLabel(activeMonth)}</div>
+                <button type="button" className="ca-step-arrow" onClick={() => stepMonth(1)} disabled={axisIdx >= axis.length - 1} aria-label="Next month">
+                  <Icon name="ChevronRight" size={18} />
+                </button>
+              </div>
+              {/* Which date decides the month: when it was spent (management accounts)
+                  or when the bank posted it (tying to a statement). */}
+              <div className="ca-basis">
+                <span className="ca-basis-l">Month by</span>
+                {[['spend', 'Date spent'], ['statement', 'Date on statement']].map(([k, label]) => (
+                  <button key={k} type="button" aria-pressed={dateBasis === k}
+                    onClick={() => setDateBasis(k)}>{label}</button>
+                ))}
+              </div>
             </div>
             <div className="ca-kpis">
               <div className="ca-kpi meter">
