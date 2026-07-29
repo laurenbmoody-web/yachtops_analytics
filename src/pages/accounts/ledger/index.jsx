@@ -11,11 +11,14 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
   listAccounts, listTransactions, createTransaction, voidTransaction, assignTransactionAccount,
-  uploadReceipt, listAttachments, fileTransaction, fileTransactions,
+  uploadReceipt, listAttachments, deleteAttachment, fileTransaction, fileTransactions,
   listMerchantRules, setMerchantRule,
+  updateTransactionDetail, listSplits, saveSplits, listTripsLite, listTenantCrew,
 } from '../../../services/financeService';
 import { getChartGrouped } from '../../../services/chartService';
 import { resolveSuggestion, normalizeMerchant } from '../../../services/merchantClassify';
+import { lineCompleteness, defaultAllocation } from '../../../services/lineDetail';
+import LineDetail from '../components/LineDetail';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
 import { formatMoney, isLiveTxn } from '../../../services/financeCalc';
 import { ManualTxnModal, AssignAccountModal } from '../components/TransactionModals';
@@ -101,6 +104,10 @@ export default function Ledger() {
   const [merchantRules, setMerchantRules] = useState([]);
   const [chart, setChart] = useState([]);         // grouped chart lines for the picker
   const [picker, setPicker] = useState(null);     // { rect, txn } for the category popover
+  const [expandedId, setExpandedId] = useState(null);  // row whose detail panel is open
+  const [splitsByTxn, setSplitsByTxn] = useState({});  // txnId → [split]
+  const [trips, setTrips] = useState([]);
+  const [crew, setCrew] = useState([]);
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
   const accountsById = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
@@ -134,12 +141,16 @@ export default function Ledger() {
     setLoading(false);
     const ids = (data || []).map((t) => t.id);
     if (ids.length) {
-      const { data: atts } = await listAttachments(ids);
+      const [{ data: atts }, { data: sp }] = await Promise.all([listAttachments(ids), listSplits(ids)]);
       const map = {};
       (atts || []).forEach((a) => { (map[a.ledger_transaction_id] ||= []).push(a); });
       setAttByTxn(map);
+      const smap = {};
+      (sp || []).forEach((s) => { (smap[s.ledger_transaction_id] ||= []).push(s); });
+      setSplitsByTxn(smap);
     } else {
       setAttByTxn({});
+      setSplitsByTxn({});
     }
   }, [activeTenantId, filters]);
 
@@ -149,6 +160,9 @@ export default function Ledger() {
   useEffect(() => {
     if (!activeTenantId) return;
     getChartGrouped(activeTenantId).then(({ data }) => setChart(data || []));
+    // Pickers for the detail panel: charters to bill APA spend to, crew to name a spender.
+    listTripsLite(activeTenantId).then(({ data }) => setTrips(data || []));
+    listTenantCrew(activeTenantId).then(({ data }) => setCrew(data || []));
   }, [activeTenantId]);
 
   // Running balance only when a single account is filtered: cumulate opening + live
@@ -273,6 +287,43 @@ export default function Ledger() {
   const openPicker = (e, t) => { setPicker({ rect: e.currentTarget.getBoundingClientRect(), txn: t }); };
   const pickCategory = (o) => { if (picker) handleFile(picker.txn, o); };
 
+  // Save the detail panel: the line's own fields plus its split set. Patches state
+  // in place (same as filing) so the list doesn't reload underneath you.
+  const handleSaveDetail = async (id, { detail, splits }) => {
+    const res = await updateTransactionDetail(id, detail);
+    if (res.error) return res;
+    let savedSplits = splitsByTxn[id] || [];
+    const wantSplits = (splits || []).filter((s) => s.category && Number(s.amount));
+    if (wantSplits.length || savedSplits.length) {
+      const sr = await saveSplits(id, { tenantId: activeTenantId, splits: wantSplits });
+      if (sr.error) return sr;
+      savedSplits = sr.data || [];
+      setSplitsByTxn((prev) => ({ ...prev, [id]: savedSplits }));
+    }
+    setTxns((prev) => prev.map((x) => (x.id === id ? { ...x, ...(res.data || detail) } : x)));
+    flash(wantSplits.length ? `Detail saved · split ${wantSplits.length} ways` : 'Detail saved');
+    return { error: null };
+  };
+
+  const handleReceiptFor = async (txnId, file) => {
+    const res = await uploadReceipt(txnId, file, { tenantId: activeTenantId });
+    if (!res.error && res.data) {
+      const { data: atts } = await listAttachments([txnId]);
+      setAttByTxn((prev) => ({ ...prev, [txnId]: atts || [] }));
+      flash('Receipt attached');
+    }
+    return res;
+  };
+
+  const handleDeleteAttachment = async (attId, storagePath) => {
+    const { error } = await deleteAttachment(attId, storagePath);
+    if (error) { flash('Could not remove that receipt'); return; }
+    setAttByTxn((prev) => Object.fromEntries(
+      Object.entries(prev).map(([k, list]) => [k, list.filter((a) => a.id !== attId)]),
+    ));
+    flash('Receipt removed');
+  };
+
   const handleVoid = async (t) => {
     if (!window.confirm('Void this transaction? It will no longer affect any balance.')) return;
     const { error } = await voidTransaction(t.id);
@@ -339,8 +390,19 @@ export default function Ledger() {
     const acct = t.account_id ? accountsById[t.account_id] : null;
     const voided = isVoidRow(t);
     const look = isLookRow(t);
+    const open = expandedId === t.id;
+    const atts = attByTxn[t.id] || [];
+    const rowSplits = splitsByTxn[t.id] || [];
+    const alloc = t.allocation || defaultAllocation(t, acct);
+    const { missing } = lineCompleteness(t, { account: acct, hasReceipt: atts.length > 0, splitCount: rowSplits.length });
     return (
-      <div key={t.id} className={`ca-txn${voided ? ' is-void' : ''}${look ? ' is-attention' : ''}`}>
+      <React.Fragment key={t.id}>
+      <div className={`ca-txn${voided ? ' is-void' : ''}${look ? ' is-attention' : ''}${open ? ' is-open' : ''}`}>
+        <button type="button" className={`ca-exp-btn${open ? ' is-open' : ''}`}
+          aria-expanded={open} aria-label={open ? 'Hide detail' : 'Show detail'}
+          onClick={() => setExpandedId(open ? null : t.id)}>
+          <Icon name="ChevronRight" size={15} />
+        </button>
         <span className="ca-txn-date">{fmtDMY(t.txn_date)}</span>
         <div className="ca-txn-desc">
           <div className="ca-txn-title">{t.description || SOURCE_LABEL[t.source] || 'Transaction'}</div>
@@ -351,12 +413,27 @@ export default function Ledger() {
           </div>
           {look && !voided && canEdit && renderSuggest(t)}
           {renderChips(t)}
-          {attByTxn[t.id]?.length > 0 && (
-            <div className="ca-chips">
-              <button type="button" className="ca-chip" title="View receipt"
-                onClick={() => attByTxn[t.id][0].url && window.open(attByTxn[t.id][0].url, '_blank', 'noopener')}>
-                <Icon name="Paperclip" size={11} /> {attByTxn[t.id].length > 1 ? `${attByTxn[t.id].length} receipts` : 'Receipt'}
-              </button>
+          {/* What this line still needs, at a glance — click through to fix it. */}
+          {!voided && (
+            <div className="ca-marks">
+              {atts.length > 0 && (
+                <button type="button" className="ca-mark is-on" title="View receipt"
+                  onClick={() => atts[0].url && window.open(atts[0].url, '_blank', 'noopener')}>
+                  <Icon name="Paperclip" size={10} /> {atts.length > 1 ? `${atts.length} receipts` : 'Receipt'}
+                </button>
+              )}
+              {rowSplits.length > 0 && (
+                <span className="ca-mark is-on"><Icon name="Split" size={10} /> Split {rowSplits.length} ways</span>
+              )}
+              {alloc && <span className={`ca-mark is-alloc${alloc === 'charter' ? ' is-charter' : ''}`}>
+                {alloc === 'charter' ? 'Charter · APA' : 'Owner'}
+              </span>}
+              {t.category && missing.length > 0 && canEdit && (
+                <button type="button" className="ca-mark is-need" onClick={() => setExpandedId(t.id)}
+                  title="Open the detail to complete this line">
+                  Needs {missing.slice(0, 2).join(' + ')}{missing.length > 2 ? ` +${missing.length - 2}` : ''}
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -380,6 +457,23 @@ export default function Ledger() {
           )}
         </span>
       </div>
+      {open && (
+        <LineDetail
+          txn={t}
+          account={acct}
+          crew={crew}
+          trips={trips}
+          chartGroups={pickerGroups}
+          attachments={atts}
+          splits={rowSplits}
+          canEdit={canEdit}
+          onSave={handleSaveDetail}
+          onUploadReceipt={handleReceiptFor}
+          onDeleteAttachment={handleDeleteAttachment}
+          onClose={() => setExpandedId(null)}
+        />
+      )}
+      </React.Fragment>
     );
   };
 

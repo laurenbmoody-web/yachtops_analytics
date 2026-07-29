@@ -254,6 +254,106 @@ export const fileTransactions = async (ids, { category, category_code }) => {
   return { data, error };
 };
 
+// ── Reconciliation line detail ────────────────────────────────────────────────
+// The fields that turn a merely-coded line into a reconciled one: what it was for
+// (description), who owns it (department), who spent it (crew_id → profiles), who
+// bears it (allocation + trip_id), and the tax/FX figures the management accounts
+// need. Only the keys present in `patch` are written.
+const DETAIL_KEYS = [
+  'description', 'department', 'crew_id', 'allocation', 'trip_id',
+  'vat_amount', 'vat_rate', 'currency', 'fx_rate', 'amount_base',
+  'category', 'category_code', 'payee',
+];
+
+export const updateTransactionDetail = async (id, patch = {}) => {
+  const update = {};
+  DETAIL_KEYS.forEach((k) => { if (k in patch) update[k] = patch[k] === '' ? null : patch[k]; });
+  if (!Object.keys(update).length) return { data: null, error: null };
+  const { data, error } = await supabase
+    .from('ledger_transactions')
+    .update(update)
+    .eq('id', id)
+    .select(TXN_SELECT)
+    .single();
+  return { data, error };
+};
+
+// ── Split allocations (one payment → several MYBA lines) ──────────────────────
+// Splits describe how to attribute the parent payment; they are NOT extra ledger
+// rows, so balances stay correct (see the migration's note).
+const SPLIT_SELECT =
+  'id, ledger_transaction_id, amount, category, category_code, department, ' +
+  'trip_id, allocation, note, sort_order';
+
+export const listSplits = async (txnIds) => {
+  const ids = (Array.isArray(txnIds) ? txnIds : [txnIds]).filter(Boolean);
+  if (!ids.length) return { data: [], error: null };
+  const { data, error } = await supabase
+    .from('ledger_transaction_splits')
+    .select(SPLIT_SELECT)
+    .in('ledger_transaction_id', ids)
+    .order('sort_order', { ascending: true });
+  return { data: data || [], error };
+};
+
+// Replace a line's whole split set in one go (simplest correct semantics for an
+// editor where rows are added/removed freely). An empty list clears the split.
+export const saveSplits = async (txnId, { tenantId, splits }) => {
+  if (!txnId || !tenantId) return { data: null, error: new Error('Missing transaction or tenant') };
+  const created_by = await currentUserId();
+  const { error: delErr } = await supabase
+    .from('ledger_transaction_splits')
+    .delete().eq('ledger_transaction_id', txnId);
+  if (delErr) return { data: null, error: delErr };
+  const list = (splits || []).filter((s) => s && s.category && Number(s.amount));
+  if (!list.length) return { data: [], error: null };
+  const rows = list.map((s, i) => ({
+    tenant_id: tenantId,
+    ledger_transaction_id: txnId,
+    amount: Number(s.amount),
+    category: s.category,
+    category_code: s.category_code || null,
+    department: s.department || null,
+    trip_id: s.trip_id || null,
+    allocation: s.allocation || null,
+    note: s.note || null,
+    sort_order: i,
+    created_by,
+  }));
+  const { data, error } = await supabase
+    .from('ledger_transaction_splits')
+    .insert(rows)
+    .select(SPLIT_SELECT);
+  return { data: data || [], error };
+};
+
+// ── Pickers: charters (trips) and crew, for the line-detail panel ─────────────
+export const listTripsLite = async (tenantId) => {
+  const { data, error } = await supabase
+    .from('trips')
+    .select('id, name, trip_type, start_date, end_date')
+    .eq('tenant_id', tenantId)
+    .or('is_deleted.is.null,is_deleted.eq.false')
+    .order('start_date', { ascending: false });
+  return { data: data || [], error };
+};
+
+// Active crew of the tenant, flattened to { id, name } for the cardholder picker.
+export const listTenantCrew = async (tenantId) => {
+  const { data, error } = await supabase
+    .from('tenant_members')
+    .select('user_id, active, profiles:user_id (id, full_name, first_name, surname, department)')
+    .eq('tenant_id', tenantId)
+    .not('active', 'is', false);
+  if (error) return { data: [], error };
+  const crew = (data || []).map((m) => {
+    const p = m.profiles || {};
+    const name = p.full_name || [p.first_name, p.surname].filter(Boolean).join(' ') || 'Crew member';
+    return { id: m.user_id, name, department: p.department || null };
+  }).sort((a, b) => a.name.localeCompare(b.name));
+  return { data: crew, error: null };
+};
+
 // ── Learned merchant map (bank counterparty → MYBA line) ──────────────────────
 // Tier A of the bank-feed suggestion engine: the authoritative per-vessel memory.
 // Keys are the normalised merchant (see normalizeMerchant) so charges from the same
