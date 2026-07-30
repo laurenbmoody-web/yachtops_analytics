@@ -50,7 +50,7 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
   const [vatAmount, setVatAmount] = useState('');
   const [vatRate, setVatRate] = useState('');
   const [currencyOverride, setCurrencyOverride] = useState('');
-  const [fxRate, setFxRate] = useState('1');
+  const [fxRate, setFxRate] = useState('');   // empty on purpose — a cross-currency line must state its rate
   // Same reconciliation fields the ledger's line detail collects, so a manual entry
   // starts as complete as a scanned or fed one.
   const [note, setNote] = useState('');
@@ -98,9 +98,11 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
 
   if (!open) return null;
   const account = accounts.find((a) => a.id === accountId);
-  const acctCurrency = account?.currency || 'EUR';
-  const currency = currencyOverride || acctCurrency;
-  const crossCurrency = currencyOverride && currencyOverride !== acctCurrency;
+  const acctCurrency = account?.currency || null;
+  const currency = currencyOverride || acctCurrency || 'GBP';
+  // Only a chosen account gives something to convert INTO. With none selected there is
+  // no base to compute, so we must not pretend a rate (that's how £85.10 became €85.10).
+  const crossCurrency = Boolean(acctCurrency) && currency !== acctCurrency;
 
   const submit = async (e) => {
     e.preventDefault();
@@ -109,7 +111,7 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
     // A cross-currency line with no rate given must NOT be booked at 1:1 — that
     // silently misstates the base-currency figure. Make the crew supply a rate.
     const fx = crossCurrency ? Number(fxRate) : 1;
-    if (crossCurrency && (!fx || Number.isNaN(fx) || fx <= 0)) {
+    if (crossCurrency && (fxRate === '' || !fx || Number.isNaN(fx) || fx <= 0)) {
       setErr(`This is in ${currency} but the account is in ${acctCurrency} — enter the exchange rate.`);
       return;
     }
@@ -122,7 +124,7 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
       amount: signed,
       currency,
       fx_rate: fx,
-      amount_base: deriveAmountBase(signed, fx),
+      amount_base: acctCurrency ? deriveAmountBase(signed, fx) : null,
       category: line ? line.category : (customCat.trim() || null),
       category_code: line ? line.code : null,
       payee: payee.trim() || null,
@@ -301,11 +303,12 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
             <div className="ca-form-row ca-form-grid">
               <div>
                 <label className="ca-label" htmlFor="ca-tx-cur">Currency</label>
-                <select id="ca-tx-cur" className="ca-select" value={currency} onChange={(e) => setCurrencyOverride(e.target.value)}>
+                <select id="ca-tx-cur" className="ca-select" value={currency}
+                  onChange={(e) => { setCurrencyOverride(e.target.value); setFxRate(e.target.value === acctCurrency ? '1' : ''); }}>
                   {[...new Set([acctCurrency, ...CURRENCIES])].map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
-              {crossCurrency && (
+              {crossCurrency && fxRate !== '' && Number(fxRate) > 0 && (
                 <div>
                   <label className="ca-label" htmlFor="ca-tx-fx">FX rate → {acctCurrency}</label>
                   <input id="ca-tx-fx" className="ca-input ca-num" type="number" step="0.0001" min="0" inputMode="decimal"
