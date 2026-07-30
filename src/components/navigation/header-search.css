@@ -24,7 +24,7 @@
   background: #F6F8FB;
   border: 1px solid #E5E7EB;
   border-radius: 10px;
-  padding: 0 36px 0 40px;
+  padding: 0 66px 0 40px;
   box-sizing: border-box;
   transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
 }
@@ -36,9 +36,16 @@
   background: #FFFFFF;
 }
 
+.hsearch-mic {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 .hsearch-clear {
   position: absolute;
-  right: 10px;
+  right: 38px;
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
