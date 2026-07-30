@@ -4,6 +4,7 @@ import { formatDate } from '../../../utils/dateFormat';
 import { money } from '../../laundry-management-dashboard/utils/laundryBilling';
 import { formatBoughtIn } from '../../../data/unitGroups';
 import { duplicateItem } from '../utils/inventoryStorage';
+import { printItemQr } from '../utils/itemQr';
 import LocPath from './LocPath';
 import './uniformView.css';
 
@@ -17,6 +18,7 @@ const Row = ({ label, value }) => ((value == null || value === '') ? null : (
 const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vesselLocations = [] }) => {
   const [activePhoto, setActivePhoto] = useState(null);
   const [dupBusy, setDupBusy] = useState(false);
+  const [qrUrl, setQrUrl] = useState('');
   useEffect(() => {
     const onKey = (e) => { if (e?.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', onKey);
@@ -24,6 +26,27 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
   }, [onClose]);
   // Reset the active gallery photo when switching to a different item.
   useEffect(() => { setActivePhoto(null); }, [item?.id]);
+
+  // Render the item's saved code as a QR preview so view mode shows the actual
+  // code, not just the text — click it (or Print) to reopen the label window.
+  const itemCode = String(item?.barcode || item?.code || '').trim();
+  useEffect(() => {
+    let alive = true;
+    if (!itemCode) { setQrUrl(''); return undefined; }
+    import('qrcode')
+      .then((m) => m.default.toDataURL(itemCode, { margin: 1, width: 240, color: { dark: '#1C1B3A', light: '#FFFFFF' } }))
+      .then((url) => { if (alive) setQrUrl(url); })
+      .catch(() => { if (alive) setQrUrl(''); });
+    return () => { alive = false; };
+  }, [itemCode]);
+
+  const handlePrintQr = () => {
+    if (!itemCode) return;
+    // Open the print window synchronously so the popup blocker doesn't eat it.
+    let win = null;
+    try { win = window.open('', '_blank'); if (win) { win.document.write('<!doctype html><meta charset="utf-8"><title>QR label</title><body style="font-family:system-ui;padding:40px;color:#6B7280">Preparing label…</body>'); win.document.close(); } } catch { /* blocked */ }
+    printItemQr({ code: itemCode, name: item?.name, brand: item?.brand, location: item?.subLocation || item?.location, win });
+  };
 
   if (!item) return null;
 
@@ -128,7 +151,6 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
             <div className="uv-sec-h"><span>Details</span></div>
             <Row label="Cargo ID" value={item?.cargoItemId} />
             <Row label="Category" value={category} />
-            <Row label="Barcode / code" value={item?.barcode || item?.code} />
             <Row label="Expiry" value={expiry ? formatDate(expiry) : null} />
             <Row label="Batch number" value={cfBatch} />
             <Row label="Size" value={item?.size} />
@@ -139,6 +161,27 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
             <Row label="Module" value={cf.module} />
             <Row label="Bag" value={cf.bag_name} />
           </div>
+
+          {itemCode && (
+            <div className="uv-sec">
+              <div className="uv-sec-h"><span>Barcode / label</span></div>
+              <div className="uv-qr">
+                {qrUrl ? (
+                  <button type="button" className="uv-qr-img" onClick={handlePrintQr} title="Print / reprint this label">
+                    <img src={qrUrl} alt={`QR code ${itemCode}`} />
+                  </button>
+                ) : (
+                  <div className="uv-qr-img uv-qr-ph" />
+                )}
+                <div className="uv-qr-side">
+                  <div className="uv-qr-code">{itemCode}</div>
+                  <button type="button" className="uv-btn uv-qr-print" onClick={handlePrintQr}>
+                    <Icon name="Printer" size={14} /> Print / reprint
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {(item?.brand || item?.supplier) && (
             <div className="uv-sec">

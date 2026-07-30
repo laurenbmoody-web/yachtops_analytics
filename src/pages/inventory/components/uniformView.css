@@ -69,4 +69,15 @@
 .uv-btn-quiet { margin-right: auto; color: #6B7280; }
 .uv-btn:disabled { opacity: .55; cursor: default; }
 
+/* QR / label block in view mode — the actual code, not just its text. */
+.uv-qr { display: flex; align-items: center; gap: 16px; }
+.uv-qr-img { flex: none; width: 104px; height: 104px; padding: 7px; border: 1px solid #E5E7EB; border-radius: 12px; background: #FFFFFF; cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+.uv-qr-img:hover { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.uv-qr-img img { width: 100%; height: 100%; display: block; }
+.uv-qr-ph { cursor: default; background: #FAFAF8; }
+.uv-qr-ph:hover { border-color: #E5E7EB; box-shadow: none; }
+.uv-qr-side { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.uv-qr-code { font: 700 13px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: .04em; color: #1C1B3A; word-break: break-all; }
+.uv-qr-print { padding: 8px 14px; font-size: 12.5px; }
+
 @media (max-width: 520px) { .uv-panel { width: 100%; } }
