@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { money } from '../../laundry-management-dashboard/utils/laundryBilling';
 import { duplicateItem } from '../utils/inventoryStorage';
-import { fetchItemKitHolders } from '../../crew-profile/utils/crewKit';
+import WithCrewSection from './WithCrewSection';
 import LocPath from './LocPath';
 import './uniformView.css';
 
@@ -16,23 +16,12 @@ const Row = ({ label, value }) => ((value == null || value === '') ? null : (
 const UniformItemView = ({ item, canEdit, onEdit, onDuplicated, onClose }) => {
   const [activePhoto, setActivePhoto] = useState(null);
   const [dupBusy, setDupBusy] = useState(false);
-  const [holders, setHolders] = useState([]);
-  const [holdersOpen, setHoldersOpen] = useState(false);
   useEffect(() => {
     const onKey = (e) => { if (e?.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
   useEffect(() => { setActivePhoto(null); }, [item?.id]);
-  // Units of this item out with crew (in-service kit) — kept separate from the
-  // on-board stock total above; expand to see who holds what.
-  useEffect(() => {
-    let cancelled = false;
-    setHolders([]); setHoldersOpen(false);
-    if (item?.id) fetchItemKitHolders(item.id).then((h) => { if (!cancelled) setHolders(h); });
-    return () => { cancelled = true; };
-  }, [item?.id]);
-  const withCrewQty = holders.reduce((a, h) => a + (Number(h.qty) || 0), 0);
 
   const cf = item?.customFields || item?.custom_fields || {};
   const gallery = (Array.isArray(cf.images) && cf.images.length ? cf.images : (item?.imageUrl ? [item.imageUrl] : [])).filter(Boolean);
@@ -127,24 +116,7 @@ const UniformItemView = ({ item, canEdit, onEdit, onDuplicated, onClose }) => {
             )}
           </div>
 
-          {withCrewQty > 0 && (
-            <div className="uv-sec">
-              <button type="button" className="uv-crew-h" onClick={() => setHoldersOpen((o) => !o)} aria-expanded={holdersOpen}>
-                <span className="uv-crew-lbl"><Icon name="Users" size={13} /> With crew <span className="uv-crew-note">(separate from stock)</span></span>
-                <span className="uv-crew-right"><span className="uv-crew-qty">{withCrewQty}</span><Icon name={holdersOpen ? 'ChevronUp' : 'ChevronDown'} size={16} /></span>
-              </button>
-              {holdersOpen && (
-                <div className="uv-crew-list">
-                  {holders.map((h) => (
-                    <div className="uv-crew-row" key={`${h.userId}-${h.size}`}>
-                      <span className="uv-crew-nm">{h.name}</span>
-                      <span className="uv-crew-meta">{h.size ? <span className="uv-crew-sz">{h.size}</span> : null}<span className="uv-crew-x">×{h.qty}</span></span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          <WithCrewSection itemId={item?.id} />
 
           <div className="uv-sec">
             <div className="uv-sec-h"><span>Details</span></div>

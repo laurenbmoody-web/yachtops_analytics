@@ -84,7 +84,15 @@
 .uv-crew-note { font-weight: 600; letter-spacing: 0.2px; text-transform: none; color: #AEB4C2; }
 .uv-crew-right { display: inline-flex; align-items: center; gap: 8px; color: #8B8478; }
 .uv-crew-qty { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px; padding: 0 8px; border-radius: 999px; background: #FBEFE9; border: 1px solid #F3D9CB; color: #C65A1A; font: 800 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
-.uv-crew-list { margin-top: 10px; display: flex; flex-direction: column; }
+/* Compact per-size summary — stays short however many crew hold the item. */
+.uv-crew-body { margin-top: 10px; }
+.uv-crew-sizes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.uv-crew-chip { display: inline-flex; align-items: center; gap: 4px; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 999px; padding: 3px 10px; font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; }
+.uv-crew-chip b { color: #1C1B3A; font-weight: 800; font-variant-numeric: tabular-nums; }
+.uv-crew-chip.crew { background: #FBEFE9; border-color: #F3D9CB; color: #C65A1A; }
+.uv-crew-list { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; }
+.uv-crew-list::-webkit-scrollbar { width: 8px; }
+.uv-crew-list::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 999px; }
 .uv-crew-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid #F5F6F8; }
 .uv-crew-nm { font-size: 13.5px; color: #1C1B3A; font-weight: 600; }
 .uv-crew-meta { display: inline-flex; align-items: center; gap: 8px; flex: none; }
