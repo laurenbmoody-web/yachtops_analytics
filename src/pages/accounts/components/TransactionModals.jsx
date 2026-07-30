@@ -106,7 +106,13 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
     e.preventDefault();
     const mag = Number(amount);
     if (!mag || Number.isNaN(mag) || mag <= 0) { setErr('Enter a positive amount.'); return; }
-    const fx = crossCurrency ? (Number(fxRate) || 1) : 1;
+    // A cross-currency line with no rate given must NOT be booked at 1:1 — that
+    // silently misstates the base-currency figure. Make the crew supply a rate.
+    const fx = crossCurrency ? Number(fxRate) : 1;
+    if (crossCurrency && (!fx || Number.isNaN(fx) || fx <= 0)) {
+      setErr(`This is in ${currency} but the account is in ${acctCurrency} — enter the exchange rate.`);
+      return;
+    }
     setBusy(true); setErr('');
     const signed = direction === 'out' ? -Math.abs(mag) : Math.abs(mag);
     const line = catCode && catCode !== '__other__' ? lineByKey[catCode] : null;
@@ -147,8 +153,24 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
   return (
     <ModalShell onClose={onClose} panelClassName="ca-modal" isBusy={busy}>
       <form onSubmit={submit}>
-        <h2 className="ca-modal-title">Add transaction</h2>
-        <p className="ca-modal-sub">A manual money movement in the ledger.</p>
+        <h2 className="ca-modal-title">{seed ? 'Check this receipt' : 'Add transaction'}</h2>
+        <p className="ca-modal-sub">
+          {seed ? 'Read from the photo — confirm the figures before saving.' : 'A manual money movement in the ledger.'}
+        </p>
+
+        {/* What the scan literally read, so a misread total or date is caught here
+            rather than in the accounts. */}
+        {seed?.readAs && (
+          <div className={`ca-readas${seed.readAs.confidence === 'low' ? ' is-low' : ''}`}>
+            <span>
+              {seed.readAs.confidence === 'low' ? 'Hard to read — check carefully' : 'Read from the receipt'}
+            </span>
+            <b>
+              {seed.readAs.total ? `total ${seed.readAs.total}` : 'no total found'}
+              {seed.readAs.date ? ` · dated ${seed.readAs.date}` : ' · no date found'}
+            </b>
+          </div>
+        )}
 
         <div className="ca-form-row ca-form-grid">
           <div>
