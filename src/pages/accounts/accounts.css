@@ -255,16 +255,9 @@
 .ca-sug-change { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #E5E7EB; border-radius: 8px; background: #fff; color: #6B7280; font: inherit; font-size: 12px; font-weight: 600; padding: 4px 11px; cursor: pointer; }
 .ca-sug-change:hover { border-color: #C65A1A; color: #C65A1A; }
 
-/* ── Reworked toolbar: status segmented · search · filters · sort ─────────── */
+/* ── Toolbar: search · filters · sort. Which rows to show is inside Filters. ── */
 .ca-toolbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:22px}
 .ca-toolbar-sp{flex:1 1 24px}
-.ca-seg{display:inline-flex; background:#FAFAF8; border:1px solid #E5E7EB; border-radius:999px; padding:3px}
-.ca-seg button{border:0; background:none; font-family:inherit; font-size:13px; font-weight:600; color:#6B7280;
-  padding:7px 14px; border-radius:999px; cursor:pointer; display:inline-flex; align-items:center; gap:7px; white-space:nowrap}
-.ca-seg-n{font-size:11px; font-weight:700; padding:1px 7px; border-radius:999px; background:#EDEBE5; color:#6B7280}
-.ca-seg button[aria-selected="true"]{background:#fff; color:#1C1B3A; box-shadow:0 1px 3px rgba(28,27,58,.10)}
-.ca-seg button[data-k="look"][aria-selected="true"]{color:#C65A1A}
-.ca-seg button[data-k="look"][aria-selected="true"] .ca-seg-n{background:#C65A1A; color:#fff}
 .ca-search{display:inline-flex; align-items:center; gap:8px; background:#FAFAF8; border:1px solid #E5E7EB;
   border-radius:10px; padding:0 12px; height:38px; min-width:200px}
 .ca-search input{border:0; background:none; outline:none; font:inherit; font-size:13px; color:#1C1B3A; width:100%}
@@ -342,12 +335,15 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
 .ca-txn-date2.is-straddle{color:#A8871B; font-weight:600}
 .ca-mark.is-pending{background:#F0F1F5; color:#6B7280; text-transform:none; letter-spacing:0}
 
-/* Month-by choice, inside the Filters popover */
+/* Show / Month-by choices, inside the Filters popover */
 .ca-fp-seg{display:flex; gap:5px}
 .ca-fp-seg button{flex:1; border:1px solid #E5E7EB; background:#FAFAF8; border-radius:8px; padding:7px 9px;
-  font:inherit; font-size:11.5px; font-weight:600; color:#6B7280; cursor:pointer}
+  font:inherit; font-size:11.5px; font-weight:600; color:#6B7280; cursor:pointer; white-space:nowrap}
 .ca-fp-seg button:hover{border-color:#F3DDD0; color:#C65A1A}
 .ca-fp-seg button[aria-pressed="true"]{background:#1C1B3A; border-color:#1C1B3A; color:#fff}
+/* Row counts sit with their label rather than in a separate badge. */
+.ca-fp-seg em{font-style:normal; font-weight:700; color:#AEB4C2; margin-left:3px}
+.ca-fp-seg button[aria-pressed="true"] em{color:#B8BDCB}
 
 /* ── Column headers ───────────────────────────────────────────────────────── */
 .ca-txnhead{display:grid; grid-template-columns:26px 104px 1fr 150px 130px 96px; align-items:end; gap:16px;
