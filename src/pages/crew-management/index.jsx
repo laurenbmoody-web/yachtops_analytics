@@ -2032,33 +2032,42 @@ const CrewManagement = () => {
                           {deptList.length > 1 && (
                             <div className="cm-md-sec">
                               <p className="cm-md-lbl">Department</p>
-                              <div className="cm-md-pills">
-                                <button type="button" className={`cm-md-pill${!deptFilter ? ' is-on' : ''}`} onClick={() => setDeptFilter(null)}>All</button>
-                                {deptList.map((d) => (
-                                  <button key={d} type="button" className={`cm-md-pill${deptFilter === d ? ' is-on' : ''}`} onClick={() => setDeptFilter((v) => (v === d ? null : d))}>{d === '—' ? 'Unassigned' : d}</button>
-                                ))}
+                              <div className="cm-md-selwrap">
+                                <select className="cm-md-select" value={deptFilter ?? ''} onChange={(e) => setDeptFilter(e.target.value || null)}>
+                                  <option value="">All departments</option>
+                                  {deptList.map((d) => (
+                                    <option key={d} value={d}>{d === '—' ? 'Unassigned' : d}</option>
+                                  ))}
+                                </select>
+                                <Icon name="ChevronDown" size={15} />
                               </div>
                             </div>
                           )}
                           <div className="cm-md-sec">
                             <p className="cm-md-lbl">Status</p>
-                            <div className="cm-md-pills">
-                              <button type="button" className={`cm-md-pill${!statusFilter ? ' is-on' : ''}`} onClick={() => setStatusFilter(null)}>All</button>
-                              <button type="button" className={`cm-md-pill${statusFilter === 'active' ? ' is-on' : ''}`} onClick={() => setStatusFilter((s) => (s === 'active' ? null : 'active'))}>On board</button>
-                              <button type="button" className={`cm-md-pill${statusFilter === 'away' ? ' is-on' : ''}`} onClick={() => setStatusFilter((s) => (s === 'away' ? null : 'away'))}>Away</button>
-                              {CREW_STATUSES.filter((s) => s.value !== 'active' && s.value !== 'invited').map((s) => (
-                                <button key={s.value} type="button" className={`cm-md-pill${statusFilter === s.value ? ' is-on' : ''}`} onClick={() => setStatusFilter((v) => (v === s.value ? null : s.value))}>{s.label}</button>
-                              ))}
+                            <div className="cm-md-selwrap">
+                              <select className="cm-md-select" value={statusFilter ?? ''} onChange={(e) => setStatusFilter(e.target.value || null)}>
+                                <option value="">All statuses</option>
+                                <option value="active">On board</option>
+                                <option value="away">Away</option>
+                                {CREW_STATUSES.filter((s) => s.value !== 'active' && s.value !== 'invited').map((s) => (
+                                  <option key={s.value} value={s.value}>{s.label}</option>
+                                ))}
+                              </select>
+                              <Icon name="ChevronDown" size={15} />
                             </div>
                           </div>
                           <div className="cm-md-sec">
                             <p className="cm-md-lbl">Documents</p>
-                            <div className="cm-md-pills">
-                              <button type="button" className={`cm-md-pill${!docsFilter ? ' is-on' : ''}`} onClick={() => setDocsFilter(null)}>All</button>
-                              <button type="button" className={`cm-md-pill${docsFilter === 'expired' ? ' is-on' : ''}`} onClick={() => setDocsFilter((v) => (v === 'expired' ? null : 'expired'))}>Expired</button>
-                              {[30, 60, 90].map((n) => (
-                                <button key={n} type="button" className={`cm-md-pill${docsFilter === n ? ' is-on' : ''}`} onClick={() => setDocsFilter((v) => (v === n ? null : n))}>≤ {n} days</button>
-                              ))}
+                            <div className="cm-md-selwrap">
+                              <select className="cm-md-select" value={docsFilter ?? ''} onChange={(e) => { const v = e.target.value; setDocsFilter(v === '' ? null : v === 'expired' ? 'expired' : Number(v)); }}>
+                                <option value="">All documents</option>
+                                <option value="expired">Expired</option>
+                                {[30, 60, 90].map((n) => (
+                                  <option key={n} value={n}>≤ {n} days</option>
+                                ))}
+                              </select>
+                              <Icon name="ChevronDown" size={15} />
                             </div>
                           </div>
                           <div className="cm-md-sec">
