@@ -128,6 +128,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const locatedRef = useRef(null);
+  const locateClickRef = useRef(null); // { roomId, scanId, hotspotId } — clicking this room opens the pinned scan
   const onAddScanRef = useRef(onAddScan);
   onAddScanRef.current = onAddScan;
   const onReloadRef = useRef(onReload);
@@ -226,9 +227,14 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     }
     if (!found) return;
     locatedRef.current = locateId;
+    // If the locate carried a pinned scan, remember it so a click on this room
+    // opens that scan with the pin highlighted (not just the room's own scan).
+    const pin = searchParams.get('pin');
+    const scan = searchParams.get('scan');
+    locateClickRef.current = pin && scan ? { roomId: found.spaceId, scanId: scan, hotspotId: pin } : null;
     const t = setTimeout(() => jumpToSpace(found.deckId, found.spaceId), 350);
     const next = new URLSearchParams(searchParams);
-    next.delete('locate');
+    next.delete('locate'); next.delete('pin'); next.delete('scan');
     setSearchParams(next, { replace: true });
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -303,7 +309,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       // A click (no real drag) on a placed room: open a scanned room on the
       // map, or start the add-scan flow for one that isn't scanned yet.
       if (d.fromPlaced) {
-        if (d.scanId) navigate(`/vessel/map?scan=${d.scanId}`);
+        const lc = locateClickRef.current;
+        if (lc && lc.roomId === d.spaceId && lc.scanId) navigate(`/vessel/map?scan=${lc.scanId}&pin=${lc.hotspotId}`);
+        else if (d.scanId) navigate(`/vessel/map?scan=${d.scanId}`);
         else onAddScanRef.current?.({ id: d.spaceId, name: d.name });
       }
     } else if (inside) {
@@ -1065,8 +1073,11 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                           type="button"
                           className="dp-sr-item"
                           onClick={() => {
-                            if (canLocate) { setOverlayRoom(null); jumpToSpace(meta.deckId, room.roomId); }
-                            else if (room.scanId) navigate(`/vessel/map?scan=${room.scanId}`);
+                            if (canLocate) {
+                              setOverlayRoom(null);
+                              locateClickRef.current = room.hotspotId ? { roomId: room.roomId, scanId: room.pinScanId, hotspotId: room.hotspotId } : null;
+                              jumpToSpace(meta.deckId, room.roomId);
+                            } else if (room.scanId) navigate(`/vessel/map?scan=${room.scanId}`);
                           }}
                           disabled={!canLocate && !room.scanId}
                         >
