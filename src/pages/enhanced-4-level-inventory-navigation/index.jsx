@@ -2194,7 +2194,6 @@ const SortableFolderCard = ({ id, name, icon, color, itemCount, subFolderCount, 
         isFolderDropTarget={isFolderDropTarget}
         isDropTargetReady={isDropTargetReady}
         onVisibilityChange={undefined}
-        canMove={undefined}
         layout={layout}
       />
     </div>
