@@ -21,8 +21,10 @@
   # of the web build — excluding them stops server-side config (api versions,
   # bucket ids, env var NAMES) from tripping the web secret scan.
   SECRETS_SCAN_OMIT_PATHS = "supabase/functions/**"
-  # Increase Node.js heap size to prevent OOM during Vite bundle step
-  NODE_OPTIONS = "--max_old_space_size=4096"
+  # Increase Node.js heap size to prevent OOM during the Vite bundle step.
+  # The sourcemapped build peaks right at 4 GB, so branch deploys intermittently
+  # OOM ("allocation failure" near max_old_space_size); 6 GB gives real headroom.
+  NODE_OPTIONS = "--max_old_space_size=6144"
 
 # API proxy to Netlify Functions
 [[redirects]]
