@@ -220,9 +220,10 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   // then clear the param so it doesn't re-fire on the next render.
   useEffect(() => {
     const locateId = searchParams.get('locate');
-    // Wait for the layout to finish loading (the deck DOM only exists then) and
-    // for the decks to be in — otherwise there's nothing to scroll to or pulse.
-    if (!locateId || loading || !decks?.length || locatedRef.current === locateId) return;
+    // Wait for the layout AND the GA image dimensions (gaDims) — the plan is
+    // aspect-ratio sized and only renders at full height once gaDims is in, so
+    // firing earlier would scroll a tiny placeholder that then grows away.
+    if (!locateId || loading || !gaDims || !decks?.length || locatedRef.current === locateId) return;
     const ids = locateId.split(',').filter(Boolean);
     const targets = [];
     for (const d of decks) {
@@ -246,7 +247,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     setSearchParams(next, { replace: true });
     return () => { clearTimeout(jt); clearTimeout(clr); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, decks, loading]);
+  }, [searchParams, decks, loading, gaDims]);
 
   // Roll the pins inside each room's scan up to the plan (see getPlanOverlays).
   // Reloads whenever the deck model changes (a scan added, a room placed).

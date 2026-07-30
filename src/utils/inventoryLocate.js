@@ -66,7 +66,7 @@ export async function searchInventoryLocations(query, { limit = 20 } = {}) {
   if (nodeIds.length) {
     const { data: hs } = await supabase
       .from('scan_hotspots')
-      .select('id, scan_id, label, location_node_id')
+      .select('id, scan_id, label, layer, location_node_id')
       .in('location_node_id', [...new Set(nodeIds)]);
     (hs || []).forEach((h) => { if (h.location_node_id && !hotspotByNode[h.location_node_id]) hotspotByNode[h.location_node_id] = h; });
   }
@@ -94,18 +94,23 @@ export async function searchInventoryLocations(query, { limit = 20 } = {}) {
       const vid = sl?.vesselLocationId || sl?.locationId;
       const qty = Number(sl?.qty ?? sl?.quantity ?? 0) || 0;
       if (!vid) continue;
-      // Does a map pin hold this stock? The pin lives in its scan's room.
+      // Does a map pin hold this stock? The pin lives in its scan's room. When
+      // an item sits in more than one pin, prefer the real stock pin (an
+      // Inventory/Safety/Storage pin) over a plain "shelf"/general marker.
       const hs = hotspotByNode[vid];
-      if (hs && !pin) {
+      if (hs) {
         const proom = roomByScan[hs.scan_id];
-        pin = {
+        const rank = { inventory: 3, safety: 2, storage: 1 };
+        const cand = {
           hotspotId: hs.id,
           scanId: hs.scan_id,
           label: hs.label || '',
+          layer: hs.layer || 'general',
           roomId: proom || null,
           roomName: byId[proom]?.name || null,
           placed: byId[proom]?.plan_x != null,
         };
+        if (!pin || (rank[cand.layer] || 0) > (rank[pin.layer] || 0)) pin = cand;
       }
       const roomId = roomFor(vid);
       if (!roomId) continue;
