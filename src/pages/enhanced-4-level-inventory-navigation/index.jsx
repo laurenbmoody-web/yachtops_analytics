@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { dateLocale, formatDate } from '../../utils/dateFormat';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
@@ -2588,6 +2588,18 @@ const LocationFirstInventory = () => {
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [activeFilters, setActiveFilters] = useState({ tags: [] });
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Deep-link filters from the item drawer (Brand / Supplier → filtered view).
+  // Seed the filter, then consume the query param so it doesn't re-fire.
+  useEffect(() => {
+    const brand = searchParams.get('brand');
+    const supplier = searchParams.get('supplier');
+    if (!brand && !supplier) return;
+    setActiveFilters(prev => ({ ...prev, ...(brand ? { brand } : {}), ...(supplier ? { supplier } : {}) }));
+    const next = new URLSearchParams(searchParams);
+    next.delete('brand'); next.delete('supplier');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem('cargo_inventory_view_mode') || 'list'; } catch { return 'list'; }
   });
