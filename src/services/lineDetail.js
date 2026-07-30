@@ -51,6 +51,25 @@ export const departmentForCode = (code) => {
   return BUCKET_DEPARTMENT[BUCKET_BY_CODE[code]] || null;
 };
 
+// The department a line should start on, in priority order:
+//
+//   1. Whatever is already on the line — never overridden.
+//   2. The department implied by the MYBA code. This is the primary signal because
+//      `department` means WHOSE BUDGET BEARS THE COST, not who walked into the shop:
+//      an engineer buying an interior light bulb is still an Interior cost.
+//   3. The SPENDER's own department. Most crew buy for their own department, so this
+//      is a good guess when the code implies nothing (Guest Misc, Misc Ship Cost, or
+//      before a category has been picked at all).
+//
+// Deliberately NOT the person reconciling: at month-end one person often works
+// through everyone's cards, and defaulting to them would mis-attribute every cost.
+export const defaultDepartment = (txn, { spenderDepartment } = {}) => {
+  if (txn?.department) return txn.department;
+  const fromCode = departmentForCode(txn?.category_code);
+  if (fromCode) return fromCode;
+  return spenderDepartment || '';
+};
+
 // ── Allocation (charter vs owner) ────────────────────────────────────────────
 // An account whose funds are ring-fenced for a charter answers the question by
 // itself. 'charter_apa' → charter money; 'owner' → owner money. Anything else
