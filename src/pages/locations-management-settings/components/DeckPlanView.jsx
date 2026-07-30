@@ -152,6 +152,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [locateFocus, setLocateFocus] = useState(null); // Set of roomIds to spotlight (dim the rest) after a "locate"
   const flashTimerRef = useRef(null);
   const focusTimerRef = useRef(null);
+  const scrollTimerRef = useRef(null);
   const [localShapes, setLocalShapes] = useState({}); // spaceId -> shape | null (override)
   const [localCats, setLocalCats] = useState({}); // spaceId -> category (override for instant recolour)
   const [localNames, setLocalNames] = useState({}); // spaceId -> name (override for instant rename)
@@ -651,17 +652,28 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   // Follow a stairs link: scroll the connected deck into view and flash the
   // room it lands on, so a cross-deck connection reads like walking up stairs.
   const jumpToSpace = (deckId, spaceId) => {
-    // Re-scroll a few times: the GA background images load async and grow the
-    // deck's height afterwards, so a single scroll lands on a stale position.
-    const scroll = (behavior) => {
-      const el = typeof document !== 'undefined' && document.getElementById(`dp-deck-${deckId}`);
-      if (el) el.scrollIntoView({ behavior, block: 'center' });
-    };
-    scroll('smooth');
-    [250, 700, 1400].forEach((d) => setTimeout(() => scroll('auto'), d));
     setFlashSpace(spaceId);
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     flashTimerRef.current = setTimeout(() => setFlashSpace(null), 1800);
+    if (typeof document === 'undefined') return;
+    // The GA background image loads async and grows the deck's height, so a
+    // one-shot scroll lands on a stale spot. Keep nudging until the deck is
+    // actually centred in the viewport (re-checking, not just firing on timers).
+    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    let n = 0;
+    let settled = 0;
+    const step = () => {
+      const el = document.getElementById(`dp-deck-${deckId}`);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const off = Math.abs((rect.top + rect.height / 2) - window.innerHeight / 2);
+        if (off > 16) { el.scrollIntoView({ behavior: n === 0 ? 'smooth' : 'auto', block: 'center' }); settled = 0; }
+        else settled += 1;
+      }
+      n += 1;
+      if (settled < 2 && n < 24) scrollTimerRef.current = setTimeout(step, 250);
+    };
+    step();
   };
 
   const toggleLinkMode = () => { setPendingLink(null); setSelLink(null); setTraceMode(false); setTracing(null); setLinkMode((v) => !v); };
