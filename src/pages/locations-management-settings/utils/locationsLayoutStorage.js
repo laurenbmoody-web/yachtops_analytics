@@ -142,6 +142,65 @@ export const recordDeckShapeSample = async ({ deckId, spaceId, crop, gaImageUrl,
   }
 };
 
+// Deck-plan overlays — roll every pin that lives inside a scan up to the room
+// (deck-plan space) that scan belongs to, so the flat plan can show "how many
+// defects / inventory / safety items are in this room" without opening it.
+//
+// `scanIndex` is [{ scanId, spaceId }] from the deck model (each placed room and
+// its primary scan). Returns:
+//   layerCounts   : { [spaceId]: { [layer]: n } }        — pin tallies per room
+//   defectsBySpace: { [spaceId]: [{ id,title,priority,status,hotspotId,scanId }] }
+// Defects are attributed to a room via their map pin (hotspot → scan → room);
+// open ones only (Closed/declined excluded).
+export const getPlanOverlays = async (scanIndex = []) => {
+  const empty = { layerCounts: {}, defectsBySpace: {} };
+  const tenantId = await getTenantId();
+  if (!tenantId) return empty;
+
+  const spaceByScan = {};
+  const scanIds = [];
+  for (const s of scanIndex) {
+    if (s?.scanId && s?.spaceId) { spaceByScan[s.scanId] = s.spaceId; scanIds.push(s.scanId); }
+  }
+
+  // Pins in every scan, tallied to their scan's room by layer.
+  const layerCounts = {};
+  const spaceByHotspot = {};
+  const scanByHotspot = {};
+  if (scanIds.length) {
+    const { data: hs, error } = await supabase
+      .from('scan_hotspots').select('id, scan_id, layer').in('scan_id', scanIds);
+    if (error) { console.error('[layout] overlay hotspots error:', error); }
+    (hs || []).forEach((h) => {
+      const sp = spaceByScan[h.scan_id]; if (!sp) return;
+      spaceByHotspot[h.id] = sp;
+      scanByHotspot[h.id] = h.scan_id;
+      const layer = h.layer || 'general';
+      (layerCounts[sp] = layerCounts[sp] || {});
+      layerCounts[sp][layer] = (layerCounts[sp][layer] || 0) + 1;
+    });
+  }
+
+  // Open defects, attributed to a room by their map pin.
+  const defectsBySpace = {};
+  const { data: defs, error: defErr } = await supabase
+    .from('defects')
+    .select('id, title, priority, status, hotspot_id, location_node_id')
+    .eq('tenant_id', tenantId)
+    .not('status', 'in', '("Closed","declined")');
+  if (defErr) { console.error('[layout] overlay defects error:', defErr); }
+  (defs || []).forEach((d) => {
+    const sp = spaceByHotspot[d.hotspot_id];
+    if (!sp) return; // not pinned in a scan tied to a placed room — skip for now
+    (defectsBySpace[sp] = defectsBySpace[sp] || []).push({
+      id: d.id, title: d.title, priority: d.priority, status: d.status,
+      hotspotId: d.hotspot_id, scanId: scanByHotspot[d.hotspot_id] || null,
+    });
+  });
+
+  return { layerCounts, defectsBySpace };
+};
+
 // Doorway links between rooms (undirected). Stored canonically a < b.
 const orderPair = (a, b) => (a < b ? [a, b] : [b, a]);
 
