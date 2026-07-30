@@ -23,7 +23,7 @@ const Row = ({ label, value, onClick }) => ((value == null || value === '') ? nu
   <div className="uv-row">
     <span className="uv-k">{label}</span>
     {onClick
-      ? <button type="button" className="uv-v uv-v-link" onClick={onClick}>{value}<Icon name="ArrowUpRight" size={12} /></button>
+      ? <button type="button" className="uv-v uv-v-link" onClick={onClick}>{value}</button>
       : <span className="uv-v">{value}</span>}
   </div>
 ));
@@ -145,7 +145,7 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
     return (
       <div className={`uv-loc${place ? ' uv-loc-link' : ''}`} key={key} {...linkProps}>
         <span className="uv-loc-k"><Icon name="MapPin" size={13} /> <LocPath label={nameFor(l)} fallback={fallback} /></span>
-        <span className="uv-loc-v">{place && <Icon name="ArrowUpRight" size={12} className="uv-loc-arrow" />}{qty}</span>
+        <span className="uv-loc-v">{qty}</span>
       </div>
     );
   };

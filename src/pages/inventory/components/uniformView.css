@@ -83,22 +83,18 @@
 /* Linked row value (folder path, brand, supplier) — reads as text, hints as a
    link on hover with a terracotta tint and the ↗ glyph. */
 .uv-v-link {
-  display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
+  display: inline-flex; align-items: center; max-width: 100%;
   background: none; border: 0; padding: 0; cursor: pointer;
   font: inherit; font-size: 13.5px; color: #1C1B3A; text-align: right;
   transition: color .12s;
 }
-.uv-v-link svg { color: #AEB4C2; flex-shrink: 0; transition: color .12s; }
 .uv-v-link:hover { color: #C65A1A; text-decoration: underline; text-underline-offset: 2px; }
-.uv-v-link:hover svg { color: #C65A1A; }
 
 /* Stock location that resolves to a map pin — the whole row is clickable and
-   opens the vessel map there. Signalled by a hover tint + the ↗ glyph. */
+   opens the vessel map there. Signalled by a hover tint. */
 .uv-loc-link { cursor: pointer; border-radius: 8px; }
 .uv-loc-link:hover { background: #FBEFE9; box-shadow: 0 0 0 6px #FBEFE9; }
 .uv-loc-link:hover .uv-loc-k { color: #C65A1A; }
 .uv-loc-link:focus-visible { outline: 2px solid #F3DECE; outline-offset: 3px; }
-.uv-loc-arrow { color: #AEB4C2; margin-right: 6px; vertical-align: middle; transition: color .12s; }
-.uv-loc-link:hover .uv-loc-arrow { color: #C65A1A; }
 
 @media (max-width: 520px) { .uv-panel { width: 100%; } }
