@@ -49,14 +49,15 @@ const STANDARD_GROUPS = STANDARD_BUCKET_ORDER.map((bucket) => ({
     .map((l) => ({ category: l.category, code: l.code })),
 })).filter((g) => g.lines.length);
 
-// Operational tag → { label, path }. Deep-links to the module that owns the record.
+// Where a line came from operationally → the module that owns that record. Only
+// records the line was *raised against* belong here: the crew member who spent it
+// is a field on the line, not an operational source, so there's no profile link.
 const TAGS = [
-  { key: 'supplier_invoice_id', label: 'Invoice', path: () => '/provisioning' },
-  { key: 'supplier_order_id', label: 'Order', path: () => '/provisioning' },
-  { key: 'provisioning_item_id', label: 'Item', path: () => '/provisioning' },
-  { key: 'trip_id', label: 'Trip', path: () => '/trips-management-dashboard' },
-  { key: 'defect_id', label: 'Defect', path: () => '/defects' },
-  { key: 'crew_id', label: 'Crew', path: (t) => `/profile/${t.crew_id}` },
+  { key: 'supplier_invoice_id', label: 'supplier invoice', path: () => '/provisioning' },
+  { key: 'supplier_order_id', label: 'purchase order', path: () => '/provisioning' },
+  { key: 'provisioning_item_id', label: 'provisioning item', path: () => '/provisioning' },
+  { key: 'trip_id', label: 'trip', path: () => '/trips-management-dashboard' },
+  { key: 'defect_id', label: 'defect', path: () => '/defects' },
 ];
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -444,16 +445,21 @@ export default function Ledger() {
     else flash('Could not void — please try again');
   };
 
-  const renderChips = (t) => {
-    const chips = TAGS.filter((tag) => t[tag.key]);
-    if (!chips.length) return null;
+  // Where the line came from, as a sentence rather than a row of badges: "raised
+  // against a supplier invoice". Only rendered when the line actually carries one.
+  const renderLinks = (t) => {
+    const links = TAGS.filter((tag) => t[tag.key]);
+    if (!links.length) return null;
     return (
-      <div className="ca-chips">
-        {chips.map((tag) => (
-          <button key={tag.key} type="button" className="ca-chip" title={`Open ${tag.label}`}
-            onClick={() => navigate(tag.path(t))}>
-            {tag.label}
-          </button>
+      <div className="ca-links">
+        <span className="ca-links-l">raised against</span>
+        {links.map((tag, i) => (
+          <React.Fragment key={tag.key}>
+            {i > 0 && <span className="ca-links-sep">·</span>}
+            <button type="button" className="ca-link" onClick={() => navigate(tag.path(t))}>
+              {tag.label}
+            </button>
+          </React.Fragment>
         ))}
       </div>
     );
@@ -567,7 +573,6 @@ export default function Ledger() {
             </div>
           )}
           {look && !voided && canEdit && rowSplits.length === 0 && !looksLikeRefund(t) && renderSuggest(t)}
-          {renderChips(t)}
           {/* Inline split breakdown — a split line shows its parts, the same way an
               unsplit line shows its single category. */}
           {rowSplits.length > 0 && (
@@ -593,19 +598,7 @@ export default function Ledger() {
               {alloc && <span className={`ca-allocx${alloc === 'charter' ? ' is-charter' : ''}`}>{alloc === 'charter' ? 'charter · APA' : 'owner'}</span>}
             </div>
           )}
-          {renderChips(t)}
-          {/* Inline split breakdown — a split line shows its parts, the same way an
-              unsplit line shows its single category. */}
-          {rowSplits.length > 0 && (
-            <div className="ca-splitline">
-              {rowSplits.map((sp) => (
-                <span key={sp.id} className="ca-splitpart">
-                  <b>{formatMoney(Math.abs(sp.amount), t.currency)}</b>
-                  {sp.category_code ? ` ${sp.category_code} · ` : ' '}{sp.category}
-                </span>
-              ))}
-            </div>
-          )}
+          {renderLinks(t)}
         </div>
         <span className={`ca-txn-acct${!t.account_id ? ' is-unassigned' : ''}`}>
           {acct ? acct.name : 'Unassigned'}
