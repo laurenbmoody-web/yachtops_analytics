@@ -85,8 +85,11 @@ const Sec = ({ id, icon, name, open, onToggle, summary, children }) => (
   </div>
 );
 
-const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onSaved }) => {
+const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onSaved, quick = false }) => {
   const isEdit = !!item;
+  // Quick-add lane (dashboard): open on just the essentials, one tap to the full
+  // form. Editing always opens the full form.
+  const [showFull, setShowFull] = useState(isEdit || !quick);
   const folderDisplay = defaultSubLocation ? `${defaultLocation} > ${defaultSubLocation}` : (defaultLocation || '');
 
   const [profile, setProfile] = useState(
@@ -513,7 +516,10 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       } else {
         // plain single item — the one blank-labelled column
         stock_locations = uniLocs.filter((l) => l.label).map((l) => ({ locationName: l.label, vesselLocationId: l.id || undefined, qty: cell(l.label, '') }));
-        totalQty = uniLocs.reduce((a, l) => a + (l.label ? cell(l.label, '') : 0), 0);
+        const placedQty = uniLocs.reduce((a, l) => a + (l.label ? cell(l.label, '') : 0), 0);
+        // Quick-add may record a count before a location is chosen — keep it in
+        // the item total (unplaced) rather than dropping it.
+        totalQty = placedQty + cell('', '');
       }
       const reorderVal = hasVar ? reorderTotal : (Number(reorderSizes['']) || 0);
       // For list display, surface the first priced variant at item level.
@@ -629,11 +635,15 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         if (idx === ls.length - 1 && !old) next.push({ label: '', id: '' });
         return next;
       });
-      if (old && old !== label) {
+      if ((old || '') !== label) {
+        // Carry any quantities already typed to the new location — including the
+        // blank '' size of a plain item, and the empty→named case (qty entered in
+        // the quick lane before a location was chosen).
         setMatrix((m) => {
           const next = { ...m };
-          activeSizes.forEach((s) => {
-            if (next[`${old}||${s}`] != null) { next[`${label}||${s}`] = next[`${old}||${s}`]; delete next[`${old}||${s}`]; }
+          [...activeSizes, ''].forEach((s) => {
+            const ok = `${old || ''}||${s}`;
+            if (next[ok] != null && ok !== `${label}||${s}`) { next[`${label}||${s}`] = next[ok]; delete next[ok]; }
           });
           return next;
         });
@@ -653,6 +663,45 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         <button className="itf-x" onClick={onClose} aria-label="Close"><Icon name="X" size={20} /></button>
       </div>
 
+      {!showFull ? (
+      <div className="itf-body itf-quickbody">
+        <p className="itf-quicklead">Just the essentials — you can add the rest anytime.</p>
+        <div className="itf-idcard">
+          <div className="itf-phcol">
+            <label className="itf-ph">
+              {photoBusy ? <span className="itf-spin" /> : imageUrl ? <img src={imageUrl} alt="" /> : <>＋<br />Photo</>}
+              <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; uploadPhoto(f); }} />
+            </label>
+          </div>
+          <div className="itf-idf">
+            <input ref={nameRef} className="itf-nm" value={name} onChange={(e) => setName(e.target.value)} placeholder="Item name" />
+            <input className="itf-brandline" value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand (optional)" aria-label="Brand" />
+          </div>
+        </div>
+        {photoErr && <div className="itf-err" style={{ marginTop: 8 }}>{photoErr}</div>}
+        <div className="itf-quickess">
+          <div className="itf-f" style={{ margin: 0 }}>
+            <label className="itf-lab">Location <span className="opt">optional</span></label>
+            <button type="button" className="itf-pick" onClick={() => setLocTarget({ kind: 'uni', idx: 0 })}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <Icon name="MapPin" size={15} style={{ color: '#C65A1A', flexShrink: 0 }} />
+                <span className={uniLocs[0]?.label ? '' : 'ph'} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{uniLocs[0]?.label || 'Select location…'}</span>
+              </span>
+              <Icon name="ChevronRight" size={15} style={{ color: '#AEB4C2', flexShrink: 0 }} />
+            </button>
+          </div>
+          <div className="itf-f" style={{ margin: 0 }}>
+            <label className="itf-lab">Qty</label>
+            <input className="itf-in" value={matrix[`${uniLocs[0]?.label || ''}||`] ?? ''} onChange={(e) => setCell(uniLocs[0]?.label || '', '', Number(e.target.value) || 0)} placeholder="0" inputMode="numeric" aria-label="Quantity" />
+          </div>
+        </div>
+        <button type="button" className="itf-quickmore" onClick={() => setShowFull(true)}>
+          <span className="plus">＋</span> Add full details
+          <span className="sub">profile · buying · barcode…</span>
+        </button>
+        {error && <div className="itf-err">{error}</div>}
+      </div>
+      ) : (
       <div className="itf-body">
         {/* 1 IDENTITY */}
         <Sec icon="Package" name="Identity" open={open.identity} onToggle={() => toggle('identity')}>
@@ -932,6 +981,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
         {error && <div className="itf-err">{error}</div>}
       </div>
+      )}
 
       <div className="itf-foot">
         <button className="itf-btn itf-ghost" onClick={onClose}>Cancel</button>

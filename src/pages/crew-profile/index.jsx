@@ -4402,8 +4402,6 @@ const canEdit = (() => {
         return renderPreferences();
       case 'hor':
         return renderHOR();
-      case 'documents':
-        return renderDocuments();
       case 'seatime':
         return renderSeaTime();
       case 'history':

@@ -110,16 +110,17 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
           <div className="uv-sec">
             <div className="uv-sec-h"><span>Stock</span><span className="uv-total">{total}{item?.unit ? ` ${item.unit}` : ''}</span></div>
             {multiLoc ? (
-              <div className="uv-storelist">
-                {placed.map((l, i) => (
-                  <div className="uv-storerow" key={i}>
-                    <span className="uv-stored"><Icon name="MapPin" size={14} /> <LocPath label={nameFor(l)} fallback={`Location ${i + 1}`} /></span>
-                    <span className="uv-storesizes">{l?.qty ?? l?.quantity ?? 0}</span>
-                  </div>
-                ))}
-              </div>
+              placed.map((l, i) => (
+                <div className="uv-loc" key={i}>
+                  <span className="uv-loc-k"><Icon name="MapPin" size={13} /> <LocPath label={nameFor(l)} fallback={`Location ${i + 1}`} /></span>
+                  <span className="uv-loc-v">{l?.qty ?? l?.quantity ?? 0}</span>
+                </div>
+              ))
             ) : (nameFor(placed[0]) ? (
-              <p className="uv-stored"><Icon name="MapPin" size={14} /> <LocPath label={nameFor(placed[0])} /></p>
+              <div className="uv-loc">
+                <span className="uv-loc-k"><Icon name="MapPin" size={13} /> <LocPath label={nameFor(placed[0])} /></span>
+                <span className="uv-loc-v">{total}</span>
+              </div>
             ) : null)}
           </div>
 

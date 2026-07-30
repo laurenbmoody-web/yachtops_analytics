@@ -900,7 +900,7 @@ const Dashboard = () => {
 
         {/* Modals */}
         {showAddInventoryModal && (
-          <ItemFormModal onClose={() => setShowAddInventoryModal(false)} />
+          <ItemFormModal quick onClose={() => setShowAddInventoryModal(false)} onSaved={() => setShowAddInventoryModal(false)} />
         )}
         {showReportDefectModal && (
           <QuickAddDefectModal
