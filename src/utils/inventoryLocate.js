@@ -25,29 +25,21 @@ export async function searchInventoryLocations(query, { limit = 20 } = {}) {
   const tenantId = await getTenantId();
   if (!tenantId) return [];
 
-  const { data: items, error: itemErr } = await supabase
-    .from('inventory_items')
-    .select('id, name, stock_locations')
-    .eq('tenant_id', tenantId)
-    .ilike('name', `%${q}%`)
-    .limit(limit);
-  if (itemErr || !items?.length) return [];
-
-  // The location tree (for rollup + names + which nodes are placed on a plan).
-  const { data: locs } = await supabase
-    .from('vessel_locations')
-    .select('id, name, parent_id, plan_x')
-    .eq('tenant_id', tenantId)
-    .eq('is_archived', false);
+  // Items, the location tree and scans are independent — fetch in parallel.
+  const [itemsRes, locsRes, scansRes] = await Promise.all([
+    supabase.from('inventory_items').select('id, name, stock_locations')
+      .eq('tenant_id', tenantId).ilike('name', `%${q}%`).limit(limit),
+    supabase.from('vessel_locations').select('id, name, parent_id, plan_x')
+      .eq('tenant_id', tenantId).eq('is_archived', false),
+    supabase.from('vessel_scans').select('id, space_id, status')
+      .eq('tenant_id', tenantId).not('space_id', 'is', null),
+  ]);
+  const items = itemsRes.data;
+  if (itemsRes.error || !items?.length) return [];
+  const locs = locsRes.data;
+  const scans = scansRes.data;
   const byId = {};
   (locs || []).forEach((l) => { byId[l.id] = l; });
-
-  // Ready scans keyed by the room they belong to (first ready one wins).
-  const { data: scans } = await supabase
-    .from('vessel_scans')
-    .select('id, space_id, status')
-    .eq('tenant_id', tenantId)
-    .not('space_id', 'is', null);
   const scanByRoom = {};
   const roomByScan = {};
   (scans || []).forEach((s) => {

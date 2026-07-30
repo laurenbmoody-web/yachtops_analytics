@@ -667,16 +667,16 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     let n = 0;
     const tick = () => {
       const el = document.getElementById(`dp-deck-${deckId}`);
-      const done = () => el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       if (el) {
+        // Scroll on every tick so the page moves immediately, then keeps
+        // correcting as the plan settles; stop once the deck's height holds.
+        el.scrollIntoView({ behavior: n === 0 ? 'smooth' : 'auto', block: 'center' });
         const h = el.offsetHeight;
         if (h > 0 && h === lastH) stable += 1; else stable = 0;
         lastH = h;
-        if (stable >= 2) { done(); scrollTimerRef.current = null; return; }
       }
       n += 1;
-      if (n < 40) scrollTimerRef.current = setTimeout(tick, 120);
-      else if (el) done();
+      if (stable < 3 && n < 30) scrollTimerRef.current = setTimeout(tick, 150);
     };
     tick();
   };

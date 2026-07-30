@@ -360,13 +360,13 @@ const Header = () => {
       if (laundry.length) groups.push({ category: 'Laundry', items: laundry });
     } catch { /* skip */ }
 
-    // Show sync results immediately
+    // Show sync results immediately (keep the spinner until the async wave lands
+    // so an empty sync set doesn't flash "No results" while inventory loads).
     setSearchResults([...groups]);
-    setIsSearching(false);
 
     // ── Supabase (parallel, appended as they arrive) ─────────────────────────
     const tenantId = localStorage.getItem('cargo_active_tenant_id');
-    if (!tenantId) return;
+    if (!tenantId) { setIsSearching(false); return; }
 
     const TIMEOUT = 5000;
     const race = (promise) => Promise.race([promise, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), TIMEOUT))]);
@@ -508,6 +508,7 @@ const Header = () => {
 
       return updated;
     });
+    setIsSearching(false);
   }, []);
 
   const handleSearchChange = (e) => {
@@ -657,7 +658,7 @@ const Header = () => {
             {/* Results dropdown */}
             {isSearchOpen && searchQuery.trim() && (
               <div className="hsearch-pop" onMouseDown={e => e.preventDefault()}>
-                {isSearching ? (
+                {isSearching && searchResults.length === 0 ? (
                   <div className="hsearch-msg">
                     <LogoSpinner size={14} />
                     Searching...
