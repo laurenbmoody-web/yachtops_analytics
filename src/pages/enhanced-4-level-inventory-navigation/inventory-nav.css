@@ -448,6 +448,15 @@
 .inv-card.itemcard.has-img:focus-within .inv-card-body,
 .inv-card.itemcard.has-img.revealed .inv-card-body { opacity: 1; transform: translateY(0); pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) { .inv-card.itemcard.has-img .inv-card-body { transition: none; } }
+/* Photo-less item tiles: crisp white media with a terracotta-tinted icon badge,
+   mirroring the folder tile so items read as first-class rather than a faded
+   grey box. Accent-coloured items keep their own tint (inline bg + .accent). */
+.inv-card.itemcard.no-img .inv-card-media { background: #FFFFFF; }
+.inv-card.itemcard.no-img .inv-placeholder:not(.accent) {
+  width: 62px; height: 62px; border-radius: 17px; background: #FBEFE9;
+  display: flex; align-items: center; justify-content: center;
+}
+.inv-card.itemcard.no-img .inv-placeholder:not(.accent) svg { color: #C65A1A; }
 
 /* controls above the overlay */
 .inv-media-check, .inv-media-badge-low, .inv-card.itemcard > .inv-card-menu { z-index: 5; }

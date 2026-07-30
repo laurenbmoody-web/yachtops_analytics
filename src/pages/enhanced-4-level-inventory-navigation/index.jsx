@@ -1716,10 +1716,10 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
         {imageUrl ? (
           <img src={imageUrl} alt={item?.name} />
         ) : (
-          <span className="inv-placeholder">
+          <span className={`inv-placeholder${accentColor ? ' accent' : ''}`}>
             <Icon
               name={accentIcon || 'Package'}
-              size={32}
+              size={30}
               style={accentColor ? { color: accentColor } : undefined}
             />
           </span>
