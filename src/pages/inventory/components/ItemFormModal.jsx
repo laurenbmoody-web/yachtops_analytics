@@ -187,7 +187,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
 
   // engineering
   const [eng, setEng] = useState(item?.customFields?.eng || { partNo: '', manufacturer: '', model: '', serial: '', system: '' });
-  const [condition, setCondition] = useState(item?.condition || 'New');
+  const [condition, setCondition] = useState(item?.condition || '');
   const [moreEng, setMoreEng] = useState(false);
 
   // uniform
@@ -571,7 +571,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         expiry_date: profile === 'uniform' ? null : (expiry || null),
         year: profile === 'bonded' && vintage !== '' ? Number(vintage) : null,
         tasting_notes: profile === 'bonded' ? (tasting || null) : null,
-        condition: profile === 'eng' ? condition : null,
+        condition: condition || null,
         is_alcohol: profile === 'bonded' && (bKind === 'wine' || bKind === 'spirit' || bKind === 'beer'),
         is_uniform: profile === 'uniform',
         location, sub_location,
@@ -795,7 +795,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                 <div className="itf-more" onClick={() => setMoreEng((v) => !v)}><span className="pl">{moreEng ? '–' : '+'}</span> Model, serial, condition</div>
                 <div className={`itf-morebody${moreEng ? ' show' : ''}`}>
                   <div className="itf-g2"><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Model / fits</label><input className="itf-in" value={eng.model} onChange={(e) => setEng({ ...eng, model: e.target.value })} placeholder="500FG" /></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Serial</label><input className="itf-in" value={eng.serial} onChange={(e) => setEng({ ...eng, serial: e.target.value })} placeholder="—" /></div></div>
-                  <div className="itf-f" style={{ margin: '12px 0 0' }}><label className="itf-lab">Condition</label><select className="itf-sel" value={condition} onChange={(e) => setCondition(e.target.value)}><option>New</option><option>Serviceable</option><option>Needs service</option><option>Beyond economical repair</option></select></div>
+                  <div className="itf-f" style={{ margin: '12px 0 0' }}><label className="itf-lab">Condition</label><select className="itf-sel" value={condition} onChange={(e) => setCondition(e.target.value)}><option value="">—</option><option>New</option><option>Serviceable</option><option>Needs service</option><option>Beyond economical repair</option></select></div>
                 </div>
               </>
             )}
@@ -969,7 +969,18 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         </Sec>
 
         {/* 6 REFERENCE */}
-        <Sec icon="Tag" name="Reference" open={open.ref} onToggle={() => toggle('ref')} summary={<span className="sc muted">barcode · tags · notes</span>}>
+        <Sec icon="Tag" name="Reference" open={open.ref} onToggle={() => toggle('ref')} summary={<span className="sc muted">barcode · condition · tags · notes</span>}>
+          {profile !== 'eng' && (
+            <div className="itf-f"><label className="itf-lab">Condition</label>
+              <select className="itf-sel" value={condition} onChange={(e) => setCondition(e.target.value)}>
+                <option value="">—</option>
+                <option>New</option>
+                <option>Serviceable</option>
+                <option>Needs service</option>
+                <option>Beyond economical repair</option>
+              </select>
+            </div>
+          )}
           <div className="itf-f"><label className="itf-lab">Barcode / QR</label>
             <input className="itf-in" value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Scan, generate or enter…" />
             <div className="itf-scanbtns">

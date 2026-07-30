@@ -95,6 +95,12 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
     navigate(`/vessel/map?scan=${encodeURIComponent(place.scanId)}&pin=${encodeURIComponent(place.hotspotId)}`);
     onClose?.();
   };
+  // Place this item on the GA — drops into the map's placement mode.
+  const placeOnMap = () => {
+    if (!item?.id) return;
+    navigate(`/vessel/map?placeItem=${encodeURIComponent(item.id)}&placeName=${encodeURIComponent(item?.name || '')}`);
+    onClose?.();
+  };
   // Brand / supplier → the inventory launchpad filtered to matching items.
   const openFilter = (kind, value) => {
     const v = String(value || '').trim();
@@ -248,14 +254,19 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
             {multiLoc ? (
               placed.map((l, i) => renderLoc(l, l?.qty ?? l?.quantity ?? 0, i, `Location ${i + 1}`))
             ) : (nameFor(placed[0]) ? renderLoc(placed[0], total, 'single') : null)}
-            <button
-              type="button"
-              className={`uv-reorder${isLow ? ' low' : ''}`}
-              onClick={() => setShowReorder(true)}
-            >
-              <Icon name="ShoppingCart" size={14} />
-              {isLow ? `Reorder · ${reorderQty} below par` : 'Reorder'}
-            </button>
+            <div className="uv-stockbtns">
+              <button
+                type="button"
+                className={`uv-reorder${isLow ? ' low' : ''}`}
+                onClick={() => setShowReorder(true)}
+              >
+                <Icon name="ShoppingCart" size={14} />
+                {isLow ? `Reorder · ${reorderQty} below par` : 'Reorder'}
+              </button>
+              <button type="button" className="uv-reorder" onClick={placeOnMap}>
+                <Icon name="MapPin" size={14} /> Place on map
+              </button>
+            </div>
           </div>
 
           <WithCrewSection itemId={item?.id} />
@@ -267,6 +278,7 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
             <Row label="Expiry" value={expiry ? formatDate(expiry) : null} />
             <Row label="Batch number" value={cfBatch} />
             <Row label="Size" value={item?.size} />
+            <Row label="Condition" value={item?.condition} />
             <Row label="Bought in" value={boughtIn} />
             <Row label="Restock level" value={item?.parLevel && item?.parLevel !== 0 ? `${item.parLevel}${item?.unit ? ` ${item.unit}` : ''}` : null} />
             <Row label="Colour" value={cfColour} />
