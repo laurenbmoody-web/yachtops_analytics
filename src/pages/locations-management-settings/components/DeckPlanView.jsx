@@ -126,7 +126,7 @@ function FrameEditor({ gaUrl, deckName, initial, onSave, onCancel }) {
 
 export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const locatedRef = useRef(null);
   const locateClickRef = useRef(null); // { roomId, scanId, hotspotId } — clicking this room opens the pinned scan
   const onAddScanRef = useRef(onAddScan);
@@ -216,13 +216,13 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   }, [overlayQuery]);
 
   // Arriving with ?locate=<roomId> (e.g. "View on map" from search) — once the
-  // decks are in and that room is placed on a plan, scroll to it and pulse it,
-  // then clear the param so it doesn't re-fire on the next render.
+  // decks + GA dimensions are in and that room is placed on a plan, scroll to it
+  // and pulse it. `locatedRef` guards against re-firing; we deliberately do NOT
+  // rewrite the URL here (that re-ran the effect and its cleanup cancelled the
+  // pending scroll — the reason it never moved). The plan is aspect-ratio sized
+  // and only reaches full height once gaDims loads, so we gate on that.
   useEffect(() => {
     const locateId = searchParams.get('locate');
-    // Wait for the layout AND the GA image dimensions (gaDims) — the plan is
-    // aspect-ratio sized and only renders at full height once gaDims is in, so
-    // firing earlier would scroll a tiny placeholder that then grows away.
     if (!locateId || loading || !gaDims || !decks?.length || locatedRef.current === locateId) return;
     const ids = locateId.split(',').filter(Boolean);
     const targets = [];
@@ -240,12 +240,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     locateClickRef.current = pin && scan ? { roomId: ids[0], scanId: scan, hotspotId: pin } : null;
     // Spotlight the located room(s) — dim everything else — and scroll to them.
     setLocateFocus(new Set(targets.map((t) => t.spaceId)));
-    const jt = setTimeout(() => jumpToSpace(targets[0].deckId, targets[0].spaceId), 300);
-    const clr = setTimeout(() => setLocateFocus(null), 6000);
-    const next = new URLSearchParams(searchParams);
-    next.delete('locate'); next.delete('pin'); next.delete('scan');
-    setSearchParams(next, { replace: true });
-    return () => { clearTimeout(jt); clearTimeout(clr); };
+    if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    focusTimerRef.current = setTimeout(() => setLocateFocus(null), 6000);
+    jumpToSpace(targets[0].deckId, targets[0].spaceId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, decks, loading, gaDims]);
 
