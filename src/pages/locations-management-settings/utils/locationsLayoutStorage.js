@@ -185,7 +185,7 @@ export const getPlanOverlays = async (scanIndex = []) => {
   const defectsBySpace = {};
   const { data: defs, error: defErr } = await supabase
     .from('defects')
-    .select('id, title, priority, status, hotspot_id, location_node_id')
+    .select('id, title, priority, status, hotspot_id, location_node_id, created_at')
     .eq('tenant_id', tenantId)
     .not('status', 'in', '("Closed","declined")');
   if (defErr) { console.error('[layout] overlay defects error:', defErr); }
@@ -195,6 +195,7 @@ export const getPlanOverlays = async (scanIndex = []) => {
     (defectsBySpace[sp] = defectsBySpace[sp] || []).push({
       id: d.id, title: d.title, priority: d.priority, status: d.status,
       hotspotId: d.hotspot_id, scanId: scanByHotspot[d.hotspot_id] || null,
+      createdAt: d.created_at || null,
     });
   });
 
