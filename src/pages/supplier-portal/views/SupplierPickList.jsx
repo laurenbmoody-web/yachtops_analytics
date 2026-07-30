@@ -26,6 +26,7 @@ import {
   fetchOrderItemsForPicking,
   setItemPicked,
   setCatalogueShelfLocation,
+  setOrderItemShelfLocation,
   updateOrderStatus,
 } from '../utils/supplierStorage';
 import { categoryHue } from '../../../utils/catalogueConstants';
@@ -67,6 +68,10 @@ const lineState = (it) => {
   if (picked >= qty && !it.pick_exception) return 'full';
   return 'short'; // short covers partials, zeros, and exception picks
 };
+
+// Shelf location precedence: the catalogue product first (persists across
+// orders), then the per-line fallback (this order only).
+const shelfOf = (it) => it?.catalogue?.shelf_location || it?.shelf_location || null;
 
 const SupplierPickList = () => {
   const { orderId } = useParams();
@@ -130,7 +135,7 @@ const SupplierPickList = () => {
     const arr = [...pickable];
     arr.sort((a, b) => {
       switch (sortMode) {
-        case 'path':     return cmpLoc(a.catalogue?.shelf_location, b.catalogue?.shelf_location)
+        case 'path':     return cmpLoc(shelfOf(a), shelfOf(b))
                               || (a.item_name || '').localeCompare(b.item_name || '');
         case 'category': return (a.catalogue?.category || 'zzz').localeCompare(b.catalogue?.category || 'zzz')
                               || (a.item_name || '').localeCompare(b.item_name || '');
@@ -151,7 +156,7 @@ const SupplierPickList = () => {
     return sorted.filter((i) =>
       (i.item_name || '').toLowerCase().includes(q)
       || (i.catalogue?.barcode || '').includes(q)
-      || (i.catalogue?.shelf_location || '').toLowerCase().includes(q));
+      || (shelfOf(i) || '').toLowerCase().includes(q));
   }, [sorted, query]);
 
   // Grouped for the list view (respects sort + search).
@@ -292,16 +297,22 @@ const SupplierPickList = () => {
   };
   useEffect(() => () => stopScan(), []);
 
-  // ── Shelf location (inline edit, persists on the catalogue) ─────────────
+  // ── Shelf location (inline edit) ────────────────────────────────────────
+  // Catalogue-linked lines write to the product (persists across orders);
+  // unlinked lines write a per-line fallback (this order only).
   const editShelf = async (item) => {
-    if (!item.catalogue?.id) { setError('This line has no catalogue product to locate.'); return; }
-    const loc = window.prompt('Shelf / bin location (e.g. A-12, Cold-3)', item.catalogue.shelf_location || '');
+    const loc = window.prompt('Shelf / bin location (e.g. A-12, Cold-3)', shelfOf(item) || '');
     if (loc === null) return;
     try {
-      const updated = await setCatalogueShelfLocation(item.catalogue.id, loc);
-      // Reflect on every line sharing this catalogue product.
-      setItems((prev) => prev.map((i) => (i.catalogue?.id === updated.id
-        ? { ...i, catalogue: { ...i.catalogue, shelf_location: updated.shelf_location } } : i)));
+      if (item.catalogue?.id) {
+        const updated = await setCatalogueShelfLocation(item.catalogue.id, loc);
+        setItems((prev) => prev.map((i) => (i.catalogue?.id === updated.id
+          ? { ...i, catalogue: { ...i.catalogue, shelf_location: updated.shelf_location } } : i)));
+      } else {
+        const updated = await setOrderItemShelfLocation(item.id, loc);
+        setItems((prev) => prev.map((i) => (i.id === updated.id
+          ? { ...i, shelf_location: updated.shelf_location } : i)));
+      }
     } catch (e) { setError(e.message); }
   };
 
@@ -515,7 +526,7 @@ const PickRow = ({ item, flashId, editQtyId, onBump, onPickAll, onEditQty, onTyp
   const picked = item.picked_qty != null ? Number(item.picked_qty) : null;
   const state = lineState(item);
   const cat = item.catalogue;
-  const loc = cat?.shelf_location;
+  const loc = shelfOf(item);
   const packBits = cat ? [cat.pack_size ? `${cat.pack_size} × ${cat.pack_unit || ''}`.trim() : null, cat.unit_size].filter(Boolean).join(' · ') : '';
   return (
     <div className={`spk-line state-${state} ${flashId === item.id ? 'flash' : ''}`}>
@@ -587,7 +598,7 @@ const GuidedPicker = ({ queue, sorted, idx, setIdx, onBump, onPickAll, onTypedQt
   const qty = Number(item.quantity);
   const picked = item.picked_qty != null ? Number(item.picked_qty) : 0;
   const cat = item.catalogue;
-  const loc = cat?.shelf_location;
+  const loc = shelfOf(item);
   const packBits = cat ? [cat.pack_size ? `${cat.pack_size} × ${cat.pack_unit || ''}`.trim() : null, cat.unit_size].filter(Boolean).join(' · ') : '';
   const next = () => setIdx((i) => Math.min(i + 1, queue.length - 1));
   const prev = () => setIdx((i) => Math.max(i - 1, 0));
@@ -649,7 +660,7 @@ const GuidedPicker = ({ queue, sorted, idx, setIdx, onBump, onPickAll, onTypedQt
               {comingUp.map((q) => (
                 <div key={q.id} className="spk-g-qthumb" style={{ background: q.catalogue?.image_url ? '#0000' : categoryHue(q.catalogue?.category) }}>
                   {q.catalogue?.image_url && <img src={q.catalogue.image_url} alt="" />}
-                  {q.catalogue?.shelf_location && <span className="n">{q.catalogue.shelf_location}</span>}
+                  {shelfOf(q) && <span className="n">{shelfOf(q)}</span>}
                   <span className="t">{(q.item_name || '').split(' ').slice(0, 2).join(' ')}</span>
                 </div>
               ))}

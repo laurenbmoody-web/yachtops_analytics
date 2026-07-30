@@ -715,6 +715,20 @@ export const setCatalogueShelfLocation = async (catalogueItemId, location) => {
   return data;
 };
 
+/** Per-line shelf fallback for order lines with no catalogue product — the
+ *  location lives on the order item itself (this order only). */
+export const setOrderItemShelfLocation = async (itemId, location) => {
+  if (!itemId) throw new Error('No item');
+  const { data, error } = await supabase
+    .from('supplier_order_items')
+    .update({ shelf_location: location?.trim() || null })
+    .eq('id', itemId)
+    .select('id, shelf_location')
+    .single();
+  if (error) throw error;
+  return data;
+};
+
 // Upload a product photo to the public `catalogue-images` bucket and write
 // the public URL onto the catalogue row. Same pattern as uploadSupplierLogo.
 export const uploadCatalogueImage = async (supplierId, itemId, file) => {
