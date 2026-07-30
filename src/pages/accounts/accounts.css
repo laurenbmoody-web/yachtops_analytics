@@ -420,3 +420,11 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
 .ca-readas b{font-size:12.5px; font-weight:600; color:#1C1B3A; font-variant-numeric:tabular-nums}
 .ca-readas.is-low{background:#FDF4E9; border-color:#F0DCC0}
 .ca-readas.is-low span{color:#A8871B}
+
+/* Refund linking — a money-in line matched to the spend it reverses */
+.ca-refund{display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:6px}
+.ca-refund-l{font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#2F7A64}
+.ca-refund-btn{border:1px solid #CFE3DA; background:#EDF3F0; color:#1C1B3A; border-radius:8px;
+  padding:4px 10px; font:inherit; font-size:11.5px; font-weight:600; cursor:pointer; font-variant-numeric:tabular-nums}
+.ca-refund-btn:hover{background:#2F7A64; color:#fff; border-color:#2F7A64}
+.ca-refund.is-done .ca-refund-of{font-size:11px; color:#8B8478}

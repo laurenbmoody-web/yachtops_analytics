@@ -9,6 +9,8 @@ import {
   netOfVat, vatFromRate, baseFromFx, lineCompleteness,
   effectiveDate, datesDiffer, straddlesMonth,
   REQUIREMENTS, requirementState, lineState, maxForPart, clampSplitAmount,
+  maxSpendDate, isSpendDateValid, canVoidTxn, voidBlockedReason,
+  looksLikeRefund, findRefundCandidate, refundInheritedFields,
 } from './lineDetail.js';
 
 // ── department ──────────────────────────────────────────────────────────────
@@ -264,4 +266,88 @@ test('clampSplitAmount refuses an over-allocation and reports it', () => {
 test('clampSplitAmount leaves partial typing alone', () => {
   assert.deepEqual(clampSplitAmount(-26, [{ amount: '' }], 0, ''), { value: '', clamped: false });
   assert.deepEqual(clampSplitAmount(-26, [{ amount: '' }], 0, '.'), { value: '.', clamped: false });
+});
+
+// ── spend date vs posted date ───────────────────────────────────────────────
+test('a spend date after the posted date is impossible', () => {
+  assert.equal(isSpendDateValid('2026-07-28', '2026-07-30'), true);   // before
+  assert.equal(isSpendDateValid('2026-07-30', '2026-07-30'), true);   // same day
+  assert.equal(isSpendDateValid('2026-08-01', '2026-07-30'), false);  // after the bank posted it
+});
+
+test('with no posted date there is nothing to validate against', () => {
+  assert.equal(isSpendDateValid('2026-08-01', null), true);
+  assert.equal(isSpendDateValid('', '2026-07-30'), false);
+  assert.equal(maxSpendDate({ statement_date: '2026-07-30' }), '2026-07-30');
+  assert.equal(maxSpendDate({}), null);
+});
+
+// ── voiding ─────────────────────────────────────────────────────────────────
+test('bank-derived lines cannot be voided — the money actually moved', () => {
+  assert.equal(canVoidTxn({ source: 'bank_feed', status: 'unreconciled' }), false);
+  assert.equal(canVoidTxn({ source: 'import', status: 'reconciled' }), false);
+  assert.match(voidBlockedReason({ source: 'bank_feed' }), /came from the bank/);
+});
+
+test('lines Cargo created may be voided; an already-void line may not', () => {
+  assert.equal(canVoidTxn({ source: 'manual', status: 'reconciled' }), true);
+  assert.equal(canVoidTxn({ source: 'supplier_invoice', status: 'unreconciled' }), true);
+  assert.equal(canVoidTxn({ source: 'manual', status: 'void' }), false);
+  assert.equal(voidBlockedReason({ source: 'manual' }), null);
+});
+
+// ── refunds ─────────────────────────────────────────────────────────────────
+const norm = (s) => String(s ?? '').toLowerCase().trim();
+
+test('a positive bank line from a known merchant is a refund candidate', () => {
+  const spend = { id: 's1', payee: 'JD Sports', amount: -42, txn_date: '2026-07-28', source: 'bank_feed' };
+  const refund = { id: 'r1', payee: 'JD Sports', amount: 42, txn_date: '2026-08-02', source: 'bank_feed' };
+  assert.equal(looksLikeRefund(refund), true);
+  assert.equal(findRefundCandidate(refund, [spend, refund], norm)?.id, 's1');
+});
+
+test('a partial refund still matches its original', () => {
+  const spend = { id: 's1', payee: 'JD Sports', amount: -42, txn_date: '2026-07-28', source: 'bank_feed' };
+  const refund = { id: 'r1', payee: 'JD Sports', amount: 20, txn_date: '2026-08-02', source: 'bank_feed' };
+  assert.equal(findRefundCandidate(refund, [spend, refund], norm)?.id, 's1');
+});
+
+test('a refund never matches a smaller original, a different merchant, or one already refunded', () => {
+  const small = { id: 's1', payee: 'JD Sports', amount: -10, txn_date: '2026-07-28', source: 'bank_feed' };
+  const other = { id: 's2', payee: 'Ryanair', amount: -99, txn_date: '2026-07-28', source: 'bank_feed' };
+  const refund = { id: 'r1', payee: 'JD Sports', amount: 42, txn_date: '2026-08-02', source: 'bank_feed' };
+  assert.equal(findRefundCandidate(refund, [small, other, refund], norm), null);
+
+  const spend = { id: 's3', payee: 'JD Sports', amount: -42, txn_date: '2026-07-28', source: 'bank_feed' };
+  const already = { id: 'r0', payee: 'JD Sports', amount: 42, txn_date: '2026-07-30', source: 'bank_feed', refund_of_id: 's3' };
+  assert.equal(findRefundCandidate(refund, [spend, already, refund], norm), null);
+});
+
+test('a refund must come after the spend and inside the window', () => {
+  const spend = { id: 's1', payee: 'JD Sports', amount: -42, txn_date: '2026-07-28', source: 'bank_feed' };
+  const before = { id: 'r1', payee: 'JD Sports', amount: 42, txn_date: '2026-07-01', source: 'bank_feed' };
+  const ancient = { id: 'r2', payee: 'JD Sports', amount: 42, txn_date: '2027-06-01', source: 'bank_feed' };
+  assert.equal(findRefundCandidate(before, [spend, before], norm), null);
+  assert.equal(findRefundCandidate(ancient, [spend, ancient], norm), null);
+});
+
+test('an exact-amount original wins over a merely larger one', () => {
+  const big = { id: 'big', payee: 'Carrefour', amount: -300, txn_date: '2026-07-20', source: 'bank_feed' };
+  const exact = { id: 'exact', payee: 'Carrefour', amount: -42, txn_date: '2026-07-18', source: 'bank_feed' };
+  const refund = { id: 'r1', payee: 'Carrefour', amount: 42, txn_date: '2026-07-25', source: 'bank_feed' };
+  assert.equal(findRefundCandidate(refund, [big, exact, refund], norm)?.id, 'exact');
+});
+
+test('a refund inherits the coding of the spend it reverses, not income', () => {
+  const original = { category: 'Crew Uniforms', category_code: 'CUF', department: 'Deck', allocation: 'owner' };
+  assert.deepEqual(refundInheritedFields(original), {
+    category: 'Crew Uniforms', category_code: 'CUF', department: 'Deck',
+    allocation: 'owner', trip_id: null, charter_ref: null,
+  });
+});
+
+test('money out, a manual line, or an already-linked refund is not a refund candidate', () => {
+  assert.equal(looksLikeRefund({ amount: -42, source: 'bank_feed' }), false);
+  assert.equal(looksLikeRefund({ amount: 42, source: 'manual' }), false);
+  assert.equal(looksLikeRefund({ amount: 42, source: 'bank_feed', refund_of_id: 'x' }), false);
 });

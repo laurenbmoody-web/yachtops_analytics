@@ -12,7 +12,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import {
   listAccounts, listTransactions, createTransaction, voidTransaction, assignTransactionAccount,
   uploadReceipt, listAttachments, deleteAttachment, fileTransaction, fileTransactions,
-  listMerchantRules, setMerchantRule,
+  listMerchantRules, setMerchantRule, linkRefund,
   updateTransactionDetail, listSplits, saveSplits, listTripsLite, listTenantCrew,
 } from '../../../services/financeService';
 import { getChartGrouped } from '../../../services/chartService';
@@ -21,6 +21,8 @@ import { resolveSuggestion, normalizeMerchant } from '../../../services/merchant
 import {
   defaultAllocation, effectiveDate, datesDiffer, straddlesMonth,
   REQUIREMENTS, requirementState, lineState,
+  maxSpendDate, isSpendDateValid, canVoidTxn, voidBlockedReason,
+  looksLikeRefund, findRefundCandidate,
 } from '../../../services/lineDetail';
 import LineDetail from '../components/LineDetail';
 import ReceiptScanner from '../components/ReceiptScanner';
@@ -335,10 +337,28 @@ export default function Ledger() {
   // Inline date edit — the spend date decides the month, so it's editable on the row.
   const handleDateChange = async (t, value) => {
     if (!value || value === (t.txn_date || '').slice(0, 10)) return;
+    // A card is used before — or on — the day the bank posts it. Later is impossible.
+    if (!isSpendDateValid(value, t.statement_date)) {
+      flash(`Can’t be after the bank posted it (${fmtDMY(t.statement_date)})`);
+      return;
+    }
     setTxns((prev) => prev.map((x) => (x.id === t.id ? { ...x, txn_date: value } : x)));
     const { error } = await updateTransactionDetail(t.id, { txn_date: value });
     if (error) { flash('Could not change the date'); await loadTxns(); return; }
     flash('Date updated');
+  };
+
+  // The spend a money-in line most likely reverses (null when there's no match).
+  const refundFor = useCallback(
+    (t) => (looksLikeRefund(t) ? findRefundCandidate(t, txns, normalizeMerchant) : null),
+    [txns],
+  );
+
+  const handleLinkRefund = async (refund, original) => {
+    const res = await linkRefund(refund.id, original);
+    if (res.error) { flash('Could not link that refund'); return; }
+    setTxns((prev) => prev.map((x) => (x.id === refund.id ? { ...x, ...(res.data || {}) } : x)));
+    flash(`Linked as a refund of ${original.category || original.description || 'that spend'}`);
   };
 
   const openPicker = (e, t) => { setPicker({ rect: e.currentTarget.getBoundingClientRect(), txn: t }); };
@@ -382,6 +402,8 @@ export default function Ledger() {
   };
 
   const handleVoid = async (t) => {
+    const blocked = voidBlockedReason(t);
+    if (blocked) { flash(blocked); return; }
     if (!window.confirm('Void this transaction? It will no longer affect any balance.')) return;
     const { error } = await voidTransaction(t.id);
     if (!error) { await Promise.all([loadTxns(), loadAccounts()]); flash('Transaction voided'); }
@@ -467,6 +489,7 @@ export default function Ledger() {
               native date input, which renders in the browser's own locale and clips. */}
           {editDateId === t.id ? (
             <input type="date" className="ca-dedit" autoFocus
+              max={maxSpendDate(t) || undefined}
               defaultValue={(t.txn_date || '').slice(0, 10)}
               onBlur={(e) => { handleDateChange(t, e.target.value); setEditDateId(null); }}
               onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditDateId(null); }} />
@@ -493,7 +516,23 @@ export default function Ledger() {
             {t.note ? <span className="ca-txn-note"> · {t.note}</span> : null}
             {voided ? ' · voided' : ''}
           </div>
-          {look && !voided && canEdit && rowSplits.length === 0 && renderSuggest(t)}
+          {/* A money-in bank line from a merchant we've paid is almost certainly a
+              refund — link it so the same budget line nets down, not income. */}
+          {!voided && canEdit && refundFor(t) && (
+            <div className="ca-refund">
+              <span className="ca-refund-l">Refund of</span>
+              <button type="button" className="ca-refund-btn" onClick={() => handleLinkRefund(t, refundFor(t))}>
+                {formatMoney(refundFor(t).amount, refundFor(t).currency)} · {refundFor(t).description || refundFor(t).payee} · {fmtDMY(refundFor(t).txn_date)}
+              </button>
+            </div>
+          )}
+          {t.refund_of_id && (
+            <div className="ca-refund is-done">
+              <span className="ca-refund-l">✓ Refund</span>
+              <span className="ca-refund-of">nets off the original spend</span>
+            </div>
+          )}
+          {look && !voided && canEdit && rowSplits.length === 0 && !looksLikeRefund(t) && renderSuggest(t)}
           {renderChips(t)}
           {/* Inline split breakdown — a split line shows its parts, the same way an
               unsplit line shows its single category. */}
@@ -551,7 +590,9 @@ export default function Ledger() {
           {!t.account_id && !voided && canEdit && (
             <button type="button" className="ca-link" onClick={() => setAssignTxn(t)}>Assign →</button>
           )}
-          {!voided && canEdit && (
+          {/* Only lines Cargo created can be voided — a bank line's money really
+              moved, so a reversal has to arrive as its own refund. */}
+          {canEdit && canVoidTxn(t) && (
             <button type="button" className="ca-link is-mut" onClick={() => handleVoid(t)} title="Void">
               <Icon name="Ban" size={15} />
             </button>

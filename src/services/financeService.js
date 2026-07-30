@@ -27,7 +27,7 @@ const TXN_SELECT =
   'id, tenant_id, account_id, txn_date, statement_date, is_pending, amount, currency, fx_rate, amount_base, ' +
   'category, category_code, department, vat_amount, vat_rate, payee, allocation, note, charter_ref, ' +
   'description, source, status, fee_parent_id, supplier_order_id, supplier_invoice_id, ' +
-  'provisioning_item_id, defect_id, trip_id, crew_id, posting_group_id, created_by, created_at';
+  'provisioning_item_id, defect_id, trip_id, crew_id, posting_group_id, refund_of_id, created_by, created_at';
 
 const ATTACHMENT_SELECT =
   'id, tenant_id, ledger_transaction_id, storage_path, file_name, mime_type, size_bytes, uploaded_by, created_at';
@@ -269,7 +269,7 @@ export const fileTransactions = async (ids, { category, category_code }) => {
 const DETAIL_KEYS = [
   'note', 'department', 'crew_id', 'allocation', 'trip_id', 'charter_ref',
   'vat_amount', 'vat_rate', 'currency', 'fx_rate', 'amount_base',
-  'category', 'category_code', 'txn_date', 'statement_date',
+  'category', 'category_code', 'txn_date', 'statement_date', 'refund_of_id',
 ];
 
 export const updateTransactionDetail = async (id, patch = {}) => {
@@ -360,6 +360,38 @@ export const listTenantCrew = async (tenantId) => {
     return { id: m.user_id, name, department: p.department || null };
   }).sort((a, b) => a.name.localeCompare(b.name));
   return { data: crew, error: null };
+};
+
+// Link a refund line to the spend it reverses, copying that spend's coding so both
+// sit on the same MYBA line and the budget nets down instead of the refund reading
+// as income. Marks the refund reconciled — its attribution is now settled.
+export const linkRefund = async (refundId, original) => {
+  const { data, error } = await supabase
+    .from('ledger_transactions')
+    .update({
+      refund_of_id: original.id,
+      category: original.category || null,
+      category_code: original.category_code || null,
+      department: original.department || null,
+      allocation: original.allocation || null,
+      trip_id: original.trip_id || null,
+      charter_ref: original.charter_ref || null,
+      status: 'reconciled',
+    })
+    .eq('id', refundId)
+    .select(TXN_SELECT)
+    .single();
+  return { data, error };
+};
+
+export const unlinkRefund = async (refundId) => {
+  const { data, error } = await supabase
+    .from('ledger_transactions')
+    .update({ refund_of_id: null })
+    .eq('id', refundId)
+    .select(TXN_SELECT)
+    .single();
+  return { data, error };
 };
 
 // ── Learned merchant map (bank counterparty → MYBA line) ──────────────────────
