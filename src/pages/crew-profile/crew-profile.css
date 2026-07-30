@@ -881,15 +881,17 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-field.kit-static b { font-size: 14px; font-weight: 600; color: #1C1B3A; }
 /* Inputs match the Personal Details fields (white card, soft grey border,
    terracotta focus halo) rather than a cream fill. */
-.crew-profile-page .kit-field input,
+.crew-profile-page .kit-field input:not(.edp-input),
 .crew-profile-page .kit-field select {
   width: 100%; font-size: 14px; color: #1C1B3A; background: #FFFFFF;
   border: 1px solid #E5E7EB; border-radius: 9px; padding: 9px 11px; outline: none;
 }
-.crew-profile-page .kit-field input:focus,
+.crew-profile-page .kit-field input:not(.edp-input):focus,
 .crew-profile-page .kit-field select:focus {
   border-color: #C65A1A; box-shadow: 0 0 0 2px #FAECE7;
 }
+/* The editorial date picker brings its own field styling — just let it fill. */
+.crew-profile-page .kit-field .edp { width: 100%; }
 .crew-profile-page .kit-panel-foot {
   display: flex; justify-content: flex-end; gap: 10px;
   padding: 12px 20px 18px; border-top: 1px solid #F0F1F5;
