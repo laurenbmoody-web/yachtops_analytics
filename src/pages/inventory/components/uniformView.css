@@ -68,6 +68,20 @@
 .uv-mtx tfoot th, .uv-mtx tfoot td { border-top: 1px solid #E5E7EB; padding-top: 9px; font-weight: 800; color: #C65A1A; }
 .uv-mtx tfoot th.loc { text-align: left; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.6px; text-transform: uppercase; color: #8B8478; }
 
+/* With-crew breakdown — units out with crew, expandable, separate from stock. */
+.uv-crew-h { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: none; border: none; padding: 2px 0; cursor: pointer; font-family: inherit; }
+.uv-crew-lbl { display: inline-flex; align-items: center; gap: 7px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #1C1B3A; }
+.uv-crew-lbl svg { color: #C65A1A; }
+.uv-crew-note { font-weight: 600; letter-spacing: 0.2px; text-transform: none; color: #AEB4C2; }
+.uv-crew-right { display: inline-flex; align-items: center; gap: 8px; color: #8B8478; }
+.uv-crew-qty { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px; padding: 0 8px; border-radius: 999px; background: #FBEFE9; border: 1px solid #F3D9CB; color: #C65A1A; font: 800 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.uv-crew-list { margin-top: 10px; display: flex; flex-direction: column; }
+.uv-crew-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid #F5F6F8; }
+.uv-crew-nm { font-size: 13.5px; color: #1C1B3A; font-weight: 600; }
+.uv-crew-meta { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.uv-crew-sz { background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 999px; padding: 1px 9px; font: 700 10.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.uv-crew-x { font-weight: 700; font-size: 13px; color: #C65A1A; font-variant-numeric: tabular-nums; }
+
 .uv-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 7px 0; border-bottom: 1px solid #F5F6F8; }
 .uv-row:last-child { border-bottom: none; }
 .uv-k { font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; flex: none; }

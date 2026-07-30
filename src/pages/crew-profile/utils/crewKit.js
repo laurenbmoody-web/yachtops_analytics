@@ -125,6 +125,34 @@ export const fetchTenantKit = async (tenantId) => {
   return data || [];
 };
 
+// Who currently holds a given inventory item (in-service kit rows), aggregated by
+// crew member + size. Powers the "with crew" breakdown on an inventory item — the
+// units out with crew, kept separate from the on-board stock total. Visible in
+// full to COMMAND / Interior (crew_kit_manage RLS); a plain crew member only sees
+// their own rows.
+export const fetchItemKitHolders = async (inventoryItemId) => {
+  if (!inventoryItemId) return [];
+  const { data, error } = await supabase
+    ?.from('crew_issued_kit')
+    ?.select('user_id, size, quantity')
+    ?.eq('inventory_item_id', inventoryItemId)
+    ?.eq('status', 'in_service');
+  if (error || !data?.length) return [];
+  const ids = [...new Set(data.map((r) => r.user_id).filter(Boolean))];
+  let nameById = {};
+  if (ids.length) {
+    const { data: profs } = await supabase?.from('profiles')?.select('id, full_name')?.in('id', ids);
+    nameById = Object.fromEntries((profs || []).map((p) => [p.id, p.full_name]));
+  }
+  const m = new Map();
+  data.forEach((r) => {
+    const key = `${r.user_id}|${r.size || ''}`;
+    if (!m.has(key)) m.set(key, { userId: r.user_id, name: nameById[r.user_id] || 'Crew member', size: r.size || '', qty: 0 });
+    m.get(key).qty += Number(r.quantity) || 1;
+  });
+  return [...m.values()].sort((a, b) => (a.name || '').localeCompare(b.name || '') || (a.size || '').localeCompare(b.size || ''));
+};
+
 export const saveKitItem = async (item) => {
   const payload = {
     user_id: item.userId,
