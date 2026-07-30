@@ -14,6 +14,7 @@
 // automatically (that needs a CV library) — one drag is cheap and never wrong.
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import Icon from '../../../components/AppIcon';
+import { detectQuad, scaleQuad, expandQuad } from '../../../services/docDetect';
 import './receipt-scanner.css';
 
 const OUT_W = 1500;              // output width fed to the model
@@ -62,7 +63,10 @@ export default function ReceiptScanner({ open, onClose, onScan, busy }) {
   const videoRef = useRef(null);
   const shotRef = useRef(null);          // full-resolution capture
   const frameRef = useRef(null);         // the element corners are dragged over
-  const [stage, setStage] = useState('camera');   // camera | adjust
+  const [stage, setStage] = useState('camera');   // camera | adjust | preview
+  const [flatUrl, setFlatUrl] = useState('');     // the flattened result, shown for approval
+  const flatFileRef = useRef(null);
+  const [detected, setDetected] = useState(false);
   const [preview, setPreview] = useState('');     // data URL of the capture
   const [dims, setDims] = useState({ w: 0, h: 0 });
   const [quad, setQuad] = useState(null);
@@ -95,15 +99,41 @@ export default function ReceiptScanner({ open, onClose, onScan, busy }) {
     return () => { alive = false; stop(); };
   }, [open, stage, stop]);
 
-  useEffect(() => { if (!open) { stop(); setStage('camera'); setPreview(''); setQuad(null); setCamErr(''); } }, [open, stop]);
+  useEffect(() => { if (!open) { stop(); setStage('camera'); setPreview(''); setQuad(null); setCamErr(''); setFlatUrl(''); flatFileRef.current = null; } }, [open, stop]);
 
-  // Seed the corners just inside the frame — one drag each to land on the paper.
-  const seedQuad = (w, h) => {
-    const ix = w * 0.08; const iy = h * 0.06;
-    setQuad([
-      { x: ix, y: iy }, { x: w - ix, y: iy },
-      { x: w - ix, y: h - iy }, { x: ix, y: h - iy },
+  // Find the paper automatically; fall back to an inset rectangle if we can't.
+  // Detection runs on a small copy — it doesn't need megapixels and stays instant.
+  const seedQuad = (canvas) => {
+    const w = canvas.width; const h = canvas.height;
+    const dw = 320; const dh = Math.max(1, Math.round((h / w) * dw));
+    const small = document.createElement('canvas');
+    small.width = dw; small.height = dh;
+    small.getContext('2d').drawImage(canvas, 0, 0, dw, dh);
+    let found = null;
+    try {
+      const img = small.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, dw, dh);
+      const q = detectQuad({ data: img.data, width: dw, height: dh });
+      if (q) found = expandQuad(scaleQuad(q, dw, dh, w, h), w, h, Math.round(w * 0.006));
+    } catch { /* detection is a convenience — never block the scan */ }
+    setDetected(Boolean(found));
+    setQuad(found || [
+      { x: w * 0.08, y: h * 0.06 }, { x: w * 0.92, y: h * 0.06 },
+      { x: w * 0.92, y: h * 0.94 }, { x: w * 0.08, y: h * 0.94 },
     ]);
+    return found;
+  };
+
+  // Build the flattened image and show it for approval before anything is read.
+  const flatten = (canvas, q) => {
+    const wTop = Math.hypot(q[1].x - q[0].x, q[1].y - q[0].y);
+    const hLeft = Math.hypot(q[3].x - q[0].x, q[3].y - q[0].y);
+    const outH = Math.max(400, Math.min(MAX_OUT_H, Math.round(OUT_W * (hLeft / Math.max(1, wTop)))));
+    const flat = warpQuadToCanvas(canvas, q, OUT_W, outH);
+    setFlatUrl(flat.toDataURL('image/jpeg', 0.92));
+    flat.toBlob((blob) => {
+      if (blob) flatFileRef.current = new File([blob], 'receipt.jpg', { type: 'image/jpeg' });
+    }, 'image/jpeg', 0.95);
+    setStage('preview');
   };
 
   const capture = () => {
@@ -115,9 +145,11 @@ export default function ReceiptScanner({ open, onClose, onScan, busy }) {
     shotRef.current = c;
     setDims({ w: c.width, h: c.height });
     setPreview(c.toDataURL('image/jpeg', 0.95));
-    seedQuad(c.width, c.height);
+    const found = seedQuad(c);
     stop();
-    setStage('adjust');
+    // Corners found → show the flattened receipt straight away, as a scanner app
+    // would. Otherwise ask for the corners first.
+    if (found) flatten(c, found); else setStage('adjust');
   };
 
   // Fall back to (or deliberately choose) an existing photo / PDF.
@@ -133,8 +165,8 @@ export default function ReceiptScanner({ open, onClose, onScan, busy }) {
       shotRef.current = c;
       setDims({ w: c.width, h: c.height });
       setPreview(c.toDataURL('image/jpeg', 0.95));
-      seedQuad(c.width, c.height);
-      setStage('adjust');
+      const found = seedQuad(c);
+      if (found) flatten(c, found); else setStage('adjust');
       URL.revokeObjectURL(url);
     };
     img.src = url;
@@ -150,18 +182,8 @@ export default function ReceiptScanner({ open, onClose, onScan, busy }) {
       : p)));
   };
 
-  const useIt = () => {
-    if (!shotRef.current || !quad) return;
-    // Output height follows the quad's own aspect so text isn't stretched.
-    const wTop = Math.hypot(quad[1].x - quad[0].x, quad[1].y - quad[0].y);
-    const hLeft = Math.hypot(quad[3].x - quad[0].x, quad[3].y - quad[0].y);
-    const outH = Math.max(400, Math.min(MAX_OUT_H, Math.round(OUT_W * (hLeft / Math.max(1, wTop)))));
-    const flat = warpQuadToCanvas(shotRef.current, quad, OUT_W, outH);
-    flat.toBlob((blob) => {
-      if (!blob) return;
-      onScan(new File([blob], 'receipt.jpg', { type: 'image/jpeg' }));
-    }, 'image/jpeg', 0.95);
-  };
+  const useIt = () => { if (shotRef.current && quad) flatten(shotRef.current, quad); };
+  const readIt = () => { if (flatFileRef.current) onScan(flatFileRef.current); };
 
   if (!open) return null;
 
@@ -171,7 +193,7 @@ export default function ReceiptScanner({ open, onClose, onScan, busy }) {
     <div className="rs-back" role="dialog" aria-label="Scan a receipt">
       <div className="rs-panel">
         <div className="rs-head">
-          <h2>{stage === 'camera' ? 'Scan a receipt' : 'Line up the receipt'}</h2>
+          <h2>{stage === 'camera' ? 'Scan a receipt' : (stage === 'preview' ? 'Check it reads clearly' : 'Line up the receipt')}</h2>
           <button type="button" className="rs-x" onClick={onClose} aria-label="Close">×</button>
         </div>
 
@@ -191,6 +213,30 @@ export default function ReceiptScanner({ open, onClose, onScan, busy }) {
               </label>
               <button type="button" className="rs-btn primary" onClick={capture} disabled={Boolean(camErr)}>
                 <Icon name="Camera" size={16} /> Capture
+              </button>
+            </div>
+          </>
+        )}
+
+        {stage === 'preview' && (
+          <>
+            <div className="rs-stage is-flat">
+              {flatUrl && <img src={flatUrl} alt="Flattened receipt" className="rs-flat" />}
+            </div>
+            <p className="rs-tip">
+              {detected
+                ? 'Corners found automatically. Check the total is sharp and readable — that&rsquo;s the figure that matters.'
+                : 'Check the total is sharp and readable before it&rsquo;s read.'}
+            </p>
+            <div className="rs-act">
+              <button type="button" className="rs-btn ghost" onClick={() => setStage('adjust')} disabled={busy}>
+                Adjust corners
+              </button>
+              <button type="button" className="rs-btn ghost" onClick={() => { setStage('camera'); setPreview(''); setFlatUrl(''); }} disabled={busy}>
+                Retake
+              </button>
+              <button type="button" className="rs-btn primary" onClick={readIt} disabled={busy}>
+                {busy ? 'Reading…' : 'Read it'}
               </button>
             </div>
           </>
@@ -223,7 +269,7 @@ export default function ReceiptScanner({ open, onClose, onScan, busy }) {
                 Retake
               </button>
               <button type="button" className="rs-btn primary" onClick={useIt} disabled={busy}>
-                {busy ? 'Reading…' : 'Flatten & read'}
+                Flatten
               </button>
             </div>
           </>

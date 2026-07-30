@@ -78,3 +78,11 @@ test('resolveSuggestion: unknown merchant with no rule → none, still returns k
   assert.equal(r.kind, 'none');
   assert.equal(r.merchantKey, 'mystery vendor');
 });
+
+test('a department store is two-sided — provisions or crew uniform', () => {
+  // M&S normalises to "m s" (the ampersand is stripped), and sells both.
+  const ms = suggest({ payee: 'M&S WHITE ROSE' });
+  assert.equal(ms.kind, 'choice');
+  assert.deepEqual(ms.options.map((o) => o.code), ['GFE', 'CUF']);
+  assert.equal(suggest({ payee: 'Marks and Spencer' }).kind, 'choice');
+});

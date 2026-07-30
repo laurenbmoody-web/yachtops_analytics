@@ -206,6 +206,7 @@ Return JSON with:
 - vatRate: number or null — only per the VAT rule
 - items: array of up to 8 short strings naming what was bought (no prices)
 - summary: string — max 12 words on what this purchase was for
+- dateHasTime: boolean — was the date you returned printed with a time beside it?
 - confidence: "high" | "low" — "low" if the paper is creased, blurred, cut off, or any
   digit of the total is uncertain
 
@@ -220,10 +221,18 @@ RULES — follow exactly:
    or "VAT 0.00" line, or shows no tax figure at all, then vatPrinted is false and BOTH
    vatAmount and vatRate MUST be null. UK grocery and retail receipts very often have no
    separate VAT figure — do not infer or calculate one.
-3. DATE. UK and European receipts are DAY-FIRST: 07/08/26 is 7 August 2026, not 8 July.
-   Only treat a date as month-first if the receipt is clearly from the United States.
-   Four-digit years are unambiguous; a two-digit year in the 20s means 20xx. If the date is
-   not printed or you cannot read it, set both dateText and date to null.
+3. DATE. A receipt usually prints SEVERAL dates. You must return the date the purchase
+   was made, and nothing else. The purchase date is the one printed with a TIME beside it
+   (e.g. "20/07/26 09:56"), or alongside the card-transaction details, usually at the very
+   bottom or the very top. IGNORE every other date, in particular:
+     - a refund / exchange deadline ("the last date for a refund or exchange is …")
+     - "valid until", "expires", "use by", "best before"
+     - promotional, loyalty or voucher dates
+   If the only date you can find is one of those, return null rather than using it.
+   UK and European receipts are DAY-FIRST: 07/08/26 is 7 August 2026, not 8 July. Only
+   treat a date as month-first if the receipt is clearly from the United States. A
+   two-digit year in the 20s means 20xx. Also return dateHasTime: true when the date you
+   chose was printed with a time next to it.
 4. CURRENCY. Report only what the receipt shows. Never convert between currencies and never
    invent an exchange rate.
 
@@ -264,6 +273,9 @@ Return ONLY valid JSON, no markdown, no explanation.`;
     totalText: parsed.totalText || null,
     date: /^\d{4}-\d{2}-\d{2}$/.test(parsed.date || '') ? parsed.date : null,
     dateText: parsed.dateText || null,
+    // A purchase date is normally timestamped; one without a time is more likely to be
+    // a refund-by or validity date the model latched onto, so it's worth checking.
+    dateHasTime: parsed.dateHasTime === true,
     currency: (parsed.currency || '').toUpperCase().slice(0, 3) || null,
     vatPrinted,
     vatAmount: vatPrinted ? num(parsed.vatAmount) : null,

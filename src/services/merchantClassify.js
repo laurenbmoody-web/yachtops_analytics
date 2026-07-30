@@ -113,6 +113,10 @@ const MERCHANT_SEED = [
   // Airlines: crew travel or guest travel?
   { re: /\b(ryanair|easyjet|air\s*france|klm|lufthansa|emirates|british\s*airways|iberia|vueling|wizz|swiss\s*air|airlines?)\b/, alts: ['CTE', 'GCT'], reason: 'airline — crew or guest travel?' },
 
+  // Department stores sell food AND clothing — M&S is the classic case, so the line
+  // could be provisions or crew uniform. Ask rather than guess.
+  { re: /\b(marks\s*(?:and\s*)?spencer|\bm\s+s\b|john\s*lewis|primark|next\s*retail|debenhams|uniqlo|h\s*m\b|zara)\b/, alts: ['GFE', 'CUF'], reason: 'department store — provisions or uniform?' },
+
   // Car hire / taxi / transport: ship transport or guest car hire?
   { re: /\b(uber|taxi|hertz|avis|europcar|sixt|enterprise\s*rent|car\s*hire|rental)\b/, alts: ['CAR', 'GCT'], reason: 'transport — ship or guest?' },
 ];
