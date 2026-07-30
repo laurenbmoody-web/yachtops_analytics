@@ -808,6 +808,38 @@ export const seedStarterWarehouse = async (supplierId) => {
   return data ?? [];
 };
 
+// ─── Warehouse layout (the free-form floor-plan designer) ────────────────────
+
+const DEFAULT_ROOM = { points: [[6, 6], [94, 6], [94, 54], [6, 54]] };
+
+// The supplier's saved floor plan: the room polygon (shape) and the placed
+// racks (racks). Returns sensible defaults for a supplier who hasn't drawn one
+// yet, so the designer always has a room to start from. RLS scopes the read.
+export const fetchWarehouseLayout = async () => {
+  const { data, error } = await supabase
+    .from('supplier_warehouse_layout')
+    .select('shape, racks')
+    .maybeSingle();
+  if (error) throw error;
+  return {
+    shape: data?.shape?.points ? data.shape : DEFAULT_ROOM,
+    racks: Array.isArray(data?.racks) ? data.racks : [],
+  };
+};
+
+// Upsert the whole layout for a supplier (one row per supplier_id).
+export const saveWarehouseLayout = async (supplierId, { shape, racks }) => {
+  const { error } = await supabase
+    .from('supplier_warehouse_layout')
+    .upsert({
+      supplier_id: supplierId,
+      shape: shape || DEFAULT_ROOM,
+      racks: Array.isArray(racks) ? racks : [],
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'supplier_id' });
+  if (error) throw error;
+};
+
 // Upload a product photo to the public `catalogue-images` bucket and write
 // the public URL onto the catalogue row. Same pattern as uploadSupplierLogo.
 export const uploadCatalogueImage = async (supplierId, itemId, file) => {

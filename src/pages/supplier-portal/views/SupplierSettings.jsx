@@ -28,7 +28,7 @@ import {
 import { getSupplierTier } from '../../../components/SupplierRoleGuard';
 import InvoicingSettings from '../components/InvoicingSettings';
 import ConnectPaymentSettings from '../components/ConnectPaymentSettings';
-import WarehouseMap from './WarehouseMap';
+import WarehouseDesigner from './WarehouseDesigner';
 import './storefront-preview.css';
 
 // Tab order per spec. adminOnly tabs are hidden from managers.
@@ -1528,7 +1528,7 @@ const SupplierSettings = () => {
               </div>
             )
           ) : activeSlug === 'warehouse' ? (
-            <WarehouseMap supplierId={supplier.id} />
+            <WarehouseDesigner supplierId={supplier.id} />
           ) : activeSlug === 'tax' ? (
             <InvoicingSettings supplier={supplier} onSaved={refreshSupplier} />
           ) : activeSlug === 'payment' ? (
