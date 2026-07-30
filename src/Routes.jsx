@@ -114,6 +114,7 @@ const SupplierPickList   = lazyWithRetry(() => import('./pages/supplier-portal/v
 const SupplierDrive      = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierDrive'));
 const SupplierProducts   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierProducts'));
 const SupplierSettings   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierSettings'));
+const SupplierWarehouse  = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierWarehouse'));
 const SupplierDeliveries = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierDeliveries'));
 const SupplierInvoices   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierInvoices'));
 const SupplierClients    = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierClients'));
@@ -1397,6 +1398,7 @@ const Routes = () => {
           <Route path="deliveries"      element={<SupplierDeliveries />} />
           <Route path="invoices"        element={<SupplierInvoices />} />
           <Route path="products"        element={<SupplierProducts />} />
+          <Route path="warehouse"       element={<SupplierRoleGuard minTier="manager"><SupplierWarehouse /></SupplierRoleGuard>} />
           <Route path="clients"         element={<SupplierClients />} />
           <Route path="clients/:id"     element={<SupplierClientDetail />} />
           <Route path="messages"        element={<SupplierMessages />} />
@@ -1407,7 +1409,7 @@ const Routes = () => {
           <Route path="workspace/company"       element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
           <Route path="workspace/storefront"    element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
           <Route path="workspace/team"          element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
-          <Route path="workspace/warehouse"     element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="workspace/warehouse"     element={<Navigate to="/supplier/warehouse" replace />} />
           <Route path="workspace/zones"         element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
           <Route path="workspace/tax"           element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
           <Route path="workspace/notifications" element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />

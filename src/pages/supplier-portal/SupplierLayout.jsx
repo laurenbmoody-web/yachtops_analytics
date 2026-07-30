@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, ShoppingBag, Truck, FileText, BookOpen,
-  Users, MessageSquare, RotateCcw, Bell, Search, Radar,
+  Users, MessageSquare, RotateCcw, Bell, Search, Radar, Warehouse,
   PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import SupplierAvatarMenu from './components/SupplierAvatarMenu';
@@ -34,6 +34,7 @@ const NAV_GROUPS = [
       // list today. The item returns when per-yacht price tiers ship,
       // as the tier editor — not as a duplicate of Products.
       { to: '/supplier/products', icon: BookOpen, label: 'Products', requires: 'catalogue:view' },
+      { to: '/supplier/warehouse', icon: Warehouse, label: 'Warehouse', requires: 'catalogue:view' },
     ],
   },
   {
