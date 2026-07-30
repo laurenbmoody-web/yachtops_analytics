@@ -971,9 +971,11 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
             <input className="itf-in" value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="Scan, generate or enter…" />
             <div className="itf-scanbtns">
               <button type="button" className="itf-mini" onClick={() => setShowScan(true)} title="Scan a barcode or QR with the camera"><Icon name="ScanLine" size={15} /> Scan</button>
-              <button type="button" className="itf-mini g" onClick={handleCreateQr} title="Generate a printable QR code for this item"><Icon name="QrCode" size={15} /> Create QR</button>
+              <button type="button" className="itf-mini g" onClick={handleCreateQr} title={barcode.trim() ? 'Reprint this item’s existing QR label (same code)' : 'Mint & print a unique QR code for this item'}><Icon name={barcode.trim() ? 'Printer' : 'QrCode'} size={15} /> {barcode.trim() ? 'Print QR' : 'Create QR'}</button>
             </div>
-            <p className="itf-scanhint">Scan a code, or <b>Create QR</b> to mint &amp; print a unique label for this item.</p>
+            <p className="itf-scanhint">Scan a code, or {barcode.trim()
+              ? <><b>Print QR</b> to reprint this item’s existing label — it keeps the same code, never a new one.</>
+              : <><b>Create QR</b> to mint &amp; print a unique label for this item.</>}</p>
           </div>
           <div className="itf-f"><label className="itf-lab">Tags</label><div className="itf-chips">{['drinks', 'bar', 'snacks', 'safety', 'cleaning'].map((t) => <span key={t} className={`itf-chip${tags.includes(t) ? ' on' : ''}`} onClick={() => setTags((xs) => xs.includes(t) ? xs.filter((x) => x !== t) : [...xs, t])}>{t}</span>)}{tags.filter((t) => !['drinks', 'bar', 'snacks', 'safety', 'cleaning'].includes(t)).map((t) => <span key={t} className="itf-chip on" onClick={() => setTags((xs) => xs.filter((x) => x !== t))}>{t} ✕</span>)}<input className="itf-chip-in" value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const v = tagDraft.trim(); if (v && !tags.includes(v)) setTags((xs) => [...xs, v]); setTagDraft(''); } }} placeholder="+ custom" /></div></div>
           <div className="itf-f" style={{ marginBottom: 0 }}><label className="itf-lab">Notes</label><input className="itf-in" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any notes…" /></div>

@@ -45,8 +45,14 @@ const LABEL_CSS = `
   .bar .print { background: #C65A1A; color: #fff; }
   .bar .png { background: #fff; color: #C65A1A; border-color: #E5E2DA; }
   .bar .hint { flex-basis: 100%; font-size: 11.5px; color: #6B7280; }
-  .stage { display: flex; justify-content: center; padding: 26px; }
+  .stage { padding: 26px; }
+  .labels { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .labels.sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; align-content: start; justify-content: initial; }
   .label { background: #fff; display: flex; align-items: center; gap: 12px; }
+  .label.card.mini { width: auto; padding: 10px 10px 12px; border-radius: 10px; }
+  .label.card.mini .qr { width: 108px; height: 108px; }
+  .label.card.mini .name { font-size: 15px; margin: 5px 0 1px; }
+  .label.card.mini .code { margin-top: 6px; font-size: 10.5px; }
   .label.card { width: 320px; flex-direction: column; text-align: center; border: 1px solid #E5E2DA; border-radius: 14px; padding: 22px; }
   .label.tag { border: 1px dashed #C9CDD6; padding: 3mm 4mm; }
   .label .qr { flex: none; }
@@ -66,8 +72,13 @@ const LABEL_CSS = `
     body { background: #fff; }
     .bar { display: none; }
     .stage { padding: 0; }
+    .labels { display: flex; }
+    .labels.sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(46mm, 1fr)); gap: 5mm; padding: 8mm; }
     .label.card { margin: 14mm auto; border: 0; }
+    .label.card.mini { margin: 0; border: 1px solid #E5E2DA; }
     .label.tag { border: 0; }
+    .copy-page { break-after: page; page-break-after: always; }
+    .copy-page:last-child { break-after: auto; page-break-after: auto; }
   }
 `;
 
@@ -88,7 +99,7 @@ export async function printItemQr({ code, name, brand, location, win }) {
   const qr = await makeQr(value).catch(() => '');
   const sub = [brand, location].filter(Boolean).map(esc).join(' · ');
   const options = LABEL_SIZES.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
-  const data = JSON.stringify({ sizes: LABEL_SIZES, qr, code: value, filename: (value || 'qr').replace(/[^\w.\-]+/g, '_') }).replace(/</g, '\\u003c');
+  const data = JSON.stringify({ sizes: LABEL_SIZES, qr, code: value, name: esc(name || 'Inventory item'), sub, filename: (value || 'qr').replace(/[^\w.\-]+/g, '_') }).replace(/</g, '\\u003c');
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>QR — ${esc(name || value)}</title>
     <style id="page">@page{size:A4;margin:0}</style>
@@ -100,54 +111,74 @@ export async function printItemQr({ code, name, brand, location, win }) {
         <input id="cw" type="number" min="10" max="300" step="1" value="50" style="width:64px;font:500 13px 'Inter',system-ui;border:1px solid #E5E2DA;border-radius:8px;padding:7px 8px" /> ×
         <input id="ch" type="number" min="10" max="300" step="1" value="25" style="width:64px;font:500 13px 'Inter',system-ui;border:1px solid #E5E2DA;border-radius:8px;padding:7px 8px" /> mm
       </span>
+      <label for="copies" style="margin-left:4px">Copies</label>
+      <input id="copies" type="number" min="1" max="200" step="1" value="1" style="width:60px;font:500 13px 'Inter',system-ui;border:1px solid #E5E2DA;border-radius:8px;padding:7px 8px" />
       <button class="print" onclick="window.print()">Print</button>
       <button class="png" id="dl">Download PNG</button>
-      <span class="hint">Pick your label stock (or set a <b>Custom size</b>), then <b>Print</b> and choose your Brother / Dymo / Zebra printer — or <b>Download PNG</b> to drop into P-touch Editor, Dymo Connect or Zebra software.</span>
+      <span class="hint">Pick your label stock (or a <b>Custom size</b>) and how many <b>Copies</b> — on the A4 sheet, multiples tile across the page (e.g. 60 to a sheet); on a label size they print one per label. Then <b>Print</b> to your Brother / Dymo / Zebra printer, or <b>Download PNG</b> for P-touch Editor, Dymo Connect or Zebra software.</span>
     </div>
     <div class="stage">
-      <div class="label card" id="label">
-        <div class="qr">${qr ? `<img src="${esc(qr)}" alt="QR code" />` : ''}</div>
-        <div class="meta">
-          <div class="eyebrow">Cargo · Inventory</div>
-          <div class="name">${esc(name || 'Inventory item')}</div>
-          ${sub ? `<div class="sub">${sub}</div>` : ''}
-          <div class="code">${esc(value)}</div>
-        </div>
-      </div>
+      <div class="labels" id="labels"></div>
     </div>
     <script>
       var D = ${data};
       var byId = function (i) { return document.getElementById(i); };
-      function tag(w, h) {
-        var label = byId('label');
-        byId('page').textContent = '@page{size:' + w + 'mm ' + h + 'mm;margin:0}';
-        label.className = 'label tag';
-        label.style.width = w + 'mm'; label.style.height = h + 'mm';
+      function labelInner() {
+        var qr = D.qr ? '<div class="qr"><img src="' + D.qr + '" alt="QR code" /></div>' : '<div class="qr"></div>';
+        return qr + '<div class="meta">'
+          + '<div class="eyebrow">Cargo · Inventory</div>'
+          + '<div class="name">' + (D.name || 'Inventory item') + '</div>'
+          + (D.sub ? '<div class="sub">' + D.sub + '</div>' : '')
+          + '<div class="code">' + D.code + '</div>'
+          + '</div>';
       }
-      function applySize(id) {
-        byId('customwrap').style.display = id === 'custom' ? 'inline-flex' : 'none';
+      // Physical label dimensions in mm, or null for the A4 sheet.
+      function dimsFor(id) {
         if (id === 'custom') {
-          var w = Math.max(10, Number(byId('cw').value) || 50);
-          var h = Math.max(10, Number(byId('ch').value) || 25);
-          tag(w, h);
-          return;
+          return { w: Math.max(10, Number(byId('cw').value) || 50), h: Math.max(10, Number(byId('ch').value) || 25) };
         }
-        var p = D.sizes.filter(function (s) { return s.id === id; })[0] || D.sizes[0];
-        if (p.w) { tag(p.w, p.h); }
-        else {
-          var label = byId('label');
-          byId('page').textContent = '@page{size:A4;margin:0}';
-          label.className = 'label card';
-          label.style.width = ''; label.style.height = '';
+        var p = D.sizes.filter(function (s) { return s.id === id; })[0];
+        return p && p.w ? { w: p.w, h: p.h } : null;
+      }
+      function render() {
+        var id = byId('sz').value;
+        var copies = Math.max(1, Math.min(200, Math.floor(Number(byId('copies').value) || 1)));
+        byId('customwrap').style.display = id === 'custom' ? 'inline-flex' : 'none';
+        var host = byId('labels');
+        host.innerHTML = '';
+        var dims = dimsFor(id);
+        if (!dims) {
+          // A4 office sheet — one big card, or a tiled grid for multiples.
+          byId('page').textContent = '@page{size:A4;margin:' + (copies > 1 ? '8mm' : '0') + '}';
+          host.className = copies > 1 ? 'labels sheet' : 'labels';
+          for (var i = 0; i < copies; i++) {
+            var el = document.createElement('div');
+            el.className = copies > 1 ? 'label card mini' : 'label card';
+            el.innerHTML = labelInner();
+            host.appendChild(el);
+          }
+        } else {
+          // A dedicated label size — one label per page (a roll of N labels).
+          byId('page').textContent = '@page{size:' + dims.w + 'mm ' + dims.h + 'mm;margin:0}';
+          host.className = 'labels';
+          for (var j = 0; j < copies; j++) {
+            var t = document.createElement('div');
+            t.className = 'label tag' + (copies > 1 ? ' copy-page' : '');
+            t.style.width = dims.w + 'mm'; t.style.height = dims.h + 'mm';
+            t.innerHTML = labelInner();
+            host.appendChild(t);
+          }
         }
       }
-      byId('sz').addEventListener('change', function (e) { applySize(e.target.value); });
-      byId('cw').addEventListener('input', function () { if (byId('sz').value === 'custom') applySize('custom'); });
-      byId('ch').addEventListener('input', function () { if (byId('sz').value === 'custom') applySize('custom'); });
+      byId('sz').addEventListener('change', render);
+      byId('copies').addEventListener('input', render);
+      byId('cw').addEventListener('input', function () { if (byId('sz').value === 'custom') render(); });
+      byId('ch').addEventListener('input', function () { if (byId('sz').value === 'custom') render(); });
       byId('dl').addEventListener('click', function () {
         if (!D.qr) return;
         var a = document.createElement('a'); a.href = D.qr; a.download = D.filename + '.png'; a.click();
       });
+      render();
     </script>
   </body></html>`;
 
