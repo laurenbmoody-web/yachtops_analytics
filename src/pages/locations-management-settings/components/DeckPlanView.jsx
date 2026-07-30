@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
+import VoiceSearchButton from '../../../components/VoiceSearchButton';
 import { layerColor, layerLabel } from '../../vessel-map/layers';
 import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck, recordDeckShapeSample, getPlanOverlays } from '../utils/locationsLayoutStorage';
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
@@ -991,6 +992,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           {overlayQuery && (
             <button type="button" className="dp-fb-clear" onClick={() => setOverlayQuery('')} aria-label="Clear search">×</button>
           )}
+          <VoiceSearchButton className="dp-fb-mic" onResult={(t) => setOverlayQuery(t)} title="Say what you're looking for" />
           {searchQ && (
             <div className="dp-sr">
               {searchHits.length === 0 ? (

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
+import VoiceSearchButton from '../../components/VoiceSearchButton';
 import Button from '../../components/ui/Button';
 import { getAllItems } from '../inventory/utils/inventoryStorage';
 import { FOLDERS, getCategoriesGroupedByFolder } from '../inventory-management/utils/folderMapping';
@@ -256,7 +257,13 @@ const FolderBasedInventoryDashboard = () => {
               placeholder="Search all inventory..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e?.target?.value)}
-              className="w-full pl-12 pr-4 py-4 bg-card border border-border rounded-2xl text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+              className="w-full pl-12 pr-14 py-4 bg-card border border-border rounded-2xl text-base text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+            />
+            <VoiceSearchButton
+              className="absolute right-4 top-1/2 -translate-y-1/2"
+              size={20}
+              onResult={(t) => setSearchQuery(t)}
+              title="Say what you're looking for"
             />
           </div>
         </div>

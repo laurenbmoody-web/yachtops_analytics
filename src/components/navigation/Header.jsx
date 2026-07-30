@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
+import VoiceSearchButton from '../VoiceSearchButton';
 import Image from '../AppImage';
 import LogoSpinner from '../LogoSpinner';
 import AcceptAdminBanner from './AcceptAdminBanner';
@@ -614,6 +615,12 @@ const Header = () => {
                 <Icon name="X" size={14} />
               </button>
             )}
+            <VoiceSearchButton
+              className="hsearch-mic"
+              size={17}
+              onResult={(t) => handleSearchChange({ target: { value: t } })}
+              title="Say what you're looking for"
+            />
 
             {/* Results dropdown */}
             {isSearchOpen && searchQuery.trim() && (
