@@ -6,8 +6,9 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { fetchTenantCrew } from '../../crew-profile/utils/tenantCrew';
 import {
   fetchTenantUniformKit, saveKitItem, deleteKitItem, recordKitReturn, requestKitSignoff,
-  logKitEvent, fmtKitDate, CONDITIONS,
+  logKitEvent, fmtKitDate, CONDITIONS, canonicalGarment, GARMENT_ORDER, GARMENT_ICON,
 } from '../../crew-profile/utils/crewKit';
+import { sendDbNotification } from '../../../lib/dbNotifications';
 import { getAllItems, adjustItemQuantity, saveItem } from '../../inventory/utils/inventoryStorage';
 import { canViewCost } from '../../../utils/costPermissions';
 import { money } from '../utils/laundryBilling';
@@ -85,22 +86,24 @@ const charterOf = (rel = []) => {
   return 'General';
 };
 const CHARTER_ORDER = { 'On charter': 0, 'Off charter': 1, General: 2 };
-// Fallback classifier when an item sits directly under a charter folder with no
-// type sub-folder — infers the category from the item name.
-const TYPE_RULES = [
-  { re: /(shoe|boot|footwear|sandal|trainer|sneaker|flip[\s-]*flop|espadrille)/i, label: 'Footwear' },
-  { re: /(belt|hat|\bcap\b|beanie|glove|\bsock|\btie\b|scarf|sunglass|watch|\bbag\b|lanyard|buff|accessor)/i, label: 'Accessories' },
-];
-const TYPE_ORDER = { Clothing: 0, Footwear: 1, Accessories: 2 };
+// Folder segments that aren't garment categories — the interior files uniform
+// under gender / a charter split / generic buckets, none of which are a "type".
+const GENDER_RE = /^(mens?|womens?|ladies|unisex|kids?)$/i;
+const GENERIC_RE = /^(general|all|standard|default|misc|other|crew)$/i;
+const CHARTER_RE = /(on|off)[\s-]*charter/i;
+// Garment type from the item's folder leaf (skipping gender / charter / generic
+// buckets), folding down to Clothing / Footwear / Accessories; falls back to
+// classifying the item name when nothing meaningful is in the path.
+const TYPE_ORDER = GARMENT_ORDER;
 const typeOf = (rel = [], name = '') => {
-  const ci = rel.findIndex((s) => /(on|off)[\s-]*charter/i.test(s));
-  const below = ci >= 0 ? rel.slice(ci + 1) : rel;
-  if (below.length) return below[0]; // the item's own folder is its category
-  for (const r of TYPE_RULES) if (r.re.test(name)) return r.label;
-  return 'Clothing';
+  for (let i = rel.length - 1; i >= 0; i -= 1) {
+    const s = rel[i];
+    if (GENDER_RE.test(s) || GENERIC_RE.test(s) || CHARTER_RE.test(s)) continue;
+    return canonicalGarment(s);
+  }
+  return canonicalGarment(name);
 };
-const TYPE_ICON = { Footwear: 'Footprints', Accessories: 'Watch' };
-const typeIcon = (type) => TYPE_ICON[type] || 'Shirt';
+const typeIcon = (type) => GARMENT_ICON[type] || 'Shirt';
 
 // Issue-from-inventory: browse the Uniform folder as tiles, drill down to items,
 // tick items and allocate a quantity (−/count/+, capped at what's on board), then
@@ -442,9 +445,14 @@ const CrewFolder = ({ onBack }) => {
     };
   }, [memberKit]);
 
-  // in-service items not yet acknowledged — what "Send for sign-off" chases up.
-  const pendingSignoff = useMemo(
-    () => memberKit.filter((k) => k.status === 'in_service' && !k.acknowledged_at).map((k) => k.id),
+  // Items not yet sent for sign-off (what the button sends) vs already sent and
+  // still waiting on the crew member — so the button doesn't re-fire on nothing.
+  const toSignoff = useMemo(
+    () => memberKit.filter((k) => k.status === 'in_service' && !k.acknowledged_at && !k.signoff_requested_at && !k.swap_requested_size).map((k) => k.id),
+    [memberKit]
+  );
+  const awaitingSignoff = useMemo(
+    () => memberKit.filter((k) => k.status === 'in_service' && !k.acknowledged_at && (k.signoff_requested_at || k.swap_requested_size)).length,
     [memberKit]
   );
 
@@ -501,12 +509,22 @@ const CrewFolder = ({ onBack }) => {
   // Hand-over: stamp the crew member's unacknowledged kit as sent for sign-off,
   // so their profile prompts them to acknowledge receipt or request a size swap.
   const doSignoff = async () => {
-    if (!pendingSignoff.length || signingOff) return;
+    if (!toSignoff.length || signingOff) return;
     setSigningOff(true);
+    const n = toSignoff.length;
+    const issuerName = user?.user_metadata?.full_name || user?.email;
     try {
-      await requestKitSignoff(pendingSignoff, { requestedBy: user?.id });
-      await logKitEvent({ userId: selectedId, tenantId: activeTenantId, action: 'signoff_requested', detail: { count: pendingSignoff.length }, actorId: user?.id, actorName: user?.user_metadata?.full_name || user?.email });
-      window.showToast?.(`Sent ${pendingSignoff.length} item${pendingSignoff.length === 1 ? '' : 's'} to ${selected?.fullName?.split(' ')[0] || 'the crew member'} for sign-off`, 'success');
+      await requestKitSignoff(toSignoff, { requestedBy: user?.id });
+      await logKitEvent({ userId: selectedId, tenantId: activeTenantId, action: 'signoff_requested', detail: { count: n }, actorId: user?.id, actorName: issuerName });
+      // Ping the crew member's bell so they know to review it on any device.
+      await sendDbNotification(selectedId, {
+        type: 'kit_signoff',
+        title: 'Uniform to sign off',
+        message: `${issuerName || 'The interior'} has issued you ${n} uniform item${n === 1 ? '' : 's'} — confirm receipt or request a size swap.`,
+        actionUrl: `/profile/${selectedId}`,
+        severity: 'info',
+      });
+      window.showToast?.(`Sent ${n} item${n === 1 ? '' : 's'} to ${selected?.fullName?.split(' ')[0] || 'the crew member'} for sign-off`, 'success');
       await load();
     } catch (e) {
       window.showToast?.('Couldn’t send for sign-off — try again', 'error');
@@ -679,11 +697,13 @@ const CrewFolder = ({ onBack }) => {
         <button type="button" className="lm-back" onClick={() => setSelectedId(null)}><Icon name="ArrowLeft" size={16} /> Back to all crew</button>
         {canManage && (
           <div className="cf-bar-acts">
-            {pendingSignoff.length > 0 && (
+            {toSignoff.length > 0 ? (
               <button type="button" className="cf-btn ghost sm" onClick={doSignoff} disabled={signingOff}>
-                <Icon name="PenLine" size={15} /> {signingOff ? 'Sending…' : `Send for sign-off (${pendingSignoff.length})`}
+                <Icon name="PenLine" size={15} /> {signingOff ? 'Sending…' : `Send for sign-off (${toSignoff.length})`}
               </button>
-            )}
+            ) : awaitingSignoff > 0 ? (
+              <span className="cf-await-chip"><Icon name="Clock" size={13} /> Awaiting sign-off · {awaitingSignoff} sent</span>
+            ) : null}
             <button type="button" className="cf-btn primary sm" onClick={openIssue}><Icon name="Plus" size={15} /> Issue from inventory</button>
           </div>
         )}

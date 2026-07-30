@@ -875,6 +875,41 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-ack-list li:last-child { border-bottom: 0; }
 .crew-profile-page .kit-ack-cat { font-size: 11px; color: #8B8478; white-space: nowrap; }
 
+/* Per-item acknowledge / request-swap rows */
+.crew-profile-page .kit-ack-list li.kit-ack-item { display: block; }
+.crew-profile-page .kit-ack-item.swapping { background: #FCF6EF; }
+.crew-profile-page .kit-ack-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.crew-profile-page .kit-ack-nm { min-width: 0; }
+.crew-profile-page .kit-ack-swapbtn { flex: none; background: none; border: none; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; cursor: pointer; padding: 2px 4px; border-radius: 6px; }
+.crew-profile-page .kit-ack-swapbtn:hover { text-decoration: underline; }
+.crew-profile-page .kit-ack-swap { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: #C65A1A; }
+.crew-profile-page .kit-ack-swap input { flex: 1; border: 1px solid #E5E7EB; background: #FFFFFF; border-radius: 8px; padding: 7px 10px; font-size: 13px; color: #1C1B3A; outline: none; }
+.crew-profile-page .kit-ack-swap input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+
+/* Issued-kit tiles — visual, so a crew member can recognise items at a glance. */
+.crew-profile-page .kit-tilegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
+.crew-profile-page .kit-tile { position: relative; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.14s, box-shadow 0.14s; }
+.crew-profile-page .kit-tile:hover { border-color: #D6C3B4; box-shadow: 0 12px 28px -18px rgba(28, 27, 58, 0.28); }
+.crew-profile-page .kit-tile.ret { opacity: 0.64; }
+.crew-profile-page .kit-tile-media { position: relative; width: 100%; padding-top: 72%; background: #F5F6F8; overflow: hidden; }
+.crew-profile-page .kit-tile-media > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.crew-profile-page .kit-tile-ph { position: absolute; inset: 0; display: grid; place-items: center; color: #C9CDD6; }
+.crew-profile-page .kit-tile-qty { position: absolute; top: 8px; left: 8px; background: #1C1B3A; color: #FFFFFF; border-radius: 999px; min-width: 26px; height: 24px; padding: 0 9px; display: inline-flex; align-items: center; justify-content: center; font: 800 13px 'Plus Jakarta Sans', system-ui, sans-serif; box-shadow: 0 2px 8px -2px rgba(28, 27, 58, 0.4); }
+.crew-profile-page .kit-tile-qty .x { font-weight: 600; opacity: 0.7; font-size: 11px; margin-right: 1px; }
+.crew-profile-page .kit-tile-sig { position: absolute; bottom: 6px; right: 6px; width: 40px; height: 24px; object-fit: contain; background: rgba(255, 255, 255, 0.92); border: 1px solid #ECEAE3; border-radius: 6px; padding: 1px; }
+.crew-profile-page .kit-tile-body { padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 5px; }
+.crew-profile-page .kit-tile-nm { font-weight: 600; font-size: 13px; color: #1C1B3A; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.crew-profile-page .kit-tile-sub { font-size: 11px; color: #8B8478; }
+.crew-profile-page .kit-tile-swap { display: inline-flex; align-items: center; gap: 5px; font: 700 10.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #B45309; }
+.crew-profile-page .kit-tile-note { font-size: 10.5px; color: #AEB4C2; font-style: italic; line-height: 1.35; }
+.crew-profile-page .kit-tile-foot { display: flex; align-items: center; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+.crew-profile-page .kit-tile-acts { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; }
+.crew-profile-page .kit-tile-acts button { padding: 5px; border: none; background: none; border-radius: 7px; color: #6B7280; cursor: pointer; display: grid; place-items: center; }
+.crew-profile-page .kit-tile-acts button:hover { background: #F0F1F5; color: #1C1B3A; }
+.crew-profile-page .kit-tile-acts button.danger:hover { background: #FBECEC; color: #A32D2D; }
+.crew-profile-page .kit-tile-reinstate { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #E5E7EB; background: #FFFFFF; border-radius: 8px; padding: 5px 10px; font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; cursor: pointer; }
+.crew-profile-page .kit-tile-reinstate:hover { border-color: #C65A1A; color: #C65A1A; }
+
 /* Uniform sizes block (moved from Preferences) — generously spaced and split
    off from the issued items below with a hairline. */
 .crew-profile-page .kit-sizes { margin: 0 0 30px; padding-bottom: 24px; border-bottom: 1px solid #F0F1F5; }

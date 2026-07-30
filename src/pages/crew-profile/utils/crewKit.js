@@ -20,6 +20,19 @@ export const kitCategoryLabel = (id) =>
 
 export const CONDITIONS = ['New', 'Good', 'Used'];
 
+// Garment categories — the interior thinks in Clothing / Footwear / Accessories,
+// so any folder leaf or item name folds down to one of those three. Shared by the
+// wardrobe Crew view (folder-derived) and the crew profile (name-derived) so both
+// group identically.
+export const GARMENT_ORDER = { Clothing: 0, Footwear: 1, Accessories: 2 };
+export const GARMENT_ICON = { Clothing: 'Shirt', Footwear: 'Footprints', Accessories: 'Watch' };
+export const canonicalGarment = (raw = '') => {
+  const s = String(raw).toLowerCase();
+  if (/(shoe|boot|footwear|sandal|trainer|sneaker|flip[\s-]*flop|espadrille|plimsoll|deck\s*shoe)/.test(s)) return 'Footwear';
+  if (/(accessor|belt|\bhat\b|\bcap\b|beanie|glove|\bsock|\btie\b|scarf|sunglass|watch|\bbag\b|lanyard|buff|braces|suspender|headband|visor)/.test(s)) return 'Accessories';
+  return 'Clothing';
+};
+
 // dd/mm/yyyy, matching the editorial design system.
 export const fmtKitDate = (d) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || ''));
