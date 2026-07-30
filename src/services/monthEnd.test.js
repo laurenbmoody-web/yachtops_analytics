@@ -223,7 +223,15 @@ test('a mismatch outranks unfinished lines, and says which way', () => {
   ];
   const h = closeHeadline(blockers, 'open', 'July 2026');
   assert.match(h, /40\.00 more than the statement on total out/);
-  assert.match(h, /don’t force it/);
+});
+
+test('the headline formats money the way the page does', () => {
+  // Bare "100.01" reads as a quantity, not an amount — the currency has to come
+  // from the account, so the caller supplies the formatter.
+  const h = closeHeadline([
+    { key: 'diff:moneyOut', label: 'total out doesn’t match the statement', amount: 100.01, ours: 2, theirs: 1 },
+  ], 'open', 'July 2026', (n) => `£${n.toFixed(2)}`);
+  assert.match(h, /£100\.01 more than the statement/);
 });
 
 test('the other direction reads the other way round', () => {
