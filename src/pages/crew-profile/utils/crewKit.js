@@ -111,6 +111,20 @@ export const fetchTenantUniformKit = async (tenantId) => {
   return data || [];
 };
 
+// All issued kit across the vessel (every category) — powers the wardrobe Crew
+// world now that it's the single hub for crew hand-outs (uniform + equipment).
+export const fetchTenantKit = async (tenantId) => {
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    ?.from('crew_issued_kit')
+    ?.select('*')
+    ?.eq('tenant_id', tenantId)
+    ?.order('issued_date', { ascending: false, nullsFirst: false })
+    ?.order('created_at', { ascending: false });
+  if (error) { console.error('[kit] tenant kit fetch failed', error); return []; }
+  return data || [];
+};
+
 export const saveKitItem = async (item) => {
   const payload = {
     user_id: item.userId,
