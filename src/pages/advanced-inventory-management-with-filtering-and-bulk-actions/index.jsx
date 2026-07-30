@@ -7,7 +7,7 @@ import ItemTile from '../inventory/components/ItemTile';
 import ItemListView from '../inventory/components/ItemListView';
 import DepartmentFilterChips, { getDepartmentFilter, filterItemsByDepartment } from '../inventory/components/DepartmentFilterChips';
 import BulkActionsModal from '../inventory/components/BulkActionsModal';
-import AddEditItemModal from '../inventory/components/AddEditItemModal';
+import ItemFormModal from '../inventory/components/ItemFormModal';
 import { getAllCategoriesL1, getCategoriesL2ByL1, getCategoriesL3ByL2, getCategoryL1ById, getCategoryL2ById, getCategoryL3ById } from '../inventory/utils/taxonomyStorage';
 import { getItemsByTaxonomy, saveItem } from '../inventory/utils/inventoryStorage';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/authStorage';
@@ -465,12 +465,8 @@ const AdvancedInventoryManagement = () => {
       )}
       {/* Modals */}
       {showAddItemModal && (
-        <AddEditItemModal
+        <ItemFormModal
           item={editingItem}
-          categoryL1Id={categoryId}
-          categoryL2Id={subcategoryL2Id}
-          categoryL3Id={subcategoryL3Id}
-          categoryL4Id={null}
           defaultLocation={null}
           defaultSubLocation={null}
           onClose={handleModalClose}

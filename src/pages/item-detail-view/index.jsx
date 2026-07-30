@@ -12,7 +12,7 @@ import {
   getCategoryL4ById
 } from '../inventory/utils/taxonomyStorage';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/authStorage';
-import AddEditItemModal from '../inventory/components/AddEditItemModal';
+import ItemFormModal from '../inventory/components/ItemFormModal';
 import { canViewCost, formatCurrency, calculateTotalValue } from '../../utils/costPermissions';
 import useDismissable from '../../components/ui/useDismissable';
 
@@ -373,12 +373,8 @@ const ItemDetailView = () => {
 
       {/* Edit Modal */}
       {showEditModal && (
-        <AddEditItemModal
+        <ItemFormModal
           item={item}
-          categoryL1Id={item?.l1Id}
-          categoryL2Id={item?.l2Id}
-          categoryL3Id={item?.l3Id}
-          categoryL4Id={item?.l4Id}
           defaultLocation={item?.locations?.[0]?.name || ''}
           defaultSubLocation={item?.locations?.[0]?.subLocation || ''}
           onClose={handleEditModalClose}

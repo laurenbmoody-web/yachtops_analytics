@@ -6,7 +6,7 @@ import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
 
-import AddEditItemModal from '../inventory/components/AddEditItemModal';
+import ItemFormModal from '../inventory/components/ItemFormModal';
 import ActivityHistoryModal from '../activity-feed-management/components/ActivityHistoryModal';
 import ReportDefectModal from '../defects/components/ReportDefectModal';
 import ComprehensiveJobModal from '../team-jobs-management/components/ComprehensiveJobModal';
@@ -176,17 +176,11 @@ const DashboardVessel = () => {
 
         {/* Modals */}
         {showAddItemModal && (
-          <AddEditItemModal
-            isOpen={showAddItemModal}
-            onClose={() => setShowAddItemModal(false)}
-            mode="add"
+          <ItemFormModal
             item={null}
-            categoryL1Id={null}
-            categoryL2Id={null}
-            categoryL3Id={null}
-            categoryL4Id={null}
             defaultLocation={null}
             defaultSubLocation={null}
+            onClose={() => setShowAddItemModal(false)}
           />
         )}
         

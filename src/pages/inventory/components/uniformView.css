@@ -6,8 +6,9 @@
 .uv-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 440px; max-width: 100%; z-index: 1501; display: flex; flex-direction: column; background: #FFFFFF; border-left: 1px solid #ECEAE3; box-shadow: -24px 0 60px -16px rgba(28, 27, 58, 0.32); font-family: 'Plus Jakarta Sans', system-ui, sans-serif; animation: uv-slide 0.2s ease; }
 
 .uv-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 22px 24px 16px; border-bottom: 1px solid #F0F1F5; }
-.uv-eyebrow { display: block; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
-.uv-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 25px; color: #1C1B3A; margin-top: 3px; line-height: 1.12; }
+.uv-eyebrow { display: block; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 4px; }
+.uv-eyebrow::before { content: '●'; color: #C65A1A; font-size: 6px; margin-right: 6px; vertical-align: 2px; }
+.uv-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 500; font-size: 27px; color: #1C1B3A; margin-top: 0; line-height: 1.05; letter-spacing: -.3px; }
 .uv-x { background: none; border: none; color: #8B8478; cursor: pointer; padding: 4px; flex: none; border-radius: 8px; }
 .uv-x:hover { color: #C65A1A; background: #FBEFE9; }
 

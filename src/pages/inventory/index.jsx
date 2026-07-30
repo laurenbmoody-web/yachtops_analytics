@@ -16,7 +16,7 @@ import {
   migrateGuestCategories
 } from './utils/taxonomyStorage';
 import { getItemsByTaxonomy, deleteItem, bulkDeleteItems, updateItemStockLocations } from './utils/inventoryStorage';
-import AddEditItemModal from './components/AddEditItemModal';
+import ItemFormModal from './components/ItemFormModal';
 import ExcelImportModal from './components/ExcelImportModal';
 import BulkDeleteConfirmationModal from './components/BulkDeleteConfirmationModal';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/authStorage';
@@ -775,12 +775,8 @@ const Inventory = () => {
 
         {/* Modals */}
         {showAddItemModal && (
-          <AddEditItemModal
+          <ItemFormModal
             item={editingItem}
-            categoryL1Id={categoryId}
-            categoryL2Id={subcategoryL2Id}
-            categoryL3Id={subcategoryL3Id}
-            categoryL4Id={null}
             defaultLocation={null}
             defaultSubLocation={null}
             onClose={handleModalClose}
