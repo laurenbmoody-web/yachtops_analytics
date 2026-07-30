@@ -1407,6 +1407,7 @@ const Routes = () => {
           <Route path="workspace/company"       element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
           <Route path="workspace/storefront"    element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
           <Route path="workspace/team"          element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
+          <Route path="workspace/warehouse"     element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
           <Route path="workspace/zones"         element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
           <Route path="workspace/tax"           element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />
           <Route path="workspace/notifications" element={<SupplierRoleGuard minTier="manager"><SupplierSettings /></SupplierRoleGuard>} />

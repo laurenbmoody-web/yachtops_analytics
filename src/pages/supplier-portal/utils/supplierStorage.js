@@ -729,6 +729,85 @@ export const setOrderItemShelfLocation = async (itemId, location) => {
   return data;
 };
 
+// ─── Warehouse locations (the supplier's storage map) ───────────────────────
+
+// All the supplier's locations, in walking order. RLS scopes to the caller's
+// supplier, so no explicit filter is needed.
+export const fetchWarehouseLocations = async () => {
+  const { data, error } = await supabase
+    .from('supplier_locations')
+    .select('*')
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+};
+
+// How many catalogue products sit in each location → { [location_id]: count }.
+export const fetchLocationItemCounts = async () => {
+  const { data, error } = await supabase
+    .from('supplier_catalogue_items')
+    .select('location_id')
+    .not('location_id', 'is', null);
+  if (error) throw error;
+  const counts = {};
+  for (const row of data ?? []) counts[row.location_id] = (counts[row.location_id] || 0) + 1;
+  return counts;
+};
+
+export const createWarehouseLocation = async (supplierId, { code, name, zone, sort_order }) => {
+  const { data, error } = await supabase
+    .from('supplier_locations')
+    .insert({ supplier_id: supplierId, code: (code || '').trim(), name: name?.trim() || null, zone: zone || 'ambient', sort_order: sort_order ?? 0 })
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+export const updateWarehouseLocation = async (id, patch) => {
+  const clean = {};
+  if ('code' in patch) clean.code = (patch.code || '').trim();
+  if ('name' in patch) clean.name = patch.name?.trim() || null;
+  if ('zone' in patch) clean.zone = patch.zone;
+  if ('sort_order' in patch) clean.sort_order = patch.sort_order;
+  const { data, error } = await supabase
+    .from('supplier_locations').update(clean).eq('id', id).select('*').single();
+  if (error) throw error;
+  return data;
+};
+
+export const deleteWarehouseLocation = async (id) => {
+  const { error } = await supabase.from('supplier_locations').delete().eq('id', id);
+  if (error) throw error;
+};
+
+// Persist a new order/zone for a batch of locations after a drag. updates:
+// [{ id, sort_order, zone }].
+export const reorderWarehouseLocations = async (updates) => {
+  await Promise.all((updates || []).map((u) =>
+    supabase.from('supplier_locations').update({ sort_order: u.sort_order, zone: u.zone }).eq('id', u.id)));
+};
+
+// Seed a sensible starter layout so a first-time supplier isn't staring at a
+// blank map. A few bins across each temperature zone.
+export const seedStarterWarehouse = async (supplierId) => {
+  const rows = [
+    { code: 'A-1', name: 'Dry goods',   zone: 'ambient' },
+    { code: 'A-2', name: 'Dry goods',   zone: 'ambient' },
+    { code: 'A-3', name: 'Beverages',   zone: 'ambient' },
+    { code: 'B-1', name: 'Spirits',     zone: 'ambient' },
+    { code: 'C-1', name: 'Dairy',       zone: 'chilled' },
+    { code: 'C-2', name: 'Produce',     zone: 'chilled' },
+    { code: 'C-3', name: 'Meat & fish', zone: 'chilled' },
+    { code: 'F-1', name: 'Frozen',      zone: 'frozen'  },
+    { code: 'F-2', name: 'Ice',         zone: 'frozen'  },
+  ].map((r, i) => ({ ...r, supplier_id: supplierId, sort_order: i }));
+  const { data, error } = await supabase.from('supplier_locations').insert(rows).select('*');
+  if (error) throw error;
+  return data ?? [];
+};
+
 // Upload a product photo to the public `catalogue-images` bucket and write
 // the public URL onto the catalogue row. Same pattern as uploadSupplierLogo.
 export const uploadCatalogueImage = async (supplierId, itemId, file) => {
