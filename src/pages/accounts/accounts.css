@@ -82,7 +82,7 @@
 .ca-filters-spacer { flex: 1; }
 
 /* Transaction rows */
-.ca-txn { display: grid; grid-template-columns: 26px 84px 1fr 150px 130px 130px; align-items: center; gap: 18px; padding: 13px 8px 13px 10px; border-bottom: 1px solid #EEF0F4; }
+.ca-txn { display: grid; grid-template-columns: 26px 92px 1fr 150px 130px 96px; align-items: center; gap: 16px; padding: 11px 8px 11px 10px; border-bottom: 1px solid #EEF0F4; }
 .ca-txn.is-void { opacity: 0.45; }
 .ca-txn.is-attention { box-shadow: inset 3px 0 0 0 #C65A1A; }
 .ca-txn-date { font-size: 12px; color: #8B8478; font-variant-numeric: tabular-nums; }
@@ -119,7 +119,7 @@
 @media (max-width: 860px) {
   .ca-acct { grid-template-columns: 24px 1fr auto; gap: 12px; }
   .ca-acct-cur { display: none; }
-  .ca-txn { grid-template-columns: 22px 70px 1fr auto; gap: 10px; }
+  .ca-txn { grid-template-columns: 22px 74px 1fr auto; gap: 10px; }
   .ca-txn-acct, .ca-chips { display: none; }
 }
 
@@ -334,10 +334,32 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
 .ca-txn-date2.is-straddle{color:#A8871B; font-weight:600}
 .ca-mark.is-pending{background:#F0F1F5; color:#6B7280; text-transform:none; letter-spacing:0}
 
-.ca-stepwrap{display:flex; flex-direction:column; gap:9px}
-.ca-basis{display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap}
-.ca-basis-l{font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#AEB4C2; margin-right:2px}
-.ca-basis button{border:1px solid #E5E7EB; background:#fff; border-radius:999px; padding:4px 11px;
-  font:inherit; font-size:11.5px; font-weight:600; color:#8B8478; cursor:pointer; white-space:nowrap}
-.ca-basis button:hover{border-color:#F3DDD0; color:#C65A1A}
-.ca-basis button[aria-pressed="true"]{background:#1C1B3A; border-color:#1C1B3A; color:#fff}
+/* Month-by choice, inside the Filters popover */
+.ca-fp-seg{display:flex; gap:5px}
+.ca-fp-seg button{flex:1; border:1px solid #E5E7EB; background:#FAFAF8; border-radius:8px; padding:7px 9px;
+  font:inherit; font-size:11.5px; font-weight:600; color:#6B7280; cursor:pointer}
+.ca-fp-seg button:hover{border-color:#F3DDD0; color:#C65A1A}
+.ca-fp-seg button[aria-pressed="true"]{background:#1C1B3A; border-color:#1C1B3A; color:#fff}
+
+/* ── Column headers ───────────────────────────────────────────────────────── */
+.ca-txnhead{display:grid; grid-template-columns:26px 92px 1fr 150px 130px 96px; align-items:end; gap:16px;
+  padding:0 8px 7px 10px; border-bottom:1px solid #E6E8EF; margin-top:14px}
+.ca-txnhead span{font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#AEB4C2}
+.ca-txnhead .r{text-align:right}
+@media (max-width:860px){
+  .ca-txnhead{grid-template-columns:22px 74px 1fr auto; gap:10px}
+  .ca-txnhead .h-acct{display:none}
+}
+
+/* both dates in the row */
+.ca-dates{display:flex; flex-direction:column; gap:1px}
+.ca-d1{font-size:12px; color:#1C1B3A; font-variant-numeric:tabular-nums}
+.ca-d2{font-size:10px; color:#AEB4C2; font-variant-numeric:tabular-nums}
+.ca-d2.is-straddle{color:#A8871B; font-weight:600}
+
+/* inline receipt clip in the actions cell */
+.ca-clip{display:inline-flex; align-items:center; gap:3px; border:0; background:none; padding:2px 3px;
+  border-radius:6px; cursor:pointer; color:#AEB4C2; font:inherit; font-size:10.5px; font-weight:700}
+.ca-clip:hover{color:#C65A1A; background:#FBEFE9}
+.ca-clip.has{color:#2F7A64}
+.ca-clip.has:hover{color:#2F7A64; background:#EDF3F0}

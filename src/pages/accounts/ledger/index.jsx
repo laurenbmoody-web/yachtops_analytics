@@ -406,18 +406,16 @@ export default function Ledger() {
           onClick={() => setExpandedId(open ? null : t.id)}>
           <Icon name="ChevronRight" size={15} />
         </button>
-        <span className="ca-txn-date">
-          {fmtDMY(effectiveDate(t, dateBasis))}
-          {/* The other date, when it disagrees — a posting lag that can move a cost
-              between months is worth seeing on the line, not buried in the detail. */}
-          {datesDiffer(t) && (
-            <span className={`ca-txn-date2${straddlesMonth(t) ? ' is-straddle' : ''}`}
-              title={dateBasis === 'statement'
-                ? `Spent ${fmtDMY(t.txn_date)}, posted ${fmtDMY(t.statement_date)}`
-                : `Posted to the statement ${fmtDMY(t.statement_date)}`}>
-              {dateBasis === 'statement' ? `spent ${fmtDMY(t.txn_date)}` : `stmt ${fmtDMY(t.statement_date)}`}
-            </span>
-          )}
+        <span className="ca-dates">
+          <span className="ca-d1">{fmtDMY(t.txn_date)}</span>
+          {/* The posted date sits under the spend date. Amber when the two fall in
+              different months — the case that moves a cost between periods. */}
+          <span className={`ca-d2${straddlesMonth(t) ? ' is-straddle' : ''}`}
+            title={t.statement_date ? `Spent ${fmtDMY(t.txn_date)} · posted ${fmtDMY(t.statement_date)}` : 'No statement date from the feed'}>
+            {t.statement_date
+              ? (datesDiffer(t) ? fmtDMY(t.statement_date) : 'same day')
+              : '—'}
+          </span>
         </span>
         <div className="ca-txn-desc">
           <div className="ca-txn-title">{t.description || SOURCE_LABEL[t.source] || 'Transaction'}</div>
@@ -472,6 +470,20 @@ export default function Ledger() {
           )}
         </span>
         <span className="ca-txn-act">
+          {/* Attach or open a receipt without opening the detail — the most common
+              second action after categorising. */}
+          {!voided && (atts.length > 0 ? (
+            <button type="button" className="ca-clip has" title={`${atts.length} receipt${atts.length > 1 ? 's' : ''} — click to view`}
+              onClick={() => atts[0].url && window.open(atts[0].url, '_blank', 'noopener')}>
+              <Icon name="Paperclip" size={13} />{atts.length > 1 ? atts.length : ''}
+            </button>
+          ) : canEdit && (
+            <label className="ca-clip" title="Attach a receipt">
+              <Icon name="Paperclip" size={13} />
+              <input type="file" accept="image/*,application/pdf" hidden
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleReceiptFor(t.id, f); e.target.value = ''; }} />
+            </label>
+          ))}
           {!t.account_id && !voided && canEdit && (
             <button type="button" className="ca-link" onClick={() => setAssignTxn(t)}>Assign →</button>
           )}
@@ -570,6 +582,17 @@ export default function Ledger() {
                   <label className="ca-fp-row"><span>Category</span>
                     <input className="ca-field" value={filters.category} onChange={(e) => setF({ category: e.target.value })} placeholder="Any category" />
                   </label>
+                  {/* Which date decides the month: when it was spent (management
+                      accounts) or when the bank posted it (tying to a statement). */}
+                  <div className="ca-fp-row">
+                    <span>Month by</span>
+                    <div className="ca-fp-seg">
+                      {[['spend', 'Date spent'], ['statement', 'Date on statement']].map(([k, lbl]) => (
+                        <button key={k} type="button" aria-pressed={dateBasis === k}
+                          onClick={() => setDateBasis(k)}>{lbl}</button>
+                      ))}
+                    </div>
+                  </div>
                   {activeFilterCount > 0 && (
                     <button type="button" className="ca-fp-clear" onClick={() => setF({ accountId: '', source: '', category: '' })}>Clear filters</button>
                   )}
@@ -583,25 +606,14 @@ export default function Ledger() {
 
           {/* month stepper (left) + KPIs (right) — borderless */}
           <div className="ca-monthbar">
-            <div className="ca-stepwrap">
-              <div className="ca-stepper">
-                <button type="button" className="ca-step-arrow" onClick={() => stepMonth(-1)} disabled={axisIdx <= 0} aria-label="Previous month">
-                  <Icon name="ChevronLeft" size={18} />
-                </button>
-                <div className="ca-step-name">{ymLabel(activeMonth)}</div>
-                <button type="button" className="ca-step-arrow" onClick={() => stepMonth(1)} disabled={axisIdx >= axis.length - 1} aria-label="Next month">
-                  <Icon name="ChevronRight" size={18} />
-                </button>
-              </div>
-              {/* Which date decides the month: when it was spent (management accounts)
-                  or when the bank posted it (tying to a statement). */}
-              <div className="ca-basis">
-                <span className="ca-basis-l">Month by</span>
-                {[['spend', 'Date spent'], ['statement', 'Date on statement']].map(([k, label]) => (
-                  <button key={k} type="button" aria-pressed={dateBasis === k}
-                    onClick={() => setDateBasis(k)}>{label}</button>
-                ))}
-              </div>
+            <div className="ca-stepper">
+              <button type="button" className="ca-step-arrow" onClick={() => stepMonth(-1)} disabled={axisIdx <= 0} aria-label="Previous month">
+                <Icon name="ChevronLeft" size={18} />
+              </button>
+              <div className="ca-step-name">{ymLabel(activeMonth)}</div>
+              <button type="button" className="ca-step-arrow" onClick={() => stepMonth(1)} disabled={axisIdx >= axis.length - 1} aria-label="Next month">
+                <Icon name="ChevronRight" size={18} />
+              </button>
             </div>
             <div className="ca-kpis">
               <div className="ca-kpi meter">
@@ -635,9 +647,19 @@ export default function Ledger() {
               <p className="ca-empty-sub">{status !== 'all' ? 'Try “All”, or step to another month.' : 'Step to another month, or add a manual transaction.'}</p>
             </div>
           ) : (
-            <div className="ca-cat" style={{ marginTop: 8 }}>
+            <>
+            <div className="ca-txnhead" aria-hidden="true">
+              <span />
+              <span>Spent / posted</span>
+              <span>Detail</span>
+              <span className="h-acct">Account</span>
+              <span className="r">Amount</span>
+              <span className="r">Actions</span>
+            </div>
+            <div className="ca-cat" style={{ marginTop: 0 }}>
               {monthRows.map(renderRow)}
             </div>
+            </>
           )}
         </div>
 

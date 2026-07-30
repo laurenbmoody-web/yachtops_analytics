@@ -1,22 +1,22 @@
 /* Cargo Accounts — line-detail expander. Scoped .ld-*. Editorial system: hairlines
    and whitespace, soft fields, terracotta accent, no boxed-card look. */
 
-.ld { padding: 18px 14px 20px 16px; background: #FCFCFB; border-top: 1px solid #EEF0F4;
-  display: flex; flex-direction: column; gap: 18px; }
+.ld { padding: 14px 14px 14px 44px; background: #FCFCFB; border-top: 1px solid #EEF0F4;
+  display: flex; flex-direction: column; gap: 13px; }
 
-.ld-label { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: #8B8478; margin-bottom: 6px; }
+.ld-label { display: block; font-size: 8.5px; font-weight: 700; letter-spacing: .9px;
+  text-transform: uppercase; color: #8B8478; margin-bottom: 4px; }
 .ld-opt { font-style: normal; font-weight: 600; color: #AEB4C2; text-transform: none; letter-spacing: 0; font-size: 10px; }
 .ld-label em.ld-opt { text-transform: none; }
 
-.ld-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px 18px; }
+.ld-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 11px 14px; }
 .ld-row { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
 .ld-field { display: block; min-width: 0; }
 .ld-wide { grid-column: 1 / -1; }
 .ld-grow { flex: 1 1 260px; }
 
-.ld-input { width: 100%; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 9px;
-  padding: 9px 11px; font: inherit; font-size: 13px; color: #1C1B3A; outline: none; }
+.ld-input { width: 100%; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 8px;
+  padding: 7px 10px; font: inherit; font-size: 12.5px; color: #1C1B3A; outline: none; }
 .ld-input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 .ld-input.is-need { border-color: #C9A227; background: #FDFBF2; }
 select.ld-input { cursor: pointer; }
@@ -34,8 +34,8 @@ select.ld-input { cursor: pointer; }
 
 /* owner vs charter */
 .ld-seg { display: inline-flex; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 999px; padding: 3px; }
-.ld-seg button { border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600;
-  color: #6B7280; padding: 7px 15px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.ld-seg button { border: 0; background: none; font: inherit; font-size: 12px; font-weight: 600;
+  color: #6B7280; padding: 6px 13px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
 .ld-seg button[aria-pressed="true"] { background: #C65A1A; color: #fff; }
 
 /* receipts */
@@ -66,9 +66,9 @@ select.ld-input { cursor: pointer; }
 
 .ld-err { margin: 0; font-size: 12.5px; color: #C65A1A; font-weight: 600; }
 
-.ld-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px;
+.ld-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 10px;
   border-top: 1px solid #F0F1F5; }
-.ld-btn { border-radius: 10px; padding: 9px 18px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.ld-btn { border-radius: 9px; padding: 7px 16px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .ld-btn.ghost { background: #fff; border: 1px solid #E5E7EB; color: #1C1B3A; }
 .ld-btn.ghost:hover { border-color: #C65A1A; color: #C65A1A; }
 .ld-btn.primary { background: #C65A1A; border: 1px solid #C65A1A; color: #fff; }
@@ -76,7 +76,7 @@ select.ld-input { cursor: pointer; }
 .ld-btn:disabled { opacity: .55; cursor: default; }
 
 @media (max-width: 760px) {
-  .ld { padding: 16px 12px; }
+  .ld { padding: 12px; }
   .ld-split { grid-template-columns: 100px 1fr 28px; }
   .ld-split-note { display: none; }
 }
