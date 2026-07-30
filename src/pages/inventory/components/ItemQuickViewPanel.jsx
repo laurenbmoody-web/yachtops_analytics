@@ -157,6 +157,12 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
   const expiry = item?.expiryDate || item?.expiry_date;
   const boughtIn = formatBoughtIn(item?.purchaseUnit, item?.unitsPerPack);
   const filedUnder = [item?.location, item?.subLocation].filter(Boolean).join(' › ');
+  // Extended value (qty × unit cost), low-stock status, and record dates.
+  const unitCostNum = Number(item?.unitCost);
+  const value = unitCostNum && total ? money(unitCostNum * total, item?.currency || 'USD') : null;
+  const isLow = !!item?.restockEnabled && item?.restockLevel != null && total <= item?.restockLevel;
+  const created = item?.createdAt ? formatDate(item.createdAt) : null;
+  const updated = item?.updatedAt ? formatDate(item.updatedAt) : null;
 
   const known = new Set(['colour', 'color', 'batch_no', 'batch', 'expiry_date', 'module', 'module_colour',
     'module_color', 'bag_name', 'bag_colour', 'bag_color', 'subcategory', 'folder_path', 'garmentType',
@@ -201,7 +207,10 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
           )}
 
           <div className="uv-sec">
-            <div className="uv-sec-h"><span>Stock</span><span className="uv-total">{total}{item?.unit ? ` ${item.unit}` : ''}</span></div>
+            <div className="uv-sec-h">
+              <span className="uv-sec-hl">Stock{isLow && <span className="uv-lowchip" title={`On hand ${total}${item?.unit ? ` ${item.unit}` : ''}, restock at ${item?.restockLevel}`}>Low stock</span>}</span>
+              <span className="uv-total">{total}{item?.unit ? ` ${item.unit}` : ''}</span>
+            </div>
             {multiLoc ? (
               placed.map((l, i) => renderLoc(l, l?.qty ?? l?.quantity ?? 0, i, `Location ${i + 1}`))
             ) : (nameFor(placed[0]) ? renderLoc(placed[0], total, 'single') : null)}
@@ -218,6 +227,7 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
             <Row label="Restock level" value={item?.parLevel && item?.parLevel !== 0 ? `${item.parLevel}${item?.unit ? ` ${item.unit}` : ''}` : null} />
             <Row label="Colour" value={cfColour} />
             <Row label="Unit cost" value={cost} />
+            <Row label="Total value" value={value} />
             <Row label="Module" value={cf.module} />
             <Row label="Bag" value={cf.bag_name} />
           </div>
@@ -271,6 +281,13 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
             </div>
           )}
           {item?.notes && <p className="uv-notes">{item.notes}</p>}
+          {(created || updated) && (
+            <p className="uv-metaline">
+              {created && <span>Added {created}</span>}
+              {created && updated && <span className="uv-metadot">·</span>}
+              {updated && <span>Updated {updated}</span>}
+            </p>
+          )}
         </div>
 
         {((canEdit && onEdit) || onDuplicated) && (
