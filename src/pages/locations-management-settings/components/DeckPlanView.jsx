@@ -8,7 +8,7 @@
 //   Phase 4: "Connect rooms" mode — click two dots to link them through a
 //            doorway; links render as lines on the plan (vessel_space_links).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import VoiceSearchButton from '../../../components/VoiceSearchButton';
 import { layerColor, layerLabel } from '../../vessel-map/layers';
@@ -126,6 +126,8 @@ function FrameEditor({ gaUrl, deckName, initial, onSave, onCancel }) {
 
 export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const locatedRef = useRef(null);
   const onAddScanRef = useRef(onAddScan);
   onAddScanRef.current = onAddScan;
   const onReloadRef = useRef(onReload);
@@ -208,6 +210,29 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     }, 250);
     return () => { alive = false; clearTimeout(t); };
   }, [overlayQuery]);
+
+  // Arriving with ?locate=<roomId> (e.g. "View on map" from search) — once the
+  // decks are in and that room is placed on a plan, scroll to it and pulse it,
+  // then clear the param so it doesn't re-fire on the next render.
+  useEffect(() => {
+    const locateId = searchParams.get('locate');
+    if (!locateId || locatedRef.current === locateId || !decks?.length) return;
+    let found = null;
+    for (const d of decks) {
+      for (const s of spacesOf(d)) {
+        if (s.id === locateId && posOf(s)) { found = { deckId: d.id, spaceId: s.id }; break; }
+      }
+      if (found) break;
+    }
+    if (!found) return;
+    locatedRef.current = locateId;
+    const t = setTimeout(() => jumpToSpace(found.deckId, found.spaceId), 350);
+    const next = new URLSearchParams(searchParams);
+    next.delete('locate');
+    setSearchParams(next, { replace: true });
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, decks]);
 
   // Roll the pins inside each room's scan up to the plan (see getPlanOverlays).
   // Reloads whenever the deck model changes (a scan added, a room placed).

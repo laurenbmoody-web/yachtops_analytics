@@ -410,13 +410,15 @@ const Header = () => {
 
     // itemId → best map target: prefer a scanned room (opens the 3D scan),
     // else a room placed on a deck plan (opens the plan).
+    // Prefer the deck plan (locates + pulses the room) over jumping straight
+    // into the 3D scan — from the plan the user can click into the scan.
     const mapById = {};
     if (locateRes?.status === 'fulfilled') {
       (locateRes.value || []).forEach((it) => {
-        const scanned = it.rooms.find((r) => r.scanId);
         const placed = it.rooms.find((r) => r.placed);
-        if (scanned) mapById[it.itemId] = { path: `/vessel/map?scan=${scanned.scanId}`, room: scanned.roomName };
-        else if (placed) mapById[it.itemId] = { path: '/settings/vessel', room: placed.roomName };
+        const scanned = it.rooms.find((r) => r.scanId);
+        if (placed) mapById[it.itemId] = { path: `/settings/vessel?locate=${placed.roomId}`, room: placed.roomName };
+        else if (scanned) mapById[it.itemId] = { path: `/vessel/map?scan=${scanned.scanId}`, room: scanned.roomName };
       });
     }
 

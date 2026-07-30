@@ -4,7 +4,7 @@
 // Reads via getVesselGallery; writes via locationsHierarchyStorage. "Add scan"
 // hands off to the map's upload flow with the space pre-linked.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import { getVesselGallery } from '../utils/locationsGalleryStorage';
 import {
@@ -79,9 +79,13 @@ const siblingIds = (data, level, parentId) => {
 
 export default function LocationGallery({ onStats, hideStats = false } = {}) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState(() => (typeof localStorage !== 'undefined' && localStorage.getItem('lg-view')) || 'static');
+  // Arriving with ?locate=<roomId> (e.g. "View on map" from search) opens the
+  // Plan view so DeckPlanView can scroll to and pulse that room.
+  useEffect(() => { if (searchParams.get('locate')) setView('plan'); }, [searchParams]);
   const [edit, setEdit] = useState(null); // {mode, id, value, error, saving}
   const [menu, setMenu] = useState(null); // `deck:${id}` | `zone:${id}`
   const [collapsed, setCollapsed] = useState(() => new Set());
