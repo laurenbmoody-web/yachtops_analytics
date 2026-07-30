@@ -20,7 +20,7 @@ import { formatMoney } from '../../../services/financeCalc';
 import {
   departmentForCode, defaultAllocation, needsTripPick, isDedicatedCharterAccount,
   defaultCardholder, isBorrowedCard, splitRemainder, validateSplits, signedSplits,
-  netOfVat, vatFromRate, baseFromFx, clampSplitAmount,
+  netOfVat, vatFromRate, baseFromFx, clampSplitAmount, maxSpendDate, isSpendDateValid,
 } from '../../../services/lineDetail';
 import './line-detail.css';
 
@@ -122,6 +122,9 @@ export default function LineDetail({
 
   const save = async () => {
     if (rows.length && !splitCheck.ok) { setErr(splitCheck.reason); return; }
+    if (!isSpendDateValid(spendDate, txn.statement_date)) {
+      setErr('The date spent can’t be after the bank posted it.'); return;
+    }
     if (askCharter && allocation === 'charter' && !charterNamed) {
       setErr('Name the charter this belongs to.'); return;
     }
@@ -168,7 +171,8 @@ export default function LineDetail({
 
         <label className="ld-field">
           {label('Date spent')}
-          <input className="ld-input" type="date" value={spendDate}
+          <input className={`ld-input${!isSpendDateValid(spendDate, txn.statement_date) ? ' is-need' : ''}`}
+            type="date" value={spendDate} max={maxSpendDate(txn) || undefined}
             onChange={(e) => setSpendDate(e.target.value)} disabled={!canEdit} />
         </label>
 

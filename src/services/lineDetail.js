@@ -252,3 +252,87 @@ export const lineCompleteness = (txn, { account, hasReceipt, splitCount = 0 } = 
   if (alloc === 'charter' && needsTripPick(alloc, account) && !txn?.trip_id && !txn?.charter_ref) missing.push('charter');
   return { missing, complete: missing.length === 0 };
 };
+
+// ── Spend date can't be after the bank posted it ─────────────────────────────
+// A card authorisation always happens before — or on — the day the bank posts it.
+// A spend date later than the statement date is therefore impossible, and would
+// push the cost into a month it can't belong to.
+export const maxSpendDate = (txn) => txn?.statement_date || null;
+
+export const isSpendDateValid = (spendDate, statementDate) => {
+  if (!spendDate) return false;
+  if (!statementDate) return true;                 // nothing to check against
+  return String(spendDate) <= String(statementDate);
+};
+
+// ── What may be voided ───────────────────────────────────────────────────────
+// Voiding says "this money never moved". That's only ever true of a line a human
+// typed. A bank-derived line is the bank's own record — the money DID move, so it
+// can't be wished away; a genuine reversal arrives as its own refund line.
+const BANK_DERIVED = new Set(['bank_feed', 'import']);
+
+export const canVoidTxn = (txn) => {
+  if (!txn || txn.status === 'void') return false;
+  return !BANK_DERIVED.has(txn.source);
+};
+
+export const voidBlockedReason = (txn) => {
+  if (!txn || !BANK_DERIVED.has(txn.source)) return null;
+  return txn.source === 'bank_feed'
+    ? 'This came from the bank — the money moved, so it can’t be voided. A reversal arrives as its own refund line.'
+    : 'This came from an imported statement and can’t be voided.';
+};
+
+// ── Refunds ──────────────────────────────────────────────────────────────────
+// A merchant refund arrives in the feed as its own POSITIVE line from the same
+// merchant. Left alone it looks like income, which flatters the accounts and
+// leaves the original spend overstated. Linked to the original it nets the same
+// MYBA line down, which is what actually happened.
+//
+// A refund is a candidate match when: it's money in, the merchant matches, the
+// original is money out, the refund is no bigger than the original, the original
+// isn't already refunded, and it's within a sensible window.
+const REFUND_WINDOW_DAYS = 120;
+
+const daysBetween = (a, b) => {
+  const da = new Date(a); const db = new Date(b);
+  if (Number.isNaN(da.getTime()) || Number.isNaN(db.getTime())) return null;
+  return Math.round((da - db) / 86400000);
+};
+
+export const looksLikeRefund = (txn) =>
+  Boolean(txn) && Number(txn.amount) > 0 && txn.source === 'bank_feed' && !txn.refund_of_id;
+
+// Best original for a refund line, or null. `normalize` is injected so this stays
+// free of the merchant classifier (and easy to test).
+export const findRefundCandidate = (refund, all, normalize) => {
+  if (!looksLikeRefund(refund)) return null;
+  const key = normalize(refund.payee);
+  if (!key) return null;
+  const refunded = new Set((all || []).map((t) => t.refund_of_id).filter(Boolean));
+  const candidates = (all || []).filter((t) => {
+    if (t.id === refund.id || t.status === 'void') return false;
+    if (Number(t.amount) >= 0) return false;                       // must be money out
+    if (normalize(t.payee) !== key) return false;                  // same merchant
+    if (Math.abs(Number(t.amount)) + 0.004 < Number(refund.amount)) return false; // not bigger than the original
+    if (refunded.has(t.id)) return false;                          // already refunded
+    const gap = daysBetween(refund.txn_date, t.txn_date);
+    return gap != null && gap >= 0 && gap <= REFUND_WINDOW_DAYS;   // after it, within the window
+  });
+  if (!candidates.length) return null;
+  // Prefer an exact amount match, then the most recent.
+  const exact = candidates.filter((t) => Math.abs(Math.abs(Number(t.amount)) - Number(refund.amount)) <= 0.004);
+  const pool = exact.length ? exact : candidates;
+  return pool.sort((a, b) => String(b.txn_date).localeCompare(String(a.txn_date)))[0];
+};
+
+// The fields a refund inherits from the spend it reverses, so the same budget line
+// nets down instead of the refund landing as income.
+export const refundInheritedFields = (original) => ({
+  category: original?.category || null,
+  category_code: original?.category_code || null,
+  department: original?.department || null,
+  allocation: original?.allocation || null,
+  trip_id: original?.trip_id || null,
+  charter_ref: original?.charter_ref || null,
+});
