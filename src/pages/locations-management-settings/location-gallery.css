@@ -329,22 +329,28 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-stair-badge.is-removable:hover{background:#FBE3DA;border-color:#B14E16;color:#B14E16;}
 .dp-plan.is-focus .dp-stair-badge{display:none;}
 
-/* ── Overlay filters: roll pins inside each room's scan up to the plan, so the
-   flat GA can show "how many defects / items live in this room" at a glance ── */
-.dp-overlaybar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:0 0 12px;margin-bottom:6px;border-bottom:1px solid var(--lg-line);}
-.dp-overlaybar-lbl{font-family:var(--lg-sans);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--lg-muted);margin-right:2px;}
-.dp-ov-chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 12px;cursor:pointer;
-  font-family:var(--lg-sans);font-size:12px;font-weight:600;color:var(--lg-ink);
-  background:#fff;border:1px solid var(--lg-hair);transition:border-color .12s,color .12s,background .12s;}
-.dp-ov-chip:hover{border-color:var(--ov,var(--lg-terra));}
-.dp-ov-chip.is-on{color:#fff;}
-.dp-ov-dot{width:8px;height:8px;border-radius:50%;flex:none;}
-.dp-ov-chip.is-on .dp-ov-dot{background:#fff !important;}
-.dp-ov-clear{border:0;background:none;cursor:pointer;font-family:var(--lg-sans);font-size:12px;color:var(--lg-muted);text-decoration:underline;padding:4px 2px;}
-.dp-ov-clear:hover{color:var(--lg-ink);}
-/* Rooms with nothing of the active kind fade back so the hits stand out. */
+/* ── Filter / sort / search over what lives inside each room's scan, rolled up
+   onto the plan (defects / items per room) ── */
+.dp-filterbar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:0 0 14px;margin-bottom:8px;border-bottom:1px solid var(--lg-line);}
+.dp-fb-search{position:relative;flex:1 1 260px;min-width:200px;}
+.dp-fb-search input{width:100%;font-family:var(--lg-sans);font-size:13px;color:var(--lg-ink);
+  background:var(--lg-card,#fff);border:1px solid var(--lg-hair);border-radius:12px;padding:10px 34px 10px 36px;outline:none;}
+.dp-fb-search input:focus{border-color:var(--lg-terra);box-shadow:0 0 0 3px #FAECE7;}
+.dp-fb-search .ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--lg-faint);pointer-events:none;}
+.dp-fb-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:none;cursor:pointer;
+  font-size:18px;line-height:1;color:var(--lg-faint);padding:2px 4px;}
+.dp-fb-clear:hover{color:var(--lg-ink);}
+.dp-fb-ctrl{display:flex;align-items:center;gap:7px;}
+.dp-fb-lbl{font-family:var(--lg-sans);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--lg-muted);}
+.dp-fb-select{font-family:var(--lg-sans);font-size:12.5px;font-weight:600;color:var(--lg-ink);
+  background:var(--lg-card,#fff);border:1px solid var(--lg-hair);border-radius:10px;padding:8px 12px;outline:none;cursor:pointer;}
+.dp-fb-select:focus{border-color:var(--lg-terra);box-shadow:0 0 0 3px #FAECE7;}
+/* Rooms with nothing of the active kind (or off a search) fade back. */
 .dp-pin.is-ov-dim{opacity:.28;}
 .dp-pin.is-ov-dim .dp-pin-label{opacity:.6;}
+/* A search hit — ring the pin so the match stands out on the plan. */
+.dp-pin.is-ov-match{z-index:7;box-shadow:0 0 0 3px #fff, 0 0 0 6px var(--lg-terra);}
+.dp-pin.is-ov-match .dp-pin-label{color:var(--lg-terra);font-weight:700;}
 /* Count badge on a room, coloured by kind (defects by worst severity). */
 .dp-ov-badge{position:absolute;top:-8px;right:-10px;min-width:17px;height:17px;padding:0 4px;z-index:6;
   display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #fff;border-radius:999px;

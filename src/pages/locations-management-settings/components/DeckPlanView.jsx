@@ -9,6 +9,7 @@
 //            doorway; links render as lines on the plan (vessel_space_links).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Icon from '../../../components/AppIcon';
 import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck, recordDeckShapeSample, getPlanOverlays } from '../utils/locationsLayoutStorage';
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace, archiveSpace, updateSpace } from '../utils/locationsHierarchyStorage';
@@ -164,6 +165,8 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [overlay, setOverlay] = useState(null); // active overlay filter key ('defect'|'inventory'|…) or null
   const [overlayData, setOverlayData] = useState({ layerCounts: {}, defectsBySpace: {} });
   const [overlayRoom, setOverlayRoom] = useState(null); // spaceId whose overlay drawer is open
+  const [overlayQuery, setOverlayQuery] = useState(''); // search box: highlight matching rooms
+  const [overlaySort, setOverlaySort] = useState('severity'); // drill-list order: severity|newest|az
   const traceStartRef = useRef(false); // swallow the click that selected the room (no stray node)
   const fileRef = useRef(null);
   const planRefs = useRef({}); // deckId -> plan element (for drop hit-testing)
@@ -193,6 +196,21 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     if (overlay === 'defect') return (overlayData.defectsBySpace[spaceId] || []).length;
     if (!overlay) return 0;
     return overlayData.layerCounts[spaceId]?.[overlay] || 0;
+  };
+  // Search box: a room matches on its own name or any of its defect titles.
+  const searchQ = overlayQuery.trim().toLowerCase();
+  const roomMatches = (space) => {
+    if (!searchQ) return true;
+    if ((nameOf(space) || '').toLowerCase().includes(searchQ)) return true;
+    return (overlayData.defectsBySpace[space.id] || []).some((d) => (d.title || '').toLowerCase().includes(searchQ));
+  };
+  // Order a room's defect list for the drill drawer per the Sort control.
+  const sortDefects = (arr) => {
+    const a = [...(arr || [])];
+    if (overlaySort === 'az') a.sort((x, y) => (x.title || '').localeCompare(y.title || ''));
+    else if (overlaySort === 'newest') a.sort((x, y) => String(y.createdAt || '').localeCompare(String(x.createdAt || '')));
+    else a.sort((x, y) => (PRIORITY_RANK[y.priority] || 0) - (PRIORITY_RANK[x.priority] || 0)); // severity
+    return a;
   };
 
   useEffect(() => {
@@ -943,22 +961,47 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         </div>
         <button className="lg-btn sm" onClick={() => fileRef.current?.click()} disabled={uploading}>{rendering ? 'Rendering PDF…' : uploading ? 'Uploading…' : 'Replace drawing'}</button>
       </div>
-      {/* Overlay filters: light up how many pins of a kind live in each room,
-          rolled up from inside its scan. Tap a room's badge to see the list. */}
-      <div className="dp-overlaybar" role="group" aria-label="Show on plan">
-        <span className="dp-overlaybar-lbl">Show on plan</span>
-        {OVERLAYS.map((o) => (
-          <button
-            key={o.key}
-            type="button"
-            className={`dp-ov-chip ${overlay === o.key ? 'is-on' : ''}`}
-            style={overlay === o.key ? { background: o.color, borderColor: o.color } : { '--ov': o.color }}
-            onClick={() => { setOverlay(overlay === o.key ? null : o.key); setOverlayRoom(null); }}
+      {/* Filter / sort / search over what lives inside each room's scan, rolled
+          up onto the plan. Search highlights matching rooms; Show picks the layer
+          to badge; Sort orders a room's drill list. */}
+      <div className="dp-filterbar">
+        <div className="dp-fb-search">
+          <Icon name="Search" size={16} className="ic" />
+          <input
+            value={overlayQuery}
+            onChange={(e) => setOverlayQuery(e.target.value)}
+            placeholder="Search rooms…"
+            aria-label="Search rooms"
+          />
+          {overlayQuery && (
+            <button type="button" className="dp-fb-clear" onClick={() => setOverlayQuery('')} aria-label="Clear search">×</button>
+          )}
+        </div>
+        <div className="dp-fb-ctrl">
+          <label className="dp-fb-lbl" htmlFor="dp-fb-show">Show</label>
+          <select
+            id="dp-fb-show"
+            className="dp-fb-select"
+            value={overlay || ''}
+            onChange={(e) => { setOverlay(e.target.value || null); setOverlayRoom(null); }}
           >
-            <span className="dp-ov-dot" style={{ background: o.color }} />{o.label}
-          </button>
-        ))}
-        {overlay && <button type="button" className="dp-ov-clear" onClick={() => { setOverlay(null); setOverlayRoom(null); }}>Clear</button>}
+            <option value="">Nothing</option>
+            {OVERLAYS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+          </select>
+        </div>
+        <div className="dp-fb-ctrl">
+          <label className="dp-fb-lbl" htmlFor="dp-fb-sort">Sort</label>
+          <select
+            id="dp-fb-sort"
+            className="dp-fb-select"
+            value={overlaySort}
+            onChange={(e) => setOverlaySort(e.target.value)}
+          >
+            <option value="severity">Severity</option>
+            <option value="newest">Newest</option>
+            <option value="az">A–Z</option>
+          </select>
+        </div>
       </div>
       {uploadError && <p className="dp-error">{uploadError}</p>}
 
@@ -1317,10 +1360,13 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     const ovColor = overlay === 'defect'
                       ? (PRIORITY_COLOR[worstPriority(overlayData.defectsBySpace[s.id])] || '#A32D2D')
                       : (OVERLAYS.find((o) => o.key === overlay)?.color || '#1C1B3A');
+                    const matches = roomMatches(s);
+                    const dimPin = searchQ ? !matches : (overlay && ovCount === 0);
+                    const hiPin = searchQ && matches;
                     return (
                       <div
                         key={s.id}
-                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''} ${pending ? 'is-pending' : ''} ${flashSpace === s.id ? 'is-flash' : ''} ${selEndIds?.has(s.id) ? 'is-linkend' : ''} ${overlay && ovCount === 0 ? 'is-ov-dim' : ''}`}
+                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''} ${pending ? 'is-pending' : ''} ${flashSpace === s.id ? 'is-flash' : ''} ${selEndIds?.has(s.id) ? 'is-linkend' : ''} ${dimPin ? 'is-ov-dim' : ''} ${hiPin ? 'is-ov-match' : ''}`}
                         style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
                         onPointerDown={(e) => onDotDown(e, s, deck, true)}
                         title={linkMode ? nameOf(s) : scanned ? `${nameOf(s)} — open on map` : `${nameOf(s)} — add a scan`}
@@ -1360,7 +1406,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                         {overlay === 'defect' ? (
                           defects.length ? (
                             <ul className="dp-ov-list">
-                              {defects.map((d) => (
+                              {sortDefects(defects).map((d) => (
                                 <li key={d.id}>
                                   <button
                                     type="button"
