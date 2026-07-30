@@ -9,7 +9,7 @@
 //            doorway; links render as lines on the plan (vessel_space_links).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck, recordDeckShapeSample } from '../utils/locationsLayoutStorage';
+import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck, recordDeckShapeSample, getPlanOverlays } from '../utils/locationsLayoutStorage';
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace, archiveSpace, updateSpace } from '../utils/locationsHierarchyStorage';
 import { simplifyClosed } from '../utils/deckTrace';
@@ -63,6 +63,21 @@ function cropBg(crop, url) {
 
 const spacesOf = (deck) => (deck.zones || []).flatMap((z) => z.spaces || []);
 const isScanned = (space) => space?.scan?.status === 'ready';
+
+// Overlay filters — roll pins inside each room's scan up to the deck plan, so
+// you can see "N defects / items here" across the whole vessel without opening
+// a room. `key` matches scan_hotspots.layer; defects use their own live list.
+const OVERLAYS = [
+  { key: 'defect', label: 'Defects', color: '#A32D2D' },
+  { key: 'inventory', label: 'Inventory', color: '#1C1B3A' },
+  { key: 'safety', label: 'Safety', color: '#C65A1A' },
+  { key: 'storage', label: 'Storage', color: '#2F6E8F' },
+];
+// Defect priority → badge colour (worst wins) and a rank for "worst of these".
+const PRIORITY_COLOR = { Critical: '#A32D2D', High: '#C65A1A', Medium: '#C99A2E', Low: '#6B7280' };
+const PRIORITY_RANK = { Critical: 4, High: 3, Medium: 2, Low: 1 };
+const worstPriority = (defects) => (defects || []).reduce(
+  (w, d) => ((PRIORITY_RANK[d.priority] || 0) > (PRIORITY_RANK[w] || 0) ? d.priority : w), null);
 
 // Draw-a-box framing modal over the full GA image.
 function FrameEditor({ gaUrl, deckName, initial, onSave, onCancel }) {
@@ -146,6 +161,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [proposals, setProposals] = useState(null); // { deckId, items:[{name,matchedSpaceId,create,nodes,traced}] }
   const [detectError, setDetectError] = useState(null); // { deckId, message } | null
   const [applying, setApplying] = useState(false);
+  const [overlay, setOverlay] = useState(null); // active overlay filter key ('defect'|'inventory'|…) or null
+  const [overlayData, setOverlayData] = useState({ layerCounts: {}, defectsBySpace: {} });
+  const [overlayRoom, setOverlayRoom] = useState(null); // spaceId whose overlay drawer is open
   const traceStartRef = useRef(false); // swallow the click that selected the room (no stray node)
   const fileRef = useRef(null);
   const planRefs = useRef({}); // deckId -> plan element (for drop hit-testing)
@@ -159,6 +177,23 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // Roll the pins inside each room's scan up to the plan (see getPlanOverlays).
+  // Reloads whenever the deck model changes (a scan added, a room placed).
+  useEffect(() => {
+    let alive = true;
+    const scanIndex = [];
+    decks.forEach((d) => spacesOf(d).forEach((s) => { if (s.scan?.id) scanIndex.push({ scanId: s.scan.id, spaceId: s.id }); }));
+    if (!scanIndex.length) { setOverlayData({ layerCounts: {}, defectsBySpace: {} }); return () => { alive = false; }; }
+    getPlanOverlays(scanIndex).then((d) => { if (alive) setOverlayData(d); }).catch(() => {});
+    return () => { alive = false; };
+  }, [decks]);
+  // Count for a room under the active overlay (defects use the live list).
+  const overlayCount = (spaceId) => {
+    if (overlay === 'defect') return (overlayData.defectsBySpace[spaceId] || []).length;
+    if (!overlay) return 0;
+    return overlayData.layerCounts[spaceId]?.[overlay] || 0;
+  };
 
   useEffect(() => {
     if (!layout?.gaImageUrl) { setGaDims(null); return; }
@@ -908,6 +943,23 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         </div>
         <button className="lg-btn sm" onClick={() => fileRef.current?.click()} disabled={uploading}>{rendering ? 'Rendering PDF…' : uploading ? 'Uploading…' : 'Replace drawing'}</button>
       </div>
+      {/* Overlay filters: light up how many pins of a kind live in each room,
+          rolled up from inside its scan. Tap a room's badge to see the list. */}
+      <div className="dp-overlaybar" role="group" aria-label="Show on plan">
+        <span className="dp-overlaybar-lbl">Show on plan</span>
+        {OVERLAYS.map((o) => (
+          <button
+            key={o.key}
+            type="button"
+            className={`dp-ov-chip ${overlay === o.key ? 'is-on' : ''}`}
+            style={overlay === o.key ? { background: o.color, borderColor: o.color } : { '--ov': o.color }}
+            onClick={() => { setOverlay(overlay === o.key ? null : o.key); setOverlayRoom(null); }}
+          >
+            <span className="dp-ov-dot" style={{ background: o.color }} />{o.label}
+          </button>
+        ))}
+        {overlay && <button type="button" className="dp-ov-clear" onClick={() => { setOverlay(null); setOverlayRoom(null); }}>Clear</button>}
+      </div>
       {uploadError && <p className="dp-error">{uploadError}</p>}
 
       {decks.map((deck) => {
@@ -1261,18 +1313,77 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                     const p = posOf(s);
                     const scanned = isScanned(s);
                     const pending = pendingLink?.spaceId === s.id;
+                    const ovCount = overlay ? overlayCount(s.id) : 0;
+                    const ovColor = overlay === 'defect'
+                      ? (PRIORITY_COLOR[worstPriority(overlayData.defectsBySpace[s.id])] || '#A32D2D')
+                      : (OVERLAYS.find((o) => o.key === overlay)?.color || '#1C1B3A');
                     return (
                       <div
                         key={s.id}
-                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''} ${pending ? 'is-pending' : ''} ${flashSpace === s.id ? 'is-flash' : ''} ${selEndIds?.has(s.id) ? 'is-linkend' : ''}`}
+                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''} ${pending ? 'is-pending' : ''} ${flashSpace === s.id ? 'is-flash' : ''} ${selEndIds?.has(s.id) ? 'is-linkend' : ''} ${overlay && ovCount === 0 ? 'is-ov-dim' : ''}`}
                         style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
                         onPointerDown={(e) => onDotDown(e, s, deck, true)}
                         title={linkMode ? nameOf(s) : scanned ? `${nameOf(s)} — open on map` : `${nameOf(s)} — add a scan`}
                       >
                         <span className="dp-pin-label">{nameOf(s)}</span>
+                        {overlay && ovCount > 0 && (
+                          <button
+                            type="button"
+                            className="dp-ov-badge"
+                            style={{ background: ovColor }}
+                            title={`${ovCount} ${overlay === 'defect' ? 'open defect' : overlay}${ovCount === 1 ? '' : 's'} in ${nameOf(s)} — tap for details`}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onClick={(e) => { e.stopPropagation(); setOverlayRoom(overlayRoom === s.id ? null : s.id); }}
+                          >
+                            {ovCount}
+                          </button>
+                        )}
                       </div>
                     );
                   })}
+                  {/* Overlay drill drawer: a corner card listing what the tapped
+                      room's badge counts, each linking into the scan. Rendered on
+                      the deck that owns the selected room so it can't be clipped by
+                      a pin near the plan's edge. */}
+                  {overlay && overlayRoom && placed.some((x) => x.id === overlayRoom) && (() => {
+                    const s = placed.find((x) => x.id === overlayRoom);
+                    const scanId = s.scan?.id;
+                    const defects = overlayData.defectsBySpace[s.id] || [];
+                    const n = overlayCount(s.id);
+                    const oLabel = OVERLAYS.find((o) => o.key === overlay)?.label || '';
+                    return (
+                      <div className="dp-ov-drawer" onPointerDown={(e) => e.stopPropagation()}>
+                        <div className="dp-ov-drawer-hd">
+                          <span className="dp-ov-drawer-ttl">{nameOf(s)}</span>
+                          <button type="button" className="dp-ov-drawer-x" onClick={() => setOverlayRoom(null)} aria-label="Close">×</button>
+                        </div>
+                        {overlay === 'defect' ? (
+                          defects.length ? (
+                            <ul className="dp-ov-list">
+                              {defects.map((d) => (
+                                <li key={d.id}>
+                                  <button
+                                    type="button"
+                                    className="dp-ov-item"
+                                    onClick={() => navigate(`/vessel/map?scan=${d.scanId || scanId || ''}${d.hotspotId ? `&pin=${d.hotspotId}` : ''}`)}
+                                  >
+                                    <span className="dp-ov-pri" style={{ background: PRIORITY_COLOR[d.priority] || '#6B7280' }} title={d.priority || ''} />
+                                    <span className="dp-ov-item-ttl">{d.title || 'Untitled defect'}</span>
+                                    <span className="dp-ov-item-go">View →</span>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : <p className="dp-ov-empty-txt">No open defects here.</p>
+                        ) : (
+                          <div className="dp-ov-simple">
+                            <p>{n} {oLabel.toLowerCase()} {n === 1 ? 'item' : 'items'} in this room.</p>
+                            {scanId && <button type="button" className="lg-btn sm" onClick={() => navigate(`/vessel/map?scan=${scanId}`)}>Open scan →</button>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {/* Proposal labels at each outline's centre — editable before
                       apply: click the name to rename, × to drop it from the batch.
                       Matched (or pin-anchored) rooms show the crew's own name; new
