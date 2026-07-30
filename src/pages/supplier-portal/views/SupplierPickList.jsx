@@ -320,53 +320,57 @@ const SupplierPickList = () => {
     return <div className="sp-page"><div className="spk-loading">Loading pick list…</div></div>;
   }
 
-  const deliverLine = (
-    <>Deliver <b>{order?.delivery_date ? new Date(order.delivery_date).toLocaleDateString(dateLocale()) : 'TBC'}</b>
-      {order?.delivery_time ? <> at <b>{String(order.delivery_time).slice(0, 5)}</b></> : null}
-      {order?.delivery_port ? <> · <b>{order.delivery_port}</b></> : null}</>
+  const shortRef = String(order?.id || '').slice(0, 8).toUpperCase();
+  const deliverMeta = order?.delivery_date
+    ? `DELIVER ${new Date(order.delivery_date).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' }).toUpperCase()}${order?.delivery_time ? ` · ${String(order.delivery_time).slice(0, 5)}` : ''}`
+    : 'DELIVERY TBC';
+
+  const workBar = (
+    <div className="spk-workbar">
+      <div className="spk-progress-wrap">
+        <div className="spk-progress-label">
+          <span>{resolvedLines} of {totalLines} lines · {pickedUnits}/{totalUnits} units
+            {shortLines ? ` · ${shortLines} short` : ''}{skippedLines ? ` · ${skippedLines} skipped` : ''}</span>
+          <span>{pct}%</span>
+        </div>
+        <div className={`spk-progress ${allResolved ? 'done' : ''}`}>
+          <i style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+      <div className="spk-viewtoggle" role="tablist" aria-label="View">
+        <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')} role="tab" aria-selected={view === 'list'}>
+          <List size={14} /> List
+        </button>
+        <button className={view === 'guided' ? 'on' : ''} onClick={() => { setView('guided'); setGuidedIdx(0); }} role="tab" aria-selected={view === 'guided'}>
+          <Focus size={14} /> Guided
+        </button>
+      </div>
+      {scanSupported && (
+        <button className={`spk-scanbtn ${scanning ? 'active' : ''}`} onClick={scanning ? stopScan : startScan}>
+          <ScanBarcode size={15} /> {scanning ? 'Stop' : 'Scan'}
+        </button>
+      )}
+    </div>
   );
 
   return (
     <div className="sp-page spk-root">
-      {/* Sticky top bar: back · progress · view toggle · scan */}
-      <div className="spk-topbar">
-        <button className="spk-back" onClick={() => navigate(`/supplier/orders/${orderId}`)}>
-          <ArrowLeft size={13} /> Back to order
-        </button>
-        <div className="spk-progress-wrap">
-          <div className="spk-progress-label">
-            <span>{resolvedLines} of {totalLines} lines · {pickedUnits}/{totalUnits} units
-              {shortLines ? ` · ${shortLines} short` : ''}{skippedLines ? ` · ${skippedLines} skipped` : ''}</span>
-            <span>{pct}%</span>
-          </div>
-          <div className={`spk-progress ${allResolved ? 'done' : ''}`}>
-            <i style={{ width: `${pct}%` }} />
-          </div>
-        </div>
-        <div className="spk-topbar-actions">
-          <div className="spk-viewtoggle" role="tablist" aria-label="View">
-            <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')} role="tab" aria-selected={view === 'list'}>
-              <List size={14} /> List
-            </button>
-            <button className={view === 'guided' ? 'on' : ''} onClick={() => { setView('guided'); setGuidedIdx(0); }} role="tab" aria-selected={view === 'guided'}>
-              <Focus size={14} /> Guided
-            </button>
-          </div>
-          {scanSupported && (
-            <button className={`spk-scanbtn ${scanning ? 'active' : ''}`} onClick={scanning ? stopScan : startScan}>
-              <ScanBarcode size={15} /> {scanning ? 'Stop' : 'Scan'}
-            </button>
-          )}
-        </div>
+      <button className="spk-back" onClick={() => navigate(`/supplier/orders/${orderId}`)}>
+        <ArrowLeft size={13} /> Back to order
+      </button>
+
+      {/* Canonical editorial header — meta strip + serif headline. */}
+      <div className="spk-hero">
+        <p className="spk-eyebrow">
+          <span className="dot" aria-hidden="true" />PICKING
+          <span className="bar" />#{shortRef}
+          <span className="bar" />{totalLines} LINE{totalLines === 1 ? '' : 'S'} · {totalUnits} UNIT{totalUnits === 1 ? '' : 'S'}
+          <span className="bar" />{deliverMeta}
+        </p>
+        <h1 className="spk-headline">PICK<span className="p">,</span> <em>{order?.vessel_name || 'order'}</em><span className="p">.</span></h1>
       </div>
 
-      <div className="sp-page-head spk-head">
-        <div>
-          <div className="sp-eyebrow">Picking</div>
-          <h1 className="sp-page-title">Pick <em>{order?.vessel_name || 'order'}</em></h1>
-          <p className="spk-meta">{deliverLine}</p>
-        </div>
-      </div>
+      {workBar}
 
       {error && <div className="spk-error" onClick={() => setError(null)}>{error} <X size={12} /></div>}
 
@@ -382,17 +386,16 @@ const SupplierPickList = () => {
       {view === 'list' && (
         <>
           <div className="spk-controls">
-            <div className="spk-sort">
-              {SORTS.map((s) => (
-                <button key={s.key} className={sortMode === s.key ? 'on' : ''} onClick={() => setSortMode(s.key)}>
-                  {s.key === 'path' && <MapPin size={11} />}{s.label}
-                </button>
-              ))}
-            </div>
             <div className="spk-search">
               <Search size={13} />
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find an item, barcode or shelf…" />
               {query && <button onClick={() => setQuery('')} aria-label="Clear"><X size={12} /></button>}
+            </div>
+            <div className="spk-sortsel">
+              <MapPin size={12} />
+              <select value={sortMode} onChange={(e) => setSortMode(e.target.value)} aria-label="Sort">
+                {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+              </select>
             </div>
             <button className="spk-undo" onClick={undo} disabled={!canUndo}><Undo2 size={13} /> Undo</button>
           </div>
@@ -566,70 +569,93 @@ const PickRow = ({ item, flashId, editQtyId, onBump, onPickAll, onEditQty, onTyp
 
 // ── Guided picker — one card at a time ───────────────────────────────────────
 const GuidedPicker = ({ queue, sorted, idx, setIdx, onBump, onPickAll, onTypedQty, onReason, onSkip, onShelf, allResolved, onReview }) => {
-  // When the queue empties, show the done state.
+  const [typing, setTyping] = useState(false);
+
   if (queue.length === 0) {
     return (
       <div className="spk-guided-done">
-        <div className="spk-guided-tick"><Check size={30} /></div>
+        <div className="spk-guided-tick"><Check size={26} /></div>
         <div className="spk-guided-done-title">Every line resolved.</div>
         <p>Nothing left in the queue. Review the pick and pack the order.</p>
         <button className="spk-packed" disabled={!allResolved} onClick={onReview}><PackageCheck size={15} /> Review &amp; pack</button>
       </div>
     );
   }
+
   const pos = Math.min(idx, queue.length - 1);
   const item = queue[pos];
   const qty = Number(item.quantity);
   const picked = item.picked_qty != null ? Number(item.picked_qty) : 0;
   const cat = item.catalogue;
   const loc = cat?.shelf_location;
-  const [typing, setTyping] = useState(false);
   const packBits = cat ? [cat.pack_size ? `${cat.pack_size} × ${cat.pack_unit || ''}`.trim() : null, cat.unit_size].filter(Boolean).join(' · ') : '';
   const next = () => setIdx((i) => Math.min(i + 1, queue.length - 1));
   const prev = () => setIdx((i) => Math.max(i - 1, 0));
-  const overallPos = sorted.findIndex((s) => s.id === item.id) + 1;
+  const total = sorted.length;
+  const doneCount = total - queue.length;
+  const CIRC = 107; // 2πr, r=17
+  const ringOff = CIRC * (1 - (total ? doneCount / total : 0));
+  const comingUp = queue.slice(pos + 1, pos + 5);
 
   return (
-    <div className="spk-guided">
-      <div className="spk-guided-nav">
-        <button onClick={prev} disabled={pos === 0} aria-label="Previous"><ChevronLeft size={18} /></button>
-        <span>{pos + 1} of {queue.length} to do{overallPos ? ` · line ${overallPos} of ${sorted.length}` : ''}</span>
-        <button onClick={next} disabled={pos >= queue.length - 1} aria-label="Next"><ChevronRight size={18} /></button>
+    <div className="spk-g">
+      <div className="spk-g-top">
+        <button className="spk-g-nav" onClick={prev} disabled={pos === 0} aria-label="Previous"><ChevronLeft size={17} /></button>
+        <div className="spk-g-ring">
+          <svg width="42" height="42"><circle cx="21" cy="21" r="17" fill="none" stroke="var(--bg-2, #EEF2F7)" strokeWidth="4" /><circle cx="21" cy="21" r="17" fill="none" stroke="var(--orange, #C65A1A)" strokeWidth="4" strokeLinecap="round" strokeDasharray={CIRC} strokeDashoffset={ringOff} transform="rotate(-90 21 21)" /></svg>
+          <span>{doneCount}/{total}</span>
+        </div>
+        <span className="spk-g-pos">Item {pos + 1} of {queue.length} to pick</span>
+        <button className="spk-g-nav" onClick={next} disabled={pos >= queue.length - 1} aria-label="Next"><ChevronRight size={17} /></button>
       </div>
 
-      <div className="spk-guided-card">
-        <button className={`spk-loc big ${loc ? '' : 'unset'}`} onClick={() => onShelf(item)}>
-          <MapPin size={14} />{loc ? `Shelf ${loc}` : 'Set shelf location'}
+      <div className="spk-g-card">
+        <button className={`spk-g-loc ${loc ? '' : 'unset'}`} onClick={() => onShelf(item)}>
+          <span className="pin"><MapPin size={12} /></span>
+          {loc ? <span>Shelf <b>{loc}</b></span> : <span>Set shelf location</span>}
         </button>
         {cat?.image_url
-          ? <img className="spk-guided-img" src={cat.image_url} alt="" />
-          : <div className="spk-guided-img ph" style={{ background: categoryHue(cat?.category) }}>{(item.item_name || '?').charAt(0).toUpperCase()}</div>}
-        <div className="spk-guided-name">{item.item_name}</div>
-        <div className="spk-guided-sub">{[packBits || null, cat?.barcode ? `EAN ${cat.barcode}` : null].filter(Boolean).join(' · ')}</div>
+          ? <img className="spk-g-img" src={cat.image_url} alt="" />
+          : <div className="spk-g-img ph" style={{ background: categoryHue(cat?.category) }}>{(item.item_name || '?').charAt(0).toUpperCase()}</div>}
+        <div className="spk-g-name">{item.item_name}</div>
+        <div className="spk-g-sub">{[`${qty} ${item.unit || ''}`.trim(), packBits || null, cat?.barcode ? `EAN ${cat.barcode}` : null].filter(Boolean).join(' · ')}</div>
 
-        <div className="spk-guided-qtyrow">
-          <button className="spk-guided-step" onClick={() => onBump(item, -1)} disabled={!picked} aria-label="Minus one">−</button>
+        <div className="spk-g-qty">
+          <button className="spk-g-step" onClick={() => onBump(item, -1)} disabled={!picked} aria-label="Minus one">−</button>
           {typing ? (
-            <input className="spk-guided-qtyinput" type="number" min="0" autoFocus defaultValue={item.picked_qty ?? ''}
+            <input className="spk-g-num-input" type="number" min="0" autoFocus defaultValue={item.picked_qty ?? ''}
               onBlur={(e) => { onTypedQty(item, e.target.value); setTyping(false); }}
               onKeyDown={(e) => { if (e.key === 'Enter') { onTypedQty(item, e.target.value); setTyping(false); } if (e.key === 'Escape') setTyping(false); }} />
           ) : (
-            <button className="spk-guided-qty" onClick={() => setTyping(true)} title="Tap to type">
-              {item.picked_qty != null ? item.picked_qty : 0}<small> / {qty}</small>
+            <button className="spk-g-num" onClick={() => setTyping(true)} title="Tap to type">
+              {item.picked_qty != null ? item.picked_qty : 0}<small>/{qty}</small>
             </button>
           )}
-          <button className="spk-guided-step" onClick={() => onBump(item, 1)} disabled={picked >= qty} aria-label="Plus one">+</button>
+          <button className="spk-g-step" onClick={() => onBump(item, 1)} disabled={picked >= qty} aria-label="Plus one">+</button>
         </div>
 
-        <div className="spk-guided-actions">
-          <button className="spk-guided-primary" onClick={() => { onPickAll(item); next(); }}>
-            <Check size={16} /> Pick all {qty}
-          </button>
-          <div className="spk-guided-secondary">
-            <button onClick={() => onReason(item)}><Replace size={14} /> Short / substitute</button>
-            <button onClick={() => { onSkip(item); next(); }}><SkipForward size={14} /> Skip</button>
-          </div>
+        <button className="spk-g-cta" onClick={() => { onPickAll(item); next(); }}>
+          <Check size={15} /> Picked · next
+        </button>
+        <div className="spk-g-acts">
+          <button onClick={() => onReason(item)}><Replace size={13} /> Not enough</button>
+          <button onClick={() => { onSkip(item); next(); }}><SkipForward size={13} /> Skip</button>
         </div>
+
+        {comingUp.length > 0 && (
+          <div className="spk-g-queue">
+            <div className="spk-g-queue-lab">Coming up</div>
+            <div className="spk-g-queue-row">
+              {comingUp.map((q) => (
+                <div key={q.id} className="spk-g-qthumb" style={{ background: q.catalogue?.image_url ? '#0000' : categoryHue(q.catalogue?.category) }}>
+                  {q.catalogue?.image_url && <img src={q.catalogue.image_url} alt="" />}
+                  {q.catalogue?.shelf_location && <span className="n">{q.catalogue.shelf_location}</span>}
+                  <span className="t">{(q.item_name || '').split(' ').slice(0, 2).join(' ')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
