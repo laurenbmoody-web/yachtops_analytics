@@ -912,16 +912,15 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     <div className="cf-view">
       <div className="cf-bar">
         <button type="button" className="lm-back" onClick={() => setSelectedId(null)}><Icon name="ArrowLeft" size={16} /> Back to all crew</button>
-        {canManage && (
+        {canManage && (toSignoff.length > 0 || awaitingSignoff > 0) && (
           <div className="cf-bar-acts">
             {toSignoff.length > 0 ? (
               <button type="button" className="cf-btn ghost sm" onClick={doSignoff} disabled={signingOff}>
                 <Icon name="PenLine" size={15} /> {signingOff ? 'Sending…' : `Send for sign-off (${toSignoff.length})`}
               </button>
-            ) : awaitingSignoff > 0 ? (
+            ) : (
               <span className="cf-await-chip"><Icon name="Clock" size={13} /> Awaiting sign-off · {awaitingSignoff} sent</span>
-            ) : null}
-            <button type="button" className="cf-btn primary sm" onClick={openIssue}><Icon name="Plus" size={15} /> Issue item</button>
+            )}
           </div>
         )}
       </div>
@@ -955,6 +954,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
             <div className="cf-tools">
               <FilterMenu groups={kitFilterGroups} />
               <SortMenu value={kSort} onChange={setKSort} options={kitSortOptions} />
+              {canManage && <button type="button" className="cf-btn primary sm" onClick={openIssue}><Icon name="Plus" size={15} /> Issue item</button>}
             </div>
           </div>
 
