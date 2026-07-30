@@ -117,32 +117,19 @@ export default function LineDetail({
 
   return (
     <div className="ld">
-      {/* the two dates: when it happened vs when the bank posted it */}
-      <div className="ld-grid">
-        <label className="ld-field">
-          {label('Date spent', 'drives the month')}
-          <input className="ld-input" type="date" value={spendDate}
-            onChange={(e) => setSpendDate(e.target.value)} disabled={!canEdit} />
-          <span className="ld-hint">Which month&rsquo;s accounts this cost belongs to</span>
-        </label>
-        <label className="ld-field">
-          {label('Date on statement', 'from the bank')}
-          <input className="ld-input" type="date" readOnly
-            value={(txn.statement_date || '').slice(0, 10)} />
-          <span className="ld-hint">
-            {txn.statement_date
-              ? (txn.is_pending ? 'Pending — may still change' : 'What the bank statement shows')
-              : 'Not supplied by the feed'}
-          </span>
-        </label>
-      </div>
-
-      {/* what it was for + who owns it */}
+      {/* Row A — what it was for, when, who owns it, who spent it. The row itself
+          already shows both dates and the receipt clip, so they aren't repeated. */}
       <div className="ld-grid">
         <label className="ld-field ld-wide">
           {label('What was it for', 'recommended')}
           <input className="ld-input" value={note} onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. hydraulic hose for the tender crane" disabled={!canEdit} />
+        </label>
+
+        <label className="ld-field">
+          {label('Date spent')}
+          <input className="ld-input" type="date" value={spendDate}
+            onChange={(e) => setSpendDate(e.target.value)} disabled={!canEdit} />
         </label>
 
         <label className="ld-field">
@@ -170,7 +157,7 @@ export default function LineDetail({
       {/* who bears it */}
       <div className="ld-row">
         <div className="ld-field">
-          {label('Who pays for this')}
+          {label('Who pays')}
           <div className="ld-seg">
             {[['owner', 'Owner'], ['charter', 'Charter (APA)']].map(([k, t]) => (
               <button key={k} type="button" aria-pressed={allocation === k} disabled={!canEdit}
@@ -200,9 +187,9 @@ export default function LineDetail({
         )}
       </div>
 
-      {/* receipt */}
-      <div className="ld-block">
-        {label('Receipt', 'proof for the owner / VAT')}
+      {/* Receipts — attaching happens from the row's clip; this is view/remove only,
+          so it takes no space when there's nothing attached. */}
+      {attachments.length > 0 && (
         <div className="ld-receipts">
           {attachments.map((a) => (
             <span key={a.id} className="ld-rec">
@@ -218,15 +205,14 @@ export default function LineDetail({
           ))}
           {canEdit && (
             <label className="ld-attach">
-              <Icon name="Upload" size={13} /> {attachments.length ? 'Add another' : 'Attach receipt'}
+              <Icon name="Upload" size={12} /> Add
               <input type="file" accept="image/*,application/pdf" onChange={handleFile} hidden />
             </label>
           )}
-          {!attachments.length && !canEdit && <span className="ld-hint">None attached</span>}
         </div>
-      </div>
+      )}
 
-      {/* tax + currency */}
+      {/* Row C — tax + currency */}
       <div className="ld-grid">
         <label className="ld-field">
           {label('VAT amount')}
@@ -258,7 +244,7 @@ export default function LineDetail({
         </label>
       </div>
 
-      {/* split */}
+      {/* Row D — split */}
       <div className="ld-block">
         <div className="ld-blockhead">
           {label('Split across categories', 'one payment, several lines')}
