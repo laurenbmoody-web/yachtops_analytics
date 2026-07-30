@@ -109,6 +109,27 @@
 }
 .hsearch-item:last-child { border-bottom: none; }
 .hsearch-item:hover { background: #FDF6F1; box-shadow: inset 3px 0 0 #C65A1A; }
+/* Row wrapper so an item can carry a secondary "View on map" action. */
+.hsearch-itemrow { display: flex; align-items: stretch; border-bottom: 1px solid #F0F1F5; }
+.hsearch-itemrow:last-child { border-bottom: none; }
+.hsearch-itemrow .hsearch-item { flex: 1 1 auto; border-bottom: none; }
+.hsearch-map {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 12px 6px 0;
+  padding: 0 12px;
+  border: 1px solid #E8B6A6;
+  border-radius: 999px;
+  background: #FBEFE9;
+  color: #C65A1A;
+  font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s;
+}
+.hsearch-map:hover { background: #F6DFD1; border-color: #C65A1A; }
 .hsearch-ico { color: #8B8478; flex: none; }
 .hsearch-body { min-width: 0; }
 .hsearch-label {
