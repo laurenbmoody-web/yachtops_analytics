@@ -105,6 +105,57 @@ const typeOf = (rel = [], name = '') => {
 };
 const typeIcon = (type) => GARMENT_ICON[type] || 'Shirt';
 
+// Apply per-size stock changes to an inventory item and persist. Deltas are
+// keyed by size (use '' for a plain item); negative removes (issuing), positive
+// adds back (returning / swapping). Removes pull across storage locations in
+// order; adds land on the first location holding that size, else the first
+// sized location. Keeps variants, stock-location tallies and the total in step.
+const applyStockDelta = async (item, deltas) => {
+  const entries = Object.entries(deltas).filter(([, d]) => d);
+  if (!entries.length) return;
+  const vs = (item.variants || []).filter((v) => v && (v.size || v.label));
+  if (!vs.length) {
+    const total = entries.reduce((a, [, d]) => a + d, 0);
+    if (total) await adjustItemQuantity(item.id, total);
+    return;
+  }
+  const variants = item.variants.map((v) => {
+    const s = v.size || v.label;
+    const d = deltas[s] || 0;
+    return { ...v, qty: Math.max(0, (Number(v.qty ?? v.quantity) || 0) + d) };
+  });
+  const newTotal = variants.reduce((a, v) => a + (Number(v.qty) || 0), 0);
+  let stockLocations = (item.stockLocations || []).map((sl) => ({
+    ...sl, sizes: Array.isArray(sl.sizes) ? sl.sizes.map((z) => ({ ...z })) : sl.sizes,
+  }));
+  entries.forEach(([size, d]) => {
+    if (d < 0) {
+      let rem = -d;
+      stockLocations.forEach((sl) => {
+        if (!Array.isArray(sl.sizes)) return;
+        sl.sizes.forEach((z) => {
+          if (z.size === size && rem > 0) { const take = Math.min(Number(z.qty) || 0, rem); z.qty = (Number(z.qty) || 0) - take; rem -= take; }
+        });
+      });
+    } else {
+      let placed = false;
+      for (const sl of stockLocations) {
+        if (!Array.isArray(sl.sizes)) continue;
+        const z = sl.sizes.find((x) => x.size === size);
+        if (z) { z.qty = (Number(z.qty) || 0) + d; placed = true; break; }
+      }
+      if (!placed) { const sl = stockLocations.find((x) => Array.isArray(x.sizes)); if (sl) sl.sizes.push({ size, qty: d }); }
+    }
+  });
+  stockLocations = stockLocations.map((sl) => {
+    if (!Array.isArray(sl.sizes)) return sl;
+    const sizes = sl.sizes.filter((z) => (Number(z.qty) || 0) > 0);
+    const qq = sizes.reduce((a, z) => a + (Number(z.qty) || 0), 0);
+    return { ...sl, sizes, quantity: qq, qty: qq };
+  }).filter((sl) => !Array.isArray(sl.sizes) || (sl.quantity || 0) > 0);
+  await saveItem({ ...item, variants, totalQty: newTotal, quantity: newTotal, stockLocations }, { dedupe: false });
+};
+
 // Issue-from-inventory: browse the Uniform folder as tiles, drill down to items,
 // tick items and allocate a quantity (−/count/+, capped at what's on board), then
 // issue the lot to the crew member in one go.
@@ -295,10 +346,49 @@ const ReturnModal = ({ row, onReturn, onClose }) => {
   );
 };
 
+// Swap modal: fulfil a crew member's size-swap request — hand back the wrong
+// size and issue the one they asked for, in one move.
+const SwapModal = ({ row, inv, crewName, onSwap, onClose }) => {
+  const [busy, setBusy] = useState(false);
+  const size = row.swap_requested_size;
+  const variant = (inv?.variants || []).find((v) => (v.size || v.label) === size);
+  const inStock = variant ? (Number(variant.qty ?? variant.quantity) || 0) : (inv ? (Number(inv.totalQty ?? inv.quantity) || 0) : null);
+  const submit = async () => { setBusy(true); try { await onSwap(row); } finally { setBusy(false); } };
+  return (
+    <div className="cf-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="cf-modal sm" onClick={(e) => e.stopPropagation()}>
+        <div className="cf-modal-head">
+          <div><span className="cf-eyebrow">Swap size</span><h2 className="cf-modal-title">{row.item}</h2></div>
+          <button type="button" className="cf-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
+        </div>
+        <div className="cf-modal-body">
+          <div className="cf-swap-flow">
+            <span className="cf-swap-chip old">{row.size || 'Current'}</span>
+            <Icon name="ArrowRight" size={16} />
+            <span className="cf-swap-chip new">{size}</span>
+          </div>
+          <p className="cf-empty-note" style={{ padding: 0 }}>
+            {crewName ? `${crewName.split(' ')[0]} asked for ` : 'Requested '}<b>{size}</b> instead of {row.size ? <b>{row.size}</b> : 'the current size'}. This returns the {row.size || 'current'} to stock and issues {size} in its place.
+          </p>
+          {inStock != null && (
+            inStock > 0
+              ? <p className="cf-stock-ok"><Icon name="Check" size={13} /> {inStock} in stock in {size}</p>
+              : <p className="cf-warn">Not currently in stock in {size} — you can still swap if you have it to hand.</p>
+          )}
+        </div>
+        <div className="cf-modal-foot">
+          <button type="button" className="cf-btn ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="cf-btn primary" disabled={busy} onClick={submit}>{busy ? 'Swapping…' : `Swap to ${size}`}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // The Crew world: a folder of crew (name tiles) → click a person → the uniform
 // issued to them. Issuing draws from master inventory; the crew profile shows
 // the same kit read-only for the crew member to sign off.
-const CrewFolder = ({ onBack }) => {
+const CrewFolder = ({ onBack, initialCrewId = null }) => {
   const { user, tenantRole } = useAuth();
   const { activeTenantId } = useTenant();
   const showValue = canViewCost();
@@ -312,6 +402,7 @@ const CrewFolder = ({ onBack }) => {
   const [folderRels, setFolderRels] = useState([]); // inventory folder paths below "Uniform"
   const [issuing, setIssuing] = useState(false);
   const [returning, setReturning] = useState(null);
+  const [swapping, setSwapping] = useState(null);
   const [q, setQ] = useState('');
   const [dept, setDept] = useState('all');
   const [sort, setSort] = useState('name');
@@ -347,6 +438,8 @@ const CrewFolder = ({ onBack }) => {
     setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [activeTenantId]);
+  // Deep-link straight to a crew member (e.g. from a swap-request notification).
+  useEffect(() => { if (initialCrewId) setSelectedId(initialCrewId); }, [initialCrewId]);
 
   const openIssue = async () => { setIssuing(true); const all = await getAllItems(); setStock(all.filter(isUniformStock)); };
 
@@ -521,7 +614,7 @@ const CrewFolder = ({ onBack }) => {
         type: 'kit_signoff',
         title: 'Uniform to sign off',
         message: `${issuerName || 'The interior'} has issued you ${n} uniform item${n === 1 ? '' : 's'} — confirm receipt or request a size swap.`,
-        actionUrl: `/profile/${selectedId}`,
+        actionUrl: `/profile/${selectedId}?tab=kit`,
         severity: 'info',
       });
       window.showToast?.(`Sent ${n} item${n === 1 ? '' : 's'} to ${selected?.fullName?.split(' ')[0] || 'the crew member'} for sign-off`, 'success');
@@ -559,31 +652,42 @@ const CrewFolder = ({ onBack }) => {
     for (const { item, sizes, total } of byItem.values()) {
       const vs = (item.variants || []).filter((v) => v && (v.size || v.label));
       if (vs.length) {
-        const variants = item.variants.map((v) => {
-          const s = v.size || v.label;
-          const rem = sizes[s] || 0;
-          return { ...v, qty: Math.max(0, (Number(v.qty ?? v.quantity) || 0) - rem) };
-        });
-        const newTotal = variants.reduce((a, v) => a + (Number(v.qty) || 0), 0);
-        // Pull each issued size across its storage locations in order (a size can
-        // sit in several places), decrementing until that size's qty is consumed.
-        const remaining = { ...sizes };
-        const stockLocations = (item.stockLocations || []).map((sl) => {
-          if (!Array.isArray(sl.sizes)) return sl;
-          const newSizes = sl.sizes.map((z) => {
-            const take = Math.min(Number(z.qty) || 0, remaining[z.size] || 0);
-            remaining[z.size] = (remaining[z.size] || 0) - take;
-            return { ...z, qty: (Number(z.qty) || 0) - take };
-          }).filter((z) => z.qty > 0);
-          const q = newSizes.reduce((a, z) => a + z.qty, 0);
-          return { ...sl, sizes: newSizes, quantity: q, qty: q };
-        }).filter((sl) => !Array.isArray(sl.sizes) || (sl.quantity || 0) > 0);
-        await saveItem({ ...item, variants, totalQty: newTotal, quantity: newTotal, stockLocations }, { dedupe: false });
+        const deltas = {};
+        Object.entries(sizes).forEach(([s, qy]) => { deltas[s] = -qy; });
+        await applyStockDelta(item, deltas);
       } else {
         await adjustItemQuantity(item.id, -Math.abs(total));
       }
     }
     setIssuing(false); load();
+  };
+
+  // Fulfil a size-swap the crew member requested from their profile: return the
+  // wrong-size item to stock and issue the requested size in its place, keeping
+  // master stock correct across both moves.
+  const doSwap = async (k) => {
+    const size = k.swap_requested_size;
+    if (!size) return;
+    const inv = itemById[k.inventory_item_id];
+    const qty = Number(k.quantity) || 1;
+    const issuerName = user?.user_metadata?.full_name || user?.email;
+    await recordKitReturn([k.id], { returnedDate: today(), condition: 'Swapped for size', returnedTo: user?.id });
+    await logKitEvent({ kitId: k.id, userId: k.user_id, tenantId: activeTenantId, action: 'returned', detail: { item: k.item, size: k.size || null, swappedTo: size }, actorId: user?.id, actorName: issuerName });
+    await saveKitItem({
+      userId: k.user_id, tenantId: activeTenantId, category: 'uniform',
+      item: k.item, size, quantity: qty, conditionIssued: 'New', issuedDate: today(),
+      issuedBy: user?.id, issuedByName: issuerName,
+      value: inv?.unitCost ?? k.value ?? null, inventoryItemId: k.inventory_item_id || null, createdBy: user?.id,
+    });
+    await logKitEvent({ userId: k.user_id, tenantId: activeTenantId, action: 'issued', detail: { item: k.item, size, quantity: qty, swappedFrom: k.size || null }, actorId: user?.id, actorName: issuerName });
+    if (inv) await applyStockDelta(inv, { ...(k.size ? { [k.size]: qty } : {}), [size]: -qty });
+    await sendDbNotification(k.user_id, {
+      type: 'kit_signoff', title: 'Uniform swapped',
+      message: `Your ${k.item} has been swapped to ${size} — please confirm receipt.`,
+      actionUrl: `/profile/${k.user_id}?tab=kit`, severity: 'info',
+    });
+    window.showToast?.(`Swapped ${k.item} to ${size}`, 'success');
+    setSwapping(null); await load();
   };
 
   const doReturn = async (row, { restock, condition }) => {
@@ -682,6 +786,9 @@ const CrewFolder = ({ onBack }) => {
           <div className="cf-tile-foot">
             <span className={`cf-pill ${st.cls}`}>{st.label}</span>
             {showValue && k.value != null && <span className="cf-tile-val">{money(k.value * (k.quantity || 1), 'USD')}</span>}
+            {canManage && live && k.swap_requested_size && (
+              <button type="button" className="cf-tile-swapbtn" onClick={() => setSwapping(k)}><Icon name="Repeat" size={12} /> Swap → {k.swap_requested_size}</button>
+            )}
             {canManage && live && <button type="button" className="cf-tile-return" onClick={() => setReturning(k)}>Return</button>}
           </div>
         </div>
@@ -775,6 +882,7 @@ const CrewFolder = ({ onBack }) => {
 
       {issuing && <IssueModal crewName={selected.fullName} stock={stock} folderRels={folderRels} showValue={showValue} onIssue={doIssue} onClose={() => setIssuing(false)} />}
       {returning && <ReturnModal row={returning} onReturn={doReturn} onClose={() => setReturning(null)} />}
+      {swapping && <SwapModal row={swapping} inv={itemById[swapping.inventory_item_id]} crewName={selected.fullName} onSwap={doSwap} onClose={() => setSwapping(null)} />}
     </div>
   );
 };

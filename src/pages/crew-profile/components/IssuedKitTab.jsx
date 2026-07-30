@@ -282,7 +282,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
             type: 'kit_swap_request',
             title: 'Size swap requested',
             message: `${crewName || 'A crew member'} asked for ${it.item} in ${size}${it.size ? ` instead of ${it.size}` : ''}.`,
-            actionUrl: '/wardrobe-management',
+            actionUrl: `/wardrobe-management?mode=crew&crew=${userId}`,
             severity: 'info',
           });
         }
