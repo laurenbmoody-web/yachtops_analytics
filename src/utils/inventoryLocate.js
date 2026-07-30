@@ -49,7 +49,27 @@ export async function searchInventoryLocations(query, { limit = 20 } = {}) {
     .eq('tenant_id', tenantId)
     .not('space_id', 'is', null);
   const scanByRoom = {};
-  (scans || []).forEach((s) => { if (s.status === 'ready' && !scanByRoom[s.space_id]) scanByRoom[s.space_id] = s.id; });
+  const roomByScan = {};
+  (scans || []).forEach((s) => {
+    if (s.status === 'ready' && !scanByRoom[s.space_id]) scanByRoom[s.space_id] = s.id;
+    roomByScan[s.id] = s.space_id;
+  });
+
+  // Pins holding this stock: a hotspot's location_node_id equals the stock's
+  // vesselLocationId. The pin physically lives in its scan's room, so we can
+  // pulse it there. Keyed node → { hotspotId, scanId, label }.
+  const nodeIds = [];
+  (items || []).forEach((it) => (it.stock_locations || []).forEach((sl) => {
+    const v = sl?.vesselLocationId || sl?.locationId; if (v) nodeIds.push(v);
+  }));
+  const hotspotByNode = {};
+  if (nodeIds.length) {
+    const { data: hs } = await supabase
+      .from('scan_hotspots')
+      .select('id, scan_id, label, location_node_id')
+      .in('location_node_id', [...new Set(nodeIds)]);
+    (hs || []).forEach((h) => { if (h.location_node_id && !hotspotByNode[h.location_node_id]) hotspotByNode[h.location_node_id] = h; });
+  }
 
   // Nearest ancestor (incl. self) that is placed on a plan or scanned — else the
   // top-most known ancestor. That's the room a person would name.
@@ -69,10 +89,24 @@ export async function searchInventoryLocations(query, { limit = 20 } = {}) {
   return (items || []).map((it) => {
     const rooms = [];
     const byRoom = {};
+    let pin = null; // the first hotspot physically holding this item, if any
     for (const sl of (it.stock_locations || [])) {
       const vid = sl?.vesselLocationId || sl?.locationId;
       const qty = Number(sl?.qty ?? sl?.quantity ?? 0) || 0;
       if (!vid) continue;
+      // Does a map pin hold this stock? The pin lives in its scan's room.
+      const hs = hotspotByNode[vid];
+      if (hs && !pin) {
+        const proom = roomByScan[hs.scan_id];
+        pin = {
+          hotspotId: hs.id,
+          scanId: hs.scan_id,
+          label: hs.label || '',
+          roomId: proom || null,
+          roomName: byId[proom]?.name || null,
+          placed: byId[proom]?.plan_x != null,
+        };
+      }
       const roomId = roomFor(vid);
       if (!roomId) continue;
       if (byRoom[roomId]) { byRoom[roomId].qty += qty; continue; }
@@ -86,6 +120,12 @@ export async function searchInventoryLocations(query, { limit = 20 } = {}) {
       byRoom[roomId] = room;
       rooms.push(room);
     }
-    return { itemId: it.id, name: it.name, rooms };
+    // Attach the pin to its own room (the one the scan belongs to) so callers
+    // can pulse the room AND open the exact pin in the scan.
+    if (pin?.roomId && byRoom[pin.roomId]) {
+      byRoom[pin.roomId].hotspotId = pin.hotspotId;
+      byRoom[pin.roomId].pinScanId = pin.scanId;
+    }
+    return { itemId: it.id, name: it.name, rooms, pin };
   }).filter((r) => r.rooms.length);
 }

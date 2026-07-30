@@ -417,8 +417,18 @@ const Header = () => {
       (locateRes.value || []).forEach((it) => {
         const placed = it.rooms.find((r) => r.placed);
         const scanned = it.rooms.find((r) => r.scanId);
-        if (placed) mapById[it.itemId] = { path: `/settings/vessel?locate=${placed.roomId}`, room: placed.roomName };
-        else if (scanned) mapById[it.itemId] = { path: `/vessel/map?scan=${scanned.scanId}`, room: scanned.roomName };
+        if (it.pin?.placed && it.pin.roomId) {
+          // Pinned + the room is on a plan: pulse the room, carrying the pin so
+          // clicking through opens the scan with that pin highlighted.
+          mapById[it.itemId] = { path: `/settings/vessel?locate=${it.pin.roomId}&scan=${it.pin.scanId}&pin=${it.pin.hotspotId}`, room: it.pin.roomName };
+        } else if (it.pin) {
+          // Pinned but the room isn't on a plan — open the pin in the scan.
+          mapById[it.itemId] = { path: `/vessel/map?scan=${it.pin.scanId}&pin=${it.pin.hotspotId}`, room: it.pin.roomName };
+        } else if (placed) {
+          mapById[it.itemId] = { path: `/settings/vessel?locate=${placed.roomId}`, room: placed.roomName };
+        } else if (scanned) {
+          mapById[it.itemId] = { path: `/vessel/map?scan=${scanned.scanId}`, room: scanned.roomName };
+        }
       });
     }
 
