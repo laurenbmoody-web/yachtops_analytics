@@ -651,8 +651,14 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   // Follow a stairs link: scroll the connected deck into view and flash the
   // room it lands on, so a cross-deck connection reads like walking up stairs.
   const jumpToSpace = (deckId, spaceId) => {
-    const el = typeof document !== 'undefined' && document.getElementById(`dp-deck-${deckId}`);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Re-scroll a few times: the GA background images load async and grow the
+    // deck's height afterwards, so a single scroll lands on a stale position.
+    const scroll = (behavior) => {
+      const el = typeof document !== 'undefined' && document.getElementById(`dp-deck-${deckId}`);
+      if (el) el.scrollIntoView({ behavior, block: 'center' });
+    };
+    scroll('smooth');
+    [250, 700, 1400].forEach((d) => setTimeout(() => scroll('auto'), d));
     setFlashSpace(spaceId);
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     flashTimerRef.current = setTimeout(() => setFlashSpace(null), 1800);
