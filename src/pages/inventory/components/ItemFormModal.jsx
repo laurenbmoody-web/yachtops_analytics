@@ -621,7 +621,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     <>
     <ModalShell onClose={onClose} panelClassName="itf bg-card rounded-2xl w-full max-w-lg max-h-[92vh] overflow-y-auto">
       <div className="itf-head">
-        <div><div className="itf-eyebrow">Inventory {isEdit ? '· Edit' : '· New'}</div><div className="itf-title">{isEdit ? 'Edit item' : 'Add item'}</div></div>
+        <div className="itf-title">Inventory<span className="pd">,</span> <em>{isEdit ? 'edit' : 'add'}</em><span className="pd">.</span></div>
         <button className="itf-x" onClick={onClose} aria-label="Close"><Icon name="X" size={20} /></button>
       </div>
 
