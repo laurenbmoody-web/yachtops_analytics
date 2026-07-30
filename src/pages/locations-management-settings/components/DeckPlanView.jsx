@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
+import { layerColor, layerLabel } from '../../vessel-map/layers';
 import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck, recordDeckShapeSample, getPlanOverlays } from '../utils/locationsLayoutStorage';
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace, archiveSpace, updateSpace } from '../utils/locationsHierarchyStorage';
@@ -163,7 +164,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [detectError, setDetectError] = useState(null); // { deckId, message } | null
   const [applying, setApplying] = useState(false);
   const [overlay, setOverlay] = useState(null); // active overlay filter key ('defect'|'inventory'|…) or null
-  const [overlayData, setOverlayData] = useState({ layerCounts: {}, defectsBySpace: {} });
+  const [overlayData, setOverlayData] = useState({ layerCounts: {}, defectsBySpace: {}, pins: [] });
   const [overlayRoom, setOverlayRoom] = useState(null); // spaceId whose overlay drawer is open
   const [overlayQuery, setOverlayQuery] = useState(''); // search box: highlight matching rooms
   const [openMenu, setOpenMenu] = useState(null); // 'filter' | null (filter dropdown panel)
@@ -199,7 +200,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     let alive = true;
     const scanIndex = [];
     decks.forEach((d) => spacesOf(d).forEach((s) => { if (s.scan?.id) scanIndex.push({ scanId: s.scan.id, spaceId: s.id }); }));
-    if (!scanIndex.length) { setOverlayData({ layerCounts: {}, defectsBySpace: {} }); return () => { alive = false; }; }
+    if (!scanIndex.length) { setOverlayData({ layerCounts: {}, defectsBySpace: {}, pins: [] }); return () => { alive = false; }; }
     getPlanOverlays(scanIndex).then((d) => { if (alive) setOverlayData(d); }).catch(() => {});
     return () => { alive = false; };
   }, [decks]);
@@ -209,13 +210,21 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     if (!overlay) return 0;
     return overlayData.layerCounts[spaceId]?.[overlay] || 0;
   };
-  // Search box: a room matches on its own name or any of its defect titles.
+  // Search box: matches a room by its own name, or by any pin/defect inside its
+  // scan whose label contains the query.
   const searchQ = overlayQuery.trim().toLowerCase();
+  const pinMatchesQ = (p) => (p.label || '').toLowerCase().includes(searchQ);
   const roomMatches = (space) => {
     if (!searchQ) return true;
     if ((nameOf(space) || '').toLowerCase().includes(searchQ)) return true;
+    if ((overlayData.pins || []).some((p) => p.spaceId === space.id && pinMatchesQ(p))) return true;
     return (overlayData.defectsBySpace[space.id] || []).some((d) => (d.title || '').toLowerCase().includes(searchQ));
   };
+  // Flat list of pins matching the query, for the results dropdown — each links
+  // straight to that pin in its scan. Capped so the list stays tidy.
+  const searchHits = searchQ
+    ? (overlayData.pins || []).filter(pinMatchesQ).slice(0, 12)
+    : [];
   // A room's defect list for the drill drawer, worst severity first.
   const sortDefects = (arr) => [...(arr || [])].sort((x, y) => (PRIORITY_RANK[y.priority] || 0) - (PRIORITY_RANK[x.priority] || 0));
 
@@ -976,11 +985,35 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           <input
             value={overlayQuery}
             onChange={(e) => setOverlayQuery(e.target.value)}
-            placeholder="Search rooms…"
-            aria-label="Search rooms"
+            placeholder="Search rooms & pins…"
+            aria-label="Search rooms and pins"
           />
           {overlayQuery && (
             <button type="button" className="dp-fb-clear" onClick={() => setOverlayQuery('')} aria-label="Clear search">×</button>
+          )}
+          {searchQ && (
+            <div className="dp-sr">
+              {searchHits.length === 0 ? (
+                <p className="dp-sr-empty">No pins named “{overlayQuery.trim()}”. Matching room names are highlighted on the plan.</p>
+              ) : (
+                <ul className="dp-sr-list">
+                  {searchHits.map((p) => (
+                    <li key={p.hotspotId}>
+                      <button
+                        type="button"
+                        className="dp-sr-item"
+                        onClick={() => navigate(`/vessel/map?scan=${p.scanId || ''}&pin=${p.hotspotId}`)}
+                      >
+                        <span className="dp-sr-dot" style={{ background: layerColor(p.layer) }} title={layerLabel(p.layer)} />
+                        <span className="dp-sr-lbl">{p.label}</span>
+                        <span className="dp-sr-room">{spaceMeta[p.spaceId]?.name || ''}</span>
+                        <span className="dp-sr-go">View →</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
         </div>
         {/* Filter — which layer to badge on the plan */}
