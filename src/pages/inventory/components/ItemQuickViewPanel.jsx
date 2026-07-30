@@ -7,6 +7,7 @@ import { formatBoughtIn } from '../../../data/unitGroups';
 import { duplicateItem } from '../utils/inventoryStorage';
 import { printItemQr } from '../utils/itemQr';
 import { findItemOnMap } from '../../vessel-map/utils/inventory';
+import { getActivityForEntity } from '../../../utils/activityStorage';
 import LocPath from './LocPath';
 import './uniformView.css';
 
@@ -34,6 +35,8 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
   const [dupBusy, setDupBusy] = useState(false);
   const [qrUrl, setQrUrl] = useState('');
   const [mapPlaces, setMapPlaces] = useState([]);
+  const [events, setEvents] = useState(null);
+  const [exporting, setExporting] = useState(false);
   useEffect(() => {
     const onKey = (e) => { if (e?.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', onKey);
@@ -95,6 +98,33 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
     if (!v) return;
     navigate(`/inventory/location?${kind}=${encodeURIComponent(v)}`);
     onClose?.();
+  };
+
+  // Per-item activity feed (qty changes, moves, edits) — the same events store
+  // the vessel-map drawer's History tab reads.
+  useEffect(() => {
+    let alive = true;
+    setEvents(null);
+    if (!item?.id) return undefined;
+    getActivityForEntity('inventoryItem', item.id)
+      .then((evs) => { if (alive) setEvents(Array.isArray(evs) ? evs : []); })
+      .catch(() => { if (alive) setEvents([]); });
+    return () => { alive = false; };
+  }, [item?.id]);
+
+  // Export this single item to a PDF spec sheet (reuses the folder exporter).
+  const handleExport = async () => {
+    if (exporting || !item) return;
+    setExporting(true);
+    try {
+      const folderPath = [item?.location, item?.subLocation].filter(Boolean).join(' › ');
+      const { exportInventoryToPDF } = await import('../../enhanced-4-level-inventory-navigation/utils/inventoryPdfExport');
+      await exportInventoryToPDF({ items: [item], scope: 'single', folderPath, includeImages: true });
+    } catch {
+      window.showToast?.('Couldn’t export — try again', 'error');
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (!item) return null;
@@ -268,6 +298,24 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
             </div>
           )}
 
+          {Array.isArray(events) && events.length > 0 && (
+            <div className="uv-sec">
+              <div className="uv-sec-h"><span>Activity</span></div>
+              <div className="uv-acts">
+                {events.slice(0, 8).map((ev) => (
+                  <div className="uv-act" key={ev.id}>
+                    <span className="uv-act-dot" />
+                    <div className="uv-act-body">
+                      <p className="uv-act-sum">{ev.summary || ev.action}</p>
+                      <p className="uv-act-meta">{ev.actorName ? `${ev.actorName} · ` : ''}{formatDate(ev.createdAt)}</p>
+                    </div>
+                  </div>
+                ))}
+                {events.length > 8 && <p className="uv-act-more">+{events.length - 8} earlier</p>}
+              </div>
+            </div>
+          )}
+
           {Array.isArray(item?.tags) && item.tags.length > 0 && (
             <div className="uv-sec">
               <div className="uv-sec-h"><span>Tags</span></div>
@@ -290,18 +338,19 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
           )}
         </div>
 
-        {((canEdit && onEdit) || onDuplicated) && (
-          <div className="uv-foot">
-            {onDuplicated && (
-              <button type="button" className="uv-btn uv-btn-quiet" onClick={handleDuplicate} disabled={dupBusy}>
-                <Icon name="Copy" size={14} /> {dupBusy ? 'Duplicating…' : 'Duplicate'}
-              </button>
-            )}
-            {canEdit && onEdit && (
-              <button type="button" className="uv-btn" onClick={() => onEdit(item)}><Icon name="Pencil" size={14} /> Edit</button>
-            )}
-          </div>
-        )}
+        <div className="uv-foot">
+          <button type="button" className="uv-btn uv-btn-quiet" onClick={handleExport} disabled={exporting}>
+            <Icon name="FileDown" size={14} /> {exporting ? 'Exporting…' : 'Export'}
+          </button>
+          {onDuplicated && (
+            <button type="button" className="uv-btn" onClick={handleDuplicate} disabled={dupBusy}>
+              <Icon name="Copy" size={14} /> {dupBusy ? 'Duplicating…' : 'Duplicate'}
+            </button>
+          )}
+          {canEdit && onEdit && (
+            <button type="button" className="uv-btn" onClick={() => onEdit(item)}><Icon name="Pencil" size={14} /> Edit</button>
+          )}
+        </div>
       </aside>
     </>
   );

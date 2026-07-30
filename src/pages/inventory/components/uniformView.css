@@ -37,6 +37,15 @@
 .uv-metaline { margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0F1F5; display: flex; flex-wrap: wrap; gap: 6px; font-size: 11.5px; color: #8B8478; }
 .uv-metadot { color: #C9CDD6; }
 
+/* Activity feed — compact event list (reuses the shared activity_events store). */
+.uv-acts { display: flex; flex-direction: column; gap: 12px; }
+.uv-act { display: flex; gap: 10px; }
+.uv-act-dot { flex: none; width: 7px; height: 7px; margin-top: 5px; border-radius: 999px; background: #C65A1A; }
+.uv-act-body { min-width: 0; }
+.uv-act-sum { margin: 0; font-size: 13px; line-height: 1.4; color: #1C1B3A; }
+.uv-act-meta { margin: 2px 0 0; font-size: 11.5px; color: #8B8478; }
+.uv-act-more { margin: 2px 0 0 17px; font-size: 11.5px; color: #AEB4C2; }
+
 .uv-sizes { display: flex; flex-wrap: wrap; gap: 8px; }
 .uv-size { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; min-width: 52px; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 10px; padding: 8px 10px; }
 .uv-size-lbl { font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.5px; text-transform: uppercase; color: #8B8478; }
