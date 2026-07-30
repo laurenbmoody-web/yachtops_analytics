@@ -635,7 +635,15 @@ const Header = () => {
               value={searchQuery}
               onChange={handleSearchChange}
               onFocus={() => { if (searchQuery.trim()) setIsSearchOpen(true); }}
-              onKeyDown={(e) => { if (e.key === 'Escape') handleSearchClear(); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') { handleSearchClear(); return; }
+                if (e.key === 'Enter' && searchQuery.trim()) {
+                  clearTimeout(searchTimeout.current);
+                  setIsSearchOpen(true);
+                  setIsSearching(true);
+                  performSearch(searchQuery);
+                }
+              }}
               placeholder="Search pages, crew, jobs, guests..."
               className="hsearch-input"
             />
