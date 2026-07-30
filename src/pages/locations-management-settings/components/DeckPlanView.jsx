@@ -166,10 +166,8 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [overlayData, setOverlayData] = useState({ layerCounts: {}, defectsBySpace: {} });
   const [overlayRoom, setOverlayRoom] = useState(null); // spaceId whose overlay drawer is open
   const [overlayQuery, setOverlayQuery] = useState(''); // search box: highlight matching rooms
-  const [overlaySort, setOverlaySort] = useState('severity'); // drill-list order: severity|newest|az
-  const [openMenu, setOpenMenu] = useState(null); // 'filter' | 'sort' | null (dropdown panels)
+  const [openMenu, setOpenMenu] = useState(null); // 'filter' | null (filter dropdown panel)
   const filterMenuRef = useRef(null);
-  const sortMenuRef = useRef(null);
   const traceStartRef = useRef(false); // swallow the click that selected the room (no stray node)
   const fileRef = useRef(null);
   const planRefs = useRef({}); // deckId -> plan element (for drop hit-testing)
@@ -189,7 +187,6 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     if (!openMenu) return undefined;
     const onDown = (e) => {
       if (filterMenuRef.current?.contains(e.target)) return;
-      if (sortMenuRef.current?.contains(e.target)) return;
       setOpenMenu(null);
     };
     window.addEventListener('pointerdown', onDown);
@@ -219,14 +216,8 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     if ((nameOf(space) || '').toLowerCase().includes(searchQ)) return true;
     return (overlayData.defectsBySpace[space.id] || []).some((d) => (d.title || '').toLowerCase().includes(searchQ));
   };
-  // Order a room's defect list for the drill drawer per the Sort control.
-  const sortDefects = (arr) => {
-    const a = [...(arr || [])];
-    if (overlaySort === 'az') a.sort((x, y) => (x.title || '').localeCompare(y.title || ''));
-    else if (overlaySort === 'newest') a.sort((x, y) => String(y.createdAt || '').localeCompare(String(x.createdAt || '')));
-    else a.sort((x, y) => (PRIORITY_RANK[y.priority] || 0) - (PRIORITY_RANK[x.priority] || 0)); // severity
-    return a;
-  };
+  // A room's defect list for the drill drawer, worst severity first.
+  const sortDefects = (arr) => [...(arr || [])].sort((x, y) => (PRIORITY_RANK[y.priority] || 0) - (PRIORITY_RANK[x.priority] || 0));
 
   useEffect(() => {
     if (!layout?.gaImageUrl) { setGaDims(null); return; }
@@ -1004,50 +995,28 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           </button>
           {openMenu === 'filter' && (
             <div className="dp-md-panel to-right">
-              <div className="dp-md-sec">
+              <div className="dp-md-sec" style={{ borderBottom: 0, paddingBottom: 4 }}>
                 <p className="dp-md-lbl">Show on plan</p>
-                <div className="dp-md-pills">
-                  <button type="button" className={`dp-md-pill${!overlay ? ' is-on' : ''}`} onClick={() => { setOverlay(null); setOverlayRoom(null); }}>None</button>
-                  {OVERLAYS.map((o) => (
-                    <button key={o.key} type="button" className={`dp-md-pill${overlay === o.key ? ' is-on' : ''}`} onClick={() => { setOverlay((v) => (v === o.key ? null : o.key)); setOverlayRoom(null); }}>{o.label}</button>
-                  ))}
-                </div>
+                <button type="button" className={`dp-md-opt${!overlay ? ' is-on' : ''}`} onClick={() => { setOverlay(null); setOverlayRoom(null); }}>
+                  None
+                  {!overlay && <span className="dir"><Icon name="Check" size={14} /></span>}
+                </button>
+                {OVERLAYS.map((o) => (
+                  <button key={o.key} type="button" className={`dp-md-opt${overlay === o.key ? ' is-on' : ''}`} onClick={() => { setOverlay(o.key); setOverlayRoom(null); }}>
+                    <span className="dp-md-swatch" style={{ background: o.color }} />
+                    {o.label}
+                    {overlay === o.key && <span className="dir"><Icon name="Check" size={14} /></span>}
+                  </button>
+                ))}
               </div>
               <div className="dp-md-foot">
                 <button type="button" className="dp-md-clear" disabled={!overlay} onClick={() => { setOverlay(null); setOverlayRoom(null); }}>Clear</button>
-                <button type="button" className="dp-md-pill is-on" onClick={() => setOpenMenu(null)}>Done</button>
+                <button type="button" className="dp-md-done" onClick={() => setOpenMenu(null)}>Done</button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Sort — order a room's drill list */}
-        <div className="dp-md" ref={sortMenuRef}>
-          <button
-            type="button"
-            className={`dp-md-btn${openMenu === 'sort' ? ' is-open' : ''}${overlaySort !== 'severity' ? ' is-active' : ''}`}
-            onClick={() => setOpenMenu((m) => (m === 'sort' ? null : 'sort'))}
-          >
-            <Icon name="ArrowUpDown" size={14} /> Sort
-            <span className="dp-md-cur">· {{ severity: 'Severity', newest: 'Newest', az: 'A–Z' }[overlaySort]}</span>
-          </button>
-          {openMenu === 'sort' && (
-            <div className="dp-md-panel to-right">
-              <div className="dp-md-sec" style={{ borderBottom: 0, paddingBottom: 4 }}>
-                {[['severity', 'Severity'], ['newest', 'Newest'], ['az', 'A–Z']].map(([val, lbl]) => (
-                  <button key={val} type="button" className={`dp-md-opt${overlaySort === val ? ' is-on' : ''}`} onClick={() => setOverlaySort(val)}>
-                    {lbl}
-                    {overlaySort === val && <span className="dir"><Icon name="Check" size={14} /></span>}
-                  </button>
-                ))}
-              </div>
-              <div className="dp-md-foot">
-                <button type="button" className="dp-md-clear" disabled={overlaySort === 'severity'} onClick={() => setOverlaySort('severity')}>Reset</button>
-                <button type="button" className="dp-md-pill is-on" onClick={() => setOpenMenu(null)}>Done</button>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
       {uploadError && <p className="dp-error">{uploadError}</p>}
 
