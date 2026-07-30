@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import VoiceSearchButton from '../../../components/VoiceSearchButton';
 import { layerColor, layerLabel } from '../../vessel-map/layers';
+import { searchInventoryLocations } from '../../../utils/inventoryLocate';
 import { getVesselLayout, uploadGaImage, setDeckCrop, setSpacePosition, setSpaceShape, setSpaceCategory, getSpaceLinks, addSpaceLink, removeSpaceLink, autotraceDeck, recordDeckShapeSample, getPlanOverlays } from '../utils/locationsLayoutStorage';
 import { CATEGORIES, categoryColor, categoryFill, inferCategory, normCategory } from '../utils/roomCategories';
 import { createZone, createSpace, archiveSpace, updateSpace } from '../utils/locationsHierarchyStorage';
@@ -168,6 +169,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [overlayData, setOverlayData] = useState({ layerCounts: {}, defectsBySpace: {}, pins: [] });
   const [overlayRoom, setOverlayRoom] = useState(null); // spaceId whose overlay drawer is open
   const [overlayQuery, setOverlayQuery] = useState(''); // search box: highlight matching rooms
+  const [itemHits, setItemHits] = useState([]); // inventory items matching the search, with their rooms
   const [openMenu, setOpenMenu] = useState(null); // 'filter' | null (filter dropdown panel)
   const filterMenuRef = useRef(null);
   const traceStartRef = useRef(false); // swallow the click that selected the room (no stray node)
@@ -195,6 +197,18 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     return () => window.removeEventListener('pointerdown', onDown);
   }, [openMenu]);
 
+  // Inventory items are stock, not pins — search them by name (debounced) and
+  // resolve where their stock physically lives so the plan can locate the room.
+  useEffect(() => {
+    const q = overlayQuery.trim();
+    if (q.length < 2) { setItemHits([]); return undefined; }
+    let alive = true;
+    const t = setTimeout(() => {
+      searchInventoryLocations(q, { limit: 20 }).then((r) => { if (alive) setItemHits(r); }).catch(() => {});
+    }, 250);
+    return () => { alive = false; clearTimeout(t); };
+  }, [overlayQuery]);
+
   // Roll the pins inside each room's scan up to the plan (see getPlanOverlays).
   // Reloads whenever the deck model changes (a scan added, a room placed).
   useEffect(() => {
@@ -215,9 +229,13 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   // scan whose label contains the query.
   const searchQ = overlayQuery.trim().toLowerCase();
   const pinMatchesQ = (p) => (p.label || '').toLowerCase().includes(searchQ);
+  // Rooms holding a matching inventory item's stock — highlight them too.
+  const itemRoomIds = new Set();
+  itemHits.forEach((it) => it.rooms.forEach((r) => { if (r.placed) itemRoomIds.add(r.roomId); }));
   const roomMatches = (space) => {
     if (!searchQ) return true;
     if ((nameOf(space) || '').toLowerCase().includes(searchQ)) return true;
+    if (itemRoomIds.has(space.id)) return true;
     if ((overlayData.pins || []).some((p) => p.spaceId === space.id && pinMatchesQ(p))) return true;
     return (overlayData.defectsBySpace[space.id] || []).some((d) => (d.title || '').toLowerCase().includes(searchQ));
   };
@@ -995,8 +1013,8 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           <VoiceSearchButton className="dp-fb-mic" onResult={(t) => setOverlayQuery(t)} title="Say what you're looking for" />
           {searchQ && (
             <div className="dp-sr">
-              {searchHits.length === 0 ? (
-                <p className="dp-sr-empty">No pins named “{overlayQuery.trim()}”. Matching room names are highlighted on the plan.</p>
+              {(searchHits.length === 0 && itemHits.length === 0) ? (
+                <p className="dp-sr-empty">Nothing named “{overlayQuery.trim()}”. Matching room names are highlighted on the plan.</p>
               ) : (
                 <ul className="dp-sr-list">
                   {searchHits.map((p) => (
@@ -1013,6 +1031,28 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       </button>
                     </li>
                   ))}
+                  {itemHits.flatMap((it) => it.rooms.map((room) => {
+                    const meta = spaceMeta[room.roomId];
+                    const canLocate = room.placed && meta;
+                    return (
+                      <li key={`${it.itemId}-${room.roomId}`}>
+                        <button
+                          type="button"
+                          className="dp-sr-item"
+                          onClick={() => {
+                            if (canLocate) { setOverlayRoom(null); jumpToSpace(meta.deckId, room.roomId); }
+                            else if (room.scanId) navigate(`/vessel/map?scan=${room.scanId}`);
+                          }}
+                          disabled={!canLocate && !room.scanId}
+                        >
+                          <span className="dp-sr-dot" style={{ background: layerColor('inventory') }} title="Inventory" />
+                          <span className="dp-sr-lbl">{it.name}{room.qty ? ` · ${room.qty}` : ''}</span>
+                          <span className="dp-sr-room">{room.roomName}</span>
+                          <span className="dp-sr-go">{canLocate ? 'Locate →' : (room.scanId ? 'View →' : '')}</span>
+                        </button>
+                      </li>
+                    );
+                  }))}
                 </ul>
               )}
             </div>

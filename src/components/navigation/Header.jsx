@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Icon from '../AppIcon';
-import VoiceSearchButton from '../VoiceSearchButton';
+import VoiceSearchButton, { cleanVoiceQuery } from '../VoiceSearchButton';
+import { searchInventoryLocations } from '../../utils/inventoryLocate';
 import Image from '../AppImage';
 import LogoSpinner from '../LogoSpinner';
 import AcceptAdminBanner from './AcceptAdminBanner';
@@ -323,7 +324,9 @@ const Header = () => {
   ];
 
   const performSearch = useCallback(async (query) => {
-    const q = query.toLowerCase().trim();
+    // Strip "show me / where is / find …" so a spoken or typed request locates
+    // the thing itself (e.g. "show me champagne" → "champagne").
+    const q = (cleanVoiceQuery(query) || query).toLowerCase().trim();
     if (!q) { setSearchResults([]); setIsSearching(false); return; }
 
     setIsSearching(true);
@@ -368,7 +371,7 @@ const Header = () => {
     const TIMEOUT = 5000;
     const race = (promise) => Promise.race([promise, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), TIMEOUT))]);
 
-    const [crewRes, jobsRes, inventoryRes, guestsRes, tripsRes] = await Promise.allSettled([
+    const [crewRes, jobsRes, inventoryRes, guestsRes, tripsRes, locateRes] = await Promise.allSettled([
       // Crew — profiles scoped to this tenant via tenant_members
       race(
         supabase
@@ -401,7 +404,21 @@ const Header = () => {
       race(loadGuests()),
       // Trips — loadTrips is async post-A3.1 (Supabase + LS merge)
       race(loadTrips()),
+      // Where each matching item's stock physically lives (for "View on map")
+      race(searchInventoryLocations(q)),
     ]);
+
+    // itemId → best map target: prefer a scanned room (opens the 3D scan),
+    // else a room placed on a deck plan (opens the plan).
+    const mapById = {};
+    if (locateRes?.status === 'fulfilled') {
+      (locateRes.value || []).forEach((it) => {
+        const scanned = it.rooms.find((r) => r.scanId);
+        const placed = it.rooms.find((r) => r.placed);
+        if (scanned) mapById[it.itemId] = { path: `/vessel/map?scan=${scanned.scanId}`, room: scanned.roomName };
+        else if (placed) mapById[it.itemId] = { path: '/settings/vessel', room: placed.roomName };
+      });
+    }
 
     setSearchResults(prev => {
       const updated = [...prev];
@@ -443,7 +460,8 @@ const Header = () => {
             ? '/inventory/location/' + segments.map(encSeg).join('/')
             : '/inventory';
           const subtitle = segments.join(' › ') || [item.l1_name, item.l2_name, item.l3_name].filter(Boolean).join(' › ');
-          return { label: item.name, subtitle, path, icon: 'Package' };
+          const loc = mapById[item.id];
+          return { label: item.name, subtitle, path, icon: 'Package', mapPath: loc?.path || null, mapRoom: loc?.room || null };
         });
         upsert('Inventory', items);
       }
@@ -641,20 +659,30 @@ const Header = () => {
                         {group.category}
                       </div>
                       {group.items.map((item, i) => (
-                        <button
-                          key={i}
-                          onClick={() => handleSearchSelect(item.path)}
-                          className="hsearch-item"
-                        >
-                          <Icon name={item.icon} size={15} className="hsearch-ico" />
-                          <div className="hsearch-body">
-                            <p className="hsearch-label">{item.label}</p>
-                            {item.subtitle && (
-                              <p className="hsearch-sub">{item.subtitle}</p>
-                            )}
-                          </div>
-                          <Icon name="ChevronRight" size={14} className="hsearch-chev" />
-                        </button>
+                        <div key={i} className="hsearch-itemrow">
+                          <button
+                            onClick={() => handleSearchSelect(item.path)}
+                            className="hsearch-item"
+                          >
+                            <Icon name={item.icon} size={15} className="hsearch-ico" />
+                            <div className="hsearch-body">
+                              <p className="hsearch-label">{item.label}</p>
+                              {item.subtitle && (
+                                <p className="hsearch-sub">{item.subtitle}</p>
+                              )}
+                            </div>
+                            {!item.mapPath && <Icon name="ChevronRight" size={14} className="hsearch-chev" />}
+                          </button>
+                          {item.mapPath && (
+                            <button
+                              className="hsearch-map"
+                              onClick={() => handleSearchSelect(item.mapPath)}
+                              title={item.mapRoom ? `View on map · ${item.mapRoom}` : 'View on map'}
+                            >
+                              <Icon name="MapPin" size={13} /> Map
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   ))

@@ -13,7 +13,7 @@ const SR = typeof window !== 'undefined' && (window.SpeechRecognition || window.
 // Turn a spoken phrase into a bare search term.
 export const cleanVoiceQuery = (raw) => {
   let t = (raw || '').trim().replace(/[.?!,]+$/g, '');
-  t = t.replace(/^(show me where(?:'s| is| are)?|where(?:'s| is| are)?|find(?: me)?|locate|search(?: for)?|look for)\s+/i, '');
+  t = t.replace(/^(show me(?: where)?(?:'s| is| are)?|where(?:'s| is| are)?|find(?: me)?|locate|search(?: for)?|look for)\s+/i, '');
   t = t.replace(/^(the|a|an|some)\s+/i, '');
   t = t.replace(/\s+(is|are|located|kept|stored)\??$/i, '');
   return t.trim();
