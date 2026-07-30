@@ -8,6 +8,7 @@ import { duplicateItem } from '../utils/inventoryStorage';
 import { printItemQr } from '../utils/itemQr';
 import { findItemOnMap } from '../../vessel-map/utils/inventory';
 import { getActivityForEntity } from '../../../utils/activityStorage';
+import ReorderModal from './ReorderModal';
 import LocPath from './LocPath';
 import './uniformView.css';
 
@@ -37,6 +38,7 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
   const [mapPlaces, setMapPlaces] = useState([]);
   const [events, setEvents] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [showReorder, setShowReorder] = useState(false);
   useEffect(() => {
     const onKey = (e) => { if (e?.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', onKey);
@@ -191,6 +193,7 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
   const unitCostNum = Number(item?.unitCost);
   const value = unitCostNum && total ? money(unitCostNum * total, item?.currency || 'USD') : null;
   const isLow = !!item?.restockEnabled && item?.restockLevel != null && total <= item?.restockLevel;
+  const reorderQty = item?.restockLevel != null ? Math.max(1, item.restockLevel - total) : 1;
   const created = item?.createdAt ? formatDate(item.createdAt) : null;
   const updated = item?.updatedAt ? formatDate(item.updatedAt) : null;
 
@@ -244,6 +247,14 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
             {multiLoc ? (
               placed.map((l, i) => renderLoc(l, l?.qty ?? l?.quantity ?? 0, i, `Location ${i + 1}`))
             ) : (nameFor(placed[0]) ? renderLoc(placed[0], total, 'single') : null)}
+            <button
+              type="button"
+              className={`uv-reorder${isLow ? ' low' : ''}`}
+              onClick={() => setShowReorder(true)}
+            >
+              <Icon name="ShoppingCart" size={14} />
+              {isLow ? `Reorder · ${reorderQty} below par` : 'Reorder'}
+            </button>
           </div>
 
           <div className="uv-sec">
@@ -352,6 +363,13 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
           )}
         </div>
       </aside>
+      {showReorder && (
+        <ReorderModal
+          item={item}
+          suggestedQty={reorderQty}
+          onClose={() => setShowReorder(false)}
+        />
+      )}
     </>
   );
 };

@@ -37,6 +37,19 @@
 .uv-metaline { margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0F1F5; display: flex; flex-wrap: wrap; gap: 6px; font-size: 11.5px; color: #8B8478; }
 .uv-metadot { color: #C9CDD6; }
 
+/* Reorder button under the stock list — quiet by default, emphasised when low. */
+.uv-reorder {
+  display: inline-flex; align-items: center; gap: 7px; margin-top: 14px;
+  padding: 9px 14px; border-radius: 10px; cursor: pointer;
+  background: #FFFFFF; border: 1px solid #E5E7EB; color: #1C1B3A;
+  font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  transition: border-color .12s, background .12s, color .12s;
+}
+.uv-reorder:hover { border-color: #C65A1A; color: #C65A1A; }
+.uv-reorder svg { color: inherit; }
+.uv-reorder.low { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+.uv-reorder.low:hover { background: #B14E16; }
+
 /* Activity feed — compact event list (reuses the shared activity_events store). */
 .uv-acts { display: flex; flex-direction: column; gap: 12px; }
 .uv-act { display: flex; gap: 10px; }
