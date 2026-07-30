@@ -7,10 +7,11 @@ import { fetchTenantCrew } from '../../crew-profile/utils/tenantCrew';
 import {
   fetchTenantKit, saveKitItem, deleteKitItem, recordKitReturn, requestKitSignoff,
   logKitEvent, fmtKitDate, CONDITIONS, canonicalGarment, GARMENT_ORDER, GARMENT_ICON,
-  KIT_CATEGORIES, kitCategoryLabel,
+  KIT_CATEGORIES, kitCategoryLabel, fetchVesselIdentity,
 } from '../../crew-profile/utils/crewKit';
 import { sendDbNotification } from '../../../lib/dbNotifications';
 import { EditorialDatePicker } from '../../../components/editorial';
+import { exportCrewKitList } from '../utils/crewKitListExport';
 import { getAllItems, adjustItemQuantity, saveItem } from '../../inventory/utils/inventoryStorage';
 import { canViewCost } from '../../../utils/costPermissions';
 import { money } from '../utils/laundryBilling';
@@ -551,27 +552,41 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
 
   // List view — every in-service item combined across the (dept-filtered) crew,
   // keyed by item + size (3 crew each holding 2 × Polo white M → 6 × Polo white M),
-  // then grouped under the item's inventory folder path so it mirrors inventory.
+  // grouped into the same canonical sections as a member's kit (uniform by
+  // charter → garment type, then equipment by category) so it reads consistently.
+  const sectionFor = (r) => {
+    if ((r.category || 'uniform') === 'uniform') {
+      const rel = uniformRel(itemById[r.invId] || {});
+      const charter = charterOf(rel); const type = typeOf(rel, r.item);
+      return { key: `u|${charter}||${type}`, kind: 'uniform', charter, type, title: charter === 'General' ? type : `${charter} · ${type}`, icon: typeIcon(type) };
+    }
+    const cat = r.category || 'other';
+    return { key: `e|${cat}`, kind: 'equip', category: cat, title: kitCategoryLabel(cat), icon: CATEGORY_ICON[cat] || 'Package' };
+  };
   const listGroups = useMemo(() => {
     const ids = new Set(roster.filter(deptMatch).map((c) => c.id));
     const m = new Map();
     kit.filter((k) => k.status === 'in_service' && ids.has(k.user_id)).forEach((k) => {
-      const key = `${(k.item || '').trim().toLowerCase()}|${(k.size || '').trim().toLowerCase()}`;
-      if (!m.has(key)) m.set(key, { item: k.item, size: k.size, qty: 0, holders: new Set(), value: k.value, invId: k.inventory_item_id || null });
+      const key = `${(k.item || '').trim().toLowerCase()}|${(k.size || '').trim().toLowerCase()}|${k.category || 'uniform'}`;
+      if (!m.has(key)) m.set(key, { item: k.item, size: k.size, category: k.category || 'uniform', qty: 0, holders: new Set(), value: k.value, invId: k.inventory_item_id || null });
       const r = m.get(key); r.qty += Number(k.quantity) || 1; r.holders.add(k.user_id);
       if (!r.invId && k.inventory_item_id) r.invId = k.inventory_item_id;
     });
-    let rows = [...m.values()].map((r) => ({ ...r, holders: r.holders.size, path: catPath(itemById[r.invId]) }));
+    let rows = [...m.values()].map((r) => ({ ...r, holders: r.holders.size, img: itemById[r.invId]?.imageUrl || null, section: sectionFor(r) }));
     const s = q.trim().toLowerCase();
-    if (s) rows = rows.filter((r) => `${r.item} ${r.size} ${r.path}`.toLowerCase().includes(s));
+    if (s) rows = rows.filter((r) => `${r.item} ${r.size} ${r.section.title}`.toLowerCase().includes(s));
     const g = new Map();
-    rows.forEach((r) => { if (!g.has(r.path)) g.set(r.path, []); g.get(r.path).push(r); });
-    const groups = [...g.entries()].map(([path, rs]) => ({
-      path,
-      rows: rs.sort((a, b) => (sort === 'qty' ? b.qty - a.qty : (a.item || '').localeCompare(b.item || ''))),
+    rows.forEach((r) => { if (!g.has(r.section.key)) g.set(r.section.key, { ...r.section, rows: [] }); g.get(r.section.key).rows.push(r); });
+    const groups = [...g.values()].map((grp) => ({
+      ...grp,
+      units: grp.rows.reduce((a, r) => a + r.qty, 0),
+      rows: grp.rows.sort((a, b) => (sort === 'qty' ? b.qty - a.qty : (a.item || '').localeCompare(b.item || ''))),
     }));
-    // Categorised folders alphabetical; the Uncategorised bucket sinks to the end.
-    groups.sort((a, b) => (a.path === UNCATEGORISED ? 1 : b.path === UNCATEGORISED ? -1 : a.path.localeCompare(b.path)));
+    groups.sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === 'uniform' ? -1 : 1;
+      if (a.kind === 'uniform') return ((CHARTER_ORDER[a.charter] ?? 9) - (CHARTER_ORDER[b.charter] ?? 9)) || ((TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9)) || a.type.localeCompare(b.type);
+      return (CATEGORY_ORDER[a.category] ?? 9) - (CATEGORY_ORDER[b.category] ?? 9);
+    });
     return groups;
   }, [kit, roster, dept, q, sort, itemById]);
 
@@ -582,6 +597,20 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     { key: 'dept', label: 'Department', value: dept, neutral: 'all', onChange: setDept, options: [{ value: 'all', label: 'All departments' }, ...depts.map((d) => ({ value: d, label: d }))] },
   ];
   const switchView = (v) => { setCrewView(v); setSort(v === 'list' ? 'item' : 'name'); };
+
+  const [exportingList, setExportingList] = useState(false);
+  const doExportList = async () => {
+    if (exportingList || !listGroups.length) return;
+    setExportingList(true);
+    try {
+      const vessel = await fetchVesselIdentity(activeTenantId).catch(() => null);
+      await exportCrewKitList({
+        vesselName: vessel?.name, vessel, generatedAt: fmtKitDate(today()),
+        groups: listGroups, showValue, scopeLabel: dept === 'all' ? 'All crew · in service' : `${dept} · in service`,
+      });
+    } catch { window.showToast?.('Couldn’t export — try again', 'error'); }
+    finally { setExportingList(false); }
+  };
 
   const selected = roster.find((c) => c.id === selectedId) || null;
   const memberKit = useMemo(
@@ -833,6 +862,11 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
           <div className="cf-tools">
             <FilterMenu groups={filterGroups} />
             <SortMenu value={sort} onChange={setSort} options={sortOptions} />
+            {crewView === 'list' && (
+              <button type="button" className="cf-btn ghost sm" onClick={doExportList} disabled={exportingList || !listGroups.length}>
+                <Icon name="Download" size={15} /> {exportingList ? 'Exporting…' : 'Export'}
+              </button>
+            )}
             <div className="cf-viewtoggle" role="tablist" aria-label="View">
               <button type="button" className={crewView === 'tiles' ? 'on' : ''} onClick={() => switchView('tiles')}>By crew</button>
               <button type="button" className={crewView === 'list' ? 'on' : ''} onClick={() => switchView('list')}>List</button>
@@ -846,18 +880,22 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
         ) : (
           <div className="cf-list">
             {listGroups.length === 0 ? (
-              <div className="cf-empty-note">No uniform issued{dept !== 'all' ? ` in ${dept}` : ''} yet.</div>
+              <div className="cf-empty-note">No kit issued{dept !== 'all' ? ` in ${dept}` : ''} yet.</div>
             ) : listGroups.map((grp) => (
-              <section className="cf-listgroup" key={grp.path}>
-                <div className="cf-listgroup-h">{grp.path}</div>
+              <section className="cf-listgroup" key={grp.key}>
+                <div className="cf-listgroup-h">
+                  <span className="cf-listgroup-t"><span className="cf-listgroup-ic"><Icon name={grp.icon} size={12} /></span>{grp.title}</span>
+                  <span className="cf-listgroup-ct">{grp.rows.length} {grp.rows.length === 1 ? 'line' : 'lines'} · {grp.units} item{grp.units === 1 ? '' : 's'}</span>
+                </div>
                 {grp.rows.map((r, i) => (
-                  <div className="cf-list-row" key={i}>
-                    <span className="cf-list-qty">{r.qty}×</span>
-                    <div className="cf-list-main">
-                      <span className="cf-list-nm">{r.item}{r.size ? ` · ${r.size}` : ''}</span>
-                      <span className="cf-list-sub">held by {r.holders} {r.holders === 1 ? 'crew member' : 'crew'}</span>
+                  <div className="cf-lrow" key={i}>
+                    <span className="cf-lrow-thumb">{r.img ? <img src={r.img} alt="" /> : <Icon name={grp.icon} size={16} />}</span>
+                    <div className="cf-lrow-main">
+                      <span className="cf-lrow-nm">{r.item}{r.size ? <span className="cf-lrow-sz">{r.size}</span> : null}</span>
+                      <span className="cf-lrow-sub">held by {r.holders} {r.holders === 1 ? 'crew member' : 'crew'}</span>
                     </div>
-                    {showValue && r.value != null && <span className="cf-kit-val">{money(r.value * r.qty, 'USD')}</span>}
+                    {showValue && r.value != null && <span className="cf-lrow-val">{money(r.value * r.qty, 'USD')}</span>}
+                    <span className="cf-lrow-qty">×{r.qty}</span>
                   </div>
                 ))}
               </section>
