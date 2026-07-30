@@ -618,6 +618,33 @@
 }
 .inv-chip:hover { background: #F8E1D3; }
 
+/* ── move-out drop bar (appears while dragging a folder/item) ── */
+.inv-updropbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 10px 12px; margin-bottom: 14px;
+  border: 1.5px dashed #E7C9B8; border-radius: 12px; background: #FDF6F1;
+  animation: inv-updrop-in 0.16s ease-out;
+}
+@keyframes inv-updrop-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.inv-updropbar-label {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; margin-right: 2px;
+}
+.inv-updropbar-label svg { color: #C65A1A; }
+.inv-updrop {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px;
+  background: #FFFFFF; color: #C65A1A; border: 1.5px dashed #E7C9B8;
+  font: 600 12px 'Inter', system-ui, sans-serif;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.12s;
+}
+.inv-updrop svg { color: inherit; }
+.inv-updrop.over {
+  background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; transform: scale(1.04);
+  box-shadow: 0 0 0 3px #FAECE7;
+}
+
 /* ── empty state ────────────────────────────────────────────── */
 .inv-empty { text-align: center; padding: 72px 20px; }
 .inv-empty-icon {
