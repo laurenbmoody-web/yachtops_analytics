@@ -624,8 +624,11 @@ const FolderSettingsModal = ({ folderName, parentSegments, currentVisibility, on
 // unusable with many folders or duplicate names (you couldn't tell two
 // "General" folders apart). `onPick` reports the currently-browsed segments
 // (or null at the root) so the parent can enable/disable "Move here".
-const FolderTreePicker = ({ folderTree, onPick, disablePath, blockPath, isCommand, userDepartment }) => {
-  const [browse, setBrowse] = useState([]);
+const FolderTreePicker = ({ folderTree, onPick, disablePath, blockPath, isCommand, userDepartment, initialBrowse }) => {
+  // Open where the thing currently lives so its ancestor breadcrumb is right
+  // there — moving it UP/OUT is then a click on a parent crumb, not a re-drill
+  // from the root.
+  const [browse, setBrowse] = useState(initialBrowse?.length ? initialBrowse : []);
   const [query, setQuery] = useState('');
 
   const childrenOf = (segments) => folderTree?.[segments?.join('|||')]?.subFolders || [];
@@ -769,7 +772,7 @@ const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose,
         <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
       </div>
 
-      <label className="inv-flabel">Pick a destination — open a folder, then Move here</label>
+      <label className="inv-flabel">Pick a destination — a parent crumb to move up, or a folder to move into</label>
       <FolderTreePicker
         folderTree={folderTree}
         onPick={setTarget}
@@ -777,14 +780,17 @@ const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose,
         blockPath={selfPath}
         isCommand={isCommand}
         userDepartment={userDepartment}
+        initialBrowse={currentPathSegments}
       />
 
       <p className="inv-modal-sub" style={{ margin: '10px 0 0', minHeight: 18 }}>
         {target
           ? (canMoveHere
               ? <>Moving into <b>{target?.join(' › ')}</b></>
-              : <span style={{ color: '#B14E16' }}>Can’t move here — pick a different folder</span>)
-          : 'Open a folder to move into it'}
+              : (targetPath === parentPath
+                  ? <>Already here — pick a parent crumb above to move it up, or a folder to move into</>
+                  : <span style={{ color: '#B14E16' }}>Can’t move here — pick a different folder</span>))
+          : 'Pick a parent crumb to move up, or a folder to move into'}
       </p>
 
       <div className="inv-modal-actions">
@@ -826,21 +832,24 @@ const BulkMoveItemsModal = ({ selectedCount, itemLabel, folderTree, currentPathS
         <button onClick={onClose} className="inv-modal-close"><Icon name="X" size={18} /></button>
       </div>
 
-      <label className="inv-flabel">Pick a destination — open a folder, then Move here</label>
+      <label className="inv-flabel">Pick a destination — a parent crumb to move up, or a folder to move into</label>
       <FolderTreePicker
         folderTree={folderTree}
         onPick={setTarget}
         disablePath={currentPath}
         isCommand={isCommand}
         userDepartment={userDepartment}
+        initialBrowse={currentPathSegments}
       />
 
       <p className="inv-modal-sub" style={{ margin: '10px 0 0', minHeight: 18 }}>
         {target
           ? (canMoveHere
               ? <>Moving into <b>{target?.join(' › ')}</b></>
-              : <span style={{ color: '#B14E16' }}>Items are already here — pick another folder</span>)
-          : 'Open a folder to move into it'}
+              : (targetPath === currentPath
+                  ? <>Already here — pick a parent crumb above to move up, or a folder to move into</>
+                  : <span style={{ color: '#B14E16' }}>Items are already here — pick another folder</span>))
+          : 'Pick a parent crumb to move up, or a folder to move into'}
       </p>
 
       <div className="inv-modal-actions">
