@@ -29,7 +29,7 @@ import ReceiptScanner from '../components/ReceiptScanner';
 import ReceiptClip from '../components/ReceiptClip';
 import { accountLabel } from '../../../services/accountPick';
 import MonthEndStrip from '../components/MonthEndStrip';
-import MonthEndOverview from '../components/MonthEndOverview';
+import AccountStack from '../components/AccountStack';
 import {
   getReconciliation, listReconciliationsForMonth, saveStatementFigures, closeMonth,
 } from '../../../services/reconcileService';
@@ -170,7 +170,11 @@ export default function Ledger() {
   const loadTxns = useCallback(async () => {
     if (!activeTenantId) return;
     setLoading(true);
-    const clean = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''));
+    // The account narrows client-side, not here: the wallet stack has to show every
+    // card's month at once, and choosing one shouldn't cost a refetch.
+    const clean = Object.fromEntries(
+      Object.entries(filters).filter(([k, v]) => v !== '' && k !== 'accountId'),
+    );
     const { data } = await listTransactions(activeTenantId, clean);
     setTxns(data || []);
     setLoading(false);
@@ -187,7 +191,8 @@ export default function Ledger() {
       setAttByTxn({});
       setSplitsByTxn({});
     }
-  }, [activeTenantId, filters]);
+    // accountId deliberately absent — it no longer changes what's fetched.
+  }, [activeTenantId, filters.source, filters.category, filters.search, filters.from, filters.to]);
 
   useEffect(() => { loadAccounts(); }, [loadAccounts]);
   useEffect(() => { loadTxns(); }, [loadTxns]);
@@ -207,7 +212,8 @@ export default function Ledger() {
     if (!filters.accountId) return txns.map((t) => ({ ...t, running: null }));
     const acct = accountsById[filters.accountId];
     const opening = Number(acct?.opening_balance || 0);
-    const oldestFirst = [...txns].reverse();
+    const mine = txns.filter((t) => t.account_id === filters.accountId);
+    const oldestFirst = [...mine].reverse();
     let bal = opening;
     const withRun = oldestFirst.map((t) => {
       if (isLiveTxn(t)) bal += Number(t.amount || 0);
@@ -244,13 +250,14 @@ export default function Ledger() {
     getReconciliation(filters.accountId, periodMonth).then(({ data }) => setRecon(data || null));
   }, [filters.accountId, periodMonth]);
 
-  // Every account's state for the month, for the overview shown when none is
-  // filtered. Reloaded after a close so the list reflects it without a refresh.
+  // Every account's state for the month — the wallet stack marks each card with
+  // it, including the ones behind the front. Reloaded after a close so the stack
+  // reflects it without a refresh.
   useEffect(() => {
-    if (!activeTenantId || !periodMonth || filters.accountId) { setMonthRecons([]); return; }
+    if (!activeTenantId || !periodMonth) { setMonthRecons([]); return; }
     listReconciliationsForMonth(activeTenantId, periodMonth)
       .then(({ data }) => setMonthRecons(data || []));
-  }, [activeTenantId, periodMonth, filters.accountId, reconTick]);
+  }, [activeTenantId, periodMonth, reconTick]);
 
   useEffect(() => {
     if (!axis.length) return;
@@ -262,6 +269,29 @@ export default function Ledger() {
   const monthAll = useMemo(
     () => rows.filter((t) => ymOf(effectiveDate(t, dateBasis)) === activeMonth),
     [rows, activeMonth, dateBasis],
+  );
+
+  // Per-account figures for the wallet stack — taken from every account's rows,
+  // not the scoped ones, so the cards behind the front one still read correctly.
+  const stackStats = useMemo(() => {
+    const m = {};
+    txns.forEach((t) => {
+      if (ymOf(effectiveDate(t, dateBasis)) !== activeMonth) return;
+      const k = t.account_id || '';
+      const s = (m[k] ||= { count: 0, out: 0 });
+      s.count += 1;
+      if (isLiveTxn(t) && Number(t.amount) < 0) s.out += Number(t.amount);
+    });
+    return m;
+  }, [txns, activeMonth, dateBasis]);
+
+  // Only the cards this month actually moved money on. A dormant card has nothing
+  // to balance, and padding the wallet with them is how a close-list gets ignored.
+  const stackAccounts = useMemo(
+    () => accounts.filter((a) => stackStats[a.id]?.count).sort(
+      (x, y) => (stackStats[x.id]?.out || 0) - (stackStats[y.id]?.out || 0),
+    ),
+    [accounts, stackStats],
   );
 
   const monthRows = useMemo(() => {
@@ -813,6 +843,19 @@ export default function Ledger() {
             </button>
           </div>
 
+          {/* The vessel's cards for this month. Choosing one scopes everything
+              below — the month's figures and its close are per card, because each
+              card is balanced against its own statement. */}
+          <AccountStack
+            accounts={stackAccounts}
+            activeId={filters.accountId}
+            monthLabel={ymLabel(activeMonth)}
+            statsFor={(id) => stackStats[id]}
+            reconFor={(id) => monthRecons.find((r) => r.account_id === id)}
+            unassigned={stackStats['']?.count || 0}
+            onSelect={(id) => { setF({ accountId: id }); setFiltersOpen(false); }}
+          />
+
           {/* month stepper (left) + KPIs (right) — borderless */}
           <div className="ca-monthbar">
             <div className="ca-stepper">
@@ -845,19 +888,6 @@ export default function Ledger() {
               </div>
             </div>
           </div>
-
-          {/* Balancing is per account. With none chosen we show which accounts the
-              month has and where each stands — otherwise the close is unreachable
-              until someone thinks to set an account filter, which nobody does. */}
-          {!filters.accountId && (
-            <MonthEndOverview
-              monthLabel={ymLabel(activeMonth)}
-              rows={monthAll}
-              accounts={accounts}
-              reconciliations={monthRecons}
-              onPick={(id) => { setF({ accountId: id }); setFiltersOpen(false); }}
-            />
-          )}
 
           {/* Month-end close — per account, so only once one is filtered. Fed the
               whole month rather than the visible rows: a close computed over a

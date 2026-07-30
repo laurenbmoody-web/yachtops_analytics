@@ -1,0 +1,60 @@
+/* Cargo Accounts — the wallet stack that scopes the Spending page. Scoped .as-*. */
+
+.as {
+  display: flex;
+  align-items: flex-start;
+  gap: 30px;
+  margin-top: 20px;
+}
+
+/* Height holds the fan (184px card + 32px of offset) so nothing below jumps
+   as cards move. */
+.as-stage { position: relative; flex: 0 0 auto; width: 340px; height: 220px; }
+.as-slot {
+  position: absolute; top: 0; left: 0;
+  transition: transform 0.46s cubic-bezier(.2,.75,.2,1), opacity 0.34s;
+  will-change: transform;
+}
+
+.as-side { flex: 1 1 auto; min-width: 0; padding-top: 4px; }
+
+.as-eyebrow {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
+}
+.as-n { font-weight: 700; color: #AEB4C2; letter-spacing: .4px; }
+
+.as-name {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 26px; line-height: 1.15; color: #1C1B3A; margin-top: 8px;
+}
+.as-sub { font-size: 12.5px; color: #6B7280; margin-top: 4px; }
+.as-state { font-size: 12px; font-weight: 600; margin-top: 6px; }
+.as-state.is-due { color: #A8871B; }
+.as-state.is-sub { color: #6B7280; }
+.as-state.is-ok { color: #2F7A64; }
+
+/* Card rail — every account reachable, including the ones the fan hides. */
+.as-rail { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+.as-tab {
+  border: 1px solid #E5E7EB; background: #fff; border-radius: 8px;
+  padding: 5px 10px; cursor: pointer;
+  font: inherit; font-size: 11.5px; font-weight: 600; color: #6B7280;
+  font-variant-numeric: tabular-nums;
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.as-tab:hover { border-color: #C65A1A; color: #C65A1A; }
+.as-tab.on { background: #1C1B3A; border-color: #1C1B3A; color: #fff; }
+.as-tab.is-all { color: #8B8478; }
+.as-tab.is-all.on { background: #1C1B3A; color: #fff; }
+
+.as-orphan {
+  display: flex; align-items: center; gap: 6px; margin-top: 14px;
+  font-size: 11.5px; color: #A8871B; font-style: italic;
+}
+.as-orphan svg { flex: 0 0 auto; }
+
+@media (max-width: 980px) {
+  .as { flex-direction: column; gap: 18px; }
+  .as-stage { width: 100%; }
+}
