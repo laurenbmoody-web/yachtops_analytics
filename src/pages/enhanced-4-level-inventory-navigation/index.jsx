@@ -16,7 +16,7 @@ import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
 import PartialBottleModal from '../inventory/components/PartialBottleModal';
 import { supabase } from '../../lib/supabaseClient';
 import { markTutorialStep } from '../../utils/tutorialState';
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
+import { DndContext, closestCenter, MouseSensor, TouchSensor, useSensor, useSensors, useDroppable, DragOverlay } from '@dnd-kit/core';
 import {
   SortableContext,
   useSortable,
@@ -2225,6 +2225,21 @@ const SortableItemCard = ({ item, draggable, ...props }) => {
   );
 };
 
+// ─── "Move out" drop zone — an ancestor chip you can drop a dragged folder/item
+// onto to move it UP/OUT one or more levels. Rendered in a bar that only appears
+// while a drag is in progress, so the gesture the user expects (grab by the
+// grip, drag up onto a parent) actually works. `id` is `up::<index>`, decoded in
+// handleDragEnd into the ancestor path pathSegments.slice(0, index + 1). ────────
+const UpDropZone = ({ id, label, icon }) => {
+  const { isOver, setNodeRef } = useDroppable({ id });
+  return (
+    <div ref={setNodeRef} className={`inv-updrop${isOver ? ' over' : ''}`}>
+      <Icon name={icon || 'CornerLeftUp'} size={13} />
+      <span>{label}</span>
+    </div>
+  );
+};
+
 // ─── Delete Folder Confirmation Modal ────────────────────────────────────────
 const DeleteFolderModal = ({ folderName, onClose, onConfirm }) => (
   <ModalShell onClose={onClose} panelClassName="inv-modal">
@@ -2588,8 +2603,12 @@ const LocationFirstInventory = () => {
   const [showDevPanel, setShowDevPanel] = useState(false);
   const devMode = isDevMode();
 
+  // Mouse: a drag starts after an 8px move. Touch: require a long-press (300ms
+  // hold) before a drag begins — so a normal finger swipe still scrolls the
+  // page, and only a deliberate press-and-hold picks a folder/item up to move.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } })
   );
 
   useEffect(() => {
@@ -3747,6 +3766,31 @@ const LocationFirstInventory = () => {
 
     if (!over) return;
 
+    // Dropped onto a "move out" ancestor chip → move the dragged folder/item
+    // UP/OUT to that ancestor. `up::<index>` decodes to pathSegments up to and
+    // including that index (the current folder is the dragged thing's parent).
+    if (typeof over?.id === 'string' && over?.id?.startsWith('up::')) {
+      const idx = parseInt(over?.id?.slice(4), 10);
+      const target = pathSegments?.slice(0, idx + 1);
+      if (!target?.length) return;
+      if (isItemDragId(active?.id)) {
+        const itemId = String(active?.id)?.slice(5);
+        const { location, subLocation } = segmentsToStorageFields(target);
+        try {
+          await bulkMoveItemsByIds([itemId], location, subLocation);
+          setSelectedItemIds(prev => { const n = new Set(prev); n?.delete(itemId); return n; });
+        } catch (err) {
+          console.error('[LocationFirstInventory] item drag move-out error:', err?.message);
+        }
+        loadData();
+      } else {
+        setIsMovingFolder(true);
+        await handleMoveFolder(pathSegments, target, active?.id);
+        setIsMovingFolder(false);
+      }
+      return;
+    }
+
     // Dragging an item onto a folder tile → move the item into that folder.
     if (isItemDragId(active?.id)) {
       const itemId = String(active?.id)?.slice(5);
@@ -4082,6 +4126,20 @@ const LocationFirstInventory = () => {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
+          {/* Move-out bar — only while dragging, and never at the root (nothing
+              above a department). Drop the dragged folder/item onto an ancestor
+              chip to move it up/out; the right-most chip is one level up. */}
+          {activeDragId && !isRoot && pathSegments?.length > 1 && (
+            <div className="inv-updropbar">
+              <span className="inv-updropbar-label">
+                <Icon name="CornerLeftUp" size={13} /> Drop to move out to
+              </span>
+              {pathSegments?.slice(0, -1)?.map((seg, i) => (
+                <UpDropZone key={i} id={`up::${i}`} label={seg} icon={i === 0 ? 'Home' : 'Folder'} />
+              ))}
+            </div>
+          )}
+
           {/* One unified grid — folders and this folder's own items together,
               same-size tiles, no section titles. Drag a folder to reorder or
               hold it over another folder to move inside; drag an item onto a
