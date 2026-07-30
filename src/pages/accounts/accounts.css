@@ -373,6 +373,8 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
 .ca-clip:hover{color:#C65A1A; background:#FBEFE9}
 .ca-clip.has{color:#2F7A64}
 .ca-clip.has:hover{color:#2F7A64; background:#EDF3F0}
+/* Receipt declared as never coming — evidenced, but not by an attachment. */
+.ca-clip.is-waived{color:#8B8478}
 .ca-txn-note{color:#6B7280}
 
 /* ── What a line still needs, as plain text ───────────────────────────────── */

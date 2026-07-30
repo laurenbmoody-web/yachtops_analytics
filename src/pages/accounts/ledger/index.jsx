@@ -22,10 +22,11 @@ import {
   defaultAllocation, effectiveDate, datesDiffer, straddlesMonth,
   lineState, outstandingText,
   maxSpendDate, isSpendDateValid, canVoidTxn, voidBlockedReason,
-  looksLikeRefund, findRefundCandidate, hasEvidence,
+  looksLikeRefund, findRefundCandidate, hasEvidence, receiptWaiverPatch,
 } from '../../../services/lineDetail';
 import LineDetail from '../components/LineDetail';
 import ReceiptScanner from '../components/ReceiptScanner';
+import ReceiptClip from '../components/ReceiptClip';
 import MonthEndStrip from '../components/MonthEndStrip';
 import { getReconciliation, saveStatementFigures, closeMonth } from '../../../services/reconcileService';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
@@ -125,6 +126,8 @@ export default function Ledger() {
   const [scanOpen, setScanOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanSeed, setScanSeed] = useState(null);   // parsed receipt → prefills Add spending
+  const [photoFor, setPhotoFor] = useState(null);   // line being photographed from its clip
+  const [attaching, setAttaching] = useState(false);
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
   const accountsById = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
@@ -419,12 +422,37 @@ export default function Ledger() {
 
   const handleReceiptFor = async (txnId, file) => {
     const res = await uploadReceipt(txnId, file, { tenantId: activeTenantId });
-    if (!res.error && res.data) {
+    if (res.error) { flash('Could not attach that receipt'); return res; }
+    if (res.data) {
       const { data: atts } = await listAttachments([txnId]);
       setAttByTxn((prev) => ({ ...prev, [txnId]: atts || [] }));
+      // A receipt supersedes any "no receipt" declaration — the excuse is now moot.
+      const t = txns.find((x) => x.id === txnId);
+      if (t?.receipt_waived) await handleWaiveReceipt(txnId, null, { quiet: true });
       flash('Receipt attached');
     }
     return res;
+  };
+
+  // The other way a line gets its evidence: a stated reason there'll never be a
+  // receipt. Passing null clears it again. Patched in place — no reload.
+  const handleWaiveReceipt = async (txnId, reason, { quiet = false } = {}) => {
+    const detail = receiptWaiverPatch(reason);
+    const res = await updateTransactionDetail(txnId, detail);
+    if (res.error) { flash('Could not save that'); return res; }
+    setTxns((prev) => prev.map((x) => (x.id === txnId ? { ...x, ...detail } : x)));
+    if (!quiet) flash(reason ? 'Noted — no receipt for this line' : 'Receipt still needed');
+    return res;
+  };
+
+  // Photographing a receipt for a line that already exists: the scanner flattens
+  // the shot exactly as it does for a new line, we just file it instead of reading it.
+  const handlePhotoAttach = async (file) => {
+    if (!photoFor || !file) return;
+    setAttaching(true);
+    const res = await handleReceiptFor(photoFor, file);
+    setAttaching(false);
+    if (!res?.error) setPhotoFor(null);
   };
 
   const handleDeleteAttachment = async (attId, storagePath) => {
@@ -610,20 +638,15 @@ export default function Ledger() {
           )}
         </span>
         <span className="ca-txn-act">
-          {/* Attach or open a receipt without opening the detail — the most common
-              second action after categorising. */}
-          {!voided && (atts.length > 0 ? (
-            <button type="button" className="ca-clip has" title={`${atts.length} receipt${atts.length > 1 ? 's' : ''} — click to view`}
-              onClick={() => atts[0].url && window.open(atts[0].url, '_blank', 'noopener')}>
-              <Icon name="Paperclip" size={13} />{atts.length > 1 ? atts.length : ''}
-            </button>
-          ) : canEdit && (
-            <label className="ca-clip" title="Attach a receipt">
-              <Icon name="Paperclip" size={13} />
-              <input type="file" accept="image/*,application/pdf" hidden
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleReceiptFor(t.id, f); e.target.value = ''; }} />
-            </label>
-          ))}
+          {/* Receipt, or the reason there isn't one — both behind the clip, so a line
+              can be finished without opening the detail panel. */}
+          {!voided && (
+            <ReceiptClip txn={t} attachments={atts} canEdit={canEdit}
+              onPhotograph={(txn) => setPhotoFor(txn.id)}
+              onUpload={handleReceiptFor}
+              onWaive={handleWaiveReceipt}
+              onDeleteAttachment={handleDeleteAttachment} />
+          )}
           {!t.account_id && !voided && canEdit && (
             <button type="button" className="ca-link" onClick={() => setAssignTxn(t)}>Assign →</button>
           )}
@@ -837,6 +860,10 @@ export default function Ledger() {
         onDone={() => { flash('Statement reconciled'); loadTxns(); }} />
       <ReceiptScanner open={scanOpen} busy={scanning}
         onClose={() => { if (!scanning) setScanOpen(false); }} onScan={handleScan} />
+      {/* Same scanner, filing rather than reading — opened from a row's clip. */}
+      <ReceiptScanner open={Boolean(photoFor)} busy={attaching}
+        heading="Photograph the receipt" cta="Attach it" busyCta="Attaching…"
+        onClose={() => { if (!attaching) setPhotoFor(null); }} onScan={handlePhotoAttach} />
       {picker && (
         <CategoryPicker anchorRect={picker.rect} groups={pickerGroups}
           onPick={pickCategory} onClose={() => setPicker(null)} />

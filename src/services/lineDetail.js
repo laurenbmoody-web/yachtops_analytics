@@ -244,6 +244,16 @@ export const hasEvidence = (txn, hasAttachment) => {
   return Boolean(txn?.receipt_waived) && Boolean(String(txn?.receipt_waived_reason || '').trim());
 };
 
+// The patch that declares (or withdraws) "there is no receipt for this". A blank
+// or whitespace reason is a withdrawal, not a declaration — see hasEvidence: an
+// unexplained "no receipt" evidences nothing, so it must not be storable as one.
+export const receiptWaiverPatch = (reason) => {
+  const text = String(reason ?? '').trim();
+  return text
+    ? { receipt_waived: true, receipt_waived_reason: text }
+    : { receipt_waived: false, receipt_waived_reason: null };
+};
+
 // Per-requirement done/not, plus the count — the data behind the track.
 export const requirementState = (txn, { account, hasReceipt, splitCount = 0 } = {}) => {
   const alloc = txn?.allocation || defaultAllocation(txn, account);

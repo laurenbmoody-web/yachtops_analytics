@@ -59,7 +59,9 @@ function warpQuadToCanvas(srcCanvas, quad, outW, outH) {
   return out;
 }
 
-export default function ReceiptScanner({ open, onClose, onScan, busy }) {
+// `cta` lets the same scanner serve both jobs: reading a receipt into a new line,
+// and photographing one to attach to a line that already exists.
+export default function ReceiptScanner({ open, onClose, onScan, busy, heading, cta, busyCta }) {
   const videoRef = useRef(null);
   const shotRef = useRef(null);          // full-resolution capture
   const frameRef = useRef(null);         // the element corners are dragged over
@@ -193,7 +195,7 @@ export default function ReceiptScanner({ open, onClose, onScan, busy }) {
     <div className="rs-back" role="dialog" aria-label="Scan a receipt">
       <div className="rs-panel">
         <div className="rs-head">
-          <h2>{stage === 'camera' ? 'Scan a receipt' : (stage === 'preview' ? 'Check it reads clearly' : 'Line up the receipt')}</h2>
+          <h2>{stage === 'camera' ? (heading || 'Scan a receipt') : (stage === 'preview' ? 'Check it reads clearly' : 'Line up the receipt')}</h2>
           <button type="button" className="rs-x" onClick={onClose} aria-label="Close">×</button>
         </div>
 
@@ -236,7 +238,7 @@ export default function ReceiptScanner({ open, onClose, onScan, busy }) {
                 Retake
               </button>
               <button type="button" className="rs-btn primary" onClick={readIt} disabled={busy}>
-                {busy ? 'Reading…' : 'Read it'}
+                {busy ? (busyCta || 'Reading…') : (cta || 'Read it')}
               </button>
             </div>
           </>
