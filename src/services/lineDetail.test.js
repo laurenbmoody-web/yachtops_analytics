@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   departmentForCode, defaultAllocation, needsTripPick, accountImpliesAllocation,
   defaultCardholder, isBorrowedCard,
-  splitTotal, splitRemainder, validateSplits,
+  splitTotal, splitRemainder, validateSplits, signedSplits,
   netOfVat, vatFromRate, baseFromFx, lineCompleteness,
   effectiveDate, datesDiffer, straddlesMonth,
 } from './lineDetail.js';
@@ -68,11 +68,25 @@ test('an explicit spender on the line wins — the borrowed-card case', () => {
 });
 
 // ── splits ──────────────────────────────────────────────────────────────────
-test('split totals and remainder work in the parent sign convention', () => {
-  const splits = [{ amount: -1200 }, { amount: -500 }];
-  assert.equal(splitTotal(splits), -1700);
-  assert.equal(splitRemainder(-2000, splits), -300);
+test('split amounts are magnitudes — the crew never type a minus sign', () => {
+  const splits = [{ amount: 1200 }, { amount: 500 }];
+  assert.equal(splitTotal(splits), 1700);
+  // A -2000 payment with 1700 allocated leaves 300 (not -3700).
+  assert.equal(splitRemainder(-2000, splits), 300);
   assert.equal(splitRemainder(-1700, splits), 0);
+});
+
+test('the £26 payment split £14 leaves £12 (regression)', () => {
+  // Previously computed -26 - 14 = -40, which read as "-£40.00 left to allocate".
+  assert.equal(splitRemainder(-26, [{ amount: 14 }]), 12);
+  assert.equal(splitRemainder(-26, [{ amount: 14 }, { amount: 12 }]), 0);
+});
+
+test('signedSplits gives the typed magnitudes the payment direction', () => {
+  assert.deepEqual(signedSplits(-26, [{ amount: 14 }, { amount: '12' }]).map((s) => s.amount), [-14, -12]);
+  assert.deepEqual(signedSplits(500, [{ amount: 200 }, { amount: 300 }]).map((s) => s.amount), [200, 300]);
+  // A stray minus typed in is normalised, not doubled up.
+  assert.deepEqual(signedSplits(-26, [{ amount: -14 }]).map((s) => s.amount), [-14]);
 });
 
 test('no splits is valid — splitting is optional', () => {
@@ -81,27 +95,22 @@ test('no splits is valid — splitting is optional', () => {
 
 test('a valid split must have 2+ parts, categories, amounts, and add up', () => {
   const good = [
-    { amount: -1200, category: 'Guest Food Stock' },
-    { amount: -800, category: 'Crew Food & Consumables' },
+    { amount: 1200, category: 'Guest Food Stock' },
+    { amount: 800, category: 'Crew Food & Consumables' },
   ];
   assert.equal(validateSplits(-2000, good).ok, true);
 
-  assert.match(validateSplits(-2000, [{ amount: -2000, category: 'Guest Food Stock' }]).reason, /two parts/);
-  assert.match(validateSplits(-2000, [{ amount: -1200 }, { amount: -800, category: 'X' }]).reason, /category/);
-  assert.match(validateSplits(-2000, [{ amount: 0, category: 'A' }, { amount: -2000, category: 'B' }]).reason, /amount/);
+  assert.match(validateSplits(-2000, [{ amount: 2000, category: 'Guest Food Stock' }]).reason, /two parts/);
+  assert.match(validateSplits(-2000, [{ amount: 1200 }, { amount: 800, category: 'X' }]).reason, /category/);
+  assert.match(validateSplits(-2000, [{ amount: 0, category: 'A' }, { amount: 2000, category: 'B' }]).reason, /amount/);
 });
 
-test('a split that does not add up reports the shortfall', () => {
-  const short = [{ amount: -1200, category: 'A' }, { amount: -500, category: 'B' }];
+test('a split that does not add up reports the shortfall as a magnitude', () => {
+  const short = [{ amount: 1200, category: 'A' }, { amount: 500, category: 'B' }];
   const v = validateSplits(-2000, short);
   assert.equal(v.ok, false);
   assert.match(v.reason, /add up/);
-  assert.equal(v.remainder, -300);
-});
-
-test('split parts must run the same direction as the payment', () => {
-  const mixed = [{ amount: -2500, category: 'A' }, { amount: 500, category: 'B' }];
-  assert.match(validateSplits(-2000, mixed).reason, /same direction/);
+  assert.equal(v.remainder, 300);
 });
 
 // ── VAT / FX ────────────────────────────────────────────────────────────────
@@ -160,7 +169,7 @@ test('completeness lists what a line still needs', () => {
 
 test('a fully coded owner line on a ship card is complete', () => {
   const full = lineCompleteness(
-    { category: 'Deck Consumables', description: 'tender spares', department: 'Deck', allocation: 'owner' },
+    { category: 'Deck Consumables', note: 'tender spares', department: 'Deck', allocation: 'owner' },
     { account: { funds_type: 'general' }, hasReceipt: true },
   );
   assert.deepEqual(full.missing, []);
@@ -168,15 +177,23 @@ test('a fully coded owner line on a ship card is complete', () => {
 });
 
 test('charter spend on a ship card is incomplete until the charter is named', () => {
-  const base = { category: 'Guest Food Stock', description: 'provisions', department: 'Galley', allocation: 'charter' };
+  const base = { category: 'Guest Food Stock', note: 'provisions', department: 'Galley', allocation: 'charter' };
   const acct = { account: { funds_type: 'general' }, hasReceipt: true };
   assert.ok(lineCompleteness(base, acct).missing.includes('charter'));
   assert.equal(lineCompleteness({ ...base, trip_id: 'trip-9' }, acct).complete, true);
 });
 
+test('a typed charter name satisfies the charter requirement', () => {
+  const r = lineCompleteness(
+    { category: 'Guest Food Stock', note: 'provisions', department: 'Galley', allocation: 'charter', charter_ref: 'Med Aug 26' },
+    { account: { funds_type: 'general' }, hasReceipt: true },
+  );
+  assert.equal(r.complete, true);
+});
+
 test('charter spend on a dedicated APA card needs no charter pick', () => {
   const r = lineCompleteness(
-    { category: 'Guest Food Stock', description: 'provisions', department: 'Galley', allocation: 'charter' },
+    { category: 'Guest Food Stock', note: 'provisions', department: 'Galley', allocation: 'charter' },
     { account: { funds_type: 'charter_apa' }, hasReceipt: true },
   );
   assert.equal(r.complete, true);
@@ -184,7 +201,7 @@ test('charter spend on a dedicated APA card needs no charter pick', () => {
 
 test('a split line does not also demand a top-level department', () => {
   const r = lineCompleteness(
-    { category: 'Guest Food Stock', description: 'big shop', allocation: 'owner' },
+    { category: 'Guest Food Stock', note: 'big shop', allocation: 'owner' },
     { account: { funds_type: 'general' }, hasReceipt: true, splitCount: 2 },
   );
   assert.equal(r.complete, true);

@@ -422,6 +422,7 @@ export default function Ledger() {
           <div className="ca-txn-cat">
             {t.category ? <span className="ca-txn-filed">✓ {t.category_code ? `${t.category_code} · ` : ''}{t.category}</span> : null}
             {t.category ? ' · ' : ''}{SOURCE_LABEL[t.source] || t.source}
+            {t.note ? <span className="ca-txn-note"> · {t.note}</span> : null}
             {voided ? ' · voided' : ''}
           </div>
           {look && !voided && canEdit && renderSuggest(t)}

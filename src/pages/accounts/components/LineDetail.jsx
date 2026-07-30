@@ -1,8 +1,14 @@
 // Cargo Accounts — the reconciliation detail for one ledger line, revealed by the
-// row's chevron. The row itself carries the fast, always-needed bits (date, what it
-// was, category, amount); everything that makes a line audit-proof lives here:
-// what it was for, who owns it, who spent it, who bears it (owner vs charter),
-// VAT/FX, the receipt, and any split across MYBA lines.
+// row's chevron.
+//
+// It deliberately holds ONLY what the row can't already do. The row shows the
+// merchant, both dates and the amount, and handles the category and the receipt
+// inline — so none of that is repeated here. What's left is the coding a line needs
+// to be audit-proof: the crew's own description, department, who spent it, who
+// bears it (owner vs charter), VAT/FX and any split.
+//
+// The bank's own narrative (`description`, e.g. "Tradingview") is never editable —
+// a merchant is called what it's called. The crew's words go in `note`.
 //
 // Defaults come from src/services/lineDetail.js so the crew are asked as little as
 // possible: department follows the category, the cardholder is the card's holder,
@@ -13,38 +19,47 @@ import { DEPARTMENTS } from '../../../utils/authStorage';
 import { formatMoney } from '../../../services/financeCalc';
 import {
   departmentForCode, defaultAllocation, needsTripPick, isDedicatedCharterAccount,
-  defaultCardholder, isBorrowedCard, splitRemainder, validateSplits,
+  defaultCardholder, isBorrowedCard, splitRemainder, validateSplits, signedSplits,
   netOfVat, vatFromRate, baseFromFx,
 } from '../../../services/lineDetail';
 import './line-detail.css';
 
 const CURRENCIES = ['GBP', 'EUR', 'USD', 'CHF', 'AUD'];
 const blankSplit = () => ({ amount: '', category: '', category_code: '', department: '', note: '' });
+const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');
 
 export default function LineDetail({
   txn, account, crew = [], trips = [], chartGroups = [], attachments = [], splits = [],
   onSave, onUploadReceipt, onDeleteAttachment, onClose, canEdit = true,
 }) {
-  const [note, setNote] = useState(txn.description || '');
+  const [note, setNote] = useState(txn.note || '');
   const [department, setDepartment] = useState(txn.department || departmentForCode(txn.category_code) || '');
   const [cardholder, setCardholder] = useState(defaultCardholder(txn, account) || '');
   const [allocation, setAllocation] = useState(defaultAllocation(txn, account) || '');
   const [tripId, setTripId] = useState(txn.trip_id || '');
+  // Free-typed charter, for a vessel with no trips recorded yet.
+  const [charterRef, setCharterRef] = useState(txn.charter_ref || '');
+  const [typeCharter, setTypeCharter] = useState(Boolean(txn.charter_ref) || trips.length === 0);
   const [vatAmount, setVatAmount] = useState(txn.vat_amount ?? '');
   const [vatRate, setVatRate] = useState(txn.vat_rate ?? '');
   const [currency, setCurrency] = useState(txn.currency || account?.currency || 'GBP');
   const [fxRate, setFxRate] = useState(txn.fx_rate ?? 1);
   const [spendDate, setSpendDate] = useState((txn.txn_date || '').slice(0, 10));
-  const [rows, setRows] = useState(() => (splits.length ? splits.map((s) => ({ ...s })) : []));
+  // Split rows hold MAGNITUDES — the parent's direction is applied on save.
+  const [rows, setRows] = useState(() => (splits.length
+    ? splits.map((s) => ({ ...s, amount: String(Math.abs(Number(s.amount) || 0)) }))
+    : []));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
-  const askTrip = needsTripPick(allocation, account);
+  const askCharter = needsTripPick(allocation, account);
   const borrowed = isBorrowedCard(cardholder, account);
   const splitCheck = validateSplits(txn.amount, rows);
   const remainder = splitRemainder(txn.amount, rows);
+  const balanced = Math.abs(remainder) <= 0.004;
   const baseValue = baseFromFx(txn.amount, fxRate);
-  const showFx = currency !== (account?.currency || currency) || Number(fxRate) !== 1;
+  const showFx = Number(fxRate) !== 1;
+  const charterNamed = tripId || charterRef.trim();
 
   const flatChart = useMemo(
     () => (chartGroups || []).flatMap((g) => g.lines.map((l) => ({ bucket: g.bucket, ...l }))),
@@ -53,20 +68,20 @@ export default function LineDetail({
 
   const setRow = (i, patch) => setRows((prev) => prev.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const addRow = () => setRows((prev) => {
-    // Seed the first two parts so the crew only type amounts: part 1 takes the
-    // line's own category, part 2 starts empty with whatever is left.
+    // Seed two parts so the crew only type amounts: part 1 takes the line's own
+    // category, part 2 starts empty pre-filled with whatever is left.
     if (!prev.length) {
       return [
-        { ...blankSplit(), category: txn.category || '', category_code: txn.category_code || '', amount: '' },
+        { ...blankSplit(), category: txn.category || '', category_code: txn.category_code || '' },
         blankSplit(),
       ];
     }
-    return [...prev, { ...blankSplit(), amount: remainder ? String(remainder) : '' }];
+    return [...prev, { ...blankSplit(), amount: remainder > 0 ? String(remainder) : '' }];
   });
   const removeRow = (i) => setRows((prev) => prev.filter((_, j) => j !== i));
 
   const pickSplitCategory = (i, value) => {
-    const line = flatChart.find((l) => `${l.code}|${l.category}` === value);
+    const line = flatChart.find((l) => `${l.code || ''}|${l.category}` === value);
     setRow(i, {
       category: line?.category || '',
       category_code: line?.code || '',
@@ -88,23 +103,28 @@ export default function LineDetail({
 
   const save = async () => {
     if (rows.length && !splitCheck.ok) { setErr(splitCheck.reason); return; }
-    if (askTrip && allocation === 'charter' && !tripId) { setErr('Pick which charter this belongs to.'); return; }
+    if (askCharter && allocation === 'charter' && !charterNamed) {
+      setErr('Name the charter this belongs to — pick one, or type it.'); return;
+    }
     setBusy(true); setErr('');
+    const isCharter = allocation === 'charter';
     const res = await onSave(txn.id, {
       detail: {
         txn_date: spendDate || txn.txn_date,
-        description: note.trim() || null,
+        note: note.trim() || null,
         department: department || null,
         crew_id: cardholder || null,
         allocation: allocation || null,
-        trip_id: allocation === 'charter' ? (tripId || null) : null,
+        trip_id: isCharter ? (tripId || null) : null,
+        charter_ref: isCharter && !tripId ? (charterRef.trim() || null) : null,
         vat_amount: vatAmount === '' ? null : Number(vatAmount),
         vat_rate: vatRate === '' ? null : Number(vatRate),
         currency,
         fx_rate: Number(fxRate) || 1,
         amount_base: baseValue,
       },
-      splits: rows,
+      // Give the typed magnitudes the payment's direction before they're stored.
+      splits: signedSplits(txn.amount, rows),
     });
     setBusy(false);
     if (res?.error) { setErr('Couldn’t save — please try again.'); return; }
@@ -117,13 +137,14 @@ export default function LineDetail({
 
   return (
     <div className="ld">
-      {/* Row A — what it was for, when, who owns it, who spent it. The row itself
-          already shows both dates and the receipt clip, so they aren't repeated. */}
+      {/* Row A — the crew's own words, when, and who owns it. The merchant, both
+          dates, the category and the receipt are all on the row already. */}
       <div className="ld-grid">
         <label className="ld-field ld-wide">
-          {label('What was it for', 'recommended')}
+          {label('Description / note')}
           <input className="ld-input" value={note} onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. hydraulic hose for the tender crane" disabled={!canEdit} />
+            placeholder="What this was actually for — e.g. hydraulic hose for the tender crane"
+            disabled={!canEdit} />
         </label>
 
         <label className="ld-field">
@@ -150,40 +171,55 @@ export default function LineDetail({
               </option>
             ))}
           </select>
-          {borrowed && <span className="ld-hint warn">Not this card’s holder — borrowed card</span>}
+          {borrowed && <span className="ld-hint warn">Borrowed card</span>}
         </label>
       </div>
 
-      {/* who bears it */}
+      {/* Row B — who bears it, and which charter when that has to be stated */}
       <div className="ld-row">
         <div className="ld-field">
           {label('Who pays')}
           <div className="ld-seg">
             {[['owner', 'Owner'], ['charter', 'Charter (APA)']].map(([k, t]) => (
               <button key={k} type="button" aria-pressed={allocation === k} disabled={!canEdit}
-                onClick={() => { setAllocation(k); if (k !== 'charter') setTripId(''); }}>{t}</button>
+                onClick={() => { setAllocation(k); if (k !== 'charter') { setTripId(''); setCharterRef(''); } }}>{t}</button>
             ))}
           </div>
           {isDedicatedCharterAccount(account) && (
-            <span className="ld-hint">From a charter/APA card — charter by default</span>
+            <span className="ld-hint">Charter/APA card — charter by default</span>
           )}
         </div>
 
-        {/* charter money on a general card must name the charter */}
-        {askTrip && (
-          <label className="ld-field ld-grow">
+        {askCharter && (
+          <div className="ld-field ld-grow">
             {label('Which charter', 'required')}
-            <select className={`ld-input${!tripId ? ' is-need' : ''}`} value={tripId}
-              onChange={(e) => setTripId(e.target.value)} disabled={!canEdit}>
-              <option value="">Pick a charter…</option>
-              {trips.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}{t.start_date ? ` · ${String(t.start_date).slice(0, 10).split('-').reverse().join('/')}` : ''}
-                </option>
-              ))}
-            </select>
-            {!trips.length && <span className="ld-hint">No charters recorded yet — add one in Trips.</span>}
-          </label>
+            {typeCharter ? (
+              <>
+                <input className={`ld-input${!charterRef.trim() ? ' is-need' : ''}`} value={charterRef}
+                  onChange={(e) => setCharterRef(e.target.value)}
+                  placeholder="Charter name or reference" disabled={!canEdit} />
+                {trips.length > 0 && (
+                  <button type="button" className="ld-linkbtn"
+                    onClick={() => { setTypeCharter(false); setCharterRef(''); }}>Pick from trips instead</button>
+                )}
+                {!trips.length && <span className="ld-hint">No trips recorded yet — type the charter and it&rsquo;ll be saved on the line.</span>}
+              </>
+            ) : (
+              <>
+                <select className={`ld-input${!tripId ? ' is-need' : ''}`} value={tripId}
+                  onChange={(e) => setTripId(e.target.value)} disabled={!canEdit}>
+                  <option value="">Pick a charter…</option>
+                  {trips.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}{t.start_date ? ` · ${dmy(t.start_date)}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <button type="button" className="ld-linkbtn"
+                  onClick={() => { setTypeCharter(true); setTripId(''); }}>Not listed — type it</button>
+              </>
+            )}
+          </div>
         )}
       </div>
 
@@ -244,8 +280,9 @@ export default function LineDetail({
         </label>
       </div>
 
-      {/* Row D — split */}
-      <div className="ld-block">
+      {/* Row D — split. Amounts are typed as plain figures; the direction follows
+          the payment, so £26 split 14 / 12 balances. */}
+      <div>
         <div className="ld-blockhead">
           {label('Split across categories', 'one payment, several lines')}
           {canEdit && !rows.length && (
@@ -276,17 +313,21 @@ export default function LineDetail({
                   ))}
                 </select>
                 <input className="ld-input ld-split-note" value={r.note || ''}
-                  onChange={(e) => setRow(i, { note: e.target.value })} placeholder="note (optional)" disabled={!canEdit} />
+                  onChange={(e) => setRow(i, { note: e.target.value })} placeholder="Description / note" disabled={!canEdit} />
                 {canEdit && (
                   <button type="button" className="ld-split-x" title="Remove part" onClick={() => removeRow(i)}>×</button>
                 )}
               </div>
             ))}
-            <div className="ld-splitfoot">
-              <span className={`ld-remain${Math.abs(remainder) > 0.004 ? ' is-off' : ' is-ok'}`}>
-                {Math.abs(remainder) > 0.004
-                  ? `${formatMoney(remainder, currency, { signed: true })} left to allocate`
-                  : 'Adds up to the payment'}
+            {/* The remainder is the thing that tells you whether the split is done,
+                so it reads as a proper status bar, not a footnote. */}
+            <div className={`ld-remainbar${balanced ? ' is-ok' : ''}`}>
+              <span className="ld-remain">
+                {balanced
+                  ? <><Icon name="Check" size={13} /> Adds up to {formatMoney(Math.abs(txn.amount), currency)}</>
+                  : (remainder > 0
+                    ? <><Icon name="AlertCircle" size={13} /> {formatMoney(remainder, currency)} still to allocate</>
+                    : <><Icon name="AlertCircle" size={13} /> {formatMoney(Math.abs(remainder), currency)} over the payment</>)}
               </span>
               {canEdit && <button type="button" className="ld-mini" onClick={addRow}>+ Add part</button>}
               {canEdit && <button type="button" className="ld-mini is-mut" onClick={() => setRows([])}>Clear split</button>}

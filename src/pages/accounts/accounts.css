@@ -346,6 +346,7 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
   padding:0 8px 7px 10px; border-bottom:1px solid #E6E8EF; margin-top:14px}
 .ca-txnhead span{font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#AEB4C2}
 .ca-txnhead .r{text-align:right}
+.ca-txnhead .h-acct{text-align:right}
 @media (max-width:860px){
   .ca-txnhead{grid-template-columns:22px 74px 1fr auto; gap:10px}
   .ca-txnhead .h-acct{display:none}
@@ -363,3 +364,4 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
 .ca-clip:hover{color:#C65A1A; background:#FBEFE9}
 .ca-clip.has{color:#2F7A64}
 .ca-clip.has:hover{color:#2F7A64; background:#EDF3F0}
+.ca-txn-note{color:#6B7280}
