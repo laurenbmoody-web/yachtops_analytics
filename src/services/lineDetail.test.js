@@ -352,7 +352,7 @@ test('money out, a manual line, or an already-linked refund is not a refund cand
   assert.equal(looksLikeRefund({ amount: 42, source: 'bank_feed', refund_of_id: 'x' }), false);
 });
 
-// ── department default: the cost's owner first, the spender as a fallback ────
+// ── department default: whose card it is, first ──────────────────────────────
 test('an explicit department on the line is never overridden', () => {
   assert.equal(
     defaultDepartment({ department: 'Deck', category_code: 'ICN' }, { spenderDepartment: 'Galley' }),
@@ -360,27 +360,45 @@ test('an explicit department on the line is never overridden', () => {
   );
 });
 
-test('the MYBA code wins over the spender — department means whose budget bears it', () => {
-  // An engineer buying interior consumables is still an Interior cost.
+test("the cardholder's department wins — cards are departmental", () => {
+  // The engineer's card, whatever was bought on it, is Engineering's spend.
   assert.equal(
     defaultDepartment({ category_code: 'ICN' }, { spenderDepartment: 'Engineering' }),
-    'Interior',
-  );
-  assert.equal(
-    defaultDepartment({ category_code: 'FLE' }, { spenderDepartment: 'Bridge' }),
     'Engineering',
   );
+  assert.equal(
+    defaultDepartment({ category_code: 'GFE' }, { spenderDepartment: 'Interior' }),
+    'Interior',
+  );
 });
 
-test("the spender's department fills in when the code implies nothing", () => {
-  // GME (Guest Miscellaneous) has no departmental owner.
-  assert.equal(defaultDepartment({ category_code: 'GME' }, { spenderDepartment: 'Interior' }), 'Interior');
-  // No category picked yet at all.
-  assert.equal(defaultDepartment({}, { spenderDepartment: 'Deck' }), 'Deck');
+test('the MYBA code backs it up when no cardholder department is known', () => {
+  // A shared ship card with no named holder, or a crew member with no department set.
+  assert.equal(defaultDepartment({ category_code: 'DCN' }, {}), 'Deck');
+  assert.equal(defaultDepartment({ category_code: 'FLE' }, { spenderDepartment: '' }), 'Engineering');
 });
 
-test('with neither a code nor a spender, department stays unset rather than guessed', () => {
+test('with nothing to go on, department stays unset rather than guessed', () => {
   assert.equal(defaultDepartment({}, {}), '');
   assert.equal(defaultDepartment({ category_code: 'GME' }, {}), '');
   assert.equal(defaultDepartment(null, {}), '');
+});
+
+test('the reconciler fills in only when no spender is known', () => {
+  // Crew reconcile their own cards, so on an account with no named holder the
+  // person doing the work is still the best available guess.
+  assert.equal(
+    defaultDepartment({}, { spenderDepartment: '', reconcilerDepartment: 'Engineering' }),
+    'Engineering',
+  );
+  // A known spender always wins over the reconciler.
+  assert.equal(
+    defaultDepartment({}, { spenderDepartment: 'Galley', reconcilerDepartment: 'Engineering' }),
+    'Galley',
+  );
+  // The category is only reached when no person's department is known.
+  assert.equal(
+    defaultDepartment({ category_code: 'DCN' }, { reconcilerDepartment: 'Bridge' }),
+    'Deck',
+  );
 });

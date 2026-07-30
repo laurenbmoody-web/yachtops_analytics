@@ -12,7 +12,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import {
   listAccounts, listTransactions, createTransaction, voidTransaction, assignTransactionAccount,
   uploadReceipt, listAttachments, deleteAttachment, fileTransaction, fileTransactions,
-  listMerchantRules, setMerchantRule, linkRefund,
+  listMerchantRules, setMerchantRule, linkRefund, currentUserId,
   updateTransactionDetail, listSplits, saveSplits, listTripsLite, listTenantCrew,
 } from '../../../services/financeService';
 import { getChartGrouped } from '../../../services/chartService';
@@ -119,6 +119,7 @@ export default function Ledger() {
   const [trips, setTrips] = useState([]);
   const [crew, setCrew] = useState([]);
   const [editDateId, setEditDateId] = useState(null);   // row whose date is being changed
+  const [meId, setMeId] = useState(null);         // who's reconciling — the last-resort department
   const [recon, setRecon] = useState(null);        // this account+month's reconciliation row
   const [scanOpen, setScanOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -178,6 +179,7 @@ export default function Ledger() {
     // Pickers for the detail panel: charters to bill APA spend to, crew to name a spender.
     listTripsLite(activeTenantId).then(({ data }) => setTrips(data || []));
     listTenantCrew(activeTenantId).then(({ data }) => setCrew(data || []));
+    currentUserId().then(setMeId);
   }, [activeTenantId]);
 
   // Running balance only when a single account is filtered: cumulate opening + live
@@ -641,6 +643,7 @@ export default function Ledger() {
           attachments={atts}
           splits={rowSplits}
           canEdit={canEdit}
+          meId={meId}
           onSave={handleSaveDetail}
           onUploadReceipt={handleReceiptFor}
           onDeleteAttachment={handleDeleteAttachment}
