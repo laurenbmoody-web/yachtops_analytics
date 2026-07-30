@@ -10,7 +10,6 @@ import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, sa
 import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
 import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
-import AddEditItemModal from '../inventory/components/AddEditItemModal';
 import ItemFormModal from '../inventory/components/ItemFormModal';
 import UniformItemView from '../inventory/components/UniformItemView';
 import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
@@ -4268,31 +4267,15 @@ const LocationFirstInventory = () => {
         )}
       </div>
       {/* Modals */}
-      {showAddModal && (() => {
-        // Uniform is captured differently (size run, fit, branding, care) — an
-        // item filed anywhere under a "Uniform" folder gets the uniform modal.
-        const editSegs = editingItem
-          ? [editingItem.location, ...String(editingItem.subLocation || '').split('>').map((s) => s.trim())]
-          : pathSegments;
-        const isUniform = (editSegs || []).some((s) => /(^|\b)uniform(\b|$)/i.test(String(s || '')));
-        return isUniform ? (
-          <ItemFormModal
-            item={editingItem}
-            defaultLocation={currentStorageFields?.location}
-            defaultSubLocation={currentStorageFields?.subLocation}
-            onClose={handleModalClose}
-            onSaved={handleItemSaved}
-          />
-        ) : (
-          <AddEditItemModal
-            item={editingItem}
-            defaultLocation={currentStorageFields?.location}
-            defaultSubLocation={currentStorageFields?.subLocation}
-            onClose={handleModalClose}
-            onSave={handleItemSaved}
-          />
-        );
-      })()}
+      {showAddModal && (
+        <ItemFormModal
+          item={editingItem}
+          defaultLocation={currentStorageFields?.location}
+          defaultSubLocation={currentStorageFields?.subLocation}
+          onClose={handleModalClose}
+          onSaved={handleItemSaved}
+        />
+      )}
       {showAddFolderModal && (
         <AddFolderModal
           parentPath={pathSegments}

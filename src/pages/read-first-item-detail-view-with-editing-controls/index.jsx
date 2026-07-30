@@ -7,7 +7,7 @@ import Icon from '../../components/AppIcon';
 import { getItemById } from '../inventory/utils/inventoryStorage';
 import { getCategoryL1ById, getCategoryL2ById, getCategoryL3ById, getCategoryL4ById } from '../inventory/utils/taxonomyStorage';
 
-import AddEditItemModal from '../inventory/components/AddEditItemModal';
+import ItemFormModal from '../inventory/components/ItemFormModal';
 import MapPickerModal from '../vessel-map/components/MapPickerModal';
 import MapPresence from './MapPresence';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/authStorage';
@@ -374,12 +374,8 @@ const ReadFirstItemDetailView = () => {
       </div>
       {/* Edit Modal */}
       {showEditModal && (
-        <AddEditItemModal
+        <ItemFormModal
           item={item}
-          categoryL1Id={item?.l1Id}
-          categoryL2Id={item?.l2Id}
-          categoryL3Id={item?.l3Id}
-          categoryL4Id={item?.l4Id}
           defaultLocation={item?.stockLocations?.[0]?.locationName || ''}
           defaultSubLocation={item?.stockLocations?.[0]?.subLocation || ''}
           onClose={handleModalClose}

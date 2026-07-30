@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 
-import AddEditItemModal from './AddEditItemModal';
+import ItemFormModal from './ItemFormModal';
 import { formatBoughtIn } from '../../../data/unitGroups';
 import { getCategoryL1ById, getCategoryL2ById, getCategoryL3ById, getCategoryL4ById } from '../utils/taxonomyStorage';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../../utils/authStorage';
@@ -58,12 +58,8 @@ const ItemDetailView = ({ item, onClose, onUpdate }) => {
 
   if (isEditMode) {
     return (
-      <AddEditItemModal
+      <ItemFormModal
         item={item}
-        categoryL1Id={item?.l1Id}
-        categoryL2Id={item?.l2Id}
-        categoryL3Id={item?.l3Id}
-        categoryL4Id={item?.l4Id}
         defaultLocation={item?.stockLocations?.[0]?.locationName || ''}
         defaultSubLocation={item?.stockLocations?.[0]?.subLocation || ''}
         onClose={handleEditClose}

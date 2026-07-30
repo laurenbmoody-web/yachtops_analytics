@@ -5,8 +5,8 @@ import LocPath from './LocPath';
 import './uniformView.css';
 
 // Read-only quick view for a uniform inventory item — the editorial counterpart
-// to UniformItemModal. Shows the size run (qty per size) and the uniform fields
-// with proper labels (no raw custom-field dump / [object Object]).
+// to the ItemFormModal uniform profile. Shows the size run (qty per size) and the
+// uniform fields with proper labels (no raw custom-field dump / [object Object]).
 const Row = ({ label, value }) => ((value == null || value === '') ? null : (
   <div className="uv-row"><span className="uv-k">{label}</span><span className="uv-v">{value}</span></div>
 ));
