@@ -18,6 +18,7 @@ import { exportKitReceipt } from '../utils/kitReceiptExport';
 import { formatShoeTrio } from '../utils/shoeSizes';
 import { sendDbNotification } from '../../../lib/dbNotifications';
 import { getAllItems } from '../../inventory/utils/inventoryStorage';
+import { EditorialDatePicker } from '../../../components/editorial';
 
 const today = () => new Date().toISOString().slice(0, 10);
 // Manual issue on the profile is for non-uniform kit (PPE, electronics, keys…).
@@ -759,7 +760,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
                 </select>
               </label>
               <label className="kit-field"><span>Issued date</span>
-                <input type="date" value={form.issuedDate} onChange={(e) => setF('issuedDate', e.target.value)} />
+                <EditorialDatePicker value={(form.issuedDate || '').slice(0, 10)} onChange={(iso) => setF('issuedDate', iso)} placeholder="dd/mm/yyyy" />
               </label>
               <label className="kit-field kit-col-2"><span>Notes <em>optional</em></span>
                 <input value={form.notes} onChange={(e) => setF('notes', e.target.value)} placeholder="anything worth recording" />
