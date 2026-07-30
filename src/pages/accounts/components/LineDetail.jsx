@@ -31,13 +31,17 @@ const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('
 
 export default function LineDetail({
   txn, account, crew = [], trips = [], chartGroups = [], attachments = [], splits = [],
-  onSave, onUploadReceipt, onDeleteAttachment, onClose, canEdit = true,
+  onSave, onUploadReceipt, onDeleteAttachment, onClose, canEdit = true, meId = null,
 }) {
   const [note, setNote] = useState(txn.note || '');
   const [cardholder, setCardholder] = useState(defaultCardholder(txn, account) || '');
   const spenderDept = (id) => crew.find((c) => c.id === id)?.department || '';
+  const reconcilerDepartment = spenderDept(meId);
   const [department, setDepartment] = useState(
-    defaultDepartment(txn, { spenderDepartment: spenderDept(defaultCardholder(txn, account)) }),
+    defaultDepartment(txn, {
+      spenderDepartment: spenderDept(defaultCardholder(txn, account)),
+      reconcilerDepartment,
+    }),
   );
   // Once the crew member touches the department it's theirs — nothing re-derives it.
   const [deptTouched, setDeptTouched] = useState(Boolean(txn.department));
@@ -191,9 +195,9 @@ export default function LineDetail({
           </select>
           {!deptTouched && department && (
             <span className="ld-hint">
-              {departmentForCode(txn.category_code) === department
-                ? 'From the category — whose budget bears it'
-                : 'From who spent it'}
+              {spenderDept(cardholder) === department
+                ? 'From whose card it is'
+                : (departmentForCode(txn.category_code) === department ? 'From the category' : 'From you')}
             </span>
           )}
         </label>
@@ -207,7 +211,8 @@ export default function LineDetail({
               // The spender only fills the department in when the category hasn't
               // already decided it and the user hasn't chosen one themselves.
               if (!deptTouched) {
-                setDepartment(defaultDepartment({ ...txn, department: null }, { spenderDepartment: spenderDept(id) }));
+                setDepartment(defaultDepartment({ ...txn, department: null },
+                  { spenderDepartment: spenderDept(id), reconcilerDepartment }));
               }
             }}>
             <option value="">Not set</option>

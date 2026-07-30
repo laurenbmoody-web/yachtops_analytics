@@ -54,20 +54,26 @@ export const departmentForCode = (code) => {
 // The department a line should start on, in priority order:
 //
 //   1. Whatever is already on the line — never overridden.
-//   2. The department implied by the MYBA code. This is the primary signal because
-//      `department` means WHOSE BUDGET BEARS THE COST, not who walked into the shop:
-//      an engineer buying an interior light bulb is still an Interior cost.
-//   3. The SPENDER's own department. Most crew buy for their own department, so this
-//      is a good guess when the code implies nothing (Guest Misc, Misc Ship Cost, or
-//      before a category has been picked at all).
+//   2. The department of the person whose CARD it is. Cards are departmental: the
+//      chief stew works her own, the engineer his, so spend on a card belongs to
+//      that department's budget whatever was bought. This follows the "who spent it"
+//      selection, so when a reconciler spots a line that was actually someone
+//      else's, changing the spender moves the department with it — which is what
+//      they'd otherwise do by hand.
+//   3. The department the MYBA code implies — a backstop for a shared/ship card with
+//      no named holder, or a crew member with no department recorded.
+//   4. The department of whoever is reconciling, as a last resort.
 //
-// Deliberately NOT the person reconciling: at month-end one person often works
-// through everyone's cards, and defaulting to them would mis-attribute every cost.
-export const defaultDepartment = (txn, { spenderDepartment } = {}) => {
+// Note this ranks the cardholder ABOVE the category on purpose. The MYBA code still
+// records what was bought (an engineer buying interior consumables is still ICN); the
+// department records whose card and budget it came out of.
+//
+// Nothing here is silent: the panel says which of these a value came from, and any of
+// it can be overridden.
+export const defaultDepartment = (txn, { spenderDepartment, reconcilerDepartment } = {}) => {
   if (txn?.department) return txn.department;
-  const fromCode = departmentForCode(txn?.category_code);
-  if (fromCode) return fromCode;
-  return spenderDepartment || '';
+  if (spenderDepartment) return spenderDepartment;
+  return departmentForCode(txn?.category_code) || reconcilerDepartment || '';
 };
 
 // ── Allocation (charter vs owner) ────────────────────────────────────────────
