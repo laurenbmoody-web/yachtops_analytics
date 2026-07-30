@@ -108,6 +108,26 @@ export const signedSplits = (parentAmount, splits) => {
   return (splits || []).map((s) => ({ ...s, amount: round2(sign * Math.abs(Number(s.amount) || 0)) }));
 };
 
+// The most a given part may be: the payment less everything allocated to the OTHER
+// parts. Used to refuse an over-allocation as it's typed, rather than letting a
+// line be saved that doesn't reconcile.
+export const maxForPart = (parentAmount, splits, index) => {
+  const others = (splits || []).filter((_, i) => i !== index);
+  return Math.max(0, round2(Math.abs(Number(parentAmount) || 0) - splitTotal(others)));
+};
+
+// Clamp a typed part amount to what's actually left. Returns the value to keep and
+// whether it had to be cut back, so the UI can reject the keystroke visibly.
+export const clampSplitAmount = (parentAmount, splits, index, typed) => {
+  const raw = String(typed ?? '');
+  if (raw === '' || raw === '.') return { value: raw, clamped: false };
+  const n = Math.abs(Number(raw));
+  if (Number.isNaN(n)) return { value: '', clamped: false };
+  const max = maxForPart(parentAmount, splits, index);
+  if (n > max + 0.004) return { value: String(max), clamped: true };
+  return { value: raw, clamped: false };
+};
+
 // Is the split set ready to save? Every part needs a category and a non-zero
 // amount, and the parts must add up to the payment exactly.
 export const validateSplits = (parentAmount, splits) => {
@@ -178,6 +198,43 @@ export const straddlesMonth = (txn) => {
 };
 
 // ── Completeness ─────────────────────────────────────────────────────────────
+// The five things a reconciled line needs, in the order they're worked through.
+// The UI renders these as a small filled/unfilled track (no pills, no prose) so
+// the state of every line is scannable down the list.
+export const REQUIREMENTS = [
+  { key: 'category', label: 'Category' },
+  { key: 'note', label: 'Description' },
+  { key: 'receipt', label: 'Receipt' },
+  { key: 'department', label: 'Department' },
+  { key: 'allocation', label: 'Who pays' },
+];
+
+// Per-requirement done/not, plus the count — the data behind the track.
+export const requirementState = (txn, { account, hasReceipt, splitCount = 0 } = {}) => {
+  const alloc = txn?.allocation || defaultAllocation(txn, account);
+  const charterOk = alloc !== 'charter' || !needsTripPick(alloc, account)
+    || Boolean(txn?.trip_id || txn?.charter_ref);
+  const done = {
+    category: Boolean(txn?.category),
+    note: Boolean(txn?.note),
+    receipt: Boolean(hasReceipt),
+    // A split line carries its departments on the parts, so the parent needn't repeat it.
+    department: Boolean(txn?.department) || splitCount > 0,
+    allocation: Boolean(alloc) && charterOk,
+  };
+  const count = REQUIREMENTS.filter((r) => done[r.key]).length;
+  return { done, count, total: REQUIREMENTS.length };
+};
+
+// Three-state summary for the row's rail: nothing done yet, part-way, or finished.
+export const lineState = (txn, ctx = {}) => {
+  const { count, total } = requirementState(txn, ctx);
+  if (count === 0) return 'untouched';
+  if (count < total) return 'progress';
+  return 'complete';
+};
+
+
 // What "reconciled" really means for a line, as a checklist the UI can render.
 // Category is the only hard requirement; the rest are 'wanted' — flagged when
 // missing so the crew can see how solid the line is, without being blocked.

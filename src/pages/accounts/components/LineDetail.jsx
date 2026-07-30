@@ -20,7 +20,7 @@ import { formatMoney } from '../../../services/financeCalc';
 import {
   departmentForCode, defaultAllocation, needsTripPick, isDedicatedCharterAccount,
   defaultCardholder, isBorrowedCard, splitRemainder, validateSplits, signedSplits,
-  netOfVat, vatFromRate, baseFromFx,
+  netOfVat, vatFromRate, baseFromFx, clampSplitAmount,
 } from '../../../services/lineDetail';
 import './line-detail.css';
 
@@ -36,10 +36,11 @@ export default function LineDetail({
   const [department, setDepartment] = useState(txn.department || departmentForCode(txn.category_code) || '');
   const [cardholder, setCardholder] = useState(defaultCardholder(txn, account) || '');
   const [allocation, setAllocation] = useState(defaultAllocation(txn, account) || '');
-  const [tripId, setTripId] = useState(txn.trip_id || '');
-  // Free-typed charter, for a vessel with no trips recorded yet.
-  const [charterRef, setCharterRef] = useState(txn.charter_ref || '');
-  const [typeCharter, setTypeCharter] = useState(Boolean(txn.charter_ref) || trips.length === 0);
+  // One free-text charter box with the known trips as suggestions: type anything,
+  // and if it matches a trip we link the trip properly instead of storing loose text.
+  const [charterText, setCharterText] = useState(
+    txn.charter_ref || trips.find((t) => t.id === txn.trip_id)?.name || '',
+  );
   const [vatAmount, setVatAmount] = useState(txn.vat_amount ?? '');
   const [vatRate, setVatRate] = useState(txn.vat_rate ?? '');
   const [currency, setCurrency] = useState(txn.currency || account?.currency || 'GBP');
@@ -49,6 +50,7 @@ export default function LineDetail({
   const [rows, setRows] = useState(() => (splits.length
     ? splits.map((s) => ({ ...s, amount: String(Math.abs(Number(s.amount) || 0)) }))
     : []));
+  const [shakeIdx, setShakeIdx] = useState(-1);   // part that just refused an over-allocation
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -59,7 +61,12 @@ export default function LineDetail({
   const balanced = Math.abs(remainder) <= 0.004;
   const baseValue = baseFromFx(txn.amount, fxRate);
   const showFx = Number(fxRate) !== 1;
-  const charterNamed = tripId || charterRef.trim();
+  // A typed name that matches a trip links it; anything else is stored as free text.
+  const matchedTrip = useMemo(
+    () => trips.find((t) => t.name?.trim().toLowerCase() === charterText.trim().toLowerCase()) || null,
+    [trips, charterText],
+  );
+  const charterNamed = Boolean(charterText.trim());
 
   const flatChart = useMemo(
     () => (chartGroups || []).flatMap((g) => g.lines.map((l) => ({ bucket: g.bucket, ...l }))),
@@ -67,6 +74,18 @@ export default function LineDetail({
   );
 
   const setRow = (i, patch) => setRows((prev) => prev.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+
+  // Refuse an over-allocation as it's typed: clamp to what's left and shake the
+  // field, rather than accepting a figure that would never reconcile.
+  const setRowAmount = (i, typed) => {
+    const { value, clamped } = clampSplitAmount(txn.amount, rows, i, typed);
+    setRow(i, { amount: value });
+    if (clamped) {
+      setShakeIdx(i);
+      setErr('');
+      setTimeout(() => setShakeIdx(-1), 420);
+    }
+  };
   const addRow = () => setRows((prev) => {
     // Seed two parts so the crew only type amounts: part 1 takes the line's own
     // category, part 2 starts empty pre-filled with whatever is left.
@@ -104,7 +123,7 @@ export default function LineDetail({
   const save = async () => {
     if (rows.length && !splitCheck.ok) { setErr(splitCheck.reason); return; }
     if (askCharter && allocation === 'charter' && !charterNamed) {
-      setErr('Name the charter this belongs to — pick one, or type it.'); return;
+      setErr('Name the charter this belongs to.'); return;
     }
     setBusy(true); setErr('');
     const isCharter = allocation === 'charter';
@@ -115,8 +134,8 @@ export default function LineDetail({
         department: department || null,
         crew_id: cardholder || null,
         allocation: allocation || null,
-        trip_id: isCharter ? (tripId || null) : null,
-        charter_ref: isCharter && !tripId ? (charterRef.trim() || null) : null,
+        trip_id: isCharter ? (matchedTrip?.id || null) : null,
+        charter_ref: isCharter && !matchedTrip ? (charterText.trim() || null) : null,
         vat_amount: vatAmount === '' ? null : Number(vatAmount),
         vat_rate: vatRate === '' ? null : Number(vatRate),
         currency,
@@ -182,7 +201,7 @@ export default function LineDetail({
           <div className="ld-seg">
             {[['owner', 'Owner'], ['charter', 'Charter (APA)']].map(([k, t]) => (
               <button key={k} type="button" aria-pressed={allocation === k} disabled={!canEdit}
-                onClick={() => { setAllocation(k); if (k !== 'charter') { setTripId(''); setCharterRef(''); } }}>{t}</button>
+                onClick={() => { setAllocation(k); if (k !== 'charter') setCharterText(''); }}>{t}</button>
             ))}
           </div>
           {isDedicatedCharterAccount(account) && (
@@ -193,32 +212,22 @@ export default function LineDetail({
         {askCharter && (
           <div className="ld-field ld-grow">
             {label('Which charter', 'required')}
-            {typeCharter ? (
-              <>
-                <input className={`ld-input${!charterRef.trim() ? ' is-need' : ''}`} value={charterRef}
-                  onChange={(e) => setCharterRef(e.target.value)}
-                  placeholder="Charter name or reference" disabled={!canEdit} />
-                {trips.length > 0 && (
-                  <button type="button" className="ld-linkbtn"
-                    onClick={() => { setTypeCharter(false); setCharterRef(''); }}>Pick from trips instead</button>
-                )}
-                {!trips.length && <span className="ld-hint">No trips recorded yet — type the charter and it&rsquo;ll be saved on the line.</span>}
-              </>
-            ) : (
-              <>
-                <select className={`ld-input${!tripId ? ' is-need' : ''}`} value={tripId}
-                  onChange={(e) => setTripId(e.target.value)} disabled={!canEdit}>
-                  <option value="">Pick a charter…</option>
-                  {trips.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}{t.start_date ? ` · ${dmy(t.start_date)}` : ''}
-                    </option>
-                  ))}
-                </select>
-                <button type="button" className="ld-linkbtn"
-                  onClick={() => { setTypeCharter(true); setTripId(''); }}>Not listed — type it</button>
-              </>
-            )}
+            <input className={`ld-input${!charterNamed ? ' is-need' : ''}`} value={charterText}
+              list="ld-charters" autoComplete="off"
+              onChange={(e) => setCharterText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
+              placeholder={trips.length ? 'Type or pick a charter…' : 'Charter name or reference'}
+              disabled={!canEdit} />
+            <datalist id="ld-charters">
+              {trips.map((t) => (
+                <option key={t.id} value={t.name}>{t.start_date ? dmy(t.start_date) : ''}</option>
+              ))}
+            </datalist>
+            <span className="ld-hint">
+              {matchedTrip
+                ? `Linked to the ${matchedTrip.name} trip`
+                : (charterText.trim() ? 'Saved as typed — not linked to a trip record' : 'Type it, or choose from your trips')}
+            </span>
           </div>
         )}
       </div>
@@ -296,8 +305,9 @@ export default function LineDetail({
           <div className="ld-splits">
             {rows.map((r, i) => (
               <div key={i} className="ld-split">
-                <input className="ld-input ld-split-amt" inputMode="decimal" value={r.amount}
-                  onChange={(e) => setRow(i, { amount: e.target.value })} placeholder="0.00" disabled={!canEdit} />
+                <input className={`ld-input ld-split-amt${shakeIdx === i ? ' is-shake' : ''}`}
+                  inputMode="decimal" value={r.amount}
+                  onChange={(e) => setRowAmount(i, e.target.value)} placeholder="0.00" disabled={!canEdit} />
                 <select className="ld-input ld-split-cat"
                   value={r.category ? `${r.category_code || ''}|${r.category}` : ''}
                   onChange={(e) => pickSplitCategory(i, e.target.value)} disabled={!canEdit}>
@@ -325,9 +335,7 @@ export default function LineDetail({
               <span className="ld-remain">
                 {balanced
                   ? <><Icon name="Check" size={13} /> Adds up to {formatMoney(Math.abs(txn.amount), currency)}</>
-                  : (remainder > 0
-                    ? <><Icon name="AlertCircle" size={13} /> {formatMoney(remainder, currency)} still to allocate</>
-                    : <><Icon name="AlertCircle" size={13} /> {formatMoney(Math.abs(remainder), currency)} over the payment</>)}
+                  : <><Icon name="AlertCircle" size={13} /> {formatMoney(remainder, currency)} still to allocate</>}
               </span>
               {canEdit && <button type="button" className="ld-mini" onClick={addRow}>+ Add part</button>}
               {canEdit && <button type="button" className="ld-mini is-mut" onClick={() => setRows([])}>Clear split</button>}
@@ -341,7 +349,9 @@ export default function LineDetail({
       {canEdit && (
         <div className="ld-actions">
           <button type="button" className="ld-btn ghost" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="button" className="ld-btn primary" onClick={save} disabled={busy}>
+          <button type="button" className="ld-btn primary" onClick={save}
+            disabled={busy || (rows.length > 0 && !splitCheck.ok)}
+            title={rows.length > 0 && !splitCheck.ok ? splitCheck.reason : undefined}>
             {busy ? 'Saving…' : 'Save detail'}
           </button>
         </div>

@@ -16,9 +16,11 @@ import {
   updateTransactionDetail, listSplits, saveSplits, listTripsLite, listTenantCrew,
 } from '../../../services/financeService';
 import { getChartGrouped } from '../../../services/chartService';
+import { parseReceipt } from '../../../services/documentParser';
 import { resolveSuggestion, normalizeMerchant } from '../../../services/merchantClassify';
 import {
-  lineCompleteness, defaultAllocation, effectiveDate, datesDiffer, straddlesMonth,
+  defaultAllocation, effectiveDate, datesDiffer, straddlesMonth,
+  REQUIREMENTS, requirementState, lineState,
 } from '../../../services/lineDetail';
 import LineDetail from '../components/LineDetail';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
@@ -111,6 +113,8 @@ export default function Ledger() {
   const [splitsByTxn, setSplitsByTxn] = useState({});  // txnId → [split]
   const [trips, setTrips] = useState([]);
   const [crew, setCrew] = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [scanSeed, setScanSeed] = useState(null);   // parsed receipt → prefills Add spending
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
   const accountsById = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
@@ -226,6 +230,37 @@ export default function Ledger() {
   const setF = (patch) => setFilters((p) => ({ ...p, ...patch }));
   const stepMonth = (delta) => { const i = axisIdx + delta; if (i >= 0 && i < axis.length) setActiveMonth(axis[i]); };
 
+  // Scan a receipt: photograph it, let the AI read merchant/date/total/VAT, then
+  // open Add spending pre-filled (with the receipt itself carried through) so the
+  // crew confirm rather than type. `capture` on the input opens the camera on phones.
+  const handleScan = async (file) => {
+    if (!file) return;
+    setScanning(true);
+    try {
+      const r = await parseReceipt(file);
+      const sug = r.merchant ? resolveSuggestion({ payee: r.merchant, description: r.summary || '' }, ruleMap) : null;
+      const line = sug?.kind === 'single' ? sug.suggestion : null;
+      setScanSeed({
+        file,
+        payee: r.merchant || '',
+        note: r.summary || '',
+        amount: r.total != null ? String(r.total) : '',
+        txn_date: r.date || new Date().toISOString().slice(0, 10),
+        vat_amount: r.vatAmount != null ? String(r.vatAmount) : '',
+        vat_rate: r.vatRate != null ? String(r.vatRate) : '',
+        currency: r.currency || '',
+        category: line?.category || '',
+        category_code: line?.code || '',
+      });
+      setAddOpen(true);
+      flash(r.merchant ? `Read: ${r.merchant}` : 'Receipt read — check the figures');
+    } catch (e) {
+      flash('Couldn’t read that receipt — add it manually');
+    } finally {
+      setScanning(false);
+    }
+  };
+
   const handleAdd = async (payload) => {
     const res = await createTransaction({ ...payload, tenant_id: activeTenantId });
     if (!res.error) { await Promise.all([loadTxns(), loadAccounts()]); flash('Transaction added'); }
@@ -285,6 +320,15 @@ export default function Ledger() {
       ? { ...x, category: target.category, category_code: target.code, status: 'reconciled' }
       : x)));
     flash(filedIds.size > 1 ? `Filed to ${target.category} · ${filedIds.size} lines` : `Filed to ${target.category}`);
+  };
+
+  // Inline date edit — the spend date decides the month, so it's editable on the row.
+  const handleDateChange = async (t, value) => {
+    if (!value || value === (t.txn_date || '').slice(0, 10)) return;
+    setTxns((prev) => prev.map((x) => (x.id === t.id ? { ...x, txn_date: value } : x)));
+    const { error } = await updateTransactionDetail(t.id, { txn_date: value });
+    if (error) { flash('Could not change the date'); await loadTxns(); return; }
+    flash('Date updated');
   };
 
   const openPicker = (e, t) => { setPicker({ rect: e.currentTarget.getBoundingClientRect(), txn: t }); };
@@ -397,17 +441,25 @@ export default function Ledger() {
     const atts = attByTxn[t.id] || [];
     const rowSplits = splitsByTxn[t.id] || [];
     const alloc = t.allocation || defaultAllocation(t, acct);
-    const { missing } = lineCompleteness(t, { account: acct, hasReceipt: atts.length > 0, splitCount: rowSplits.length });
+    const ctx = { account: acct, hasReceipt: atts.length > 0, splitCount: rowSplits.length };
+    const state = voided ? 'void' : lineState(t, ctx);
+    const req = requirementState(t, ctx);
     return (
       <React.Fragment key={t.id}>
-      <div className={`ca-txn${voided ? ' is-void' : ''}${look ? ' is-attention' : ''}${open ? ' is-open' : ''}`}>
+      <div className={`ca-txn is-${state}${voided ? ' is-void' : ''}${open ? ' is-open' : ''}`}>
         <button type="button" className={`ca-exp-btn${open ? ' is-open' : ''}`}
           aria-expanded={open} aria-label={open ? 'Hide detail' : 'Show detail'}
           onClick={() => setExpandedId(open ? null : t.id)}>
           <Icon name="ChevronRight" size={15} />
         </button>
         <span className="ca-dates">
-          <span className="ca-d1">{fmtDMY(t.txn_date)}</span>
+          {canEdit && !voided ? (
+            <input type="date" className="ca-d1 ca-dedit" value={(t.txn_date || '').slice(0, 10)}
+              title="Date spent — drives which month this belongs to"
+              onChange={(e) => handleDateChange(t, e.target.value)} />
+          ) : (
+            <span className="ca-d1">{fmtDMY(t.txn_date)}</span>
+          )}
           {/* The posted date sits under the spend date. Amber when the two fall in
               different months — the case that moves a cost between periods. */}
           <span className={`ca-d2${straddlesMonth(t) ? ' is-straddle' : ''}`}
@@ -427,37 +479,32 @@ export default function Ledger() {
           </div>
           {look && !voided && canEdit && renderSuggest(t)}
           {renderChips(t)}
-          {/* What this line still needs, at a glance — click through to fix it. */}
+          {/* Inline split breakdown — a split line shows its parts, the same way an
+              unsplit line shows its single category. */}
+          {rowSplits.length > 0 && (
+            <div className="ca-splitline">
+              {rowSplits.map((sp) => (
+                <span key={sp.id} className="ca-splitpart">
+                  <b>{formatMoney(Math.abs(sp.amount), t.currency)}</b>
+                  {sp.category_code ? ` ${sp.category_code} · ` : ' '}{sp.category}
+                </span>
+              ))}
+            </div>
+          )}
+          {/* Completeness track: one tick per requirement, filled when done. Replaces
+              the old "needs X" pill — scannable down the list without reading. */}
           {!voided && (
-            <div className="ca-marks">
-              {t.is_pending && (
-                <span className="ca-mark is-pending" title="Card authorisation not settled — the amount or date may still change">
-                  Pending
-                </span>
-              )}
+            <div className="ca-track" title={REQUIREMENTS.map((r) => `${req.done[r.key] ? '✓' : '·'} ${r.label}`).join('\n')}
+              role="img" aria-label={`${req.count} of ${req.total} complete`}>
+              {REQUIREMENTS.map((r) => (
+                <i key={r.key} className={`ca-tick${req.done[r.key] ? ' is-on' : ''}`} />
+              ))}
+              <span className="ca-trackn">{req.count}/{req.total}</span>
+              {t.is_pending && <span className="ca-pend" title="Card authorisation not settled">pending</span>}
               {straddlesMonth(t) && (
-                <span className="ca-mark is-need" title={`Spent ${fmtDMY(t.txn_date)} but posted ${fmtDMY(t.statement_date)} — different months`}>
-                  Crosses month
-                </span>
+                <span className="ca-straddle" title={`Spent ${fmtDMY(t.txn_date)} but posted ${fmtDMY(t.statement_date)} — different months`}>crosses month</span>
               )}
-              {atts.length > 0 && (
-                <button type="button" className="ca-mark is-on" title="View receipt"
-                  onClick={() => atts[0].url && window.open(atts[0].url, '_blank', 'noopener')}>
-                  <Icon name="Paperclip" size={10} /> {atts.length > 1 ? `${atts.length} receipts` : 'Receipt'}
-                </button>
-              )}
-              {rowSplits.length > 0 && (
-                <span className="ca-mark is-on"><Icon name="Split" size={10} /> Split {rowSplits.length} ways</span>
-              )}
-              {alloc && <span className={`ca-mark is-alloc${alloc === 'charter' ? ' is-charter' : ''}`}>
-                {alloc === 'charter' ? 'Charter · APA' : 'Owner'}
-              </span>}
-              {t.category && missing.length > 0 && canEdit && (
-                <button type="button" className="ca-mark is-need" onClick={() => setExpandedId(t.id)}
-                  title="Open the detail to complete this line">
-                  Needs {missing.slice(0, 2).join(' + ')}{missing.length > 2 ? ` +${missing.length - 2}` : ''}
-                </button>
-              )}
+              {alloc && <span className={`ca-allocx${alloc === 'charter' ? ' is-charter' : ''}`}>{alloc === 'charter' ? 'charter' : 'owner'}</span>}
             </div>
           )}
         </div>
@@ -532,6 +579,14 @@ export default function Ledger() {
               <div className="ca-head-act">
                 {canEdit && (
                   <>
+                    <label className={`ca-btn ca-btn-ghost ca-scan${scanning ? ' is-busy' : ''}`}
+                      title="Photograph a receipt and let Cargo read it">
+                      <Icon name={scanning ? 'Loader' : 'Camera'} size={15} />
+                      {scanning ? 'Reading…' : 'Scan receipt'}
+                      <input type="file" accept="image/*,application/pdf" capture="environment" hidden
+                        disabled={scanning}
+                        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; handleScan(f); }} />
+                    </label>
                     <button type="button" className="ca-btn ca-btn-ghost" onClick={() => setImportOpen(true)}>
                       <Icon name="Upload" size={15} /> Import statement
                     </button>
@@ -667,7 +722,9 @@ export default function Ledger() {
         {toast && <div className="ca-toast">{toast}</div>}
       </div>
 
-      <ManualTxnModal open={addOpen} onClose={() => setAddOpen(false)} onSave={handleAdd} onUploadReceipt={handleUploadReceipt} accounts={accounts} tenantId={activeTenantId} />
+      <ManualTxnModal open={addOpen} onClose={() => { setAddOpen(false); setScanSeed(null); }}
+        onSave={handleAdd} onUploadReceipt={handleUploadReceipt} accounts={accounts} tenantId={activeTenantId}
+        seed={scanSeed} crew={crew} trips={trips} chartGroups={pickerGroups} />
       <AssignAccountModal open={Boolean(assignTxn)} onClose={() => setAssignTxn(null)} onAssign={handleAssign} txn={assignTxn} accounts={accounts} />
       <StatementReconcileModal open={importOpen} onClose={() => setImportOpen(false)} accounts={accounts} tenantId={activeTenantId}
         onDone={() => { flash('Statement reconciled'); loadTxns(); }} />

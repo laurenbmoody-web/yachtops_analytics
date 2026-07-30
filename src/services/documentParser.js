@@ -177,3 +177,52 @@ Return ONLY valid JSON, no markdown, no explanation.`;
     throw new Error(`Failed to parse guest preference response. Raw: ${rawText.slice(0, 200)}`);
   }
 }
+
+/**
+ * Parse a till receipt or supplier invoice into the fields a ledger line needs.
+ * Powers the "Scan receipt" quick-add: photograph a receipt, get a transaction.
+ *
+ * Returns amounts as POSITIVE magnitudes — the caller applies the direction (a
+ * receipt is money out) so the ledger's sign convention stays in one place.
+ *
+ * @param {File} file - photo or PDF of a receipt / invoice
+ * @returns {Promise<object>} { merchant, date, total, vatAmount, vatRate, currency, items, summary }
+ */
+export async function parseReceipt(file) {
+  const prompt = `Extract the payment details from this receipt or invoice and return as JSON.
+Return an object with:
+- merchant: string (the trading name of the shop/supplier, as printed)
+- date: string (the purchase date in YYYY-MM-DD format, or null if unreadable)
+- total: number (the total amount PAID, as a positive number)
+- vatAmount: number or null (the VAT/IVA/TVA/MwSt tax amount, positive)
+- vatRate: number or null (the VAT percentage, e.g. 20)
+- currency: string (ISO code such as GBP, EUR, USD — infer from the symbol or country)
+- items: array of short strings naming the main things bought (max 8, omit prices)
+- summary: string (a short plain-English description of what this purchase was for,
+  max 12 words, e.g. "cleaning supplies and bin bags" or "diesel for the tender")
+
+If a value is not present on the document, use null. Never guess the total.
+Return ONLY valid JSON, no markdown, no explanation.`;
+
+  const rawText = await parseDocument(file, prompt);
+  const cleaned = rawText?.replace(/```json\n?/gi, '')?.replace(/```\n?/g, '')?.trim();
+
+  let parsed;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new Error(`Couldn’t read that receipt. Raw: ${String(rawText).slice(0, 200)}`);
+  }
+
+  const num = (v) => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Math.abs(Number(v)));
+  return {
+    merchant: parsed.merchant || null,
+    date: /^\d{4}-\d{2}-\d{2}$/.test(parsed.date || '') ? parsed.date : null,
+    total: num(parsed.total),
+    vatAmount: num(parsed.vatAmount),
+    vatRate: num(parsed.vatRate),
+    currency: (parsed.currency || '').toUpperCase().slice(0, 3) || null,
+    items: Array.isArray(parsed.items) ? parsed.items.filter(Boolean).slice(0, 8) : [],
+    summary: parsed.summary || null,
+  };
+}

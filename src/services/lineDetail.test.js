@@ -8,6 +8,7 @@ import {
   splitTotal, splitRemainder, validateSplits, signedSplits,
   netOfVat, vatFromRate, baseFromFx, lineCompleteness,
   effectiveDate, datesDiffer, straddlesMonth,
+  REQUIREMENTS, requirementState, lineState, maxForPart, clampSplitAmount,
 } from './lineDetail.js';
 
 // ── department ──────────────────────────────────────────────────────────────
@@ -205,4 +206,62 @@ test('a split line does not also demand a top-level department', () => {
     { account: { funds_type: 'general' }, hasReceipt: true, splitCount: 2 },
   );
   assert.equal(r.complete, true);
+});
+
+// ── completeness track / row state ──────────────────────────────────────────
+test('requirementState reports each requirement and a count', () => {
+  const ship = { funds_type: 'general' };
+  const bare = requirementState({}, { account: ship, hasReceipt: false });
+  assert.equal(bare.count, 0);
+  assert.equal(bare.total, 5);
+  assert.equal(bare.done.category, false);
+
+  const part = requirementState({ category: 'Deck Consumables', note: 'hose' }, { account: ship, hasReceipt: false });
+  assert.equal(part.count, 2);
+  assert.equal(part.done.note, true);
+  assert.equal(part.done.receipt, false);
+});
+
+test('a split line counts department as covered — the parts carry it', () => {
+  const ctx = { account: { funds_type: 'owner' }, hasReceipt: true, splitCount: 2 };
+  const r = requirementState({ category: 'X', note: 'y' }, ctx);
+  assert.equal(r.done.department, true);
+  assert.equal(r.count, 5);
+});
+
+test('charter allocation is only "done" once the charter is named', () => {
+  const ship = { account: { funds_type: 'general' }, hasReceipt: true };
+  assert.equal(requirementState({ allocation: 'charter' }, ship).done.allocation, false);
+  assert.equal(requirementState({ allocation: 'charter', trip_id: 't1' }, ship).done.allocation, true);
+  assert.equal(requirementState({ allocation: 'charter', charter_ref: 'Med Aug' }, ship).done.allocation, true);
+});
+
+test('lineState gives the three row states', () => {
+  const ship = { account: { funds_type: 'general' }, hasReceipt: false };
+  assert.equal(lineState({}, ship), 'untouched');
+  assert.equal(lineState({ category: 'X' }, ship), 'progress');
+  assert.equal(lineState(
+    { category: 'X', note: 'y', department: 'Deck', allocation: 'owner' },
+    { account: { funds_type: 'general' }, hasReceipt: true },
+  ), 'complete');
+});
+
+// ── split clamping (an over-allocation can never be typed) ──────────────────
+test('maxForPart is the payment less the other parts', () => {
+  const splits = [{ amount: 14 }, { amount: '' }];
+  assert.equal(maxForPart(-26, splits, 1), 12);   // 26 - 14
+  assert.equal(maxForPart(-26, splits, 0), 26);   // nothing else allocated
+});
+
+test('clampSplitAmount refuses an over-allocation and reports it', () => {
+  const splits = [{ amount: 14 }, { amount: '' }];
+  // Typing 14 into part 2 of a £26 payment would total 28 — cut back to 12.
+  assert.deepEqual(clampSplitAmount(-26, splits, 1, '14'), { value: '12', clamped: true });
+  assert.deepEqual(clampSplitAmount(-26, splits, 1, '12'), { value: '12', clamped: false });
+  assert.deepEqual(clampSplitAmount(-26, splits, 1, '5'), { value: '5', clamped: false });
+});
+
+test('clampSplitAmount leaves partial typing alone', () => {
+  assert.deepEqual(clampSplitAmount(-26, [{ amount: '' }], 0, ''), { value: '', clamped: false });
+  assert.deepEqual(clampSplitAmount(-26, [{ amount: '' }], 0, '.'), { value: '.', clamped: false });
 });
