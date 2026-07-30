@@ -106,6 +106,48 @@
   display: flex; align-items: center; justify-content: center; }
 .wd-edge:hover { border-color: var(--orange, #C65A1A); color: var(--orange, #C65A1A); border-style: solid; }
 
+/* in-canvas "Done editing walls" pill */
+.wd-donepill { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 40;
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-family: inherit;
+  background: var(--orange, #C65A1A); color: #fff; border: none; border-radius: 999px; padding: 10px 18px;
+  font-size: 13px; font-weight: 700; box-shadow: 0 10px 24px -8px rgba(198,90,26,.6); }
+.wd-donepill:hover { background: #B14E16; }
+
+/* properties bar for the selected rack (docked below the room, non-overlapping) */
+.wd-props { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-top: 12px; padding-top: 14px;
+  border-top: 1px solid var(--line-soft, #EDF1F6); }
+.wd-pfield { display: flex; flex-direction: column; gap: 5px; }
+.wd-pfield label { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 800;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-strong, #64748B); }
+.wd-pfield.code { width: 78px; } .wd-pfield.name { flex: 1; min-width: 130px; }
+.wd-pfield input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; color: var(--fg, #0C0E14);
+  background: #FAFAF8; border: 1px solid var(--line, #E2E8F0); border-radius: 8px; padding: 8px 10px; }
+.wd-pfield input:focus { outline: none; border-color: var(--orange, #C65A1A); box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.wd-pzones { display: flex; gap: 5px; }
+.wd-pz { width: 30px; height: 34px; border-radius: 8px; border: 1px solid var(--line, #E2E8F0); background: var(--card, #fff);
+  cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.wd-pz i { width: 13px; height: 13px; border-radius: 3px; background: var(--zc); display: block; }
+.wd-pz.on { border-color: var(--zc); box-shadow: inset 0 0 0 1px var(--zc); }
+.wd-seg { display: inline-flex; border: 1px solid var(--line, #E2E8F0); border-radius: 8px; overflow: hidden; background: var(--card, #fff); height: 34px; }
+.wd-seg button { border: none; background: transparent; padding: 0 12px; font-family: inherit; font-size: 12px; font-weight: 700;
+  color: var(--muted-strong, #64748B); cursor: pointer; }
+.wd-seg button.on { background: var(--orange, #C65A1A); color: #fff; }
+.wd-step { display: inline-flex; align-items: center; border: 1px solid var(--line, #E2E8F0); border-radius: 8px; overflow: hidden; height: 34px; background: var(--card, #fff); }
+.wd-step button { border: none; background: transparent; width: 30px; height: 100%; cursor: pointer; color: var(--fg, #0C0E14);
+  display: flex; align-items: center; justify-content: center; }
+.wd-step button:hover:not(:disabled) { background: var(--bg-2, #EEF2F7); color: var(--orange, #C65A1A); }
+.wd-step button:disabled { opacity: 0.35; cursor: default; }
+.wd-step span { min-width: 26px; text-align: center; font-size: 13.5px; font-weight: 700; color: var(--fg, #0C0E14); font-variant-numeric: tabular-nums; }
+.wd-pacts { display: flex; gap: 8px; margin-left: auto; }
+.wd-pbtn { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: inherit; height: 34px;
+  border-radius: 8px; padding: 0 13px; font-size: 12.5px; font-weight: 700; border: 1px solid transparent; }
+.wd-pbtn.ghost { background: var(--card, #fff); color: var(--fg, #0C0E14); border-color: var(--line, #E2E8F0); }
+.wd-pbtn.ghost:hover { border-color: var(--orange, #C65A1A); color: var(--orange, #C65A1A); }
+.wd-pbtn.del { background: var(--card, #fff); color: #B91C1C; border-color: var(--line, #E2E8F0); width: 38px; padding: 0; justify-content: center; }
+.wd-pbtn.del:hover { border-color: #B91C1C; background: #FEF2F2; }
+
+.wd-mname { color: var(--muted-strong, #64748B); font-family: 'Inter', system-ui, sans-serif; font-size: 15px; }
+
 .wd-empty { margin-top: 14px; font-size: 12.5px; color: var(--muted-strong, #64748B); text-align: center; }
 .wd-empty strong { color: var(--orange, #C65A1A); font-weight: 700; }
 
