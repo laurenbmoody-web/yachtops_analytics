@@ -90,16 +90,26 @@ export const isBorrowedCard = (crewId, account) =>
 // ── Splits ───────────────────────────────────────────────────────────────────
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 
+// The crew type MAGNITUDES ("14" on a £26 payment), not signed figures — nobody
+// types a minus sign into a split. So split amounts are always interpreted as
+// absolute values and given the parent's direction. Everything below therefore
+// works in magnitudes, which is also what we show back.
 export const splitTotal = (splits) =>
-  round2((splits || []).reduce((a, s) => a + (Number(s.amount) || 0), 0));
+  round2((splits || []).reduce((a, s) => a + Math.abs(Number(s.amount) || 0), 0));
 
-// What's left to allocate. Works in the parent's sign convention, so a -£2,000
-// payment split -£1,200 / -£500 leaves -£300.
+// How much of the payment is still unallocated, as a magnitude: a £26 payment with
+// one £14 part leaves £12.
 export const splitRemainder = (parentAmount, splits) =>
-  round2((Number(parentAmount) || 0) - splitTotal(splits));
+  round2(Math.abs(Number(parentAmount) || 0) - splitTotal(splits));
+
+// Apply the parent's direction to the typed magnitudes, ready to store.
+export const signedSplits = (parentAmount, splits) => {
+  const sign = (Number(parentAmount) || 0) < 0 ? -1 : 1;
+  return (splits || []).map((s) => ({ ...s, amount: round2(sign * Math.abs(Number(s.amount) || 0)) }));
+};
 
 // Is the split set ready to save? Every part needs a category and a non-zero
-// amount, and the parts must add up to the parent exactly.
+// amount, and the parts must add up to the payment exactly.
 export const validateSplits = (parentAmount, splits) => {
   const list = splits || [];
   if (!list.length) return { ok: true, reason: null, remainder: 0 };
@@ -107,8 +117,6 @@ export const validateSplits = (parentAmount, splits) => {
   if (list.length < 2) return { ok: false, reason: 'A split needs at least two parts', remainder };
   if (list.some((s) => !s.category)) return { ok: false, reason: 'Every part needs a category', remainder };
   if (list.some((s) => !Number(s.amount))) return { ok: false, reason: 'Every part needs an amount', remainder };
-  if (list.some((s) => (Number(s.amount) > 0) !== (Number(parentAmount) > 0)))
-    return { ok: false, reason: 'Parts must be the same direction as the payment', remainder };
   if (Math.abs(remainder) > 0.004) return { ok: false, reason: 'Parts must add up to the payment', remainder };
   return { ok: true, reason: null, remainder: 0 };
 };
@@ -177,11 +185,12 @@ export const lineCompleteness = (txn, { account, hasReceipt, splitCount = 0 } = 
   const missing = [];
   if (!txn?.category) missing.push('category');
   if (!hasReceipt) missing.push('receipt');
-  if (!txn?.description) missing.push('note');
+  if (!txn?.note) missing.push('note');
   if (!txn?.department && !splitCount) missing.push('department');
   const alloc = txn?.allocation || defaultAllocation(txn, account);
   if (!alloc) missing.push('allocation');
-  // An APA cost with no charter named can't be billed to anyone.
-  if (alloc === 'charter' && needsTripPick(alloc, account) && !txn?.trip_id) missing.push('charter');
+  // An APA cost with no charter named can't be billed to anyone — a typed
+  // charter_ref counts, for vessels that haven't set trips up in Cargo.
+  if (alloc === 'charter' && needsTripPick(alloc, account) && !txn?.trip_id && !txn?.charter_ref) missing.push('charter');
   return { missing, complete: missing.length === 0 };
 };

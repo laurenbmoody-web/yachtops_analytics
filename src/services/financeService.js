@@ -25,7 +25,7 @@ const ACCOUNT_SELECT =
 
 const TXN_SELECT =
   'id, tenant_id, account_id, txn_date, statement_date, is_pending, amount, currency, fx_rate, amount_base, ' +
-  'category, category_code, department, vat_amount, vat_rate, payee, allocation, ' +
+  'category, category_code, department, vat_amount, vat_rate, payee, allocation, note, charter_ref, ' +
   'description, source, status, fee_parent_id, supplier_order_id, supplier_invoice_id, ' +
   'provisioning_item_id, defect_id, trip_id, crew_id, posting_group_id, created_by, created_at';
 
@@ -259,10 +259,13 @@ export const fileTransactions = async (ids, { category, category_code }) => {
 // (description), who owns it (department), who spent it (crew_id → profiles), who
 // bears it (allocation + trip_id), and the tax/FX figures the management accounts
 // need. Only the keys present in `patch` are written.
+// NB: `description` is deliberately absent — it holds the bank's own narrative
+// (the merchant name from the feed) and must not be overwritten. The crew's words
+// go in `note`.
 const DETAIL_KEYS = [
-  'description', 'department', 'crew_id', 'allocation', 'trip_id',
+  'note', 'department', 'crew_id', 'allocation', 'trip_id', 'charter_ref',
   'vat_amount', 'vat_rate', 'currency', 'fx_rate', 'amount_base',
-  'category', 'category_code', 'payee', 'txn_date', 'statement_date',
+  'category', 'category_code', 'txn_date', 'statement_date',
 ];
 
 export const updateTransactionDetail = async (id, patch = {}) => {
@@ -283,7 +286,7 @@ export const updateTransactionDetail = async (id, patch = {}) => {
 // rows, so balances stay correct (see the migration's note).
 const SPLIT_SELECT =
   'id, ledger_transaction_id, amount, category, category_code, department, ' +
-  'trip_id, allocation, note, sort_order';
+  'trip_id, allocation, note, charter_ref, sort_order';
 
 export const listSplits = async (txnIds) => {
   const ids = (Array.isArray(txnIds) ? txnIds : [txnIds]).filter(Boolean);
@@ -317,6 +320,7 @@ export const saveSplits = async (txnId, { tenantId, splits }) => {
     trip_id: s.trip_id || null,
     allocation: s.allocation || null,
     note: s.note || null,
+    charter_ref: s.charter_ref || null,
     sort_order: i,
     created_by,
   }));
