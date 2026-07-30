@@ -486,8 +486,11 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       if (!tenantId) throw new Error('No tenant context');
 
       const segs = folderPath.length ? folderPath : String(folder || '').split('>').map((s) => s.trim()).filter(Boolean);
+      // segs[0] is the department (stored in `location`); `sub_location` is the
+      // path AFTER it. Joining the whole array duplicated the department into
+      // sub_location (e.g. "Interior > Guest > …"), which broke folder matching.
       const location = segs[0] || null;
-      const sub_location = segs.length ? segs.join(' > ') : null;
+      const sub_location = segs.length > 1 ? segs.slice(1).join(' > ') : null;
 
       // The size × location table: uniform sizes, consumable pack-sizes, or a
       // single blank-labelled column (a plain item). Sizes that carry a label
