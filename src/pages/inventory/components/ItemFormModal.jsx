@@ -141,7 +141,10 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   // core fields
   const [name, setName] = useState(item?.name || '');
   const [description, setDescription] = useState(item?.description || '');
-  const [imageUrl, setImageUrl] = useState(item?.imageUrl || '');
+  const initImages = item?.customFields?.images || item?.custom_fields?.images || [];
+  const initCover = item?.imageUrl || initImages[0] || '';
+  const [imageUrl, setImageUrl] = useState(initCover);
+  const [extraPhotos, setExtraPhotos] = useState(() => initImages.filter((u) => u && u !== initCover));
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoErr, setPhotoErr] = useState('');
   const [originalUrl, setOriginalUrl] = useState('');
@@ -336,29 +339,52 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     img.src = url;
   });
 
+  // Encode + upload one image to the item-images bucket, returning its public URL.
+  const putImage = async (file) => {
+    let blob;
+    try { blob = await toJpeg(file); }
+    catch {
+      const ok = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) && file.size <= 5 * 1024 * 1024;
+      if (!ok) throw new Error('bad-format');
+      blob = file;
+    }
+    const { data: ctx } = await supabase.rpc('get_my_context');
+    const tenantId = ctx?.[0]?.tenant_id || 'shared';
+    const ext = blob === file ? ((file.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')) : 'jpg';
+    const contentType = blob === file ? (file.type || 'image/jpeg') : 'image/jpeg';
+    const path = `inventory/${tenantId}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('item-images').upload(path, blob, { upsert: true, contentType });
+    if (upErr) throw upErr;
+    const { data: pub } = supabase.storage.from('item-images').getPublicUrl(path);
+    return pub?.publicUrl || '';
+  };
+  const photoErrText = (err) => (err?.message === 'bad-format'
+    ? 'Couldn’t read that image — try a JPG or PNG.'
+    : `Upload failed — ${err?.message || 'try again.'}`);
+
   const uploadPhoto = async (file) => {
     if (!file) return;
     setPhotoBusy(true); setPhotoErr('');
-    try {
-      let blob;
-      try { blob = await toJpeg(file); }
-      catch {
-        const ok = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type) && file.size <= 5 * 1024 * 1024;
-        if (!ok) { setPhotoErr('Couldn’t read that image — try a JPG or PNG.'); setPhotoBusy(false); return; }
-        blob = file;
-      }
-      const { data: ctx } = await supabase.rpc('get_my_context');
-      const tenantId = ctx?.[0]?.tenant_id || 'shared';
-      const ext = blob === file ? ((file.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')) : 'jpg';
-      const contentType = blob === file ? (file.type || 'image/jpeg') : 'image/jpeg';
-      const path = `inventory/${tenantId}/${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('item-images').upload(path, blob, { upsert: true, contentType });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from('item-images').getPublicUrl(path);
-      setOriginalUrl('');
-      setImageUrl(pub?.publicUrl || '');
-    } catch (err) { setPhotoErr(`Upload failed — ${err?.message || 'try again.'}`); }
+    try { const url = await putImage(file); setOriginalUrl(''); setImageUrl(url); }
+    catch (err) { setPhotoErr(photoErrText(err)); }
     finally { setPhotoBusy(false); }
+  };
+
+  // Additional gallery photos. First upload with no cover yet becomes the cover.
+  const uploadExtraPhoto = async (file) => {
+    if (!file) return;
+    if (!imageUrl) return uploadPhoto(file);
+    setPhotoBusy(true); setPhotoErr('');
+    try { const url = await putImage(file); setExtraPhotos((a) => [...a, url]); }
+    catch (err) { setPhotoErr(photoErrText(err)); }
+    finally { setPhotoBusy(false); }
+  };
+  const removeExtra = (i) => setExtraPhotos((a) => a.filter((_, idx) => idx !== i));
+  const makeCover = (i) => {
+    const picked = extraPhotos[i]; if (!picked) return;
+    const rest = extraPhotos.filter((_, idx) => idx !== i);
+    setExtraPhotos(imageUrl ? [imageUrl, ...rest] : rest);
+    setOriginalUrl(''); setImageUrl(picked);
   };
 
   // Upload a checklist / SOP PDF to the public inventory-docs bucket and pin it
@@ -494,8 +520,10 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       const primaryCost = variants?.find((v) => v.unitCost != null)?.unitCost;
       const primarySupplier = variants?.find((v) => v.supplier)?.supplier;
 
+      const allImages = [imageUrl, ...extraPhotos].filter(Boolean);
       const custom_fields = {
         profile,
+        images: allImages.length > 1 ? allImages : undefined,
         sku: sku || undefined,
         bonded: profile === 'bonded' ? { kind: bKind, volume, volUnit, abv, perPack, perCarton } : undefined,
         eng: profile === 'eng' ? eng : undefined,
@@ -649,6 +677,23 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
               {photoErr && <div className="itf-err" style={{ marginTop: 4 }}>{photoErr}</div>}
             </div>
           </div>
+          {imageUrl && (
+            <>
+              <div className="itf-slab" style={{ marginTop: 16 }}>More photos <span className="opt" style={{ fontWeight: 400, letterSpacing: '.2px', textTransform: 'none' }}>· tap a photo to make it the cover</span></div>
+              <div className="itf-gallery">
+                {extraPhotos.map((url, i) => (
+                  <div className="itf-gthumb" key={`${url}-${i}`}>
+                    <img src={url} alt="" onClick={() => makeCover(i)} title="Make cover photo" />
+                    <button type="button" className="itf-gx" onClick={() => removeExtra(i)} aria-label="Remove photo">×</button>
+                  </div>
+                ))}
+                <label className="itf-gadd">
+                  {photoBusy ? <span className="itf-spin" style={{ width: 16, height: 16 }} /> : '＋'}
+                  <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; uploadExtraPhoto(f); }} />
+                </label>
+              </div>
+            </>
+          )}
           <div className="itf-slab" style={{ marginTop: 16 }}>Profile</div>
           <div className="itf-types">
             {PROFILES.map((p) => (

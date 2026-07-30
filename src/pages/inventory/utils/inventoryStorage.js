@@ -542,6 +542,48 @@ export const getItemById = async (itemId) => {
   }
 };
 
+// Duplicate an item's *definition* as a brand-new row: same fields, but a fresh
+// id, "(copy)" appended to the name, barcode cleared (barcodes are unique), and
+// all stock zeroed so the copy is re-counted rather than double-counting stock.
+export const duplicateItem = async (itemId) => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId || !itemId) return null;
+    const { data: row, error } = await supabase
+      ?.from('inventory_items')
+      ?.select('*')
+      ?.eq('id', itemId)
+      ?.eq('tenant_id', tenantId)
+      ?.maybeSingle();
+    if (error || !row) { console.error('[inventoryStorage] duplicateItem read error:', error?.message); return null; }
+
+    const zeroSizes = (sizes) => (Array.isArray(sizes) ? sizes.map((s) => ({ ...s, qty: 0 })) : sizes);
+    const seed = { ...row };
+    delete seed.id; delete seed.created_at; delete seed.updated_at;
+    seed.name = `${row.name || 'Item'} (copy)`;
+    seed.barcode = null; // minted CGO- codes are unique per tenant — never copy
+    if ('code' in seed) seed.code = null;
+    if ('item_code' in seed) seed.item_code = null;
+    if ('qr_code' in seed) seed.qr_code = null;
+    seed.quantity = 0; seed.total_qty = 0;
+    seed.stock_locations = Array.isArray(row.stock_locations)
+      ? row.stock_locations.map((l) => ({ ...l, qty: 0, quantity: 0, sizes: zeroSizes(l.sizes) }))
+      : row.stock_locations;
+    seed.variants = Array.isArray(row.variants) ? row.variants.map((v) => ({ ...v, qty: 0 })) : row.variants;
+
+    const { data: inserted, error: insErr } = await supabase
+      ?.from('inventory_items')
+      ?.insert(seed)
+      ?.select('*')
+      ?.single();
+    if (insErr) { console.error('[inventoryStorage] duplicateItem insert error:', insErr?.message); return null; }
+    return rowToItem(inserted);
+  } catch (err) {
+    console.error('[inventoryStorage] duplicateItem exception:', err?.message);
+    return null;
+  }
+};
+
 // opts.dedupe (opt-in): on CREATE, look for a same product (barcode then name)
 // and return { duplicate: item } instead of inserting, so the caller can confirm
 // add-to-existing vs create-separate. opts.force skips that check. Existing

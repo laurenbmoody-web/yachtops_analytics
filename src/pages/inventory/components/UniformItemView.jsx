@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { money } from '../../laundry-management-dashboard/utils/laundryBilling';
+import { duplicateItem } from '../utils/inventoryStorage';
 import LocPath from './LocPath';
 import './uniformView.css';
 
@@ -11,14 +12,27 @@ const Row = ({ label, value }) => ((value == null || value === '') ? null : (
   <div className="uv-row"><span className="uv-k">{label}</span><span className="uv-v">{value}</span></div>
 ));
 
-const UniformItemView = ({ item, canEdit, onEdit, onClose }) => {
+const UniformItemView = ({ item, canEdit, onEdit, onDuplicated, onClose }) => {
+  const [activePhoto, setActivePhoto] = useState(null);
+  const [dupBusy, setDupBusy] = useState(false);
   useEffect(() => {
     const onKey = (e) => { if (e?.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
+  useEffect(() => { setActivePhoto(null); }, [item?.id]);
 
   const cf = item?.customFields || item?.custom_fields || {};
+  const gallery = (Array.isArray(cf.images) && cf.images.length ? cf.images : (item?.imageUrl ? [item.imageUrl] : [])).filter(Boolean);
+  const mainPhoto = activePhoto || gallery[0] || item?.imageUrl;
+  const handleDuplicate = async () => {
+    if (dupBusy) return;
+    setDupBusy(true);
+    const copy = await duplicateItem(item?.id);
+    setDupBusy(false);
+    if (copy) { window.showToast?.(`Duplicated — “${copy.name}” added`, 'success'); onDuplicated?.(copy); }
+    else window.showToast?.('Couldn’t duplicate — try again', 'error');
+  };
   const variants = (item?.variants || []).filter((v) => v && (v.size || v.label));
   const total = variants.length
     ? variants.reduce((a, v) => a + (Number(v.qty ?? v.quantity) || 0), 0)
@@ -51,7 +65,20 @@ const UniformItemView = ({ item, canEdit, onEdit, onClose }) => {
         </div>
 
         <div className="uv-body">
-          {item?.imageUrl && <div className="uv-photo"><img src={item.imageUrl} alt={item?.name || ''} /></div>}
+          {mainPhoto && (
+            <>
+              <div className="uv-photo"><img src={mainPhoto} alt={item?.name || ''} /></div>
+              {gallery.length > 1 && (
+                <div className="uv-gallery">
+                  {gallery.map((url, i) => (
+                    <button type="button" key={`${url}-${i}`} className={`uv-gthumb${url === mainPhoto ? ' on' : ''}`} onClick={() => setActivePhoto(url)} aria-label={`Photo ${i + 1}`}>
+                      <img src={url} alt="" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
 
           <div className="uv-sec">
             <div className="uv-sec-h"><span>Stock by location</span><span className="uv-total">{total} total</span></div>
@@ -114,9 +141,16 @@ const UniformItemView = ({ item, canEdit, onEdit, onClose }) => {
           {item?.notes && <p className="uv-notes">{item.notes}</p>}
         </div>
 
-        {canEdit && (
+        {(canEdit || onDuplicated) && (
           <div className="uv-foot">
-            <button type="button" className="uv-btn" onClick={() => onEdit?.(item)}><Icon name="Pencil" size={14} /> Edit</button>
+            {onDuplicated && (
+              <button type="button" className="uv-btn uv-btn-quiet" onClick={handleDuplicate} disabled={dupBusy}>
+                <Icon name="Copy" size={14} /> {dupBusy ? 'Duplicating…' : 'Duplicate'}
+              </button>
+            )}
+            {canEdit && (
+              <button type="button" className="uv-btn" onClick={() => onEdit?.(item)}><Icon name="Pencil" size={14} /> Edit</button>
+            )}
           </div>
         )}
       </aside>

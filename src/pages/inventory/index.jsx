@@ -832,6 +832,7 @@ const Inventory = () => {
           <ItemQuickViewPanel
             item={quickViewItem}
             onClose={() => setQuickViewItem(null)}
+            onDuplicated={() => { setQuickViewItem(null); loadData(); }}
             vesselLocations={vesselLocations}
           />
         )}
