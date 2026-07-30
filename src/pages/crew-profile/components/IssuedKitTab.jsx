@@ -7,14 +7,17 @@ import { showToast } from '../../../utils/toast';
 import {
   KIT_CATEGORIES, CONDITIONS, kitCategoryLabel, fmtKitDate,
   fetchCrewKit, saveKitItem, deleteKitItem,
-  uploadKitSignature, acknowledgeKitItems, signedKitSignatureUrl, kitSignatureDataUrl,
+  uploadKitSignature, acknowledgeKitItems, requestKitSwap, signedKitSignatureUrl, kitSignatureDataUrl,
   recordKitReturn, markKitLost, reinstateKitItem,
   fetchUniformSizes, saveUniformSizes, UNIFORM_SIZE_KEYS,
   fetchCabinAllocation, saveCabinAllocation,
   logKitEvent, fetchKitEvents, fetchVesselIdentity,
+  canonicalGarment, GARMENT_ORDER, GARMENT_ICON,
 } from '../utils/crewKit';
 import { exportKitReceipt } from '../utils/kitReceiptExport';
 import { formatShoeTrio } from '../utils/shoeSizes';
+import { sendDbNotification } from '../../../lib/dbNotifications';
+import { getAllItems } from '../../inventory/utils/inventoryStorage';
 
 const today = () => new Date().toISOString().slice(0, 10);
 const blankForm = () => ({
@@ -109,6 +112,8 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
   const [ackOpen, setAckOpen] = useState(false);
   const [ackSig, setAckSig] = useState(null);
   const [ackName, setAckName] = useState(currentUserName || '');
+  const [swaps, setSwaps] = useState({}); // itemId -> requested size (crew asks for a different size instead of signing)
+  const [imgMap, setImgMap] = useState({}); // inventory_item_id -> photo (best-effort; needs inventory read)
 
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnTarget, setReturnTarget] = useState([]);
@@ -151,6 +156,13 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
       setSizes(sz);
       setEvents(ev);
       setAlloc(al || {});
+      // Photos from linked inventory (best-effort — a plain crew member may not
+      // have inventory read, in which case tiles fall back to garment icons).
+      if (kit.some((k) => k.inventory_item_id)) {
+        getAllItems()
+          .then((inv) => setImgMap(Object.fromEntries((inv || []).filter((x) => x.imageUrl).map((x) => [x.id, x.imageUrl]))))
+          .catch(() => {});
+      }
     } catch { showToast('Failed to load issued kit', 'error'); }
     finally { setLoading(false); }
   }, [userId]);
@@ -232,21 +244,56 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
     } catch { showToast('Delete failed', 'error'); }
   };
 
-  const unacked = items.filter((i) => i.status === 'in_service' && !i.acknowledged_at);
+  // Swap-requested items sit out of the acknowledgement queue — they're waiting on
+  // the interior to re-issue the right size, not on the crew member to sign.
+  const unacked = items.filter((i) => i.status === 'in_service' && !i.acknowledged_at && !i.swap_requested_size);
   const inService = items.filter((i) => i.status === 'in_service');
   const archived = items.filter((i) => i.status !== 'in_service');
 
-  const doAcknowledge = async () => {
-    if (!ackSig) { showToast('Please sign to acknowledge receipt', 'error'); return; }
+  const setSwapSize = (id, size) => setSwaps((s) => ({ ...s, [id]: size }));
+  const toggleSwap = (id) => setSwaps((s) => {
+    if (id in s) { const n = { ...s }; delete n[id]; return n; }
+    return { ...s, [id]: '' };
+  });
+  const openAck = () => { setAckName(currentUserName || ''); setSwaps({}); setAckSig(null); setAckOpen(true); };
+
+  // One action for the crew member: sign for the items they're keeping, and/or
+  // flag the ones that don't fit for a size swap (which routes back to whoever
+  // sent them for sign-off). Signature is only required for items being kept.
+  const doAckSubmit = async () => {
+    const toSwap = unacked.filter((i) => (swaps[i.id] || '').trim());
+    const toAck = unacked.filter((i) => !(swaps[i.id] || '').trim());
+    if (!toAck.length && !toSwap.length) { setAckOpen(false); return; }
+    if (toAck.length && !ackSig) { showToast('Please sign to acknowledge the items you’re keeping', 'error'); return; }
     setBusy(true);
     try {
-      const path = await uploadKitSignature(currentUserId, ackSig, 'ack');
-      await acknowledgeKitItems(unacked.map((i) => i.id), { signaturePath: path, signedName: ackName || currentUserName });
-      await logEvent('acknowledged', { count: unacked.length, items: unacked.map((i) => i.item) });
-      showToast('Receipt acknowledged — thank you', 'success');
-      setAckOpen(false); setAckSig(null);
+      if (toAck.length) {
+        const path = await uploadKitSignature(currentUserId, ackSig, 'ack');
+        await acknowledgeKitItems(toAck.map((i) => i.id), { signaturePath: path, signedName: ackName || currentUserName });
+        await logEvent('acknowledged', { count: toAck.length, items: toAck.map((i) => i.item) });
+      }
+      for (const it of toSwap) {
+        const size = (swaps[it.id] || '').trim();
+        await requestKitSwap(it.id, { size });
+        await logEvent('swap_requested', { item: it.item, from: it.size || '', to: size }, it.id);
+        const notifyUser = it.signoff_requested_by || it.issued_by;
+        if (notifyUser) {
+          await sendDbNotification(notifyUser, {
+            type: 'kit_swap_request',
+            title: 'Size swap requested',
+            message: `${crewName || 'A crew member'} asked for ${it.item} in ${size}${it.size ? ` instead of ${it.size}` : ''}.`,
+            actionUrl: '/wardrobe-management',
+            severity: 'info',
+          });
+        }
+      }
+      const parts = [];
+      if (toAck.length) parts.push(`acknowledged ${toAck.length} item${toAck.length > 1 ? 's' : ''}`);
+      if (toSwap.length) parts.push(`requested ${toSwap.length} size swap${toSwap.length > 1 ? 's' : ''}`);
+      showToast(`Thanks — ${parts.join(' · ')}`, 'success');
+      setAckOpen(false); setAckSig(null); setSwaps({});
       load();
-    } catch (e) { showToast(e.message || 'Acknowledgement failed', 'error'); }
+    } catch (e) { showToast(e.message || 'Something went wrong — try again', 'error'); }
     finally { setBusy(false); }
   };
 
@@ -361,45 +408,46 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
   const statusPill = (it) => {
     if (it.status === 'returned') return { cls: 'miss', label: `Returned ${fmtKitDate(it.returned_date)}` };
     if (it.status === 'lost') return { cls: 'bad', label: 'Lost / damaged' };
+    if (it.status === 'in_service' && it.swap_requested_size) return { cls: 'amber', label: `Swap requested · ${it.swap_requested_size}` };
     if (it.acknowledged_at) return { cls: 'ok', label: `Acknowledged ${fmtKitDate(it.acknowledged_at)}` };
     return { cls: 'amber', label: 'Awaiting acknowledgement' };
   };
 
-  const metaBits = (it) => [
-    it.size && `Size ${it.size}`,
-    it.quantity > 1 && `×${it.quantity}`,
-    it.serial && `S/N ${it.serial}`,
-    it.condition_issued,
-    it.issued_date && `Issued ${fmtKitDate(it.issued_date)}${it.issued_by_name ? ` by ${it.issued_by_name}` : ''}`,
-    it.status === 'returned' && it.return_condition && `returned ${it.return_condition.toLowerCase()}`,
-  ].filter(Boolean);
-
-  const renderRow = (it) => {
+  // Item tile — the visual counterpart to a text row, so a crew member can tell
+  // what's what at a glance (photo where available, else a garment icon).
+  const renderTile = (it) => {
     const pill = statusPill(it);
+    const live = it.status === 'in_service';
+    const type = canonicalGarment(it.item);
+    const img = imgMap[it.inventory_item_id];
+    const meta = [it.size && `Size ${it.size}`, it.condition_issued, it.issued_date && `Issued ${fmtKitDate(it.issued_date)}`].filter(Boolean).join(' · ');
     const sigPath = it.status === 'returned' ? it.return_signature_path : it.ack_signature_path;
     return (
-      <div key={it.id} className="cp-doc-row kit-row">
-        <div className="min-w-0">
-          <div className="cp-doc-title">{it.item}</div>
-          <div className="cp-doc-meta">{metaBits(it).map((b, i) => <span key={i}>{b}</span>)}</div>
-          {it.notes && <div className="kit-notes">{it.notes}</div>}
+      <div className={`kit-tile${live ? '' : ' ret'}`} key={it.id}>
+        <div className="kit-tile-media">
+          {img ? <img src={img} alt={it.item} /> : <span className="kit-tile-ph"><Icon name={GARMENT_ICON[type] || 'Shirt'} size={28} /></span>}
+          {it.quantity > 1 && <span className="kit-tile-qty"><span className="x">×</span>{it.quantity}</span>}
+          {sigPath && sigUrls[sigPath] && <img src={sigUrls[sigPath]} alt="Signature" className="kit-tile-sig" title="Signature on file" />}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {sigPath && sigUrls[sigPath] && (
-            <img src={sigUrls[sigPath]} alt="Signature" className="kit-sig-thumb" title="Signature on file" />
-          )}
-          <span className={`cd-pill ${pill.cls}`}>{pill.label}</span>
-          {canManage && editMode && it.status === 'in_service' && (
-            <>
-              <button onClick={() => openReturn([it])} className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground" title="Record return"><Icon name="PackageCheck" size={15} /></button>
-              <button onClick={() => lose(it)} className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground" title="Mark lost / damaged"><Icon name="TriangleAlert" size={15} /></button>
-              <button onClick={() => openEdit(it)} className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground" title="Edit"><Icon name="Pencil" size={15} /></button>
-              <button onClick={() => remove(it)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-500" title="Remove"><Icon name="Trash2" size={15} /></button>
-            </>
-          )}
-          {canManage && editMode && it.status !== 'in_service' && (
-            <button onClick={() => reinstate(it)} className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground" title="Reinstate to in-service"><Icon name="Undo2" size={15} /></button>
-          )}
+        <div className="kit-tile-body">
+          <span className="kit-tile-nm">{it.item}</span>
+          {meta && <span className="kit-tile-sub">{meta}</span>}
+          {it.swap_requested_size && <span className="kit-tile-swap"><Icon name="Repeat" size={11} /> Swap requested → {it.swap_requested_size}</span>}
+          {it.notes && <span className="kit-tile-note">{it.notes}</span>}
+          <div className="kit-tile-foot">
+            <span className={`cd-pill ${pill.cls}`}>{pill.label}</span>
+            {canManage && editMode && live && (
+              <span className="kit-tile-acts">
+                <button onClick={() => openReturn([it])} title="Record return"><Icon name="PackageCheck" size={14} /></button>
+                <button onClick={() => lose(it)} title="Mark lost / damaged"><Icon name="TriangleAlert" size={14} /></button>
+                <button onClick={() => openEdit(it)} title="Edit"><Icon name="Pencil" size={14} /></button>
+                <button onClick={() => remove(it)} title="Remove" className="danger"><Icon name="Trash2" size={14} /></button>
+              </span>
+            )}
+            {canManage && editMode && !live && (
+              <button className="kit-tile-reinstate" onClick={() => reinstate(it)} title="Reinstate to in-service"><Icon name="Undo2" size={13} /> Reinstate</button>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -579,7 +627,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
                 <div className="kit-ack-banner">
                   <Icon name="PenLine" size={16} style={{ color: '#C65A1A' }} />
                   <span><strong>{unacked.length} item{unacked.length > 1 ? 's' : ''}</strong> awaiting your acknowledgement of receipt &amp; responsibility.</span>
-                  <Button size="xs" onClick={() => { setAckName(currentUserName || ''); setAckOpen(true); }}>Acknowledge receipt</Button>
+                  <Button size="xs" onClick={openAck}>Acknowledge receipt</Button>
                 </div>
               )}
 
@@ -594,10 +642,24 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
               {KIT_CATEGORIES.map((cat) => {
                 const rows = inService.filter((i) => (i.category || 'other') === cat.id);
                 if (rows.length === 0) return null;
+                // Uniform breaks down by garment type (Clothing / Footwear /
+                // Accessories) so the crew member reads it the way it's worn;
+                // other kit categories (PPE, electronics…) stay as one group.
+                if (cat.id === 'uniform') {
+                  const sub = {};
+                  rows.forEach((r) => { const t = canonicalGarment(r.item); (sub[t] = sub[t] || []).push(r); });
+                  const types = Object.keys(sub).sort((a, b) => ((GARMENT_ORDER[a] ?? 9) - (GARMENT_ORDER[b] ?? 9)) || a.localeCompare(b));
+                  return types.map((t) => (
+                    <div className="cp-group" key={`uniform-${t}`}>
+                      <div className="cp-group-head"><span className="dia">◆</span><span className="t">{t}</span><span className="line" /></div>
+                      <div className="kit-tilegrid">{sub[t].map(renderTile)}</div>
+                    </div>
+                  ));
+                }
                 return (
                   <div className="cp-group" key={cat.id}>
                     <div className="cp-group-head"><span className="dia">◆</span><span className="t">{cat.label}</span><span className="line" /></div>
-                    <div className="space-y-2">{rows.map(renderRow)}</div>
+                    <div className="kit-tilegrid">{rows.map(renderTile)}</div>
                   </div>
                 );
               })}
@@ -605,7 +667,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
               {archived.length > 0 && (
                 <div className="cp-group">
                   <div className="cp-group-head"><span className="dia">◆</span><span className="t">Returned &amp; archived</span><span className="line" /></div>
-                  <div className="space-y-2">{archived.map(renderRow)}</div>
+                  <div className="kit-tilegrid">{archived.map(renderTile)}</div>
                 </div>
               )}
             </>
@@ -710,22 +772,53 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
               <h4>Acknowledge receipt</h4>
               <button onClick={() => setAckOpen(false)} className="kit-x" title="Close"><Icon name="X" size={18} /></button>
             </div>
-            <div className="kit-ack-body">
-              <p className="kit-ack-intro">I confirm I have received the following items and accept responsibility for their care and return:</p>
-              <ul className="kit-ack-list">
-                {unacked.map((i) => (
-                  <li key={i.id}><span>{i.item}{i.size ? ` · ${i.size}` : ''}{i.quantity > 1 ? ` · ×${i.quantity}` : ''}</span><span className="kit-ack-cat">{kitCategoryLabel(i.category)}</span></li>
-                ))}
-              </ul>
-              <label className="kit-field"><span>Your name</span>
-                <input value={ackName} onChange={(e) => setAckName(e.target.value)} placeholder="Full name" />
-              </label>
-              <div className="kit-field"><span>Signature</span><SignaturePad onSign={setAckSig} height={120} /></div>
-            </div>
-            <div className="kit-panel-foot">
-              <Button variant="outline" size="sm" onClick={() => setAckOpen(false)}>Cancel</Button>
-              <Button size="sm" onClick={doAcknowledge} disabled={busy || !ackSig}>Sign &amp; acknowledge</Button>
-            </div>
+            {(() => {
+              const swapCount = unacked.filter((i) => (swaps[i.id] || '').trim()).length;
+              const ackCount = unacked.length - swapCount;
+              const needsSig = ackCount > 0;
+              const label = ackCount > 0 && swapCount > 0 ? 'Sign & submit'
+                : swapCount > 0 ? `Request ${swapCount} swap${swapCount > 1 ? 's' : ''}`
+                  : 'Sign & acknowledge';
+              return (
+                <>
+                  <div className="kit-ack-body">
+                    <p className="kit-ack-intro">Confirm the items you’ve received and accept responsibility for. If something’s the wrong size, request a swap instead — it goes back to whoever handed it over.</p>
+                    <ul className="kit-ack-list">
+                      {unacked.map((i) => {
+                        const swapping = i.id in swaps;
+                        return (
+                          <li key={i.id} className={`kit-ack-item${swapping ? ' swapping' : ''}`}>
+                            <div className="kit-ack-line">
+                              <span className="kit-ack-nm">{i.item}{i.size ? ` · ${i.size}` : ''}{i.quantity > 1 ? ` · ×${i.quantity}` : ''}</span>
+                              <button type="button" className="kit-ack-swapbtn" onClick={() => toggleSwap(i.id)}>
+                                {swapping ? 'Keep this' : 'Wrong size?'}
+                              </button>
+                            </div>
+                            {swapping && (
+                              <div className="kit-ack-swap">
+                                <Icon name="Repeat" size={13} />
+                                <input value={swaps[i.id]} onChange={(e) => setSwapSize(i.id, e.target.value)} placeholder="Size you need, e.g. L" autoFocus />
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <label className="kit-field"><span>Your name</span>
+                      <input value={ackName} onChange={(e) => setAckName(e.target.value)} placeholder="Full name" />
+                    </label>
+                    <div className="kit-field">
+                      <span>Signature{needsSig ? '' : ' '}{needsSig ? '' : <em>not needed — swap requests only</em>}</span>
+                      <SignaturePad onSign={setAckSig} height={120} />
+                    </div>
+                  </div>
+                  <div className="kit-panel-foot">
+                    <Button variant="outline" size="sm" onClick={() => setAckOpen(false)}>Cancel</Button>
+                    <Button size="sm" onClick={doAckSubmit} disabled={busy || (needsSig && !ackSig)}>{label}</Button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
