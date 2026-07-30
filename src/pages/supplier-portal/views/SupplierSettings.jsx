@@ -28,6 +28,7 @@ import {
 import { getSupplierTier } from '../../../components/SupplierRoleGuard';
 import InvoicingSettings from '../components/InvoicingSettings';
 import ConnectPaymentSettings from '../components/ConnectPaymentSettings';
+import WarehouseMap from './WarehouseMap';
 import './storefront-preview.css';
 
 // Tab order per spec. adminOnly tabs are hidden from managers.
@@ -35,6 +36,7 @@ const ALL_TABS = [
   { slug: 'company',       label: 'Company profile',    adminOnly: false },
   { slug: 'storefront',    label: 'Storefront',          adminOnly: false },
   { slug: 'team',          label: 'Team & permissions',  adminOnly: false },
+  { slug: 'warehouse',     label: 'Warehouse map',       adminOnly: false },
   { slug: 'zones',         label: 'Delivery zones',      adminOnly: false },
   { slug: 'tax',           label: 'Tax & invoicing',     adminOnly: false },
   { slug: 'payment',       label: 'Payment & banking',   adminOnly: true  },
@@ -1525,6 +1527,8 @@ const SupplierSettings = () => {
                 <div style={{ fontSize: 13 }}>You don't have permission to view the team.</div>
               </div>
             )
+          ) : activeSlug === 'warehouse' ? (
+            <WarehouseMap supplierId={supplier.id} />
           ) : activeSlug === 'tax' ? (
             <InvoicingSettings supplier={supplier} onSaved={refreshSupplier} />
           ) : activeSlug === 'payment' ? (
