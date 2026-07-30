@@ -7,6 +7,7 @@ import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/da
 import { getChartGrouped } from '../../../services/chartService';
 import { DEPARTMENTS } from '../../../utils/authStorage';
 import { departmentForCode } from '../../../services/lineDetail';
+import { accountLabel, groupAccounts, defaultAccountId } from '../../../services/accountPick';
 
 const CURRENCIES = ['EUR', 'GBP', 'USD'];
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -346,26 +347,38 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
 }
 
 // ── Assign account to an unreconciled row ─────────────────────────────────────
-export function AssignAccountModal({ open, onClose, onAssign, txn, accounts }) {
+export function AssignAccountModal({ open, onClose, onAssign, txn, accounts, me = {} }) {
   const [accountId, setAccountId] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [touched, setTouched] = useState(false);
+
+  // Preselect the obvious answer — your one card in this line's currency — but
+  // only until the crew member touches the field.
+  const suggested = open && txn
+    ? defaultAccountId(accounts, { ...me, currency: txn.currency })
+    : '';
+  useEffect(() => { setTouched(false); }, [txn?.id]);
+  const chosen = touched ? accountId : (accountId || suggested);
 
   if (!open || !txn) return null;
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!accountId) { setErr('Choose an account.'); return; }
+    if (!chosen) { setErr('Choose an account.'); return; }
     setBusy(true); setErr('');
-    const { error } = await onAssign(txn.id, accountId);
+    const { error } = await onAssign(txn.id, chosen);
     setBusy(false);
     if (error) { setErr(error.message || 'Could not assign the account.'); return; }
     onClose();
   };
 
+  // Grouped, and labelled by holder + last four — a vessel typically runs three
+  // cards called "Owner card", so the name alone identifies nothing.
+  const groups = groupAccounts(accounts, me);
   const eligible = accounts.filter((a) => a.is_active !== false);
-  const currencyMismatch = accountId
-    && eligible.find((a) => a.id === accountId)?.currency !== txn.currency;
+  const currencyMismatch = chosen
+    && eligible.find((a) => a.id === chosen)?.currency !== txn.currency;
 
   return (
     <ModalShell onClose={onClose} panelClassName="ca-modal" isBusy={busy}>
@@ -377,9 +390,14 @@ export function AssignAccountModal({ open, onClose, onAssign, txn, accounts }) {
 
         <div className="ca-form-row">
           <label className="ca-label" htmlFor="ca-assign">Account <span className="req">required</span></label>
-          <select id="ca-assign" className="ca-select" value={accountId} onChange={(e) => setAccountId(e.target.value)} autoFocus>
+          <select id="ca-assign" className="ca-select" value={chosen} autoFocus
+            onChange={(e) => { setTouched(true); setAccountId(e.target.value); }}>
             <option value="">Choose…</option>
-            {eligible.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>)}
+            {groups.map((g) => (
+              <optgroup key={g.key} label={g.label}>
+                {g.accounts.map((a) => <option key={a.id} value={a.id}>{accountLabel(a)}</option>)}
+              </optgroup>
+            ))}
           </select>
         </div>
 

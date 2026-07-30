@@ -27,6 +27,7 @@ import {
 import LineDetail from '../components/LineDetail';
 import ReceiptScanner from '../components/ReceiptScanner';
 import ReceiptClip from '../components/ReceiptClip';
+import { accountLabel } from '../../../services/accountPick';
 import MonthEndStrip from '../components/MonthEndStrip';
 import { getReconciliation, saveStatementFigures, closeMonth } from '../../../services/reconcileService';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
@@ -131,6 +132,12 @@ export default function Ledger() {
 
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
   const accountsById = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a])), [accounts]);
+  // Who's reconciling — used to surface their own cards first. Most accounts name
+  // their holder by role rather than user id, so both are needed.
+  const me = useMemo(() => {
+    const mine = crew.find((c) => c.id === meId);
+    return { userId: meId, roleName: mine?.role || null };
+  }, [crew, meId]);
 
   // Tier-A learned map: normalised merchant → MYBA line, for the suggestion engine.
   const ruleMap = useMemo(
@@ -629,7 +636,7 @@ export default function Ledger() {
           {renderLinks(t)}
         </div>
         <span className={`ca-txn-acct${!t.account_id ? ' is-unassigned' : ''}`}>
-          {acct ? acct.name : 'Unassigned'}
+          {acct ? accountLabel(acct, { withCurrency: false }) : 'Unassigned'}
         </span>
         <span className="ca-txn-amt">
           <b className={t.amount < 0 ? 'ca-neg' : 'ca-pos'}>{formatMoney(t.amount, t.currency, { signed: true })}</b>
@@ -855,7 +862,8 @@ export default function Ledger() {
       <ManualTxnModal open={addOpen} onClose={() => { setAddOpen(false); setScanSeed(null); }}
         onSave={handleAdd} onUploadReceipt={handleUploadReceipt} accounts={accounts} tenantId={activeTenantId}
         seed={scanSeed} crew={crew} trips={trips} chartGroups={pickerGroups} />
-      <AssignAccountModal open={Boolean(assignTxn)} onClose={() => setAssignTxn(null)} onAssign={handleAssign} txn={assignTxn} accounts={accounts} />
+      <AssignAccountModal open={Boolean(assignTxn)} onClose={() => setAssignTxn(null)} onAssign={handleAssign}
+        txn={assignTxn} accounts={accounts} me={me} />
       <StatementReconcileModal open={importOpen} onClose={() => setImportOpen(false)} accounts={accounts} tenantId={activeTenantId}
         onDone={() => { flash('Statement reconciled'); loadTxns(); }} />
       <ReceiptScanner open={scanOpen} busy={scanning}

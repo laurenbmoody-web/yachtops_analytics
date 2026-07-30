@@ -4,6 +4,9 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import EditorialMetaStrip from '../../components/editorial/EditorialMetaStrip';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTenant } from '../../contexts/TenantContext';
+import PaidFromModal from '../accounts/components/PaidFromModal';
+import { listAccounts, listTenantCrew, currentUserId } from '../../services/financeService';
 import '../pantry/pantry.css';
 import './provisioning-dashboard.css';
 import {
@@ -914,6 +917,7 @@ export default function SupplierOrderPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { tenantRole } = useAuth();
+  const { activeTenantId } = useTenant();
   // Favourite star — UI gate only. Server gate is the RPC
   // toggle_supplier_order_favourite which checks tier + dept intersect.
   // CREW / VIEW_ONLY don't get the affordance; CHIEF/HOD/COMMAND do.
@@ -946,6 +950,11 @@ export default function SupplierOrderPage() {
   const [resendBusy, setResendBusy] = useState(false);
   const [markPaidBusy, setMarkPaidBusy] = useState(null); // invoiceId currently saving
   const [receiveBusy, setReceiveBusy] = useState(false);  // marking the order received
+  // "Paid from which account" — asked before an invoice is settled, because the
+  // ledger line it posts is otherwise unassignable without guesswork.
+  const [paidFromInvoice, setPaidFromInvoice] = useState(null);
+  const [payAccounts, setPayAccounts] = useState([]);
+  const [payMe, setPayMe] = useState({ userId: null, roleName: null });
 
   // Lift body bg to editorial cream while this page is mounted (mirrors
   // EditorialPageShell's behavior — we don't use the shell because its
@@ -1197,12 +1206,27 @@ export default function SupplierOrderPage() {
 
   // Mark a single invoice as paid. Best-effort advances order.status to
   // 'paid' too — the helper handles the parent update internally.
-  const handleMarkInvoicePaid = useCallback(async (invoice) => {
-    if (!invoice?.id) return;
-    if (!window.confirm(`Mark invoice ${invoice.invoice_number || ''} as paid?`)) return;
+  // Loaded lazily — only a crew member about to settle an invoice needs them.
+  useEffect(() => {
+    if (!paidFromInvoice || !activeTenantId || payAccounts.length) return;
+    listAccounts(activeTenantId).then(({ data }) => setPayAccounts(data || [])).catch(() => {});
+    Promise.all([currentUserId(), listTenantCrew(activeTenantId)])
+      .then(([uid, { data: crew }]) => {
+        setPayMe({ userId: uid, roleName: (crew || []).find((c) => c.id === uid)?.role || null });
+      })
+      .catch(() => {});
+  }, [paidFromInvoice, activeTenantId, payAccounts.length]);
+
+  // Ask which account settled it — marking paid posts straight into Spending, and
+  // this is the only moment anyone knows where the money came from.
+  const handleMarkInvoicePaid = useCallback((invoice) => {
+    if (invoice?.id) setPaidFromInvoice(invoice);
+  }, []);
+
+  const confirmMarkInvoicePaid = useCallback(async (invoice, accountId) => {
     setMarkPaidBusy(invoice.id);
     try {
-      const updated = await markInvoicePaid(invoice.id);
+      const updated = await markInvoicePaid(invoice.id, { accountId });
       setOrder((prev) => {
         if (!prev) return prev;
         const next = { ...prev };
@@ -1213,8 +1237,9 @@ export default function SupplierOrderPage() {
         return next;
       });
       showToast('Invoice marked as paid', 'success');
+      return { error: null };
     } catch (e) {
-      showToast(`Could not mark paid: ${e.message || 'unknown error'}`, 'error');
+      return { error: e };
     } finally {
       setMarkPaidBusy(null);
     }
@@ -1605,6 +1630,9 @@ export default function SupplierOrderPage() {
           </div>
         </div>
       )}
+      <PaidFromModal open={Boolean(paidFromInvoice)} invoice={paidFromInvoice}
+        accounts={payAccounts} me={payMe}
+        onClose={() => setPaidFromInvoice(null)} onConfirm={confirmMarkInvoicePaid} />
     </>
   );
 }

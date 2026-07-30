@@ -61,8 +61,10 @@
 
 .rc-reason {
   display: block;
+  box-sizing: border-box;
   width: calc(100% - 28px);
   margin: 0 14px;
+  min-width: 0;
   padding: 7px 9px;
   background: #FAFAF8;
   border: 1px solid #E5E7EB;

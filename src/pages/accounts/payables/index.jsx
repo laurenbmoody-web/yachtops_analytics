@@ -11,6 +11,8 @@ import '../../../styles/editorial.css';
 import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { formatMoney } from '../../../services/financeCalc';
+import { listAccounts, listTenantCrew, currentUserId } from '../../../services/financeService';
+import PaidFromModal from '../components/PaidFromModal';
 import {
   fetchOutstandingInvoices,
   markInvoicePaid,
@@ -40,6 +42,9 @@ export default function Payables() {
   const [payingId, setPayingId] = useState(null);
   const [cardMin, setCardMin] = useState(50);
   const [toast, setToast] = useState('');
+  const [settleRow, setSettleRow] = useState(null);   // invoice awaiting "paid from"
+  const [accounts, setAccounts] = useState([]);
+  const [me, setMe] = useState({ userId: null, roleName: null });
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2600); };
 
   const load = useCallback(async () => {
@@ -53,6 +58,18 @@ export default function Payables() {
 
   // Card floor for the "Pay by card" gate.
   useEffect(() => { fetchCardPaymentConfig().then((c) => setCardMin(c.cardMinAmount)).catch(() => {}); }, []);
+
+  // The vessel's accounts + who's asking — so "paid from" can lead with their own
+  // cards rather than a list of eight identically-named ones.
+  useEffect(() => {
+    if (!activeTenantId || !canSettle) return;
+    listAccounts(activeTenantId).then(({ data }) => setAccounts(data || [])).catch(() => {});
+    Promise.all([currentUserId(), listTenantCrew(activeTenantId)])
+      .then(([uid, { data: crew }]) => {
+        setMe({ userId: uid, roleName: (crew || []).find((c) => c.id === uid)?.role || null });
+      })
+      .catch(() => {});
+  }, [activeTenantId, canSettle]);
 
   // Returning from Stripe Checkout — the webhook marks it paid a moment later.
   useEffect(() => {
@@ -88,12 +105,18 @@ export default function Payables() {
     } catch { flash('Could not open the invoice PDF'); }
   };
 
-  const settle = async (r) => {
-    if (!canSettle) return;
-    if (!window.confirm(`Mark ${r.invoice_number} as paid? This records the payment and posts it to the ledger.`)) return;
+  // Ask which account settled it rather than confirming a yes/no. The answer is
+  // known now and nowhere else — see PaidFromModal.
+  const settle = (r) => { if (canSettle) setSettleRow(r); };
+
+  const confirmSettle = async (r, accountId) => {
     setBusyId(r.id);
-    try { await markInvoicePaid(r.id); flash(`${r.invoice_number} marked paid`); await load(); }
-    catch { flash('Could not mark paid'); }
+    try {
+      await markInvoicePaid(r.id, { accountId });
+      flash(`${r.invoice_number} marked paid`);
+      await load();
+      return { error: null };
+    } catch (e) { return { error: e }; }
     finally { setBusyId(null); }
   };
 
@@ -186,6 +209,8 @@ export default function Payables() {
         </div>
         {toast && <div className="ca-toast">{toast}</div>}
       </div>
+      <PaidFromModal open={Boolean(settleRow)} invoice={settleRow} accounts={accounts} me={me}
+        onClose={() => setSettleRow(null)} onConfirm={confirmSettle} />
     </>
   );
 }

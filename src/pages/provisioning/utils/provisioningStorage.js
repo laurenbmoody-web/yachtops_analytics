@@ -3355,13 +3355,16 @@ export const sendDeliveryNoteEmails = async (orderId, { force = false } = {}) =>
 // status + paid_at, and bumps the parent order to lifecycle 'paid'. The
 // invoice row's RLS policy is tenant-scoped, so this works for any vessel
 // member who can read the order. Returns the updated invoice row.
-export const markInvoicePaid = async (invoiceId) => {
+// `accountId` — which of the vessel's accounts settled it. Written in the SAME
+// update as the status flip so the ledger trigger sees it on the row it fires
+// for; set it afterwards and the posted line is already there with no account.
+export const markInvoicePaid = async (invoiceId, { accountId = null } = {}) => {
   const nowIso = new Date().toISOString();
   const { data: invoice, error: invErr } = await supabase
     .from('supplier_invoices')
-    .update({ status: 'paid', paid_at: nowIso })
+    .update({ status: 'paid', paid_at: nowIso, paid_from_account_id: accountId || null })
     .eq('id', invoiceId)
-    .select('id, order_id, status, paid_at')
+    .select('id, order_id, status, paid_at, paid_from_account_id')
     .single();
   if (invErr) throw invErr;
   if (invoice?.order_id) {
