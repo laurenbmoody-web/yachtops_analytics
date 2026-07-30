@@ -184,11 +184,7 @@ export default function WarehouseDesigner({ supplierId }) {
         <p className="wd-eyebrow"><span className="dot" />WAREHOUSE<span className="bar" />LAYOUT DESIGNER
           <span className="bar" />{racks.length} RACK{racks.length === 1 ? '' : 'S'}</p>
         <h1 className="wd-headline">WAREHOUSE<span className="p">,</span> <em>designed</em><span className="p">.</span></h1>
-        <p className="wd-lead">
-          Draw your unit and lay out the racking. Drag wall points to shape the room, drop racks where they
-          really are, then <strong>select a rack</strong> to name it, rotate it and set its bays and shelves.
-          Click a rack to look at it head-on.
-        </p>
+        <p className="wd-lead">Draw your unit, drop in racks, and tap one to open it head-on.</p>
       </div>
 
       {error && <div className="wd-error" onClick={() => setError(null)}>{error} <X size={12} /></div>}
@@ -196,11 +192,10 @@ export default function WarehouseDesigner({ supplierId }) {
       {/* toolbar */}
       <div className="wd-toolbar">
         <button className="wd-btn primary" onClick={addRack}><Plus size={15} /> Add rack</button>
-        <div className="wd-grp">
-          <span className="wd-gl">New rack zone</span>
+        <div className="wd-zonesel">
           {ZONES.map((z) => (
-            <button key={z.key} className={`wd-zc${newZone === z.key ? ' on' : ''}`} title={z.label}
-              onClick={() => setNewZone(z.key)} style={{ '--zc': z.color }}><i /></button>
+            <button key={z.key} className={`wd-zpill${newZone === z.key ? ' on' : ''}`} style={{ '--zc': z.color }}
+              onClick={() => setNewZone(z.key)}><i />{z.label}</button>
           ))}
         </div>
         <button className={`wd-btn ghost${editWalls ? ' active' : ''}`} onClick={() => { setEditWalls((v) => !v); setSel(null); }}>
@@ -211,10 +206,12 @@ export default function WarehouseDesigner({ supplierId }) {
         </span>
       </div>
 
-      <div className="wd-legend">
-        {ZONES.map((z) => <span key={z.key} className="lg"><i style={{ background: z.color }} />{z.label}</span>)}
-        <span className="wd-hint"><Move size={12} /> {editWalls ? 'Drag wall points · tap ＋ to add · double-tap a point to remove' : 'Drag to move · round handles resize · click a rack to open it'}</span>
-      </div>
+      <div className="wd-subhint"><Move size={12} /> {editWalls ? 'Drag wall points · tap ＋ to add a point · double-tap one to remove' : 'Drag racks to move · round handles resize · click a rack to open it head-on'}</div>
+
+      {/* properties bar for the selected rack — pinned above the room so it's always in view */}
+      {selRack && !editWalls && (
+        <RackProps rack={selRack} onPatch={patchRack} onDelete={deleteRack} onHeadOn={() => setModalRack(selRack)} />
+      )}
 
       {/* the room */}
       <div className={`wd-roomcard${editWalls ? ' editing' : ''}`}>
@@ -273,71 +270,71 @@ export default function WarehouseDesigner({ supplierId }) {
             <button className="wd-donepill" onClick={() => setEditWalls(false)}><Check size={15} /> Done editing walls</button>
           )}
         </div>
-
-        {/* properties bar for the selected rack */}
-        {selRack && !editWalls && (
-          <div className="wd-props">
-            <div className="wd-pfield code">
-              <label>Code</label>
-              <input value={selRack.code} maxLength={8}
-                onChange={(e) => patchRack(selRack.id, { code: e.target.value.toUpperCase() })} />
-            </div>
-            <div className="wd-pfield name">
-              <label>Name</label>
-              <input value={selRack.name} placeholder="e.g. Dry goods, Spirits"
-                onChange={(e) => patchRack(selRack.id, { name: e.target.value })} />
-            </div>
-            <div className="wd-pfield">
-              <label>Zone</label>
-              <div className="wd-pzones">
-                {ZONES.map((z) => (
-                  <button key={z.key} className={`wd-pz${selRack.zone === z.key ? ' on' : ''}`} style={{ '--zc': z.color }}
-                    onClick={() => patchRack(selRack.id, { zone: z.key })} title={z.label}><i /></button>
-                ))}
-              </div>
-            </div>
-            <div className="wd-pfield">
-              <label>Orientation</label>
-              <div className="wd-seg">
-                <button className={selRack.orient === 'h' ? 'on' : ''} onClick={() => patchRack(selRack.id, { orient: 'h' })}>Horizontal</button>
-                <button className={selRack.orient === 'v' ? 'on' : ''} onClick={() => patchRack(selRack.id, { orient: 'v' })}>Vertical</button>
-              </div>
-            </div>
-            <div className="wd-pfield">
-              <label><Boxes size={11} /> Bays</label>
-              <div className="wd-step">
-                <button onClick={() => patchRack(selRack.id, { bays: clamp(1, 16, selRack.bays - 1) })} disabled={selRack.bays <= 1}><Minus size={13} /></button>
-                <span>{selRack.bays}</span>
-                <button onClick={() => patchRack(selRack.id, { bays: clamp(1, 16, selRack.bays + 1) })} disabled={selRack.bays >= 16}><Plus size={13} /></button>
-              </div>
-            </div>
-            <div className="wd-pfield">
-              <label><Layers size={11} /> Levels</label>
-              <div className="wd-step">
-                <button onClick={() => patchRack(selRack.id, { levels: clamp(1, 8, selRack.levels - 1) })} disabled={selRack.levels <= 1}><Minus size={13} /></button>
-                <span>{selRack.levels}</span>
-                <button onClick={() => patchRack(selRack.id, { levels: clamp(1, 8, selRack.levels + 1) })} disabled={selRack.levels >= 8}><Plus size={13} /></button>
-              </div>
-            </div>
-            <div className="wd-pacts">
-              <button className="wd-pbtn ghost" onClick={() => setModalRack(selRack)}><Maximize2 size={14} /> Head-on</button>
-              <button className="wd-pbtn del" onClick={deleteRack} title="Delete rack"><Trash2 size={14} /></button>
-            </div>
-          </div>
-        )}
       </div>
 
       {racks.length === 0 && (
         <div className="wd-empty">Your floor is empty — hit <strong>Add rack</strong> to place your first one, then select it to name it and set its bays and shelves.</div>
       )}
 
-      {modalRack && <HeadOn rack={racks.find((r) => r.id === modalRack.id) || modalRack} onClose={() => setModalRack(null)} />}
+      {modalRack && <HeadOn rack={racks.find((r) => r.id === modalRack.id) || modalRack} onPatch={patchRack} onClose={() => setModalRack(null)} />}
+    </div>
+  );
+}
+
+// ── Properties bar for the selected rack (name / code / zone / orientation /
+// bays / levels), pinned above the room so it's always reachable. ─────────────
+function RackProps({ rack, onPatch, onDelete, onHeadOn }) {
+  return (
+    <div className="wd-props">
+      <div className="wd-pfield code">
+        <label>Code</label>
+        <input value={rack.code} maxLength={8} onChange={(e) => onPatch(rack.id, { code: e.target.value.toUpperCase() })} />
+      </div>
+      <div className="wd-pfield name">
+        <label>Name</label>
+        <input value={rack.name} placeholder="e.g. Dry goods, Spirits" onChange={(e) => onPatch(rack.id, { name: e.target.value })} />
+      </div>
+      <div className="wd-pfield">
+        <label>Zone</label>
+        <div className="wd-pzones">
+          {ZONES.map((z) => (
+            <button key={z.key} className={`wd-pz${rack.zone === z.key ? ' on' : ''}`} style={{ '--zc': z.color }}
+              onClick={() => onPatch(rack.id, { zone: z.key })} title={z.label}><i /></button>
+          ))}
+        </div>
+      </div>
+      <div className="wd-pfield">
+        <label>Orientation</label>
+        <div className="wd-seg">
+          <button className={rack.orient === 'h' ? 'on' : ''} onClick={() => onPatch(rack.id, { orient: 'h' })}>Horizontal</button>
+          <button className={rack.orient === 'v' ? 'on' : ''} onClick={() => onPatch(rack.id, { orient: 'v' })}>Vertical</button>
+        </div>
+      </div>
+      <Stepper label={<><Boxes size={11} /> Bays</>} value={rack.bays} min={1} max={16} onChange={(v) => onPatch(rack.id, { bays: v })} />
+      <Stepper label={<><Layers size={11} /> Levels</>} value={rack.levels} min={1} max={8} onChange={(v) => onPatch(rack.id, { levels: v })} />
+      <div className="wd-pacts">
+        <button className="wd-pbtn ghost" onClick={onHeadOn}><Maximize2 size={14} /> Head-on</button>
+        <button className="wd-pbtn del" onClick={onDelete} title="Delete rack"><Trash2 size={14} /></button>
+      </div>
+    </div>
+  );
+}
+
+function Stepper({ label, value, min, max, onChange }) {
+  return (
+    <div className="wd-pfield">
+      <label>{label}</label>
+      <div className="wd-step">
+        <button onClick={() => onChange(clamp(min, max, value - 1))} disabled={value <= min}><Minus size={13} /></button>
+        <span>{value}</span>
+        <button onClick={() => onChange(clamp(min, max, value + 1))} disabled={value >= max}><Plus size={13} /></button>
+      </div>
     </div>
   );
 }
 
 // ── Head-on view of a single rack (bays × levels) ──────────────────────────────
-function HeadOn({ rack, onClose }) {
+function HeadOn({ rack, onPatch, onClose }) {
   const [selSlot, setSelSlot] = useState(null);
   const levels = levelDefs(rack.levels || DEFAULT_LEVELS[rack.zone] || 3);
   const code = rack.code || rack.id;
@@ -360,6 +357,28 @@ function HeadOn({ rack, onClose }) {
           </div>
           <button className="wd-mx" onClick={onClose} aria-label="Close"><X size={16} /></button>
         </div>
+
+        {onPatch && (
+          <div className="wd-mtools">
+            <span className="wd-mtl">Add or remove sections</span>
+            <div className="wd-mtool">
+              <label><Boxes size={12} /> Bays</label>
+              <div className="wd-step">
+                <button onClick={() => onPatch(rack.id, { bays: clamp(1, 16, rack.bays - 1) })} disabled={rack.bays <= 1}><Minus size={13} /></button>
+                <span>{rack.bays}</span>
+                <button onClick={() => onPatch(rack.id, { bays: clamp(1, 16, rack.bays + 1) })} disabled={rack.bays >= 16}><Plus size={13} /></button>
+              </div>
+            </div>
+            <div className="wd-mtool">
+              <label><Layers size={12} /> Levels</label>
+              <div className="wd-step">
+                <button onClick={() => onPatch(rack.id, { levels: clamp(1, 8, rack.levels - 1) })} disabled={rack.levels <= 1}><Minus size={13} /></button>
+                <span>{rack.levels}</span>
+                <button onClick={() => onPatch(rack.id, { levels: clamp(1, 8, rack.levels + 1) })} disabled={rack.levels >= 8}><Plus size={13} /></button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="wd-front">
           <div className="wd-fnums" style={{ gridTemplateColumns: `repeat(${rack.bays}, 1fr)` }}>
