@@ -136,6 +136,16 @@
 .cm-md-sec:last-of-type { border-bottom: 0; }
 .cm-md-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0 0 9px; }
 .cm-md-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.cm-md-selwrap { position: relative; }
+.cm-md-selwrap > svg { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); color: #8B8478; pointer-events: none; }
+.cm-md-select {
+  width: 100%; box-sizing: border-box; appearance: none; -webkit-appearance: none;
+  font: inherit; font-size: 13px; font-weight: 500; color: #1C1B3A;
+  background: #FAFAF8; border: 1px solid #E6E8EF; border-radius: 10px;
+  padding: 9px 32px 9px 12px; cursor: pointer; transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.cm-md-select:hover { border-color: #CBD5E1; }
+.cm-md-select:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 .cm-md-pill { font: inherit; font-size: 12px; font-weight: 600; color: #6B7280; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 5px 12px; cursor: pointer; transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease; }
 .cm-md-pill:hover { border-color: #CBD5E1; color: #1C1B3A; }
 .cm-md-pill.is-on { background: #C65A1A; border-color: #C65A1A; color: #fff; }
