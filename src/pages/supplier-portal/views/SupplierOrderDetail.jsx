@@ -384,8 +384,8 @@ const HeroActions = ({
           />
         )}
         {/* Payment receipt — proof of payment (with the Stripe payment ID),
-            available once the order is paid. Anyone viewing may download it. */}
-        {order.status === 'paid' && invoice && (
+            available once the invoice is paid. Anyone viewing may download it. */}
+        {invoice?.status === 'paid' && (
           <DropdownRow
             icon="💳"
             name={receiptBusy ? 'Preparing receipt…' : 'Payment receipt'}
