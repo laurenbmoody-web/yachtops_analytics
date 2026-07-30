@@ -5,6 +5,7 @@ import { formatDate } from '../../../utils/dateFormat';
 import { money } from '../../laundry-management-dashboard/utils/laundryBilling';
 import { formatBoughtIn } from '../../../data/unitGroups';
 import { duplicateItem } from '../utils/inventoryStorage';
+import { fetchItemKitHolders } from '../../crew-profile/utils/crewKit';
 import { printItemQr } from '../utils/itemQr';
 import { findItemOnMap } from '../../vessel-map/utils/inventory';
 import { getActivityForEntity } from '../../../utils/activityStorage';
@@ -44,6 +45,16 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
   }, [onClose]);
   // Reset the active gallery photo when switching to a different item.
   useEffect(() => { setActivePhoto(null); }, [item?.id]);
+  // Units out with crew (in-service kit) — shown separately from on-hand stock.
+  const [holders, setHolders] = useState([]);
+  const [holdersOpen, setHoldersOpen] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    setHolders([]); setHoldersOpen(false);
+    if (item?.id) fetchItemKitHolders(item.id).then((h) => { if (!cancelled) setHolders(h); });
+    return () => { cancelled = true; };
+  }, [item?.id]);
+  const withCrewQty = holders.reduce((a, h) => a + (Number(h.qty) || 0), 0);
 
   // Render the item's saved code as a QR preview so view mode shows the actual
   // code, not just the text — click it (or Print) to reopen the label window.
@@ -245,6 +256,25 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
               placed.map((l, i) => renderLoc(l, l?.qty ?? l?.quantity ?? 0, i, `Location ${i + 1}`))
             ) : (nameFor(placed[0]) ? renderLoc(placed[0], total, 'single') : null)}
           </div>
+
+          {withCrewQty > 0 && (
+            <div className="uv-sec">
+              <button type="button" className="uv-crew-h" onClick={() => setHoldersOpen((o) => !o)} aria-expanded={holdersOpen}>
+                <span className="uv-crew-lbl"><Icon name="Users" size={13} /> With crew <span className="uv-crew-note">(separate from stock)</span></span>
+                <span className="uv-crew-right"><span className="uv-crew-qty">{withCrewQty}</span><Icon name={holdersOpen ? 'ChevronUp' : 'ChevronDown'} size={16} /></span>
+              </button>
+              {holdersOpen && (
+                <div className="uv-crew-list">
+                  {holders.map((h) => (
+                    <div className="uv-crew-row" key={`${h.userId}-${h.size}`}>
+                      <span className="uv-crew-nm">{h.name}</span>
+                      <span className="uv-crew-meta">{h.size ? <span className="uv-crew-sz">{h.size}</span> : null}<span className="uv-crew-x">×{h.qty}</span></span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="uv-sec">
             <div className="uv-sec-h"><span>Details</span></div>
