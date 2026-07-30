@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {
   fundingModel, fundingModelLabel, monthFigures,
   compareFigure, isBalanced, statementChecks, hasEnoughStatement,
-  fundingOutcome, closeBlockers, canCloseMonth, closeMessage,
+  fundingOutcome, closeBlockers, canCloseMonth, closeMessage, closeHeadline,
 } from './monthEnd.js';
 
 // ── funding model ───────────────────────────────────────────────────────────
@@ -206,4 +206,43 @@ test('receipts can be waived without waiving the money checks', () => {
 test('closeMessage reflects a submitted or approved month', () => {
   assert.match(closeMessage([], 'submitted'), /Submitted/);
   assert.match(closeMessage([], 'approved'), /signed off/);
+});
+
+// ── the headline: one instruction, the next one ─────────────────────────────
+test('with nothing entered it asks for the statement figures', () => {
+  const h = closeHeadline([{ key: 'statement', label: 'enter the month’s figures from the bank statement', count: 0 }], 'open', 'July 2026');
+  assert.match(h, /Type July 2026’s figures from the bank statement/);
+});
+
+test('a mismatch outranks unfinished lines, and says which way', () => {
+  // Categorising more lines cannot fix a total that disagrees, so the mismatch
+  // has to be the instruction even when other blockers are queued ahead of it.
+  const blockers = [
+    { key: 'uncategorised', label: 'still to categorise', count: 97 },
+    { key: 'diff:moneyOut', label: 'total out doesn’t match the statement', amount: 40, ours: 10645.47, theirs: 10605.47 },
+  ];
+  const h = closeHeadline(blockers, 'open', 'July 2026');
+  assert.match(h, /40\.00 more than the statement on total out/);
+  assert.match(h, /don’t force it/);
+});
+
+test('the other direction reads the other way round', () => {
+  const h = closeHeadline([
+    { key: 'diff:closing', label: 'closing balance doesn’t match the statement', amount: 12.5, ours: 100, theirs: 112.5 },
+  ], 'open', 'July 2026');
+  assert.match(h, /12\.50 less than the statement/);
+});
+
+test('otherwise it names the first blocker and pluralises honestly', () => {
+  assert.match(closeHeadline([{ key: 'receipts', label: 'without a receipt', count: 1 }], 'open'), /^1 line without a receipt — sort it first\.$/);
+  assert.match(closeHeadline([{ key: 'receipts', label: 'without a receipt', count: 4 }], 'open'), /^4 lines without a receipt — sort those first\.$/);
+});
+
+test('no blockers is an instruction too', () => {
+  assert.equal(closeHeadline([], 'open', 'July 2026'), 'Everything agrees. Close July 2026.');
+});
+
+test('a closed month stops instructing', () => {
+  assert.equal(closeHeadline([], 'submitted', 'July 2026'), 'July 2026 is with Command for sign-off.');
+  assert.equal(closeHeadline([], 'approved', 'July 2026'), 'July 2026 is closed and signed off.');
 });

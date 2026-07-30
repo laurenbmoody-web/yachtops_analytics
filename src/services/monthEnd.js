@@ -203,6 +203,33 @@ export const closeBlockers = ({
 
 export const canCloseMonth = (args) => closeBlockers(args).length === 0;
 
+// The sentence the month-end section leads with. closeMessage states what's
+// wrong; this states what to DO about it, because a status nobody can act on is
+// just decoration. Always exactly one instruction — the next one, not all of them.
+export const closeHeadline = (blockers = [], status = 'open', monthLabel = 'this month') => {
+  if (status === 'approved') return `${monthLabel} is closed and signed off.`;
+  if (status === 'submitted') return `${monthLabel} is with Command for sign-off.`;
+  if (!blockers.length) return `Everything agrees. Close ${monthLabel}.`;
+
+  // A mismatch outranks everything: it means the lines themselves are wrong, and
+  // categorising more of them won't fix it.
+  const diff = blockers.find((b) => b.key.startsWith('diff:'));
+  if (diff) {
+    const dir = diff.ours > diff.theirs ? 'more than' : 'less than';
+    return `Cargo has ${formatAmount(diff.amount)} ${dir} the statement on ${diff.label.replace(' doesn’t match the statement', '')}. Find the difference — don’t force it.`;
+  }
+
+  if (blockers.some((b) => b.key === 'statement')) {
+    return `Type ${monthLabel}’s figures from the bank statement and Cargo will tell you whether it agrees.`;
+  }
+
+  const first = blockers[0];
+  const n = first.count;
+  return `${n} ${n === 1 ? 'line' : 'lines'} ${first.label} — sort ${n === 1 ? 'it' : 'those'} first.`;
+};
+
+const formatAmount = (n) => Number(n || 0).toFixed(2);
+
 // A one-line summary for the strip: what's left, or that it's ready.
 export const closeMessage = (blockers, status) => {
   if (status === 'approved') return 'Closed and signed off.';
