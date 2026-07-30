@@ -163,13 +163,15 @@ export const getPlanOverlays = async (scanIndex = []) => {
     if (s?.scanId && s?.spaceId) { spaceByScan[s.scanId] = s.spaceId; scanIds.push(s.scanId); }
   }
 
-  // Pins in every scan, tallied to their scan's room by layer.
+  // Pins in every scan, tallied to their scan's room by layer, and collected as
+  // a flat searchable index (label + layer + where to open them).
   const layerCounts = {};
   const spaceByHotspot = {};
   const scanByHotspot = {};
+  const pins = [];
   if (scanIds.length) {
     const { data: hs, error } = await supabase
-      .from('scan_hotspots').select('id, scan_id, layer').in('scan_id', scanIds);
+      .from('scan_hotspots').select('id, scan_id, layer, label').in('scan_id', scanIds);
     if (error) { console.error('[layout] overlay hotspots error:', error); }
     (hs || []).forEach((h) => {
       const sp = spaceByScan[h.scan_id]; if (!sp) return;
@@ -178,6 +180,7 @@ export const getPlanOverlays = async (scanIndex = []) => {
       const layer = h.layer || 'general';
       (layerCounts[sp] = layerCounts[sp] || {});
       layerCounts[sp][layer] = (layerCounts[sp][layer] || 0) + 1;
+      if (h.label) pins.push({ spaceId: sp, label: h.label, layer, hotspotId: h.id, scanId: h.scan_id });
     });
   }
 
@@ -199,7 +202,7 @@ export const getPlanOverlays = async (scanIndex = []) => {
     });
   });
 
-  return { layerCounts, defectsBySpace };
+  return { layerCounts, defectsBySpace, pins };
 };
 
 // Doorway links between rooms (undirected). Stored canonically a < b.
