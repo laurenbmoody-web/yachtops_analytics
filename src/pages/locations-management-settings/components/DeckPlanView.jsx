@@ -167,6 +167,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [overlayRoom, setOverlayRoom] = useState(null); // spaceId whose overlay drawer is open
   const [overlayQuery, setOverlayQuery] = useState(''); // search box: highlight matching rooms
   const [overlaySort, setOverlaySort] = useState('severity'); // drill-list order: severity|newest|az
+  const [openMenu, setOpenMenu] = useState(null); // 'filter' | 'sort' | null (dropdown panels)
+  const filterMenuRef = useRef(null);
+  const sortMenuRef = useRef(null);
   const traceStartRef = useRef(false); // swallow the click that selected the room (no stray node)
   const fileRef = useRef(null);
   const planRefs = useRef({}); // deckId -> plan element (for drop hit-testing)
@@ -180,6 +183,18 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     setLoading(false);
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // Close the Filter/Sort dropdown panels on an outside click.
+  useEffect(() => {
+    if (!openMenu) return undefined;
+    const onDown = (e) => {
+      if (filterMenuRef.current?.contains(e.target)) return;
+      if (sortMenuRef.current?.contains(e.target)) return;
+      setOpenMenu(null);
+    };
+    window.addEventListener('pointerdown', onDown);
+    return () => window.removeEventListener('pointerdown', onDown);
+  }, [openMenu]);
 
   // Roll the pins inside each room's scan up to the plan (see getPlanOverlays).
   // Reloads whenever the deck model changes (a scan added, a room placed).
@@ -977,30 +992,61 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
             <button type="button" className="dp-fb-clear" onClick={() => setOverlayQuery('')} aria-label="Clear search">×</button>
           )}
         </div>
-        <div className="dp-fb-ctrl">
-          <label className="dp-fb-lbl" htmlFor="dp-fb-show">Show</label>
-          <select
-            id="dp-fb-show"
-            className="dp-fb-select"
-            value={overlay || ''}
-            onChange={(e) => { setOverlay(e.target.value || null); setOverlayRoom(null); }}
+        {/* Filter — which layer to badge on the plan */}
+        <div className="dp-md" ref={filterMenuRef}>
+          <button
+            type="button"
+            className={`dp-md-btn${openMenu === 'filter' ? ' is-open' : ''}${overlay ? ' is-active' : ''}`}
+            onClick={() => setOpenMenu((m) => (m === 'filter' ? null : 'filter'))}
           >
-            <option value="">Nothing</option>
-            {OVERLAYS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
-          </select>
+            <Icon name="SlidersHorizontal" size={14} /> Filter
+            {overlay && <span className="dp-md-cur">· {OVERLAYS.find((o) => o.key === overlay)?.label}</span>}
+          </button>
+          {openMenu === 'filter' && (
+            <div className="dp-md-panel to-right">
+              <div className="dp-md-sec">
+                <p className="dp-md-lbl">Show on plan</p>
+                <div className="dp-md-pills">
+                  <button type="button" className={`dp-md-pill${!overlay ? ' is-on' : ''}`} onClick={() => { setOverlay(null); setOverlayRoom(null); }}>None</button>
+                  {OVERLAYS.map((o) => (
+                    <button key={o.key} type="button" className={`dp-md-pill${overlay === o.key ? ' is-on' : ''}`} onClick={() => { setOverlay((v) => (v === o.key ? null : o.key)); setOverlayRoom(null); }}>{o.label}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="dp-md-foot">
+                <button type="button" className="dp-md-clear" disabled={!overlay} onClick={() => { setOverlay(null); setOverlayRoom(null); }}>Clear</button>
+                <button type="button" className="dp-md-pill is-on" onClick={() => setOpenMenu(null)}>Done</button>
+              </div>
+            </div>
+          )}
         </div>
-        <div className="dp-fb-ctrl">
-          <label className="dp-fb-lbl" htmlFor="dp-fb-sort">Sort</label>
-          <select
-            id="dp-fb-sort"
-            className="dp-fb-select"
-            value={overlaySort}
-            onChange={(e) => setOverlaySort(e.target.value)}
+
+        {/* Sort — order a room's drill list */}
+        <div className="dp-md" ref={sortMenuRef}>
+          <button
+            type="button"
+            className={`dp-md-btn${openMenu === 'sort' ? ' is-open' : ''}${overlaySort !== 'severity' ? ' is-active' : ''}`}
+            onClick={() => setOpenMenu((m) => (m === 'sort' ? null : 'sort'))}
           >
-            <option value="severity">Severity</option>
-            <option value="newest">Newest</option>
-            <option value="az">A–Z</option>
-          </select>
+            <Icon name="ArrowUpDown" size={14} /> Sort
+            <span className="dp-md-cur">· {{ severity: 'Severity', newest: 'Newest', az: 'A–Z' }[overlaySort]}</span>
+          </button>
+          {openMenu === 'sort' && (
+            <div className="dp-md-panel to-right">
+              <div className="dp-md-sec" style={{ borderBottom: 0, paddingBottom: 4 }}>
+                {[['severity', 'Severity'], ['newest', 'Newest'], ['az', 'A–Z']].map(([val, lbl]) => (
+                  <button key={val} type="button" className={`dp-md-opt${overlaySort === val ? ' is-on' : ''}`} onClick={() => setOverlaySort(val)}>
+                    {lbl}
+                    {overlaySort === val && <span className="dir"><Icon name="Check" size={14} /></span>}
+                  </button>
+                ))}
+              </div>
+              <div className="dp-md-foot">
+                <button type="button" className="dp-md-clear" disabled={overlaySort === 'severity'} onClick={() => setOverlaySort('severity')}>Reset</button>
+                <button type="button" className="dp-md-pill is-on" onClick={() => setOpenMenu(null)}>Done</button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {uploadError && <p className="dp-error">{uploadError}</p>}
