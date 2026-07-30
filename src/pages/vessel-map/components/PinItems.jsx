@@ -17,7 +17,7 @@ import ItemDrawer from './ItemDrawer';
 
 export default function PinItems({
   hotspot, canManage, tenantId, userId, scanSpaceId, scanName, containerTrail = [],
-  onNodeResolved, placingItem, onPlaced,
+  onNodeResolved, placingItem, onPlaced, onHasContent,
 }) {
   const [nodeId, setNodeId] = useState(hotspot?.location_node_id || null);
   const [rows, setRows] = useState(null);       // items here; null = loading
@@ -43,6 +43,9 @@ export default function PinItems({
     })));
   };
   useEffect(() => { setRows(null); load(hotspot?.location_node_id || null); /* eslint-disable-next-line */ }, [hotspot?.id, hotspot?.location_node_id, tenantId]);
+  // Tell the inspector whether this pin actually holds anything, so it can lock
+  // the pin-config controls on a pin that's already set.
+  useEffect(() => { if (Array.isArray(rows)) onHasContent?.(rows.length > 0); /* eslint-disable-next-line */ }, [rows]);
 
   // Resolve this pin's location node, creating the room › container › pin chain
   // if it doesn't exist yet (a pin that never held anything has no node).
