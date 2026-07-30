@@ -667,24 +667,49 @@ export const fetchCommittedQuantities = async (supplierId) => {
 export const fetchOrderItemsForPicking = async (orderId) => {
   const { data, error } = await supabase
     .from('supplier_order_items')
-    .select('*, catalogue:supplier_catalogue_items(id, barcode, image_url, pack_size, pack_unit, unit_size, category)')
+    .select('*, catalogue:supplier_catalogue_items(id, barcode, image_url, pack_size, pack_unit, unit_size, category, shelf_location)')
     .eq('order_id', orderId)
     .order('item_name', { ascending: true });
   if (error) throw error;
   return data ?? [];
 };
 
-/** Record what actually came off the shelf. pickedQty null = un-pick. */
-export const setItemPicked = async (itemId, pickedQty, note = null) => {
+/** Record what actually came off the shelf. pickedQty null = un-pick.
+ *  opts: { note, exception, skipped } — exception is a structured reason code
+ *  (out_of_stock | damaged | short_dated | quality | substituted | other);
+ *  skipped defers the line. Passing a plain string as opts is treated as note
+ *  for backward compatibility. */
+export const setItemPicked = async (itemId, pickedQty, opts = {}) => {
+  const o = typeof opts === 'string' ? { note: opts } : (opts || {});
+  const patch = {
+    picked_qty: pickedQty,
+    picked_at: pickedQty != null ? new Date().toISOString() : null,
+  };
+  if ('note' in o) patch.pick_note = o.note ?? null;
+  if ('exception' in o) patch.pick_exception = o.exception ?? null;
+  if ('skipped' in o) patch.pick_skipped = !!o.skipped;
+  // Picking (a real quantity) clears any earlier skip flag.
+  if (pickedQty != null && !('skipped' in o)) patch.pick_skipped = false;
   const { data, error } = await supabase
     .from('supplier_order_items')
-    .update({
-      picked_qty: pickedQty,
-      picked_at: pickedQty != null ? new Date().toISOString() : null,
-      pick_note: note,
-    })
+    .update(patch)
     .eq('id', itemId)
     .select()
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+/** Set (or clear) the shelf/bin location on a catalogue item — drives the
+ *  pick-path sort. Writes to the shared catalogue row, so it persists for
+ *  future orders of the same product. */
+export const setCatalogueShelfLocation = async (catalogueItemId, location) => {
+  if (!catalogueItemId) throw new Error('No catalogue item');
+  const { data, error } = await supabase
+    .from('supplier_catalogue_items')
+    .update({ shelf_location: location?.trim() || null })
+    .eq('id', catalogueItemId)
+    .select('id, shelf_location')
     .single();
   if (error) throw error;
   return data;
