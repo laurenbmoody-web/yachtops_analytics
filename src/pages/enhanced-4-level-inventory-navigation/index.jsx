@@ -2225,18 +2225,28 @@ const SortableItemCard = ({ item, draggable, ...props }) => {
   );
 };
 
-// ─── "Move out" drop zone — an ancestor chip you can drop a dragged folder/item
-// onto to move it UP/OUT one or more levels. Rendered in a bar that only appears
-// while a drag is in progress, so the gesture the user expects (grab by the
-// grip, drag up onto a parent) actually works. `id` is `up::<index>`, decoded in
-// handleDragEnd into the ancestor path pathSegments.slice(0, index + 1). ────────
-const UpDropZone = ({ id, label, icon }) => {
-  const { isOver, setNodeRef } = useDroppable({ id });
+// ─── Back link that doubles as a "move up one level" drop target ──────────────
+// Normally it just navigates to the parent folder. While a folder/item is being
+// dragged (and there IS a parent to move into), it becomes a drop zone: dropping
+// moves the dragged thing up exactly one level, into `parentName`. The label
+// changes to spell out the destination so there's no guessing, and it can only
+// ever move ONE level — no accidental jump to the root. `disabled` keeps it a
+// plain button when a move-up isn't possible (e.g. at a department). ───────────
+const BackNavButton = ({ label, parentName, canDrop, dragging, onNav }) => {
+  const { isOver, setNodeRef } = useDroppable({ id: 'moveup', disabled: !canDrop });
+  const armed = canDrop && dragging;
   return (
-    <div ref={setNodeRef} className={`inv-updrop${isOver ? ' over' : ''}`}>
-      <Icon name={icon || 'CornerLeftUp'} size={13} />
-      <span>{label}</span>
-    </div>
+    <button
+      ref={setNodeRef}
+      onClick={onNav}
+      className={`inv-back${armed ? ' dropmode' : ''}${armed && isOver ? ' over' : ''}`}
+      title={armed ? `Drop here to move up into ${parentName}` : undefined}
+    >
+      <Icon name={armed ? 'CornerLeftUp' : 'ArrowLeft'} size={14} />
+      {armed
+        ? (isOver ? `Move into ${parentName}` : `Drop here → move into ${parentName}`)
+        : label}
+    </button>
   );
 };
 
@@ -3766,12 +3776,12 @@ const LocationFirstInventory = () => {
 
     if (!over) return;
 
-    // Dropped onto a "move out" ancestor chip → move the dragged folder/item
-    // UP/OUT to that ancestor. `up::<index>` decodes to pathSegments up to and
-    // including that index (the current folder is the dragged thing's parent).
-    if (typeof over?.id === 'string' && over?.id?.startsWith('up::')) {
-      const idx = parseInt(over?.id?.slice(4), 10);
-      const target = pathSegments?.slice(0, idx + 1);
+    // Dropped onto the "Back to <parent>" button → move the dragged folder/item
+    // UP exactly ONE level, into the parent of the current folder. One level
+    // keeps the gesture safe and predictable (no accidental fling to the root);
+    // bigger jumps use the ⋯ → Move picker.
+    if (over?.id === 'moveup') {
+      const target = pathSegments?.slice(0, -1);
       if (!target?.length) return;
       if (isItemDragId(active?.id)) {
         const itemId = String(active?.id)?.slice(5);
@@ -3780,7 +3790,7 @@ const LocationFirstInventory = () => {
           await bulkMoveItemsByIds([itemId], location, subLocation);
           setSelectedItemIds(prev => { const n = new Set(prev); n?.delete(itemId); return n; });
         } catch (err) {
-          console.error('[LocationFirstInventory] item drag move-out error:', err?.message);
+          console.error('[LocationFirstInventory] item move-up error:', err?.message);
         }
         loadData();
       } else {
@@ -3876,11 +3886,26 @@ const LocationFirstInventory = () => {
       <Header />
       <div className="inv-wrap">
 
-        {/* Back link — Dashboard at root, else the parent folder page */}
-        <button onClick={handleBackNav} className="inv-back">
-          <Icon name="ArrowLeft" size={14} />
-          {backLabel}
-        </button>
+        {/* Drag context spans the back button (a "move up one level" drop
+            target while dragging) and the grid below (the draggable tiles). */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+
+        {/* Back link — navigates to the parent, and while dragging becomes a
+            "move up one level" drop target labelled with the destination. */}
+        <BackNavButton
+          label={backLabel}
+          parentName={pathSegments?.[pathSegments?.length - 2]}
+          canDrop={!isRoot && pathSegments?.length > 1}
+          dragging={!!activeDragId}
+          onNav={handleBackNav}
+        />
 
         {/* Meta strip — canonical editorial inline data (root only) */}
         {isRoot && (
@@ -4118,28 +4143,6 @@ const LocationFirstInventory = () => {
         )}
 
         {/* Main content */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
-          {/* Move-out bar — only while dragging, and never at the root (nothing
-              above a department). Drop the dragged folder/item onto an ancestor
-              chip to move it up/out; the right-most chip is one level up. */}
-          {activeDragId && !isRoot && pathSegments?.length > 1 && (
-            <div className="inv-updropbar">
-              <span className="inv-updropbar-label">
-                <Icon name="CornerLeftUp" size={13} /> Drop to move out to
-              </span>
-              {pathSegments?.slice(0, -1)?.map((seg, i) => (
-                <UpDropZone key={i} id={`up::${i}`} label={seg} icon={i === 0 ? 'Home' : 'Folder'} />
-              ))}
-            </div>
-          )}
-
           {/* One unified grid — folders and this folder's own items together,
               same-size tiles, no section titles. Drag a folder to reorder or
               hold it over another folder to move inside; drag an item onto a
