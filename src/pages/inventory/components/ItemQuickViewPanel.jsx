@@ -1,24 +1,39 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import { formatDate } from '../../../utils/dateFormat';
 import { money } from '../../laundry-management-dashboard/utils/laundryBilling';
 import { formatBoughtIn } from '../../../data/unitGroups';
 import { duplicateItem } from '../utils/inventoryStorage';
 import { printItemQr } from '../utils/itemQr';
+import { findItemOnMap } from '../../vessel-map/utils/inventory';
 import LocPath from './LocPath';
 import './uniformView.css';
 
+// Folder-path URL encoding — mirrors encodeSegment in the inventory nav page so
+// the deep-link decodes back to the same folder.
+const SLASH_PH = '__FWDSLASH__';
+const encSeg = (s) => encodeURIComponent(String(s ?? '').replace(/\//g, SLASH_PH));
+
 // Editorial read-only quick view for a standard (non-uniform) inventory item —
 // the same slide-over drawer as the uniform view (uv-* system), so every item's
-// quick view is on the Cargo design system.
-const Row = ({ label, value }) => ((value == null || value === '') ? null : (
-  <div className="uv-row"><span className="uv-k">{label}</span><span className="uv-v">{value}</span></div>
+// quick view is on the Cargo design system. A `value` with an `onClick` renders
+// as a link (folder path → that folder; brand/supplier → a filtered view).
+const Row = ({ label, value, onClick }) => ((value == null || value === '') ? null : (
+  <div className="uv-row">
+    <span className="uv-k">{label}</span>
+    {onClick
+      ? <button type="button" className="uv-v uv-v-link" onClick={onClick}>{value}<Icon name="ArrowUpRight" size={12} /></button>
+      : <span className="uv-v">{value}</span>}
+  </div>
 ));
 
 const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vesselLocations = [] }) => {
+  const navigate = useNavigate();
   const [activePhoto, setActivePhoto] = useState(null);
   const [dupBusy, setDupBusy] = useState(false);
   const [qrUrl, setQrUrl] = useState('');
+  const [mapPlaces, setMapPlaces] = useState([]);
   useEffect(() => {
     const onKey = (e) => { if (e?.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', onKey);
@@ -46,6 +61,40 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
     let win = null;
     try { win = window.open('', '_blank'); if (win) { win.document.write('<!doctype html><meta charset="utf-8"><title>QR label</title><body style="font-family:system-ui;padding:40px;color:#6B7280">Preparing label…</body>'); win.document.close(); } } catch { /* blocked */ }
     printItemQr({ code: itemCode, name: item?.name, brand: item?.brand, location: item?.subLocation || item?.location, win });
+  };
+
+  // Where this item physically sits on the GA/vessel map (pins holding it). Each
+  // place gives us the scan (room) + hotspot (pin) the map deep-link needs.
+  useEffect(() => {
+    let alive = true;
+    setMapPlaces([]);
+    const tenantId = (typeof localStorage !== 'undefined' && localStorage.getItem('cargo_active_tenant_id')) || null;
+    if (!tenantId || !item?.id) return undefined;
+    findItemOnMap(tenantId, item.id)
+      .then((r) => { if (alive && Array.isArray(r?.places) && r.places.length) setMapPlaces(r.places); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [item?.id]);
+
+  // Filed under → open that inventory folder page.
+  const openFolder = () => {
+    const segs = [item?.location, ...String(item?.subLocation || '').split(' > ')].map((s) => (s || '').trim()).filter(Boolean);
+    if (!segs.length) return;
+    navigate('/inventory/location/' + segs.map(encSeg).join('/'));
+    onClose?.();
+  };
+  // Stock location → open the vessel map focused on that pin (scan + hotspot).
+  const openOnMap = (place) => {
+    if (!place?.scanId || !place?.hotspotId) return;
+    navigate(`/vessel/map?scan=${encodeURIComponent(place.scanId)}&pin=${encodeURIComponent(place.hotspotId)}`);
+    onClose?.();
+  };
+  // Brand / supplier → the inventory launchpad filtered to matching items.
+  const openFilter = (kind, value) => {
+    const v = String(value || '').trim();
+    if (!v) return;
+    navigate(`/inventory/location?${kind}=${encodeURIComponent(v)}`);
+    onClose?.();
   };
 
   if (!item) return null;
@@ -145,6 +194,17 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
                 <span className="uv-loc-v">{total}</span>
               </div>
             ) : null)}
+            {mapPlaces.length > 0 && (
+              <div className="uv-maplinks">
+                {mapPlaces.map((p, i) => (
+                  <button type="button" key={p.hotspotId || i} className="uv-maplink" onClick={() => openOnMap(p)} title="Open the vessel map here">
+                    <Icon name="Map" size={13} />
+                    <span className="uv-maplink-txt">On the vessel map{p.scanName ? ` · ${p.scanName}` : ''}{p.label ? ` › ${p.label}` : ''}</span>
+                    <Icon name="ArrowUpRight" size={12} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="uv-sec">
@@ -186,8 +246,8 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
           {(item?.brand || item?.supplier) && (
             <div className="uv-sec">
               <div className="uv-sec-h"><span>Supply</span></div>
-              <Row label="Brand" value={item?.brand} />
-              <Row label="Supplier" value={item?.supplier} />
+              <Row label="Brand" value={item?.brand} onClick={item?.brand ? () => openFilter('brand', item.brand) : undefined} />
+              <Row label="Supplier" value={item?.supplier} onClick={item?.supplier ? () => openFilter('supplier', item.supplier) : undefined} />
             </div>
           )}
 
@@ -207,7 +267,7 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
 
           {filedUnder && (
             <div className="uv-sec">
-              <Row label="Filed under" value={filedUnder} />
+              <Row label="Filed under" value={filedUnder} onClick={openFolder} />
             </div>
           )}
           {item?.notes && <p className="uv-notes">{item.notes}</p>}
