@@ -37,6 +37,49 @@ export const fundingModelLabel = (model) => ({
   apa: 'Charter APA — returned to guest',
 }[model] || 'Float');
 
+// ── When is a month actually due? ────────────────────────────────────────────
+// Month-end is month-end: you cannot reconcile July against a statement the bank
+// hasn't issued. So the close only presents itself as due once the month is over.
+//
+// It is NOT hidden before then, because the half of the work that isn't the
+// statement — categories, receipts — is exactly what you want chipped away during
+// the month rather than discovered in a heap on the 1st. It just collapses to what
+// you can act on today.
+export const lastDayOfMonth = (monthKey) => {
+  const [y, m] = String(monthKey || '').split('-').map(Number);
+  if (!y || !m) return null;
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+};
+
+export const monthEndStage = (monthKey, today = new Date(), status = 'open') => {
+  if (status === 'approved' || status === 'submitted') return 'closed';
+  const now = (today instanceof Date ? today : new Date(today)).toISOString().slice(0, 7);
+  const key = String(monthKey || '').slice(0, 7);
+  if (!key) return 'running';
+  if (key > now) return 'ahead';        // a month that hasn't started
+  if (key === now) return 'running';    // still collecting spend; no statement yet
+  return 'due';                         // over, and waiting to be balanced
+};
+
+// Only a month that's actually over opens itself. Anything else would be a panel
+// demanding figures that don't exist yet.
+export const opensByDefault = (stage) => stage === 'due';
+
+// What the collapsed line says. It has to be worth reading on its own, or the
+// section is just a closed drawer.
+export const stageSummary = (stage, { monthLabel = 'this month', blockers = [], statementDue = '' } = {}) => {
+  if (stage === 'closed') return `${monthLabel} is closed.`;
+  if (stage === 'ahead') return `${monthLabel} hasn’t started.`;
+  if (stage === 'running') {
+    const work = blockers.filter((b) => b.count > 0);
+    const total = work.reduce((s, b) => s + b.count, 0);
+    const tail = statementDue ? ` The statement covers up to ${statementDue}.` : '';
+    if (!total) return `${monthLabel} is still running, and every line so far is in order.${tail}`;
+    return `${monthLabel} is still running. ${total} ${total === 1 ? 'line' : 'lines'} to sort before it can be balanced.${tail}`;
+  }
+  return `${monthLabel} is over and waiting to be balanced.`;
+};
+
 // ── The cash-book equation ───────────────────────────────────────────────────
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 

@@ -863,6 +863,7 @@ export default function Ledger() {
             accounts={stackAccounts}
             activeId={filters.accountId}
             monthLabel={ymLabel(activeMonth)}
+            monthKey={activeMonth}
             statsFor={(id) => stackStats[id]}
             reconFor={(id) => monthRecons.find((r) => r.account_id === id)}
             unassigned={stackStats['']?.count || 0}
