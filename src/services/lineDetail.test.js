@@ -11,7 +11,7 @@ import {
   REQUIREMENTS, requirementState, lineState, maxForPart, clampSplitAmount,
   maxSpendDate, isSpendDateValid, canVoidTxn, voidBlockedReason,
   looksLikeRefund, findRefundCandidate, refundInheritedFields, defaultDepartment,
-  outstandingText, hasEvidence,
+  outstandingText, hasEvidence, receiptWaiverPatch,
 } from './lineDetail.js';
 
 // ── department ──────────────────────────────────────────────────────────────
@@ -452,6 +452,29 @@ test('"no receipt" only counts once a reason is actually given', () => {
   assert.equal(hasEvidence({ receipt_waived: true }, false), false);
   assert.equal(hasEvidence({ receipt_waived: true, receipt_waived_reason: '   ' }, false), false);
   assert.equal(hasEvidence({ receipt_waived: true, receipt_waived_reason: 'Bank charge' }, false), true);
+});
+
+test('declaring "no receipt" stores the reason with it', () => {
+  assert.deepEqual(receiptWaiverPatch('Bank charge'),
+    { receipt_waived: true, receipt_waived_reason: 'Bank charge' });
+  assert.deepEqual(receiptWaiverPatch('  Receipt lost  '),
+    { receipt_waived: true, receipt_waived_reason: 'Receipt lost' });
+});
+
+test('an empty reason withdraws the declaration rather than storing a hollow one', () => {
+  // Otherwise the clip could write a waiver that hasEvidence refuses to honour,
+  // leaving a line that looks declared but can never complete.
+  for (const blank of [null, undefined, '', '   ']) {
+    assert.deepEqual(receiptWaiverPatch(blank),
+      { receipt_waived: false, receipt_waived_reason: null });
+  }
+});
+
+test('every patch the clip can produce agrees with hasEvidence', () => {
+  for (const reason of ['Bank charge', '  ', null, 'Receipt lost']) {
+    const patch = receiptWaiverPatch(reason);
+    assert.equal(hasEvidence(patch, false), patch.receipt_waived);
+  }
 });
 
 test('a reason without the box ticked is not evidence either', () => {

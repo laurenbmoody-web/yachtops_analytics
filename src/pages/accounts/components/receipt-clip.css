@@ -1,0 +1,88 @@
+/* Cargo Accounts — the row clip's menu. Portaled to <body>, so everything is
+   scoped under rc-. Editorial: hairline groups, no boxed sub-cards, no pills. */
+
+.rc-panel {
+  position: fixed;
+  z-index: 1200;
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 12px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  padding: 4px 0;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.rc-group { padding: 6px 0; }
+.rc-top { border-top: 1px solid #F0F1F5; }
+
+.rc-label {
+  margin: 2px 14px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+}
+.rc-label em { font-style: normal; color: #C65A1A; letter-spacing: .4px; text-transform: none; font-size: 9.5px; }
+
+.rc-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 14px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  color: #1C1B3A;
+  text-align: left;
+}
+.rc-item:hover { background: #FAFAF8; color: #C65A1A; }
+.rc-item:disabled { opacity: .5; cursor: default; }
+.rc-item svg { color: #8B8478; flex: 0 0 auto; }
+.rc-item:hover svg { color: #C65A1A; }
+
+.rc-att { display: flex; align-items: center; gap: 6px; padding: 0 8px 0 14px; }
+.rc-att-open {
+  display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0;
+  padding: 6px 0; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 12.5px; color: #1C1B3A; text-align: left;
+}
+.rc-att-open span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-att-open:hover { color: #C65A1A; }
+.rc-att-open svg { color: #2F7A64; flex: 0 0 auto; }
+.rc-att-x {
+  flex: 0 0 auto; border: 0; background: none; cursor: pointer;
+  font-size: 15px; line-height: 1; color: #AEB4C2; padding: 2px 5px; border-radius: 6px;
+}
+.rc-att-x:hover { color: #C65A1A; background: #FBEFE9; }
+
+.rc-reason {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 0 14px;
+  padding: 7px 9px;
+  background: #FAFAF8;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12.5px;
+  color: #1C1B3A;
+}
+.rc-reason::placeholder { color: #AEB4C2; }
+.rc-reason:focus { outline: 0; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+
+.rc-act { display: flex; justify-content: flex-end; gap: 8px; padding: 9px 14px 3px; }
+.rc-ghost, .rc-save {
+  border-radius: 10px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600;
+  padding: 6px 12px;
+}
+.rc-ghost { background: #FFFFFF; border: 1px solid #E5E7EB; color: #6B7280; }
+.rc-ghost:hover { border-color: #C65A1A; color: #C65A1A; }
+.rc-save { background: #C65A1A; border: 1px solid #C65A1A; color: #FFFFFF; }
+.rc-save:hover { background: #B14E16; border-color: #B14E16; }
+.rc-save:disabled { background: #E5E7EB; border-color: #E5E7EB; color: #AEB4C2; cursor: default; }
+
+.rc-none { margin: 4px 14px; font-size: 12px; color: #8B8478; font-style: italic; }

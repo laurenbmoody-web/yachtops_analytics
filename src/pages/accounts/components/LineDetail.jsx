@@ -56,10 +56,6 @@ export default function LineDetail({
   const [currency, setCurrency] = useState(txn.currency || account?.currency || 'GBP');
   const [fxRate, setFxRate] = useState(txn.fx_rate ?? 1);
   const [spendDate, setSpendDate] = useState((txn.txn_date || '').slice(0, 10));
-  // Some spend has no receipt and never will (a bank fee, a card subscription).
-  // Declaring that completes the line, and records WHY for the audit trail.
-  const [noReceipt, setNoReceipt] = useState(Boolean(txn.receipt_waived));
-  const [noReceiptReason, setNoReceiptReason] = useState(txn.receipt_waived_reason || '');
   // Split rows hold MAGNITUDES — the parent's direction is applied on save.
   const [rows, setRows] = useState(() => (splits.length
     ? splits.map((s) => ({ ...s, amount: String(Math.abs(Number(s.amount) || 0)) }))
@@ -136,9 +132,6 @@ export default function LineDetail({
 
   const save = async () => {
     if (rows.length && !splitCheck.ok) { setErr(splitCheck.reason); return; }
-    if (!attachments.length && noReceipt && !noReceiptReason.trim()) {
-      setErr('Say why there’s no receipt — every line needs a receipt or a reason.'); return;
-    }
     if (!isSpendDateValid(spendDate, txn.statement_date)) {
       setErr('The date spent can’t be after the bank posted it.'); return;
     }
@@ -156,9 +149,8 @@ export default function LineDetail({
         allocation: allocation || null,
         trip_id: isCharter ? (matchedTrip?.id || null) : null,
         charter_ref: isCharter && !matchedTrip ? (charterText.trim() || null) : null,
-        receipt_waived: attachments.length ? false : noReceipt,
-        // The reason is not optional: "no receipt" without saying why proves nothing.
-        receipt_waived_reason: !attachments.length && noReceipt ? noReceiptReason.trim() : null,
+        // receipt_waived / _reason are deliberately absent — the row's clip owns them,
+        // so saving the detail can never quietly undo a declaration made there.
         vat_amount: vatAmount === '' ? null : Number(vatAmount),
         vat_rate: vatRate === '' ? null : Number(vatRate),
         currency,
@@ -274,20 +266,10 @@ export default function LineDetail({
         )}
       </div>
 
-      {/* No receipt? Say so. Without this a bank fee or subscription could never be
-          finished, and a flag that can't be cleared is a flag people learn to ignore. */}
-      {attachments.length === 0 && canEdit && (
-        <div className="ld-noreceipt">
-          <label className="ld-check">
-            <input type="checkbox" checked={noReceipt} onChange={(e) => setNoReceipt(e.target.checked)} />
-            <span>No receipt for this — attach one from the row&rsquo;s clip if you have it</span>
-          </label>
-          {noReceipt && (
-            <input className={`ld-input ld-reason${!noReceiptReason.trim() ? ' is-need' : ''}`}
-              value={noReceiptReason} onChange={(e) => setNoReceiptReason(e.target.value)}
-              placeholder="Why — bank charge, card subscription, receipt lost…" />
-          )}
-        </div>
+      {/* The receipt — and the reason there isn't one — belong to the row's clip, so
+          neither is repeated here. When it's been declared we only say so. */}
+      {attachments.length === 0 && txn.receipt_waived && txn.receipt_waived_reason && (
+        <p className="ld-waived">No receipt &mdash; {txn.receipt_waived_reason}</p>
       )}
 
       {/* Receipts — attaching happens from the row's clip; this is view/remove only,
