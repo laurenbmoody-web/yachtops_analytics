@@ -451,6 +451,10 @@
 
 /* controls above the overlay */
 .inv-media-check, .inv-media-badge-low, .inv-card.itemcard > .inv-card-menu { z-index: 5; }
+/* ⋯ menu top-right (matching folder tiles) so it's off the qty line */
+.inv-card.itemcard > .inv-card-menu { top: 8px; right: 8px; bottom: auto; left: auto; }
+/* Low badge tucks under the select, top-left, clear of the menu and qty */
+.inv-card.itemcard .inv-media-badge-low { top: 40px; left: 8px; right: auto; bottom: auto; }
 
 /* touch reveal toggle — photo tiles only; hover devices use hover */
 .inv-card-reveal {
