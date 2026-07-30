@@ -189,19 +189,44 @@ Return ONLY valid JSON, no markdown, no explanation.`;
  * @returns {Promise<object>} { merchant, date, total, vatAmount, vatRate, currency, items, summary }
  */
 export async function parseReceipt(file) {
-  const prompt = `Extract the payment details from this receipt or invoice and return as JSON.
-Return an object with:
-- merchant: string (the trading name of the shop/supplier, as printed)
-- date: string (the purchase date in YYYY-MM-DD format, or null if unreadable)
-- total: number (the total amount PAID, as a positive number)
-- vatAmount: number or null (the VAT/IVA/TVA/MwSt tax amount, positive)
-- vatRate: number or null (the VAT percentage, e.g. 20)
-- currency: string (ISO code such as GBP, EUR, USD — infer from the symbol or country)
-- items: array of short strings naming the main things bought (max 8, omit prices)
-- summary: string (a short plain-English description of what this purchase was for,
-  max 12 words, e.g. "cleaning supplies and bin bags" or "diesel for the tender")
+  const prompt = `You are reading a till receipt or supplier invoice. Accuracy matters more
+than completeness: a wrong figure corrupts an accounting ledger, so a null is always
+better than a guess.
 
-If a value is not present on the document, use null. Never guess the total.
+Return JSON with:
+- merchant: string — the trading name as printed
+- totalText: string — the total EXACTLY as printed, including the currency symbol
+  (e.g. "£85.10"). Copy the characters you can see; do not reformat or round.
+- total: number — that same total as a positive number, transcribed from totalText
+- dateText: string — the date exactly as printed (e.g. "29/07/26")
+- date: string — that date as YYYY-MM-DD
+- currency: string — ISO code (GBP, EUR, USD…) inferred from the symbol or country
+- vatPrinted: boolean — see the VAT rule below
+- vatAmount: number or null — only per the VAT rule
+- vatRate: number or null — only per the VAT rule
+- items: array of up to 8 short strings naming what was bought (no prices)
+- summary: string — max 12 words on what this purchase was for
+- confidence: "high" | "low" — "low" if the paper is creased, blurred, cut off, or any
+  digit of the total is uncertain
+
+RULES — follow exactly:
+1. TOTAL. Use the figure printed against TOTAL / AMOUNT DUE / BALANCE / TO PAY. Never add
+   items up yourself. Read each digit deliberately: 8 and 6, 5 and 6, 3 and 8, 1 and 7 are
+   easily confused on thermal paper. If any digit is unclear, still transcribe your best
+   reading into totalText but set confidence to "low".
+2. VAT. Set vatPrinted true ONLY if the receipt prints a separate tax amount as its own
+   figure (a "VAT £x.xx" line, or a VAT summary table with an amount). If the receipt
+   merely says prices include VAT, shows only a VAT registration number, shows a zero-rated
+   or "VAT 0.00" line, or shows no tax figure at all, then vatPrinted is false and BOTH
+   vatAmount and vatRate MUST be null. UK grocery and retail receipts very often have no
+   separate VAT figure — do not infer or calculate one.
+3. DATE. UK and European receipts are DAY-FIRST: 07/08/26 is 7 August 2026, not 8 July.
+   Only treat a date as month-first if the receipt is clearly from the United States.
+   Four-digit years are unambiguous; a two-digit year in the 20s means 20xx. If the date is
+   not printed or you cannot read it, set both dateText and date to null.
+4. CURRENCY. Report only what the receipt shows. Never convert between currencies and never
+   invent an exchange rate.
+
 Return ONLY valid JSON, no markdown, no explanation.`;
 
   const rawText = await parseDocument(file, prompt);
@@ -211,18 +236,42 @@ Return ONLY valid JSON, no markdown, no explanation.`;
   try {
     parsed = JSON.parse(cleaned);
   } catch {
-    throw new Error(`Couldn’t read that receipt. Raw: ${String(rawText).slice(0, 200)}`);
+    throw new Error(`Couldn't read that receipt. Raw: ${String(rawText).slice(0, 200)}`);
   }
 
   const num = (v) => (v == null || v === '' || Number.isNaN(Number(v)) ? null : Math.abs(Number(v)));
+
+  // Trust the literal transcription over the model's own numeric field: if totalText
+  // and total disagree, the printed characters win and we flag it for a human look.
+  const fromText = (() => {
+    const m = String(parsed.totalText || '').match(/(\d{1,3}(?:[ ,]\d{3})*|\d+)([.,]\d{2})?/);
+    if (!m) return null;
+    const whole = m[1].replace(/[ ,]/g, '');
+    const frac = m[2] ? m[2].replace(',', '.') : '';
+    const n = Number(`${whole}${frac}`);
+    return Number.isNaN(n) ? null : Math.abs(n);
+  })();
+  const total = fromText ?? num(parsed.total);
+  const totalMismatch = fromText != null && num(parsed.total) != null
+    && Math.abs(fromText - num(parsed.total)) > 0.004;
+
+  // VAT is only accepted when the receipt actually printed a separate tax figure.
+  const vatPrinted = parsed.vatPrinted === true;
+
   return {
     merchant: parsed.merchant || null,
+    total,
+    totalText: parsed.totalText || null,
     date: /^\d{4}-\d{2}-\d{2}$/.test(parsed.date || '') ? parsed.date : null,
-    total: num(parsed.total),
-    vatAmount: num(parsed.vatAmount),
-    vatRate: num(parsed.vatRate),
+    dateText: parsed.dateText || null,
     currency: (parsed.currency || '').toUpperCase().slice(0, 3) || null,
+    vatPrinted,
+    vatAmount: vatPrinted ? num(parsed.vatAmount) : null,
+    vatRate: vatPrinted ? num(parsed.vatRate) : null,
     items: Array.isArray(parsed.items) ? parsed.items.filter(Boolean).slice(0, 8) : [],
     summary: parsed.summary || null,
+    // Anything the crew should eyeball before saving.
+    confidence: totalMismatch ? 'low' : (parsed.confidence === 'low' ? 'low' : 'high'),
+    totalMismatch,
   };
 }

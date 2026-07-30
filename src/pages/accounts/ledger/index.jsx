@@ -23,6 +23,7 @@ import {
   REQUIREMENTS, requirementState, lineState,
 } from '../../../services/lineDetail';
 import LineDetail from '../components/LineDetail';
+import ReceiptScanner from '../components/ReceiptScanner';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
 import { formatMoney, isLiveTxn } from '../../../services/financeCalc';
 import { ManualTxnModal, AssignAccountModal } from '../components/TransactionModals';
@@ -113,6 +114,8 @@ export default function Ledger() {
   const [splitsByTxn, setSplitsByTxn] = useState({});  // txnId → [split]
   const [trips, setTrips] = useState([]);
   const [crew, setCrew] = useState([]);
+  const [editDateId, setEditDateId] = useState(null);   // row whose date is being changed
+  const [scanOpen, setScanOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanSeed, setScanSeed] = useState(null);   // parsed receipt → prefills Add spending
 
@@ -230,9 +233,9 @@ export default function Ledger() {
   const setF = (patch) => setFilters((p) => ({ ...p, ...patch }));
   const stepMonth = (delta) => { const i = axisIdx + delta; if (i >= 0 && i < axis.length) setActiveMonth(axis[i]); };
 
-  // Scan a receipt: photograph it, let the AI read merchant/date/total/VAT, then
-  // open Add spending pre-filled (with the receipt itself carried through) so the
-  // crew confirm rather than type. `capture` on the input opens the camera on phones.
+  // Scan a receipt: the scanner hands back a flattened, contrast-boosted crop, which
+  // is what makes the figures readable. We then only trust what was actually printed —
+  // no invented VAT, no assumed exchange rate — and flag anything to eyeball.
   const handleScan = async (file) => {
     if (!file) return;
     setScanning(true);
@@ -245,16 +248,23 @@ export default function Ledger() {
         payee: r.merchant || '',
         note: r.summary || '',
         amount: r.total != null ? String(r.total) : '',
-        txn_date: r.date || new Date().toISOString().slice(0, 10),
-        vat_amount: r.vatAmount != null ? String(r.vatAmount) : '',
-        vat_rate: r.vatRate != null ? String(r.vatRate) : '',
+        txn_date: r.date || '',
+        // VAT only when the receipt printed a separate tax figure — UK retail usually
+        // doesn't, and inventing one would misstate a reclaim.
+        vat_amount: r.vatPrinted && r.vatAmount != null ? String(r.vatAmount) : '',
+        vat_rate: r.vatPrinted && r.vatRate != null ? String(r.vatRate) : '',
         currency: r.currency || '',
         category: line?.category || '',
         category_code: line?.code || '',
+        // Shown in the modal so a misread is caught before it reaches the ledger.
+        readAs: { total: r.totalText, date: r.dateText, confidence: r.confidence },
       });
+      setScanOpen(false);
       setAddOpen(true);
-      flash(r.merchant ? `Read: ${r.merchant}` : 'Receipt read — check the figures');
-    } catch (e) {
+      if (r.confidence === 'low' || r.total == null) flash('Check the figures — that receipt was hard to read');
+      else if (!r.date) flash(`Read: ${r.merchant || 'receipt'} — no date found, set it`);
+      else flash(`Read: ${r.merchant || 'receipt'}`);
+    } catch {
       flash('Couldn’t read that receipt — add it manually');
     } finally {
       setScanning(false);
@@ -453,20 +463,26 @@ export default function Ledger() {
           <Icon name="ChevronRight" size={15} />
         </button>
         <span className="ca-dates">
-          {canEdit && !voided ? (
-            <input type="date" className="ca-d1 ca-dedit" value={(t.txn_date || '').slice(0, 10)}
-              title="Date spent — drives which month this belongs to"
-              onChange={(e) => handleDateChange(t, e.target.value)} />
+          {/* Click the spend date to change it. Shown as dd/mm/yyyy text rather than a
+              native date input, which renders in the browser's own locale and clips. */}
+          {editDateId === t.id ? (
+            <input type="date" className="ca-dedit" autoFocus
+              defaultValue={(t.txn_date || '').slice(0, 10)}
+              onBlur={(e) => { handleDateChange(t, e.target.value); setEditDateId(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); if (e.key === 'Escape') setEditDateId(null); }} />
+          ) : canEdit && !voided ? (
+            <button type="button" className="ca-d1 ca-dbtn" title="Change the date spent"
+              onClick={() => setEditDateId(t.id)}>{fmtDMY(t.txn_date)}</button>
           ) : (
             <span className="ca-d1">{fmtDMY(t.txn_date)}</span>
           )}
           {/* The posted date sits under the spend date. Amber when the two fall in
               different months — the case that moves a cost between periods. */}
-          <span className={`ca-d2${straddlesMonth(t) ? ' is-straddle' : ''}`}
-            title={t.statement_date ? `Spent ${fmtDMY(t.txn_date)} · posted ${fmtDMY(t.statement_date)}` : 'No statement date from the feed'}>
-            {t.statement_date
-              ? (datesDiffer(t) ? fmtDMY(t.statement_date) : 'same day')
-              : '—'}
+          <span className={`ca-d2${straddlesMonth(t) ? ' is-straddle' : ''}${datesDiffer(t) ? ' is-diff' : ''}`}
+            title={t.statement_date
+              ? `Spent ${fmtDMY(t.txn_date)} · posted to the statement ${fmtDMY(t.statement_date)}`
+              : 'The feed gave no statement date'}>
+            {t.statement_date ? fmtDMY(t.statement_date) : '—'}
           </span>
         </span>
         <div className="ca-txn-desc">
@@ -477,7 +493,7 @@ export default function Ledger() {
             {t.note ? <span className="ca-txn-note"> · {t.note}</span> : null}
             {voided ? ' · voided' : ''}
           </div>
-          {look && !voided && canEdit && renderSuggest(t)}
+          {look && !voided && canEdit && rowSplits.length === 0 && renderSuggest(t)}
           {renderChips(t)}
           {/* Inline split breakdown — a split line shows its parts, the same way an
               unsplit line shows its single category. */}
@@ -579,14 +595,10 @@ export default function Ledger() {
               <div className="ca-head-act">
                 {canEdit && (
                   <>
-                    <label className={`ca-btn ca-btn-ghost ca-scan${scanning ? ' is-busy' : ''}`}
-                      title="Photograph a receipt and let Cargo read it">
-                      <Icon name={scanning ? 'Loader' : 'Camera'} size={15} />
-                      {scanning ? 'Reading…' : 'Scan receipt'}
-                      <input type="file" accept="image/*,application/pdf" capture="environment" hidden
-                        disabled={scanning}
-                        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; handleScan(f); }} />
-                    </label>
+                    <button type="button" className="ca-btn ca-btn-ghost" onClick={() => setScanOpen(true)}
+                      title="Photograph a receipt, flatten it, and let Cargo read it">
+                      <Icon name="Camera" size={15} /> Scan receipt
+                    </button>
                     <button type="button" className="ca-btn ca-btn-ghost" onClick={() => setImportOpen(true)}>
                       <Icon name="Upload" size={15} /> Import statement
                     </button>
@@ -728,6 +740,8 @@ export default function Ledger() {
       <AssignAccountModal open={Boolean(assignTxn)} onClose={() => setAssignTxn(null)} onAssign={handleAssign} txn={assignTxn} accounts={accounts} />
       <StatementReconcileModal open={importOpen} onClose={() => setImportOpen(false)} accounts={accounts} tenantId={activeTenantId}
         onDone={() => { flash('Statement reconciled'); loadTxns(); }} />
+      <ReceiptScanner open={scanOpen} busy={scanning}
+        onClose={() => { if (!scanning) setScanOpen(false); }} onScan={handleScan} />
       {picker && (
         <CategoryPicker anchorRect={picker.rect} groups={pickerGroups}
           onPick={pickCategory} onClose={() => setPicker(null)} />

@@ -215,7 +215,8 @@ export const requirementState = (txn, { account, hasReceipt, splitCount = 0 } = 
   const charterOk = alloc !== 'charter' || !needsTripPick(alloc, account)
     || Boolean(txn?.trip_id || txn?.charter_ref);
   const done = {
-    category: Boolean(txn?.category),
+    // A split line is categorised by its parts, so the parent needn't carry one.
+    category: Boolean(txn?.category) || splitCount > 0,
     note: Boolean(txn?.note),
     receipt: Boolean(hasReceipt),
     // A split line carries its departments on the parts, so the parent needn't repeat it.
