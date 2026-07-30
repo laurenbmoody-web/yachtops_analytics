@@ -26,6 +26,8 @@ import {
 } from '../../../services/lineDetail';
 import LineDetail from '../components/LineDetail';
 import ReceiptScanner from '../components/ReceiptScanner';
+import MonthEndStrip from '../components/MonthEndStrip';
+import { getReconciliation, saveStatementFigures, closeMonth } from '../../../services/reconcileService';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
 import { formatMoney, isLiveTxn } from '../../../services/financeCalc';
 import { ManualTxnModal, AssignAccountModal } from '../components/TransactionModals';
@@ -117,6 +119,7 @@ export default function Ledger() {
   const [trips, setTrips] = useState([]);
   const [crew, setCrew] = useState([]);
   const [editDateId, setEditDateId] = useState(null);   // row whose date is being changed
+  const [recon, setRecon] = useState(null);        // this account+month's reconciliation row
   const [scanOpen, setScanOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanSeed, setScanSeed] = useState(null);   // parsed receipt → prefills Add spending
@@ -213,6 +216,13 @@ export default function Ledger() {
 
   // Keep the active month valid: default to the newest month, re-clamp if the axis
   // changes (e.g. a filter narrows the set).
+  // Reconciliation is per account, so it only loads once one is filtered.
+  const periodMonth = activeMonth ? `${activeMonth}-01` : null;
+  useEffect(() => {
+    if (!filters.accountId || !periodMonth) { setRecon(null); return; }
+    getReconciliation(filters.accountId, periodMonth).then(({ data }) => setRecon(data || null));
+  }, [filters.accountId, periodMonth]);
+
   useEffect(() => {
     if (!axis.length) return;
     setActiveMonth((cur) => (cur && axis.includes(cur) ? cur : axis[axis.length - 1]));
@@ -233,6 +243,28 @@ export default function Ledger() {
   const monthCur = monthRows[0]?.currency;
 
   const setF = (patch) => setFilters((p) => ({ ...p, ...patch }));
+
+  const handleSaveStatement = async (statement) => {
+    const res = await saveStatementFigures({
+      tenantId: activeTenantId, accountId: filters.accountId, periodMonth, statement,
+    });
+    if (res.error) { flash('Could not save those figures'); return res; }
+    setRecon(res.data);
+    flash('Statement figures saved');
+    return res;
+  };
+
+  const handleCloseMonth = async ({ openingBalance, closingBalance, fundingDue, statement }) => {
+    await saveStatementFigures({ tenantId: activeTenantId, accountId: filters.accountId, periodMonth, statement });
+    const res = await closeMonth({
+      tenantId: activeTenantId, accountId: filters.accountId, periodMonth,
+      openingBalance, closingBalance, fundingDue,
+    });
+    if (res.error) { flash('Could not close the month'); return res; }
+    setRecon(res.data);
+    flash(`${ymLabel(activeMonth)} closed and submitted for sign-off`);
+    return res;
+  };
   const stepMonth = (delta) => { const i = axisIdx + delta; if (i >= 0 && i < axis.length) setActiveMonth(axis[i]); };
 
   // Scan a receipt: the scanner hands back a flattened, contrast-boosted crop, which
@@ -745,6 +777,22 @@ export default function Ledger() {
               </div>
             </div>
           </div>
+
+          {/* Month-end close — per account, so only once one is filtered */}
+          {filters.accountId && accountsById[filters.accountId] && (
+            <MonthEndStrip
+              account={accountsById[filters.accountId]}
+              monthLabel={ymLabel(activeMonth)}
+              txns={monthRows}
+              openingBalance={accountsById[filters.accountId]?.opening_balance}
+              reconciliation={recon}
+              hasReceipt={(t) => (attByTxn[t.id] || []).length > 0}
+              splitCount={(t) => (splitsByTxn[t.id] || []).length}
+              canEdit={canEdit}
+              onSaveStatement={handleSaveStatement}
+              onClose={handleCloseMonth}
+            />
+          )}
 
           {/* list */}
           {loading ? (
