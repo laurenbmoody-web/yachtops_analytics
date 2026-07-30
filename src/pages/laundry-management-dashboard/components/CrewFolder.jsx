@@ -112,6 +112,19 @@ const typeIcon = (type) => GARMENT_ICON[type] || 'Shirt';
 const isUniformKit = (k) => (k.category || 'uniform') === 'uniform';
 const CATEGORY_ICON = { ppe: 'HardHat', electronics: 'Radio', equipment: 'Wrench', keys: 'Key', other: 'Package', uniform: 'Shirt' };
 const CATEGORY_ORDER = KIT_CATEGORIES.reduce((m, c, i) => { m[c.id] = i; return m; }, {});
+// Which kit category an inventory item files under when issued — inferred from
+// its folder path + name so a hand-out from the Electronics folder records as
+// 'electronics', a PPE item as 'ppe', anything under Uniform as 'uniform', etc.
+const kitCategoryOf = (item) => {
+  if (!item) return 'other';
+  const hay = `${pathSegs(item).join(' ')} ${item.name || ''}`.toLowerCase();
+  if (item.isUniform || pathSegs(item).some((s) => s.toLowerCase() === 'uniform')) return 'uniform';
+  if (/\bppe\b|protective|hi-?vis|hard\s*hat|goggle|harness|life\s*jacket|life\s*vest|safety\s*(boot|glove|glasses)/.test(hay)) return 'ppe';
+  if (/electronic|radio|\bvhf\b|phone|ipad|tablet|laptop|camera|charger|comms|handset/.test(hay)) return 'electronics';
+  if (/\bkey\b|fob|access\s*card|swipe/.test(hay)) return 'keys';
+  if (/equipment|\btool|torch|head\s*torch|gear/.test(hay)) return 'equipment';
+  return 'other';
+};
 
 // Apply per-size stock changes to an inventory item and persist. Deltas are
 // keyed by size (use '' for a plain item); negative removes (issuing), positive
@@ -164,16 +177,17 @@ const applyStockDelta = async (item, deltas) => {
   await saveItem({ ...item, variants, totalQty: newTotal, quantity: newTotal, stockLocations }, { dedupe: false });
 };
 
-// Issue-from-inventory: browse the Uniform folder as tiles, drill down to items,
-// tick items and allocate a quantity (−/count/+, capped at what's on board), then
-// issue the lot to the crew member in one go.
-const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onClose }) => {
-  const [trail, setTrail] = useState([]); // folder segments below Uniform
+// Issue-from-inventory: browse the whole inventory tree as tiles (Uniform,
+// Electronics, PPE…), drill down to items, tick items and allocate a quantity
+// (−/count/+, capped at what's on board), then issue the lot in one go. Anything
+// not in inventory goes through "Add item" (manual hand-out).
+const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onAddManual, onClose }) => {
+  const [trail, setTrail] = useState([]); // folder path segments from the root
   const [open, setOpen] = useState({});   // itemId -> ticked open for allocation
   const [sel, setSel] = useState({});     // `${itemId}|${size}` -> allocated qty
   const [busy, setBusy] = useState(false);
 
-  const withRel = useMemo(() => stock.map((i) => ({ i, rel: uniformRel(i) })), [stock]);
+  const withRel = useMemo(() => stock.map((i) => ({ i, rel: pathSegs(i) })), [stock]);
   const atLevel = useMemo(
     () => withRel.filter((x) => trail.every((t, idx) => (x.rel[idx] || '').toLowerCase() === t.toLowerCase())),
     [withRel, trail]
@@ -225,13 +239,13 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onCl
     <div className="cf-overlay" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="cf-modal" onClick={(e) => e.stopPropagation()}>
         <div className="cf-modal-head">
-          <div><span className="cf-eyebrow">Issue uniform</span><h2 className="cf-modal-title">To {crewName}</h2></div>
+          <div><span className="cf-eyebrow">Issue item</span><h2 className="cf-modal-title">To {crewName}</h2></div>
           <button type="button" className="cf-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
         </div>
 
-        {/* Breadcrumb — Uniform is the root; each tile drills a folder deeper. */}
+        {/* Breadcrumb — Inventory is the root; each tile drills a folder deeper. */}
         <div className="cf-crumb">
-          <button type="button" className="cf-crumb-seg" onClick={() => setTrail([])}>Uniform</button>
+          <button type="button" className="cf-crumb-seg" onClick={() => setTrail([])}>Inventory</button>
           {trail.map((seg, i) => (
             <React.Fragment key={i}>
               <span className="cf-crumb-sep">›</span>
@@ -242,7 +256,7 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onCl
 
         <div className="cf-modal-body">
           {stock.length === 0 && folderRels.length === 0 ? (
-            <p className="cf-empty-note">No <b>Uniform</b> folder in inventory yet. Add one (with sub-folders) in inventory and it shows here to issue from.</p>
+            <p className="cf-empty-note">Nothing in inventory yet. Use <b>Add item</b> below to hand out kit that isn’t stocked.</p>
           ) : (
             <>
               {folders.length > 0 && (
@@ -266,7 +280,7 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onCl
                     return (
                       <div className={`cf-itile${opened ? ' on' : ''}`} key={i.id}>
                         <button type="button" className="cf-itile-media" onClick={() => toggle(i)}>
-                          {i.imageUrl ? <img src={i.imageUrl} alt={i.name} /> : <span className="cf-itile-ph"><Icon name="Shirt" size={26} /></span>}
+                          {i.imageUrl ? <img src={i.imageUrl} alt={i.name} /> : <span className="cf-itile-ph"><Icon name={CATEGORY_ICON[kitCategoryOf(i)] || 'Package'} size={26} /></span>}
                           <span className="cf-itile-check"><Icon name={opened ? 'CheckSquare' : 'Square'} size={18} /></span>
                         </button>
                         <div className="cf-itile-body">
@@ -310,6 +324,8 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onCl
         </div>
 
         <div className="cf-modal-foot">
+          <button type="button" className="cf-btn quiet" onClick={onAddManual}><Icon name="Plus" size={15} /> Add item not in inventory</button>
+          <span className="cf-foot-spacer" />
           <button type="button" className="cf-btn ghost" onClick={onClose}>Cancel</button>
           <button type="button" className="cf-btn primary" disabled={busy || totalUnits === 0} onClick={submit}>
             {busy ? 'Issuing…' : totalUnits > 0 ? `Issue ${totalUnits} item${totalUnits === 1 ? '' : 's'}` : 'Issue'}
@@ -484,8 +500,8 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     const [crew, allKit, all] = await Promise.all([
       fetchTenantCrew(activeTenantId), fetchTenantKit(activeTenantId), getAllItems().catch(() => []),
     ]);
-    setRoster(crew); setKit(allKit); setStock(all.filter(isUniformStock));
-    // The Uniform folder tree from inventory, so the browser shows the structure
+    setRoster(crew); setKit(allKit); setStock(all);
+    // The full inventory folder tree, so the issue browser shows the structure
     // (empty folders included), not just folders that already hold items.
     const { data: locs } = await supabase
       .from('inventory_locations')
@@ -494,8 +510,8 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
       .eq('is_archived', false);
     const rels = [];
     (locs || []).forEach((r) => {
-      const it = { location: r.location, subLocation: r.sub_location };
-      if (underUniform(it)) { const rel = uniformRel(it); if (rel.length) rels.push(rel); }
+      const rel = pathSegs({ location: r.location, subLocation: r.sub_location });
+      if (rel.length) rels.push(rel);
     });
     setFolderRels(rels);
     setLoading(false);
@@ -504,7 +520,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
   // Deep-link straight to a crew member (e.g. from a swap-request notification).
   useEffect(() => { if (initialCrewId) setSelectedId(initialCrewId); }, [initialCrewId]);
 
-  const openIssue = async () => { setIssuing(true); const all = await getAllItems(); setStock(all.filter(isUniformStock)); };
+  const openIssue = async () => { setIssuing(true); const all = await getAllItems(); setStock(all); };
 
   // Linked inventory item by id — lets the List view file each issued item under
   // its inventory folder path (the same category tree used in inventory).
@@ -710,7 +726,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     const issuerName = user?.user_metadata?.full_name || user?.email;
     for (const { invItem, size, qty } of allocations) {
       await saveKitItem({
-        userId: selectedId, tenantId: activeTenantId, category: 'uniform',
+        userId: selectedId, tenantId: activeTenantId, category: kitCategoryOf(invItem),
         item: invItem.name, size: size || null, quantity: qty,
         conditionIssued: 'New', issuedDate: today(),
         issuedBy: user?.id, issuedByName: issuerName,
@@ -905,8 +921,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
             ) : awaitingSignoff > 0 ? (
               <span className="cf-await-chip"><Icon name="Clock" size={13} /> Awaiting sign-off · {awaitingSignoff} sent</span>
             ) : null}
-            <button type="button" className="cf-btn ghost sm" onClick={() => setHandingOut(true)}><Icon name="PackagePlus" size={15} /> Hand out item</button>
-            <button type="button" className="cf-btn primary sm" onClick={openIssue}><Icon name="Shirt" size={15} /> Issue uniform</button>
+            <button type="button" className="cf-btn primary sm" onClick={openIssue}><Icon name="Plus" size={15} /> Issue item</button>
           </div>
         )}
       </div>
@@ -975,7 +990,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
         </>
       )}
 
-      {issuing && <IssueModal crewName={selected.fullName} stock={stock} folderRels={folderRels} showValue={showValue} onIssue={doIssue} onClose={() => setIssuing(false)} />}
+      {issuing && <IssueModal crewName={selected.fullName} stock={stock} folderRels={folderRels} showValue={showValue} onIssue={doIssue} onAddManual={() => { setIssuing(false); setHandingOut(true); }} onClose={() => setIssuing(false)} />}
       {handingOut && <HandoutModal crewName={selected.fullName} onHandout={doHandout} onClose={() => setHandingOut(false)} />}
       {returning && <ReturnModal row={returning} onReturn={doReturn} onClose={() => setReturning(null)} />}
       {swapping && <SwapModal row={swapping} inv={itemById[swapping.inventory_item_id]} crewName={selected.fullName} onSwap={doSwap} onClose={() => setSwapping(null)} />}
