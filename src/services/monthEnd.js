@@ -206,7 +206,8 @@ export const canCloseMonth = (args) => closeBlockers(args).length === 0;
 // The sentence the month-end section leads with. closeMessage states what's
 // wrong; this states what to DO about it, because a status nobody can act on is
 // just decoration. Always exactly one instruction — the next one, not all of them.
-export const closeHeadline = (blockers = [], status = 'open', monthLabel = 'this month') => {
+export const closeHeadline = (blockers = [], status = 'open', monthLabel = 'this month', fmt = null) => {
+  const money = fmt || formatAmount;
   if (status === 'approved') return `${monthLabel} is closed and signed off.`;
   if (status === 'submitted') return `${monthLabel} is with Command for sign-off.`;
   if (!blockers.length) return `Everything agrees. Close ${monthLabel}.`;
@@ -216,7 +217,7 @@ export const closeHeadline = (blockers = [], status = 'open', monthLabel = 'this
   const diff = blockers.find((b) => b.key.startsWith('diff:'));
   if (diff) {
     const dir = diff.ours > diff.theirs ? 'more than' : 'less than';
-    return `Cargo has ${formatAmount(diff.amount)} ${dir} the statement on ${diff.label.replace(' doesn’t match the statement', '')}. Find the difference — don’t force it.`;
+    return `Cargo has ${money(diff.amount)} ${dir} the statement on ${diff.label.replace(' doesn’t match the statement', '')}.`;
   }
 
   if (blockers.some((b) => b.key === 'statement')) {

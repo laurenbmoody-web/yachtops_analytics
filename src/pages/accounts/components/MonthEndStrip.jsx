@@ -18,6 +18,7 @@ import {
   fundingModel, fundingModelLabel, monthFigures, statementChecks,
   fundingOutcome, closeBlockers, closeHeadline,
 } from '../../../services/monthEnd';
+import { findDifferenceCandidates, differenceLead } from '../../../services/differenceHunt';
 import './month-end-strip.css';
 
 const FIELDS = [
@@ -27,8 +28,9 @@ const FIELDS = [
 ];
 
 export default function MonthEndStrip({
-  account, monthLabel, txns, openingBalance, reconciliation,
-  hasReceipt, splitCount, canEdit, onSaveStatement, onClose, requireReceipts = true,
+  account, monthLabel, monthKey, txns, allTxns = [], openingBalance, reconciliation,
+  hasReceipt, splitCount, canEdit, onSaveStatement, onClose, onShowLine,
+  requireReceipts = true,
 }) {
   const [statement, setStatement] = useState({
     moneyOut: reconciliation?.stmt_money_out ?? '',
@@ -49,7 +51,7 @@ export default function MonthEndStrip({
   const locked = status !== 'open';
   const ready = blockers.length === 0;
   const cur = account?.currency;
-  const headline = closeHeadline(blockers, status, monthLabel);
+  const headline = closeHeadline(blockers, status, monthLabel, (n) => formatMoney(n, cur));
 
   // Once it's signed off there is nothing to do here, so it takes no space until asked.
   const [open, setOpen] = useState(true);
@@ -74,6 +76,15 @@ export default function MonthEndStrip({
   // own problem. Separating them stops "97 to categorise" from burying "out by £40".
   const diffs = blockers.filter((b) => b.key.startsWith('diff:'));
   const work = blockers.filter((b) => b.count > 0);
+
+  // What would account for the gap. Driven off the first disagreeing figure —
+  // chasing several at once produces noise, and fixing one usually fixes the rest.
+  const candidates = useMemo(() => (diffs.length
+    ? findDifferenceCandidates({
+      difference: diffs[0].ours - diffs[0].theirs,
+      monthTxns: txns, poolTxns: allTxns, accountId: account?.id, monthKey,
+    })
+    : []), [diffs, txns, allTxns, account?.id, monthKey]);
 
   return (
     <section className={`mes${ready ? ' is-ready' : ''}${locked ? ' is-locked' : ''}`}>
@@ -136,11 +147,34 @@ export default function MonthEndStrip({
                 );
               })}
             </div>
+            {/* Cargo holds every line, both dates, the pending flag and the
+                unassigned pile — so rather than telling the crew to go and find
+                the gap, it names the lines that would account for it. Suggestions
+                only: nothing is edited, and the month still can't be plugged. */}
             {diffs.length > 0 && (
-              <p className="mes-warn">
-                Find what the difference is — a missing line, a duplicate, the wrong
-                month. Cargo will not close a month it can&rsquo;t explain.
-              </p>
+              <div className="mes-hunt">
+                <p className="mes-hunt-lead">{differenceLead(candidates, diffs[0].ours > diffs[0].theirs)}</p>
+                {candidates.map((c) => (
+                  <div key={c.key} className="mes-cand">
+                    <span className="mes-cand-amt">{formatMoney(c.amount, cur)}</span>
+                    <span className="mes-cand-txt">
+                      {c.label}
+                      <em>{c.action}</em>
+                    </span>
+                    {onShowLine && (
+                      <button type="button" className="mes-cand-go"
+                        onClick={() => onShowLine(c.txnIds[0])}>
+                        Show {c.txnIds.length > 1 ? 'them' : 'it'}
+                        <Icon name="ArrowRight" size={13} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <p className="mes-hunt-foot">
+                  Suggestions only &mdash; Cargo changes nothing on a hunch, and won&rsquo;t
+                  close a month it can&rsquo;t explain.
+                </p>
+              </div>
             )}
           </div>
 

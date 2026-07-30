@@ -21,15 +21,15 @@
 }
 .mes-toggle:hover { color: #C65A1A; }
 
-/* The single instruction. Terracotta while there's something to do, green when
-   there isn't — carried by the words and one icon, not a filled panel. */
+/* The single instruction. Body type, not a headline — it's a status line, and at
+   display size it read as a page title and shouted. */
 .mes-headline {
-  display: flex; align-items: flex-start; gap: 9px;
-  margin: 12px 0 0;
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 21px; line-height: 1.32; color: #1C1B3A;
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 11px 0 0;
+  font-size: 13.5px; line-height: 1.5; font-weight: 600; color: #1C1B3A;
+  max-width: 78ch;
 }
-.mes-headline svg { flex: 0 0 auto; color: #C65A1A; margin-top: 5px; }
+.mes-headline svg { flex: 0 0 auto; color: #C65A1A; margin-top: 2px; }
 .mes.is-ready .mes-headline svg, .mes.is-locked .mes-headline svg { color: #2F7A64; }
 
 .mes-body { display: flex; flex-direction: column; gap: 20px; margin-top: 20px; }
@@ -72,8 +72,6 @@
 .mes-diff { font-size: 10.5px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }
 .mes-match { font-size: 10.5px; font-weight: 700; color: #2F7A64; }
 
-.mes-warn { margin: 12px 0 0; font-size: 12px; color: #6B7280; max-width: 62ch; }
-
 /* lines that still need work */
 .mes-blockers { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 5px; }
 .mes-blockers li { font-size: 12.5px; color: #6B7280; }
@@ -99,7 +97,36 @@
 
 @media (max-width: 760px) {
   .mes-model { display: none; }
-  .mes-headline { font-size: 18px; }
   .mes-eq { gap: 12px; }
   .mes-eq b { font-size: 15px; }
+}
+
+/* What would account for the difference. Suggestions, so they read as a short
+   list of leads to check — not as findings. */
+.mes-hunt { margin-top: 14px; padding-top: 13px; border-top: 1px solid #F0F1F5; }
+.mes-hunt-lead { margin: 0 0 9px; font-size: 12px; font-weight: 600; color: #1C1B3A; }
+
+.mes-cand {
+  display: grid; grid-template-columns: 84px 1fr auto; align-items: baseline; gap: 12px;
+  padding: 7px 0; border-bottom: 1px solid #F5F6F8;
+}
+.mes-cand:last-of-type { border-bottom: 0; }
+.mes-cand-amt {
+  font-size: 12.5px; font-weight: 600; color: #C65A1A;
+  font-variant-numeric: tabular-nums; text-align: right;
+}
+.mes-cand-txt { font-size: 12.5px; color: #1C1B3A; min-width: 0; }
+.mes-cand-txt em { display: block; font-style: normal; font-size: 11.5px; color: #8B8478; margin-top: 2px; }
+.mes-cand-go {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 0; background: none; padding: 0; cursor: pointer; white-space: nowrap;
+  font: inherit; font-size: 11.5px; font-weight: 600; color: #6B7280;
+}
+.mes-cand-go:hover { color: #C65A1A; }
+
+.mes-hunt-foot { margin: 11px 0 0; font-size: 11px; color: #AEB4C2; font-style: italic; }
+
+@media (max-width: 760px) {
+  .mes-cand { grid-template-columns: 1fr auto; }
+  .mes-cand-amt { text-align: left; grid-column: 1 / -1; }
 }

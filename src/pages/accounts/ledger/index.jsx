@@ -334,6 +334,18 @@ export default function Ledger() {
   };
   const stepMonth = (delta) => { const i = axisIdx + delta; if (i >= 0 && i < axis.length) setActiveMonth(axis[i]); };
 
+  // Jump to a line a month-end suggestion points at. Clears Show first, or a line
+  // that's already filed would be pointed at and then not be in the list.
+  const showLine = (txnId) => {
+    if (!txnId) return;
+    setStatus('all');
+    setExpandedId(txnId);
+    requestAnimationFrame(() => {
+      document.getElementById(`ca-txn-${txnId}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
   // Scan a receipt: the scanner hands back a flattened, contrast-boosted crop, which
   // is what makes the figures readable. We then only trust what was actually printed —
   // no invented VAT, no assumed exchange rate — and flag anything to eyeball.
@@ -607,7 +619,8 @@ export default function Ledger() {
     const outstanding = voided ? '' : outstandingText(t, ctx);
     return (
       <React.Fragment key={t.id}>
-      <div className={`ca-txn is-${state}${voided ? ' is-void' : ''}${open ? ' is-open' : ''}`}>
+      <div id={`ca-txn-${t.id}`}
+        className={`ca-txn is-${state}${voided ? ' is-void' : ''}${open ? ' is-open' : ''}`}>
         <button type="button" className={`ca-exp-btn${open ? ' is-open' : ''}`}
           aria-expanded={open} aria-label={open ? 'Hide detail' : 'Show detail'}
           onClick={() => setExpandedId(open ? null : t.id)}>
@@ -896,7 +909,9 @@ export default function Ledger() {
             <MonthEndStrip
               account={accountsById[filters.accountId]}
               monthLabel={ymLabel(activeMonth)}
+              monthKey={activeMonth}
               txns={monthAll}
+              allTxns={txns}
               openingBalance={accountsById[filters.accountId]?.opening_balance}
               reconciliation={recon}
               hasReceipt={(t) => hasEvidence(t, (attByTxn[t.id] || []).length > 0)}
@@ -904,6 +919,7 @@ export default function Ledger() {
               canEdit={canEdit}
               onSaveStatement={handleSaveStatement}
               onClose={handleCloseMonth}
+              onShowLine={showLine}
             />
           )}
 
