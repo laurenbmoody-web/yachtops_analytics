@@ -113,6 +113,8 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
   const [defectModalOpen, setDefectModalOpen] = useState(false);
   const [defectReload, setDefectReload] = useState(0);
   const [pinHasDefect, setPinHasDefect] = useState(false);
+  const [hasContent, setHasContent] = useState(false); // does this pin already hold stock?
+  const [editingPin, setEditingPin] = useState(false); // unlocked to edit a set pin's config
   const defectActor = useDefectActor();
   const closeTimer = useRef(null);
 
@@ -148,6 +150,8 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
     setTab('details');
     setConfirming(false);
     setDeleteError(null);
+    setHasContent(false);
+    setEditingPin(false);
     // Selecting a defect pin opens its full panel straight away.
     setDefectModalOpen(hotspot?.layer === 'defect');
   }, [hotspot?.id, hotspot?.layer]);
@@ -158,6 +162,12 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
   useEffect(() => { setNameDraft(hotspot?.label || ''); }, [hotspot?.id]);
 
   if (!shown) return null;
+
+  // A pin that already holds stock is "set" — lock its config (name / type /
+  // compartments) so it reads as done and can't be changed by accident. Storage
+  // pins stay editable (they hold varied stock over time). Tap Edit to unlock.
+  const canLock = layerHoldsStock(shown.layer) && shown.layer !== 'storage';
+  const locked = canManage && canLock && hasContent && !editingPin;
 
   const doDelete = async () => {
     if (deleting) return;
@@ -212,6 +222,9 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
               // Defect pins aren't titled here — the name is the defect's title
               // (set in the defect panel), or just "Defect" until one is logged.
               <h2 className="vm-insp-title">{shown.label || 'Defect'}</h2>
+            ) : locked ? (
+              // A set pin reads as done — show its name, not the edit field.
+              <h2 className="vm-insp-title">{shown.label || 'Untitled pin'}</h2>
             ) : (
               <input
                 className="vm-input vm-name-input"
@@ -228,6 +241,16 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
                 <span className="vm-pill-dot" style={{ background: layerColor('defect') }} />
                 Defect pin · locked
               </span>
+            ) : locked ? (
+              // Set inventory/safety pin — collapse the config to a static pill
+              // plus an Edit affordance (stock counts stay editable below).
+              <div className="vm-insp-lockrow">
+                <span className="vm-pill vm-pill-static">
+                  <span className="vm-pill-dot" style={{ background: shown.color || layerColor(shown.layer) }} />
+                  {layerLabel(shown.layer)} · set
+                </span>
+                <button type="button" className="vm-insp-edit" onClick={() => setEditingPin(true)}>Edit pin</button>
+              </div>
             ) : (
               <>
                 <div className="vm-swatch-row" role="radiogroup" aria-label="Category">
@@ -260,6 +283,9 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
                       <span className="vm-ct-sub">{shown.is_container ? 'Add a photo of the inside, then drop a pin on each drawer or shelf' : 'Off — one pin covers the whole thing'}</span>
                     </span>
                   </label>
+                )}
+                {editingPin && hasContent && (
+                  <button type="button" className="vm-insp-edit vm-insp-done" onClick={() => setEditingPin(false)}>Done</button>
                 )}
               </>
             )}
@@ -313,6 +339,7 @@ export default function Inspector({ hotspot, creatorName, canManage, onClose, on
                 onNodeResolved={onNodeResolved}
                 placingItem={placingItem}
                 onPlaced={onPlaced}
+                onHasContent={setHasContent}
               />
             )}
             {placingItem && !layerHoldsStock(shown.layer) && (

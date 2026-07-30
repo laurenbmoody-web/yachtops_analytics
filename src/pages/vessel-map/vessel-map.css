@@ -80,6 +80,18 @@
 .vm-pill-static { cursor: default; }
 .vm-pill-static:hover { border-color: #E8E6DF; }
 
+/* A "set" pin's collapsed config: static type pill + an Edit affordance to
+   unlock the name/type/compartments controls again. */
+.vm-insp-lockrow { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.vm-insp-edit {
+  font: 600 12px 'Manrope', 'Inter', system-ui, sans-serif;
+  color: #C65A1A; background: none; border: 0; padding: 4px 2px; cursor: pointer; text-decoration: underline;
+}
+.vm-insp-edit:hover { color: #B14E16; }
+.vm-insp-done { align-self: flex-start; margin-top: 8px; text-decoration: none;
+  border: 1px solid #E8B6A6; border-radius: 999px; padding: 5px 14px; background: #FBEFE9; }
+.vm-insp-done:hover { background: #F6DFD1; }
+
 .vm-pill-dot {
   width: 8px;
   height: 8px;
