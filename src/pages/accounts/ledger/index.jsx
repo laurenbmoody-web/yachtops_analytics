@@ -29,7 +29,10 @@ import ReceiptScanner from '../components/ReceiptScanner';
 import ReceiptClip from '../components/ReceiptClip';
 import { accountLabel } from '../../../services/accountPick';
 import MonthEndStrip from '../components/MonthEndStrip';
-import { getReconciliation, saveStatementFigures, closeMonth } from '../../../services/reconcileService';
+import MonthEndOverview from '../components/MonthEndOverview';
+import {
+  getReconciliation, listReconciliationsForMonth, saveStatementFigures, closeMonth,
+} from '../../../services/reconcileService';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
 import { formatMoney, isLiveTxn } from '../../../services/financeCalc';
 import { ManualTxnModal, AssignAccountModal } from '../components/TransactionModals';
@@ -124,6 +127,8 @@ export default function Ledger() {
   const [editDateId, setEditDateId] = useState(null);   // row whose date is being changed
   const [meId, setMeId] = useState(null);         // who's reconciling — the last-resort department
   const [recon, setRecon] = useState(null);        // this account+month's reconciliation row
+  const [monthRecons, setMonthRecons] = useState([]);  // every account's, for the overview
+  const [reconTick, setReconTick] = useState(0);       // bumped on close, to refresh it
   const [scanOpen, setScanOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanSeed, setScanSeed] = useState(null);   // parsed receipt → prefills Add spending
@@ -145,7 +150,10 @@ export default function Ledger() {
     [merchantRules],
   );
   const pickerGroups = chart.length ? chart : STANDARD_GROUPS;
-  const activeFilterCount = ['accountId', 'source', 'category'].filter((k) => filters[k]).length;
+  // Counts what's narrowing the list, so the badge tells you why rows are missing.
+  // 'Show' counts too, now that it lives in here rather than on its own switch.
+  const activeFilterCount = ['accountId', 'source', 'category'].filter((k) => filters[k]).length
+    + (status !== 'all' ? 1 : 0);
 
   const loadAccounts = useCallback(async () => {
     if (!activeTenantId) return;
@@ -236,18 +244,33 @@ export default function Ledger() {
     getReconciliation(filters.accountId, periodMonth).then(({ data }) => setRecon(data || null));
   }, [filters.accountId, periodMonth]);
 
+  // Every account's state for the month, for the overview shown when none is
+  // filtered. Reloaded after a close so the list reflects it without a refresh.
+  useEffect(() => {
+    if (!activeTenantId || !periodMonth || filters.accountId) { setMonthRecons([]); return; }
+    listReconciliationsForMonth(activeTenantId, periodMonth)
+      .then(({ data }) => setMonthRecons(data || []));
+  }, [activeTenantId, periodMonth, filters.accountId, reconTick]);
+
   useEffect(() => {
     if (!axis.length) return;
     setActiveMonth((cur) => (cur && axis.includes(cur) ? cur : axis[axis.length - 1]));
   }, [axis]);
 
+  // Everything in the month, before the Show filter. Balancing is about the whole
+  // month's money — a list narrowed to "needs a look" would total the wrong figure.
+  const monthAll = useMemo(
+    () => rows.filter((t) => ymOf(effectiveDate(t, dateBasis)) === activeMonth),
+    [rows, activeMonth, dateBasis],
+  );
+
   const monthRows = useMemo(() => {
-    let list = rows.filter((t) => ymOf(effectiveDate(t, dateBasis)) === activeMonth);
+    let list = monthAll;
     if (status === 'look') list = list.filter(isLookRow);
     else if (status === 'filed') list = list.filter(isFiledRow);
     if (sortOldest) list = [...list].reverse();
     return list;
-  }, [rows, activeMonth, status, sortOldest, dateBasis]);
+  }, [monthAll, status, sortOldest]);
 
   const monthStat = statsByMonth[activeMonth] || { entries: 0, look: 0, filed: 0, net: 0, inSum: 0, outSum: 0 };
   const axisIdx = axis.indexOf(activeMonth);
@@ -275,6 +298,7 @@ export default function Ledger() {
     });
     if (res.error) { flash('Could not close the month'); return res; }
     setRecon(res.data);
+    setReconTick((n) => n + 1);   // so the overview shows it balanced on the way back
     flash(`${ymLabel(activeMonth)} closed and submitted for sign-off`);
     return res;
   };
@@ -720,16 +744,10 @@ export default function Ledger() {
             </div>
           </div>
 
-          {/* toolbar: status segmented · search · filters · sort */}
+          {/* toolbar: search · filters · sort. Which rows to show is a filter like
+              any other, so it lives in the Filters panel rather than as its own
+              switch competing with the month for the top of the page. */}
           <div className="ca-toolbar">
-            <div className="ca-seg" role="tablist" aria-label="Show">
-              {[['all', 'All', monthStat.entries], ['look', 'Needs a look', monthStat.look], ['filed', 'Filed', monthStat.filed]].map(([k, label, n]) => (
-                <button key={k} type="button" role="tab" aria-selected={status === k}
-                  data-k={k} onClick={() => setStatus(k)}>
-                  {label} <span className="ca-seg-n">{n}</span>
-                </button>
-              ))}
-            </div>
             <div className="ca-toolbar-sp" />
             <label className="ca-search">
               <Icon name="Search" size={15} />
@@ -744,6 +762,17 @@ export default function Ledger() {
               </button>
               {filtersOpen && (
                 <div className="ca-filterpop">
+                  <div className="ca-fp-row">
+                    <span>Show</span>
+                    <div className="ca-fp-seg">
+                      {[['all', 'All', monthStat.entries], ['look', 'Needs a look', monthStat.look],
+                        ['filed', 'Filed', monthStat.filed]].map(([k, lbl, n]) => (
+                          <button key={k} type="button" aria-pressed={status === k} onClick={() => setStatus(k)}>
+                            {lbl} <em>{n}</em>
+                          </button>
+                      ))}
+                    </div>
+                  </div>
                   <label className="ca-fp-row"><span>Account</span>
                     <select className="ca-field" value={filters.accountId} onChange={(e) => setF({ accountId: e.target.value })}>
                       <option value="">All accounts</option>
@@ -771,7 +800,10 @@ export default function Ledger() {
                     </div>
                   </div>
                   {activeFilterCount > 0 && (
-                    <button type="button" className="ca-fp-clear" onClick={() => setF({ accountId: '', source: '', category: '' })}>Clear filters</button>
+                    <button type="button" className="ca-fp-clear"
+                      onClick={() => { setF({ accountId: '', source: '', category: '' }); setStatus('all'); }}>
+                      Clear filters
+                    </button>
                   )}
                 </div>
               )}
@@ -814,12 +846,27 @@ export default function Ledger() {
             </div>
           </div>
 
-          {/* Month-end close — per account, so only once one is filtered */}
+          {/* Balancing is per account. With none chosen we show which accounts the
+              month has and where each stands — otherwise the close is unreachable
+              until someone thinks to set an account filter, which nobody does. */}
+          {!filters.accountId && (
+            <MonthEndOverview
+              monthLabel={ymLabel(activeMonth)}
+              rows={monthAll}
+              accounts={accounts}
+              reconciliations={monthRecons}
+              onPick={(id) => { setF({ accountId: id }); setFiltersOpen(false); }}
+            />
+          )}
+
+          {/* Month-end close — per account, so only once one is filtered. Fed the
+              whole month rather than the visible rows: a close computed over a
+              "needs a look" filter would balance against a partial month. */}
           {filters.accountId && accountsById[filters.accountId] && (
             <MonthEndStrip
               account={accountsById[filters.accountId]}
               monthLabel={ymLabel(activeMonth)}
-              txns={monthRows}
+              txns={monthAll}
               openingBalance={accountsById[filters.accountId]?.opening_balance}
               reconciliation={recon}
               hasReceipt={(t) => hasEvidence(t, (attByTxn[t.id] || []).length > 0)}
