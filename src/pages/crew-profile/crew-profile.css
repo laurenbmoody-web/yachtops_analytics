@@ -851,6 +851,9 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .kit-field input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: 1; }
 
+.crew-profile-page .kit-empty-hint { font-size: 12.5px; color: #8B8478; margin: 0; }
+.crew-profile-page .kit-empty-hint b { color: #1C1B3A; }
+
 /* Receipt scope chooser */
 .crew-profile-page .kit-scope { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px 20px; }
 .crew-profile-page .kit-scope-opt {

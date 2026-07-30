@@ -189,7 +189,6 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
 
   const setF = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const openIssue = () => { setEditing(null); setForm(blankForm()); setFormOpen(true); };
   const openEdit = (it) => {
     setEditing(it);
     setForm({
@@ -474,9 +473,6 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
           {items.length > 0 && !editMode && (
             <Button variant="outline" iconName="Download" size="sm" onClick={() => setReceiptOpen(true)} disabled={busy}>Receipt</Button>
           )}
-          {canManage && !editMode && (
-            <Button variant="outline" iconName="Plus" size="sm" onClick={openIssue}>Add item</Button>
-          )}
           {canEditSizes && (editMode
             ? <Button iconName="Check" size="sm" onClick={exitEdit} disabled={busy}>Done</Button>
             : <Button variant="outline" iconName="Pencil" size="sm" onClick={enterEdit}>Edit sizes</Button>
@@ -624,7 +620,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
             <div className="kit-empty">
               <Icon name="Shirt" size={26} style={{ color: '#AEB4C2' }} />
               <p>No kit issued yet.</p>
-              {canManage && <Button variant="outline" size="sm" iconName="Plus" onClick={openIssue}>Add the first item</Button>}
+              {canManage && <p className="kit-empty-hint">Issue uniform and hand out kit from <b>Wardrobe management → Crew</b>.</p>}
             </div>
           ) : (
             <>

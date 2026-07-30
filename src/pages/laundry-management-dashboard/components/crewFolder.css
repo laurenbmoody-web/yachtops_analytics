@@ -99,6 +99,17 @@
 .cf-tile-swapbtn { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #C65A1A; background: #FBEFE9; border-radius: 8px; padding: 5px 11px; font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; cursor: pointer; transition: background 0.14s; }
 .cf-tile-swapbtn:hover { background: #F6E0D3; }
 
+/* Hand-out (manual issue) form — two-column editorial fields. */
+.cf-handout { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cf-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.cf-field.cf-col2 { grid-column: 1 / -1; }
+.cf-field > span { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.cf-field > span em { font-style: normal; color: #AEB4C2; margin-left: 4px; }
+.cf-field > span em.req { color: #C65A1A; }
+.cf-handout .cf-input, .cf-handout .cf-select select { background: #FFFFFF; }
+.cf-handout .edp { width: 100%; }
+@media (max-width: 560px) { .cf-handout { grid-template-columns: 1fr; } }
+
 /* Swap modal */
 .cf-swap-flow { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 4px 0 2px; color: #8B8478; }
 .cf-swap-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 6px 16px; font: 700 14px 'Plus Jakarta Sans', system-ui, sans-serif; }

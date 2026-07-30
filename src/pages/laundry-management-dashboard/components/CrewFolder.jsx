@@ -5,10 +5,12 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import { fetchTenantCrew } from '../../crew-profile/utils/tenantCrew';
 import {
-  fetchTenantUniformKit, saveKitItem, deleteKitItem, recordKitReturn, requestKitSignoff,
+  fetchTenantKit, saveKitItem, deleteKitItem, recordKitReturn, requestKitSignoff,
   logKitEvent, fmtKitDate, CONDITIONS, canonicalGarment, GARMENT_ORDER, GARMENT_ICON,
+  KIT_CATEGORIES, kitCategoryLabel,
 } from '../../crew-profile/utils/crewKit';
 import { sendDbNotification } from '../../../lib/dbNotifications';
+import { EditorialDatePicker } from '../../../components/editorial';
 import { getAllItems, adjustItemQuantity, saveItem } from '../../inventory/utils/inventoryStorage';
 import { canViewCost } from '../../../utils/costPermissions';
 import { money } from '../utils/laundryBilling';
@@ -104,6 +106,12 @@ const typeOf = (rel = [], name = '') => {
   return canonicalGarment(name);
 };
 const typeIcon = (type) => GARMENT_ICON[type] || 'Shirt';
+
+// Non-uniform hand-outs (PPE, electronics, keys…) live in the Crew world too now
+// — grouped by kit category rather than charter/garment type.
+const isUniformKit = (k) => (k.category || 'uniform') === 'uniform';
+const CATEGORY_ICON = { ppe: 'HardHat', electronics: 'Radio', equipment: 'Wrench', keys: 'Key', other: 'Package', uniform: 'Shirt' };
+const CATEGORY_ORDER = KIT_CATEGORIES.reduce((m, c, i) => { m[c.id] = i; return m; }, {});
 
 // Apply per-size stock changes to an inventory item and persist. Deltas are
 // keyed by size (use '' for a plain item); negative removes (issuing), positive
@@ -385,6 +393,60 @@ const SwapModal = ({ row, inv, crewName, onSwap, onClose }) => {
   );
 };
 
+// Hand out a non-uniform item (PPE, a radio, a key fob…) by hand — for kit that
+// isn't drawn from the uniform inventory. Same sign-off loop applies afterwards.
+const HandoutModal = ({ crewName, onHandout, onClose }) => {
+  const [form, setForm] = useState({ category: 'ppe', item: '', serial: '', size: '', quantity: 1, condition: 'New', issuedDate: today(), notes: '' });
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const submit = async () => {
+    if (!form.item.trim() || busy) return;
+    setBusy(true);
+    try { await onHandout(form); } finally { setBusy(false); }
+  };
+  return (
+    <div className="cf-overlay" role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="cf-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="cf-modal-head">
+          <div><span className="cf-eyebrow">Hand out item</span><h2 className="cf-modal-title">To {crewName}</h2></div>
+          <button type="button" className="cf-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
+        </div>
+        <p className="cf-empty-note" style={{ padding: '0 22px' }}>For kit that isn’t uniform — PPE, radios, electronics, keys, equipment. Uniform is issued from inventory.</p>
+        <div className="cf-modal-body cf-handout">
+          <label className="cf-field"><span>Category</span>
+            <div className="cf-select"><select value={form.category} onChange={(e) => set('category', e.target.value)}>{KIT_CATEGORIES.filter((c) => c.id !== 'uniform').map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
+          </label>
+          <label className="cf-field cf-col2"><span>Item <em className="req">required</em></span>
+            <input className="cf-input" value={form.item} onChange={(e) => set('item', e.target.value)} placeholder="e.g. Handheld VHF radio, cabin key fob" />
+          </label>
+          <label className="cf-field"><span>Serial / asset no.</span>
+            <input className="cf-input" value={form.serial} onChange={(e) => set('serial', e.target.value)} placeholder="IMEI / FOB-0431" />
+          </label>
+          <label className="cf-field"><span>Size <em>optional</em></span>
+            <input className="cf-input" value={form.size} onChange={(e) => set('size', e.target.value)} placeholder="e.g. UK 9, M" />
+          </label>
+          <label className="cf-field"><span>Quantity</span>
+            <input className="cf-input" type="number" min="1" value={form.quantity} onChange={(e) => set('quantity', e.target.value)} />
+          </label>
+          <label className="cf-field"><span>Condition</span>
+            <div className="cf-select"><select value={form.condition} onChange={(e) => set('condition', e.target.value)}>{CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+          </label>
+          <label className="cf-field"><span>Issued date</span>
+            <EditorialDatePicker value={(form.issuedDate || '').slice(0, 10)} onChange={(iso) => set('issuedDate', iso)} placeholder="dd/mm/yyyy" />
+          </label>
+          <label className="cf-field cf-col2"><span>Notes <em>optional</em></span>
+            <input className="cf-input" value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="anything worth recording" />
+          </label>
+        </div>
+        <div className="cf-modal-foot">
+          <button type="button" className="cf-btn ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className="cf-btn primary" disabled={busy || !form.item.trim()} onClick={submit}>{busy ? 'Handing out…' : 'Hand out'}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // The Crew world: a folder of crew (name tiles) → click a person → the uniform
 // issued to them. Issuing draws from master inventory; the crew profile shows
 // the same kit read-only for the crew member to sign off.
@@ -401,6 +463,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
   const [stock, setStock] = useState([]);
   const [folderRels, setFolderRels] = useState([]); // inventory folder paths below "Uniform"
   const [issuing, setIssuing] = useState(false);
+  const [handingOut, setHandingOut] = useState(false);
   const [returning, setReturning] = useState(null);
   const [swapping, setSwapping] = useState(null);
   const [q, setQ] = useState('');
@@ -419,7 +482,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     if (!activeTenantId) return;
     setLoading(true);
     const [crew, allKit, all] = await Promise.all([
-      fetchTenantCrew(activeTenantId), fetchTenantUniformKit(activeTenantId), getAllItems().catch(() => []),
+      fetchTenantCrew(activeTenantId), fetchTenantKit(activeTenantId), getAllItems().catch(() => []),
     ]);
     setRoster(crew); setKit(allKit); setStock(all.filter(isUniformStock));
     // The Uniform folder tree from inventory, so the browser shows the structure
@@ -511,13 +574,19 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     [kit, selectedId]
   );
 
-  // Charter + type for each of this member's kit rows, derived from the linked
-  // inventory item's folder path (falls back to General / name-classified type).
+  // Facet per kit row. Uniform files by charter + garment type (from its inventory
+  // folder); non-uniform hand-outs (PPE, electronics…) file by kit category.
   const kitFacets = useMemo(() => {
     const m = {};
     memberKit.forEach((k) => {
-      const rel = uniformRel(itemById[k.inventory_item_id] || {});
-      m[k.id] = { charter: charterOf(rel), type: typeOf(rel, k.item), img: itemById[k.inventory_item_id]?.imageUrl || null };
+      const img = itemById[k.inventory_item_id]?.imageUrl || null;
+      if (isUniformKit(k)) {
+        const rel = uniformRel(itemById[k.inventory_item_id] || {});
+        m[k.id] = { kind: 'uniform', charter: charterOf(rel), type: typeOf(rel, k.item), img };
+      } else {
+        const cat = k.category || 'other';
+        m[k.id] = { kind: 'equip', category: cat, charter: 'General', type: kitCategoryLabel(cat), img };
+      }
     });
     return m;
   }, [memberKit, itemById]);
@@ -574,15 +643,24 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     const g = new Map();
     active.forEach((k) => {
       const f = kitFacets[k.id] || {};
-      const key = `${f.charter}||${f.type}`;
-      if (!g.has(key)) g.set(key, { charter: f.charter, type: f.type, rows: [] });
+      const key = f.kind === 'equip' ? `e|${f.category}` : `u|${f.charter}||${f.type}`;
+      if (!g.has(key)) {
+        g.set(key, f.kind === 'equip'
+          ? { key, kind: 'equip', category: f.category, title: kitCategoryLabel(f.category), icon: CATEGORY_ICON[f.category] || 'Package', rows: [] }
+          : { key, kind: 'uniform', charter: f.charter, type: f.type, title: f.charter === 'General' ? f.type : `${f.charter} · ${f.type}`, icon: typeIcon(f.type), rows: [] });
+      }
       g.get(key).rows.push(k);
     });
     const groups = [...g.values()].map((grp) => ({ ...grp, rows: sortRows(grp.rows) }));
-    groups.sort((a, b) =>
-      ((CHARTER_ORDER[a.charter] ?? 9) - (CHARTER_ORDER[b.charter] ?? 9))
-      || ((TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9))
-      || a.type.localeCompare(b.type));
+    // Uniform sections first (charter → garment type), then equipment by category.
+    groups.sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === 'uniform' ? -1 : 1;
+      if (a.kind === 'uniform') {
+        return ((CHARTER_ORDER[a.charter] ?? 9) - (CHARTER_ORDER[b.charter] ?? 9))
+          || ((TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9)) || a.type.localeCompare(b.type);
+      }
+      return (CATEGORY_ORDER[a.category] ?? 9) - (CATEGORY_ORDER[b.category] ?? 9);
+    });
     return { groups, retired };
   }, [memberKit, kitFacets, kq, kCharter, kType, kStatus, kSort]);
 
@@ -704,6 +782,22 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     load();
   };
 
+  // Hand out a non-inventory item (PPE, a specific radio, a key fob…) — the same
+  // sign-off loop as uniform, just entered by hand rather than drawn from stock.
+  const doHandout = async (form) => {
+    const issuerName = user?.user_metadata?.full_name || user?.email;
+    const saved = await saveKitItem({
+      userId: selectedId, tenantId: activeTenantId, category: form.category || 'other',
+      item: form.item, size: form.size || null, quantity: Number(form.quantity) || 1,
+      serial: form.serial || null, conditionIssued: form.condition || 'New', issuedDate: form.issuedDate || today(),
+      issuedBy: user?.id, issuedByName: issuerName, notes: form.notes || null, createdBy: user?.id,
+    });
+    await logKitEvent({ userId: selectedId, tenantId: activeTenantId, action: 'issued', detail: { item: form.item, size: form.size || null, quantity: Number(form.quantity) || 1, category: form.category }, actorId: user?.id, actorName: issuerName });
+    setHandingOut(false);
+    if (saved) window.showToast?.(`Handed out ${form.item} to ${selected?.fullName?.split(' ')[0] || 'crew'}`, 'success');
+    load();
+  };
+
   // ── Roster (person tiles) ────────────────────────────────────────────────
   if (!selected) {
     return (
@@ -769,7 +863,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     return (
       <div className={`cf-tile${live ? '' : ' ret'}`} key={k.id}>
         <div className="cf-tile-media">
-          {f.img ? <img src={f.img} alt={k.item} /> : <span className="cf-tile-ph"><Icon name={typeIcon(f.type)} size={30} /></span>}
+          {f.img ? <img src={f.img} alt={k.item} /> : <span className="cf-tile-ph"><Icon name={f.kind === 'equip' ? (CATEGORY_ICON[f.category] || 'Package') : typeIcon(f.type)} size={30} /></span>}
           <span className={`cf-tile-qty${live ? '' : ' ret'}`}><span className="x">×</span>{k.quantity || 1}</span>
           {canManage && live && (
             <button type="button" className="cf-tile-del" onClick={() => doDelete(k)} aria-label="Remove"><Icon name="Trash2" size={13} /></button>
@@ -811,7 +905,8 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
             ) : awaitingSignoff > 0 ? (
               <span className="cf-await-chip"><Icon name="Clock" size={13} /> Awaiting sign-off · {awaitingSignoff} sent</span>
             ) : null}
-            <button type="button" className="cf-btn primary sm" onClick={openIssue}><Icon name="Plus" size={15} /> Issue from inventory</button>
+            <button type="button" className="cf-btn ghost sm" onClick={() => setHandingOut(true)}><Icon name="PackagePlus" size={15} /> Hand out item</button>
+            <button type="button" className="cf-btn primary sm" onClick={openIssue}><Icon name="Shirt" size={15} /> Issue uniform</button>
           </div>
         )}
       </div>
@@ -855,10 +950,10 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
               {memberGroups.groups.map((grp) => {
                 const units = grp.rows.reduce((a, k) => a + (Number(k.quantity) || 1), 0);
                 return (
-                  <section className="cf-cat" key={`${grp.charter}||${grp.type}`}>
+                  <section className="cf-cat" key={grp.key}>
                     <div className="cf-cat-h">
-                      <span className="cf-cat-t"><span className="cf-cat-ic"><Icon name={typeIcon(grp.type)} size={14} /></span>{grp.charter === 'General' ? grp.type : `${grp.charter} · ${grp.type}`}</span>
-                      <span className="cf-cat-ct">{grp.rows.length} style{grp.rows.length === 1 ? '' : 's'} · {units} item{units === 1 ? '' : 's'}</span>
+                      <span className="cf-cat-t"><span className="cf-cat-ic"><Icon name={grp.icon} size={14} /></span>{grp.title}</span>
+                      <span className="cf-cat-ct">{grp.rows.length} {grp.rows.length === 1 ? 'line' : 'lines'} · {units} item{units === 1 ? '' : 's'}</span>
                       <span className="cf-cat-rule" />
                     </div>
                     <div className="cf-tilegrid">{grp.rows.map(KitTile)}</div>
@@ -881,6 +976,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
       )}
 
       {issuing && <IssueModal crewName={selected.fullName} stock={stock} folderRels={folderRels} showValue={showValue} onIssue={doIssue} onClose={() => setIssuing(false)} />}
+      {handingOut && <HandoutModal crewName={selected.fullName} onHandout={doHandout} onClose={() => setHandingOut(false)} />}
       {returning && <ReturnModal row={returning} onReturn={doReturn} onClose={() => setReturning(null)} />}
       {swapping && <SwapModal row={swapping} inv={itemById[swapping.inventory_item_id]} crewName={selected.fullName} onSwap={doSwap} onClose={() => setSwapping(null)} />}
     </div>
