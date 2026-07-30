@@ -1,0 +1,73 @@
+/* Cargo Accounts — month-end close strip. Scoped .mes-*. Amber while it doesn't
+   balance, green once it does; hairlines and whitespace, no boxed-card look. */
+
+.mes { margin-top: 16px; border: 1px solid #F0DCC0; border-radius: 12px; background: #FDF8F1; overflow: hidden; }
+.mes.is-ready { border-color: #CFE3DA; background: #F2F7F5; }
+.mes.is-locked { border-color: #E5E7EB; background: #FAFAF8; }
+
+.mes-bar { width: 100%; display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+  border: 0; background: none; cursor: pointer; font: inherit; text-align: left; color: #1C1B3A; }
+.mes-bar > svg { flex: 0 0 auto; color: #A8871B; }
+.mes.is-ready .mes-bar > svg { color: #2F7A64; }
+.mes.is-locked .mes-bar > svg { color: #8B8478; }
+.mes-title { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.mes-msg { font-size: 12.5px; color: #A8871B; font-weight: 600; }
+.mes.is-ready .mes-msg { color: #2F7A64; }
+.mes.is-locked .mes-msg { color: #6B7280; }
+.mes-model { margin-left: auto; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478; white-space: nowrap; }
+
+.mes-body { padding: 4px 14px 14px; display: flex; flex-direction: column; gap: 14px;
+  border-top: 1px solid rgba(28,27,58,.06); padding-top: 14px; }
+
+/* the month's arithmetic */
+.mes-eq { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.mes-eq span { display: flex; flex-direction: column; gap: 3px; }
+.mes-eq i { font-style: normal; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478; }
+.mes-eq b { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; color: #1C1B3A; }
+.mes-eq em { font-style: normal; color: #AEB4C2; font-size: 15px; padding-bottom: 2px; }
+.mes-eq .is-total b { color: #C65A1A; font-size: 18px; }
+
+/* statement figures */
+.mes-lab { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; margin: 0 0 7px; }
+.mes-fields { display: flex; gap: 14px; flex-wrap: wrap; }
+.mes-field { display: flex; flex-direction: column; gap: 4px; min-width: 132px; }
+.mes-field > span { font-size: 10.5px; color: #6B7280; font-weight: 600; }
+.mes-field > span em { font-style: normal; color: #AEB4C2; font-weight: 500; }
+.mes-field input { background: #fff; border: 1px solid #E5E7EB; border-radius: 8px; padding: 7px 10px;
+  font: inherit; font-size: 13px; color: #1C1B3A; font-variant-numeric: tabular-nums; outline: none; }
+.mes-field input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.mes-field input.is-off { border-color: #C9A227; background: #FDFBF2; }
+.mes-field input.is-ok { border-color: #CFE3DA; }
+.mes-diff { font-size: 10.5px; font-weight: 700; color: #A8871B; font-variant-numeric: tabular-nums; }
+.mes-match { font-size: 10.5px; font-weight: 700; color: #2F7A64; }
+
+/* why it can't close */
+.mes-blockers { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.mes-blockers li { font-size: 12px; color: #6B7280; }
+.mes-blockers b { color: #1C1B3A; font-variant-numeric: tabular-nums; }
+
+/* what the funding model needs next */
+.mes-outcome { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding-top: 12px; border-top: 1px solid rgba(28,27,58,.06); }
+.mes-outcome b { font-size: 17px; font-weight: 600; color: #C65A1A; font-variant-numeric: tabular-nums; }
+.mes-outcome em { font-style: normal; font-size: 11px; color: #8B8478; }
+.mes-outcome .mes-over { color: #C65A1A; font-weight: 700; }
+
+.mes-act { display: flex; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
+.mes-btn { border-radius: 9px; padding: 8px 16px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.mes-btn.ghost { background: #fff; border: 1px solid #E5E7EB; color: #1C1B3A; }
+.mes-btn.ghost:hover { border-color: #C65A1A; color: #C65A1A; }
+.mes-btn.primary { background: #C65A1A; border: 1px solid #C65A1A; color: #fff; }
+.mes-btn.primary:hover:not(:disabled) { background: #B14E16; }
+.mes-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.mes-locked { margin: 0; font-size: 12px; color: #6B7280; }
+
+@media (max-width: 760px) {
+  .mes-model { display: none; }
+  .mes-eq { gap: 10px; }
+  .mes-eq b { font-size: 14px; }
+}
