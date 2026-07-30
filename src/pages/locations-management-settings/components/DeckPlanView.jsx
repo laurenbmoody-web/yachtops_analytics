@@ -656,24 +656,28 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
     flashTimerRef.current = setTimeout(() => setFlashSpace(null), 1800);
     if (typeof document === 'undefined') return;
-    // The GA background image loads async and grows the deck's height, so a
-    // one-shot scroll lands on a stale spot. Keep nudging until the deck is
-    // actually centred in the viewport (re-checking, not just firing on timers).
+    // The deck's real height only appears once the GA image dimensions load and
+    // the plan renders (it's aspect-ratio sized). Wait for the deck's height to
+    // stop changing, THEN scroll once — otherwise we'd centre a tiny placeholder
+    // that grows out from under us a moment later.
     if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+    let lastH = -1;
+    let stable = 0;
     let n = 0;
-    let settled = 0;
-    const step = () => {
+    const tick = () => {
       const el = document.getElementById(`dp-deck-${deckId}`);
+      const done = () => el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       if (el) {
-        const rect = el.getBoundingClientRect();
-        const off = Math.abs((rect.top + rect.height / 2) - window.innerHeight / 2);
-        if (off > 16) { el.scrollIntoView({ behavior: n === 0 ? 'smooth' : 'auto', block: 'center' }); settled = 0; }
-        else settled += 1;
+        const h = el.offsetHeight;
+        if (h > 0 && h === lastH) stable += 1; else stable = 0;
+        lastH = h;
+        if (stable >= 2) { done(); scrollTimerRef.current = null; return; }
       }
       n += 1;
-      if (settled < 2 && n < 24) scrollTimerRef.current = setTimeout(step, 250);
+      if (n < 40) scrollTimerRef.current = setTimeout(tick, 120);
+      else if (el) done();
     };
-    step();
+    tick();
   };
 
   const toggleLinkMode = () => { setPendingLink(null); setSelLink(null); setTraceMode(false); setTracing(null); setLinkMode((v) => !v); };
