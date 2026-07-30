@@ -243,13 +243,36 @@ export const requirementState = (txn, { account, hasReceipt, splitCount = 0 } = 
     // A split line is categorised by its parts, so the parent needn't carry one.
     category: Boolean(txn?.category) || splitCount > 0,
     note: Boolean(txn?.note),
-    receipt: Boolean(hasReceipt),
+    // Some spend genuinely has no receipt — a bank fee, a card subscription, a lost
+    // slip. Declaring that (with a reason) counts as evidence; without this a line
+    // like that could never be finished, and an unreachable target is worse than none.
+    receipt: Boolean(hasReceipt) || Boolean(txn?.receipt_waived),
     // A split line carries its departments on the parts, so the parent needn't repeat it.
     department: Boolean(txn?.department) || splitCount > 0,
     allocation: Boolean(alloc) && charterOk,
   };
   const count = REQUIREMENTS.filter((r) => done[r.key]).length;
   return { done, count, total: REQUIREMENTS.length };
+};
+
+// What's outstanding, in words, shortest useful form — e.g. "needs a note" or
+// "needs a receipt and a note". The row prints this as ordinary muted text: a
+// count of anonymous ticks can't tell you what to do, and a pill shouts.
+const NEEDS_WORDING = {
+  category: 'a category',
+  note: 'a note',
+  receipt: 'a receipt',
+  department: 'a department',
+  allocation: 'owner or charter',
+};
+
+export const outstandingText = (txn, ctx = {}) => {
+  const { done } = requirementState(txn, ctx);
+  const missing = REQUIREMENTS.filter((r) => !done[r.key]).map((r) => NEEDS_WORDING[r.key]);
+  if (!missing.length) return '';
+  if (missing.length === 1) return `needs ${missing[0]}`;
+  if (missing.length === 2) return `needs ${missing[0]} and ${missing[1]}`;
+  return `needs ${missing.slice(0, 2).join(', ')} and ${missing.length - 2} more`;
 };
 
 // Three-state summary for the row's rail: nothing done yet, part-way, or finished.
