@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
 import { loadAllLaundryItems } from '../laundry-management-dashboard/utils/laundryStorage';
@@ -17,8 +17,12 @@ import './wardrobe.css';
 // in. Both let you pack/unpack and scan; an item opens its full record.
 const WardrobeManagement = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState([]);
-  const [mode, setMode] = useState('hub'); // hub | owner
+  // Deep-link support: ?mode=crew&crew=<userId> opens the Crew world straight on
+  // that member (e.g. from a size-swap-request notification).
+  const [mode, setMode] = useState(() => (searchParams.get('mode') === 'crew' ? 'crew' : 'hub')); // hub | owner | crew
+  const initialCrewId = searchParams.get('crew') || null;
   const [showCases, setShowCases] = useState(false);
   const [showScan, setShowScan] = useState(false);
   const [detailItem, setDetailItem] = useState(null);
@@ -96,7 +100,7 @@ const WardrobeManagement = () => {
               </div>
             </>
           ) : mode === 'crew' ? (
-            <CrewFolder onBack={() => { setMode('hub'); reload(); }} />
+            <CrewFolder initialCrewId={initialCrewId} onBack={() => { setMode('hub'); setSearchParams({}); reload(); }} />
           ) : (
             <OwnerWardrobeView onBack={() => { setMode('hub'); reload(); }} />
           )}
