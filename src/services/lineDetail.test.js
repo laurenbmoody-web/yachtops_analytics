@@ -10,7 +10,7 @@ import {
   effectiveDate, datesDiffer, straddlesMonth,
   REQUIREMENTS, requirementState, lineState, maxForPart, clampSplitAmount,
   maxSpendDate, isSpendDateValid, canVoidTxn, voidBlockedReason,
-  looksLikeRefund, findRefundCandidate, refundInheritedFields,
+  looksLikeRefund, findRefundCandidate, refundInheritedFields, defaultDepartment,
 } from './lineDetail.js';
 
 // ── department ──────────────────────────────────────────────────────────────
@@ -350,4 +350,37 @@ test('money out, a manual line, or an already-linked refund is not a refund cand
   assert.equal(looksLikeRefund({ amount: -42, source: 'bank_feed' }), false);
   assert.equal(looksLikeRefund({ amount: 42, source: 'manual' }), false);
   assert.equal(looksLikeRefund({ amount: 42, source: 'bank_feed', refund_of_id: 'x' }), false);
+});
+
+// ── department default: the cost's owner first, the spender as a fallback ────
+test('an explicit department on the line is never overridden', () => {
+  assert.equal(
+    defaultDepartment({ department: 'Deck', category_code: 'ICN' }, { spenderDepartment: 'Galley' }),
+    'Deck',
+  );
+});
+
+test('the MYBA code wins over the spender — department means whose budget bears it', () => {
+  // An engineer buying interior consumables is still an Interior cost.
+  assert.equal(
+    defaultDepartment({ category_code: 'ICN' }, { spenderDepartment: 'Engineering' }),
+    'Interior',
+  );
+  assert.equal(
+    defaultDepartment({ category_code: 'FLE' }, { spenderDepartment: 'Bridge' }),
+    'Engineering',
+  );
+});
+
+test("the spender's department fills in when the code implies nothing", () => {
+  // GME (Guest Miscellaneous) has no departmental owner.
+  assert.equal(defaultDepartment({ category_code: 'GME' }, { spenderDepartment: 'Interior' }), 'Interior');
+  // No category picked yet at all.
+  assert.equal(defaultDepartment({}, { spenderDepartment: 'Deck' }), 'Deck');
+});
+
+test('with neither a code nor a spender, department stays unset rather than guessed', () => {
+  assert.equal(defaultDepartment({}, {}), '');
+  assert.equal(defaultDepartment({ category_code: 'GME' }, {}), '');
+  assert.equal(defaultDepartment(null, {}), '');
 });

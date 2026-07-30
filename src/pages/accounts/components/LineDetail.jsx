@@ -21,6 +21,7 @@ import {
   departmentForCode, defaultAllocation, needsTripPick, isDedicatedCharterAccount,
   defaultCardholder, isBorrowedCard, splitRemainder, validateSplits, signedSplits,
   netOfVat, vatFromRate, baseFromFx, clampSplitAmount, maxSpendDate, isSpendDateValid,
+  defaultDepartment,
 } from '../../../services/lineDetail';
 import './line-detail.css';
 
@@ -33,8 +34,13 @@ export default function LineDetail({
   onSave, onUploadReceipt, onDeleteAttachment, onClose, canEdit = true,
 }) {
   const [note, setNote] = useState(txn.note || '');
-  const [department, setDepartment] = useState(txn.department || departmentForCode(txn.category_code) || '');
   const [cardholder, setCardholder] = useState(defaultCardholder(txn, account) || '');
+  const spenderDept = (id) => crew.find((c) => c.id === id)?.department || '';
+  const [department, setDepartment] = useState(
+    defaultDepartment(txn, { spenderDepartment: spenderDept(defaultCardholder(txn, account)) }),
+  );
+  // Once the crew member touches the department it's theirs — nothing re-derives it.
+  const [deptTouched, setDeptTouched] = useState(Boolean(txn.department));
   const [allocation, setAllocation] = useState(defaultAllocation(txn, account) || '');
   // One free-text charter box with the known trips as suggestions: type anything,
   // and if it matches a trip we link the trip properly instead of storing loose text.
@@ -178,15 +184,32 @@ export default function LineDetail({
 
         <label className="ld-field">
           {label('Department')}
-          <select className="ld-input" value={department} onChange={(e) => setDepartment(e.target.value)} disabled={!canEdit}>
+          <select className="ld-input" value={department} disabled={!canEdit}
+            onChange={(e) => { setDepartment(e.target.value); setDeptTouched(true); }}>
             <option value="">Not set</option>
             {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
+          {!deptTouched && department && (
+            <span className="ld-hint">
+              {departmentForCode(txn.category_code) === department
+                ? 'From the category — whose budget bears it'
+                : 'From who spent it'}
+            </span>
+          )}
         </label>
 
         <label className="ld-field">
           {label('Who spent it')}
-          <select className="ld-input" value={cardholder} onChange={(e) => setCardholder(e.target.value)} disabled={!canEdit}>
+          <select className="ld-input" value={cardholder} disabled={!canEdit}
+            onChange={(e) => {
+              const id = e.target.value;
+              setCardholder(id);
+              // The spender only fills the department in when the category hasn't
+              // already decided it and the user hasn't chosen one themselves.
+              if (!deptTouched) {
+                setDepartment(defaultDepartment({ ...txn, department: null }, { spenderDepartment: spenderDept(id) }));
+              }
+            }}>
             <option value="">Not set</option>
             {crew.map((c) => (
               <option key={c.id} value={c.id}>
