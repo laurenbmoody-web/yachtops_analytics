@@ -13,6 +13,7 @@ import React from 'react';
 import Icon from '../../../components/AppIcon';
 import CardVisual from './CardVisual';
 import { formatMoney } from '../../../services/financeCalc';
+import { monthEndStage } from '../../../services/monthEnd';
 import './account-stack.css';
 
 // Front card, then two peeking behind it. Beyond three the fan stops moving —
@@ -23,14 +24,20 @@ const STACK = [
   { x: 36, y: 32, s: 0.912, o: 0.78, z: 10 },
 ];
 
-const STATE = {
-  approved: { text: 'Signed off', tone: 'ok' },
-  submitted: { text: 'Awaiting sign-off', tone: 'sub' },
-  open: { text: 'Not balanced', tone: 'due' },
+// "Not balanced" on a month that hasn't ended yet is a telling-off for being on
+// time, so a running month says what it is instead.
+const stateFor = (recon, stage) => {
+  const status = recon?.status || 'open';
+  if (status === 'approved') return { text: 'Signed off', tone: 'ok' };
+  if (status === 'submitted') return { text: 'Awaiting sign-off', tone: 'sub' };
+  if (stage === 'running') return { text: 'Still running', tone: 'sub' };
+  if (stage === 'ahead') return { text: 'Not started', tone: 'sub' };
+  return { text: 'To balance', tone: 'due' };
 };
 
 export default function AccountStack({
-  accounts = [], activeId = '', monthLabel, statsFor, reconFor, unassigned = 0, onSelect,
+  accounts = [], activeId = '', monthLabel, monthKey, statsFor, reconFor,
+  unassigned = 0, onSelect, today,
 }) {
   if (!accounts.length) return null;
 
@@ -51,9 +58,10 @@ export default function AccountStack({
     };
   };
 
+  const stage = monthEndStage(monthKey, today || new Date());
   const front = accounts.find((a) => a.id === order[0]) || accounts[0];
   const frontStat = statsFor?.(front.id) || { count: 0, out: 0 };
-  const frontState = STATE[reconFor?.(front.id)?.status || 'open'];
+  const frontState = stateFor(reconFor?.(front.id), stage);
   const balanced = accounts.filter((a) => (reconFor?.(a.id)?.status || 'open') !== 'open').length;
 
   return (
@@ -73,8 +81,10 @@ export default function AccountStack({
 
       <div className="as-side">
         <p className="as-eyebrow">
-          Balance {monthLabel}
-          <span className="as-n">{balanced} of {accounts.length}</span>
+          {stage === 'due' ? `Balance ${monthLabel}` : monthLabel}
+          <span className="as-n">
+            {stage === 'due' ? `${balanced} of ${accounts.length} balanced` : `${accounts.length} cards`}
+          </span>
         </p>
         <p className="as-name">{front.name}{front.card_last4 && front.card_last4 !== '0000' ? ` ••${front.card_last4}` : ''}</p>
         <p className="as-sub">

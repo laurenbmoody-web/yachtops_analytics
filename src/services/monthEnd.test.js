@@ -6,6 +6,7 @@ import {
   fundingModel, fundingModelLabel, monthFigures,
   compareFigure, isBalanced, statementChecks, hasEnoughStatement,
   fundingOutcome, closeBlockers, canCloseMonth, closeMessage, closeHeadline,
+  monthEndStage, opensByDefault, stageSummary, lastDayOfMonth,
 } from './monthEnd.js';
 
 // ── funding model ───────────────────────────────────────────────────────────
@@ -253,4 +254,68 @@ test('no blockers is an instruction too', () => {
 test('a closed month stops instructing', () => {
   assert.equal(closeHeadline([], 'submitted', 'July 2026'), 'July 2026 is with Command for sign-off.');
   assert.equal(closeHeadline([], 'approved', 'July 2026'), 'July 2026 is closed and signed off.');
+});
+
+// ── when a month is actually due ────────────────────────────────────────────
+const JULY_30 = new Date('2026-07-30T09:00:00Z');
+
+test('the month you are living in is still running, not overdue', () => {
+  // Nagging someone to reconcile July on 30 July asks them to match a statement
+  // the bank has not issued.
+  assert.equal(monthEndStage('2026-07', JULY_30), 'running');
+});
+
+test('a month that has ended is due', () => {
+  assert.equal(monthEndStage('2026-06', JULY_30), 'due');
+  assert.equal(monthEndStage('2025-12', JULY_30), 'due');
+});
+
+test('a month that has not started is neither', () => {
+  assert.equal(monthEndStage('2026-08', JULY_30), 'ahead');
+});
+
+test('a submitted or signed-off month is closed whatever the date', () => {
+  assert.equal(monthEndStage('2026-06', JULY_30, 'submitted'), 'closed');
+  assert.equal(monthEndStage('2026-06', JULY_30, 'approved'), 'closed');
+  assert.equal(monthEndStage('2026-06', JULY_30, 'open'), 'due');
+});
+
+test('the last second of the month still counts as running', () => {
+  assert.equal(monthEndStage('2026-07', new Date('2026-07-31T23:59:59Z')), 'running');
+  assert.equal(monthEndStage('2026-07', new Date('2026-08-01T00:00:01Z')), 'due');
+});
+
+test('only a month that is over opens itself', () => {
+  assert.equal(opensByDefault('due'), true);
+  for (const s of ['running', 'ahead', 'closed']) assert.equal(opensByDefault(s), false);
+});
+
+test('the statement period ends on the real last day, leap years included', () => {
+  assert.equal(lastDayOfMonth('2026-07'), '2026-07-31');
+  assert.equal(lastDayOfMonth('2026-06'), '2026-06-30');
+  assert.equal(lastDayOfMonth('2026-02'), '2026-02-28');
+  assert.equal(lastDayOfMonth('2028-02'), '2028-02-29');
+  assert.equal(lastDayOfMonth(''), null);
+});
+
+test('the collapsed line is worth reading on its own', () => {
+  const blockers = [
+    { key: 'uncategorised', label: 'still to categorise', count: 97 },
+    { key: 'receipts', label: 'without a receipt', count: 101 },
+    { key: 'statement', label: 'enter the figures', count: 0 },
+  ];
+  const s = stageSummary('running', { monthLabel: 'July 2026', blockers, statementDue: '31/07/2026' });
+  assert.match(s, /still running/);
+  assert.match(s, /198 lines to sort/);      // counts only real work, not the statement blocker
+  assert.match(s, /covers up to 31\/07\/2026/);
+});
+
+test('a clean running month says so rather than inventing work', () => {
+  assert.match(stageSummary('running', { monthLabel: 'July 2026', blockers: [] }), /every line so far is in order/);
+});
+
+test('the other stages each say their own thing', () => {
+  assert.match(stageSummary('due', { monthLabel: 'June 2026' }), /over and waiting to be balanced/);
+  assert.match(stageSummary('closed', { monthLabel: 'June 2026' }), /is closed/);
+  assert.match(stageSummary('ahead', { monthLabel: 'August 2026' }), /hasn’t started/);
 });
