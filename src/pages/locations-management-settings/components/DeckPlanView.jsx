@@ -149,7 +149,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   const [pendingLink, setPendingLink] = useState(null); // {spaceId, deckId} first-picked dot
   const [selLink, setSelLink] = useState(null); // linkId tapped to inspect/remove (touch-friendly)
   const [flashSpace, setFlashSpace] = useState(null); // spaceId briefly highlighted after a stairs jump
+  const [locateFocus, setLocateFocus] = useState(null); // Set of roomIds to spotlight (dim the rest) after a "locate"
   const flashTimerRef = useRef(null);
+  const focusTimerRef = useRef(null);
   const [localShapes, setLocalShapes] = useState({}); // spaceId -> shape | null (override)
   const [localCats, setLocalCats] = useState({}); // spaceId -> category (override for instant recolour)
   const [localNames, setLocalNames] = useState({}); // spaceId -> name (override for instant rename)
@@ -217,28 +219,33 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
   // then clear the param so it doesn't re-fire on the next render.
   useEffect(() => {
     const locateId = searchParams.get('locate');
-    if (!locateId || locatedRef.current === locateId || !decks?.length) return;
-    let found = null;
+    // Wait for the layout to finish loading (the deck DOM only exists then) and
+    // for the decks to be in — otherwise there's nothing to scroll to or pulse.
+    if (!locateId || loading || !decks?.length || locatedRef.current === locateId) return;
+    const ids = locateId.split(',').filter(Boolean);
+    const targets = [];
     for (const d of decks) {
       for (const s of spacesOf(d)) {
-        if (s.id === locateId && posOf(s)) { found = { deckId: d.id, spaceId: s.id }; break; }
+        if (ids.includes(s.id) && posOf(s)) targets.push({ deckId: d.id, spaceId: s.id });
       }
-      if (found) break;
     }
-    if (!found) return;
+    if (!targets.length) return;
     locatedRef.current = locateId;
-    // If the locate carried a pinned scan, remember it so a click on this room
-    // opens that scan with the pin highlighted (not just the room's own scan).
+    // If the locate carried a pinned scan, remember it so a click on that room
+    // opens the scan with the pin highlighted (not just the room's own scan).
     const pin = searchParams.get('pin');
     const scan = searchParams.get('scan');
-    locateClickRef.current = pin && scan ? { roomId: found.spaceId, scanId: scan, hotspotId: pin } : null;
-    const t = setTimeout(() => jumpToSpace(found.deckId, found.spaceId), 350);
+    locateClickRef.current = pin && scan ? { roomId: ids[0], scanId: scan, hotspotId: pin } : null;
+    // Spotlight the located room(s) — dim everything else — and scroll to them.
+    setLocateFocus(new Set(targets.map((t) => t.spaceId)));
+    const jt = setTimeout(() => jumpToSpace(targets[0].deckId, targets[0].spaceId), 300);
+    const clr = setTimeout(() => setLocateFocus(null), 6000);
     const next = new URLSearchParams(searchParams);
     next.delete('locate'); next.delete('pin'); next.delete('scan');
     setSearchParams(next, { replace: true });
-    return () => clearTimeout(t);
+    return () => { clearTimeout(jt); clearTimeout(clr); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, decks]);
+  }, [searchParams, decks, loading]);
 
   // Roll the pins inside each room's scan up to the plan (see getPlanOverlays).
   // Reloads whenever the deck model changes (a scan added, a room placed).
@@ -1076,6 +1083,9 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                             if (canLocate) {
                               setOverlayRoom(null);
                               locateClickRef.current = room.hotspotId ? { roomId: room.roomId, scanId: room.pinScanId, hotspotId: room.hotspotId } : null;
+                              setLocateFocus(new Set([room.roomId]));
+                              if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+                              focusTimerRef.current = setTimeout(() => setLocateFocus(null), 6000);
                               jumpToSpace(meta.deckId, room.roomId);
                             } else if (room.scanId) navigate(`/vessel/map?scan=${room.scanId}`);
                           }}
@@ -1487,12 +1497,14 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                       ? (PRIORITY_COLOR[worstPriority(overlayData.defectsBySpace[s.id])] || '#A32D2D')
                       : (OVERLAYS.find((o) => o.key === overlay)?.color || '#1C1B3A');
                     const matches = roomMatches(s);
-                    const dimPin = searchQ ? !matches : (overlay && ovCount === 0);
-                    const hiPin = searchQ && matches;
+                    const inFocus = locateFocus?.has(s.id);
+                    const focusDim = locateFocus && !inFocus;
+                    const dimPin = focusDim || (searchQ ? !matches : (overlay && ovCount === 0));
+                    const hiPin = (searchQ && matches) || inFocus;
                     return (
                       <div
                         key={s.id}
-                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''} ${pending ? 'is-pending' : ''} ${flashSpace === s.id ? 'is-flash' : ''} ${selEndIds?.has(s.id) ? 'is-linkend' : ''} ${dimPin ? 'is-ov-dim' : ''} ${hiPin ? 'is-ov-match' : ''}`}
+                        className={`dp-pin ${scanned ? 'is-scanned' : 'is-empty'} ${drag?.spaceId === s.id ? 'is-dragging' : ''} ${pending ? 'is-pending' : ''} ${flashSpace === s.id ? 'is-flash' : ''} ${selEndIds?.has(s.id) ? 'is-linkend' : ''} ${dimPin ? 'is-ov-dim' : ''} ${hiPin ? 'is-ov-match' : ''} ${inFocus ? 'is-locate' : ''}`}
                         style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%` }}
                         onPointerDown={(e) => onDotDown(e, s, deck, true)}
                         title={linkMode ? nameOf(s) : scanned ? `${nameOf(s)} — open on map` : `${nameOf(s)} — add a scan`}

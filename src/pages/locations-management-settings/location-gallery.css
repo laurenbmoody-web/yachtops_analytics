@@ -391,6 +391,10 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 /* A search hit — ring the pin so the match stands out on the plan. */
 .dp-pin.is-ov-match{z-index:7;box-shadow:0 0 0 3px #fff, 0 0 0 6px var(--lg-terra);}
 .dp-pin.is-ov-match .dp-pin-label{color:var(--lg-terra);font-weight:700;}
+/* A located pin (from "View on map") — keep pulsing while the spotlight is on,
+   so it's obvious even before the eye finds it. Others are dimmed via is-ov-dim. */
+.dp-pin.is-locate{z-index:9;animation:dp-pin-flash 1.5s ease-out infinite;}
+.dp-pin.is-locate .dp-pin-label{color:var(--lg-terra);font-weight:700;}
 /* Count badge on a room, coloured by kind (defects by worst severity). */
 .dp-ov-badge{position:absolute;top:-8px;right:-10px;min-width:17px;height:17px;padding:0 4px;z-index:6;
   display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #fff;border-radius:999px;
