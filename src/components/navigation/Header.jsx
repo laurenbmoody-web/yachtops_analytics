@@ -415,17 +415,19 @@ const Header = () => {
     const mapById = {};
     if (locateRes?.status === 'fulfilled') {
       (locateRes.value || []).forEach((it) => {
-        const placed = it.rooms.find((r) => r.placed);
+        const placedIds = it.rooms.filter((r) => r.placed).map((r) => r.roomId);
         const scanned = it.rooms.find((r) => r.scanId);
         if (it.pin?.placed && it.pin.roomId) {
-          // Pinned + the room is on a plan: open Location Management, pulse the
-          // room, carrying the pin so clicking through opens the scan with it.
-          mapById[it.itemId] = { path: `/settings/vessel?section=location-management&locate=${it.pin.roomId}&scan=${it.pin.scanId}&pin=${it.pin.hotspotId}`, room: it.pin.roomName };
+          // Pinned + on a plan: spotlight every room it lives in (the pinned one
+          // first), carrying the pin so clicking through opens the scan with it.
+          const ids = [it.pin.roomId, ...placedIds.filter((id) => id !== it.pin.roomId)];
+          mapById[it.itemId] = { path: `/settings/vessel?section=location-management&locate=${ids.join(',')}&scan=${it.pin.scanId}&pin=${it.pin.hotspotId}`, room: it.pin.roomName };
         } else if (it.pin) {
           // Pinned but the room isn't on a plan — open the pin in the scan.
           mapById[it.itemId] = { path: `/vessel/map?scan=${it.pin.scanId}&pin=${it.pin.hotspotId}`, room: it.pin.roomName };
-        } else if (placed) {
-          mapById[it.itemId] = { path: `/settings/vessel?section=location-management&locate=${placed.roomId}`, room: placed.roomName };
+        } else if (placedIds.length) {
+          // Spotlight every placed room the stock sits in.
+          mapById[it.itemId] = { path: `/settings/vessel?section=location-management&locate=${placedIds.join(',')}`, room: it.rooms.find((r) => r.placed)?.roomName };
         } else if (scanned) {
           mapById[it.itemId] = { path: `/vessel/map?scan=${scanned.scanId}`, room: scanned.roomName };
         }
