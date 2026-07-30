@@ -3,7 +3,7 @@
 .wd {
   --wd-floor: #E9EEF5; --wd-wall: #8895A8;
   --wd-steel: #D6DDE8; --wd-steel-2: #BEC8D8; --wd-steel-d: #9AA6B9;
-  max-width: 1040px;
+  max-width: min(1080px, 122vh); margin: 0 auto;
 }
 .wd-loading { padding: 60px 0; text-align: center; color: var(--muted-strong, #64748B); font-size: 14px; }
 
@@ -45,10 +45,16 @@
 .wd-save { font-size: 11px; font-weight: 700; color: var(--muted-strong, #64748B); display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
 .wd-save.saved { color: #29A36A; }
 
-.wd-legend { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin: 0 0 12px; }
-.wd-legend .lg { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--muted-strong, #64748B); }
-.wd-legend .lg i { width: 10px; height: 10px; border-radius: 2px; }
-.wd-hint { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: 11px; color: var(--faint, #94A3B8); }
+/* inline zone picker (dot + label, no box) — chooses the zone of the next rack */
+.wd-zonesel { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.wd-zpill { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: inherit;
+  border: 1px solid var(--line, #E2E8F0); background: var(--card, #fff); border-radius: 999px; padding: 7px 12px;
+  font-size: 12px; font-weight: 600; color: var(--muted-strong, #64748B); }
+.wd-zpill i { width: 10px; height: 10px; border-radius: 3px; background: var(--zc); display: block; }
+.wd-zpill:hover { border-color: var(--zc); color: var(--fg, #0C0E14); }
+.wd-zpill.on { border-color: var(--zc); color: var(--fg, #0C0E14); box-shadow: inset 0 0 0 1px var(--zc); }
+
+.wd-subhint { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 12px; font-size: 11px; color: var(--faint, #94A3B8); }
 
 /* the room */
 .wd-roomcard { background: var(--card, #fff); border: 1px solid var(--line, #E2E8F0); border-radius: 14px; padding: 14px;
@@ -113,9 +119,11 @@
   font-size: 13px; font-weight: 700; box-shadow: 0 10px 24px -8px rgba(198,90,26,.6); }
 .wd-donepill:hover { background: #B14E16; }
 
-/* properties bar for the selected rack (docked below the room, non-overlapping) */
-.wd-props { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin-top: 12px; padding-top: 14px;
-  border-top: 1px solid var(--line-soft, #EDF1F6); }
+/* properties bar for the selected rack — a card pinned above the room so it's
+   always in view (the floor plan itself can be tall). */
+.wd-props { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; padding: 12px 14px;
+  background: var(--card, #fff); border: 1px solid var(--orange, #C65A1A); border-radius: 12px;
+  box-shadow: 0 12px 28px -16px rgba(198,90,26,.4); position: sticky; top: 6px; z-index: 20; }
 .wd-pfield { display: flex; flex-direction: column; gap: 5px; }
 .wd-pfield label { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 800;
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-strong, #64748B); }
@@ -169,6 +177,13 @@
 .wd-mx { border: none; background: var(--bg-2, #EEF2F7); width: 32px; height: 32px; border-radius: 9px; cursor: pointer;
   color: var(--muted-strong, #64748B); flex: none; display: flex; align-items: center; justify-content: center; }
 .wd-mx:hover { background: var(--line, #E2E8F0); color: var(--fg, #0C0E14); }
+
+/* add/remove sections inside the head-on modal */
+.wd-mtools { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 15px 0 0; padding: 11px 13px;
+  background: var(--field, #F6F8FC); border: 1px solid var(--line, #E2E8F0); border-radius: 10px; }
+.wd-mtl { font-size: 9px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted-strong, #64748B); }
+.wd-mtool { display: inline-flex; align-items: center; gap: 8px; }
+.wd-mtool label { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--fg, #0C0E14); }
 
 .wd-front { margin: 16px 0 0; border: 2px solid var(--wd-steel-d); border-radius: 8px; padding: 13px 15px 5px;
   background: linear-gradient(180deg, var(--wd-steel), var(--bg-2, #F6F8FC)); position: relative; }
