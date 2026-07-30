@@ -188,6 +188,47 @@ export const acknowledgeKitItems = async (ids, { signaturePath, signedName }) =>
 };
 
 /**
+ * Interior sends a batch of freshly-issued items to the crew member for sign-off
+ * — the digital "here's your uniform, please confirm" hand-over. Stamps
+ * signoff_requested_at so the crew profile prompts them to acknowledge or request
+ * a size swap. Clears any stale swap request on the same rows.
+ */
+export const requestKitSignoff = async (ids, { requestedBy } = {}) => {
+  if (!ids?.length) return;
+  const { error } = await supabase
+    ?.from('crew_issued_kit')
+    ?.update({
+      signoff_requested_at: new Date().toISOString(),
+      signoff_requested_by: requestedBy || null,
+      swap_requested_size: null,
+      swap_requested_at: null,
+      swap_note: null,
+      updated_at: new Date().toISOString(),
+    })
+    ?.in('id', ids);
+  if (error) throw error;
+};
+
+/**
+ * Crew member asks for a different size instead of signing off — records the
+ * requested size (and optional reason) so Interior can swap it from the wardrobe
+ * Crew view. Pass size = null to clear a request.
+ */
+export const requestKitSwap = async (id, { size, note } = {}) => {
+  if (!id) return;
+  const { error } = await supabase
+    ?.from('crew_issued_kit')
+    ?.update({
+      swap_requested_size: size || null,
+      swap_requested_at: size ? new Date().toISOString() : null,
+      swap_note: note || null,
+      updated_at: new Date().toISOString(),
+    })
+    ?.eq('id', id);
+  if (error) throw error;
+};
+
+/**
  * Record kit handed back at offboarding — the manager/captain counter-signs to
  * confirm the items returned, with their condition. (Phase 2.)
  */

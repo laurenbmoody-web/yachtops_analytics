@@ -5,7 +5,8 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import { fetchTenantCrew } from '../../crew-profile/utils/tenantCrew';
 import {
-  fetchTenantUniformKit, saveKitItem, deleteKitItem, recordKitReturn, logKitEvent, fmtKitDate, CONDITIONS,
+  fetchTenantUniformKit, saveKitItem, deleteKitItem, recordKitReturn, requestKitSignoff,
+  logKitEvent, fmtKitDate, CONDITIONS,
 } from '../../crew-profile/utils/crewKit';
 import { getAllItems, adjustItemQuantity, saveItem } from '../../inventory/utils/inventoryStorage';
 import { canViewCost } from '../../../utils/costPermissions';
@@ -22,7 +23,12 @@ const STATUS = {
   lost: { label: 'Lost / written off', cls: 'lost' },
 };
 const kitStatus = (k) => {
-  if (k.status === 'in_service' && !k.acknowledged_at) return { label: 'Awaiting sign-off', cls: 'await' };
+  if (k.status === 'in_service') {
+    if (k.swap_requested_size) return { label: 'Swap requested', cls: 'swap' };
+    if (k.acknowledged_at) return { label: 'In service', cls: 'live' };
+    if (k.signoff_requested_at) return { label: 'Sign-off sent', cls: 'await' };
+    return { label: 'Awaiting sign-off', cls: 'await' };
+  }
   return STATUS[k.status] || { label: k.status, cls: 'live' };
 };
 
@@ -66,6 +72,35 @@ const uniformRel = (item) => {
   const ui = segs.map((s) => s.toLowerCase()).lastIndexOf('uniform');
   return ui >= 0 ? segs.slice(ui + 1) : segs;
 };
+
+// A crew member's kit reads like inventory — grouped CHARTER-first (what they
+// hold on charter vs off charter) then by TYPE. Both are derived automatically
+// from the item's Uniform folder path (rel = segments below "Uniform"), so the
+// grouping mirrors however the interior filed the stock — no separate tagging.
+const charterOf = (rel = []) => {
+  for (const s of rel) {
+    if (/off[\s-]*charter/i.test(s)) return 'Off charter';
+    if (/on[\s-]*charter/i.test(s)) return 'On charter';
+  }
+  return 'General';
+};
+const CHARTER_ORDER = { 'On charter': 0, 'Off charter': 1, General: 2 };
+// Fallback classifier when an item sits directly under a charter folder with no
+// type sub-folder — infers the category from the item name.
+const TYPE_RULES = [
+  { re: /(shoe|boot|footwear|sandal|trainer|sneaker|flip[\s-]*flop|espadrille)/i, label: 'Footwear' },
+  { re: /(belt|hat|\bcap\b|beanie|glove|\bsock|\btie\b|scarf|sunglass|watch|\bbag\b|lanyard|buff|accessor)/i, label: 'Accessories' },
+];
+const TYPE_ORDER = { Clothing: 0, Footwear: 1, Accessories: 2 };
+const typeOf = (rel = [], name = '') => {
+  const ci = rel.findIndex((s) => /(on|off)[\s-]*charter/i.test(s));
+  const below = ci >= 0 ? rel.slice(ci + 1) : rel;
+  if (below.length) return below[0]; // the item's own folder is its category
+  for (const r of TYPE_RULES) if (r.re.test(name)) return r.label;
+  return 'Clothing';
+};
+const TYPE_ICON = { Footwear: 'Footprints', Accessories: 'Watch' };
+const typeIcon = (type) => TYPE_ICON[type] || 'Shirt';
 
 // Issue-from-inventory: browse the Uniform folder as tiles, drill down to items,
 // tick items and allocate a quantity (−/count/+, capped at what's on board), then
@@ -278,6 +313,13 @@ const CrewFolder = ({ onBack }) => {
   const [dept, setDept] = useState('all');
   const [sort, setSort] = useState('name');
   const [crewView, setCrewView] = useState('tiles'); // tiles (by crew) | list (combined uniform)
+  // Member kit view — its own search / filter / sort (mirrors inventory tiles).
+  const [kq, setKq] = useState('');
+  const [kCharter, setKCharter] = useState('all');
+  const [kType, setKType] = useState('all');
+  const [kStatus, setKStatus] = useState('all');
+  const [kSort, setKSort] = useState('newest');
+  const [signingOff, setSigningOff] = useState(false);
 
   const load = async () => {
     if (!activeTenantId) return;
@@ -372,6 +414,104 @@ const CrewFolder = ({ onBack }) => {
       .sort((a, b) => (b.issued_date || '').localeCompare(a.issued_date || '')),
     [kit, selectedId]
   );
+
+  // Charter + type for each of this member's kit rows, derived from the linked
+  // inventory item's folder path (falls back to General / name-classified type).
+  const kitFacets = useMemo(() => {
+    const m = {};
+    memberKit.forEach((k) => {
+      const rel = uniformRel(itemById[k.inventory_item_id] || {});
+      m[k.id] = { charter: charterOf(rel), type: typeOf(rel, k.item), img: itemById[k.inventory_item_id]?.imageUrl || null };
+    });
+    return m;
+  }, [memberKit, itemById]);
+
+  const kitTypes = useMemo(
+    () => [...new Set(memberKit.map((k) => kitFacets[k.id]?.type).filter(Boolean))]
+      .sort((a, b) => ((TYPE_ORDER[a] ?? 9) - (TYPE_ORDER[b] ?? 9)) || a.localeCompare(b)),
+    [memberKit, kitFacets]
+  );
+
+  // Quick stats for the member header (in-service only): units held + styles.
+  const kitStats = useMemo(() => {
+    const live = memberKit.filter((k) => k.status === 'in_service');
+    return {
+      issued: live.reduce((a, k) => a + (Number(k.quantity) || 1), 0),
+      styles: live.length,
+      returned: memberKit.filter((k) => k.status !== 'in_service').length,
+    };
+  }, [memberKit]);
+
+  // in-service items not yet acknowledged — what "Send for sign-off" chases up.
+  const pendingSignoff = useMemo(
+    () => memberKit.filter((k) => k.status === 'in_service' && !k.acknowledged_at).map((k) => k.id),
+    [memberKit]
+  );
+
+  // Filtered + charter→type grouped view of the member's kit. In-service items
+  // group charter-first then by type; returned/retired items collect at the end.
+  const memberGroups = useMemo(() => {
+    const s = kq.trim().toLowerCase();
+    const filtered = memberKit.filter((k) => {
+      const f = kitFacets[k.id] || {};
+      if (kCharter !== 'all' && f.charter !== kCharter) return false;
+      if (kType !== 'all' && f.type !== kType) return false;
+      if (kStatus === 'in_service' && k.status !== 'in_service') return false;
+      if (kStatus === 'awaiting' && !(k.status === 'in_service' && !k.acknowledged_at)) return false;
+      if (kStatus === 'retired' && k.status === 'in_service') return false;
+      if (s && !`${k.item} ${k.size || ''} ${f.charter} ${f.type}`.toLowerCase().includes(s)) return false;
+      return true;
+    });
+    const sortRows = (rows) => rows.sort((a, b) => {
+      if (kSort === 'name') return (a.item || '').localeCompare(b.item || '');
+      if (kSort === 'qty') return (Number(b.quantity) || 1) - (Number(a.quantity) || 1);
+      const cmp = (b.issued_date || '').localeCompare(a.issued_date || '');
+      return kSort === 'oldest' ? -cmp : cmp;
+    });
+    const active = filtered.filter((k) => k.status === 'in_service');
+    const retired = sortRows(filtered.filter((k) => k.status !== 'in_service'));
+    const g = new Map();
+    active.forEach((k) => {
+      const f = kitFacets[k.id] || {};
+      const key = `${f.charter}||${f.type}`;
+      if (!g.has(key)) g.set(key, { charter: f.charter, type: f.type, rows: [] });
+      g.get(key).rows.push(k);
+    });
+    const groups = [...g.values()].map((grp) => ({ ...grp, rows: sortRows(grp.rows) }));
+    groups.sort((a, b) =>
+      ((CHARTER_ORDER[a.charter] ?? 9) - (CHARTER_ORDER[b.charter] ?? 9))
+      || ((TYPE_ORDER[a.type] ?? 9) - (TYPE_ORDER[b.type] ?? 9))
+      || a.type.localeCompare(b.type));
+    return { groups, retired };
+  }, [memberKit, kitFacets, kq, kCharter, kType, kStatus, kSort]);
+
+  const kitFilterGroups = [
+    { key: 'charter', label: 'Charter', value: kCharter, neutral: 'all', onChange: setKCharter,
+      options: [{ value: 'all', label: 'All' }, { value: 'On charter', label: 'On charter' }, { value: 'Off charter', label: 'Off charter' }, { value: 'General', label: 'General' }] },
+    { key: 'type', label: 'Type', value: kType, neutral: 'all', onChange: setKType,
+      options: [{ value: 'all', label: 'All types' }, ...kitTypes.map((t) => ({ value: t, label: t }))] },
+    { key: 'status', label: 'Status', value: kStatus, neutral: 'all', onChange: setKStatus,
+      options: [{ value: 'all', label: 'All' }, { value: 'in_service', label: 'In service' }, { value: 'awaiting', label: 'Awaiting sign-off' }, { value: 'retired', label: 'Returned / lost' }] },
+  ];
+  const kitSortOptions = [
+    { val: 'newest', label: 'Newest issued' }, { val: 'oldest', label: 'Oldest issued' },
+    { val: 'name', label: 'Item (A–Z)' }, { val: 'qty', label: 'Quantity (high → low)' },
+  ];
+
+  // Hand-over: stamp the crew member's unacknowledged kit as sent for sign-off,
+  // so their profile prompts them to acknowledge receipt or request a size swap.
+  const doSignoff = async () => {
+    if (!pendingSignoff.length || signingOff) return;
+    setSigningOff(true);
+    try {
+      await requestKitSignoff(pendingSignoff, { requestedBy: user?.id });
+      await logKitEvent({ userId: selectedId, tenantId: activeTenantId, action: 'signoff_requested', detail: { count: pendingSignoff.length }, actorId: user?.id, actorName: user?.user_metadata?.full_name || user?.email });
+      window.showToast?.(`Sent ${pendingSignoff.length} item${pendingSignoff.length === 1 ? '' : 's'} to ${selected?.fullName?.split(' ')[0] || 'the crew member'} for sign-off`, 'success');
+      await load();
+    } catch (e) {
+      window.showToast?.('Couldn’t send for sign-off — try again', 'error');
+    } finally { setSigningOff(false); }
+  };
 
   // Issue a batch of allocations [{ invItem, size, qty }] to the selected crew
   // member: one kit row per size, drawing each size from master stock. For a
@@ -497,18 +637,68 @@ const CrewFolder = ({ onBack }) => {
   }
 
   // ── One crew member's issued uniform ─────────────────────────────────────
+  // A kit tile — reads like an inventory item tile, but the number is what THIS
+  // crew member holds (×qty issued), not master stock.
+  const KitTile = (k) => {
+    const st = kitStatus(k);
+    const f = kitFacets[k.id] || {};
+    const live = k.status === 'in_service';
+    const meta = [k.condition_issued, k.issued_date ? fmtKitDate(k.issued_date) : null].filter(Boolean).join(' · ');
+    return (
+      <div className={`cf-tile${live ? '' : ' ret'}`} key={k.id}>
+        <div className="cf-tile-media">
+          {f.img ? <img src={f.img} alt={k.item} /> : <span className="cf-tile-ph"><Icon name={typeIcon(f.type)} size={30} /></span>}
+          <span className={`cf-tile-qty${live ? '' : ' ret'}`}><span className="x">×</span>{k.quantity || 1}</span>
+          {canManage && live && (
+            <button type="button" className="cf-tile-del" onClick={() => doDelete(k)} aria-label="Remove"><Icon name="Trash2" size={13} /></button>
+          )}
+        </div>
+        <div className="cf-tile-body">
+          <span className="cf-tile-nm">{k.item}</span>
+          <div className="cf-tile-sub">
+            {k.size && <span className="cf-tile-sz">{k.size}</span>}
+            {meta && <span>{meta}</span>}
+          </div>
+          {k.swap_requested_size && <span className="cf-tile-swap"><Icon name="Repeat" size={11} /> Swap → {k.swap_requested_size}</span>}
+          {k.notes && <span className="cf-tile-note">{k.notes}</span>}
+          <div className="cf-tile-foot">
+            <span className={`cf-pill ${st.cls}`}>{st.label}</span>
+            {showValue && k.value != null && <span className="cf-tile-val">{money(k.value * (k.quantity || 1), 'USD')}</span>}
+            {canManage && live && <button type="button" className="cf-tile-return" onClick={() => setReturning(k)}>Return</button>}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const noneMatch = memberKit.length > 0 && memberGroups.groups.length === 0 && memberGroups.retired.length === 0;
+
   return (
     <div className="cf-view">
       <div className="cf-bar">
         <button type="button" className="lm-back" onClick={() => setSelectedId(null)}><Icon name="ArrowLeft" size={16} /> Back to all crew</button>
-        {canManage && <button type="button" className="cf-btn primary sm" onClick={openIssue}><Icon name="Plus" size={15} /> Issue from inventory</button>}
+        {canManage && (
+          <div className="cf-bar-acts">
+            {pendingSignoff.length > 0 && (
+              <button type="button" className="cf-btn ghost sm" onClick={doSignoff} disabled={signingOff}>
+                <Icon name="PenLine" size={15} /> {signingOff ? 'Sending…' : `Send for sign-off (${pendingSignoff.length})`}
+              </button>
+            )}
+            <button type="button" className="cf-btn primary sm" onClick={openIssue}><Icon name="Plus" size={15} /> Issue from inventory</button>
+          </div>
+        )}
       </div>
 
       <div className="cf-member-head">
         <span className="cf-avatar lg">{selected.photo ? <img src={selected.photo} alt="" /> : <span>{(selected.fullName || '?').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>}</span>
-        <div>
+        <div className="cf-member-who">
+          <p className="editorial-meta cf-member-meta">
+            <span className="dot">●</span><span>Wardrobe</span>
+            {(selected.roleTitle || selected.department) && <><span className="bar" /><span className="muted">{[selected.roleTitle, selected.department].filter(Boolean).join(' · ')}</span></>}
+            <span className="bar" /><span className="muted">{kitStats.issued} issued</span>
+            {kitStats.returned > 0 && <><span className="bar" /><span className="muted">{kitStats.returned} returned</span></>}
+          </p>
           <h2 className="cf-member-nm">{selected.fullName}</h2>
-          <p className="cf-member-sub">{[selected.roleTitle, selected.department].filter(Boolean).join(' · ')}</p>
         </div>
       </div>
 
@@ -519,29 +709,48 @@ const CrewFolder = ({ onBack }) => {
           {canManage && <button type="button" className="cf-btn primary" onClick={openIssue}><Icon name="Plus" size={15} /> Issue from inventory</button>}
         </div>
       ) : (
-        <div className="cf-kit">
-          {memberKit.map((k) => {
-            const st = kitStatus(k);
-            return (
-              <div className={`cf-kit-row${k.status !== 'in_service' ? ' muted' : ''}`} key={k.id}>
-                <span className="cf-kit-ic"><Icon name="Shirt" size={16} /></span>
-                <div className="cf-kit-main">
-                  <span className="cf-kit-nm">{k.item}{k.quantity > 1 ? ` ×${k.quantity}` : ''}</span>
-                  <span className="cf-kit-sub">{[k.size ? `Size ${k.size}` : null, k.condition_issued, k.issued_date ? `Issued ${fmtKitDate(k.issued_date)}` : null].filter(Boolean).join(' · ')}</span>
-                  {k.notes && <span className="cf-kit-note">{k.notes}</span>}
-                </div>
-                {showValue && k.value != null && <span className="cf-kit-val">{money(k.value * (k.quantity || 1), 'USD')}</span>}
-                <span className={`cf-pill ${st.cls}`}>{st.label}</span>
-                {canManage && (
-                  <div className="cf-kit-acts">
-                    {k.status === 'in_service' && <button type="button" className="cf-mini" onClick={() => setReturning(k)}>Return</button>}
-                    <button type="button" className="cf-mini danger" onClick={() => doDelete(k)} aria-label="Remove"><Icon name="Trash2" size={14} /></button>
+        <>
+          <div className="cf-toolbar">
+            <div className="cf-tsearch">
+              <Icon name="Search" size={16} className="cf-search-ic" />
+              <input value={kq} onChange={(e) => setKq(e.target.value)} placeholder="Search this kit…" />
+            </div>
+            <div className="cf-tools">
+              <FilterMenu groups={kitFilterGroups} />
+              <SortMenu value={kSort} onChange={setKSort} options={kitSortOptions} />
+            </div>
+          </div>
+
+          {noneMatch ? (
+            <div className="cf-empty-note">No kit matches these filters.</div>
+          ) : (
+            <>
+              {memberGroups.groups.map((grp) => {
+                const units = grp.rows.reduce((a, k) => a + (Number(k.quantity) || 1), 0);
+                return (
+                  <section className="cf-cat" key={`${grp.charter}||${grp.type}`}>
+                    <div className="cf-cat-h">
+                      <span className="cf-cat-t"><span className="cf-cat-ic"><Icon name={typeIcon(grp.type)} size={14} /></span>{grp.charter === 'General' ? grp.type : `${grp.charter} · ${grp.type}`}</span>
+                      <span className="cf-cat-ct">{grp.rows.length} style{grp.rows.length === 1 ? '' : 's'} · {units} item{units === 1 ? '' : 's'}</span>
+                      <span className="cf-cat-rule" />
+                    </div>
+                    <div className="cf-tilegrid">{grp.rows.map(KitTile)}</div>
+                  </section>
+                );
+              })}
+              {memberGroups.retired.length > 0 && (
+                <section className="cf-cat">
+                  <div className="cf-cat-h">
+                    <span className="cf-cat-t"><span className="cf-cat-ic muted"><Icon name="Undo2" size={14} /></span>Returned / retired</span>
+                    <span className="cf-cat-ct">{memberGroups.retired.length} item{memberGroups.retired.length === 1 ? '' : 's'}</span>
+                    <span className="cf-cat-rule" />
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  <div className="cf-tilegrid">{memberGroups.retired.map(KitTile)}</div>
+                </section>
+              )}
+            </>
+          )}
+        </>
       )}
 
       {issuing && <IssueModal crewName={selected.fullName} stock={stock} folderRels={folderRels} showValue={showValue} onIssue={doIssue} onClose={() => setIssuing(false)} />}
