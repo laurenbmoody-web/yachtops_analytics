@@ -11,7 +11,7 @@ import {
   REQUIREMENTS, requirementState, lineState, maxForPart, clampSplitAmount,
   maxSpendDate, isSpendDateValid, canVoidTxn, voidBlockedReason,
   looksLikeRefund, findRefundCandidate, refundInheritedFields, defaultDepartment,
-  outstandingText,
+  outstandingText, hasEvidence,
 } from './lineDetail.js';
 
 // ── department ──────────────────────────────────────────────────────────────
@@ -412,11 +412,11 @@ test('declaring there is no receipt counts as evidence', () => {
 
   // A card subscription or bank fee has no slip — declaring that completes the line.
   const waived = requirementState(
-    { category: 'X', note: 'y', department: 'Deck', receipt_waived: true }, ctx,
+    { category: 'X', note: 'y', department: 'Deck', receipt_waived: true, receipt_waived_reason: 'Bank charge' }, ctx,
   );
   assert.equal(waived.done.receipt, true);
   assert.equal(waived.count, 5);
-  assert.equal(lineState({ category: 'X', note: 'y', department: 'Deck', receipt_waived: true }, ctx), 'complete');
+  assert.equal(lineState({ category: 'X', note: 'y', department: 'Deck', receipt_waived: true, receipt_waived_reason: 'Bank charge' }, ctx), 'complete');
 });
 
 // ── outstanding items are named, not counted ────────────────────────────────
@@ -438,6 +438,38 @@ test('a finished line has nothing to say', () => {
     outstandingText(
       { category: 'X', note: 'y', department: 'Deck', allocation: 'owner' },
       { account: { funds_type: 'general' }, hasReceipt: true },
+    ),
+    '',
+  );
+});
+
+// ── evidence: a receipt OR a stated reason, no exemptions ───────────────────
+test('an attached receipt is evidence', () => {
+  assert.equal(hasEvidence({}, true), true);
+});
+
+test('"no receipt" only counts once a reason is actually given', () => {
+  assert.equal(hasEvidence({ receipt_waived: true }, false), false);
+  assert.equal(hasEvidence({ receipt_waived: true, receipt_waived_reason: '   ' }, false), false);
+  assert.equal(hasEvidence({ receipt_waived: true, receipt_waived_reason: 'Bank charge' }, false), true);
+});
+
+test('a reason without the box ticked is not evidence either', () => {
+  assert.equal(hasEvidence({ receipt_waived_reason: 'Bank charge' }, false), false);
+  assert.equal(hasEvidence({}, false), false);
+});
+
+test('a ticked box with no reason asks for the reason, not a receipt', () => {
+  const ctx = { account: { funds_type: 'owner' }, hasReceipt: false };
+  assert.equal(
+    outstandingText({ category: 'X', note: 'y', department: 'Deck', receipt_waived: true }, ctx),
+    'needs a reason for no receipt',
+  );
+  // With the reason given, the line is done.
+  assert.equal(
+    outstandingText(
+      { category: 'X', note: 'y', department: 'Deck', receipt_waived: true, receipt_waived_reason: 'Bank charge' },
+      ctx,
     ),
     '',
   );

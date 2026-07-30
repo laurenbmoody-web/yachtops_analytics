@@ -136,6 +136,9 @@ export default function LineDetail({
 
   const save = async () => {
     if (rows.length && !splitCheck.ok) { setErr(splitCheck.reason); return; }
+    if (!attachments.length && noReceipt && !noReceiptReason.trim()) {
+      setErr('Say why there’s no receipt — every line needs a receipt or a reason.'); return;
+    }
     if (!isSpendDateValid(spendDate, txn.statement_date)) {
       setErr('The date spent can’t be after the bank posted it.'); return;
     }
@@ -154,7 +157,8 @@ export default function LineDetail({
         trip_id: isCharter ? (matchedTrip?.id || null) : null,
         charter_ref: isCharter && !matchedTrip ? (charterText.trim() || null) : null,
         receipt_waived: attachments.length ? false : noReceipt,
-        receipt_waived_reason: !attachments.length && noReceipt ? (noReceiptReason.trim() || 'No receipt issued') : null,
+        // The reason is not optional: "no receipt" without saying why proves nothing.
+        receipt_waived_reason: !attachments.length && noReceipt ? noReceiptReason.trim() : null,
         vat_amount: vatAmount === '' ? null : Number(vatAmount),
         vat_rate: vatRate === '' ? null : Number(vatRate),
         currency,
@@ -279,8 +283,8 @@ export default function LineDetail({
             <span>No receipt for this — attach one from the row&rsquo;s clip if you have it</span>
           </label>
           {noReceipt && (
-            <input className="ld-input ld-reason" value={noReceiptReason}
-              onChange={(e) => setNoReceiptReason(e.target.value)}
+            <input className={`ld-input ld-reason${!noReceiptReason.trim() ? ' is-need' : ''}`}
+              value={noReceiptReason} onChange={(e) => setNoReceiptReason(e.target.value)}
               placeholder="Why — bank charge, card subscription, receipt lost…" />
           )}
         </div>

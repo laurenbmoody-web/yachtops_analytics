@@ -22,7 +22,7 @@ import {
   defaultAllocation, effectiveDate, datesDiffer, straddlesMonth,
   lineState, outstandingText,
   maxSpendDate, isSpendDateValid, canVoidTxn, voidBlockedReason,
-  looksLikeRefund, findRefundCandidate,
+  looksLikeRefund, findRefundCandidate, hasEvidence,
 } from '../../../services/lineDetail';
 import LineDetail from '../components/LineDetail';
 import ReceiptScanner from '../components/ReceiptScanner';
@@ -590,7 +590,7 @@ export default function Ledger() {
               {straddlesMonth(t) && (
                 <span className="ca-straddle" title={`Spent ${fmtDMY(t.txn_date)} but posted ${fmtDMY(t.statement_date)} — different months`}>crosses month</span>
               )}
-              {alloc && <span className="ca-allocx">{alloc === 'charter' ? 'charter · APA' : 'owner'}</span>}
+              {alloc && <span className={`ca-allocx${alloc === 'charter' ? ' is-charter' : ''}`}>{alloc === 'charter' ? 'charter · APA' : 'owner'}</span>}
             </div>
           )}
           {renderChips(t)}
@@ -604,22 +604,6 @@ export default function Ledger() {
                   {sp.category_code ? ` ${sp.category_code} · ` : ' '}{sp.category}
                 </span>
               ))}
-            </div>
-          )}
-          {/* Completeness track: one tick per requirement, filled when done. Replaces
-              the old "needs X" pill — scannable down the list without reading. */}
-          {!voided && (
-            <div className="ca-track" title={REQUIREMENTS.map((r) => `${req.done[r.key] ? '✓' : '·'} ${r.label}`).join('\n')}
-              role="img" aria-label={`${req.count} of ${req.total} complete`}>
-              {REQUIREMENTS.map((r) => (
-                <i key={r.key} className={`ca-tick${req.done[r.key] ? ' is-on' : ''}`} />
-              ))}
-              <span className="ca-trackn">{req.count}/{req.total}</span>
-              {t.is_pending && <span className="ca-pend" title="Card authorisation not settled">pending</span>}
-              {straddlesMonth(t) && (
-                <span className="ca-straddle" title={`Spent ${fmtDMY(t.txn_date)} but posted ${fmtDMY(t.statement_date)} — different months`}>crosses month</span>
-              )}
-              {alloc && <span className={`ca-allocx${alloc === 'charter' ? ' is-charter' : ''}`}>{alloc === 'charter' ? 'charter' : 'owner'}</span>}
             </div>
           )}
         </div>
@@ -815,7 +799,7 @@ export default function Ledger() {
               txns={monthRows}
               openingBalance={accountsById[filters.accountId]?.opening_balance}
               reconciliation={recon}
-              hasReceipt={(t) => (attByTxn[t.id] || []).length > 0}
+              hasReceipt={(t) => hasEvidence(t, (attByTxn[t.id] || []).length > 0)}
               splitCount={(t) => (splitsByTxn[t.id] || []).length}
               canEdit={canEdit}
               onSaveStatement={handleSaveStatement}

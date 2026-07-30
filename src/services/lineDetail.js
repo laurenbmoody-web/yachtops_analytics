@@ -234,6 +234,16 @@ export const REQUIREMENTS = [
   { key: 'allocation', label: 'Who pays' },
 ];
 
+// Evidence for a line is a receipt OR a stated reason there isn't one. No
+// thresholds, no exemptions by amount or source: every line needs one or the other.
+//
+// The reason is not optional — ticking "no receipt" without saying why proves
+// nothing, so a blank reason leaves the line unevidenced.
+export const hasEvidence = (txn, hasAttachment) => {
+  if (hasAttachment) return true;
+  return Boolean(txn?.receipt_waived) && Boolean(String(txn?.receipt_waived_reason || '').trim());
+};
+
 // Per-requirement done/not, plus the count — the data behind the track.
 export const requirementState = (txn, { account, hasReceipt, splitCount = 0 } = {}) => {
   const alloc = txn?.allocation || defaultAllocation(txn, account);
@@ -243,10 +253,7 @@ export const requirementState = (txn, { account, hasReceipt, splitCount = 0 } = 
     // A split line is categorised by its parts, so the parent needn't carry one.
     category: Boolean(txn?.category) || splitCount > 0,
     note: Boolean(txn?.note),
-    // Some spend genuinely has no receipt — a bank fee, a card subscription, a lost
-    // slip. Declaring that (with a reason) counts as evidence; without this a line
-    // like that could never be finished, and an unreachable target is worse than none.
-    receipt: Boolean(hasReceipt) || Boolean(txn?.receipt_waived),
+    receipt: hasEvidence(txn, hasReceipt),
     // A split line carries its departments on the parts, so the parent needn't repeat it.
     department: Boolean(txn?.department) || splitCount > 0,
     allocation: Boolean(alloc) && charterOk,
@@ -262,13 +269,17 @@ const NEEDS_WORDING = {
   category: 'a category',
   note: 'a note',
   receipt: 'a receipt',
+  receiptReason: 'a reason for no receipt',
   department: 'a department',
   allocation: 'owner or charter',
 };
 
 export const outstandingText = (txn, ctx = {}) => {
   const { done } = requirementState(txn, ctx);
-  const missing = REQUIREMENTS.filter((r) => !done[r.key]).map((r) => NEEDS_WORDING[r.key]);
+  const missing = REQUIREMENTS.filter((r) => !done[r.key]).map((r) => (
+    // A ticked "no receipt" box with nothing typed needs the reason, not a receipt.
+    r.key === 'receipt' && txn?.receipt_waived ? NEEDS_WORDING.receiptReason : NEEDS_WORDING[r.key]
+  ));
   if (!missing.length) return '';
   if (missing.length === 1) return `needs ${missing[0]}`;
   if (missing.length === 2) return `needs ${missing[0]} and ${missing[1]}`;
