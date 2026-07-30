@@ -26,6 +26,7 @@ const ACCOUNT_SELECT =
 const TXN_SELECT =
   'id, tenant_id, account_id, txn_date, statement_date, is_pending, amount, currency, fx_rate, amount_base, ' +
   'category, category_code, department, vat_amount, vat_rate, payee, allocation, note, charter_ref, ' +
+  'receipt_waived, receipt_waived_reason, ' +
   'description, source, status, fee_parent_id, supplier_order_id, supplier_invoice_id, ' +
   'provisioning_item_id, defect_id, trip_id, crew_id, posting_group_id, refund_of_id, created_by, created_at';
 
@@ -270,6 +271,7 @@ const DETAIL_KEYS = [
   'note', 'department', 'crew_id', 'allocation', 'trip_id', 'charter_ref',
   'vat_amount', 'vat_rate', 'currency', 'fx_rate', 'amount_base',
   'category', 'category_code', 'txn_date', 'statement_date', 'refund_of_id',
+  'receipt_waived', 'receipt_waived_reason',
 ];
 
 export const updateTransactionDetail = async (id, patch = {}) => {

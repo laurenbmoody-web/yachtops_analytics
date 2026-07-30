@@ -20,7 +20,7 @@ import { parseReceipt } from '../../../services/documentParser';
 import { resolveSuggestion, normalizeMerchant } from '../../../services/merchantClassify';
 import {
   defaultAllocation, effectiveDate, datesDiffer, straddlesMonth,
-  REQUIREMENTS, requirementState, lineState,
+  lineState, outstandingText,
   maxSpendDate, isSpendDateValid, canVoidTxn, voidBlockedReason,
   looksLikeRefund, findRefundCandidate,
 } from '../../../services/lineDetail';
@@ -509,7 +509,7 @@ export default function Ledger() {
     const alloc = t.allocation || defaultAllocation(t, acct);
     const ctx = { account: acct, hasReceipt: atts.length > 0, splitCount: rowSplits.length };
     const state = voided ? 'void' : lineState(t, ctx);
-    const req = requirementState(t, ctx);
+    const outstanding = voided ? '' : outstandingText(t, ctx);
     return (
       <React.Fragment key={t.id}>
       <div className={`ca-txn is-${state}${voided ? ' is-void' : ''}${open ? ' is-open' : ''}`}>
@@ -567,6 +567,32 @@ export default function Ledger() {
             </div>
           )}
           {look && !voided && canEdit && rowSplits.length === 0 && !looksLikeRefund(t) && renderSuggest(t)}
+          {renderChips(t)}
+          {/* Inline split breakdown — a split line shows its parts, the same way an
+              unsplit line shows its single category. */}
+          {rowSplits.length > 0 && (
+            <div className="ca-splitline">
+              {rowSplits.map((sp) => (
+                <span key={sp.id} className="ca-splitpart">
+                  <b>{formatMoney(Math.abs(sp.amount), t.currency)}</b>
+                  {sp.category_code ? ` ${sp.category_code} · ` : ' '}{sp.category}
+                </span>
+              ))}
+            </div>
+          )}
+          {/* What's outstanding, in words. A row of anonymous ticks couldn't say what
+              was actually needed — you had to hover to find out — so this states it
+              as ordinary muted text alongside the category and source. */}
+          {!voided && (outstanding || t.is_pending || straddlesMonth(t) || alloc) && (
+            <div className="ca-state">
+              {outstanding && <span className="ca-needs">{outstanding}</span>}
+              {t.is_pending && <span className="ca-pend" title="Card authorisation not settled">pending</span>}
+              {straddlesMonth(t) && (
+                <span className="ca-straddle" title={`Spent ${fmtDMY(t.txn_date)} but posted ${fmtDMY(t.statement_date)} — different months`}>crosses month</span>
+              )}
+              {alloc && <span className="ca-allocx">{alloc === 'charter' ? 'charter · APA' : 'owner'}</span>}
+            </div>
+          )}
           {renderChips(t)}
           {/* Inline split breakdown — a split line shows its parts, the same way an
               unsplit line shows its single category. */}

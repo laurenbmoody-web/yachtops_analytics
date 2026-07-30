@@ -56,6 +56,10 @@ export default function LineDetail({
   const [currency, setCurrency] = useState(txn.currency || account?.currency || 'GBP');
   const [fxRate, setFxRate] = useState(txn.fx_rate ?? 1);
   const [spendDate, setSpendDate] = useState((txn.txn_date || '').slice(0, 10));
+  // Some spend has no receipt and never will (a bank fee, a card subscription).
+  // Declaring that completes the line, and records WHY for the audit trail.
+  const [noReceipt, setNoReceipt] = useState(Boolean(txn.receipt_waived));
+  const [noReceiptReason, setNoReceiptReason] = useState(txn.receipt_waived_reason || '');
   // Split rows hold MAGNITUDES — the parent's direction is applied on save.
   const [rows, setRows] = useState(() => (splits.length
     ? splits.map((s) => ({ ...s, amount: String(Math.abs(Number(s.amount) || 0)) }))
@@ -149,6 +153,8 @@ export default function LineDetail({
         allocation: allocation || null,
         trip_id: isCharter ? (matchedTrip?.id || null) : null,
         charter_ref: isCharter && !matchedTrip ? (charterText.trim() || null) : null,
+        receipt_waived: attachments.length ? false : noReceipt,
+        receipt_waived_reason: !attachments.length && noReceipt ? (noReceiptReason.trim() || 'No receipt issued') : null,
         vat_amount: vatAmount === '' ? null : Number(vatAmount),
         vat_rate: vatRate === '' ? null : Number(vatRate),
         currency,
@@ -263,6 +269,22 @@ export default function LineDetail({
           </div>
         )}
       </div>
+
+      {/* No receipt? Say so. Without this a bank fee or subscription could never be
+          finished, and a flag that can't be cleared is a flag people learn to ignore. */}
+      {attachments.length === 0 && canEdit && (
+        <div className="ld-noreceipt">
+          <label className="ld-check">
+            <input type="checkbox" checked={noReceipt} onChange={(e) => setNoReceipt(e.target.checked)} />
+            <span>No receipt for this — attach one from the row&rsquo;s clip if you have it</span>
+          </label>
+          {noReceipt && (
+            <input className="ld-input ld-reason" value={noReceiptReason}
+              onChange={(e) => setNoReceiptReason(e.target.value)}
+              placeholder="Why — bank charge, card subscription, receipt lost…" />
+          )}
+        </div>
+      )}
 
       {/* Receipts — attaching happens from the row's clip; this is view/remove only,
           so it takes no space when there's nothing attached. */}

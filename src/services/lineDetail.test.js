@@ -11,6 +11,7 @@ import {
   REQUIREMENTS, requirementState, lineState, maxForPart, clampSplitAmount,
   maxSpendDate, isSpendDateValid, canVoidTxn, voidBlockedReason,
   looksLikeRefund, findRefundCandidate, refundInheritedFields, defaultDepartment,
+  outstandingText,
 } from './lineDetail.js';
 
 // ── department ──────────────────────────────────────────────────────────────
@@ -400,5 +401,44 @@ test('the reconciler fills in only when no spender is known', () => {
   assert.equal(
     defaultDepartment({ category_code: 'DCN' }, { reconcilerDepartment: 'Bridge' }),
     'Deck',
+  );
+});
+
+// ── a receipt can be legitimately waived, so a line is always finishable ────
+test('declaring there is no receipt counts as evidence', () => {
+  const ctx = { account: { funds_type: 'owner' }, hasReceipt: false };
+  const bare = requirementState({ category: 'X', note: 'y', department: 'Deck' }, ctx);
+  assert.equal(bare.done.receipt, false);
+
+  // A card subscription or bank fee has no slip — declaring that completes the line.
+  const waived = requirementState(
+    { category: 'X', note: 'y', department: 'Deck', receipt_waived: true }, ctx,
+  );
+  assert.equal(waived.done.receipt, true);
+  assert.equal(waived.count, 5);
+  assert.equal(lineState({ category: 'X', note: 'y', department: 'Deck', receipt_waived: true }, ctx), 'complete');
+});
+
+// ── outstanding items are named, not counted ────────────────────────────────
+test('outstandingText says what is actually missing', () => {
+  const ctx = { account: { funds_type: 'owner' }, hasReceipt: true };
+  assert.equal(
+    outstandingText({ category: 'X', department: 'Deck' }, ctx),
+    'needs a note',
+  );
+  assert.equal(
+    outstandingText({ category: 'X' }, ctx),
+    'needs a note and a department',
+  );
+  assert.match(outstandingText({}, { account: { funds_type: 'general' }, hasReceipt: false }), /and \d+ more/);
+});
+
+test('a finished line has nothing to say', () => {
+  assert.equal(
+    outstandingText(
+      { category: 'X', note: 'y', department: 'Deck', allocation: 'owner' },
+      { account: { funds_type: 'general' }, hasReceipt: true },
+    ),
+    '',
   );
 });

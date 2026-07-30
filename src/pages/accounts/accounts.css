@@ -372,14 +372,10 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
 .ca-clip.has:hover{color:#2F7A64; background:#EDF3F0}
 .ca-txn-note{color:#6B7280}
 
-/* ── Completeness track (replaces the "needs receipt + note" pills) ───────── */
-.ca-track{display:flex; align-items:center; gap:9px; margin-top:6px}
-.ca-track .ca-tick{width:14px; height:3px; border-radius:2px; background:#E2E5EA; flex:0 0 auto}
-.ca-track .ca-tick.is-on{background:#2F7A64}
-.ca-txn.is-untouched .ca-track .ca-tick.is-on{background:#C9A227}
-.ca-trackn{font-size:10px; font-weight:700; color:#AEB4C2; font-variant-numeric:tabular-nums; letter-spacing:.3px}
-.ca-track > .ca-tick + .ca-trackn{margin-left:1px}
-.ca-pend,.ca-straddle,.ca-allocx{font-size:10px; font-weight:600; letter-spacing:.2px}
+/* ── What a line still needs, as plain text ───────────────────────────────── */
+.ca-state{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:5px}
+.ca-needs{font-size:11.5px; color:#A8871B; font-style:italic}
+.ca-pend,.ca-straddle,.ca-allocx{font-size:10.5px; font-weight:600}
 .ca-pend{color:#8B8478}
 .ca-straddle{color:#A8871B; font-weight:700}
 .ca-allocx{color:#8B8478; text-transform:uppercase; letter-spacing:.6px; font-size:9px; font-weight:700}

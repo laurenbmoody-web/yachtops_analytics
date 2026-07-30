@@ -104,3 +104,11 @@ select.ld-input { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .ld-input.is-shake { animation: none; }
 }
+
+/* "No receipt for this" declaration — the honest alternative to a flag that can
+   never be cleared on a bank fee or a card subscription. */
+.ld-noreceipt { display: flex; flex-direction: column; gap: 7px; }
+.ld-check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.ld-check input { width: 15px; height: 15px; accent-color: #C65A1A; cursor: pointer; }
+.ld-check span { font-size: 12px; color: #6B7280; }
+.ld-reason { max-width: 420px; }
