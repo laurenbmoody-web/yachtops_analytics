@@ -129,6 +129,27 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
     return found?.name || '';
   };
 
+  // A stock location that resolves to a map pin (matched by node id) becomes a
+  // clickable row that opens the vessel map right there — no extra link rows.
+  const placeByNode = new Map();
+  mapPlaces.forEach((p) => { if (p?.nodeId && !placeByNode.has(p.nodeId)) placeByNode.set(p.nodeId, p); });
+  const renderLoc = (l, qty, key, fallback) => {
+    const pid = locId(l);
+    const place = pid ? placeByNode.get(pid) : null;
+    const linkProps = place ? {
+      role: 'button', tabIndex: 0,
+      onClick: () => openOnMap(place),
+      onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openOnMap(place); } },
+      title: `Show on the vessel map${place.scanName ? ` · ${place.scanName}` : ''}`,
+    } : {};
+    return (
+      <div className={`uv-loc${place ? ' uv-loc-link' : ''}`} key={key} {...linkProps}>
+        <span className="uv-loc-k"><Icon name="MapPin" size={13} /> <LocPath label={nameFor(l)} fallback={fallback} /></span>
+        <span className="uv-loc-v">{place && <Icon name="ArrowUpRight" size={12} className="uv-loc-arrow" />}{qty}</span>
+      </div>
+    );
+  };
+
   const category = [item?.l1Name, item?.l2Name].filter(Boolean).join(' · ') || null;
   const eyebrow = item?.l2Name || item?.l1Name || item?.usageDepartment || 'Inventory';
   const cost = item?.unitCost != null && item?.unitCost !== '' && Number(item?.unitCost) !== 0
@@ -182,29 +203,8 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
           <div className="uv-sec">
             <div className="uv-sec-h"><span>Stock</span><span className="uv-total">{total}{item?.unit ? ` ${item.unit}` : ''}</span></div>
             {multiLoc ? (
-              placed.map((l, i) => (
-                <div className="uv-loc" key={i}>
-                  <span className="uv-loc-k"><Icon name="MapPin" size={13} /> <LocPath label={nameFor(l)} fallback={`Location ${i + 1}`} /></span>
-                  <span className="uv-loc-v">{l?.qty ?? l?.quantity ?? 0}</span>
-                </div>
-              ))
-            ) : (nameFor(placed[0]) ? (
-              <div className="uv-loc">
-                <span className="uv-loc-k"><Icon name="MapPin" size={13} /> <LocPath label={nameFor(placed[0])} /></span>
-                <span className="uv-loc-v">{total}</span>
-              </div>
-            ) : null)}
-            {mapPlaces.length > 0 && (
-              <div className="uv-maplinks">
-                {mapPlaces.map((p, i) => (
-                  <button type="button" key={p.hotspotId || i} className="uv-maplink" onClick={() => openOnMap(p)} title="Open the vessel map here">
-                    <Icon name="Map" size={13} />
-                    <span className="uv-maplink-txt">On the vessel map{p.scanName ? ` · ${p.scanName}` : ''}{p.label ? ` › ${p.label}` : ''}</span>
-                    <Icon name="ArrowUpRight" size={12} />
-                  </button>
-                ))}
-              </div>
-            )}
+              placed.map((l, i) => renderLoc(l, l?.qty ?? l?.quantity ?? 0, i, `Location ${i + 1}`))
+            ) : (nameFor(placed[0]) ? renderLoc(placed[0], total, 'single') : null)}
           </div>
 
           <div className="uv-sec">

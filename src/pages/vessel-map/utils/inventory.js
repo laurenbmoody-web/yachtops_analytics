@@ -221,7 +221,7 @@ export async function findItemOnMap(tenantId, itemId) {
       .filter((t) => t.item_id === itemId).length;
     const placed = h.location_node_id && placedNodeIds.has(h.location_node_id);
     if (spots === 0 && !placed) return [];
-    return [{ hotspotId: h.id, label: h.label, scanId: h.scan_id, scanName: scanName[h.scan_id], spots, placed: !!placed }];
+    return [{ hotspotId: h.id, nodeId: h.location_node_id, label: h.label, scanId: h.scan_id, scanName: scanName[h.scan_id], spots, placed: !!placed }];
   });
   return { places };
 }
