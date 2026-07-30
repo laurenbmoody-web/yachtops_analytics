@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { formatDate } from '../../../utils/dateFormat';
 import { money } from '../../laundry-management-dashboard/utils/laundryBilling';
 import { formatBoughtIn } from '../../../data/unitGroups';
+import { duplicateItem } from '../utils/inventoryStorage';
 import LocPath from './LocPath';
 import './uniformView.css';
 
@@ -13,17 +14,32 @@ const Row = ({ label, value }) => ((value == null || value === '') ? null : (
   <div className="uv-row"><span className="uv-k">{label}</span><span className="uv-v">{value}</span></div>
 ));
 
-const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, vesselLocations = [] }) => {
+const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vesselLocations = [] }) => {
+  const [activePhoto, setActivePhoto] = useState(null);
+  const [dupBusy, setDupBusy] = useState(false);
   useEffect(() => {
     const onKey = (e) => { if (e?.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
+  // Reset the active gallery photo when switching to a different item.
+  useEffect(() => { setActivePhoto(null); }, [item?.id]);
 
   if (!item) return null;
 
   const cf = item?.customFields || item?.custom_fields || {};
   const photoSrc = item?.photo?.dataUrl || (typeof item?.photo === 'string' ? item?.photo : null) || item?.imageUrl || null;
+  const gallery = (Array.isArray(cf.images) && cf.images.length ? cf.images : (photoSrc ? [photoSrc] : [])).filter(Boolean);
+  const mainPhoto = activePhoto || gallery[0] || photoSrc;
+
+  const handleDuplicate = async () => {
+    if (dupBusy) return;
+    setDupBusy(true);
+    const copy = await duplicateItem(item?.id);
+    setDupBusy(false);
+    if (copy) { window.showToast?.(`Duplicated — “${copy.name}” added`, 'success'); onDuplicated?.(copy); }
+    else window.showToast?.('Couldn’t duplicate — try again', 'error');
+  };
 
   const stockLocs = Array.isArray(item?.stockLocations) ? item.stockLocations : [];
   const placed = stockLocs.filter((l) => (l?.qty ?? l?.quantity ?? 0) > 0 || l?.vesselLocationId || l?.locationId);
@@ -70,7 +86,26 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, vesselLocations = 
         </div>
 
         <div className="uv-body">
-          {photoSrc && <div className="uv-photo"><img src={photoSrc} alt={item?.name || ''} /></div>}
+          {mainPhoto && (
+            <>
+              <div className="uv-photo"><img src={mainPhoto} alt={item?.name || ''} /></div>
+              {gallery.length > 1 && (
+                <div className="uv-gallery">
+                  {gallery.map((url, i) => (
+                    <button
+                      type="button"
+                      key={`${url}-${i}`}
+                      className={`uv-gthumb${url === mainPhoto ? ' on' : ''}`}
+                      onClick={() => setActivePhoto(url)}
+                      aria-label={`Photo ${i + 1}`}
+                    >
+                      <img src={url} alt="" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
 
           <div className="uv-sec">
             <div className="uv-sec-h"><span>Stock</span><span className="uv-total">{total}{item?.unit ? ` ${item.unit}` : ''}</span></div>
@@ -134,9 +169,16 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, vesselLocations = 
           {item?.notes && <p className="uv-notes">{item.notes}</p>}
         </div>
 
-        {canEdit && onEdit && (
+        {((canEdit && onEdit) || onDuplicated) && (
           <div className="uv-foot">
-            <button type="button" className="uv-btn" onClick={() => onEdit(item)}><Icon name="Pencil" size={14} /> Edit</button>
+            {onDuplicated && (
+              <button type="button" className="uv-btn uv-btn-quiet" onClick={handleDuplicate} disabled={dupBusy}>
+                <Icon name="Copy" size={14} /> {dupBusy ? 'Duplicating…' : 'Duplicate'}
+              </button>
+            )}
+            {canEdit && onEdit && (
+              <button type="button" className="uv-btn" onClick={() => onEdit(item)}><Icon name="Pencil" size={14} /> Edit</button>
+            )}
           </div>
         )}
       </aside>

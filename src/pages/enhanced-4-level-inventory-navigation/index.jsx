@@ -4361,6 +4361,7 @@ const LocationFirstInventory = () => {
             item={quickViewItem}
             canEdit={canEdit}
             onEdit={onEditItem}
+            onDuplicated={() => { setQuickViewItem(null); handleItemSaved?.(); }}
             onClose={() => setQuickViewItem(null)}
           />
         ) : (
@@ -4369,6 +4370,7 @@ const LocationFirstInventory = () => {
             onClose={() => setQuickViewItem(null)}
             onEdit={onEditItem}
             canEdit={canEdit}
+            onDuplicated={() => { setQuickViewItem(null); handleItemSaved?.(); }}
           />
         );
       })()}
