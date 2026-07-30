@@ -90,3 +90,17 @@ select.ld-input { cursor: pointer; }
   .ld-split { grid-template-columns: 100px 1fr 28px; }
   .ld-split-note { display: none; }
 }
+
+/* An over-allocation is refused as it's typed: the field shakes and clamps to
+   what's left, so a split that could never reconcile can't be entered. */
+@keyframes ld-shake {
+  0%,100% { transform: translateX(0); }
+  20%     { transform: translateX(-4px); }
+  40%     { transform: translateX(4px); }
+  60%     { transform: translateX(-3px); }
+  80%     { transform: translateX(2px); }
+}
+.ld-input.is-shake { animation: ld-shake .4s ease; border-color: #C65A1A; background: #FDF1EB; }
+@media (prefers-reduced-motion: reduce) {
+  .ld-input.is-shake { animation: none; }
+}

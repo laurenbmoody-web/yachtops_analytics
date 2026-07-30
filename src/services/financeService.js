@@ -174,6 +174,10 @@ export const createTransaction = async (payload) => {
       vat_rate: payload.vat_rate ?? null,
       payee: payload.payee || null,
       description: payload.description || null,
+      note: payload.note || null,
+      allocation: payload.allocation || null,
+      charter_ref: payload.charter_ref || null,
+      statement_date: payload.statement_date || null,
       source: payload.source || 'manual',
       // A manual row booked straight into an account is reconciled; an unassigned
       // one lands in the "Needs attention" queue.

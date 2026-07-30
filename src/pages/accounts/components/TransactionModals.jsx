@@ -5,6 +5,8 @@ import ModalShell from '../../../components/ui/ModalShell';
 import { deriveAmountBase, formatMoney } from '../../../services/financeCalc';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
 import { getChartGrouped } from '../../../services/chartService';
+import { DEPARTMENTS } from '../../../utils/authStorage';
+import { departmentForCode } from '../../../services/lineDetail';
 
 const CURRENCIES = ['EUR', 'GBP', 'USD'];
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -33,7 +35,7 @@ function buildPicker(groups) {
 }
 
 // ── Manual transaction ────────────────────────────────────────────────────────
-export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, accounts, tenantId }) {
+export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, accounts, tenantId, seed = null, crew = [], trips = [] }) {
   const [chartGroups, setChartGroups] = useState(null); // null until loaded → use fallback
   const [direction, setDirection] = useState('out'); // out = money out (negative)
   const [amount, setAmount] = useState('');
@@ -49,6 +51,13 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
   const [vatRate, setVatRate] = useState('');
   const [currencyOverride, setCurrencyOverride] = useState('');
   const [fxRate, setFxRate] = useState('1');
+  // Same reconciliation fields the ledger's line detail collects, so a manual entry
+  // starts as complete as a scanned or fed one.
+  const [note, setNote] = useState('');
+  const [department, setDepartment] = useState('');
+  const [cardholder, setCardholder] = useState('');
+  const [allocation, setAllocation] = useState('');
+  const [charterText, setCharterText] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -67,6 +76,25 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
     () => buildPicker(chartGroups || FALLBACK_GROUPS),
     [chartGroups],
   );
+
+  // A scanned receipt arrives as `seed`: prefill everything it could read so the
+  // crew confirm figures rather than typing them, and carry the photo through.
+  useEffect(() => {
+    if (!open || !seed) return;
+    setDirection('out');                       // a receipt is always money out
+    if (seed.amount) setAmount(seed.amount);
+    if (seed.txn_date) setDate(seed.txn_date);
+    if (seed.payee) setPayee(seed.payee);
+    if (seed.note) setNote(seed.note);
+    if (seed.vat_amount) setVatAmount(seed.vat_amount);
+    if (seed.vat_rate) setVatRate(seed.vat_rate);
+    if (seed.currency) setCurrencyOverride(seed.currency);
+    if (seed.category_code && lineByKey[seed.category_code]) setCatCode(seed.category_code);
+    else if (seed.category) { setCatCode('__other__'); setCustomCat(seed.category); }
+    if (seed.file) setReceipt(seed.file);
+    if (seed.category_code) setDepartment(departmentForCode(seed.category_code) || '');
+    setShowDetail(true);
+  }, [open, seed, lineByKey]);
 
   if (!open) return null;
   const account = accounts.find((a) => a.id === accountId);
@@ -94,7 +122,16 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
       payee: payee.trim() || null,
       vat_amount: vatAmount !== '' ? Number(vatAmount) : null,
       vat_rate: vatRate !== '' ? Number(vatRate) : null,
-      description: description.trim() || null,
+      // The row title: a manual entry has no bank narrative, so use the payee (or
+      // the note) as its description.
+      description: description.trim() || payee.trim() || note.trim() || null,
+      note: note.trim() || null,
+      department: department || null,
+      crew_id: cardholder || null,
+      allocation: allocation || null,
+      trip_id: allocation === 'charter' ? (trips.find((t) => t.name?.trim().toLowerCase() === charterText.trim().toLowerCase())?.id || null) : null,
+      charter_ref: allocation === 'charter' && !trips.find((t) => t.name?.trim().toLowerCase() === charterText.trim().toLowerCase())
+        ? (charterText.trim() || null) : null,
       source: 'manual',
     });
     if (res?.error) { setBusy(false); setErr(res.error.message || 'Could not add the transaction.'); return; }
@@ -164,9 +201,51 @@ export function ManualTxnModal({ open, onClose, onSave, onUploadReceipt, account
         </div>
 
         <div className="ca-form-row">
-          <label className="ca-label" htmlFor="ca-tx-desc">Description <span className="opt">optional</span></label>
-          <input id="ca-tx-desc" className="ca-input" value={description} onChange={(e) => setDescription(e.target.value)} />
+          <label className="ca-label" htmlFor="ca-tx-desc">Description / note</label>
+          <input id="ca-tx-desc" className="ca-input" value={note} onChange={(e) => setNote(e.target.value)}
+            placeholder="What this was for" />
         </div>
+
+        {/* The same reconciliation fields the ledger row collects, so a manual entry
+            lands complete instead of joining the "needs a look" queue. */}
+        <div className="ca-form-row ca-form-grid">
+          <div>
+            <label className="ca-label" htmlFor="ca-tx-dept">Department</label>
+            <select id="ca-tx-dept" className="ca-select" value={department} onChange={(e) => setDepartment(e.target.value)}>
+              <option value="">Not set</option>
+              {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="ca-label" htmlFor="ca-tx-who">Who spent it</label>
+            <select id="ca-tx-who" className="ca-select" value={cardholder} onChange={(e) => setCardholder(e.target.value)}>
+              <option value="">Not set</option>
+              {crew.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="ca-form-row">
+          <label className="ca-label">Who pays</label>
+          <div className="ca-mseg">
+            {[['owner', 'Owner'], ['charter', 'Charter (APA)']].map(([k, t]) => (
+              <button key={k} type="button" aria-pressed={allocation === k}
+                onClick={() => { setAllocation(allocation === k ? '' : k); if (k !== 'charter') setCharterText(''); }}>{t}</button>
+            ))}
+          </div>
+        </div>
+
+        {allocation === 'charter' && (
+          <div className="ca-form-row">
+            <label className="ca-label" htmlFor="ca-tx-charter">Which charter <span className="opt">required</span></label>
+            <input id="ca-tx-charter" className="ca-input" value={charterText} list="ca-tx-charters" autoComplete="off"
+              onChange={(e) => setCharterText(e.target.value)}
+              placeholder={trips.length ? 'Type or pick a charter…' : 'Charter name or reference'} />
+            <datalist id="ca-tx-charters">
+              {trips.map((t) => <option key={t.id} value={t.name} />)}
+            </datalist>
+          </div>
+        )}
 
         <div className="ca-form-row">
           <label className="ca-label" htmlFor="ca-tx-rcpt">Receipt <span className="opt">optional</span></label>
