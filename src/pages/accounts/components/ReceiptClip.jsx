@@ -12,7 +12,9 @@ import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import './receipt-clip.css';
 
-const PANEL_W = 268;
+// Wide enough for the reason field's placeholder to read in full — at 268 it
+// clipped mid-word, which looks like a broken input rather than a hint.
+const PANEL_W = 320;
 
 export default function ReceiptClip({
   txn, attachments = [], canEdit = true,
@@ -142,7 +144,7 @@ export default function ReceiptClip({
               <input className="rc-reason" value={reason} autoFocus
                 onChange={(e) => setReason(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') saveReason(); }}
-                placeholder="Bank charge, card subscription, receipt lost…" />
+                placeholder="Bank charge, subscription, lost…" />
               <div className="rc-act">
                 {waived
                   ? <button type="button" className="rc-ghost" disabled={busy}

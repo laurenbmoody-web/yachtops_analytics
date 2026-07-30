@@ -348,18 +348,20 @@ export const listTripsLite = async (tenantId) => {
   return { data: data || [], error };
 };
 
-// Active crew of the tenant, flattened to { id, name } for the cardholder picker.
+// Active crew of the tenant, flattened for the cardholder picker. `role` comes
+// through because financial_accounts identify their holder by role name
+// (holder_role) far more often than by user id — see services/accountPick.js.
 export const listTenantCrew = async (tenantId) => {
   const { data, error } = await supabase
     .from('tenant_members')
-    .select('user_id, active, profiles:user_id (id, full_name, first_name, surname, department)')
+    .select('user_id, active, role:roles!role_id (name), profiles:user_id (id, full_name, first_name, surname, department)')
     .eq('tenant_id', tenantId)
     .not('active', 'is', false);
   if (error) return { data: [], error };
   const crew = (data || []).map((m) => {
     const p = m.profiles || {};
     const name = p.full_name || [p.first_name, p.surname].filter(Boolean).join(' ') || 'Crew member';
-    return { id: m.user_id, name, department: p.department || null };
+    return { id: m.user_id, name, department: p.department || null, role: m.role?.name || null };
   }).sort((a, b) => a.name.localeCompare(b.name));
   return { data: crew, error: null };
 };

@@ -9,11 +9,13 @@
 // Separate from the subscriptions webhook (stripe-webhook.js) by design.
 // Verify signatures with STRIPE_CONNECT_WEBHOOK_SECRET.
 //
-// Env: STRIPE_CONNECT_WEBHOOK_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+// Env: STRIPE_CONNECT_WEBHOOK_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+//      STRIPE_SECRET_KEY (optional — only to name the card that was charged).
 
 const crypto = require('crypto');
 
 const STRIPE_CONNECT_WEBHOOK_SECRET = process.env.STRIPE_CONNECT_WEBHOOK_SECRET || '';
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
@@ -52,16 +54,52 @@ async function restPatch(path, body) {
   return res.json();
 }
 
+// Which of the vessel's cards was actually charged? Stripe reports the last four
+// digits of the card used at checkout, and financial_accounts records the same
+// four per card, so the charge can name its own account instead of landing in
+// the ledger as "Unassigned" for someone to guess at days later.
+//
+// Only when exactly one active account carries those digits — posting spend to
+// the wrong card misstates two balances, and the Assign flow is one click.
+// Best-effort throughout: any failure here just leaves the line to be assigned.
+async function accountChargedFor(paymentIntentId, stripeAccountId, tenantId) {
+  if (!STRIPE_SECRET_KEY || !paymentIntentId || !tenantId) return null;
+  try {
+    const headers = { Authorization: `Bearer ${STRIPE_SECRET_KEY}` };
+    if (stripeAccountId) headers['Stripe-Account'] = stripeAccountId;
+    const res = await fetch(
+      `https://api.stripe.com/v1/payment_intents/${paymentIntentId}?expand[]=latest_charge`,
+      { headers },
+    );
+    if (!res.ok) return null;
+    const pi = await res.json();
+    const last4 = pi?.latest_charge?.payment_method_details?.card?.last4;
+    // '0000' is the sandbox feed's filler rather than a real card.
+    if (!/^\d{4}$/.test(String(last4 || '')) || last4 === '0000') return null;
+    const hits = await restGet(
+      `financial_accounts?tenant_id=eq.${tenantId}&card_last4=eq.${last4}&is_active=not.eq.false&select=id`,
+    );
+    return Array.isArray(hits) && hits.length === 1 ? hits[0].id : null;
+  } catch { return null; }
+}
+
 // Idempotent: only transitions an invoice that isn't already paid. The
 // paid→ledger DB trigger (one-post-per-invoice) makes the ledger post safe on
 // webhook retries.
-async function markInvoicePaid(invoiceId) {
+async function markInvoicePaid(invoiceId, paidFromAccountId = null) {
   if (!invoiceId) return;
   // Flip the invoice iff not already paid; capture order_id from the row so we
-  // can advance the parent order in the same idempotent step.
+  // can advance the parent order in the same idempotent step. The account goes
+  // in the SAME patch — the ledger trigger fires on this update, so setting it
+  // afterwards would be too late for the line it posts.
   const rows = await restPatch(
     `supplier_invoices?id=eq.${invoiceId}&status=neq.paid&select=id,order_id`,
-    { status: 'paid', payment_method: 'card', paid_at: new Date().toISOString() },
+    {
+      status: 'paid',
+      payment_method: 'card',
+      paid_at: new Date().toISOString(),
+      ...(paidFromAccountId ? { paid_from_account_id: paidFromAccountId } : {}),
+    },
   );
   const orderId = Array.isArray(rows) ? rows[0]?.order_id : null;
   // Advance the parent order to 'paid' so the lifecycle bar reaches PAID on
@@ -121,13 +159,17 @@ exports.handler = async (event) => {
           stripe_payment_intent_id: pi || null,
           status: s.payment_status === 'paid' ? 'succeeded' : 'processing',
         });
-        if (s.payment_status === 'paid') await markInvoicePaid(s.metadata?.supplier_invoice_id);
+        if (s.payment_status === 'paid') {
+          const acct = await accountChargedFor(pi, evt.account, s.metadata?.tenant_id);
+          await markInvoicePaid(s.metadata?.supplier_invoice_id, acct);
+        }
         break;
       }
       case 'payment_intent.succeeded': {
         const pi = evt.data.object;
         await setPaymentStatus(`stripe_payment_intent_id=eq.${pi.id}`, { status: 'succeeded' });
-        await markInvoicePaid(pi.metadata?.supplier_invoice_id);
+        const acct = await accountChargedFor(pi.id, evt.account, pi.metadata?.tenant_id);
+        await markInvoicePaid(pi.metadata?.supplier_invoice_id, acct);
         break;
       }
       case 'payment_intent.payment_failed': {
