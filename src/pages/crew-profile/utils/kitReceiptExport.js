@@ -22,6 +22,29 @@ const statusText = (it) => {
 };
 const STATUS_RANK = { in_service: 0, returned: 1, lost: 2 };
 
+// Condense identical lines into one — same item / size / category / serial /
+// status collapse to a single row with the quantities summed (so three "Crew
+// polo · M · in service" rows read as one "×3"). Differing issue / ack dates
+// within a merged line show as "various".
+const oneOrVarious = (set) => (set.size === 0 ? '' : set.size === 1 ? [...set][0] : 'various');
+const condense = (list) => {
+  const m = new Map();
+  list.forEach((it) => {
+    const label = statusText(it);
+    const key = [it.item || '', it.size || '', it.category || '', it.serial || '', label].join('|');
+    if (!m.has(key)) m.set(key, { item: it.item, size: it.size, category: it.category, serial: it.serial, status: it.status, label, qty: 0, issued: new Set(), ack: new Set() });
+    const g = m.get(key);
+    g.qty += Number(it.quantity) || 1;
+    if (it.issued_date) g.issued.add(dd(it.issued_date));
+    g.ack.add(it.acknowledged_at ? dd(it.acknowledged_at) : '—');
+  });
+  return [...m.values()].sort((a, b) =>
+    ((STATUS_RANK[a.status] ?? 3) - (STATUS_RANK[b.status] ?? 3))
+    || a.label.localeCompare(b.label)
+    || (a.item || '').localeCompare(b.item || '')
+    || (a.size || '').localeCompare(b.size || ''));
+};
+
 /**
  * A4 kit issue/return receipt — the digital version of the paper hand-out
  * sheet. `ackSig` / `returnSig` are PNG data URLs (or null). Items in service
@@ -30,12 +53,12 @@ const STATUS_RANK = { in_service: 0, returned: 1, lost: 2 };
  * and signature blocks are kept whole — pushed to a fresh page rather than
  * colliding with the footer.
  */
-export const exportKitReceipt = async ({ crewName, vesselName, vessel, generatedAt, items, ackSig, returnSig }) => {
+export const exportKitReceipt = async ({ crewName, vesselName, vessel, generatedAt, items, ackSig, returnSig, scopeLabel }) => {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const M = 16;
-  const FOOTER_RESERVE = 22; // band kept clear at the bottom of every page
+  const FOOTER_RESERVE = 24; // band kept clear at the bottom of every page
 
   // Load the Cargo mark up-front so the footer can be stamped on every page.
   const logo = await loadLogoForPdf(CARGO_LOGO);
@@ -73,40 +96,40 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
   }
   doc.setDrawColor(...HAIR); doc.line(M, hy, pageW - M, hy);
 
-  // Summary strip — the shape of the register at a glance.
-  const inServ = items.filter((i) => i.status === 'in_service');
-  const returned = items.filter((i) => i.status === 'returned');
-  const lost = items.filter((i) => i.status === 'lost');
-  const awaiting = inServ.filter((i) => !i.acknowledged_at && !i.swap_requested_size).length;
+  // Condense duplicates, then summarise the register at a glance.
+  const rows = condense(items);
+  const unitsOf = (st) => rows.filter((r) => r.status === st).reduce((a, r) => a + r.qty, 0);
+  const inServUnits = unitsOf('in_service');
+  const returnedUnits = unitsOf('returned');
+  const lostUnits = unitsOf('lost');
+  const awaiting = rows.filter((r) => r.status === 'in_service' && r.label === 'Awaiting acknowledgement').reduce((a, r) => a + r.qty, 0);
+  const totalUnits = rows.reduce((a, r) => a + r.qty, 0);
   const summary = [
-    `${items.length} item${items.length === 1 ? '' : 's'}`,
-    `${inServ.length} in service`,
-    returned.length ? `${returned.length} returned` : null,
-    lost.length ? `${lost.length} lost / damaged` : null,
+    scopeLabel ? scopeLabel.toUpperCase() : null,
+    `${totalUnits} item${totalUnits === 1 ? '' : 's'}`,
+    `${inServUnits} in service`,
+    returnedUnits ? `${returnedUnits} returned` : null,
+    lostUnits ? `${lostUnits} lost / damaged` : null,
     awaiting ? `${awaiting} awaiting sign-off` : null,
   ].filter(Boolean).join('     ·     ');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
-  doc.text(summary.toUpperCase(), M, hy + 6);
+  doc.text(summary, M, hy + 6);
   const tableStart = hy + 12;
 
-  // Items — in service first, then returned / lost. Retired rows are greyed.
-  const sorted = [...items].sort((a, b) =>
-    ((STATUS_RANK[a.status] ?? 3) - (STATUS_RANK[b.status] ?? 3))
-    || String(b.issued_date || '').localeCompare(String(a.issued_date || '')));
-
+  // Items — condensed, in service first, then returned / lost (retired greyed).
   autoTable(doc, {
     startY: tableStart,
     margin: { left: M, right: M, bottom: FOOTER_RESERVE },
     head: [['Item', 'Category', 'Size', 'Qty', 'Serial', 'Issued', 'Acknowledged', 'Status']],
-    body: sorted.map((it) => [
-      it.item || '',
-      kitCategoryLabel(it.category),
-      it.size || '',
-      String(it.quantity || 1),
-      it.serial || '',
-      dd(it.issued_date),
-      it.acknowledged_at ? dd(it.acknowledged_at) : '—',
-      statusText(it),
+    body: rows.map((r) => [
+      r.item || '',
+      kitCategoryLabel(r.category),
+      r.size || '',
+      String(r.qty),
+      r.serial || '',
+      oneOrVarious(r.issued),
+      oneOrVarious(r.ack),
+      r.label,
     ]),
     styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 2.4, textColor: NAVY, lineColor: HAIR, lineWidth: 0.1 },
     headStyles: { fillColor: [250, 250, 248], textColor: MUTED, fontStyle: 'bold', fontSize: 7.5, lineColor: HAIR, lineWidth: 0.1 },
@@ -115,8 +138,8 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
     // Grey the retired rows so in-service kit reads as the live record.
     didParseCell: (data) => {
       if (data.section !== 'body') return;
-      const it = sorted[data.row.index];
-      if (it && it.status !== 'in_service') data.cell.styles.textColor = MUTED;
+      const r = rows[data.row.index];
+      if (r && r.status !== 'in_service') data.cell.styles.textColor = MUTED;
     },
   });
 
@@ -127,7 +150,7 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
   doc.setFont('helvetica', 'italic'); doc.setFontSize(9.5);
   const decl = 'I confirm I have received the items listed above and accept responsibility for their care and safe return.';
   const declLines = doc.splitTextToSize(decl, pageW - 2 * M);
-  const blockNeed = declLines.length * 5 + 8 + 34; // declaration + gap + signature block
+  const blockNeed = declLines.length * 5 + 9 + 32; // declaration + gap + signature block
   if (y + blockNeed > pageH - FOOTER_RESERVE) { doc.addPage(); y = 24; }
 
   doc.setTextColor(...NAVY); doc.setFont('helvetica', 'italic'); doc.setFontSize(9.5);

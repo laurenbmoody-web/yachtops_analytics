@@ -829,11 +829,40 @@ body.crew-profile-editorial {
   width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
   background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
+.crew-profile-page .kit-panel-sm { max-width: 420px; }
 .crew-profile-page .kit-panel-head {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: flex-start; justify-content: space-between;
   padding: 18px 20px 12px; border-bottom: 1px solid #F0F1F5;
 }
+.crew-profile-page .kit-panel-eyebrow {
+  display: block; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif;
+  letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 3px;
+}
+.crew-profile-page .kit-panel-eyebrow::before { content: '●'; color: #C65A1A; font-size: 6px; margin-right: 6px; vertical-align: 2px; }
+.crew-profile-page .kit-panel-note {
+  margin: 0; padding: 12px 20px 0; font-size: 12.5px; line-height: 1.5; color: #6B7280;
+}
+.crew-profile-page .kit-panel-note b { color: #1C1B3A; }
+/* Cargo-terracotta date-picker indicator so the native control matches the app. */
+.crew-profile-page .kit-field input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer; opacity: 0.6; filter: invert(38%) sepia(64%) saturate(1200%) hue-rotate(343deg) brightness(92%) contrast(93%);
+}
+.crew-profile-page .kit-field input[type="date"]:focus::-webkit-calendar-picker-indicator { opacity: 1; }
+
+/* Receipt scope chooser */
+.crew-profile-page .kit-scope { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px 20px; }
+.crew-profile-page .kit-scope-opt {
+  display: flex; align-items: flex-start; gap: 12px; text-align: left; cursor: pointer;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px 15px;
+  font-family: inherit; color: #1C1B3A; transition: border-color 0.14s, background 0.14s;
+}
+.crew-profile-page .kit-scope-opt:hover { border-color: #C65A1A; background: #FBEFE9; }
+.crew-profile-page .kit-scope-opt:disabled { opacity: 0.5; cursor: default; }
+.crew-profile-page .kit-scope-opt svg { color: #C65A1A; flex: none; margin-top: 1px; }
+.crew-profile-page .kit-scope-opt b { display: block; font-size: 14px; font-weight: 600; }
+.crew-profile-page .kit-scope-opt small { display: block; font-size: 12px; color: #8B8478; margin-top: 2px; }
 .crew-profile-page .kit-panel-head h4 {
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-weight: 400;
   font-size: 21px; color: #1C1B3A; margin: 0;

@@ -20,8 +20,12 @@ import { sendDbNotification } from '../../../lib/dbNotifications';
 import { getAllItems } from '../../inventory/utils/inventoryStorage';
 
 const today = () => new Date().toISOString().slice(0, 10);
+// Manual issue on the profile is for non-uniform kit (PPE, electronics, keys…).
+// Uniform is issued from Wardrobe management (drawn from master inventory), so it
+// defaults to PPE here and the Uniform option is hidden unless editing a legacy
+// uniform row.
 const blankForm = () => ({
-  category: 'uniform', item: '', size: '', quantity: 1, serial: '',
+  category: 'ppe', item: '', size: '', quantity: 1, serial: '',
   conditionIssued: 'New', issuedDate: today(), notes: '',
 });
 const RETURN_CONDITIONS = ['Good', 'Used', 'Damaged', 'Incomplete'];
@@ -114,6 +118,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
   const [ackName, setAckName] = useState(currentUserName || '');
   const [swaps, setSwaps] = useState({}); // itemId -> requested size (crew asks for a different size instead of signing)
   const [imgMap, setImgMap] = useState({}); // inventory_item_id -> photo (best-effort; needs inventory read)
+  const [receiptOpen, setReceiptOpen] = useState(false); // receipt scope chooser (currently held vs full record)
 
   const [returnOpen, setReturnOpen] = useState(false);
   const [returnTarget, setReturnTarget] = useState([]);
@@ -361,12 +366,15 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
     setEditMode(false);
   };
 
-  const downloadReceipt = async () => {
+  const downloadReceipt = async (scope) => {
+    setReceiptOpen(false);
     if (items.length === 0) { showToast('No kit to export yet', 'error'); return; }
+    const list = scope === 'held' ? items.filter((i) => i.status === 'in_service') : items;
+    if (list.length === 0) { showToast('Nothing currently held to export', 'error'); return; }
     setBusy(true);
     try {
-      const ackPath = items.filter((i) => i.ack_signature_path).sort((a, b) => String(b.acknowledged_at).localeCompare(String(a.acknowledged_at)))[0]?.ack_signature_path;
-      const retPath = items.filter((i) => i.return_signature_path).sort((a, b) => String(b.returned_date).localeCompare(String(a.returned_date)))[0]?.return_signature_path;
+      const ackPath = list.filter((i) => i.ack_signature_path).sort((a, b) => String(b.acknowledged_at).localeCompare(String(a.acknowledged_at)))[0]?.ack_signature_path;
+      const retPath = list.filter((i) => i.return_signature_path).sort((a, b) => String(b.returned_date).localeCompare(String(a.returned_date)))[0]?.return_signature_path;
       const [ackImg, retImg] = await Promise.all([
         ackPath ? kitSignatureDataUrl(ackPath) : null,
         retPath ? kitSignatureDataUrl(retPath) : null,
@@ -375,7 +383,8 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
         crewName: crewName || 'Crew member',
         vesselName: vesselName || vesselInfo?.name,
         vessel: vesselInfo,
-        generatedAt: fmtKitDate(today()), items, ackSig: ackImg, returnSig: retImg,
+        generatedAt: fmtKitDate(today()), items: list, ackSig: ackImg, returnSig: retImg,
+        scopeLabel: scope === 'held' ? 'Currently held' : 'Full record',
       });
     } catch (e) { showToast(e.message || 'Could not generate receipt', 'error'); }
     finally { setBusy(false); }
@@ -462,11 +471,14 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
         </div>
         <div className="cp-tab-actions">
           {items.length > 0 && !editMode && (
-            <Button variant="outline" iconName="Download" size="sm" onClick={downloadReceipt} disabled={busy}>Receipt</Button>
+            <Button variant="outline" iconName="Download" size="sm" onClick={() => setReceiptOpen(true)} disabled={busy}>Receipt</Button>
+          )}
+          {canManage && !editMode && (
+            <Button variant="outline" iconName="Plus" size="sm" onClick={openIssue}>Add item</Button>
           )}
           {canEditSizes && (editMode
             ? <Button iconName="Check" size="sm" onClick={exitEdit} disabled={busy}>Done</Button>
-            : <Button variant="outline" iconName="Pencil" size="sm" onClick={enterEdit}>Edit</Button>
+            : <Button variant="outline" iconName="Pencil" size="sm" onClick={enterEdit}>Edit sizes</Button>
           )}
         </div>
       </div>
@@ -607,18 +619,11 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
             );
           })()}
 
-          {/* Issue-item control (edit mode, managers) */}
-          {canManage && editMode && (
-            <div className="kit-add-bar">
-              <Button variant="outline" size="sm" iconName="Plus" onClick={openIssue}>Add item to issued kit</Button>
-            </div>
-          )}
-
           {items.length === 0 ? (
             <div className="kit-empty">
               <Icon name="Shirt" size={26} style={{ color: '#AEB4C2' }} />
               <p>No kit issued yet.</p>
-              {canManage && editMode && <Button variant="outline" size="sm" iconName="Plus" onClick={openIssue}>Issue the first item</Button>}
+              {canManage && <Button variant="outline" size="sm" iconName="Plus" onClick={openIssue}>Add the first item</Button>}
             </div>
           ) : (
             <>
@@ -705,13 +710,17 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
         <div className="kit-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setFormOpen(false); }}>
           <div className="kit-panel">
             <div className="kit-panel-head">
-              <h4>{editing ? 'Edit item' : 'Issue item'}</h4>
+              <div>
+                <span className="kit-panel-eyebrow">{editing ? 'Edit kit item' : 'Add kit item'}</span>
+                <h4>{editing ? form.item || 'Kit item' : 'Issue non-uniform kit'}</h4>
+              </div>
               <button onClick={() => setFormOpen(false)} className="kit-x" title="Close"><Icon name="X" size={18} /></button>
             </div>
+            {!editing && <p className="kit-panel-note">For PPE, electronics, keys and equipment. <b>Uniform</b> is issued from Wardrobe management, drawn from master stock.</p>}
             <div className="kit-form">
               <label className="kit-field"><span>Category</span>
                 <select value={form.category} onChange={(e) => setF('category', e.target.value)}>
-                  {KIT_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  {KIT_CATEGORIES.filter((c) => editing || c.id !== 'uniform').map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                 </select>
               </label>
               <label className="kit-field kit-col-2"><span>Item <em>required</em></span>
@@ -758,7 +767,32 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
             </div>
             <div className="kit-panel-foot">
               <Button variant="outline" size="sm" onClick={() => setFormOpen(false)}>Cancel</Button>
-              <Button size="sm" onClick={saveForm} disabled={busy}>{editing ? 'Save' : 'Issue item'}</Button>
+              <Button size="sm" onClick={saveForm} disabled={busy}>{editing ? 'Save' : 'Add item'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt scope chooser */}
+      {receiptOpen && (
+        <div className="kit-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setReceiptOpen(false); }}>
+          <div className="kit-panel kit-panel-sm">
+            <div className="kit-panel-head">
+              <div>
+                <span className="kit-panel-eyebrow">Kit receipt</span>
+                <h4>What should it show?</h4>
+              </div>
+              <button onClick={() => setReceiptOpen(false)} className="kit-x" title="Close"><Icon name="X" size={18} /></button>
+            </div>
+            <div className="kit-scope">
+              <button type="button" className="kit-scope-opt" onClick={() => downloadReceipt('held')} disabled={busy}>
+                <Icon name="ShieldCheck" size={18} />
+                <span><b>Currently held</b><small>Only kit in service now — the responsibility record.</small></span>
+              </button>
+              <button type="button" className="kit-scope-opt" onClick={() => downloadReceipt('all')} disabled={busy}>
+                <Icon name="History" size={18} />
+                <span><b>Full record</b><small>Everything issued, incl. returned &amp; lost items.</small></span>
+              </button>
             </div>
           </div>
         </div>
