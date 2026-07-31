@@ -22,27 +22,43 @@ const statusText = (it) => {
 };
 const STATUS_RANK = { in_service: 0, returned: 1, lost: 2 };
 
-// Condense identical lines into one — same item / size / category / serial /
-// status collapse to a single row with the quantities summed (so three "Crew
-// polo · M · in service" rows read as one "×3"). Differing issue / ack dates
-// within a merged line show as "various".
 const oneOrVarious = (set) => (set.size === 0 ? '' : set.size === 1 ? [...set][0] : 'various');
-const condense = (list) => {
+
+// Sort sizes into wearing order (XS→XXL, then numeric; "one size" last).
+const SIZE_RANK = { XXS: 0, XS: 1, S: 2, M: 3, L: 4, XL: 5, '2XL': 6, XXL: 6, '3XL': 7, XXXL: 7 };
+const sizeSort = (a, b) => {
+  const A = String(a || '').toUpperCase().trim(); const B = String(b || '').toUpperCase().trim();
+  if (A === B) return 0; if (!A) return 1; if (!B) return -1;
+  const ra = SIZE_RANK[A]; const rb = SIZE_RANK[B];
+  if (ra != null && rb != null) return ra - rb;
+  if (ra != null) return -1; if (rb != null) return 1;
+  const na = parseFloat(A); const nb = parseFloat(B);
+  if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
+  return A.localeCompare(B);
+};
+
+// Group by item + category + status, nesting each size beneath the item (mirrors
+// the fleet register). Serial / issued date collapse to one value or "various"
+// across the item's sizes. In-service first, then returned / lost.
+const buildGroups = (list) => {
   const m = new Map();
   list.forEach((it) => {
     const label = statusText(it);
-    const key = [it.item || '', it.size || '', it.category || '', it.serial || '', label].join('|');
-    if (!m.has(key)) m.set(key, { item: it.item, size: it.size, category: it.category, serial: it.serial, status: it.status, label, qty: 0, issued: new Set(), ack: new Set() });
+    const key = [(it.item || '').toLowerCase(), it.category || '', label].join('|');
+    if (!m.has(key)) m.set(key, { item: it.item, category: it.category, status: it.status, label, sizes: new Map(), serials: new Set(), issued: new Set() });
     const g = m.get(key);
-    g.qty += Number(it.quantity) || 1;
+    const sz = (it.size || '').trim();
+    g.sizes.set(sz, (g.sizes.get(sz) || 0) + (Number(it.quantity) || 1));
+    if (it.serial) g.serials.add(it.serial);
     if (it.issued_date) g.issued.add(dd(it.issued_date));
-    g.ack.add(it.acknowledged_at ? dd(it.acknowledged_at) : '—');
   });
-  return [...m.values()].sort((a, b) =>
+  return [...m.values()].map((g) => {
+    const sizes = [...g.sizes.entries()].map(([size, qty]) => ({ size, qty })).sort((a, b) => sizeSort(a.size, b.size));
+    return { ...g, sizes, total: sizes.reduce((a, s) => a + s.qty, 0) };
+  }).sort((a, b) =>
     ((STATUS_RANK[a.status] ?? 3) - (STATUS_RANK[b.status] ?? 3))
     || a.label.localeCompare(b.label)
-    || (a.item || '').localeCompare(b.item || '')
-    || (a.size || '').localeCompare(b.size || ''));
+    || (a.item || '').localeCompare(b.item || ''));
 };
 
 /**
@@ -54,7 +70,7 @@ const condense = (list) => {
  * colliding with the footer.
  */
 export const exportKitReceipt = async ({ crewName, vesselName, vessel, generatedAt, items, ackSig, returnSig, scopeLabel }) => {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const M = 16;
@@ -96,14 +112,14 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
   }
   doc.setDrawColor(...HAIR); doc.line(M, hy, pageW - M, hy);
 
-  // Condense duplicates, then summarise the register at a glance.
-  const rows = condense(items);
-  const unitsOf = (st) => rows.filter((r) => r.status === st).reduce((a, r) => a + r.qty, 0);
+  // Group by item (sizes nested), then summarise at a glance.
+  const groups = buildGroups(items);
+  const unitsOf = (st) => groups.filter((g) => g.status === st).reduce((a, g) => a + g.total, 0);
   const inServUnits = unitsOf('in_service');
   const returnedUnits = unitsOf('returned');
   const lostUnits = unitsOf('lost');
-  const awaiting = rows.filter((r) => r.status === 'in_service' && r.label === 'Awaiting acknowledgement').reduce((a, r) => a + r.qty, 0);
-  const totalUnits = rows.reduce((a, r) => a + r.qty, 0);
+  const awaiting = groups.filter((g) => g.status === 'in_service' && g.label === 'Awaiting acknowledgement').reduce((a, g) => a + g.total, 0);
+  const totalUnits = groups.reduce((a, g) => a + g.total, 0);
   const summary = [
     scopeLabel ? scopeLabel.toUpperCase() : null,
     `${totalUnits} item${totalUnits === 1 ? '' : 's'}`,
@@ -116,30 +132,54 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
   doc.text(summary, M, hy + 6);
   const tableStart = hy + 12;
 
-  // Items — condensed, in service first, then returned / lost (retired greyed).
+  // One merged Item row per item, each size on its own line beneath — matching
+  // the fleet register. Category / Serial / Issued / Status span via rowSpan;
+  // shading is per item (theme 'grid' so autoTable adds no zebra of its own).
+  const head = [['Category', 'Item', 'Size', 'Qty', 'Serial', 'Issued', 'Status']];
+  const body = [];
+  const stripeByRow = [];
+  const retiredByRow = [];
+  let gi = 0;
+  groups.forEach((g) => {
+    const sizes = g.sizes.length ? g.sizes : [{ size: '', qty: g.total }];
+    const n = sizes.length;
+    const stripe = gi % 2 === 1;
+    const retired = g.status !== 'in_service';
+    const itemText = n > 1 ? `${g.item || ''}\n${g.total} total` : (g.item || '');
+    sizes.forEach((s, idx) => {
+      if (idx === 0) {
+        body.push([
+          { content: kitCategoryLabel(g.category), rowSpan: n, styles: { textColor: MUTED, fontStyle: 'bold', valign: 'middle' } },
+          { content: itemText, rowSpan: n, styles: { valign: 'middle' } },
+          s.size || 'One size',
+          String(s.qty),
+          { content: oneOrVarious(g.serials), rowSpan: n, styles: { valign: 'middle' } },
+          { content: oneOrVarious(g.issued), rowSpan: n, styles: { valign: 'middle' } },
+          { content: g.label, rowSpan: n, styles: { valign: 'middle' } },
+        ]);
+      } else {
+        body.push([s.size || 'One size', String(s.qty)]);
+      }
+      stripeByRow.push(stripe); retiredByRow.push(retired);
+    });
+    gi += 1;
+  });
+
   autoTable(doc, {
     startY: tableStart,
     margin: { left: M, right: M, bottom: FOOTER_RESERVE },
-    head: [['Item', 'Category', 'Size', 'Qty', 'Serial', 'Issued', 'Acknowledged', 'Status']],
-    body: rows.map((r) => [
-      r.item || '',
-      kitCategoryLabel(r.category),
-      r.size || '',
-      String(r.qty),
-      r.serial || '',
-      oneOrVarious(r.issued),
-      oneOrVarious(r.ack),
-      r.label,
-    ]),
-    styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 2.4, textColor: NAVY, lineColor: HAIR, lineWidth: 0.1 },
+    head, body,
+    theme: 'grid',
+    styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.6, textColor: NAVY, fillColor: [255, 255, 255], lineColor: HAIR, lineWidth: 0.1 },
     headStyles: { fillColor: [250, 250, 248], textColor: MUTED, fontStyle: 'bold', fontSize: 7.5, lineColor: HAIR, lineWidth: 0.1 },
-    alternateRowStyles: { fillColor: [252, 251, 248] },
-    columnStyles: { 3: { halign: 'center' } },
-    // Grey the retired rows so in-service kit reads as the live record.
+    columnStyles: {
+      0: { cellWidth: 34 }, 1: { cellWidth: 84 }, 2: { cellWidth: 30 },
+      3: { halign: 'center', cellWidth: 16 }, 4: { cellWidth: 36 }, 5: { cellWidth: 28 }, 6: { cellWidth: 38 },
+    },
     didParseCell: (data) => {
       if (data.section !== 'body') return;
-      const r = rows[data.row.index];
-      if (r && r.status !== 'in_service') data.cell.styles.textColor = MUTED;
+      if (stripeByRow[data.row.index]) data.cell.styles.fillColor = [252, 251, 248];
+      if (retiredByRow[data.row.index]) data.cell.styles.textColor = MUTED;
     },
   });
 
