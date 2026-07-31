@@ -11,13 +11,12 @@
   align-content: start;
   gap: 0 48px;
   margin-top: 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #EEF0F4;
+  padding-bottom: 26px;
 }
 
 /* Wide enough for the fan to spread, so every card is a target rather than a
    sliver. Fixed height so nothing below jumps as cards move. */
-.as-stage { grid-area: stage; position: relative; width: 470px; height: 215px; }
+.as-stage { grid-area: stage; position: relative; width: 512px; height: 215px; }
 .as-slot {
   position: absolute; top: 0; left: 0;
   transition: transform 0.46s cubic-bezier(.2,.75,.2,1), opacity 0.34s;
@@ -38,19 +37,22 @@
 .as-n { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; margin-left: 4px; }
 .as-orphan { grid-area: orphan; }
 
-/* Money only, and pushed to the page's right edge so its figures line up with
-   the header's buttons above and the list's amount column below — rather than
-   floating mid-canvas with dead space either side. */
+/* Money only, pushed to the page's right edge so its figures line up with the
+   header's buttons above and the list's amount column below. Wide, because a
+   narrow block against the wallet left a hole in the middle of the page — the
+   figures sit at the far edge and the labels stay put, so the space becomes a
+   leader between the two rather than a gap. Centred on the wallet so the two
+   sides carry roughly equal weight instead of one tall column and one short. */
 .as-figures {
-  grid-area: figures; min-width: 0; padding-top: 4px;
-  justify-self: end; width: min(400px, 100%);
+  grid-area: figures; min-width: 0;
+  justify-self: end; align-self: center; width: min(600px, 100%);
 }
 
 @media (max-width: 1100px) {
   .as { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "pick" "orphan" "figures"; }
   .as-figures { margin-top: 26px; }
 }
-@media (max-width: 1100px) { .as-figures { justify-self: start; } }
+@media (max-width: 1100px) { .as-figures { justify-self: start; align-self: start; margin-top: 26px; } }
 @media (max-width: 620px) {
   .as-stage { width: 100%; height: 200px; }
   .as-figures { width: 100%; }
