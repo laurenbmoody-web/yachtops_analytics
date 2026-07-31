@@ -48,6 +48,8 @@ export default function CardVisual({ account, balance, status, flip = 'hover', s
 
   // ── card — flips to its balance ────────────────────────────────────────────
   const glow = `radial-gradient(circle at 82% 8%, ${accent}55, transparent 55%)`;
+  // '0000' is the "we don't hold one" placeholder, not a last 4.
+  const real4 = a.card_last4 && a.card_last4 !== '0000' ? a.card_last4 : null;
   const typeLabel = a.funds_type === 'owner' ? 'Owner'
     : a.funds_type === 'charter_apa' ? 'Charter APA'
     : a.kind === 'bank' ? 'Bank' : 'General';
@@ -63,7 +65,15 @@ export default function CardVisual({ account, balance, status, flip = 'hover', s
             <span className="cv-type">{typeLabel} · {a.currency || 'EUR'}</span>
           </div>
           <div className="cv-chip" />
-          <div className="cv-no">•••• •••• •••• {a.card_last4 || '0000'}</div>
+          {/* The card says which account it is. It used to carry a 16-digit
+              placeholder — "•••• •••• •••• 0000" for every account without a
+              stored last 4 — which made the biggest element on the page read as
+              unfinished while the name it should have shown sat in a text column
+              beside it. Real digits appear when we actually hold them. */}
+          <div className="cv-id">
+            <div className="cv-idname" title={a.name}>{a.name || 'Account'}</div>
+            {real4 && <div className="cv-idno">•••• {real4}</div>}
+          </div>
           <div className="cv-btm">
             <div>
               <div className="cv-holder">{(a.holder_role || 'Vessel').toUpperCase()}</div>
@@ -76,7 +86,7 @@ export default function CardVisual({ account, balance, status, flip = 'hover', s
         <div className="cv-face cv-back">
           <div className="cv-glow" style={{ background: glow }} />
           <div className="cv-bk-top">
-            <span className="cv-bk-id">{a.name}{a.card_last4 ? ` ····${a.card_last4}` : ''}</span>
+            <span className="cv-bk-id">{a.name}{real4 ? ` ····${real4}` : ''}</span>
             <span className="cv-bk-cur">{a.currency || 'EUR'}</span>
           </div>
           <div className="cv-bk-mid">

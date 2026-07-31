@@ -12,16 +12,16 @@
 import React from 'react';
 import Icon from '../../../components/AppIcon';
 import CardVisual from './CardVisual';
-import { formatMoney } from '../../../services/financeCalc';
 import { monthEndStage } from '../../../services/monthEnd';
 import './account-stack.css';
 
-// Front card, then two peeking behind it. Beyond three the fan stops moving —
-// depth past that reads as clutter, and the rail underneath does the choosing.
+// The fan IS the account picker now, so the cards behind peek far enough to be
+// aimed at and clicked rather than hinted at. Beyond three it stops moving —
+// depth past that reads as clutter, and the overflow rail does the choosing.
 const STACK = [
   { x: 0, y: 0, s: 1, o: 1, z: 30 },
-  { x: 18, y: 16, s: 0.955, o: 0.9, z: 20 },
-  { x: 36, y: 32, s: 0.912, o: 0.78, z: 10 },
+  { x: 74, y: 15, s: 0.955, o: 0.92, z: 20 },
+  { x: 148, y: 30, s: 0.912, o: 0.82, z: 10 },
 ];
 
 // "Not balanced" on a month that hasn't ended yet is a telling-off for being on
@@ -36,7 +36,7 @@ const stateFor = (recon, stage) => {
 };
 
 export default function AccountStack({
-  accounts = [], activeId = '', monthLabel, monthKey, statsFor, reconFor,
+  accounts = [], activeId = '', monthKey, reconFor,
   unassigned = 0, onSelect, today, figures,
 }) {
   if (!accounts.length) return null;
@@ -54,77 +54,62 @@ export default function AccountStack({
       opacity: pos > 2 ? 0 : s.o,
       zIndex: s.z - Math.max(0, pos - 2),
       pointerEvents: pos > 2 ? 'none' : 'auto',
-      cursor: pos === 0 ? 'default' : 'pointer',
+      cursor: 'pointer',
     };
   };
 
   const stage = monthEndStage(monthKey, today || new Date());
-  const front = accounts.find((a) => a.id === order[0]) || accounts[0];
-  // When the page is filtered to this card, the figures column beside us IS this
-  // card's month — so restating its count and total here is the same number twice.
-  // On "All" it isn't: the column is the whole vessel, and the card's own share is
-  // the one thing you can't read anywhere else.
-  const scoped = activeId === front.id;
-  const frontStat = statsFor?.(front.id) || { count: 0, out: 0 };
-  const frontState = stateFor(reconFor?.(front.id), stage);
+  // Only a card you've actually chosen has a state worth badging — on "All" there
+  // is no one card, and badging whichever happens to be at the front of the fan is
+  // how the old text column ended up announcing an account nobody had selected.
+  const picked = accounts.find((a) => a.id === activeId);
+  const pickedState = picked ? stateFor(reconFor?.(picked.id), stage) : null;
   const balanced = accounts.filter((a) => (reconFor?.(a.id)?.status || 'open') !== 'open').length;
 
   return (
     <section className="as">
-      <div className="as-stage">
+      <div className={`as-stage${activeId ? '' : ' is-all'}`}>
         {accounts.map((a) => (
           <div key={a.id} className="as-slot" style={slot(a.id)}
-            onClick={() => a.id !== order[0] && onSelect?.(a.id)}>
+            onClick={() => onSelect?.(a.id)}>
             {/* No balance override — the card's back says "balance on card", which
                 is the account's balance, not this month's spend. */}
             <CardVisual account={a} size="md"
-              flip={a.id === order[0] ? 'hover' : 'none'}
-              status={a.id === order[0] ? frontState : undefined} />
+              flip={a.id === activeId ? 'hover' : 'none'}
+              status={a.id === activeId ? pickedState : undefined} />
           </div>
         ))}
       </div>
 
-      <div className="as-side">
-        {/* The month lives in the page header now — it scopes everything, not just
-            this card. What's left is the one fact the rail below can't show: how
-            many of these cards are actually balanced, once that's due. */}
-        {stage === 'due' && (
-          <div className="as-eyebrow"><span className="as-n">{balanced} of {accounts.length} balanced</span></div>
-        )}
-        <p className="as-name">{front.name}{front.card_last4 && front.card_last4 !== '0000' ? ` ••${front.card_last4}` : ''}</p>
-        {!scoped && (
-          <p className="as-sub">
-            {frontStat.count} {frontStat.count === 1 ? 'line' : 'lines'} · {formatMoney(frontStat.out, front.currency, { signed: true })}
-          </p>
-        )}
-        {/* "Still running" is the default state of the month you're in, and the
-            month-end bar below already says it in a sentence. Only a state you'd
-            act on is worth a line here. */}
-        {stage !== 'running' && <p className={`as-state is-${frontState.tone}`}>{frontState.text}</p>}
-
-        {/* One rail for every card, because past the third the fan stops moving. */}
-        <div className="as-rail">
-          {accounts.map((a) => (
-            <button key={a.id} type="button" className={`as-tab${a.id === activeId ? ' on' : ''}`}
-              onClick={() => onSelect?.(a.id)} title={a.name}>
-              {a.card_last4 && a.card_last4 !== '0000' ? `••${a.card_last4}` : a.name}
-            </button>
-          ))}
-          <button type="button" className={`as-tab is-all${!activeId ? ' on' : ''}`}
-            onClick={() => onSelect?.('')} title="Every account — no close, there's no single statement">
-            All
+      {/* Everything that was written out here — the account's name, its totals,
+          a rail repeating the cards — was the cards' own job done again in text.
+          What's left is the one control the fan can't be: "every card at once",
+          which is a scope no single card represents. */}
+      <div className="as-pick">
+        <button type="button" className={`as-all${!activeId ? ' on' : ''}`}
+          onClick={() => onSelect?.('')}
+          title="Every account together — no close, because there's no single statement to close against">
+          All {accounts.length} cards
+        </button>
+        {/* Past the third card the fan stops moving, so those accounts would have
+            no way to be reached at all. The rail appears only for them. */}
+        {accounts.length > 3 && accounts.map((a) => (
+          <button key={a.id} type="button" className={`as-tab${a.id === activeId ? ' on' : ''}`}
+            onClick={() => onSelect?.(a.id)} title={a.name}>
+            {a.card_last4 && a.card_last4 !== '0000' ? `••${a.card_last4}` : a.name}
           </button>
-        </div>
-
-        {/* Spend belonging to no account can't be balanced against any statement,
-            so it would sit outside every close unremarked. */}
-        {unassigned > 0 && (
-          <p className="as-orphan">
-            <Icon name="AlertCircle" size={13} />
-            {unassigned} {unassigned === 1 ? 'line has' : 'lines have'} no account yet
-          </p>
-        )}
+        ))}
+        {stage === 'due' && <span className="as-n">{balanced} of {accounts.length} balanced</span>}
       </div>
+
+      {/* Spend belonging to no account can't be balanced against any statement,
+          so it would sit outside every close unremarked. */}
+      {unassigned > 0 && (
+        <p className="as-orphan">
+          <Icon name="AlertCircle" size={13} />
+          {unassigned} {unassigned === 1 ? 'line has' : 'lines have'} no account yet
+        </p>
+      )}
 
       {/* The month's money, beside the card it belongs to rather than stranded on
           its own row. A ledger that ladders to Net, not four flat tiles — same

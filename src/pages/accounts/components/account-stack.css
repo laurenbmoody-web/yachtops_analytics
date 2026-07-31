@@ -1,57 +1,59 @@
 /* Cargo Accounts — the wallet stack that scopes the Spending page. Scoped .as-*. */
 
-/* Three columns: the cards, what they are, and what the month came to. The
-   figures used to sit on their own row below, which left the whole right half of
-   a very wide page empty and pushed everything else down. */
+/* Cards on the left, the month's money on the right. There is no text column
+   between them any more: it spelled out the account's name, its totals and a rail
+   of the same cards sitting inches away, so the wallet was described rather than
+   used. The fan is the picker. */
 .as {
   display: grid;
-  grid-template-columns: 340px minmax(200px, 1fr) minmax(250px, 26%);
-  align-items: start;
-  gap: 30px 40px;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "stage figures" "pick figures" "orphan figures";
+  align-content: start;
+  gap: 0 48px;
   margin-top: 20px;
   padding-bottom: 20px;
   border-bottom: 1px solid #EEF0F4;
 }
 
-/* Height holds the fan (184px card + 32px of offset) so nothing below jumps
-   as cards move. */
-.as-stage { position: relative; flex: 0 0 auto; width: 340px; height: 220px; }
+/* Wide enough for the fan to spread, so every card is a target rather than a
+   sliver. Fixed height so nothing below jumps as cards move. */
+.as-stage { grid-area: stage; position: relative; width: 470px; height: 215px; }
 .as-slot {
   position: absolute; top: 0; left: 0;
   transition: transform 0.46s cubic-bezier(.2,.75,.2,1), opacity 0.34s;
   will-change: transform;
 }
+/* On "All" no single card is the subject, so none of them may look chosen. */
+.as-stage.is-all .as-slot { filter: saturate(.72); }
+.as-stage.is-all .as-slot:hover { filter: none; }
 
-.as-side { min-width: 0; padding-top: 4px; }
-.as-figures { min-width: 0; padding-top: 4px; }
-
-@media (max-width: 1180px) {
-  .as { grid-template-columns: 340px minmax(0, 1fr); }
-  .as-figures { grid-column: 1 / -1; max-width: 420px; }
+/* Picker row — the one scope the fan can't show, plus the overflow rail. */
+.as-pick { grid-area: pick; display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+.as-all {
+  border: 1px solid #E5E7EB; background: #fff; border-radius: 999px;
+  padding: 6px 15px; font: inherit; font-size: 12px; font-weight: 600; color: #6B7280; cursor: pointer;
 }
-@media (max-width: 760px) {
-  .as { grid-template-columns: minmax(0, 1fr); }
-  .as-stage { width: 100%; }
+.as-all:hover { border-color: #C65A1A; color: #C65A1A; }
+.as-all.on { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.as-n { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; margin-left: 4px; }
+.as-orphan { grid-area: orphan; }
+
+.as-figures {
+  grid-area: figures; min-width: 0; padding-top: 4px;
+  display: grid; grid-template-columns: minmax(220px, 340px) minmax(200px, 300px);
+  gap: 36px; align-content: start;
 }
 
-.as-eyebrow {
-  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
-  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
+@media (max-width: 1100px) {
+  .as { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "pick" "orphan" "figures"; }
+  .as-figures { margin-top: 26px; }
 }
-.as-n { font-weight: 700; color: #AEB4C2; letter-spacing: .4px; }
-
-.as-name {
-  font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 26px; line-height: 1.15; color: #1C1B3A; margin-top: 8px;
+@media (max-width: 620px) {
+  .as-stage { width: 100%; height: 200px; }
+  .as-figures { grid-template-columns: minmax(0, 1fr); gap: 22px; }
 }
-.as-sub { font-size: 12.5px; color: #6B7280; margin-top: 4px; }
-.as-state { font-size: 12px; font-weight: 600; margin-top: 6px; }
-.as-state.is-due { color: #A8871B; }
-.as-state.is-sub { color: #6B7280; }
-.as-state.is-ok { color: #2F7A64; }
-
-/* Card rail — every account reachable, including the ones the fan hides. */
-.as-rail { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+/* Overflow rail — only rendered past the third card, for the accounts the fan
+   physically can't reach. */
 .as-tab {
   border: 1px solid #E5E7EB; background: #fff; border-radius: 8px;
   padding: 5px 10px; cursor: pointer;
@@ -61,16 +63,9 @@
 }
 .as-tab:hover { border-color: #C65A1A; color: #C65A1A; }
 .as-tab.on { background: #1C1B3A; border-color: #1C1B3A; color: #fff; }
-.as-tab.is-all { color: #8B8478; }
-.as-tab.is-all.on { background: #1C1B3A; color: #fff; }
 
 .as-orphan {
-  display: flex; align-items: center; gap: 6px; margin-top: 14px;
+  display: flex; align-items: center; gap: 6px; margin-top: 12px;
   font-size: 11.5px; color: #A8871B; font-style: italic;
 }
 .as-orphan svg { flex: 0 0 auto; }
-
-@media (max-width: 980px) {
-  .as { flex-direction: column; gap: 18px; }
-  .as-stage { width: 100%; }
-}
