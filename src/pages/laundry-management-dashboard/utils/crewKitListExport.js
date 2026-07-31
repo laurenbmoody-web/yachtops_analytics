@@ -84,7 +84,10 @@ export const exportCrewKitList = async ({ vesselName, vessel, generatedAt, group
     startY: hy + 12,
     margin: { left: M, right: M, bottom: 20 },
     head, body,
-    styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.6, textColor: NAVY, lineColor: HAIR, lineWidth: 0.1 },
+    // 'grid' (not the default 'striped') so autoTable adds NO zebra of its own —
+    // per-item shading is applied by didParseCell below.
+    theme: 'grid',
+    styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.6, textColor: NAVY, fillColor: [255, 255, 255], lineColor: HAIR, lineWidth: 0.1 },
     headStyles: { fillColor: [250, 250, 248], textColor: MUTED, fontStyle: 'bold', fontSize: 7.5, lineColor: HAIR, lineWidth: 0.1 },
     columnStyles: {
       0: { cellWidth: 42 },
