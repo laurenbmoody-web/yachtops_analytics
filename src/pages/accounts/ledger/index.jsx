@@ -787,10 +787,77 @@ export default function Ledger() {
             </div>
           </div>
 
+          {/* The vessel's cards for this month. Choosing one scopes everything
+              below — the month's figures and its close are per card, because each
+              card is balanced against its own statement. */}
+          <AccountStack
+            accounts={stackAccounts}
+            activeId={filters.accountId}
+            monthLabel={ymLabel(activeMonth)}
+            monthKey={activeMonth}
+            statsFor={(id) => stackStats[id]}
+            reconFor={(id) => monthRecons.find((r) => r.account_id === id)}
+            unassigned={stackStats['']?.count || 0}
+            onSelect={(id) => { setF({ accountId: id }); setFiltersOpen(false); }}
+            month={(
+              <span className="ca-mstep">
+                <button type="button" onClick={() => stepMonth(-1)} disabled={axisIdx <= 0} aria-label="Previous month">
+                  <Icon name="ChevronLeft" size={15} />
+                </button>
+                <b>{ymLabel(activeMonth)}</b>
+                <button type="button" onClick={() => stepMonth(1)} disabled={axisIdx >= axis.length - 1} aria-label="Next month">
+                  <Icon name="ChevronRight" size={15} />
+                </button>
+              </span>
+            )}
+            figures={(
+              <>
+                <p className="ca-fig-lab">The month</p>
+                <div className="ca-fig-eq">
+                  <div className="r"><span>Money out</span><b className="neg">{formatMoney(monthStat.outSum, monthCur, { signed: true })}</b></div>
+                  <div className="r"><span>Money in</span><b>{formatMoney(monthStat.inSum, monthCur, { signed: true })}</b></div>
+                  <div className="r is-tot"><span>Net</span><b>{formatMoney(monthStat.net, monthCur, { signed: true })}</b></div>
+                </div>
+                <div className="ca-fig-meter">
+                  <p className="ca-fig-lab">Categorised<b>{filedPct}%</b></p>
+                  <div className="ca-meter-track"><div className="ca-meter-fill" style={{ width: `${filedPct}%` }} /></div>
+                  <p className="ca-fig-sub">{monthStat.filed} of {monthStat.entries} filed · {monthStat.look} to go</p>
+                </div>
+              </>
+            )}
+          />
+
+          {/* Month-end close — per account, so only once one is filtered. Fed the
+              whole month rather than the visible rows: a close computed over a
+              "needs a look" filter would balance against a partial month. */}
+          {filters.accountId && accountsById[filters.accountId] && (
+            <MonthEndStrip
+              account={accountsById[filters.accountId]}
+              monthLabel={ymLabel(activeMonth)}
+              monthKey={activeMonth}
+              txns={monthAll}
+              allTxns={txns}
+              openingBalance={accountsById[filters.accountId]?.opening_balance}
+              reconciliation={recon}
+              hasReceipt={(t) => hasEvidence(t, (attByTxn[t.id] || []).length > 0)}
+              splitCount={(t) => (splitsByTxn[t.id] || []).length}
+              canEdit={canEdit}
+              onSaveStatement={handleSaveStatement}
+              onClose={handleCloseMonth}
+              onShowLine={showLine}
+            />
+          )}
+
           {/* toolbar: search · filters · sort. Which rows to show is a filter like
               any other, so it lives in the Filters panel rather than as its own
               switch competing with the month for the top of the page. */}
           <div className="ca-toolbar">
+            {/* Anchors the bar and says what the list below actually is — you land
+                here after scrolling past the cards and the close. */}
+            <p className="ca-toolbar-lab">
+              {ymLabel(activeMonth)}
+              <span>{monthRows.length} of {monthStat.entries} {monthStat.entries === 1 ? 'line' : 'lines'}</span>
+            </p>
             <div className="ca-toolbar-sp" />
             <label className="ca-search">
               <Icon name="Search" size={15} />
@@ -855,74 +922,6 @@ export default function Ledger() {
               <Icon name={sortOldest ? 'ArrowUpNarrowWide' : 'ArrowDownWideNarrow'} size={14} /> {sortOldest ? 'Oldest' : 'Newest'}
             </button>
           </div>
-
-          {/* The vessel's cards for this month. Choosing one scopes everything
-              below — the month's figures and its close are per card, because each
-              card is balanced against its own statement. */}
-          <AccountStack
-            accounts={stackAccounts}
-            activeId={filters.accountId}
-            monthLabel={ymLabel(activeMonth)}
-            monthKey={activeMonth}
-            statsFor={(id) => stackStats[id]}
-            reconFor={(id) => monthRecons.find((r) => r.account_id === id)}
-            unassigned={stackStats['']?.count || 0}
-            onSelect={(id) => { setF({ accountId: id }); setFiltersOpen(false); }}
-          />
-
-          {/* month stepper (left) + KPIs (right) — borderless */}
-          <div className="ca-monthbar">
-            <div className="ca-stepper">
-              <button type="button" className="ca-step-arrow" onClick={() => stepMonth(-1)} disabled={axisIdx <= 0} aria-label="Previous month">
-                <Icon name="ChevronLeft" size={18} />
-              </button>
-              <div className="ca-step-name">{ymLabel(activeMonth)}</div>
-              <button type="button" className="ca-step-arrow" onClick={() => stepMonth(1)} disabled={axisIdx >= axis.length - 1} aria-label="Next month">
-                <Icon name="ChevronRight" size={18} />
-              </button>
-            </div>
-            <div className="ca-kpis">
-              <div className="ca-kpi meter">
-                <span className="ca-kpi-l">Categorised</span>
-                <span className="ca-kpi-v">{filedPct}%</span>
-                <div className="ca-meter-track"><div className="ca-meter-fill" style={{ width: `${filedPct}%` }} /></div>
-                <span className="ca-kpi-sub">{monthStat.filed} of {monthStat.entries} filed · {monthStat.look} to go</span>
-              </div>
-              <div className="ca-kpi">
-                <span className="ca-kpi-l">Money out</span>
-                <span className="ca-kpi-v neg">{formatMoney(monthStat.outSum, monthCur, { signed: true })}</span>
-              </div>
-              <div className="ca-kpi">
-                <span className="ca-kpi-l">Money in</span>
-                <span className="ca-kpi-v">{formatMoney(monthStat.inSum, monthCur, { signed: true })}</span>
-              </div>
-              <div className="ca-kpi">
-                <span className="ca-kpi-l">Net</span>
-                <span className="ca-kpi-v net">{formatMoney(monthStat.net, monthCur, { signed: true })}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Month-end close — per account, so only once one is filtered. Fed the
-              whole month rather than the visible rows: a close computed over a
-              "needs a look" filter would balance against a partial month. */}
-          {filters.accountId && accountsById[filters.accountId] && (
-            <MonthEndStrip
-              account={accountsById[filters.accountId]}
-              monthLabel={ymLabel(activeMonth)}
-              monthKey={activeMonth}
-              txns={monthAll}
-              allTxns={txns}
-              openingBalance={accountsById[filters.accountId]?.opening_balance}
-              reconciliation={recon}
-              hasReceipt={(t) => hasEvidence(t, (attByTxn[t.id] || []).length > 0)}
-              splitCount={(t) => (splitsByTxn[t.id] || []).length}
-              canEdit={canEdit}
-              onSaveStatement={handleSaveStatement}
-              onClose={handleCloseMonth}
-              onShowLine={showLine}
-            />
-          )}
 
           {/* list */}
           {loading ? (

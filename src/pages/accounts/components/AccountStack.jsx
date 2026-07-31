@@ -37,7 +37,7 @@ const stateFor = (recon, stage) => {
 
 export default function AccountStack({
   accounts = [], activeId = '', monthLabel, monthKey, statsFor, reconFor,
-  unassigned = 0, onSelect, today,
+  unassigned = 0, onSelect, today, month, figures,
 }) {
   if (!accounts.length) return null;
 
@@ -80,12 +80,14 @@ export default function AccountStack({
       </div>
 
       <div className="as-side">
-        <p className="as-eyebrow">
-          {stage === 'due' ? `Balance ${monthLabel}` : monthLabel}
+        {/* The month scopes the card, so it steps from here — one line above the
+            card's name, not a second big serif heading competing with it. */}
+        <div className="as-eyebrow">
+          {month || <span>{monthLabel}</span>}
           <span className="as-n">
             {stage === 'due' ? `${balanced} of ${accounts.length} balanced` : `${accounts.length} cards`}
           </span>
-        </p>
+        </div>
         <p className="as-name">{front.name}{front.card_last4 && front.card_last4 !== '0000' ? ` ••${front.card_last4}` : ''}</p>
         <p className="as-sub">
           {front.holder_role ? `${front.holder_role} · ` : ''}
@@ -116,6 +118,11 @@ export default function AccountStack({
           </p>
         )}
       </div>
+
+      {/* The month's money, beside the card it belongs to rather than stranded on
+          its own row. A ledger that ladders to Net, not four flat tiles — same
+          shape as the month-end arithmetic, so the two read as one method. */}
+      {figures && <div className="as-figures">{figures}</div>}
     </section>
   );
 }
