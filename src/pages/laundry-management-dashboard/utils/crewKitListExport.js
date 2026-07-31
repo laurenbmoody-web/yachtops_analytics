@@ -48,12 +48,18 @@ export const exportCrewKitList = async ({ vesselName, vessel, generatedAt, group
   doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...MUTED);
   doc.text(summary.toUpperCase(), M, hy + 6);
 
-  const head = [['Category', 'Item', 'Size', 'Qty', 'Crew', ...(showValue ? ['Value'] : [])]];
+  const head = [['Category', 'Item', 'Sizes', 'Qty', 'Crew', ...(showValue ? ['Value'] : [])]];
   const body = [];
-  groups.forEach((g) => g.rows.forEach((r) => body.push([
-    g.title, r.item || '', r.size || '', String(r.qty), String(r.holders),
-    ...(showValue ? [r.value != null ? money(r.value * r.qty, 'USD') : ''] : []),
-  ])));
+  groups.forEach((g) => g.rows.forEach((r) => {
+    const total = r.total != null ? r.total : Number(r.qty) || 0;
+    const sizeStr = Array.isArray(r.sizes) && r.sizes.length
+      ? r.sizes.map((s) => `${s.size || 'One size'} ×${s.qty}`).join('   ')
+      : (r.size || '');
+    body.push([
+      g.title, r.item || '', sizeStr, String(total), String(r.holders),
+      ...(showValue ? [r.value != null ? money(r.value * total, 'USD') : ''] : []),
+    ]);
+  }));
 
   autoTable(doc, {
     startY: hy + 12,
@@ -62,7 +68,7 @@ export const exportCrewKitList = async ({ vesselName, vessel, generatedAt, group
     styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 2.4, textColor: NAVY, lineColor: HAIR, lineWidth: 0.1 },
     headStyles: { fillColor: [250, 250, 248], textColor: MUTED, fontStyle: 'bold', fontSize: 7.5, lineColor: HAIR, lineWidth: 0.1 },
     alternateRowStyles: { fillColor: [252, 251, 248] },
-    columnStyles: { 0: { textColor: MUTED, fontStyle: 'bold', cellWidth: 34 }, 3: { halign: 'center' }, 4: { halign: 'center' } },
+    columnStyles: { 0: { textColor: MUTED, fontStyle: 'bold', cellWidth: 30 }, 3: { halign: 'center' }, 4: { halign: 'center' } },
   });
 
   const count = doc.getNumberOfPages();

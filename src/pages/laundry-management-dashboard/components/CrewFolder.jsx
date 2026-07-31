@@ -108,6 +108,21 @@ const typeOf = (rel = [], name = '') => {
 };
 const typeIcon = (type) => GARMENT_ICON[type] || 'Shirt';
 
+// Sort sizes into wearing order (XS→XXL, then numeric, then alpha; "one size" last).
+const SIZE_RANK = { XXS: 0, XS: 1, S: 2, M: 3, L: 4, XL: 5, '2XL': 6, XXL: 6, '3XL': 7, XXXL: 7 };
+const sizeSort = (a, b) => {
+  const A = String(a || '').toUpperCase().trim();
+  const B = String(b || '').toUpperCase().trim();
+  if (A === B) return 0;
+  if (!A) return 1; if (!B) return -1;
+  const ra = SIZE_RANK[A]; const rb = SIZE_RANK[B];
+  if (ra != null && rb != null) return ra - rb;
+  if (ra != null) return -1; if (rb != null) return 1;
+  const na = parseFloat(A); const nb = parseFloat(B);
+  if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
+  return A.localeCompare(B);
+};
+
 // Non-uniform hand-outs (PPE, electronics, keys…) live in the Crew world too now
 // — grouped by kit category rather than charter/garment type.
 const isUniformKit = (k) => (k.category || 'uniform') === 'uniform';
@@ -566,21 +581,32 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
   const listGroups = useMemo(() => {
     const ids = new Set(roster.filter(deptMatch).map((c) => c.id));
     const m = new Map();
+    // One entry per item (across sizes) — sizes roll up into a breakdown so a
+    // multi-size item is a single line, not one row per size.
     kit.filter((k) => k.status === 'in_service' && ids.has(k.user_id)).forEach((k) => {
-      const key = `${(k.item || '').trim().toLowerCase()}|${(k.size || '').trim().toLowerCase()}|${k.category || 'uniform'}`;
-      if (!m.has(key)) m.set(key, { item: k.item, size: k.size, category: k.category || 'uniform', qty: 0, holders: new Set(), value: k.value, invId: k.inventory_item_id || null });
-      const r = m.get(key); r.qty += Number(k.quantity) || 1; r.holders.add(k.user_id);
+      const cat = k.category || 'uniform';
+      const key = `${(k.item || '').trim().toLowerCase()}|${cat}`;
+      if (!m.has(key)) m.set(key, { item: k.item, category: cat, sizes: new Map(), holders: new Set(), value: k.value, invId: k.inventory_item_id || null });
+      const r = m.get(key);
+      const sz = (k.size || '').trim();
+      r.sizes.set(sz, (r.sizes.get(sz) || 0) + (Number(k.quantity) || 1));
+      r.holders.add(k.user_id);
+      if (r.value == null && k.value != null) r.value = k.value;
       if (!r.invId && k.inventory_item_id) r.invId = k.inventory_item_id;
     });
-    let rows = [...m.values()].map((r) => ({ ...r, holders: r.holders.size, img: itemById[r.invId]?.imageUrl || null, section: sectionFor(r) }));
+    let rows = [...m.values()].map((r) => {
+      const sizes = [...r.sizes.entries()].map(([size, qty]) => ({ size, qty })).sort((a, b) => sizeSort(a.size, b.size));
+      const total = sizes.reduce((a, s) => a + s.qty, 0);
+      return { item: r.item, category: r.category, value: r.value, invId: r.invId, img: itemById[r.invId]?.imageUrl || null, sizes, total, holders: r.holders.size, section: sectionFor(r) };
+    });
     const s = q.trim().toLowerCase();
-    if (s) rows = rows.filter((r) => `${r.item} ${r.size} ${r.section.title}`.toLowerCase().includes(s));
+    if (s) rows = rows.filter((r) => `${r.item} ${r.sizes.map((x) => x.size).join(' ')} ${r.section.title}`.toLowerCase().includes(s));
     const g = new Map();
     rows.forEach((r) => { if (!g.has(r.section.key)) g.set(r.section.key, { ...r.section, rows: [] }); g.get(r.section.key).rows.push(r); });
     const groups = [...g.values()].map((grp) => ({
       ...grp,
-      units: grp.rows.reduce((a, r) => a + r.qty, 0),
-      rows: grp.rows.sort((a, b) => (sort === 'qty' ? b.qty - a.qty : (a.item || '').localeCompare(b.item || ''))),
+      units: grp.rows.reduce((a, r) => a + r.total, 0),
+      rows: grp.rows.sort((a, b) => (sort === 'qty' ? b.total - a.total : (a.item || '').localeCompare(b.item || ''))),
     }));
     groups.sort((a, b) => {
       if (a.kind !== b.kind) return a.kind === 'uniform' ? -1 : 1;
@@ -891,11 +917,21 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
                   <div className="cf-lrow" key={i}>
                     <span className="cf-lrow-thumb">{r.img ? <img src={r.img} alt="" /> : <Icon name={grp.icon} size={16} />}</span>
                     <div className="cf-lrow-main">
-                      <span className="cf-lrow-nm">{r.item}{r.size ? <span className="cf-lrow-sz">{r.size}</span> : null}</span>
-                      <span className="cf-lrow-sub">held by {r.holders} {r.holders === 1 ? 'crew member' : 'crew'}</span>
+                      <span className="cf-lrow-nm">{r.item}</span>
+                      <span className="cf-lrow-sub">held by {r.holders} {r.holders === 1 ? 'crew member' : 'crew'}{showValue && r.value != null ? ` · ${money(r.value, 'USD')} each` : ''}</span>
                     </div>
-                    {showValue && r.value != null && <span className="cf-lrow-val">{money(r.value * r.qty, 'USD')}</span>}
-                    <span className="cf-lrow-qty">×{r.qty}</span>
+                    <div className="cf-lrow-sizes">
+                      {r.sizes.length > 1 ? (
+                        <>
+                          {r.sizes.map((s) => (
+                            <span className="cf-lrow-szrow" key={s.size || '_'}><span className="cf-lrow-szlbl">{s.size || 'One size'}</span><span className="cf-lrow-szq">×{s.qty}</span></span>
+                          ))}
+                          <span className="cf-lrow-szrow tot"><span className="cf-lrow-szlbl">total</span><span className="cf-lrow-szq">×{r.total}</span></span>
+                        </>
+                      ) : (
+                        <span className="cf-lrow-szrow solo">{r.sizes[0]?.size ? <span className="cf-lrow-szlbl">{r.sizes[0].size}</span> : null}<span className="cf-lrow-szq">×{r.total}</span></span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </section>
