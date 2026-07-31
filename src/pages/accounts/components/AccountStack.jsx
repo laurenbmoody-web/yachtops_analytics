@@ -20,8 +20,8 @@ import './account-stack.css';
 // depth past that reads as clutter, and the overflow rail does the choosing.
 const STACK = [
   { x: 0, y: 0, s: 1, o: 1, z: 30 },
-  { x: 74, y: 15, s: 0.955, o: 0.92, z: 20 },
-  { x: 148, y: 30, s: 0.912, o: 0.82, z: 10 },
+  { x: 92, y: 15, s: 0.955, o: 0.92, z: 20 },
+  { x: 184, y: 30, s: 0.912, o: 0.82, z: 10 },
 ];
 
 // "Not balanced" on a month that hasn't ended yet is a telling-off for being on
