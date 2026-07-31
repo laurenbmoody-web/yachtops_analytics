@@ -37,7 +37,7 @@ const stateFor = (recon, stage) => {
 
 export default function AccountStack({
   accounts = [], activeId = '', monthLabel, monthKey, statsFor, reconFor,
-  unassigned = 0, onSelect, today, month, figures,
+  unassigned = 0, onSelect, today, figures,
 }) {
   if (!accounts.length) return null;
 
@@ -85,15 +85,12 @@ export default function AccountStack({
       </div>
 
       <div className="as-side">
-        {/* The month scopes the card, so it steps from here — one line above the
-            card's name, not a second big serif heading competing with it. */}
-        <div className="as-eyebrow">
-          {month || <span>{monthLabel}</span>}
-          {/* No card count — the rail below is the cards, and counting what's
-              already on screen isn't information. How many are BALANCED isn't
-              visible anywhere else, so that earns its place once it's due. */}
-          {stage === 'due' && <span className="as-n">{balanced} of {accounts.length} balanced</span>}
-        </div>
+        {/* The month lives in the page header now — it scopes everything, not just
+            this card. What's left is the one fact the rail below can't show: how
+            many of these cards are actually balanced, once that's due. */}
+        {stage === 'due' && (
+          <div className="as-eyebrow"><span className="as-n">{balanced} of {accounts.length} balanced</span></div>
+        )}
         <p className="as-name">{front.name}{front.card_last4 && front.card_last4 !== '0000' ? ` ••${front.card_last4}` : ''}</p>
         {!scoped && (
           <p className="as-sub">
