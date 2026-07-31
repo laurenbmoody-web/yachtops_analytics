@@ -305,12 +305,13 @@
 .ca-meter-fill{height:100%; background:#C65A1A; border-radius:999px; transition:width .3s ease}
 @media (prefers-reduced-motion:reduce){.ca-meter-fill{transition:none}}
 
-/* Month stepper — compact, in the stack's eyebrow. It scopes the card, so it
-   sits a line above the card's name rather than as a rival serif heading. */
-.ca-mstep{display:inline-flex; align-items:center; gap:2px}
+/* Month stepper — in the page's meta strip, because the month scopes the whole
+   page and not just the card it used to sit beside. Sized to the strip's caps so
+   it reads as part of the line rather than a control dropped into it. */
+.ca-mstep{display:inline-flex; align-items:center; gap:1px}
 .ca-mstep b{font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase;
-  color:#1C1B3A; padding:0 5px; white-space:nowrap}
-.ca-mstep button{width:22px; height:22px; border-radius:6px; border:1px solid #E5E7EB; background:#fff;
+  color:#1C1B3A; padding:0 6px; white-space:nowrap}
+.ca-mstep button{width:20px; height:20px; border-radius:6px; border:1px solid #E5E7EB; background:#fff;
   display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#1C1B3A; padding:0}
 .ca-mstep button:hover:not(:disabled){border-color:#C65A1A; color:#C65A1A}
 .ca-mstep button:disabled{opacity:.3; cursor:default}

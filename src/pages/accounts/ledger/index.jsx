@@ -759,12 +759,28 @@ export default function Ledger() {
       <div className="ca-page">
         <div className="ca-wrap">
           <div className="ca-head">
+            {/* The month scopes this whole page — the figures, the close, the list
+                — so it steps from the top rather than from the middle of the card
+                row. And the running totals say WHICH months they count: unlabelled,
+                356/328 sat directly above 106/101 as the same kind of number at a
+                scope nothing on screen declared. */}
             <p className="editorial-meta">
               <span className="dot">●</span>
               <span>Spending</span>
               <span className="bar" />
-              <span className="muted">{txns.length} entries</span>
-              {totalLook > 0 && (<><span className="bar" /><span className="muted">{totalLook} need a look</span></>)}
+              <span className="ca-mstep">
+                <button type="button" onClick={() => stepMonth(-1)} disabled={axisIdx <= 0} aria-label="Previous month">
+                  <Icon name="ChevronLeft" size={14} />
+                </button>
+                <b>{ymLabel(activeMonth)}</b>
+                <button type="button" onClick={() => stepMonth(1)} disabled={axisIdx >= axis.length - 1} aria-label="Next month">
+                  <Icon name="ChevronRight" size={14} />
+                </button>
+              </span>
+              {totalLook > 0 && (
+                <><span className="bar" />
+                <span className="muted">{totalLook} to sort across all months</span></>
+              )}
             </p>
             <div className="ca-titlerow">
               <h1 className="ca-title">Money <em>in &amp; out</em>.</h1>
@@ -799,17 +815,6 @@ export default function Ledger() {
             reconFor={(id) => monthRecons.find((r) => r.account_id === id)}
             unassigned={stackStats['']?.count || 0}
             onSelect={(id) => { setF({ accountId: id }); setFiltersOpen(false); }}
-            month={(
-              <span className="ca-mstep">
-                <button type="button" onClick={() => stepMonth(-1)} disabled={axisIdx <= 0} aria-label="Previous month">
-                  <Icon name="ChevronLeft" size={15} />
-                </button>
-                <b>{ymLabel(activeMonth)}</b>
-                <button type="button" onClick={() => stepMonth(1)} disabled={axisIdx >= axis.length - 1} aria-label="Next month">
-                  <Icon name="ChevronRight" size={15} />
-                </button>
-              </span>
-            )}
             figures={(
               <>
                 <p className="ca-fig-lab">The month</p>
