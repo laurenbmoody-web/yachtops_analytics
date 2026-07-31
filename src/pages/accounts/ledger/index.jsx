@@ -814,21 +814,14 @@ export default function Ledger() {
             unassigned={stackStats['']?.count || 0}
             onSelect={(id) => { setF({ accountId: id }); setFiltersOpen(false); }}
             figures={(
-              <>
-                <div className="ca-fig-money">
-                  <p className="ca-fig-lab">The month</p>
-                  <div className="ca-fig-eq">
-                    <div className="r"><span>Money out</span><b className="neg">{formatMoney(monthStat.outSum, monthCur, { signed: true })}</b></div>
-                    <div className="r"><span>Money in</span><b>{formatMoney(monthStat.inSum, monthCur, { signed: true })}</b></div>
-                    <div className="r is-tot"><span>Net</span><b>{formatMoney(monthStat.net, monthCur, { signed: true })}</b></div>
-                  </div>
+              <div className="ca-fig-money">
+                <p className="ca-fig-lab">The month</p>
+                <div className="ca-fig-eq">
+                  <div className="r"><span>Money out</span><b className="neg">{formatMoney(monthStat.outSum, monthCur, { signed: true })}</b></div>
+                  <div className="r"><span>Money in</span><b>{formatMoney(monthStat.inSum, monthCur, { signed: true })}</b></div>
+                  <div className="r is-tot"><span>Net</span><b>{formatMoney(monthStat.net, monthCur, { signed: true })}</b></div>
                 </div>
-                <div className="ca-fig-meter">
-                  <p className="ca-fig-lab">Categorised<b>{filedPct}%</b></p>
-                  <div className="ca-meter-track"><div className="ca-meter-fill" style={{ width: `${filedPct}%` }} /></div>
-                  <p className="ca-fig-sub">{monthStat.filed} of {monthStat.entries} filed · {monthStat.look} to go</p>
-                </div>
-              </>
+              </div>
             )}
           />
 
@@ -857,13 +850,29 @@ export default function Ledger() {
               any other, so it lives in the Filters panel rather than as its own
               switch competing with the month for the top of the page. */}
           <div className="ca-toolbar">
-            {/* Just the count. The month is the stepper's job and the close bar
-                says it in a sentence between the two — a third "JULY 2026" in one
-                screen is furniture. "n of m" only when a filter makes them differ. */}
+            {/* How much of the month is categorised is a fact about THIS LIST, not
+                a fourth money figure — it was sat in the band beside money out, in
+                and net, which is why it read as stranded there. It belongs to the
+                count of the thing you're about to work through.
+                The month is the stepper's job and the close bar says it in a
+                sentence between the two, so no third "JULY 2026" here. */}
             <p className="ca-toolbar-lab">
-              {monthRows.length < monthStat.entries
-                ? `${monthRows.length} of ${monthStat.entries} lines`
-                : `${monthStat.entries} ${monthStat.entries === 1 ? 'line' : 'lines'}`}
+              <span>
+                {monthRows.length < monthStat.entries
+                  ? `${monthRows.length} of ${monthStat.entries} lines`
+                  : `${monthStat.entries} ${monthStat.entries === 1 ? 'line' : 'lines'}`}
+              </span>
+              {monthStat.entries > 0 && (
+                <>
+                  <span className="ca-tl-meter" title={`${monthStat.filed} of ${monthStat.entries} filed`}>
+                    <i style={{ width: `${filedPct}%` }} />
+                  </span>
+                  <span className="ca-tl-prog">
+                    {filedPct}% categorised
+                    {monthStat.look > 0 && ` · ${monthStat.look} to go`}
+                  </span>
+                </>
+              )}
             </p>
             <div className="ca-toolbar-sp" />
             <label className="ca-search">

@@ -38,19 +38,22 @@
 .as-n { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; margin-left: 4px; }
 .as-orphan { grid-area: orphan; }
 
+/* Money only, and pushed to the page's right edge so its figures line up with
+   the header's buttons above and the list's amount column below — rather than
+   floating mid-canvas with dead space either side. */
 .as-figures {
   grid-area: figures; min-width: 0; padding-top: 4px;
-  display: grid; grid-template-columns: minmax(220px, 340px) minmax(200px, 300px);
-  gap: 36px; align-content: start;
+  justify-self: end; width: min(400px, 100%);
 }
 
 @media (max-width: 1100px) {
   .as { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "pick" "orphan" "figures"; }
   .as-figures { margin-top: 26px; }
 }
+@media (max-width: 1100px) { .as-figures { justify-self: start; } }
 @media (max-width: 620px) {
   .as-stage { width: 100%; height: 200px; }
-  .as-figures { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  .as-figures { width: 100%; }
 }
 /* Overflow rail — only rendered past the third card, for the accounts the fan
    physically can't reach. */
