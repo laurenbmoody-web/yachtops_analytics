@@ -28,9 +28,18 @@
 .cv-sm .cv-chip { width: 32px; height: 24px; margin-top: 12px; }
 .cv-lg .cv-chip { width: 40px; height: 30px; margin-top: 22px; }
 .cv-chip::after { content: ''; position: absolute; inset: 6px 8px; border: 1px solid rgba(120,90,30,0.35); border-radius: 3px; }
-.cv-no { margin-top: 16px; font-size: 16px; letter-spacing: 2px; font-variant-numeric: tabular-nums; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-.cv-lg .cv-no { font-size: 18px; letter-spacing: 2.5px; }
-.cv-sm .cv-no { font-size: 14px; letter-spacing: 1.5px; margin-top: 10px; }
+/* Identity block — the account's name is what identifies a card to a crew, not a
+   masked PAN we never hold. */
+.cv-id { margin-top: 14px; }
+.cv-idname { font-size: 15px; font-weight: 650; letter-spacing: .1px; text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cv-idno { margin-top: 4px; font-size: 12.5px; letter-spacing: 1.6px; font-variant-numeric: tabular-nums;
+  font-weight: 600; color: rgba(255,255,255,0.72); }
+.cv-lg .cv-idname { font-size: 17px; }
+.cv-lg .cv-idno { font-size: 14px; }
+.cv-sm .cv-id { margin-top: 9px; }
+.cv-sm .cv-idname { font-size: 13px; }
+.cv-sm .cv-idno { font-size: 11px; letter-spacing: 1.2px; }
 .cv-btm { position: absolute; left: 18px; right: 18px; bottom: 16px; display: flex; align-items: flex-end; justify-content: space-between; }
 .cv-sm .cv-btm { left: 14px; right: 14px; bottom: 12px; }
 .cv-lg .cv-btm { left: 22px; right: 22px; bottom: 20px; }

@@ -809,19 +809,19 @@ export default function Ledger() {
           <AccountStack
             accounts={stackAccounts}
             activeId={filters.accountId}
-            monthLabel={ymLabel(activeMonth)}
             monthKey={activeMonth}
-            statsFor={(id) => stackStats[id]}
             reconFor={(id) => monthRecons.find((r) => r.account_id === id)}
             unassigned={stackStats['']?.count || 0}
             onSelect={(id) => { setF({ accountId: id }); setFiltersOpen(false); }}
             figures={(
               <>
-                <p className="ca-fig-lab">The month</p>
-                <div className="ca-fig-eq">
-                  <div className="r"><span>Money out</span><b className="neg">{formatMoney(monthStat.outSum, monthCur, { signed: true })}</b></div>
-                  <div className="r"><span>Money in</span><b>{formatMoney(monthStat.inSum, monthCur, { signed: true })}</b></div>
-                  <div className="r is-tot"><span>Net</span><b>{formatMoney(monthStat.net, monthCur, { signed: true })}</b></div>
+                <div className="ca-fig-money">
+                  <p className="ca-fig-lab">The month</p>
+                  <div className="ca-fig-eq">
+                    <div className="r"><span>Money out</span><b className="neg">{formatMoney(monthStat.outSum, monthCur, { signed: true })}</b></div>
+                    <div className="r"><span>Money in</span><b>{formatMoney(monthStat.inSum, monthCur, { signed: true })}</b></div>
+                    <div className="r is-tot"><span>Net</span><b>{formatMoney(monthStat.net, monthCur, { signed: true })}</b></div>
+                  </div>
                 </div>
                 <div className="ca-fig-meter">
                   <p className="ca-fig-lab">Categorised<b>{filedPct}%</b></p>
