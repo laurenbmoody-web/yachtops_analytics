@@ -7,8 +7,9 @@ import { fetchTenantCrew } from '../../crew-profile/utils/tenantCrew';
 import {
   fetchTenantKit, saveKitItem, deleteKitItem, recordKitReturn, requestKitSignoff,
   logKitEvent, fmtKitDate, CONDITIONS, canonicalGarment, GARMENT_ORDER, GARMENT_ICON,
-  KIT_CATEGORIES, kitCategoryLabel, fetchVesselIdentity,
+  KIT_CATEGORIES, kitCategoryLabel, fetchVesselIdentity, kitSignatureDataUrl,
 } from '../../crew-profile/utils/crewKit';
+import { exportKitReceipt } from '../../crew-profile/utils/kitReceiptExport';
 import { sendDbNotification } from '../../../lib/dbNotifications';
 import { EditorialDatePicker } from '../../../components/editorial';
 import { exportCrewKitList } from '../utils/crewKitListExport';
@@ -509,6 +510,8 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
   const [kStatus, setKStatus] = useState('all');
   const [kSort, setKSort] = useState('newest');
   const [signingOff, setSigningOff] = useState(false);
+  const [receiptChooser, setReceiptChooser] = useState(false);
+  const [exportingReceipt, setExportingReceipt] = useState(false);
 
   const load = async () => {
     if (!activeTenantId) return;
@@ -773,6 +776,30 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     } finally { setSigningOff(false); }
   };
 
+  // Per-crew kit receipt (the same A4 receipt as the crew profile) — signature
+  // blocks show the signature on file, or a blank line to sign once printed.
+  const doExportReceipt = async (scope) => {
+    setReceiptChooser(false);
+    const list = scope === 'held' ? memberKit.filter((k) => k.status === 'in_service') : memberKit;
+    if (!list.length) { window.showToast?.(scope === 'held' ? 'Nothing currently held to export' : 'No kit to export yet', 'error'); return; }
+    setExportingReceipt(true);
+    try {
+      const ackPath = list.filter((k) => k.ack_signature_path).sort((a, b) => String(b.acknowledged_at).localeCompare(String(a.acknowledged_at)))[0]?.ack_signature_path;
+      const retPath = list.filter((k) => k.return_signature_path).sort((a, b) => String(b.returned_date).localeCompare(String(a.returned_date)))[0]?.return_signature_path;
+      const [ackImg, retImg, vessel] = await Promise.all([
+        ackPath ? kitSignatureDataUrl(ackPath) : null,
+        retPath ? kitSignatureDataUrl(retPath) : null,
+        fetchVesselIdentity(activeTenantId).catch(() => null),
+      ]);
+      await exportKitReceipt({
+        crewName: selected?.fullName || 'Crew member', vesselName: vessel?.name, vessel,
+        generatedAt: fmtKitDate(today()), items: list, ackSig: ackImg, returnSig: retImg,
+        scopeLabel: scope === 'held' ? 'Currently held' : 'Full record',
+      });
+    } catch (e) { window.showToast?.('Couldn’t export — try again', 'error'); }
+    finally { setExportingReceipt(false); }
+  };
+
   // Issue a batch of allocations [{ invItem, size, qty }] to the selected crew
   // member: one kit row per size, drawing each size from master stock. For a
   // size-run item the specific size variant (and its stock-location tally) is
@@ -1028,6 +1055,9 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
             <div className="cf-tools">
               <FilterMenu groups={kitFilterGroups} />
               <SortMenu value={kSort} onChange={setKSort} options={kitSortOptions} />
+              <button type="button" className="cf-btn ghost sm" onClick={() => setReceiptChooser(true)} disabled={exportingReceipt}>
+                <Icon name="Download" size={15} /> {exportingReceipt ? 'Exporting…' : 'Receipt'}
+              </button>
               {canManage && <button type="button" className="cf-btn primary sm" onClick={openIssue}><Icon name="Plus" size={15} /> Issue item</button>}
             </div>
           </div>
@@ -1064,6 +1094,26 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
         </>
       )}
 
+      {receiptChooser && (
+        <div className="cf-overlay" role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) setReceiptChooser(false); }}>
+          <div className="cf-modal sm" onClick={(e) => e.stopPropagation()}>
+            <div className="cf-modal-head">
+              <div><span className="cf-eyebrow">Kit receipt</span><h2 className="cf-modal-title">{selected.fullName}</h2></div>
+              <button type="button" className="cf-x" onClick={() => setReceiptChooser(false)} aria-label="Close"><Icon name="X" size={18} /></button>
+            </div>
+            <div className="cf-scope">
+              <button type="button" className="cf-scope-opt" onClick={() => doExportReceipt('held')} disabled={exportingReceipt}>
+                <Icon name="ShieldCheck" size={18} />
+                <span><b>Currently held</b><small>Only kit in service now — the responsibility record to sign.</small></span>
+              </button>
+              <button type="button" className="cf-scope-opt" onClick={() => doExportReceipt('all')} disabled={exportingReceipt}>
+                <Icon name="History" size={18} />
+                <span><b>Full record</b><small>Everything issued, incl. returned &amp; lost items.</small></span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {issuing && <IssueModal crewName={selected.fullName} stock={stock} folderRels={folderRels} showValue={showValue} onIssue={doIssue} onAddManual={() => { setIssuing(false); setHandingOut(true); }} onClose={() => setIssuing(false)} />}
       {handingOut && <HandoutModal crewName={selected.fullName} onHandout={doHandout} onClose={() => setHandingOut(false)} />}
       {returning && <ReturnModal row={returning} onReturn={doReturn} onClose={() => setReturning(null)} />}

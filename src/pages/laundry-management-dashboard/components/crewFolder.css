@@ -113,6 +113,15 @@
 .cf-tile-swapbtn { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #C65A1A; background: #FBEFE9; border-radius: 8px; padding: 5px 11px; font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; cursor: pointer; transition: background 0.14s; }
 .cf-tile-swapbtn:hover { background: #F6E0D3; }
 
+/* Receipt scope chooser (per-crew export). */
+.cf-scope { display: flex; flex-direction: column; gap: 10px; padding: 4px 22px 20px; }
+.cf-scope-opt { display: flex; align-items: flex-start; gap: 12px; text-align: left; cursor: pointer; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px 15px; font-family: inherit; color: #1C1B3A; transition: border-color 0.14s, background 0.14s; }
+.cf-scope-opt:hover { border-color: #C65A1A; background: #FBEFE9; }
+.cf-scope-opt:disabled { opacity: 0.5; cursor: default; }
+.cf-scope-opt svg { color: #C65A1A; flex: none; margin-top: 1px; }
+.cf-scope-opt b { display: block; font-size: 14px; font-weight: 600; }
+.cf-scope-opt small { display: block; font-size: 12px; color: #8B8478; margin-top: 2px; }
+
 /* Hand-out (manual issue) form — two-column editorial fields. */
 .cf-handout { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .cf-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
