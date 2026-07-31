@@ -852,11 +852,13 @@ export default function Ledger() {
               any other, so it lives in the Filters panel rather than as its own
               switch competing with the month for the top of the page. */}
           <div className="ca-toolbar">
-            {/* Anchors the bar and says what the list below actually is — you land
-                here after scrolling past the cards and the close. */}
+            {/* Just the count. The month is the stepper's job and the close bar
+                says it in a sentence between the two — a third "JULY 2026" in one
+                screen is furniture. "n of m" only when a filter makes them differ. */}
             <p className="ca-toolbar-lab">
-              {ymLabel(activeMonth)}
-              <span>{monthRows.length} of {monthStat.entries} {monthStat.entries === 1 ? 'line' : 'lines'}</span>
+              {monthRows.length < monthStat.entries
+                ? `${monthRows.length} of ${monthStat.entries} lines`
+                : `${monthStat.entries} ${monthStat.entries === 1 ? 'line' : 'lines'}`}
             </p>
             <div className="ca-toolbar-sp" />
             <label className="ca-search">

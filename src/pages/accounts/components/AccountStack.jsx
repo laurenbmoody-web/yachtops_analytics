@@ -60,6 +60,11 @@ export default function AccountStack({
 
   const stage = monthEndStage(monthKey, today || new Date());
   const front = accounts.find((a) => a.id === order[0]) || accounts[0];
+  // When the page is filtered to this card, the figures column beside us IS this
+  // card's month — so restating its count and total here is the same number twice.
+  // On "All" it isn't: the column is the whole vessel, and the card's own share is
+  // the one thing you can't read anywhere else.
+  const scoped = activeId === front.id;
   const frontStat = statsFor?.(front.id) || { count: 0, out: 0 };
   const frontState = stateFor(reconFor?.(front.id), stage);
   const balanced = accounts.filter((a) => (reconFor?.(a.id)?.status || 'open') !== 'open').length;
@@ -84,16 +89,21 @@ export default function AccountStack({
             card's name, not a second big serif heading competing with it. */}
         <div className="as-eyebrow">
           {month || <span>{monthLabel}</span>}
-          <span className="as-n">
-            {stage === 'due' ? `${balanced} of ${accounts.length} balanced` : `${accounts.length} cards`}
-          </span>
+          {/* No card count — the rail below is the cards, and counting what's
+              already on screen isn't information. How many are BALANCED isn't
+              visible anywhere else, so that earns its place once it's due. */}
+          {stage === 'due' && <span className="as-n">{balanced} of {accounts.length} balanced</span>}
         </div>
         <p className="as-name">{front.name}{front.card_last4 && front.card_last4 !== '0000' ? ` ••${front.card_last4}` : ''}</p>
-        <p className="as-sub">
-          {front.holder_role ? `${front.holder_role} · ` : ''}
-          {frontStat.count} {frontStat.count === 1 ? 'line' : 'lines'} · {formatMoney(frontStat.out, front.currency, { signed: true })}
-        </p>
-        <p className={`as-state is-${frontState.tone}`}>{frontState.text}</p>
+        {!scoped && (
+          <p className="as-sub">
+            {frontStat.count} {frontStat.count === 1 ? 'line' : 'lines'} · {formatMoney(frontStat.out, front.currency, { signed: true })}
+          </p>
+        )}
+        {/* "Still running" is the default state of the month you're in, and the
+            month-end bar below already says it in a sentence. Only a state you'd
+            act on is worth a line here. */}
+        {stage !== 'running' && <p className={`as-state is-${frontState.tone}`}>{frontState.text}</p>}
 
         {/* One rail for every card, because past the third the fan stops moving. */}
         <div className="as-rail">
