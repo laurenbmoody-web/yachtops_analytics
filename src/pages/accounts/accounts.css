@@ -255,8 +255,17 @@
 .ca-sug-change { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #E5E7EB; border-radius: 8px; background: #fff; color: #6B7280; font: inherit; font-size: 12px; font-weight: 600; padding: 4px 11px; cursor: pointer; }
 .ca-sug-change:hover { border-color: #C65A1A; color: #C65A1A; }
 
-/* ── Toolbar: search · filters · sort. Which rows to show is inside Filters. ── */
-.ca-toolbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:22px}
+/* ── Toolbar: search · filters · sort. Sits directly above the list it controls,
+   not stranded at the top of the page away from anything it changes. Which rows
+   to show is inside Filters.
+
+   The column header's rule below is the one that separates this from the rows,
+   so the toolbar carries no border of its own — two hairlines 14px apart read as
+   a mistake. */
+.ca-toolbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:28px}
+.ca-toolbar-lab{display:flex; align-items:baseline; gap:9px; font-size:9px; font-weight:700;
+  letter-spacing:1px; text-transform:uppercase; color:#8B8478; margin:0}
+.ca-toolbar-lab span{color:#AEB4C2; letter-spacing:.4px; font-variant-numeric:tabular-nums}
 .ca-toolbar-sp{flex:1 1 24px}
 .ca-search{display:inline-flex; align-items:center; gap:8px; background:#FAFAF8; border:1px solid #E5E7EB;
   border-radius:10px; padding:0 12px; height:38px; min-width:200px}
@@ -275,28 +284,37 @@
   font-weight:600; cursor:pointer; padding:2px 0}
 .ca-fp-clear:hover{text-decoration:underline; text-underline-offset:3px}
 
-/* ── Month bar: stepper (left) + KPIs (right), borderless ────────────────── */
-.ca-monthbar{display:flex; align-items:flex-end; justify-content:space-between; gap:32px; flex-wrap:wrap;
-  margin-top:24px; padding-bottom:18px; border-bottom:1px solid #EEF0F4}
-.ca-stepper{display:flex; align-items:center; gap:8px}
-.ca-step-arrow{width:34px; height:34px; border-radius:9px; border:1px solid #E5E7EB; background:#fff;
-  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#1C1B3A}
-.ca-step-arrow:hover:not(:disabled){border-color:#C65A1A; color:#C65A1A}
-.ca-step-arrow:disabled{opacity:.3; cursor:default}
-.ca-step-name{font-family:'DM Serif Display', Georgia, serif; font-size:30px; line-height:1; color:#1C1B3A; padding:0 8px; white-space:nowrap}
-
-.ca-kpis{display:flex; align-items:flex-end; gap:34px; flex-wrap:wrap}
-.ca-kpi{display:flex; flex-direction:column; gap:6px}
-.ca-kpi-l{font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#8B8478}
-.ca-kpi-v{font-size:20px; font-weight:600; color:#1C1B3A; font-variant-numeric:tabular-nums; line-height:1}
-.ca-kpi-v.neg{color:#C65A1A}
-.ca-kpi-v.net{color:#C65A1A}
-.ca-kpi-sub{font-size:10.5px; color:#8B8478; font-variant-numeric:tabular-nums}
-.ca-kpi.meter{min-width:170px}
-.ca-meter-track{height:5px; border-radius:999px; background:#EEF0F4; overflow:hidden; margin-top:1px}
+/* ── The month's figures, in the stack's third column ───────────────────────
+   A ledger that ladders to Net rather than four flat tiles — the same shape as
+   the month-end arithmetic, so the page reads as one method rather than two. */
+.ca-fig-lab{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin:0;
+  font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#8B8478}
+.ca-fig-lab b{font-size:13px; letter-spacing:0; color:#C65A1A; font-variant-numeric:tabular-nums}
+.ca-fig-eq{display:flex; flex-direction:column; margin-top:9px}
+.ca-fig-eq .r{display:flex; justify-content:space-between; align-items:baseline; gap:16px;
+  padding:7px 0; border-bottom:1px solid #F0F1F5}
+.ca-fig-eq .r span{font-size:12.5px; color:#6B7280}
+.ca-fig-eq .r b{font-size:15px; font-weight:600; color:#1C1B3A; font-variant-numeric:tabular-nums}
+.ca-fig-eq .r b.neg{color:#C65A1A}
+.ca-fig-eq .r.is-tot{border-bottom:0; border-top:2px solid #1C1B3A; padding-top:10px; margin-top:2px}
+.ca-fig-eq .r.is-tot span{color:#1C1B3A; font-weight:650}
+.ca-fig-eq .r.is-tot b{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;
+  font-weight:400; font-size:23px; color:#C65A1A}
+.ca-fig-meter{margin-top:18px}
+.ca-fig-sub{margin:5px 0 0; font-size:10.5px; color:#8B8478; font-variant-numeric:tabular-nums}
+.ca-meter-track{height:5px; border-radius:999px; background:#EEF0F4; overflow:hidden; margin-top:6px}
 .ca-meter-fill{height:100%; background:#C65A1A; border-radius:999px; transition:width .3s ease}
 @media (prefers-reduced-motion:reduce){.ca-meter-fill{transition:none}}
-@media (max-width:760px){ .ca-monthbar{gap:18px} .ca-kpis{gap:22px} .ca-step-name{font-size:26px} }
+
+/* Month stepper — compact, in the stack's eyebrow. It scopes the card, so it
+   sits a line above the card's name rather than as a rival serif heading. */
+.ca-mstep{display:inline-flex; align-items:center; gap:2px}
+.ca-mstep b{font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase;
+  color:#1C1B3A; padding:0 5px; white-space:nowrap}
+.ca-mstep button{width:22px; height:22px; border-radius:6px; border:1px solid #E5E7EB; background:#fff;
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:#1C1B3A; padding:0}
+.ca-mstep button:hover:not(:disabled){border-color:#C65A1A; color:#C65A1A}
+.ca-mstep button:disabled{opacity:.3; cursor:default}
 
 /* filed label + two-sided guest/crew choice */
 .ca-txn-filed{color:#2F7A64; font-weight:600}

@@ -1,10 +1,16 @@
 /* Cargo Accounts — the wallet stack that scopes the Spending page. Scoped .as-*. */
 
+/* Three columns: the cards, what they are, and what the month came to. The
+   figures used to sit on their own row below, which left the whole right half of
+   a very wide page empty and pushed everything else down. */
 .as {
-  display: flex;
-  align-items: flex-start;
-  gap: 30px;
+  display: grid;
+  grid-template-columns: 340px minmax(200px, 1fr) minmax(250px, 26%);
+  align-items: start;
+  gap: 30px 40px;
   margin-top: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #EEF0F4;
 }
 
 /* Height holds the fan (184px card + 32px of offset) so nothing below jumps
@@ -16,10 +22,20 @@
   will-change: transform;
 }
 
-.as-side { flex: 1 1 auto; min-width: 0; padding-top: 4px; }
+.as-side { min-width: 0; padding-top: 4px; }
+.as-figures { min-width: 0; padding-top: 4px; }
+
+@media (max-width: 1180px) {
+  .as { grid-template-columns: 340px minmax(0, 1fr); }
+  .as-figures { grid-column: 1 / -1; max-width: 420px; }
+}
+@media (max-width: 760px) {
+  .as { grid-template-columns: minmax(0, 1fr); }
+  .as-stage { width: 100%; }
+}
 
 .as-eyebrow {
-  display: flex; align-items: center; gap: 9px;
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
   font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
 }
 .as-n { font-weight: 700; color: #AEB4C2; letter-spacing: .4px; }
