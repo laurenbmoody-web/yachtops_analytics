@@ -50,12 +50,17 @@ export const exportCrewKitList = async ({ vesselName, vessel, generatedAt, group
 
   // One merged Item row per item, with each size on its own line beneath (mirrors
   // the on-screen list). Category / Crew / Value span the size rows via rowSpan.
+  // Zebra shading is applied PER ITEM (not per row) so a multi-size item is a
+  // single-shade block — striping every size row would desync the next item.
   const head = [['Category', 'Item', 'Size', 'Qty', 'Crew', ...(showValue ? ['Value'] : [])]];
   const body = [];
+  const stripeByRow = []; // body-row index -> shade this row (per-item parity)
+  let itemIdx = 0;
   groups.forEach((g) => g.rows.forEach((r) => {
     const sizes = Array.isArray(r.sizes) && r.sizes.length ? r.sizes : [{ size: r.size || '', qty: Number(r.qty) || 0 }];
     const total = r.total != null ? r.total : sizes.reduce((a, s) => a + s.qty, 0);
     const n = sizes.length;
+    const stripe = itemIdx % 2 === 1;
     const itemText = n > 1 ? `${r.item || ''}\n${total} total` : (r.item || '');
     sizes.forEach((s, idx) => {
       if (idx === 0) {
@@ -70,7 +75,9 @@ export const exportCrewKitList = async ({ vesselName, vessel, generatedAt, group
       } else {
         body.push([s.size || 'One size', String(s.qty)]);
       }
+      stripeByRow.push(stripe);
     });
+    itemIdx += 1;
   }));
 
   autoTable(doc, {
@@ -79,7 +86,6 @@ export const exportCrewKitList = async ({ vesselName, vessel, generatedAt, group
     head, body,
     styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.6, textColor: NAVY, lineColor: HAIR, lineWidth: 0.1 },
     headStyles: { fillColor: [250, 250, 248], textColor: MUTED, fontStyle: 'bold', fontSize: 7.5, lineColor: HAIR, lineWidth: 0.1 },
-    alternateRowStyles: { fillColor: [252, 251, 248] },
     columnStyles: {
       0: { cellWidth: 42 },
       1: { cellWidth: 100 },
@@ -87,6 +93,9 @@ export const exportCrewKitList = async ({ vesselName, vessel, generatedAt, group
       3: { halign: 'center', cellWidth: 18 },
       4: { halign: 'center', cellWidth: 20 },
       5: { cellWidth: 32 },
+    },
+    didParseCell: (data) => {
+      if (data.section === 'body' && stripeByRow[data.row.index]) data.cell.styles.fillColor = [252, 251, 248];
     },
   });
 
