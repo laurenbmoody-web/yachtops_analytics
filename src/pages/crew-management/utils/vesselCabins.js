@@ -25,6 +25,29 @@ export async function fetchAssignments(tenantId) {
   return data || [];
 }
 
+// The crew member's CURRENT cabin from the Movements board — the active
+// assignment (start on/before today, open-ended or ending after today),
+// resolved bed → cabin. Returns { cabin, deck, bed } or null. This is the single
+// source of truth for "which cabin" — wardrobe/issued-kit read it, not the old
+// free-text crew_employment.cabin.
+export async function fetchCabinForUser(tenantId, userId, onDate = null) {
+  if (!tenantId || !userId) return null;
+  const day = onDate || new Date().toISOString().slice(0, 10);
+  const { data: assigns } = await supabase
+    .from('cabin_assignments').select('bed_id, start_date, end_date')
+    .eq('tenant_id', tenantId).eq('user_id', userId);
+  if (!assigns?.length) return null;
+  const active = assigns
+    .filter((a) => (a.start_date || '') <= day && (!a.end_date || a.end_date > day))
+    .sort((a, b) => (b.start_date || '').localeCompare(a.start_date || ''))[0];
+  if (!active?.bed_id) return null;
+  const { data: bed } = await supabase.from('cabin_beds').select('cabin_id, label').eq('id', active.bed_id).maybeSingle();
+  if (!bed?.cabin_id) return null;
+  const { data: cabin } = await supabase.from('vessel_cabins').select('name, deck').eq('id', bed.cabin_id).maybeSingle();
+  if (!cabin) return null;
+  return { cabin: cabin.name, deck: cabin.deck || null, bed: bed.label || null };
+}
+
 // ── cabin/bed setup — reconcile the desired state against what's stored ───────
 // `cabins` is the editor's working array: each cabin { id?, name, deck, linen, beds:[{id?,label}] }.
 // New rows have no id; removed rows are simply absent. Returns nothing (throws on error).

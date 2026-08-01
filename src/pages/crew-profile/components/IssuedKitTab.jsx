@@ -18,6 +18,7 @@ import { exportKitReceipt } from '../utils/kitReceiptExport';
 import { formatShoeTrio } from '../utils/shoeSizes';
 import { sendDbNotification } from '../../../lib/dbNotifications';
 import { getAllItems } from '../../inventory/utils/inventoryStorage';
+import { fetchCabinForUser } from '../../crew-management/utils/vesselCabins';
 import { EditorialDatePicker } from '../../../components/editorial';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -144,9 +145,17 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
   // Uniform sizes (moved from the Preferences tab).
   const [sizes, setSizes] = useState({});
   const [sizesForm, setSizesForm] = useState({});
-  // Cabin + interior laundry marking (stored on crew_employment).
+  // Interior laundry marking (crew_employment) + current cabin (from the Movements
+  // board — the single source of truth for cabin, so it's read-only here).
   const [alloc, setAlloc] = useState({});
   const [allocForm, setAllocForm] = useState({});
+  const [movementCabin, setMovementCabin] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    setMovementCabin(null);
+    if (tenantId && userId) fetchCabinForUser(tenantId, userId).then((c) => { if (!cancelled) setMovementCabin(c); });
+    return () => { cancelled = true; };
+  }, [tenantId, userId]);
   // Single tab-wide edit mode (mirrors the "Edit profile" pattern): reveals the
   // uniform-size inputs and the issue/return controls together.
   const [editMode, setEditMode] = useState(false);
@@ -487,20 +496,20 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
           {/* Cabin & interior laundry marking */}
           {(() => {
             const editing = editMode && canEditSizes;
-            const hasAny = alloc.cabin || alloc.laundry_number || alloc.laundry_colour;
+            const hasAny = movementCabin?.cabin || alloc.laundry_number || alloc.laundry_colour;
             if (!editing && !hasAny) return null;
             return (
               <div className="cp-group kit-sizes">
                 <div className="cp-group-head"><span className="dia">◆</span><span className="t">Cabin &amp; laundry</span><span className="line" /></div>
                 {editing ? (
                   <div className="kit-size-grid">
-                    <label className="kit-field"><span>Cabin</span><input value={allocForm.cabin || ''} onChange={(e) => setAllocForm((s) => ({ ...s, cabin: e.target.value }))} placeholder="e.g. Lower deck · 3" /></label>
+                    <div className="kit-field kit-static"><span>Cabin <em>from movements</em></span><b>{movementCabin?.cabin || '—'}</b></div>
                     <label className="kit-field"><span>Laundry number</span><input value={allocForm.laundryNumber || ''} onChange={(e) => setAllocForm((s) => ({ ...s, laundryNumber: e.target.value }))} placeholder="e.g. 14" /></label>
                     <label className="kit-field"><span>Laundry colour</span><input value={allocForm.laundryColour || ''} onChange={(e) => setAllocForm((s) => ({ ...s, laundryColour: e.target.value }))} placeholder="e.g. Blue" /></label>
                   </div>
                 ) : (
                   <div className="kit-size-grid">
-                    <div className="kit-field kit-static"><span>Cabin</span><b>{alloc.cabin || '—'}</b></div>
+                    <div className="kit-field kit-static"><span>Cabin</span><b>{movementCabin?.cabin || '—'}</b></div>
                     <div className="kit-field kit-static"><span>Laundry number</span><b>{alloc.laundry_number || '—'}</b></div>
                     <div className="kit-field kit-static"><span>Laundry colour</span><b>{alloc.laundry_colour || '—'}</b></div>
                   </div>
