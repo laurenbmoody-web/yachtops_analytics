@@ -9,7 +9,7 @@
   /* Fixed, NOT auto. The picker row shares this column with the wallet, so an
      auto column grew to whatever the pill row wanted and shoved the figures off
      the right of the page — content in one cell silently resizing another. */
-  grid-template-columns: 512px minmax(0, 1fr);
+  grid-template-columns: 480px minmax(0, 1fr);
   grid-template-areas: "stage figures" "pick figures" "orphan figures";
   align-content: start;
   gap: 0 48px;
@@ -19,7 +19,7 @@
 
 /* Wide enough for the fan to spread, so every card is a target rather than a
    sliver. Fixed height so nothing below jumps as cards move. */
-.as-stage { grid-area: stage; position: relative; width: 512px; height: 215px; }
+.as-stage { grid-area: stage; position: relative; width: 480px; height: 240px; }
 .as-slot {
   position: absolute; top: 0; left: 0;
   transition: transform 0.46s cubic-bezier(.2,.75,.2,1), opacity 0.34s;
@@ -54,32 +54,40 @@
   justify-self: end; align-self: center; width: min(600px, 100%);
 }
 
-@media (max-width: 1100px) {
-  .as { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "pick" "orphan" "figures"; }
-  .as-figures { margin-top: 26px; }
+/* Overflow — one pill and a small menu, only when a vessel holds more accounts
+   than the wallet can fan. Bounded by construction: it can never grow into a
+   wrapping wall of names again. */
+.as-more { position: relative; }
+.as-morebtn {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid #E5E7EB; background: #fff; border-radius: 999px;
+  padding: 6px 13px; cursor: pointer;
+  font: inherit; font-size: 12px; font-weight: 600; color: #6B7280;
 }
-@media (max-width: 1100px) {
-  .as { grid-template-columns: minmax(0, 1fr); }
-  .as-figures { justify-self: start; align-self: start; margin-top: 26px; }
+.as-morebtn:hover { border-color: #C65A1A; color: #C65A1A; }
+.as-morepop {
+  position: absolute; left: 0; top: 38px; z-index: 30; min-width: 220px;
+  background: #fff; border: 1px solid #ECEAE3; border-radius: 12px; padding: 6px;
+  box-shadow: 0 24px 60px -16px rgba(28,27,58,.32);
+  display: flex; flex-direction: column;
 }
-@media (max-width: 620px) {
-  .as-stage { width: 100%; height: 200px; }
-  .as-figures { width: 100%; }
+.as-morepop button {
+  border: 0; background: none; border-radius: 8px; padding: 7px 10px; cursor: pointer;
+  font: inherit; font-size: 12.5px; color: #1C1B3A; text-align: left;
 }
-/* Overflow rail — only rendered past the third card, for the accounts the fan
-   physically can't reach. */
-.as-tab {
-  border: 1px solid #E5E7EB; background: #fff; border-radius: 8px;
-  padding: 5px 10px; cursor: pointer;
-  font: inherit; font-size: 11.5px; font-weight: 600; color: #6B7280;
-  font-variant-numeric: tabular-nums;
-  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.as-tab:hover { border-color: #C65A1A; color: #C65A1A; }
-.as-tab.on { background: #1C1B3A; border-color: #1C1B3A; color: #fff; }
+.as-morepop button:hover { background: #FAFAF8; color: #C65A1A; }
 
 .as-orphan {
   display: flex; align-items: center; gap: 6px; margin-top: 12px;
   font-size: 11.5px; color: #A8871B; font-style: italic;
 }
 .as-orphan svg { flex: 0 0 auto; }
+
+@media (max-width: 1100px) {
+  .as { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "pick" "orphan" "figures"; }
+  .as-figures { justify-self: start; align-self: start; margin-top: 26px; }
+}
+@media (max-width: 620px) {
+  .as-stage { width: 100%; height: 225px; }
+  .as-figures { width: 100%; }
+}

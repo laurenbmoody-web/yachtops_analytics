@@ -9,20 +9,22 @@
 //
 // "All accounts" stays available for eyeballing the whole month; it simply has no
 // close, because there is no single statement to close it against.
-import React from 'react';
+import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import CardVisual from './CardVisual';
 import { monthEndStage } from '../../../services/monthEnd';
+import { accountLabel } from '../../../services/accountPick';
 import './account-stack.css';
 
-// The fan IS the account picker now, so the cards behind peek far enough to be
-// aimed at and clicked rather than hinted at. Beyond three it stops moving —
-// depth past that reads as clutter, and the overflow rail does the choosing.
-const STACK = [
-  { x: 0, y: 0, s: 1, o: 1, z: 30 },
-  { x: 92, y: 15, s: 0.955, o: 0.92, z: 20 },
-  { x: 184, y: 30, s: 0.912, o: 0.82, z: 10 },
-];
+// A wallet, so the cards sit over one another — a shallow overlap, not a row of
+// cards laid out side by side. A ~30px reveal is still a comfortable click
+// target, and stacking tighter is what lets SIX of them fit where three used to,
+// which is what retires the rail of name pills underneath: the fan reaches every
+// card a vessel normally has, so nothing needs listing in text as well.
+const FAN = 6;
+const slotAt = (i) => ({
+  x: i * 30, y: i * 12, s: 1 - i * 0.03, o: 1 - i * 0.07, z: 60 - i * 10,
+});
 
 // "Not balanced" on a month that hasn't ended yet is a telling-off for being on
 // time, so a running month says what it is instead.
@@ -39,6 +41,7 @@ export default function AccountStack({
   accounts = [], activeId = '', monthKey, reconFor,
   unassigned = 0, onSelect, today, figures,
 }) {
+  const [moreOpen, setMoreOpen] = useState(false);
   if (!accounts.length) return null;
 
   // The chosen card leads; the rest keep their order behind it.
@@ -48,15 +51,20 @@ export default function AccountStack({
 
   const slot = (id) => {
     const pos = order.indexOf(id);
-    const s = STACK[Math.min(pos, STACK.length - 1)];
+    const s = slotAt(Math.min(pos, FAN - 1));
+    const shown = pos < FAN;
     return {
       transform: `translate(${s.x}px,${s.y}px) scale(${s.s})`,
-      opacity: pos > 2 ? 0 : s.o,
-      zIndex: s.z - Math.max(0, pos - 2),
-      pointerEvents: pos > 2 ? 'none' : 'auto',
+      opacity: shown ? s.o : 0,
+      zIndex: s.z - Math.max(0, pos - (FAN - 1)),
+      pointerEvents: shown ? 'auto' : 'none',
       cursor: 'pointer',
     };
   };
+
+  // Only a vessel with more accounts than the wallet can show needs anything in
+  // text, and then only for the ones it can't reach.
+  const hidden = order.slice(FAN).map((id) => accounts.find((a) => a.id === id)).filter(Boolean);
 
   const stage = monthEndStage(monthKey, today || new Date());
   // Only a card you've actually chosen has a state worth badging — on "All" there
@@ -91,14 +99,25 @@ export default function AccountStack({
           title="Every account together — no close, because there's no single statement to close against">
           All {accounts.length} {accounts.length === 1 ? 'card' : 'cards'}
         </button>
-        {/* Past the third card the fan stops moving, so those accounts would have
-            no way to be reached at all. The rail appears only for them. */}
-        {accounts.length > 3 && accounts.map((a) => (
-          <button key={a.id} type="button" className={`as-tab${a.id === activeId ? ' on' : ''}`}
-            onClick={() => onSelect?.(a.id)} title={a.name}>
-            {a.card_last4 && a.card_last4 !== '0000' ? `••${a.card_last4}` : a.name}
-          </button>
-        ))}
+        {/* No pill per card. The cards ARE the picker — naming them underneath is
+            the wallet's job done twice, which is what the old text column did. */}
+        {hidden.length > 0 && (
+          <div className="as-more">
+            <button type="button" className="as-morebtn" aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((v) => !v)}>
+              +{hidden.length} more<Icon name={moreOpen ? 'ChevronUp' : 'ChevronDown'} size={13} />
+            </button>
+            {moreOpen && (
+              <div className="as-morepop">
+                {hidden.map((a) => (
+                  <button key={a.id} type="button" onClick={() => { onSelect?.(a.id); setMoreOpen(false); }}>
+                    {accountLabel(a)}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {stage === 'due' && <span className="as-n">{balanced} of {accounts.length} balanced</span>}
       </div>
 
