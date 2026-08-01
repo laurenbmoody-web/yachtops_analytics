@@ -16,15 +16,17 @@ import { monthEndStage } from '../../../services/monthEnd';
 import { accountLabel } from '../../../services/accountPick';
 import './account-stack.css';
 
-// A wallet, so the cards sit over one another — a shallow overlap, not a row of
-// cards laid out side by side. A ~30px reveal is still a comfortable click
-// target, and stacking tighter is what lets SIX of them fit where three used to,
-// which is what retires the rail of name pills underneath: the fan reaches every
-// card a vessel normally has, so nothing needs listing in text as well.
-const FAN = 6;
-const slotAt = (i) => ({
-  x: i * 30, y: i * 12, s: 1 - i * 0.03, o: 1 - i * 0.07, z: 60 - i * 10,
-});
+// A coverflow: the card you're on sits in the middle of the stage with its
+// neighbours falling away either side, still heavily overlapped like a wallet
+// rather than laid out as a row. Fanning in one direction only meant the stack
+// hugged the left of the stage, so the arrows could never be evenly spaced
+// around it — one sat against a card and the other against empty canvas.
+const SIDE = 2;    // how many peek out each side
+const STEP = 46;   // reveal per card — deep overlap, a wallet not a shelf
+const slotAt = (k) => {           // k = signed distance from the centred card
+  const d = Math.abs(k);
+  return { x: k * STEP, s: 1 - d * 0.06, o: d === 0 ? 1 : 0.92 - d * 0.2, z: 50 - d * 10 };
+};
 
 // "Not balanced" on a month that hasn't ended yet is a telling-off for being on
 // time, so a running month says what it is instead.
@@ -44,30 +46,28 @@ export default function AccountStack({
   const [moreOpen, setMoreOpen] = useState(false);
   if (!accounts.length) return null;
 
-  // The chosen card leads; the rest keep their order behind it.
-  const order = activeId && accounts.some((a) => a.id === activeId)
-    ? [activeId, ...accounts.filter((a) => a.id !== activeId).map((a) => a.id)]
-    : accounts.map((a) => a.id);
+  // Cards keep their natural order and the window slides over them — that's what
+  // makes stepping read as travel along a stack rather than the pile reshuffling
+  // itself every time you press an arrow.
+  const idx = accounts.findIndex((a) => a.id === activeId);
+  const centre = idx < 0 ? 0 : idx;   // "All" centres the first card without selecting it
 
-  const slot = (id) => {
-    const pos = order.indexOf(id);
-    const s = slotAt(Math.min(pos, FAN - 1));
-    const shown = pos < FAN;
+  const slot = (i) => {
+    const k = i - centre;
+    const s = slotAt(k);
+    const shown = Math.abs(k) <= SIDE;
     return {
-      transform: `translate(${s.x}px,${s.y}px) scale(${s.s})`,
+      transform: `translate(calc(-50% + ${s.x}px), -50%) scale(${s.s})`,
       opacity: shown ? s.o : 0,
-      zIndex: s.z - Math.max(0, pos - (FAN - 1)),
+      zIndex: s.z,
       pointerEvents: shown ? 'auto' : 'none',
     };
   };
 
-  // Where the carousel is. -1 on "All", so the first press of Next lands on the
-  // first card rather than skipping it.
-  const idx = accounts.findIndex((a) => a.id === activeId);
-
-  // Only a vessel with more accounts than the wallet can show needs anything in
-  // text, and then only for the ones it can't reach.
-  const hidden = order.slice(FAN).map((id) => accounts.find((a) => a.id === id)).filter(Boolean);
+  // The arrows reach every card, so a list in text is only worth having when
+  // stepping one at a time would be a chore. Then it's a jump-to, not an
+  // overflow — it names every card, and it stays one button either way.
+  const longWallet = accounts.length > 6;
 
   const stage = monthEndStage(monthKey, today || new Date());
   // Only a card you've actually chosen has a state worth badging — on "All" there
@@ -91,13 +91,13 @@ export default function AccountStack({
         </button>
 
         <div className={`as-stage${activeId ? '' : ' is-all'}`}>
-          {accounts.map((a) => {
+          {accounts.map((a, i) => {
             // Inert only where the flip takes over — i.e. the card you're on.
-            // Keyed off the flip, not off fan position: on "All" nothing flips,
-            // so the card at the front stays clickable rather than going dead.
+            // Keyed off the flip, not off carousel position: on "All" nothing
+            // flips, so the centred card stays clickable rather than going dead.
             const isFront = a.id === activeId;
             return (
-              <div key={a.id} className={`as-slot${isFront ? ' is-front' : ''}`} style={slot(a.id)}
+              <div key={a.id} className={`as-slot${isFront ? ' is-front' : ''}`} style={slot(i)}
                 onClick={isFront ? undefined : () => onSelect?.(a.id)}>
                 {/* No balance override — the card's back says "balance on card",
                     which is the account's balance, not this month's spend. */}
@@ -128,15 +128,15 @@ export default function AccountStack({
         </button>
         {/* No pill per card. The cards ARE the picker — naming them underneath is
             the wallet's job done twice, which is what the old text column did. */}
-        {hidden.length > 0 && (
+        {longWallet && (
           <div className="as-more">
             <button type="button" className="as-morebtn" aria-expanded={moreOpen}
               onClick={() => setMoreOpen((v) => !v)}>
-              +{hidden.length} more<Icon name={moreOpen ? 'ChevronUp' : 'ChevronDown'} size={13} />
+              Jump to<Icon name={moreOpen ? 'ChevronUp' : 'ChevronDown'} size={13} />
             </button>
             {moreOpen && (
               <div className="as-morepop">
-                {hidden.map((a) => (
+                {accounts.map((a) => (
                   <button key={a.id} type="button" onClick={() => { onSelect?.(a.id); setMoreOpen(false); }}>
                     {accountLabel(a)}
                   </button>
