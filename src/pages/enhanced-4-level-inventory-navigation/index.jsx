@@ -3951,6 +3951,10 @@ const LocationFirstInventory = () => {
             {pageSubtitle && <p className="inv-subtitle">{pageSubtitle}</p>}
           </div>
           <div className="inv-actions">
+            <button onClick={() => navigate('/inventory/attention')} className="inv-btn ghost" title="Expired, below-par & expiring items">
+              <Icon name="AlertTriangle" size={15} />
+              <span className="hidden sm:inline">Attention</span>
+            </button>
             {canUseTrash && (
               <button onClick={openTrash} className="inv-btn ghost" title="Recently deleted">
                 <Icon name="Trash2" size={15} />

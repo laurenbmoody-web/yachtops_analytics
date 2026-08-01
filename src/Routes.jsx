@@ -29,6 +29,7 @@ import VesselDocuments from './pages/vessel-documents';
 import GuestManagementDashboard from './pages/guest-management-dashboard';
 import InventoryCategorySettings from './pages/inventory-category-settings';
 import Enhanced4LevelInventoryNavigation from './pages/enhanced-4-level-inventory-navigation';
+import InventoryAttention from './pages/inventory-attention';
 import SmartImportWithAutoAssignmentEngine from './pages/smart-import-with-auto-assignment-engine';
 import ReadFirstItemDetailView from './pages/read-first-item-detail-view-with-editing-controls';
 import InventoryAnalyticsDashboard from './pages/inventory-analytics-dashboard';
@@ -1256,6 +1257,7 @@ const Routes = () => {
         
         {/* Inventory Routes - Location-First Navigation */}
         <Route path="/inventory" element={<ProtectedRoute><Enhanced4LevelInventoryNavigation /></ProtectedRoute>} />
+        <Route path="/inventory/attention" element={<ProtectedRoute><InventoryAttention /></ProtectedRoute>} />
         <Route path="/inventory/location/*" element={<ProtectedRoute><Enhanced4LevelInventoryNavigation /></ProtectedRoute>} />
         {/* Legacy taxonomy routes - kept for backward compat */}
         <Route path="/inventory/l1/:l1Id" element={<ProtectedRoute><Enhanced4LevelInventoryNavigation /></ProtectedRoute>} />
