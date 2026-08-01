@@ -139,7 +139,16 @@
 .cf-invtoggle input { margin-top: 2px; }
 .cf-invtoggle b { font-size: 13.5px; color: #1C1B3A; }
 .cf-invtoggle-sub { display: block; font-size: 12px; color: #8B8478; margin-top: 2px; }
-.cf-invfolder { margin-top: 8px; }
+.cf-fp { margin-top: 10px; border: 1px solid #EEF0F4; border-radius: 12px; padding: 12px; background: #FCFBF9; }
+.cf-fp-crumb { padding: 0 0 10px; flex-wrap: wrap; }
+.cf-fp-here { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 12.5px; color: #1C1B3A; }
+.cf-fp-here svg { color: #1E7A46; }
+.cf-fp-here b { color: #C65A1A; }
+.cf-fp-note { margin: 2px 0 0; font-size: 12px; color: #8B8478; }
+.cf-fp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; max-height: 176px; overflow-y: auto; }
+.cf-fp-folder { display: flex; align-items: center; gap: 8px; text-align: left; cursor: pointer; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 10px 11px; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.cf-fp-folder svg { color: #C65A1A; flex: none; }
+.cf-fp-folder:hover { border-color: #C65A1A; }
 
 /* Swap modal */
 .cf-swap-flow { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 4px 0 2px; color: #8B8478; }
@@ -175,7 +184,8 @@
 .cf-modal { width: 560px; max-width: 100%; max-height: 88vh; overflow: auto; background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32); }
 .cf-modal.sm { width: 440px; }
 .cf-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 22px 12px; }
-.cf-eyebrow { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.cf-eyebrow { display: block; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 3px; }
+.cf-eyebrow::before { content: '●'; color: #C65A1A; font-size: 6px; margin-right: 6px; vertical-align: 2px; }
 .cf-modal-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: #1C1B3A; margin-top: 2px; }
 .cf-x { background: none; border: none; color: #8B8478; cursor: pointer; padding: 4px; }
 .cf-modal-body { padding: 6px 22px 18px; display: flex; flex-direction: column; gap: 12px; }

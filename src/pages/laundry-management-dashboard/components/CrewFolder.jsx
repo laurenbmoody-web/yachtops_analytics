@@ -426,45 +426,70 @@ const SwapModal = ({ row, inv, crewName, onSwap, onClose }) => {
   );
 };
 
+// Folder browser (breadcrumb + folder tiles) for choosing where a new inventory
+// item is filed — the same drill-down as the issue browser, not a flat dropdown.
+const FolderPicker = ({ folderRels = [], value = [], onChange }) => {
+  const children = useMemo(() => {
+    const m = new Map();
+    folderRels.forEach((rel) => {
+      if (rel.length > value.length && value.every((t, idx) => (rel[idx] || '').toLowerCase() === t.toLowerCase())) {
+        const seg = rel[value.length];
+        if (!m.has(seg.toLowerCase())) m.set(seg.toLowerCase(), seg);
+      }
+    });
+    return [...m.values()].sort((a, b) => a.localeCompare(b));
+  }, [folderRels, value]);
+  return (
+    <div className="cf-fp">
+      <div className="cf-crumb cf-fp-crumb">
+        <button type="button" className="cf-crumb-seg" onClick={() => onChange([])}>Inventory</button>
+        {value.map((seg, i) => (
+          <React.Fragment key={i}>
+            <span className="cf-crumb-sep">›</span>
+            <button type="button" className="cf-crumb-seg" onClick={() => onChange(value.slice(0, i + 1))}>{seg}</button>
+          </React.Fragment>
+        ))}
+      </div>
+      {value.length >= 2 && <p className="cf-fp-here"><Icon name="Check" size={13} /> Filing under <b>{value[value.length - 1]}</b></p>}
+      {children.length > 0 ? (
+        <div className="cf-fp-grid">
+          {children.map((c) => (
+            <button type="button" key={c} className="cf-fp-folder" onClick={() => onChange([...value, c])}>
+              <Icon name="Folder" size={15} /><span>{c}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="cf-fp-note">{value.length >= 2 ? 'No sub-folders — the item will be filed here.' : 'Pick a folder to file it under.'}</p>
+      )}
+    </div>
+  );
+};
+
 // Hand out a non-uniform item (PPE, a radio, a key fob…) by hand — for kit that
 // isn't drawn from the uniform inventory. Same sign-off loop applies afterwards.
 // Optionally register the item into inventory (into a real subfolder) so it's
 // stock-tracked and issuable from inventory next time.
 const HandoutModal = ({ crewName, folderRels = [], defaultFolder = [], onHandout, onClose }) => {
-  // Only real subfolders (never a bare department root) can hold an item.
-  const eligible = useMemo(() => folderRels.filter((rel) => rel.length >= 2).sort((a, b) => a.join(' › ').localeCompare(b.join(' › '))), [folderRels]);
-  const defaultIdx = useMemo(() => {
-    if (!defaultFolder?.length) return -1;
-    const key = defaultFolder.map((s) => s.toLowerCase()).join('/');
-    // Exact match first, else the shortest folder the browsed trail is a prefix of.
-    let exact = -1; let prefix = -1;
-    eligible.forEach((rel, i) => {
-      const rk = rel.map((s) => s.toLowerCase()).join('/');
-      if (rk === key) exact = i;
-      else if (prefix < 0 && rk.startsWith(`${key}/`)) prefix = i;
-    });
-    return exact >= 0 ? exact : prefix;
-  }, [eligible, defaultFolder]);
-
+  const hasFolders = useMemo(() => folderRels.some((rel) => rel.length >= 2), [folderRels]);
   const [form, setForm] = useState({ category: 'ppe', item: '', serial: '', size: '', quantity: 1, condition: 'New', issuedDate: today(), notes: '' });
   const [addToInv, setAddToInv] = useState(false);
-  const [invIdx, setInvIdx] = useState(defaultIdx);
+  const [invFolder, setInvFolder] = useState(defaultFolder?.length >= 2 ? defaultFolder : (defaultFolder?.length ? defaultFolder : []));
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-  const invReady = !addToInv || (invIdx >= 0 && eligible[invIdx]);
+  const invReady = !addToInv || invFolder.length >= 2;
   const submit = async () => {
     if (!form.item.trim() || busy || !invReady) return;
     setBusy(true);
-    try { await onHandout({ ...form, invFolder: addToInv && invIdx >= 0 ? eligible[invIdx] : null }); } finally { setBusy(false); }
+    try { await onHandout({ ...form, invFolder: addToInv && invFolder.length >= 2 ? invFolder : null }); } finally { setBusy(false); }
   };
   return (
     <div className="cf-overlay" role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="cf-modal" onClick={(e) => e.stopPropagation()}>
         <div className="cf-modal-head">
-          <div><span className="cf-eyebrow">Hand out item</span><h2 className="cf-modal-title">To {crewName}</h2></div>
+          <div><span className="cf-eyebrow">Hand out</span><h2 className="cf-modal-title">To {crewName}</h2></div>
           <button type="button" className="cf-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
         </div>
-        <p className="cf-empty-note" style={{ padding: '0 22px' }}>For kit that isn’t uniform — PPE, radios, electronics, keys, equipment. Uniform is issued from inventory.</p>
         <div className="cf-modal-body cf-handout">
           <label className="cf-field"><span>Category</span>
             <div className="cf-select"><select value={form.category} onChange={(e) => set('category', e.target.value)}>{KIT_CATEGORIES.filter((c) => c.id !== 'uniform').map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select></div>
@@ -492,18 +517,13 @@ const HandoutModal = ({ crewName, folderRels = [], defaultFolder = [], onHandout
           </label>
           <div className="cf-field cf-col2">
             <label className={`cf-invtoggle${addToInv ? ' on' : ''}`}>
-              <input type="checkbox" checked={addToInv} onChange={(e) => setAddToInv(e.target.checked)} disabled={!eligible.length} />
+              <input type="checkbox" checked={addToInv} onChange={(e) => setAddToInv(e.target.checked)} disabled={!hasFolders} />
               <span>
                 <b>Also add to inventory</b>
-                <span className="cf-invtoggle-sub">{eligible.length ? 'Register this item so it’s stock-tracked and issuable from inventory next time.' : 'No inventory folders available to file it under.'}</span>
+                <span className="cf-invtoggle-sub">{hasFolders ? 'Register this item so it’s stock-tracked and issuable next time.' : 'No inventory folders available to file it under.'}</span>
               </span>
             </label>
-            {addToInv && eligible.length > 0 && (
-              <div className="cf-select cf-invfolder"><select value={invIdx} onChange={(e) => setInvIdx(Number(e.target.value))}>
-                <option value={-1}>Choose a folder…</option>
-                {eligible.map((rel, i) => <option key={rel.join('/')} value={i}>{rel.join(' › ')}</option>)}
-              </select></div>
-            )}
+            {addToInv && hasFolders && <FolderPicker folderRels={folderRels} value={invFolder} onChange={setInvFolder} />}
           </div>
         </div>
         <div className="cf-modal-foot">
