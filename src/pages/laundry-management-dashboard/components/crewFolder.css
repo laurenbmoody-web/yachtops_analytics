@@ -71,6 +71,10 @@
 .cf-bar-acts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .cf-member-who { min-width: 0; }
 .cf-member-meta { margin: 0 0 4px; }
+.cf-member-alloc { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 9px; }
+.cf-alloc { display: inline-flex; align-items: center; gap: 6px; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; background: #FFFFFF; border: 1px solid #EEF0F4; border-radius: 999px; padding: 4px 12px; }
+.cf-alloc svg { color: #C65A1A; flex: none; }
+.cf-alloc-dot { width: 11px; height: 11px; border-radius: 50%; border: 1px solid rgba(28, 27, 58, 0.18); display: inline-block; margin-left: 2px; }
 
 /* Charter → type category sections (member kit, inventory-style tiles). */
 .cf-cat { margin-top: 30px; }
