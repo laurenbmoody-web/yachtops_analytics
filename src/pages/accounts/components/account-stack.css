@@ -9,7 +9,7 @@
   /* Fixed, NOT auto. The picker row shares this column with the wallet, so an
      auto column grew to whatever the pill row wanted and shoved the figures off
      the right of the page — content in one cell silently resizing another. */
-  grid-template-columns: 480px minmax(0, 1fr);
+  grid-template-columns: 546px minmax(0, 1fr);
   grid-template-areas: "stage figures" "pick figures" "orphan figures";
   align-content: start;
   gap: 0 48px;
@@ -17,14 +17,27 @@
   padding-bottom: 26px;
 }
 
-/* Wide enough for the fan to spread, so every card is a target rather than a
-   sliver. Fixed height so nothing below jumps as cards move. */
-.as-stage { grid-area: stage; position: relative; width: 480px; height: 240px; }
+/* Arrows either side of the wallet. They own the stepping, so the front card is
+   free to flip on hover without a click waiting underneath it. */
+.as-carousel { grid-area: stage; display: flex; align-items: center; gap: 9px; }
+.as-arrow {
+  flex: 0 0 auto; width: 32px; height: 32px; border-radius: 999px;
+  border: 1px solid #E5E7EB; background: #fff; color: #1C1B3A;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.as-arrow:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
+.as-arrow:disabled { opacity: .28; cursor: default; }
+.as-arrow:focus-visible { outline: 2px solid #C65A1A; outline-offset: 2px; }
+
+/* Fixed height so nothing below jumps as cards move. */
+.as-stage { position: relative; width: 460px; height: 240px; flex: 0 0 auto; }
 .as-slot {
-  position: absolute; top: 0; left: 0;
+  position: absolute; top: 0; left: 0; cursor: pointer;
   transition: transform 0.46s cubic-bezier(.2,.75,.2,1), opacity 0.34s;
   will-change: transform;
 }
+/* The card you're on isn't a button — hovering it shows its balance, nothing more. */
+.as-slot.is-front { cursor: default; }
 /* On "All" no single card is the subject, so none of them may look chosen. */
 .as-stage.is-all .as-slot { filter: saturate(.72); }
 .as-stage.is-all .as-slot:hover { filter: none; }
@@ -88,6 +101,7 @@
   .as-figures { justify-self: start; align-self: start; margin-top: 26px; }
 }
 @media (max-width: 620px) {
-  .as-stage { width: 100%; height: 225px; }
+  .as-carousel { gap: 5px; }
+  .as-stage { width: 100%; min-width: 0; height: 225px; }
   .as-figures { width: 100%; }
 }
