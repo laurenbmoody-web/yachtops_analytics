@@ -7,7 +7,7 @@ import { fetchTenantCrew } from '../../crew-profile/utils/tenantCrew';
 import {
   fetchTenantKit, saveKitItem, deleteKitItem, recordKitReturn, requestKitSignoff,
   logKitEvent, fmtKitDate, CONDITIONS, canonicalGarment, GARMENT_ORDER, GARMENT_ICON,
-  KIT_CATEGORIES, kitCategoryLabel, fetchVesselIdentity, kitSignatureDataUrl,
+  KIT_CATEGORIES, kitCategoryLabel, fetchVesselIdentity, kitSignatureDataUrl, fetchCabinAllocation,
 } from '../../crew-profile/utils/crewKit';
 import { exportKitReceipt } from '../../crew-profile/utils/kitReceiptExport';
 import { sendDbNotification } from '../../../lib/dbNotifications';
@@ -595,6 +595,15 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
   // Deep-link straight to a crew member (e.g. from a swap-request notification).
   useEffect(() => { if (initialCrewId) setSelectedId(initialCrewId); }, [initialCrewId]);
 
+  // Cabin + interior laundry marking for the selected crew member (crew_employment).
+  const [memberAlloc, setMemberAlloc] = useState({});
+  useEffect(() => {
+    let cancelled = false;
+    setMemberAlloc({});
+    if (selectedId) fetchCabinAllocation(selectedId).then((a) => { if (!cancelled) setMemberAlloc(a || {}); });
+    return () => { cancelled = true; };
+  }, [selectedId]);
+
   const openIssue = async () => { setIssuing(true); const all = await getAllItems(); setStock(all); };
 
   // Linked inventory item by id — lets the List view file each issued item under
@@ -1107,6 +1116,17 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
             {kitStats.returned > 0 && <><span className="bar" /><span className="muted">{kitStats.returned} returned</span></>}
           </p>
           <h2 className="cf-member-nm">{selected.fullName}</h2>
+          {(memberAlloc.cabin || memberAlloc.laundry_number || memberAlloc.laundry_colour) && (
+            <div className="cf-member-alloc">
+              {memberAlloc.cabin && <span className="cf-alloc"><Icon name="BedDouble" size={13} /> {memberAlloc.cabin}</span>}
+              {(memberAlloc.laundry_number || memberAlloc.laundry_colour) && (
+                <span className="cf-alloc">
+                  <Icon name="WashingMachine" size={13} /> Laundry{memberAlloc.laundry_number ? ` ${memberAlloc.laundry_number}` : ''}
+                  {memberAlloc.laundry_colour && <><span className="cf-alloc-dot" style={{ background: String(memberAlloc.laundry_colour).toLowerCase() }} /> {memberAlloc.laundry_colour}</>}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
