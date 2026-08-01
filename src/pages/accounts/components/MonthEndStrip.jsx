@@ -1,13 +1,10 @@
-// Cargo Accounts — balancing one card's month.
+// Cargo Accounts — what's stopping this card's month from closing.
 //
-// Two columns, because the crew alternate between two questions and stacking them
-// put 400px between: LEFT is the money (what Cargo makes it, what the statement
-// says), RIGHT is everything stopping the close, with the close button beside the
-// reasons it's disabled.
-//
-// Each statement field carries Cargo's own figure in its label. That pairing is the
-// point of the screen — separated into two lists you end up doing the arithmetic in
-// your head, which is what the previous layout asked for.
+// The money itself lives in MonthMoney, up beside the wallet: this section used
+// to carry its own opening → closing ladder, which was the same figures the page
+// already showed above it. What's left here is the part that isn't money — what
+// still has to be done, what would explain a difference, and what the funding
+// model owes — with the close button beside the reasons it's disabled.
 //
 // It only opens itself once the month is actually over (see monthEndStage): you
 // can't match July against a statement the bank hasn't issued. While the month is
@@ -20,7 +17,7 @@ import React, { useState, useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
 import { formatMoney } from '../../../services/financeCalc';
 import {
-  fundingModel, fundingModelLabel, monthFigures, statementChecks,
+  fundingModel, fundingModelLabel,
   fundingOutcome, closeBlockers, closeHeadline,
   monthEndStage, opensByDefault, stageSummary, lastDayOfMonth,
 } from '../../../services/monthEnd';
@@ -36,21 +33,17 @@ const FIELDS = [
 const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');
 
 export default function MonthEndStrip({
-  account, monthLabel, monthKey, txns, allTxns = [], openingBalance, reconciliation,
-  hasReceipt, splitCount, canEdit, onSaveStatement, onClose, onShowLine,
+  account, monthLabel, monthKey, txns, allTxns = [], reconciliation,
+  hasReceipt, splitCount, canEdit, onClose, onShowLine,
   requireReceipts = true, today,
+  // Owned by the page, because the money panel above shows the same figures and
+  // the same typed statement — one computation, two places it's read.
+  figures, statement,
 }) {
-  const [statement, setStatement] = useState({
-    moneyOut: reconciliation?.stmt_money_out ?? '',
-    moneyIn: reconciliation?.stmt_money_in ?? '',
-    closing: reconciliation?.stmt_closing ?? '',
-  });
   const [busy, setBusy] = useState(false);
   const panelId = `mes-panel-${account?.id || 'x'}`;
 
   const model = fundingModel(account);
-  const figures = useMemo(() => monthFigures(openingBalance, txns), [openingBalance, txns]);
-  const checks = useMemo(() => statementChecks(figures, statement), [figures, statement]);
   const blockers = useMemo(
     () => closeBlockers({ txns, figures, statement, hasReceipt, splitCount, requireReceipts }),
     [txns, figures, statement, hasReceipt, splitCount, requireReceipts],
@@ -71,8 +64,6 @@ export default function MonthEndStrip({
   const [userOpen, setUserOpen] = useState(null);
   const open = userOpen == null ? opensByDefault(stage) : userOpen;
 
-  const setF = (k, v) => setStatement((p) => ({ ...p, [k]: v }));
-  const save = async () => { setBusy(true); await onSaveStatement?.(statement); setBusy(false); };
   const close = async () => {
     setBusy(true);
     await onClose?.({
@@ -120,50 +111,7 @@ export default function MonthEndStrip({
 
       {open && (
         <div className="mes-cols" id={panelId}>
-          {/* ── the money ────────────────────────────────────────────────── */}
           <div className="mes-left">
-            <p className="mes-lab">The month</p>
-            <div className="mes-eq">
-              <div className="r"><span>Opening balance</span><b>{money(figures.opening)}</b></div>
-              <div className="r"><span>Money in</span><b>{money(figures.moneyIn)}</b></div>
-              <div className="r"><span>Money out</span><b>{money(Math.abs(figures.moneyOut))}</b></div>
-              <div className="r is-tot"><span>Closing balance</span><b>{money(figures.closing)}</b></div>
-            </div>
-
-            <div className="mes-stmt">
-              <p className="mes-lab">
-                Against the statement
-                {!locked && <em className="mes-req"> required</em>}
-              </p>
-              <div className="mes-fields">
-                {FIELDS.map((f) => {
-                  const c = checks.find((x) => x.key === f.key);
-                  const oursRaw = figures[f.ours];
-                  const ours = f.abs ? Math.abs(oursRaw) : oursRaw;
-                  return (
-                    <label key={f.key} className="mes-field">
-                      {/* Cargo's figure lives in the label, so the thing you're
-                          checking against is never off-screen. */}
-                      <span>{f.label} <em>· Cargo says {money(ours)}</em></span>
-                      <input inputMode="decimal" value={statement[f.key]} disabled={locked || !canEdit}
-                        onChange={(e) => setF(f.key, e.target.value)} placeholder="—"
-                        className={c?.ok === false ? 'is-off' : (c?.ok ? 'is-ok' : '')} />
-                      {c?.ok === false && (
-                        <b className="mes-diff">
-                          {c.difference > 0 ? 'over by ' : 'short by '}{money(Math.abs(c.difference))}
-                        </b>
-                      )}
-                      {c?.ok === true && <b className="mes-match">agrees</b>}
-                      {c?.ok == null && <b className="mes-none">not stated</b>}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* ── the work ─────────────────────────────────────────────────── */}
-          <div className="mes-right">
             <p className="mes-lab">Before it can close</p>
             <ul className="mes-todo">
               {work.map((b) => (
@@ -200,7 +148,9 @@ export default function MonthEndStrip({
                 </p>
               </div>
             )}
+          </div>
 
+          <div className="mes-right">
             <div className="mes-out">
               <p className="mes-lab">{outcome.label}</p>
               <b>{money(outcome.amount)}</b>
@@ -212,9 +162,6 @@ export default function MonthEndStrip({
 
             {canEdit && !locked && (
               <div className="mes-act">
-                <button type="button" className="mes-btn ghost" onClick={save} disabled={busy}>
-                  {busy ? 'Saving…' : 'Save figures'}
-                </button>
                 <button type="button" className="mes-btn primary" onClick={close} disabled={busy || !ready}
                   title={ready ? `Close ${monthLabel}` : headline}>
                   Close {monthLabel}

@@ -1,0 +1,53 @@
+/* Cargo Accounts — the month's money beside the wallet. Scoped .mm-*.
+   Mirrors the month-end blockers panel below it, because they're two halves of
+   one job: what the month came to, and what's stopping it closing. */
+
+.mm-lab {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; margin: 0;
+}
+.mm-req { font-style: normal; color: #C65A1A; letter-spacing: .4px; text-transform: none; font-size: 9.5px; }
+
+/* The cash-book equation, as rows so the figures share one column and the ladder
+   to the closing balance is visible rather than implied. */
+.mm-eq { display: flex; flex-direction: column; margin-top: 10px; }
+.mm-eq .r {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 24px;
+  padding: 9px 0; border-bottom: 1px solid #F0F1F5;
+}
+.mm-eq .r span { font-size: 13px; color: #6B7280; }
+.mm-eq .r b { font-size: 16.5px; font-weight: 600; color: #1C1B3A; font-variant-numeric: tabular-nums; }
+.mm-eq .r b.neg { color: #C65A1A; }
+.mm-eq .r.is-tot { border-bottom: 0; border-top: 2px solid #1C1B3A; padding-top: 12px; margin-top: 2px; }
+.mm-eq .r.is-tot span { color: #1C1B3A; font-weight: 650; }
+.mm-eq .r.is-tot b {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 27px; color: #C65A1A;
+}
+
+.mm-stmt { margin-top: 24px; }
+.mm-fields { display: flex; gap: 14px; margin-top: 11px; flex-wrap: wrap; }
+.mm-field { display: flex; flex-direction: column; gap: 5px; flex: 1 1 140px; min-width: 0; }
+.mm-field > span { font-size: 10.5px; color: #6B7280; font-weight: 600; }
+.mm-field > span em { font-style: normal; color: #AEB4C2; font-weight: 500; }
+.mm-field input {
+  background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 10px;
+  font: inherit; font-size: 13px; color: #1C1B3A; font-variant-numeric: tabular-nums;
+  outline: none; width: 100%; box-sizing: border-box; min-width: 0;
+}
+.mm-field input::placeholder { color: #AEB4C2; }
+.mm-field input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.mm-field input.is-off { border-color: #C65A1A; background: #fff; }
+.mm-field input.is-ok { border-color: #CFE3DA; background: #fff; }
+.mm-field input:disabled { color: #6B7280; }
+.mm-diff { font-size: 10.5px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }
+.mm-match { font-size: 10.5px; font-weight: 700; color: #2F7A64; }
+.mm-none { font-size: 10.5px; font-weight: 500; color: #AEB4C2; font-style: italic; }
+
+.mm-save {
+  margin-top: 14px; border-radius: 10px; padding: 8px 16px; cursor: pointer;
+  background: #fff; border: 1px solid #E5E7EB; color: #1C1B3A;
+  font: inherit; font-size: 12.5px; font-weight: 600;
+}
+.mm-save:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
+.mm-save:disabled { opacity: .5; cursor: not-allowed; }

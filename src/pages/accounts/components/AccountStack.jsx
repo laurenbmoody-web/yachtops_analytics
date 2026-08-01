@@ -41,7 +41,7 @@ const stateFor = (recon, stage) => {
 
 export default function AccountStack({
   accounts = [], activeId = '', monthKey, reconFor,
-  unassigned = 0, onSelect, today, figures,
+  unassigned = 0, onSelect, today, figures, unassignedOn = false, onShowUnassigned,
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   if (!accounts.length) return null;
@@ -90,7 +90,10 @@ export default function AccountStack({
           <Icon name="ChevronLeft" size={19} />
         </button>
 
-        <div className={`as-stage${activeId ? '' : ' is-all'}`}>
+        {/* Keyed off whether a card is actually chosen, not off activeId being
+            set: the unassigned-lines scope is also "no card", and it should read
+            that way rather than leaving a card looking picked. */}
+        <div className={`as-stage${idx >= 0 ? '' : ' is-all'}`}>
           {accounts.map((a, i) => {
             // Inert only where the flip takes over — i.e. the card you're on.
             // Keyed off the flip, not off carousel position: on "All" nothing
@@ -148,13 +151,24 @@ export default function AccountStack({
         {stage === 'due' && <span className="as-n">{balanced} of {accounts.length} balanced</span>}
       </div>
 
-      {/* Spend belonging to no account can't be balanced against any statement,
-          so it would sit outside every close unremarked. */}
+      {/* "4 lines have no account yet" said what was true without saying what it
+          meant or what to do. These are lines imported or typed without a card:
+          no card means no statement, and no statement means no close will ever
+          cover them — so they'd sit outside every month-end unnoticed. Now it
+          says that, and it shows them. */}
       {unassigned > 0 && (
-        <p className="as-orphan">
+        <button type="button" className={`as-orphan${unassignedOn ? ' on' : ''}`}
+          onClick={() => onShowUnassigned?.()}>
           <Icon name="AlertCircle" size={13} />
-          {unassigned} {unassigned === 1 ? 'line has' : 'lines have'} no account yet
-        </p>
+          {unassignedOn ? (
+            <span>Showing the {unassigned} {unassigned === 1 ? 'line' : 'lines'} with no card — <em>back to all</em></span>
+          ) : (
+            <span>
+              {unassigned} {unassigned === 1 ? 'line isn’t' : 'lines aren’t'} on a card, so no
+              month-end covers {unassigned === 1 ? 'it' : 'them'} — <em>show {unassigned === 1 ? 'it' : 'them'}</em>
+            </span>
+          )}
+        </button>
       )}
 
       {/* The month's money, beside the card it belongs to rather than stranded on

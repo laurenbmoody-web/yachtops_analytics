@@ -28,8 +28,13 @@ import LineDetail from '../components/LineDetail';
 import ReceiptScanner from '../components/ReceiptScanner';
 import ReceiptClip from '../components/ReceiptClip';
 import { walletAccounts, accountLabel } from '../../../services/accountPick';
+import { monthFigures, statementChecks } from '../../../services/monthEnd';
+
+// A scope, not an account id — "the lines that aren't on any card".
+export const UNASSIGNED = '__unassigned__';
 import MonthEndStrip from '../components/MonthEndStrip';
 import AccountStack from '../components/AccountStack';
+import MonthMoney from '../components/MonthMoney';
 import {
   getReconciliation, listReconciliationsForMonth, saveStatementFigures, closeMonth,
 } from '../../../services/reconcileService';
@@ -209,6 +214,12 @@ export default function Ledger() {
   // Running balance only when a single account is filtered: cumulate opening + live
   // amounts oldest→newest, then present newest-first.
   const rows = useMemo(() => {
+    // Lines that were imported or typed without a card. They belong to no
+    // statement, so no close covers them — which is why they get their own scope
+    // rather than sitting invisibly inside "all".
+    if (filters.accountId === UNASSIGNED) {
+      return txns.filter((t) => !t.account_id).map((t) => ({ ...t, running: null }));
+    }
     if (!filters.accountId) return txns.map((t) => ({ ...t, running: null }));
     const acct = accountsById[filters.accountId];
     const opening = Number(acct?.opening_balance || 0);
@@ -295,6 +306,18 @@ export default function Ledger() {
     [accounts, stackStats],
   );
 
+  // The typed statement is read by the money panel (which shows the fields and
+  // whether each agrees) and by the close panel (which won't close on a
+  // difference), so it belongs to the page that renders both.
+  const [statement, setStatement] = useState({ moneyOut: '', moneyIn: '', closing: '' });
+  useEffect(() => {
+    setStatement({
+      moneyOut: recon?.stmt_money_out ?? '',
+      moneyIn: recon?.stmt_money_in ?? '',
+      closing: recon?.stmt_closing ?? '',
+    });
+  }, [recon]);
+
   const monthRows = useMemo(() => {
     let list = monthAll;
     if (status === 'look') list = list.filter(isLookRow);
@@ -303,6 +326,15 @@ export default function Ledger() {
     return list;
   }, [monthAll, status, sortOldest]);
 
+  const scopedAccount = accountsById[filters.accountId] || null;
+  // One computation of the month's money, read by the panel beside the wallet and
+  // by the close below it — they can't drift apart because there's nothing to drift.
+  const monthFigs = useMemo(
+    () => monthFigures(scopedAccount?.opening_balance, monthAll),
+    [scopedAccount, monthAll],
+  );
+  const monthChecks = useMemo(() => statementChecks(monthFigs, statement), [monthFigs, statement]);
+  const [savingStatement, setSavingStatement] = useState(false);
   const monthStat = statsByMonth[activeMonth] || { entries: 0, look: 0, filed: 0, net: 0, inSum: 0, outSum: 0 };
   const axisIdx = axis.indexOf(activeMonth);
   const totalLook = txns.filter(isLookRow).length;
@@ -311,10 +343,12 @@ export default function Ledger() {
 
   const setF = (patch) => setFilters((p) => ({ ...p, ...patch }));
 
-  const handleSaveStatement = async (statement) => {
+  const handleSaveStatement = async () => {
+    setSavingStatement(true);
     const res = await saveStatementFigures({
       tenantId: activeTenantId, accountId: filters.accountId, periodMonth, statement,
     });
+    setSavingStatement(false);
     if (res.error) { flash('Could not save those figures'); return res; }
     setRecon(res.data);
     flash('Statement figures saved');
@@ -813,16 +847,25 @@ export default function Ledger() {
             monthKey={activeMonth}
             reconFor={(id) => monthRecons.find((r) => r.account_id === id)}
             unassigned={stackStats['']?.count || 0}
+            unassignedOn={filters.accountId === UNASSIGNED}
+            onShowUnassigned={() => setF({
+              accountId: filters.accountId === UNASSIGNED ? '' : UNASSIGNED,
+            })}
             onSelect={(id) => { setF({ accountId: id }); setFiltersOpen(false); }}
             figures={(
-              <div className="ca-fig-money">
-                <p className="ca-fig-lab">The month</p>
-                <div className="ca-fig-eq">
-                  <div className="r"><span>Money out</span><b className="neg">{formatMoney(monthStat.outSum, monthCur, { signed: true })}</b></div>
-                  <div className="r"><span>Money in</span><b>{formatMoney(monthStat.inSum, monthCur, { signed: true })}</b></div>
-                  <div className="r is-tot"><span>Net</span><b>{formatMoney(monthStat.net, monthCur, { signed: true })}</b></div>
-                </div>
-              </div>
+              <MonthMoney
+                currency={monthCur}
+                scoped={Boolean(scopedAccount)}
+                figures={monthFigs}
+                monthStat={monthStat}
+                statement={statement}
+                checks={monthChecks}
+                canEdit={canEdit}
+                locked={(recon?.status || 'open') !== 'open'}
+                busy={savingStatement}
+                onField={(k, v) => setStatement((p) => ({ ...p, [k]: v }))}
+                onSave={handleSaveStatement}
+              />
             )}
           />
 
@@ -836,12 +879,12 @@ export default function Ledger() {
               monthKey={activeMonth}
               txns={monthAll}
               allTxns={txns}
-              openingBalance={accountsById[filters.accountId]?.opening_balance}
               reconciliation={recon}
+              figures={monthFigs}
+              statement={statement}
               hasReceipt={(t) => hasEvidence(t, (attByTxn[t.id] || []).length > 0)}
               splitCount={(t) => (splitsByTxn[t.id] || []).length}
               canEdit={canEdit}
-              onSaveStatement={handleSaveStatement}
               onClose={handleCloseMonth}
               onShowLine={showLine}
             />
