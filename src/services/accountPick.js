@@ -29,6 +29,25 @@ export const isHeldBy = (a, { userId, roleName } = {}) => {
   return Boolean(roleName) && role === clean(roleName).toLowerCase();
 };
 
+// Which accounts belong in the Spending page's wallet.
+//
+// This is a vessel-wide page, and a vessel's twelve accounts are mostly cards in
+// individual crew members' pockets — those are reconciled on their own page, not
+// here. So the wallet is the vessel's own money, plus any card that actually
+// moved money in the month being looked at, because that spend has to be
+// reconciled somewhere and this is where it landed.
+//
+// A card with no spend this month is still included when it's a vessel account:
+// a quiet month is a claim to confirm against the statement, not a card to hide.
+// Retired accounts drop out unless they carry spend in the month.
+export const walletAccounts = (accounts = [], hasActivity = () => false) =>
+  accounts.filter((a) => {
+    const active = a?.is_active !== false;
+    const moved = Boolean(hasActivity(a));
+    if (!active) return moved;
+    return isVesselAccount(a) || moved;
+  });
+
 // "Owner card · Chief Stewardess ••6614" — the three facts that separate one row
 // from the next. Currency is appended only where it isn't already obvious.
 export const accountLabel = (a, { withCurrency = true } = {}) => {
