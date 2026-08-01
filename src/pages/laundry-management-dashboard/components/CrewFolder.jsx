@@ -1112,12 +1112,23 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
           <p className="editorial-meta cf-member-meta">
             <span className="dot">●</span><span>Wardrobe</span>
             {(selected.roleTitle || selected.department) && <><span className="bar" /><span className="muted">{[selected.roleTitle, selected.department].filter(Boolean).join(' · ')}</span></>}
-            {memberAlloc.cabin && <><span className="bar" /><span className="muted">Cabin {memberAlloc.cabin}</span></>}
-            {(memberAlloc.laundry_number || memberAlloc.laundry_colour) && <><span className="bar" /><span className="muted">Laundry {[memberAlloc.laundry_number, memberAlloc.laundry_colour].filter(Boolean).join(' · ')}</span></>}
             <span className="bar" /><span className="muted">{kitStats.issued} issued</span>
             {kitStats.returned > 0 && <><span className="bar" /><span className="muted">{kitStats.returned} returned</span></>}
           </p>
-          <h2 className="cf-member-nm">{selected.fullName}</h2>
+          <div className="cf-member-namerow">
+            <h2 className="cf-member-nm">{selected.fullName}</h2>
+            {(memberAlloc.cabin || memberAlloc.laundry_number || memberAlloc.laundry_colour) && (
+              <span className="cf-member-alloc">
+                {memberAlloc.cabin && <span className="cf-alloc"><Icon name="BedDouble" size={13} /> Cabin {memberAlloc.cabin}</span>}
+                {(memberAlloc.laundry_number || memberAlloc.laundry_colour) && (
+                  <span className="cf-alloc">
+                    <Icon name="WashingMachine" size={13} /> Laundry{memberAlloc.laundry_number ? ` ${memberAlloc.laundry_number}` : ''}
+                    {memberAlloc.laundry_colour && <><span className="cf-alloc-dot" style={{ background: String(memberAlloc.laundry_colour).toLowerCase() }} /> {memberAlloc.laundry_colour}</>}
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
