@@ -117,13 +117,15 @@
   animation: edp-pop-in 110ms ease-out;
 }
 /* Portaled to <body>: fixed to the viewport (JS supplies top/left) and
-   layered above modal overlays (--z-overlay is 1000) so a modal's
-   overflow:hidden panel can't clip the calendar. */
+   layered above modal overlays so a modal's overflow:hidden panel can't clip
+   the calendar. Sits above the app's modal stack (portaled dialogs reach ~1500,
+   e.g. cf-overlay 1400 / uv-panel 1501) — it must clear those when opened from
+   inside a modal. */
 .edp-popover--fixed {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 1100;
+  z-index: 2000;
 }
 @keyframes edp-pop-in {
   from { opacity: 0; transform: translateY(-2px); }
