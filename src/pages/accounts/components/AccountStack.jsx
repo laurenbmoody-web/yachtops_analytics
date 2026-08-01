@@ -58,9 +58,12 @@ export default function AccountStack({
       opacity: shown ? s.o : 0,
       zIndex: s.z - Math.max(0, pos - (FAN - 1)),
       pointerEvents: shown ? 'auto' : 'none',
-      cursor: 'pointer',
     };
   };
+
+  // Where the carousel is. -1 on "All", so the first press of Next lands on the
+  // first card rather than skipping it.
+  const idx = accounts.findIndex((a) => a.id === activeId);
 
   // Only a vessel with more accounts than the wallet can show needs anything in
   // text, and then only for the ones it can't reach.
@@ -76,17 +79,41 @@ export default function AccountStack({
 
   return (
     <section className="as">
-      <div className={`as-stage${activeId ? '' : ' is-all'}`}>
-        {accounts.map((a) => (
-          <div key={a.id} className="as-slot" style={slot(a.id)}
-            onClick={() => onSelect?.(a.id)}>
-            {/* No balance override — the card's back says "balance on card", which
-                is the account's balance, not this month's spend. */}
-            <CardVisual account={a} size="md"
-              flip={a.id === activeId ? 'hover' : 'none'}
-              status={a.id === activeId ? pickedState : undefined} />
-          </div>
-        ))}
+      {/* Arrows step the wallet; the card at the front is the one you're on.
+          The front card used to be a click target AND flip on hover, so the two
+          fought each other: you had to hover it to click it, which flipped it
+          away from under you. Stepping is a control now, and the flip is left to
+          be what it is — a look at the balance on the card. */}
+      <div className="as-carousel">
+        <button type="button" className="as-arrow" aria-label="Previous card"
+          disabled={idx <= 0} onClick={() => onSelect?.(accounts[Math.max(idx - 1, 0)].id)}>
+          <Icon name="ChevronLeft" size={19} />
+        </button>
+
+        <div className={`as-stage${activeId ? '' : ' is-all'}`}>
+          {accounts.map((a) => {
+            // Inert only where the flip takes over — i.e. the card you're on.
+            // Keyed off the flip, not off fan position: on "All" nothing flips,
+            // so the card at the front stays clickable rather than going dead.
+            const isFront = a.id === activeId;
+            return (
+              <div key={a.id} className={`as-slot${isFront ? ' is-front' : ''}`} style={slot(a.id)}
+                onClick={isFront ? undefined : () => onSelect?.(a.id)}>
+                {/* No balance override — the card's back says "balance on card",
+                    which is the account's balance, not this month's spend. */}
+                <CardVisual account={a} size="md"
+                  flip={a.id === activeId ? 'hover' : 'none'}
+                  status={a.id === activeId ? pickedState : undefined} />
+              </div>
+            );
+          })}
+        </div>
+
+        <button type="button" className="as-arrow" aria-label="Next card"
+          disabled={idx >= accounts.length - 1}
+          onClick={() => onSelect?.(accounts[Math.min(idx + 1, accounts.length - 1)].id)}>
+          <Icon name="ChevronRight" size={19} />
+        </button>
       </div>
 
       {/* Everything that was written out here — the account's name, its totals,
