@@ -133,6 +133,14 @@
 .cf-handout .edp { width: 100%; }
 @media (max-width: 560px) { .cf-handout { grid-template-columns: 1fr; } }
 
+/* Also-add-to-inventory toggle + folder picker. */
+.cf-invtoggle { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; padding: 12px 13px; border: 1px solid #E5E7EB; border-radius: 10px; background: #FAFAF8; }
+.cf-invtoggle.on { border-color: #C65A1A; background: #FBEFE9; }
+.cf-invtoggle input { margin-top: 2px; }
+.cf-invtoggle b { font-size: 13.5px; color: #1C1B3A; }
+.cf-invtoggle-sub { display: block; font-size: 12px; color: #8B8478; margin-top: 2px; }
+.cf-invfolder { margin-top: 8px; }
+
 /* Swap modal */
 .cf-swap-flow { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 4px 0 2px; color: #8B8478; }
 .cf-swap-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 6px 16px; font: 700 14px 'Plus Jakarta Sans', system-ui, sans-serif; }
