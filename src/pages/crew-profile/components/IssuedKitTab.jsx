@@ -386,7 +386,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
         generatedAt: fmtKitDate(today()), items: list, ackSig: ackImg, returnSig: retImg,
         scopeLabel: scope === 'held' ? 'Currently held' : 'Full record',
       });
-    } catch (e) { showToast(e.message || 'Could not generate receipt', 'error'); }
+    } catch (e) { showToast(e.message || 'Could not generate the kit record', 'error'); }
     finally { setBusy(false); }
   };
 
@@ -471,7 +471,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
         </div>
         <div className="cp-tab-actions">
           {items.length > 0 && !editMode && (
-            <Button variant="outline" iconName="Download" size="sm" onClick={() => setReceiptOpen(true)} disabled={busy}>Receipt</Button>
+            <Button variant="outline" iconName="Download" size="sm" onClick={() => setReceiptOpen(true)} disabled={busy}>Kit record</Button>
           )}
           {canEditSizes && (editMode
             ? <Button iconName="Check" size="sm" onClick={exitEdit} disabled={busy}>Done</Button>
@@ -776,7 +776,7 @@ const IssuedKitTab = ({ userId, tenantId, currentUserId, currentUserName, crewNa
           <div className="kit-panel kit-panel-sm">
             <div className="kit-panel-head">
               <div>
-                <span className="kit-panel-eyebrow">Kit receipt</span>
+                <span className="kit-panel-eyebrow">Kit record</span>
                 <h4>What should it show?</h4>
               </div>
               <button onClick={() => setReceiptOpen(false)} className="kit-x" title="Close"><Icon name="X" size={18} /></button>

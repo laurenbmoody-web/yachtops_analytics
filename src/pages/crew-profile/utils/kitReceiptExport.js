@@ -95,7 +95,7 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
   // Header
   doc.setTextColor(...TERRA);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-  doc.text('ISSUED KIT — RECEIPT & RESPONSIBILITY RECORD', M, 20);
+  doc.text('ISSUED KIT — RECORD & RESPONSIBILITY', M, 20);
   doc.setTextColor(...NAVY);
   doc.setFont('times', 'normal'); doc.setFontSize(22);
   doc.text(crewName || 'Crew member', M, 30);
@@ -210,7 +210,7 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
     if (name) doc.text(name, x, y + 26);
     if (when) { doc.setFontSize(7.5); doc.setTextColor(...MUTED); doc.text(when, x, y + 30.5); }
   };
-  sigBlock(M, 'Crew — acknowledged receipt', ackSig, ackItem?.ack_signed_name, ackItem?.acknowledged_at ? dd(ackItem.acknowledged_at) : '');
+  sigBlock(M, 'Crew — acknowledged', ackSig, ackItem?.ack_signed_name, ackItem?.acknowledged_at ? dd(ackItem.acknowledged_at) : '');
   sigBlock(M + colW + 12, 'Returned to (signature)', returnSig, retItem?.return_signed_name, retItem?.returned_date ? dd(retItem.returned_date) : '');
 
   // Stamp the footer on every page (drawn last so page count is final).
@@ -218,5 +218,5 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
   for (let p = 1; p <= total; p += 1) { doc.setPage(p); drawFooter(p, total); }
 
   const safe = (crewName || 'crew').replace(/[^\w]+/g, '-');
-  doc.save(`Kit-receipt-${safe}.pdf`);
+  doc.save(`Kit-record-${safe}.pdf`);
 };

@@ -1056,7 +1056,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
               <FilterMenu groups={kitFilterGroups} />
               <SortMenu value={kSort} onChange={setKSort} options={kitSortOptions} />
               <button type="button" className="cf-btn ghost sm" onClick={() => setReceiptChooser(true)} disabled={exportingReceipt}>
-                <Icon name="Download" size={15} /> {exportingReceipt ? 'Exporting…' : 'Receipt'}
+                <Icon name="Download" size={15} /> {exportingReceipt ? 'Exporting…' : 'Kit record'}
               </button>
               {canManage && <button type="button" className="cf-btn primary sm" onClick={openIssue}><Icon name="Plus" size={15} /> Issue item</button>}
             </div>
@@ -1098,7 +1098,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
         <div className="cf-overlay" role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) setReceiptChooser(false); }}>
           <div className="cf-modal sm" onClick={(e) => e.stopPropagation()}>
             <div className="cf-modal-head">
-              <div><span className="cf-eyebrow">Kit receipt</span><h2 className="cf-modal-title">{selected.fullName}</h2></div>
+              <div><span className="cf-eyebrow">Kit record</span><h2 className="cf-modal-title">{selected.fullName}</h2></div>
               <button type="button" className="cf-x" onClick={() => setReceiptChooser(false)} aria-label="Close"><Icon name="X" size={18} /></button>
             </div>
             <div className="cf-scope">
