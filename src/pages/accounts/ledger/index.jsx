@@ -285,12 +285,16 @@ export default function Ledger() {
     return m;
   }, [txns, activeMonth, dateBasis]);
 
-  // Only the cards this month actually moved money on. A dormant card has nothing
-  // to balance, and padding the wallet with them is how a close-list gets ignored.
+  // Every card the vessel currently holds, whether or not it moved money this
+  // month. A quiet month still has to be balanced — "nothing went out" is a claim
+  // you confirm against the statement, not a reason to hide the card — and a card
+  // missing from the wallet can't be selected, so it could never be closed at all.
+  // Retired cards drop out, unless they carry spending in this month that still
+  // needs reconciling. Busiest first, so quiet cards fall to the back of the fan.
   const stackAccounts = useMemo(
-    () => accounts.filter((a) => stackStats[a.id]?.count).sort(
-      (x, y) => (stackStats[x.id]?.out || 0) - (stackStats[y.id]?.out || 0),
-    ),
+    () => accounts
+      .filter((a) => a.is_active !== false || stackStats[a.id]?.count)
+      .sort((x, y) => (stackStats[x.id]?.out || 0) - (stackStats[y.id]?.out || 0)),
     [accounts, stackStats],
   );
 
