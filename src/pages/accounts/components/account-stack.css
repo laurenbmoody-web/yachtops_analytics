@@ -6,7 +6,10 @@
    used. The fan is the picker. */
 .as {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  /* Fixed, NOT auto. The picker row shares this column with the wallet, so an
+     auto column grew to whatever the pill row wanted and shoved the figures off
+     the right of the page — content in one cell silently resizing another. */
+  grid-template-columns: 512px minmax(0, 1fr);
   grid-template-areas: "stage figures" "pick figures" "orphan figures";
   align-content: start;
   gap: 0 48px;
@@ -27,7 +30,10 @@
 .as-stage.is-all .as-slot:hover { filter: none; }
 
 /* Picker row — the one scope the fan can't show, plus the overflow rail. */
-.as-pick { grid-area: pick; display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 16px; }
+.as-pick {
+  grid-area: pick; min-width: 0; display: flex; flex-wrap: wrap; align-items: center;
+  gap: 7px; margin-top: 16px;
+}
 .as-all {
   border: 1px solid #E5E7EB; background: #fff; border-radius: 999px;
   padding: 6px 15px; font: inherit; font-size: 12px; font-weight: 600; color: #6B7280; cursor: pointer;
@@ -52,7 +58,10 @@
   .as { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "pick" "orphan" "figures"; }
   .as-figures { margin-top: 26px; }
 }
-@media (max-width: 1100px) { .as-figures { justify-self: start; align-self: start; margin-top: 26px; } }
+@media (max-width: 1100px) {
+  .as { grid-template-columns: minmax(0, 1fr); }
+  .as-figures { justify-self: start; align-self: start; margin-top: 26px; }
+}
 @media (max-width: 620px) {
   .as-stage { width: 100%; height: 200px; }
   .as-figures { width: 100%; }

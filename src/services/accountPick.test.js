@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  walletAccounts,
   accountLabel, isVesselAccount, isHeldBy, groupAccounts, defaultAccountId,
   matchAccountByLast4,
 } from './accountPick.js';
@@ -133,4 +134,38 @@ test('junk digits match nothing', () => {
 test('a closed account does not claim the charge', () => {
   const closed = [{ id: 'old', name: 'Owner card', card_last4: '5555', is_active: false }];
   assert.equal(matchAccountByLast4(closed, '5555'), null);
+});
+
+// ── which cards belong in the Spending wallet ────────────────────────────────
+const VESSEL = { id: 'v1', name: 'Operating account' };
+const APA = { id: 'v2', name: 'APA holding', holder_role: 'Vessel' };
+const CREW = { id: 'c1', name: 'Owner card', holder_role: 'Chief Stewardess', card_last4: '6614' };
+const CREW2 = { id: 'c2', name: 'Petty cash', holder_user_id: 'u9' };
+const RETIRED = { id: 'r1', name: 'Old card', is_active: false };
+
+test('the wallet is the vessel own money, not every crew member card', () => {
+  // The page showed all twelve accounts, which is every card on the boat.
+  const got = walletAccounts([VESSEL, APA, CREW, CREW2], () => false).map((a) => a.id);
+  assert.deepEqual(got, ['v1', 'v2']);
+});
+
+test('a crew card that spent this month comes in, because that spend needs reconciling', () => {
+  const got = walletAccounts([VESSEL, CREW, CREW2], (a) => a.id === 'c1').map((a) => a.id);
+  assert.deepEqual(got, ['v1', 'c1']);
+});
+
+test('a quiet vessel account still shows — a still month is not a hidden card', () => {
+  // The bug that started this: August hid the cards that had no spending, which
+  // also made them impossible to select and therefore impossible to close.
+  assert.deepEqual(walletAccounts([VESSEL, APA], () => false).map((a) => a.id), ['v1', 'v2']);
+});
+
+test('retired accounts drop out unless they carry spend in the month', () => {
+  assert.deepEqual(walletAccounts([RETIRED], () => false), []);
+  assert.deepEqual(walletAccounts([RETIRED], () => true).map((a) => a.id), ['r1']);
+});
+
+test('an empty account list is not an error', () => {
+  assert.deepEqual(walletAccounts(), []);
+  assert.deepEqual(walletAccounts([], () => true), []);
 });

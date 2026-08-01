@@ -27,7 +27,7 @@ import {
 import LineDetail from '../components/LineDetail';
 import ReceiptScanner from '../components/ReceiptScanner';
 import ReceiptClip from '../components/ReceiptClip';
-import { accountLabel } from '../../../services/accountPick';
+import { walletAccounts, accountLabel } from '../../../services/accountPick';
 import MonthEndStrip from '../components/MonthEndStrip';
 import AccountStack from '../components/AccountStack';
 import {
@@ -285,15 +285,12 @@ export default function Ledger() {
     return m;
   }, [txns, activeMonth, dateBasis]);
 
-  // Every card the vessel currently holds, whether or not it moved money this
-  // month. A quiet month still has to be balanced — "nothing went out" is a claim
-  // you confirm against the statement, not a reason to hide the card — and a card
-  // missing from the wallet can't be selected, so it could never be closed at all.
-  // Retired cards drop out, unless they carry spending in this month that still
-  // needs reconciling. Busiest first, so quiet cards fall to the back of the fan.
+  // See walletAccounts: the vessel's own money, plus any card that moved money
+  // this month. Showing every account put all twelve of the boat's cards in the
+  // wallet — most of which are in individual crew pockets and reconciled on their
+  // own page. Busiest first, so quiet cards fall to the back of the fan.
   const stackAccounts = useMemo(
-    () => accounts
-      .filter((a) => a.is_active !== false || stackStats[a.id]?.count)
+    () => walletAccounts(accounts, (a) => stackStats[a.id]?.count)
       .sort((x, y) => (stackStats[x.id]?.out || 0) - (stackStats[y.id]?.out || 0)),
     [accounts, stackStats],
   );
