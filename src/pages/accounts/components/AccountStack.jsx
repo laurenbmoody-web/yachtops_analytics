@@ -89,7 +89,7 @@ export default function AccountStack({
         <button type="button" className={`as-all${!activeId ? ' on' : ''}`}
           onClick={() => onSelect?.('')}
           title="Every account together — no close, because there's no single statement to close against">
-          All {accounts.length} cards
+          All {accounts.length} {accounts.length === 1 ? 'card' : 'cards'}
         </button>
         {/* Past the third card the fan stops moving, so those accounts would have
             no way to be reached at all. The rail appears only for them. */}

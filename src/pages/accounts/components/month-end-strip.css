@@ -9,7 +9,6 @@
 .mes { margin-top: 20px; }
 
 /* Section rule, same shape as every other editorial section header. */
-.mes-head { display: flex; align-items: center; gap: 12px; }
 .mes-eyebrow {
   font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
 }
@@ -19,27 +18,30 @@
   color: #AEB4C2; white-space: nowrap;
 }
 
-/* The bar is the whole section when collapsed, so it carries a sentence worth
-   reading — not a drawer label. */
-.mes-bar {
-  display: flex; align-items: flex-start; gap: 9px; width: 100%;
-  margin-top: 11px; padding: 0; border: 0; background: none; cursor: pointer;
-  font: inherit; text-align: left; color: #1C1B3A;
+/* Header row carries the section label, the funding model and the ONE control.
+   Nothing else in here is clickable. */
+.mes-head { display: flex; align-items: center; gap: 12px; }
+.mes-toggle {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid #E5E7EB; border-radius: 999px; background: #fff; cursor: pointer;
+  padding: 4px 11px; font: inherit; font-size: 11.5px; font-weight: 600; color: #6B7280;
 }
-.mes-bar > svg { flex: 0 0 auto; color: #C65A1A; margin-top: 2px; }
-.mes.is-ready .mes-bar > svg, .mes.is-closed .mes-bar > svg { color: #2F7A64; }
-.mes.is-running .mes-bar > svg, .mes.is-ahead .mes-bar > svg { color: #AEB4C2; }
-.mes-bar-txt { flex: 1 1 auto; font-size: 13.5px; line-height: 1.5; font-weight: 600; max-width: 82ch; }
-.mes.is-running .mes-bar-txt, .mes.is-ahead .mes-bar-txt { font-weight: 500; color: #6B7280; }
-.mes-bar-more {
-  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; margin-top: 1px;
-  font-size: 11.5px; font-weight: 600; color: #6B7280; white-space: nowrap;
+.mes-toggle:hover { border-color: #C65A1A; color: #C65A1A; }
+.mes-toggle:focus-visible { outline: 2px solid #C65A1A; outline-offset: 2px; }
+.mes.is-due .mes-toggle { border-color: #C65A1A; color: #C65A1A; }
+
+/* The status line — prose, and only prose. */
+.mes-say {
+  display: flex; align-items: flex-start; gap: 9px; margin: 13px 0 0;
+  font-size: 14px; line-height: 1.55; color: #1C1B3A; max-width: 88ch;
 }
-.mes-bar:hover .mes-bar-more { color: #C65A1A; }
-.mes-bar:focus-visible { outline: 2px solid #C65A1A; outline-offset: 3px; border-radius: 4px; }
+.mes-say > svg { flex: 0 0 auto; margin-top: 3px; color: #C65A1A; }
+.mes-say.is-ok > svg { color: #2F7A64; }
+.mes.is-running .mes-say, .mes.is-ahead .mes-say { color: #6B7280; }
+.mes.is-running .mes-say > svg, .mes.is-ahead .mes-say > svg { color: #AEB4C2; }
 
 /* ── the two columns ──────────────────────────────────────────────────────── */
-.mes-cols { display: grid; grid-template-columns: 1.35fr 1fr; margin-top: 20px; }
+.mes-cols { display: grid; grid-template-columns: 1.35fr 1fr; margin-top: 22px; }
 .mes-left { padding-right: 34px; min-width: 0; }
 .mes-right { padding-left: 34px; border-left: 1px solid #E5E7EB; min-width: 0; }
 

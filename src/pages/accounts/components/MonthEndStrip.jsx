@@ -46,6 +46,7 @@ export default function MonthEndStrip({
     closing: reconciliation?.stmt_closing ?? '',
   });
   const [busy, setBusy] = useState(false);
+  const panelId = `mes-panel-${account?.id || 'x'}`;
 
   const model = fundingModel(account);
   const figures = useMemo(() => monthFigures(openingBalance, txns), [openingBalance, txns]);
@@ -95,25 +96,30 @@ export default function MonthEndStrip({
 
   return (
     <section className={`mes is-${stage}${ready ? ' is-ready' : ''}`}>
+      {/* The control is a control and the sentence is a sentence. The whole status
+          line used to BE the button, so a paragraph of ordinary prose was a click
+          target — it read as something to understand, not something to press, and
+          the width of it meant collapsing the section by accident. */}
       <div className="mes-head">
         <span className="mes-eyebrow">Month-end</span>
         <span className="mes-rule" />
         <span className="mes-model">{fundingModelLabel(model)}</span>
-      </div>
-
-      {/* Collapsed, the bar has to earn its place: it says where the month stands
-          and what would be worth doing today, not just "Month-end ▸". */}
-      <button type="button" className="mes-bar" aria-expanded={open} onClick={() => setUserOpen(!open)}>
-        <Icon name={ready || locked ? 'CheckCircle2' : 'AlertCircle'} size={16} />
-        <span className="mes-bar-txt">{open ? headline : summary}</span>
-        <span className="mes-bar-more">
+        <button type="button" className="mes-toggle" aria-expanded={open} aria-controls={panelId}
+          onClick={() => setUserOpen(!open)}>
           {open ? 'Hide' : (stage === 'due' ? 'Balance it' : 'Open')}
           <Icon name={open ? 'ChevronUp' : 'ChevronDown'} size={14} />
-        </span>
-      </button>
+        </button>
+      </div>
+
+      {/* Says where the month stands and what's worth doing today — the section is
+          worth having on screen even shut. */}
+      <p className={`mes-say${ready || locked ? ' is-ok' : ''}`}>
+        <Icon name={ready || locked ? 'CheckCircle2' : 'AlertCircle'} size={16} />
+        <span>{open ? headline : summary}</span>
+      </p>
 
       {open && (
-        <div className="mes-cols">
+        <div className="mes-cols" id={panelId}>
           {/* ── the money ────────────────────────────────────────────────── */}
           <div className="mes-left">
             <p className="mes-lab">The month</p>
