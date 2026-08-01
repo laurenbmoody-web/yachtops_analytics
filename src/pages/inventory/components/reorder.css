@@ -27,6 +27,7 @@
 .ro-qty:focus, .ro-newtitle:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 .ro-newtitle { margin-top: 8px; }
 .ro-loading { font-size: 13px; color: #8B8478; margin: 4px 0; }
+.ro-note { font-size: 12.5px; line-height: 1.5; color: #6B7280; margin: 2px 0 4px; }
 
 .ro-lists { display: flex; flex-direction: column; gap: 8px; }
 .ro-opt {
