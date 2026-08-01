@@ -341,7 +341,7 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onAd
         </div>
 
         <div className="cf-modal-foot">
-          <button type="button" className="cf-btn quiet" onClick={onAddManual}><Icon name="Plus" size={15} /> Add item not in inventory</button>
+          <button type="button" className="cf-btn quiet" onClick={() => onAddManual(trail)}><Icon name="Plus" size={15} /> Add item not in inventory</button>
           <span className="cf-foot-spacer" />
           <button type="button" className="cf-btn ghost" onClick={onClose}>Cancel</button>
           <button type="button" className="cf-btn primary" disabled={busy || totalUnits === 0} onClick={submit}>
@@ -428,14 +428,34 @@ const SwapModal = ({ row, inv, crewName, onSwap, onClose }) => {
 
 // Hand out a non-uniform item (PPE, a radio, a key fob…) by hand — for kit that
 // isn't drawn from the uniform inventory. Same sign-off loop applies afterwards.
-const HandoutModal = ({ crewName, onHandout, onClose }) => {
+// Optionally register the item into inventory (into a real subfolder) so it's
+// stock-tracked and issuable from inventory next time.
+const HandoutModal = ({ crewName, folderRels = [], defaultFolder = [], onHandout, onClose }) => {
+  // Only real subfolders (never a bare department root) can hold an item.
+  const eligible = useMemo(() => folderRels.filter((rel) => rel.length >= 2).sort((a, b) => a.join(' › ').localeCompare(b.join(' › '))), [folderRels]);
+  const defaultIdx = useMemo(() => {
+    if (!defaultFolder?.length) return -1;
+    const key = defaultFolder.map((s) => s.toLowerCase()).join('/');
+    // Exact match first, else the shortest folder the browsed trail is a prefix of.
+    let exact = -1; let prefix = -1;
+    eligible.forEach((rel, i) => {
+      const rk = rel.map((s) => s.toLowerCase()).join('/');
+      if (rk === key) exact = i;
+      else if (prefix < 0 && rk.startsWith(`${key}/`)) prefix = i;
+    });
+    return exact >= 0 ? exact : prefix;
+  }, [eligible, defaultFolder]);
+
   const [form, setForm] = useState({ category: 'ppe', item: '', serial: '', size: '', quantity: 1, condition: 'New', issuedDate: today(), notes: '' });
+  const [addToInv, setAddToInv] = useState(false);
+  const [invIdx, setInvIdx] = useState(defaultIdx);
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const invReady = !addToInv || (invIdx >= 0 && eligible[invIdx]);
   const submit = async () => {
-    if (!form.item.trim() || busy) return;
+    if (!form.item.trim() || busy || !invReady) return;
     setBusy(true);
-    try { await onHandout(form); } finally { setBusy(false); }
+    try { await onHandout({ ...form, invFolder: addToInv && invIdx >= 0 ? eligible[invIdx] : null }); } finally { setBusy(false); }
   };
   return (
     <div className="cf-overlay" role="dialog" aria-modal="true" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
@@ -470,10 +490,25 @@ const HandoutModal = ({ crewName, onHandout, onClose }) => {
           <label className="cf-field cf-col2"><span>Notes <em>optional</em></span>
             <input className="cf-input" value={form.notes} onChange={(e) => set('notes', e.target.value)} placeholder="anything worth recording" />
           </label>
+          <div className="cf-field cf-col2">
+            <label className={`cf-invtoggle${addToInv ? ' on' : ''}`}>
+              <input type="checkbox" checked={addToInv} onChange={(e) => setAddToInv(e.target.checked)} disabled={!eligible.length} />
+              <span>
+                <b>Also add to inventory</b>
+                <span className="cf-invtoggle-sub">{eligible.length ? 'Register this item so it’s stock-tracked and issuable from inventory next time.' : 'No inventory folders available to file it under.'}</span>
+              </span>
+            </label>
+            {addToInv && eligible.length > 0 && (
+              <div className="cf-select cf-invfolder"><select value={invIdx} onChange={(e) => setInvIdx(Number(e.target.value))}>
+                <option value={-1}>Choose a folder…</option>
+                {eligible.map((rel, i) => <option key={rel.join('/')} value={i}>{rel.join(' › ')}</option>)}
+              </select></div>
+            )}
+          </div>
         </div>
         <div className="cf-modal-foot">
           <button type="button" className="cf-btn ghost" onClick={onClose}>Cancel</button>
-          <button type="button" className="cf-btn primary" disabled={busy || !form.item.trim()} onClick={submit}>{busy ? 'Handing out…' : 'Hand out'}</button>
+          <button type="button" className="cf-btn primary" disabled={busy || !form.item.trim() || !invReady} onClick={submit}>{busy ? 'Handing out…' : 'Hand out'}</button>
         </div>
       </div>
     </div>
@@ -497,6 +532,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
   const [folderRels, setFolderRels] = useState([]); // inventory folder paths below "Uniform"
   const [issuing, setIssuing] = useState(false);
   const [handingOut, setHandingOut] = useState(false);
+  const [handoutFolder, setHandoutFolder] = useState([]); // inventory folder browsed when "Add item" was tapped
   const [returning, setReturning] = useState(null);
   const [swapping, setSwapping] = useState(null);
   const [q, setQ] = useState('');
@@ -882,17 +918,32 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
 
   // Hand out a non-inventory item (PPE, a specific radio, a key fob…) — the same
   // sign-off loop as uniform, just entered by hand rather than drawn from stock.
+  // Optionally register it into inventory first (0 on board — it's out with crew)
+  // so it's stock-tracked and issuable from inventory next time.
   const doHandout = async (form) => {
     const issuerName = user?.user_metadata?.full_name || user?.email;
+    const qty = Number(form.quantity) || 1;
+    let inventoryItemId = null;
+    if (Array.isArray(form.invFolder) && form.invFolder.length >= 2) {
+      const [loc, ...sub] = form.invFolder;
+      const created = await saveItem({
+        name: form.item, location: loc, subLocation: sub.join(' > '),
+        quantity: 0, totalQty: 0,
+        unitCost: form.value ?? null,
+      }, { dedupe: false }).catch(() => false);
+      if (created && created.id) inventoryItemId = created.id;
+      else window.showToast?.('Handed out — but couldn’t add it to inventory', 'error');
+    }
     const saved = await saveKitItem({
       userId: selectedId, tenantId: activeTenantId, category: form.category || 'other',
-      item: form.item, size: form.size || null, quantity: Number(form.quantity) || 1,
+      item: form.item, size: form.size || null, quantity: qty,
       serial: form.serial || null, conditionIssued: form.condition || 'New', issuedDate: form.issuedDate || today(),
-      issuedBy: user?.id, issuedByName: issuerName, notes: form.notes || null, createdBy: user?.id,
+      issuedBy: user?.id, issuedByName: issuerName, notes: form.notes || null,
+      inventoryItemId, createdBy: user?.id,
     });
-    await logKitEvent({ userId: selectedId, tenantId: activeTenantId, action: 'issued', detail: { item: form.item, size: form.size || null, quantity: Number(form.quantity) || 1, category: form.category }, actorId: user?.id, actorName: issuerName });
-    setHandingOut(false);
-    if (saved) window.showToast?.(`Handed out ${form.item} to ${selected?.fullName?.split(' ')[0] || 'crew'}`, 'success');
+    await logKitEvent({ userId: selectedId, tenantId: activeTenantId, action: 'issued', detail: { item: form.item, size: form.size || null, quantity: qty, category: form.category, addedToInventory: !!inventoryItemId }, actorId: user?.id, actorName: issuerName });
+    setHandingOut(false); setHandoutFolder([]);
+    if (saved) window.showToast?.(`Handed out ${form.item} to ${selected?.fullName?.split(' ')[0] || 'crew'}${inventoryItemId ? ' · added to inventory' : ''}`, 'success');
     load();
   };
 
@@ -1114,8 +1165,8 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
           </div>
         </div>
       )}
-      {issuing && <IssueModal crewName={selected.fullName} stock={stock} folderRels={folderRels} showValue={showValue} onIssue={doIssue} onAddManual={() => { setIssuing(false); setHandingOut(true); }} onClose={() => setIssuing(false)} />}
-      {handingOut && <HandoutModal crewName={selected.fullName} onHandout={doHandout} onClose={() => setHandingOut(false)} />}
+      {issuing && <IssueModal crewName={selected.fullName} stock={stock} folderRels={folderRels} showValue={showValue} onIssue={doIssue} onAddManual={(trail) => { setIssuing(false); setHandoutFolder(trail || []); setHandingOut(true); }} onClose={() => setIssuing(false)} />}
+      {handingOut && <HandoutModal crewName={selected.fullName} folderRels={folderRels} defaultFolder={handoutFolder} onHandout={doHandout} onClose={() => { setHandingOut(false); setHandoutFolder([]); }} />}
       {returning && <ReturnModal row={returning} onReturn={doReturn} onClose={() => setReturning(null)} />}
       {swapping && <SwapModal row={swapping} inv={itemById[swapping.inventory_item_id]} crewName={selected.fullName} onSwap={doSwap} onClose={() => setSwapping(null)} />}
     </div>
