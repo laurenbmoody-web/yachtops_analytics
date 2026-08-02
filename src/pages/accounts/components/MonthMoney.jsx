@@ -151,7 +151,10 @@ export default function MonthMoney({
                   rather than telling the crew to go and find it. */}
               {diffs.length > 0 && (
                 <div className="mm-hunt">
-                  <p className="mm-hunt-lead">{differenceLead(candidates, diffs[0].ours > diffs[0].theirs)}</p>
+                  <p className="mm-hunt-lead">
+                    {differenceLead(candidates, diffs[0].ours > diffs[0].theirs,
+                      { ours: diffs[0].ours, theirs: diffs[0].theirs })}
+                  </p>
                   {candidates.map((c) => (
                     <div key={c.key} className="mm-cand">
                       <span className="mm-cand-amt">{money(c.amount)}</span>
