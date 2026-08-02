@@ -34,7 +34,10 @@ const SORTS = [
   { value: 'date', label: 'Urgency' },
   { value: 'name', label: 'Name (A–Z)' },
   { value: 'location', label: 'Location' },
+  { value: 'qty', label: 'Quantity (low first)' },
+  { value: 'dept', label: 'Department' },
 ];
+const TYPE_LABEL = { expired: 'Expired', belowpar: 'Below par', expiring: 'Expiring soon' };
 
 const InventoryAttention = () => {
   const navigate = useNavigate();
@@ -43,6 +46,8 @@ const InventoryAttention = () => {
   const [showPush, setShowPush] = useState(false);
   const [search, setSearch] = useState('');
   const [dept, setDept] = useState('');
+  const [loc, setLoc] = useState('');
+  const [types, setTypes] = useState(() => new Set(['expired', 'belowpar', 'expiring']));
   const [sortBy, setSortBy] = useState('date');
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [openMenu, setOpenMenu] = useState(null); // 'filter' | 'sort' | null
@@ -59,17 +64,29 @@ const InventoryAttention = () => {
     return [...s].sort((a, b) => a.localeCompare(b));
   }, [items]);
 
+  // Distinct location segments (e.g. "Grab Bag", "IV Bag") within the chosen
+  // department — the useful "which bag / area" filter.
+  const locations = useMemo(() => {
+    const s = new Set();
+    (items || []).forEach((i) => {
+      if (dept && i?.location !== dept) return;
+      String(i?.subLocation || '').split(' > ').map((x) => x.trim()).filter(Boolean).forEach((seg) => s.add(seg));
+    });
+    return [...s].sort((a, b) => a.localeCompare(b));
+  }, [items, dept]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (items || []).filter((i) => {
       if (dept && i?.location !== dept) return false;
+      if (loc && !String(i?.subLocation || '').split(' > ').map((x) => x.trim()).includes(loc)) return false;
       if (q) {
         const hay = `${i?.name || ''} ${i?.location || ''} ${i?.subLocation || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [items, search, dept]);
+  }, [items, search, dept, loc]);
 
   const buckets = useMemo(() => {
     const today = startOfToday();
@@ -79,7 +96,9 @@ const InventoryAttention = () => {
       date: (a, b) => (expDate(a)?.getTime() || 0) - (expDate(b)?.getTime() || 0),
       name: (a, b) => (a?.name || '').localeCompare(b?.name || ''),
       location: (a, b) => `${a?.location} ${a?.subLocation}`.localeCompare(`${b?.location} ${b?.subLocation}`),
-    }[sortBy];
+      qty: (a, b) => qtyOf(a) - qtyOf(b),
+      dept: (a, b) => (a?.location || '').localeCompare(b?.location || ''),
+    }[sortBy] || (() => 0);
     out.expired.sort(cmp);
     out.expiring.sort(cmp);
     out.belowpar.sort(sortBy === 'date' ? (a, b) => shortfall(b) - shortfall(a) : cmp);
@@ -88,6 +107,9 @@ const InventoryAttention = () => {
 
   const counts = { expired: buckets.expired.length, belowpar: buckets.belowpar.length, expiring: buckets.expiring.length };
   const total = counts.expired + counts.belowpar + counts.expiring;
+  const visibleTotal = SECTIONS.reduce((s, sec) => s + (types.has(sec.key) ? buckets[sec.key].length : 0), 0);
+  const filterCount = (dept ? 1 : 0) + (loc ? 1 : 0) + (types.size < 3 ? 1 : 0);
+  const clearFilters = () => { setDept(''); setLoc(''); setTypes(new Set(['expired', 'belowpar', 'expiring'])); };
   const byId = useMemo(() => { const m = new Map(); (items || []).forEach((i) => m.set(i.id, i)); return m; }, [items]);
 
   const toggle = (id) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -159,20 +181,50 @@ const InventoryAttention = () => {
             </div>
             <div className="att-selects">
               <div className="att-toolwrap">
-                <button className={`att-tool${dept ? ' on' : ''}`} onClick={() => setOpenMenu(openMenu === 'filter' ? null : 'filter')}>
+                <button className={`att-tool${filterCount ? ' on' : ''}`} onClick={() => setOpenMenu(openMenu === 'filter' ? null : 'filter')}>
                   <Icon name="SlidersHorizontal" size={15} /> Filter
-                  {dept && <span className="att-tool-count">1</span>}
+                  {filterCount > 0 && <span className="att-tool-count">{filterCount}</span>}
                 </button>
                 {openMenu === 'filter' && (
-                  <div className="att-menu">
-                    <button className={`att-menu-item${!dept ? ' on' : ''}`} onClick={() => { setDept(''); setOpenMenu(null); }}>
-                      All departments{!dept && <Icon name="Check" size={14} />}
-                    </button>
-                    {departments.map((d) => (
-                      <button key={d} className={`att-menu-item${dept === d ? ' on' : ''}`} onClick={() => { setDept(d); setOpenMenu(null); }}>
-                        {d}{dept === d && <Icon name="Check" size={14} />}
-                      </button>
-                    ))}
+                  <div className="att-menu att-filterpanel">
+                    <div className="att-fgroup">
+                      <p className="att-flabel">Type</p>
+                      <div className="att-fpills">
+                        {SECTIONS.map((s) => (
+                          <button
+                            key={s.key}
+                            className={`att-fpill${types.has(s.key) ? ' on' : ''}`}
+                            onClick={() => setTypes((prev) => {
+                              const n = new Set(prev);
+                              n.has(s.key) ? n.delete(s.key) : n.add(s.key);
+                              if (n.size === 0) return prev; // keep at least one
+                              return n;
+                            })}
+                          >
+                            {TYPE_LABEL[s.key]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="att-fgroup">
+                      <p className="att-flabel">Department</p>
+                      <select className="att-fselect" value={dept} onChange={(e) => { setDept(e.target.value); setLoc(''); }}>
+                        <option value="">All departments</option>
+                        {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    {locations.length > 0 && (
+                      <div className="att-fgroup">
+                        <p className="att-flabel">Location / bag</p>
+                        <select className="att-fselect" value={loc} onChange={(e) => setLoc(e.target.value)}>
+                          <option value="">All locations</option>
+                          {locations.map((l) => <option key={l} value={l}>{l}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    {filterCount > 0 && (
+                      <button className="att-fclear" onClick={() => { clearFilters(); }}>Clear filters</button>
+                    )}
                   </div>
                 )}
               </div>
@@ -197,14 +249,15 @@ const InventoryAttention = () => {
 
         {items === null ? (
           <p className="att-loading">Loading…</p>
-        ) : total === 0 ? (
+        ) : visibleTotal === 0 ? (
           <p className="att-empty">
-            {items.length === 0 || (!search && !dept)
+            {total === 0 && !search && !dept && !loc
               ? 'Nothing expired, expiring within 30 days, or below par. Everything’s in good shape.'
-              : 'No matches — try clearing the search or filter.'}
+              : 'No matches — try clearing the search or filters.'}
           </p>
         ) : (
           SECTIONS.map(({ key, label, icon, tone }) => {
+            if (!types.has(key)) return null;
             const list = buckets[key];
             if (!list.length) return null;
             const isCollapsed = collapsed.has(key);
