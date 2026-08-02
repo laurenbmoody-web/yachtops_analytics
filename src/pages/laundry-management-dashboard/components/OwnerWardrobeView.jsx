@@ -42,9 +42,52 @@ const STATUS = {
   ReadyToDeliver: { label: 'Ready', cls: 'ready' },
   Delivered: { label: 'Delivered', cls: 'done' },
 };
-const ageBucket = (iso) => {
+// Age filter is cumulative — "≤ 1 month" includes items only days old. `o`
+// (6 months+) is the one open-ended band.
+const AGE_MAX_DAYS = { w: 7, m: 31, h: 182 };
+const ageWithin = (iso, key) => {
   const days = (Date.now() - new Date(iso).getTime()) / 86400000;
-  if (days <= 7) return 'w'; if (days <= 31) return 'm'; if (days <= 182) return 'h'; return 'o';
+  if (key === 'o') return days > 182;
+  const max = AGE_MAX_DAYS[key];
+  return max ? days <= max : true;
+};
+
+// Editorial confirm dialog — replaces window.confirm for launder / archive.
+const ConfirmModal = ({ title, body, confirmLabel = 'Confirm', danger, onConfirm, onClose }) => {
+  const [busy, setBusy] = useState(false);
+  const go = async () => { setBusy(true); try { await onConfirm?.(); } finally { setBusy(false); onClose?.(); } };
+  return (
+    <div className="ow-overlay" onClick={onClose}>
+      <div className="ow-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="ow-modal-head"><h2 className="ow-modal-title">{title}</h2><button type="button" className="ow-x" onClick={onClose}><Icon name="X" size={18} /></button></div>
+        <p className="ow-dialog-body">{body}</p>
+        <div className="ow-dialog-foot">
+          <button type="button" className="ow-btn ghost" onClick={onClose}>Cancel</button>
+          <button type="button" className={`ow-btn ${danger ? 'danger' : 'primary'}`} disabled={busy} onClick={go}>{busy ? 'Working…' : confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Editorial name prompt — replaces window.prompt for new case / wardrobe.
+const PromptModal = ({ title, label, placeholder, submitLabel = 'Create', onSubmit, onClose }) => {
+  const [val, setVal] = useState('');
+  const [busy, setBusy] = useState(false);
+  const go = async (e) => { e?.preventDefault?.(); if (!val.trim() || busy) return; setBusy(true); try { await onSubmit?.(val.trim()); } finally { setBusy(false); onClose?.(); } };
+  return (
+    <div className="ow-overlay" onClick={onClose}>
+      <form className="ow-dialog" onClick={(e) => e.stopPropagation()} onSubmit={go}>
+        <div className="ow-modal-head"><h2 className="ow-modal-title">{title}</h2><button type="button" className="ow-x" onClick={onClose}><Icon name="X" size={18} /></button></div>
+        <label className="ow-field-l">{label}</label>
+        <input className="ow-field" autoFocus value={val} onChange={(e) => setVal(e.target.value)} placeholder={placeholder} />
+        <div className="ow-dialog-foot">
+          <button type="button" className="ow-btn ghost" onClick={onClose}>Cancel</button>
+          <button type="submit" className="ow-btn primary" disabled={!val.trim() || busy}>{busy ? 'Working…' : submitLabel}</button>
+        </div>
+      </form>
+    </div>
+  );
 };
 
 // Owner wardrobe catalogue: image-first grid of resident garments, with search
@@ -55,7 +98,8 @@ const OwnerWardrobeView = ({ onBack }) => {
   const [guests, setGuests] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [personId, setPersonId] = useState(null); // null = person-tiles landing; 'owner' or a guestId = drilled in
+  const [personId, setPersonId] = useState(null); // null = landing (all people); 'owner' or a guestId = drilled in
+  const [landView, setLandView] = useState('owner'); // landing content: owner (tiles) | list (flat)
   const [view, setView] = useState('image'); // image | list
   const [groupBy, setGroupBy] = useState('location'); // location | guest
   const [query, setQuery] = useState('');
@@ -71,6 +115,8 @@ const OwnerWardrobeView = ({ onBack }) => {
   const [showAdd, setShowAdd] = useState(false);
   const [showNewWardrobe, setShowNewWardrobe] = useState(false);
   const [showScan, setShowScan] = useState(false);
+  const [confirmState, setConfirmState] = useState(null); // { title, body, confirmLabel, danger, onConfirm }
+  const [promptState, setPromptState] = useState(null);   // { title, label, placeholder, submitLabel, onSubmit }
   const sortOptions = showValue ? SORTS : SORTS.filter((s) => !s.val.startsWith('price'));
 
   const load = async () => {
@@ -106,7 +152,13 @@ const OwnerWardrobeView = ({ onBack }) => {
     }));
     return arr;
   }, [items, guests]);
-  const selectedPerson = personId === 'owner' ? { name: 'Owner' } : (guestsById[personId] ? { name: guestName(guestsById[personId]) } : null);
+  const selectedPerson = useMemo(() => {
+    if (personId === 'owner') return { name: 'Owner', subtitle: 'Unassigned garments' };
+    const g = guestsById[personId];
+    if (!g) return null;
+    return { name: guestName(g), photo: g.photo || g.avatarUrl || '', cabin: g.cabinLocationLabel || g.cabinAllocated || '' };
+  }, [personId, guestsById]);
+  const initialsOf = (nm) => (nm || '?').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   const personItems = useMemo(() => {
     if (!personId) return items;
     if (personId === 'owner') return items.filter((it) => !it.ownerGuestId);
@@ -125,7 +177,7 @@ const OwnerWardrobeView = ({ onBack }) => {
     if (fStatus === 'wardrobe') list = list.filter((i) => i.status === LaundryStatus.STORED);
     else if (fStatus === 'laundry') list = list.filter(inWash);
     else if (fStatus === 'delivered') list = list.filter((i) => i.status === LaundryStatus.DELIVERED);
-    if (fAge !== 'all') list = list.filter((i) => ageBucket(i.createdAt) === fAge || (fAge === 'o' && ageBucket(i.createdAt) === 'o'));
+    if (fAge !== 'all') list = list.filter((i) => ageWithin(i.createdAt, fAge));
     const s = [...list];
     s.sort((a, b) => {
       if (sort === 'name') return (a.description || '').localeCompare(b.description || '');
@@ -172,15 +224,36 @@ const OwnerWardrobeView = ({ onBack }) => {
     if (kind === 'pack') setCases(await loadCases());
     setChooser({ kind, ids });
   };
+  const n = selIds.length;
   const runBulk = async (kind) => {
     if (!selIds.length) return;
-    if (kind === 'launder') { if (window.confirm(`Send ${selIds.length} item(s) to laundry?`)) { await setLaundryItemsStatus(selIds, LaundryStatus.IN_PROGRESS); clearSel(); load(); } return; }
-    if (kind === 'archive') { if (window.confirm(`Archive ${selIds.length} item(s)? (Owner says get rid — records are kept in history.)`)) { await archiveLaundryItems(selIds); clearSel(); load(); } return; }
+    if (kind === 'launder') {
+      setConfirmState({
+        title: 'Send to laundry', body: `Send ${n} garment${n === 1 ? '' : 's'} to laundry?`, confirmLabel: 'Send to laundry',
+        onConfirm: async () => { await setLaundryItemsStatus(selIds, LaundryStatus.IN_PROGRESS); clearSel(); load(); },
+      });
+      return;
+    }
+    if (kind === 'archive') {
+      setConfirmState({
+        title: 'Archive garments', body: `Archive ${n} garment${n === 1 ? '' : 's'}? The record is kept in history — this just clears them from the wardrobe.`,
+        confirmLabel: 'Archive', danger: true,
+        onConfirm: async () => { await archiveLaundryItems(selIds); clearSel(); load(); },
+      });
+      return;
+    }
     openChooser(kind, selIds); // pack | move
   };
   const singleAction = async (kind, item) => {
     if (kind === 'launder') { await setLaundryItemsStatus([item.id], LaundryStatus.IN_PROGRESS); setFullItem(null); load(); return; }
-    if (kind === 'archive') { if (window.confirm('Archive this garment?')) { await archiveLaundryItems([item.id]); setFullItem(null); load(); } return; }
+    if (kind === 'archive') {
+      setConfirmState({
+        title: 'Archive garment', body: `Archive “${item.description || 'this garment'}”? The record is kept in history.`,
+        confirmLabel: 'Archive', danger: true,
+        onConfirm: async () => { await archiveLaundryItems([item.id]); setFullItem(null); load(); },
+      });
+      return;
+    }
     setFullItem(null); openChooser(kind, [item.id]);
   };
 
@@ -190,13 +263,19 @@ const OwnerWardrobeView = ({ onBack }) => {
     else await setLaundryItemsWardrobe(ids, target);
     setChooser(null); clearSel(); load();
   };
-  const createTarget = async () => {
+  const createTarget = () => {
     const { kind, ids } = chooser;
-    const nm = window.prompt(kind === 'pack' ? 'New case name' : 'New wardrobe name');
-    if (!nm) return;
-    if (kind === 'pack') { const c = await createCase({ name: nm }); if (c) await setLaundryItemsCase(ids, c.id); }
-    else { const w = await createWardrobe({ name: nm, scope: 'owner' }); if (w) await setLaundryItemsWardrobe(ids, w.id); }
-    setChooser(null); clearSel(); load();
+    setPromptState({
+      title: kind === 'pack' ? 'New case' : 'New wardrobe',
+      label: kind === 'pack' ? 'Case name' : 'Wardrobe name',
+      placeholder: kind === 'pack' ? 'e.g. Nice → Monaco' : 'e.g. Master dressing room',
+      submitLabel: 'Create',
+      onSubmit: async (nm) => {
+        if (kind === 'pack') { const c = await createCase({ name: nm }); if (c) await setLaundryItemsCase(ids, c.id); }
+        else { const w = await createWardrobe({ name: nm, scope: 'owner' }); if (w) await setLaundryItemsWardrobe(ids, w.id); }
+        setChooser(null); clearSel(); load();
+      },
+    });
   };
 
   const onScan = (t) => { setShowScan(false); const it = items.find((i) => i.id === t?.id); if (it) setFullItem(it); else window.alert('That label isn’t an owner garment.'); };
@@ -237,7 +316,72 @@ const OwnerWardrobeView = ({ onBack }) => {
     );
   };
 
-  // Person-tiles landing — pick who first, then see their wardrobe (mirrors Crew).
+  // Multi-select bar — shared by the landing list and a person's page.
+  const selBar = sel.size > 0 ? (
+    <div className="ow-selbar">
+      <span className="ow-selcount">{sel.size} selected</span>
+      <button type="button" className="ow-selact" onClick={selectAllShown}>Select all shown{fLoc !== 'all' ? ' in wardrobe' : ''}</button>
+      <button type="button" className="ow-selact" onClick={clearSel}>Clear</button>
+      <span className="ow-selgap" />
+      <button type="button" className="ow-selbtn" onClick={() => runBulk('pack')}><Icon name="Package" size={14} /> Pack</button>
+      <button type="button" className="ow-selbtn" onClick={() => runBulk('launder')}><Icon name="Waves" size={14} /> Launder</button>
+      <button type="button" className="ow-selbtn" onClick={() => runBulk('move')}><Icon name="FolderInput" size={14} /> Move</button>
+      <button type="button" className="ow-selbtn danger" onClick={() => runBulk('archive')}><Icon name="Trash2" size={14} /> Archive</button>
+    </div>
+  ) : null;
+
+  // Shared modal layer — rendered on both the landing and a person's page.
+  const modals = (
+    <>
+      {showAdd && <AddGarmentModal wardrobes={wardrobes} guests={guests} defaultWardrobeId={fLoc !== 'all' && fLoc !== 'away' ? fLoc : null} showValue={showValue} onClose={() => setShowAdd(false)} onCreated={load} />}
+      {showNewWardrobe && <WardrobeEditorModal scope="owner" onClose={() => setShowNewWardrobe(false)} onCreated={load} />}
+      {fullItem && <GarmentFullView item={fullItem} wardrobes={wardrobes} showValue={showValue} caseName={fullItem.caseId ? caseName(fullItem.caseId) : null} onClose={() => setFullItem(null)} onChanged={() => { load(); setFullItem(null); }} onAction={singleAction} />}
+      {showScan && <LaundryScanModal onClose={() => setShowScan(false)} onDetect={onScan} />}
+      {chooser && (
+        <div className="ow-overlay" onClick={() => setChooser(null)}>
+          <div className="ow-chooser" onClick={(e) => e.stopPropagation()}>
+            <div className="ow-modal-head"><h2 className="ow-modal-title">{chooser.kind === 'pack' ? 'Pack into a case' : 'Move to a wardrobe'}</h2><button type="button" className="ow-x" onClick={() => setChooser(null)}><Icon name="X" size={18} /></button></div>
+            <div className="ow-chooser-list">
+              {(chooser.kind === 'pack' ? cases : wardrobes).map((t) => (
+                <button type="button" className="ow-chooser-row" key={t.id} onClick={() => chooseTarget(t.id)}>
+                  <Icon name={chooser.kind === 'pack' ? 'Package' : 'Shirt'} size={16} /><span>{t.name}</span><Icon name="ChevronRight" size={15} className="ow-chooser-chev" />
+                </button>
+              ))}
+              <button type="button" className="ow-chooser-new" onClick={createTarget}><Icon name="Plus" size={15} /> New {chooser.kind === 'pack' ? 'case' : 'wardrobe'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmState && <ConfirmModal {...confirmState} onClose={() => setConfirmState(null)} />}
+      {promptState && <PromptModal {...promptState} onClose={() => setPromptState(null)} />}
+    </>
+  );
+
+  // Toolbar — search + scan, filter, sort, shared by landing and person pages.
+  const toolbar = (extra) => (
+    <div className="ow-toolbar">
+      <div className="ow-search">
+        <Icon name="Search" size={16} className="ow-search-ic" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search garments…" />
+        <button type="button" className="ow-search-scan" onClick={() => setShowScan(true)} aria-label="Scan"><Icon name="QrCode" size={16} /></button>
+      </div>
+      <div className="ow-tools">{extra}</div>
+    </div>
+  );
+
+  // Landing figures: how many people have garments stored on board, and how many
+  // garments that is. Plus per-person counts recomputed from the filtered set.
+  const onboardStored = items.filter((i) => i.status === LaundryStatus.STORED && !i.caseId);
+  const peopleOnboard = new Set(onboardStored.map((i) => i.ownerGuestId || 'owner')).size;
+  const anyFilter = !!query.trim() || fLoc !== 'all' || fType !== 'all' || fStatus !== 'all' || fAge !== 'all';
+  const shownCounts = new Map();
+  shown.forEach((it) => { const k = it.ownerGuestId || 'owner'; shownCounts.set(k, (shownCounts.get(k) || 0) + 1); });
+  const landingPeople = people
+    .map((p) => ({ ...p, count: shownCounts.get(p.id) || 0 }))
+    .filter((p) => (anyFilter ? p.count > 0 : true));
+
+  // Landing — everyone with garments on board. Toggle person tiles (By owner)
+  // or a flat searchable list; drill into a person for their full page.
   if (personId === null) {
     return (
       <div className="ow-view">
@@ -246,15 +390,37 @@ const OwnerWardrobeView = ({ onBack }) => {
           <button type="button" className="ow-btn ghost" onClick={() => setShowNewWardrobe(true)}><Icon name="FolderPlus" size={15} /> New wardrobe</button>
         </div>
         <p className="editorial-meta">
-          <span className="dot">●</span><span>Wardrobe</span>
-          <span className="bar" /><span className="muted">Owner</span>
-          <span className="bar" /><span className="muted">{items.length} garment{items.length === 1 ? '' : 's'}</span>
+          <span className="dot">●</span>
+          <span className="muted">{peopleOnboard} {peopleOnboard === 1 ? 'person' : 'people'} on board</span>
+          <span className="bar" /><span className="muted">{onboardStored.length} stored on board</span>
         </p>
-        <h1 className="editorial-greeting">OWNER<span className="period">,</span> <em>in residence</em><span className="period">.</span></h1>
-        {loading
-          ? <div className="ow-empty">Loading the wardrobe…</div>
-          : <PersonTiles people={people} emptyLabel="No owner garments yet." onPick={setPersonId} />}
-        {showNewWardrobe && <WardrobeEditorModal scope="owner" onClose={() => setShowNewWardrobe(false)} onCreated={load} />}
+        <h1 className="editorial-greeting">STORED<span className="period">,</span> <em>onboard</em><span className="period">.</span></h1>
+
+        {toolbar(
+          <>
+            <div className="ow-grouptoggle" role="tablist" aria-label="View">
+              <button type="button" className={landView === 'owner' ? 'on' : ''} onClick={() => setLandView('owner')}>By owner</button>
+              <button type="button" className={landView === 'list' ? 'on' : ''} onClick={() => setLandView('list')}>List</button>
+            </div>
+            <FilterMenu groups={filterGroups} />
+            <SortMenu value={sort} onChange={setSort} options={sortOptions} />
+            <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>
+          </>
+        )}
+
+        {landView === 'list' && selBar}
+
+        {loading ? (
+          <div className="ow-empty">Loading the wardrobe…</div>
+        ) : landView === 'owner' ? (
+          <PersonTiles people={landingPeople} emptyLabel={anyFilter ? 'No one matches.' : 'No owner garments yet.'} onPick={setPersonId} />
+        ) : shown.length === 0 ? (
+          <div className="ow-empty">{anyFilter ? 'Nothing matches.' : 'No garments on board yet.'}</div>
+        ) : (
+          <div className="ow-list">{shown.map(renderRow)}</div>
+        )}
+
+        {modals}
       </div>
     );
   }
@@ -266,18 +432,20 @@ const OwnerWardrobeView = ({ onBack }) => {
       </div>
       {selectedPerson && (
         <div className="ow-person-head">
-          <h2 className="ow-person-nm">{selectedPerson.name}</h2>
-          <span className="ow-person-ct">{personItems.length} garment{personItems.length === 1 ? '' : 's'}</span>
+          <span className="ow-avatar">{selectedPerson.photo ? <img src={selectedPerson.photo} alt="" /> : <span>{initialsOf(selectedPerson.name)}</span>}</span>
+          <div className="ow-person-who">
+            <p className="editorial-meta">
+              <span className="dot">●</span><span>Wardrobe</span>
+              {selectedPerson.cabin && <><span className="bar" /><span className="muted">{selectedPerson.cabin}</span></>}
+              <span className="bar" /><span className="muted">{personItems.length} garment{personItems.length === 1 ? '' : 's'}</span>
+            </p>
+            <h2 className="ow-person-nm">{selectedPerson.name}</h2>
+          </div>
         </div>
       )}
 
-      <div className="ow-toolbar">
-        <div className="ow-search">
-          <Icon name="Search" size={16} className="ow-search-ic" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search garments…" />
-          <button type="button" className="ow-search-scan" onClick={() => setShowScan(true)} aria-label="Scan"><Icon name="QrCode" size={16} /></button>
-        </div>
-        <div className="ow-tools">
+      {toolbar(
+        <>
           <div className="ow-grouptoggle" role="tablist" aria-label="Group by">
             <button type="button" className={groupBy === 'location' ? 'on' : ''} onClick={() => setGroupBy('location')}>By location</button>
             <button type="button" className={groupBy === 'guest' ? 'on' : ''} onClick={() => setGroupBy('guest')}>By guest</button>
@@ -290,21 +458,10 @@ const OwnerWardrobeView = ({ onBack }) => {
           </div>
           <button type="button" className="ow-btn ghost" onClick={() => setShowNewWardrobe(true)}><Icon name="FolderPlus" size={15} /> Wardrobe</button>
           <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>
-        </div>
-      </div>
-
-      {sel.size > 0 && (
-        <div className="ow-selbar">
-          <span className="ow-selcount">{sel.size} selected</span>
-          <button type="button" className="ow-selact" onClick={selectAllShown}>Select all shown{fLoc !== 'all' ? ' in wardrobe' : ''}</button>
-          <button type="button" className="ow-selact" onClick={clearSel}>Clear</button>
-          <span className="ow-selgap" />
-          <button type="button" className="ow-selbtn" onClick={() => runBulk('pack')}><Icon name="Package" size={14} /> Pack</button>
-          <button type="button" className="ow-selbtn" onClick={() => runBulk('launder')}><Icon name="Waves" size={14} /> Launder</button>
-          <button type="button" className="ow-selbtn" onClick={() => runBulk('move')}><Icon name="FolderInput" size={14} /> Move</button>
-          <button type="button" className="ow-selbtn danger" onClick={() => runBulk('archive')}><Icon name="Trash2" size={14} /> Archive</button>
-        </div>
+        </>
       )}
+
+      {selBar}
 
       {loading ? (
         <div className="ow-empty">Loading the wardrobe…</div>
@@ -340,26 +497,7 @@ const OwnerWardrobeView = ({ onBack }) => {
         </div>
       )}
 
-      {showAdd && <AddGarmentModal wardrobes={wardrobes} guests={guests} defaultWardrobeId={fLoc !== 'all' && fLoc !== 'away' ? fLoc : null} showValue={showValue} onClose={() => setShowAdd(false)} onCreated={load} />}
-      {showNewWardrobe && <WardrobeEditorModal scope="owner" onClose={() => setShowNewWardrobe(false)} onCreated={load} />}
-      {fullItem && <GarmentFullView item={fullItem} wardrobes={wardrobes} showValue={showValue} caseName={fullItem.caseId ? caseName(fullItem.caseId) : null} onClose={() => setFullItem(null)} onChanged={() => { load(); setFullItem(null); }} onAction={singleAction} />}
-      {showScan && <LaundryScanModal onClose={() => setShowScan(false)} onDetect={onScan} />}
-
-      {chooser && (
-        <div className="ow-overlay" onClick={() => setChooser(null)}>
-          <div className="ow-chooser" onClick={(e) => e.stopPropagation()}>
-            <div className="ow-modal-head"><h2 className="ow-modal-title">{chooser.kind === 'pack' ? 'Pack into a case' : 'Move to a wardrobe'}</h2><button type="button" className="ow-x" onClick={() => setChooser(null)}><Icon name="X" size={18} /></button></div>
-            <div className="ow-chooser-list">
-              {(chooser.kind === 'pack' ? cases : wardrobes).map((t) => (
-                <button type="button" className="ow-chooser-row" key={t.id} onClick={() => chooseTarget(t.id)}>
-                  <Icon name={chooser.kind === 'pack' ? 'Package' : 'Shirt'} size={16} /><span>{t.name}</span><Icon name="ChevronRight" size={15} className="ow-chooser-chev" />
-                </button>
-              ))}
-              <button type="button" className="ow-chooser-new" onClick={createTarget}><Icon name="Plus" size={15} /> New {chooser.kind === 'pack' ? 'case' : 'wardrobe'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {modals}
     </div>
   );
 };
