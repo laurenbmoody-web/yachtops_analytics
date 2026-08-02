@@ -560,6 +560,9 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
   const [dept, setDept] = useState('all');
   const [sort, setSort] = useState('name');
   const [crewView, setCrewView] = useState('tiles'); // tiles (by crew) | list (combined uniform)
+  const [crewKitFilter, setCrewKitFilter] = useState('all'); // by-crew: all | issued | none | awaiting
+  const [listCharter, setListCharter] = useState('all'); // list: charter section filter
+  const [listType, setListType] = useState('all');        // list: type / category filter
   // Member kit view — its own search / filter / sort (mirrors inventory tiles).
   const [kq, setKq] = useState('');
   const [kCharter, setKCharter] = useState('all');
@@ -625,10 +628,20 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
   const depts = useMemo(() => [...new Set(roster.map((c) => c.department).filter((d) => d && d !== '—'))].sort(), [roster]);
   const deptMatch = (c) => dept === 'all' || c.department === dept;
 
-  // Roster as tiles — filtered by department + name search, sorted.
+  // Crew with kit awaiting their sign-off (in-service, unacknowledged, no swap).
+  const awaitingByUser = useMemo(() => {
+    const s = new Set();
+    kit.forEach((k) => { if (k.status === 'in_service' && !k.acknowledged_at && !k.swap_requested_size) s.add(k.user_id); });
+    return s;
+  }, [kit]);
+
+  // Roster as tiles — filtered by department + kit status + name search, sorted.
   const tilePeople = useMemo(() => {
     const s = q.trim().toLowerCase();
     let list = roster.filter(deptMatch);
+    if (crewKitFilter === 'issued') list = list.filter((c) => (countByUser[c.id] || 0) > 0);
+    else if (crewKitFilter === 'none') list = list.filter((c) => !(countByUser[c.id] || 0));
+    else if (crewKitFilter === 'awaiting') list = list.filter((c) => awaitingByUser.has(c.id));
     if (s) list = list.filter((c) => (c.fullName || '').toLowerCase().includes(s));
     const rows = list.map((c) => ({
       id: c.id, name: c.fullName, photo: c.photo,
@@ -637,7 +650,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     }));
     rows.sort((a, b) => (sort === 'most' ? b.count - a.count : sort === 'fewest' ? a.count - b.count : (a.name || '').localeCompare(b.name || '')));
     return rows;
-  }, [roster, q, dept, sort, countByUser]);
+  }, [roster, q, dept, sort, countByUser, crewKitFilter, awaitingByUser]);
 
   // List view — every in-service item combined across the (dept-filtered) crew,
   // keyed by item + size (3 crew each holding 2 × Polo white M → 6 × Polo white M),
@@ -652,11 +665,12 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     const cat = r.category || 'other';
     return { key: `e|${cat}`, kind: 'equip', category: cat, title: kitCategoryLabel(cat), icon: CATEGORY_ICON[cat] || 'Package' };
   };
-  const listGroups = useMemo(() => {
+  // Aggregate one row per item (sizes rolled up), dept-filtered, with its section.
+  const secCharter = (sec) => (sec.kind === 'uniform' ? sec.charter : 'General');
+  const secType = (sec) => (sec.kind === 'uniform' ? sec.type : sec.title);
+  const listRows = useMemo(() => {
     const ids = new Set(roster.filter(deptMatch).map((c) => c.id));
     const m = new Map();
-    // One entry per item (across sizes) — sizes roll up into a breakdown so a
-    // multi-size item is a single line, not one row per size.
     kit.filter((k) => k.status === 'in_service' && ids.has(k.user_id)).forEach((k) => {
       const cat = k.category || 'uniform';
       const key = `${(k.item || '').trim().toLowerCase()}|${cat}`;
@@ -668,11 +682,27 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
       if (r.value == null && k.value != null) r.value = k.value;
       if (!r.invId && k.inventory_item_id) r.invId = k.inventory_item_id;
     });
-    let rows = [...m.values()].map((r) => {
+    return [...m.values()].map((r) => {
       const sizes = [...r.sizes.entries()].map(([size, qty]) => ({ size, qty })).sort((a, b) => sizeSort(a.size, b.size));
       const total = sizes.reduce((a, s) => a + s.qty, 0);
       return { item: r.item, category: r.category, value: r.value, invId: r.invId, img: itemById[r.invId]?.imageUrl || null, sizes, total, holders: r.holders.size, section: sectionFor(r) };
     });
+  }, [kit, roster, dept, itemById]);
+
+  // Charter + type options present in the list, for its filter menu.
+  const listCharters = useMemo(
+    () => [...new Set(listRows.map((r) => secCharter(r.section)))].sort((a, b) => (CHARTER_ORDER[a] ?? 9) - (CHARTER_ORDER[b] ?? 9)),
+    [listRows]
+  );
+  const listTypes = useMemo(
+    () => [...new Set(listRows.map((r) => secType(r.section)))].sort((a, b) => ((TYPE_ORDER[a] ?? 9) - (TYPE_ORDER[b] ?? 9)) || a.localeCompare(b)),
+    [listRows]
+  );
+
+  const listGroups = useMemo(() => {
+    let rows = listRows;
+    if (listCharter !== 'all') rows = rows.filter((r) => secCharter(r.section) === listCharter);
+    if (listType !== 'all') rows = rows.filter((r) => secType(r.section) === listType);
     const s = q.trim().toLowerCase();
     if (s) rows = rows.filter((r) => `${r.item} ${r.sizes.map((x) => x.size).join(' ')} ${r.section.title}`.toLowerCase().includes(s));
     const g = new Map();
@@ -688,14 +718,22 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
       return (CATEGORY_ORDER[a.category] ?? 9) - (CATEGORY_ORDER[b.category] ?? 9);
     });
     return groups;
-  }, [kit, roster, dept, q, sort, itemById]);
+  }, [listRows, q, sort, listCharter, listType]);
 
   const sortOptions = crewView === 'list'
     ? [{ val: 'item', label: 'Item (A–Z)' }, { val: 'qty', label: 'Quantity (high → low)' }]
     : [{ val: 'name', label: 'Name (A–Z)' }, { val: 'most', label: 'Most issued' }, { val: 'fewest', label: 'Fewest issued' }];
-  const filterGroups = [
-    { key: 'dept', label: 'Department', value: dept, neutral: 'all', onChange: setDept, options: [{ value: 'all', label: 'All departments' }, ...depts.map((d) => ({ value: d, label: d }))] },
-  ];
+  const deptGroup = { key: 'dept', label: 'Department', value: dept, neutral: 'all', onChange: setDept, options: [{ value: 'all', label: 'All departments' }, ...depts.map((d) => ({ value: d, label: d }))] };
+  const filterGroups = crewView === 'list'
+    ? [
+      deptGroup,
+      { key: 'charter', label: 'Charter', value: listCharter, neutral: 'all', onChange: setListCharter, options: [{ value: 'all', label: 'All' }, ...listCharters.map((c) => ({ value: c, label: c }))] },
+      { key: 'type', label: 'Type', value: listType, neutral: 'all', onChange: setListType, options: [{ value: 'all', label: 'All types' }, ...listTypes.map((t) => ({ value: t, label: t }))] },
+    ]
+    : [
+      deptGroup,
+      { key: 'kit', label: 'Kit', value: crewKitFilter, neutral: 'all', onChange: setCrewKitFilter, options: [{ value: 'all', label: 'Everyone' }, { value: 'issued', label: 'Has kit issued' }, { value: 'none', label: 'No kit yet' }, { value: 'awaiting', label: 'Awaiting sign-off' }] },
+    ];
   const switchView = (v) => { setCrewView(v); setSort(v === 'list' ? 'item' : 'name'); };
 
   const [exportingList, setExportingList] = useState(false);
