@@ -184,28 +184,42 @@ export const typoKind = (ours, theirs) => {
   return null;
 };
 
-export const differenceLead = (
-  candidates = [], cargoHasMore = true, { ours, theirs, amountText = '' } = {},
-) => {
+// What the gap MEANS, which is not the same as which number is bigger. On total
+// out, Cargo being higher means Cargo holds a charge the bank never made. On the
+// closing balance it's the reverse: Cargo higher means more money left, which
+// means LESS spend recorded — a line missing. Reading both off `ours > theirs`
+// gave the closing-balance case exactly the wrong advice.
+export const differenceMeaning = (key, ours, theirs) => {
+  if (key === 'opening') return 'opening';
+  const cargoHigher = Number(ours) > Number(theirs);
+  if (key === 'closing') return cargoHigher ? 'missingOut' : 'extraOut';
+  if (key === 'moneyIn') return cargoHigher ? 'extraIn' : 'missingIn';
+  return cargoHigher ? 'extraOut' : 'missingOut';   // moneyOut
+};
+
+const SAY = {
+  extraOut: (gap) => `Cargo has ${gap} of spending the statement doesn’t. Check for a line the bank never charged — then re-check the figure you typed.`,
+  missingOut: (gap) => `Cargo is missing ${gap} of spending the statement has. Check for a line that never made it in — then re-check the figure you typed.`,
+  extraIn: (gap) => `Cargo has ${gap} of money in the statement doesn’t. Check for a payment that never actually arrived — then re-check the figure you typed.`,
+  missingIn: (gap) => `Cargo is missing ${gap} of money in the statement has. Check for a payment in that was never recorded — then re-check the figure you typed.`,
+  opening: (gap) => `The opening balance is ${gap} out. That figure is last month’s closing balance — check that month before this one.`,
+};
+
+export const differenceLead = (candidates = [], { key = 'moneyOut', ours, theirs, amountText = '' } = {}) => {
   if (candidates.length) {
     return candidates.length === 1
       ? 'One line would explain it:'
       : `${candidates.length} lines could explain it:`;
   }
 
-  // Check the typing first. "Look for a line the bank hasn't posted" is a long
-  // job, and it's the wrong one when the two figures differ by a single digit.
+  // Check the typing first. Hunting for a missing line is a long job, and it's
+  // the wrong one when the two figures differ by a single digit.
   const typo = typoKind(ours, theirs);
   if (typo) {
-    // Same voice: what's wrong, then what to do about it.
     return `These two figures are ${typo}. Check the one you typed against the statement before looking for a missing line.`;
   }
 
-  // Which way round it is decides where you go and look, so that leads. Then the
-  // two jobs, in the order anyone would actually do them: the ledger first,
-  // because that's where a real error lives, and the typing second.
   const gap = amountText || 'the difference';
-  return cargoHasMore
-    ? `Cargo is ${gap} higher than the statement. Check for a line the bank never charged — then re-check the figure you typed.`
-    : `The statement is ${gap} higher than Cargo. Check for spending that never made it in — then re-check the figure you typed.`;
+  return SAY[differenceMeaning(key, ours, theirs)](gap);
 };
+
