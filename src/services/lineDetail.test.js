@@ -216,12 +216,13 @@ test('requirementState reports each requirement and a count', () => {
   const ship = { funds_type: 'general' };
   const bare = requirementState({}, { account: ship, hasReceipt: false });
   assert.equal(bare.count, 0);
-  assert.equal(bare.total, 5);
+  // Four required; the note is tracked but optional, so it isn't one of them.
+  assert.equal(bare.total, 4);
   assert.equal(bare.done.category, false);
 
   const part = requirementState({ category: 'Deck Consumables', note: 'hose' }, { account: ship, hasReceipt: false });
-  assert.equal(part.count, 2);
-  assert.equal(part.done.note, true);
+  assert.equal(part.count, 1);          // the category — the note doesn't count toward it
+  assert.equal(part.done.note, true);   // still reported, for the panel's track
   assert.equal(part.done.receipt, false);
 });
 
@@ -229,7 +230,7 @@ test('a split line counts department as covered — the parts carry it', () => {
   const ctx = { account: { funds_type: 'owner' }, hasReceipt: true, splitCount: 2 };
   const r = requirementState({ category: 'X', note: 'y' }, ctx);
   assert.equal(r.done.department, true);
-  assert.equal(r.count, 5);
+  assert.equal(r.count, 4);
 });
 
 test('charter allocation is only "done" once the charter is named', () => {
@@ -415,20 +416,21 @@ test('declaring there is no receipt counts as evidence', () => {
     { category: 'X', note: 'y', department: 'Deck', receipt_waived: true, receipt_waived_reason: 'Bank charge' }, ctx,
   );
   assert.equal(waived.done.receipt, true);
-  assert.equal(waived.count, 5);
+  assert.equal(waived.count, 4);
   assert.equal(lineState({ category: 'X', note: 'y', department: 'Deck', receipt_waived: true, receipt_waived_reason: 'Bank charge' }, ctx), 'complete');
 });
 
 // ── outstanding items are named, not counted ────────────────────────────────
 test('outstandingText says what is actually missing', () => {
   const ctx = { account: { funds_type: 'owner' }, hasReceipt: true };
+  // A line with everything required is silent — it used to say "needs a note".
   assert.equal(
     outstandingText({ category: 'X', department: 'Deck' }, ctx),
-    'needs a note',
+    '',
   );
   assert.equal(
     outstandingText({ category: 'X' }, ctx),
-    'needs a note and a department',
+    'needs a department',
   );
   assert.match(outstandingText({}, { account: { funds_type: 'general' }, hasReceipt: false }), /and \d+ more/);
 });
@@ -518,4 +520,44 @@ test('an invoice-backed line needs no waiver reason', () => {
 test('everything else still needs a receipt or a stated reason', () => {
   assert.equal(hasEvidence({ supplier_invoice_id: null }, false), false);
   assert.equal(hasEvidence({ supplier_invoice_id: '' }, false), false);
+});
+
+// ── what a line actually has to have ────────────────────────────────────────
+test('a note is not outstanding — it is worth having, not required', () => {
+  // Nearly every row read "needs a note", which is the ledger telling the crew
+  // off for not writing prose about Alfies Fish & Chips.
+  const txn = { category: 'Guest Food Stock', department: 'Galley', allocation: 'owner', note: '' };
+  assert.equal(outstandingText(txn, { hasReceipt: true }), '');
+});
+
+test('a department Cargo can work out is answered, not outstanding', () => {
+  // The row said "needs a department" while the panel showed one, because the
+  // panel displays the derived value and the check only read the stored one.
+  const txn = { category: 'Crew Uniforms', allocation: 'owner' };
+  assert.equal(
+    outstandingText(txn, { hasReceipt: true, spenderDepartment: 'Interior' }),
+    '',
+  );
+});
+
+test('but the reconciler own department does not answer it', () => {
+  // "Whoever happens to be looking is Bridge" is a prompt, not a fact about the
+  // spend — so it stays outstanding.
+  const txn = { category: 'Crew Travelling', allocation: 'owner' };
+  assert.match(outstandingText(txn, { hasReceipt: true }), /a department/);
+});
+
+test('the four that matter are still demanded', () => {
+  const bare = {};
+  const text = outstandingText(bare, { hasReceipt: false });
+  assert.match(text, /a category/);
+  assert.match(text, /a receipt/);
+  assert.doesNotMatch(text, /a note/);
+});
+
+test('the completeness count ignores the optional ones', () => {
+  const txn = { category: 'X', department: 'Galley', allocation: 'owner', note: '' };
+  const st = requirementState(txn, { hasReceipt: true });
+  assert.equal(st.total, 4);
+  assert.equal(st.count, 4);            // complete without a note
 });
