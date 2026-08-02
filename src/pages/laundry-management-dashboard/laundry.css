@@ -207,8 +207,8 @@
   box-shadow: 0 20px 44px -18px rgba(28, 27, 58, 0.22); padding: 14px;
   display: flex; flex-direction: column; gap: 12px; max-height: 70vh; overflow-y: auto;
 }
-.lmf-group { display: flex; flex-direction: column; gap: 6px; }
-.lmf-label { font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; }
+.lmf-group { display: flex; flex-direction: column; }
+.lmf-label { font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; margin-bottom: 6px; }
 /* Cargo filter field — a button that expands its options inline (no native select). */
 .lmf-field {
   width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
