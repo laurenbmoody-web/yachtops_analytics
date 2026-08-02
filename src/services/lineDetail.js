@@ -226,9 +226,17 @@ export const straddlesMonth = (txn) => {
 // The five things a reconciled line needs, in the order they're worked through.
 // The UI renders these as a small filled/unfilled track (no pills, no prose) so
 // the state of every line is scannable down the list.
+// What a line needs before its month can be defended. `optional` items still show
+// in the detail panel's track — they're worth having — but they don't count as
+// outstanding on the row, because a row that says "needs a note" on every line is
+// telling the crew off for not writing prose about Alfies Fish & Chips.
+//
+// The four that aren't optional are the ones an auditor would ask for: what it
+// was (category), proof (receipt or a stated reason), who bears it (allocation),
+// and which department it lands in.
 export const REQUIREMENTS = [
   { key: 'category', label: 'Category' },
-  { key: 'note', label: 'Description' },
+  { key: 'note', label: 'Description', optional: true },
   { key: 'receipt', label: 'Receipt' },
   { key: 'department', label: 'Department' },
   { key: 'allocation', label: 'Who pays' },
@@ -265,7 +273,9 @@ export const receiptWaiverPatch = (reason) => {
 };
 
 // Per-requirement done/not, plus the count — the data behind the track.
-export const requirementState = (txn, { account, hasReceipt, splitCount = 0 } = {}) => {
+export const requirementState = (txn, {
+  account, hasReceipt, splitCount = 0, spenderDepartment = '',
+} = {}) => {
   const alloc = txn?.allocation || defaultAllocation(txn, account);
   const charterOk = alloc !== 'charter' || !needsTripPick(alloc, account)
     || Boolean(txn?.trip_id || txn?.charter_ref);
@@ -274,12 +284,23 @@ export const requirementState = (txn, { account, hasReceipt, splitCount = 0 } = 
     category: Boolean(txn?.category) || splitCount > 0,
     note: Boolean(txn?.note),
     receipt: hasEvidence(txn, hasReceipt),
-    // A split line carries its departments on the parts, so the parent needn't repeat it.
-    department: Boolean(txn?.department) || splitCount > 0,
+    // A split line carries its departments on the parts, so the parent needn't
+    // repeat it. Beyond that, a department Cargo can work out from the category
+    // code or from whose card it is counts as answered: the row was saying "needs
+    // a department" while the panel showed one, because the panel displays the
+    // derived value and this only looked at the stored one.
+    //
+    // The reconciler's own department is NOT a derivation — that's "whoever
+    // happens to be looking", so it stays a prompt rather than an answer.
+    department: Boolean(txn?.department) || splitCount > 0
+      || Boolean(departmentForCode(txn?.category_code)) || Boolean(spenderDepartment),
     allocation: Boolean(alloc) && charterOk,
   };
-  const count = REQUIREMENTS.filter((r) => done[r.key]).length;
-  return { done, count, total: REQUIREMENTS.length };
+  // The row's rail (untouched / part-way / complete) reads off the required
+  // ones, so an unwritten note can't hold a line at amber forever.
+  const required = REQUIREMENTS.filter((r) => !r.optional);
+  const count = required.filter((r) => done[r.key]).length;
+  return { done, count, total: required.length };
 };
 
 // What's outstanding, in words, shortest useful form — e.g. "needs a note" or
@@ -296,7 +317,7 @@ const NEEDS_WORDING = {
 
 export const outstandingText = (txn, ctx = {}) => {
   const { done } = requirementState(txn, ctx);
-  const missing = REQUIREMENTS.filter((r) => !done[r.key]).map((r) => (
+  const missing = REQUIREMENTS.filter((r) => !r.optional && !done[r.key]).map((r) => (
     // A ticked "no receipt" box with nothing typed needs the reason, not a receipt.
     r.key === 'receipt' && txn?.receipt_waived ? NEEDS_WORDING.receiptReason : NEEDS_WORDING[r.key]
   ));

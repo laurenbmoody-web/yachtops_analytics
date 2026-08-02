@@ -15,10 +15,12 @@
 .ld-wide { grid-column: 1 / -1; }
 .ld-grow { flex: 1 1 260px; }
 
-.ld-input { width: 100%; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 8px;
+/* White, not the soft field tint. On a white panel the tint read as disabled —
+   and these are the things you're here to fill in. */
+.ld-input { width: 100%; background: #fff; border: 1px solid #E5E7EB; border-radius: 8px;
   padding: 7px 10px; font: inherit; font-size: 12.5px; color: #1C1B3A; outline: none; }
 .ld-input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
-.ld-input.is-need { border-color: #C9A227; background: #FDFBF2; }
+.ld-input.is-need { border-color: #C9A227; }
 select.ld-input { cursor: pointer; }
 
 .ld-hint { display: block; font-size: 10.5px; color: #8B8478; margin-top: 5px; }
@@ -100,7 +102,7 @@ select.ld-input { cursor: pointer; }
   60%     { transform: translateX(-3px); }
   80%     { transform: translateX(2px); }
 }
-.ld-input.is-shake { animation: ld-shake .4s ease; border-color: #C65A1A; background: #FDF1EB; }
+.ld-input.is-shake { animation: ld-shake .4s ease; border-color: #C65A1A; }
 @media (prefers-reduced-motion: reduce) {
   .ld-input.is-shake { animation: none; }
 }
@@ -111,7 +113,7 @@ select.ld-input { cursor: pointer; }
 
 /* A spend date that can't be right (after the bank posted it) — the same warning
    the native field carried, now on the editorial picker's own frame. */
-.edp.is-need .edp-field { border-color: #C9A227; box-shadow: 0 0 0 3px #FBF3DC; }
+.edp.is-need .edp-field { border-color: #C9A227; }
 
 /* The picker and the dropdowns are full-width controls in a field column, so
    they sit on the grid the same way the inputs beside them do. */
@@ -124,3 +126,7 @@ select.ld-input { cursor: pointer; }
 .ld-links .ca-links-l {
   font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
 }
+
+/* Disabled is where a fill is meaningful — it says "not yours to change" rather
+   than decorating an editable box. */
+.ld-input:disabled { background: #FAFAF8; color: #8B8478; }

@@ -734,7 +734,14 @@ export default function Ledger() {
     const atts = attByTxn[t.id] || [];
     const rowSplits = splitsByTxn[t.id] || [];
     const alloc = t.allocation || defaultAllocation(t, acct);
-    const ctx = { account: acct, hasReceipt: atts.length > 0, splitCount: rowSplits.length };
+    // spenderDepartment so the row agrees with the panel: a department Cargo can
+    // work out from whose card it is counts as answered, not outstanding.
+    const ctx = {
+      account: acct,
+      hasReceipt: atts.length > 0,
+      splitCount: rowSplits.length,
+      spenderDepartment: crew.find((c) => c.id === (t.crew_id || acct?.holder_user_id))?.department || '',
+    };
     const state = voided ? 'void' : lineState(t, ctx);
     const outstanding = voided ? '' : outstandingText(t, ctx);
     return (
