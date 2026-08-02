@@ -126,17 +126,17 @@ test('the lead counts what was found', () => {
   assert.equal(differenceLead([{}, {}]), '2 lines could explain it:');
 });
 
-test('finding nothing names the amount and the two real causes', () => {
-  // Not "a line hasn't been entered" — by here nothing single OR paired matched,
-  // so the honest options are a charge that never happened and a mistype.
+test('finding nothing leads with which way round it is, then the two jobs', () => {
+  // The direction is what decides where you go and look, so it comes first.
   const more = differenceLead([], true, { ours: 100, theirs: 98, amountText: '£2.00' });
-  assert.match(more, /Nothing here adds up to £2\.00/);
+  assert.match(more, /^Cargo is £2\.00 higher than the statement\./);
   assert.match(more, /the bank never charged/);
-  assert.match(more, /mistyped/);
+  assert.match(more, /re-check the figure you typed/);
 
   const less = differenceLead([], false, { ours: 98, theirs: 100, amountText: '£2.00' });
-  assert.match(less, /never reached Cargo/);
-  assert.match(less, /mistyped/);
+  assert.match(less, /^The statement is £2\.00 higher than Cargo\./);
+  assert.match(less, /never made it in/);
+  assert.match(less, /re-check the figure you typed/);
 });
 
 // ── a mistype is not a missing transaction ──────────────────────────────────
@@ -168,11 +168,11 @@ test('a genuinely different figure is not a mistype', () => {
 test('the lead checks the typing before sending anyone hunting', () => {
   const lead = differenceLead([], true, { ours: 12923.90, theirs: 12921.90 });
   assert.match(lead, /one digit out/);
-  assert.match(lead, /what was typed/);
+  assert.match(lead, /the one you typed/);
 });
 
 test('with no amount given it still reads as a sentence', () => {
-  assert.match(differenceLead([], true, { ours: 12923.90, theirs: 11500 }), /adds up to the difference/);
+  assert.match(differenceLead([], true, { ours: 12923.90, theirs: 11500 }), /the difference higher than the statement/);
 });
 
 test('a matching line still wins over any of it', () => {
