@@ -1,11 +1,12 @@
 // Warehouse layout designer — the supplier draws their unit and lays out racks.
 //
 // Two modes. In VIEW mode the floor is read-only and clicking a rack opens its
-// head-on section view. Press "Edit" and it becomes "Save", "Add rack" appears,
-// the room walls + racks become editable, and clicking a rack opens a compact
-// editor popover next to it. Racks can be single- or double-sided; a double
-// rack has an independent Front and Back (own code / name / zone / bays) sharing
-// the same height (levels). Autosaves silently. Coordinate space x:0..100,y:0..60.
+// head-on section view (for linking products). Press "Edit" → it becomes
+// "Save", "Add rack" appears, walls + racks become editable, and clicking a
+// rack opens its editor popover. Racks are a base rectangle (len × thick) placed
+// at any free angle via an on-rack rotate handle. A rack can be single- or
+// double-sided; each side (Front / Back) has its own code, name, zone and bays,
+// sharing the same height (levels). Autosaves. Space x:0..100, y:0..60 (square).
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -23,8 +24,9 @@ const ZC = Object.fromEntries(ZONES.map((z) => [z.key, z.color]));
 const DEFAULT_LEVELS = { ambient: 4, chilled: 3, frozen: 2 };
 
 const clamp = (min, max, v) => Math.max(min, Math.min(max, v));
-const dims = (r) => (r.orient === 'h' ? { w: r.len, h: r.thick } : { w: r.thick, h: r.len });
 const topPct = (y) => (y / 60) * 100;
+const rad = (deg) => (deg * Math.PI) / 180;
+const centerOf = (r) => ({ cx: r.x + r.len / 2, cy: r.y + r.thick / 2 });
 
 const levelDefs = (n) => {
   const out = [];
@@ -33,7 +35,6 @@ const levelDefs = (n) => {
   return out;
 };
 
-// Normalise older/looser saved racks into the {faces:[…]} model.
 const mkFace = (f, fb) => ({
   code: (f?.code ?? fb.code ?? '').toString().toUpperCase(),
   name: f?.name ?? fb.name ?? '',
@@ -47,7 +48,8 @@ const normalizeRack = (r) => {
   const f1 = mkFace(r.faces?.[1], { ...base, code: base.code ? `${base.code}-B` : '', name: '' });
   return {
     id: r.id,
-    x: r.x ?? 40, y: r.y ?? 24, len: r.len ?? 28, thick: r.thick ?? 6, orient: r.orient || 'h',
+    x: r.x ?? 40, y: r.y ?? 24, len: r.len ?? 28, thick: r.thick ?? 6,
+    angle: typeof r.angle === 'number' ? r.angle : (r.orient === 'v' ? 90 : 0),
     levels: clamp(1, 8, r.levels ?? DEFAULT_LEVELS[f0.zone] ?? 3),
     sides,
     faces: sides === 2 ? [f0, f1] : [f0],
@@ -91,11 +93,8 @@ export default function WarehouseDesigner({ supplierId }) {
     const rect = roomRef.current.getBoundingClientRect();
     return { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 60 };
   };
-  const clampRack = (r) => {
-    const { w, h } = dims(r);
-    return { ...r, x: clamp(0, 100 - w, r.x), y: clamp(0, 60 - h, r.y) };
-  };
-  const patchRack = (id, patch) => setRacks((rs) => rs.map((r) => (r.id === id ? clampRack({ ...r, ...patch }) : r)));
+  const clampRack = (r) => ({ ...r, x: clamp(-r.len / 2, 100 - r.len / 2, r.x), y: clamp(-r.thick / 2, 60 - r.thick / 2, r.y) });
+  const patchRack = (id, patch) => setRacks((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const patchFace = (id, fi, patch) => setRacks((rs) => rs.map((r) => (r.id === id
     ? { ...r, faces: r.faces.map((f, i) => (i === fi ? { ...f, ...patch } : f)) } : r)));
   const setSides = (id, n) => setRacks((rs) => rs.map((r) => {
@@ -106,29 +105,33 @@ export default function WarehouseDesigner({ supplierId }) {
     }
     return { ...r, sides: 1, faces: [r.faces[0]] };
   }));
-  const rotateRack = (id) => setRacks((rs) => rs.map((r) => (r.id === id ? clampRack({ ...r, orient: r.orient === 'h' ? 'v' : 'h' }) : r)));
 
   useEffect(() => {
     const onMove = (e) => {
       const ds = dragRef.current; if (!ds) return;
       const p = pct(e);
-      if (Math.abs(e.clientX - ds.cx) + Math.abs(e.clientY - ds.cy) > 4) ds.moved = true;
+      if (Math.abs(e.clientX - ds.cx0) + Math.abs(e.clientY - ds.cy0) > 4) ds.moved = true;
       if (ds.type === 'rack') {
         setRacks((rs) => rs.map((r) => (r.id === ds.id
           ? clampRack({ ...r, x: Math.round(ds.ox + (p.x - ds.sx)), y: Math.round(ds.oy + (p.y - ds.sy)) }) : r)));
+      } else if (ds.type === 'rotate') {
+        let a = (Math.atan2(p.y - ds.ccy, p.x - ds.ccx) * 180) / Math.PI + 90;
+        a = ((a % 360) + 360) % 360;
+        const snapped = Math.round(a / 15) * 15;
+        if (Math.abs(a - snapped) < 4) a = snapped % 360;
+        setRacks((rs) => rs.map((r) => (r.id === ds.id ? { ...r, angle: Math.round(a) } : r)));
       } else if (ds.type === 'resize') {
+        const A = rad(ds.ang), cosA = Math.cos(A), sinA = Math.sin(A);
         setRacks((rs) => rs.map((r) => {
           if (r.id !== ds.id) return r;
-          const n = { ...r };
           if (ds.which === 'len') {
-            const d = r.orient === 'h' ? (p.x - ds.sx) : (p.y - ds.sy);
-            const cap = r.orient === 'h' ? 100 - r.x : 60 - r.y;
-            n.len = clamp(8, cap, ds.olen + d);
-          } else {
-            const d = r.orient === 'h' ? (p.y - ds.sy) : (p.x - ds.sx);
-            n.thick = clamp(3, 16, ds.othick + d);
+            const d = (p.x - ds.sx) * cosA + (p.y - ds.sy) * sinA;
+            const len = clamp(8, 96, ds.olen + 2 * d);
+            return { ...r, len, x: ds.ccx - len / 2, y: ds.ccy - ds.othick / 2 };
           }
-          return clampRack(n);
+          const d = (p.x - ds.sx) * -sinA + (p.y - ds.sy) * cosA;
+          const thick = clamp(3, 22, ds.othick + 2 * d);
+          return { ...r, thick, x: ds.ccx - ds.olen / 2, y: ds.ccy - thick / 2 };
         }));
       } else if (ds.type === 'vertex') {
         setShape((s) => ({ points: s.points.map((pt, i) => (i === ds.i
@@ -142,24 +145,29 @@ export default function WarehouseDesigner({ supplierId }) {
   }, []);
 
   const onRackDown = (e, r) => {
-    if (!editMode) return; // view mode: let onClick open head-on
+    if (!editMode) return;
     e.stopPropagation();
     const p = pct(e); setSel(r.id);
-    dragRef.current = { type: 'rack', id: r.id, sx: p.x, sy: p.y, ox: r.x, oy: r.y, cx: e.clientX, cy: e.clientY, moved: false };
+    dragRef.current = { type: 'rack', id: r.id, sx: p.x, sy: p.y, ox: r.x, oy: r.y, cx0: e.clientX, cy0: e.clientY, moved: false };
   };
   const onRackClick = (r) => { if (!editMode) setModalRack(r); };
+  const startRotate = (e, r) => {
+    e.stopPropagation();
+    const { cx, cy } = centerOf(r);
+    dragRef.current = { type: 'rotate', id: r.id, ccx: cx, ccy: cy, cx0: e.clientX, cy0: e.clientY, moved: true };
+  };
   const startResize = (e, r, which) => {
     e.stopPropagation();
-    const p = pct(e);
-    dragRef.current = { type: 'resize', id: r.id, which, sx: p.x, sy: p.y, olen: r.len, othick: r.thick, cx: e.clientX, cy: e.clientY, moved: true };
+    const p = pct(e); const { cx, cy } = centerOf(r);
+    dragRef.current = { type: 'resize', id: r.id, which, sx: p.x, sy: p.y, olen: r.len, othick: r.thick, ang: r.angle || 0, ccx: cx, ccy: cy, cx0: e.clientX, cy0: e.clientY, moved: true };
   };
-  const startVertex = (e, i) => { e.stopPropagation(); dragRef.current = { type: 'vertex', i, cx: e.clientX, cy: e.clientY, moved: false }; };
+  const startVertex = (e, i) => { e.stopPropagation(); dragRef.current = { type: 'vertex', i, cx0: e.clientX, cy0: e.clientY, moved: false }; };
 
   const nextId = () => { let n = 1; while (racks.some((r) => r.id === `R${n}`)) n += 1; return `R${n}`; };
   const addRack = () => {
     const id = nextId();
-    const r = clampRack({ id, x: 40, y: 24, len: 28, thick: 6, orient: 'h', levels: DEFAULT_LEVELS.ambient, sides: 1,
-      faces: [{ code: id, name: '', zone: 'ambient', bays: 4 }] });
+    const r = { id, x: 40, y: 24, len: 28, thick: 6, angle: 0, levels: DEFAULT_LEVELS.ambient, sides: 1,
+      faces: [{ code: id, name: '', zone: 'ambient', bays: 4 }] };
     setRacks((rs) => [...rs, r]); setSel(id);
   };
   const deleteRack = () => { setRacks((rs) => rs.filter((r) => r.id !== sel)); setSel(null); };
@@ -209,36 +217,49 @@ export default function WarehouseDesigner({ supplierId }) {
           </svg>
 
           {racks.map((r) => {
-            const { w, h } = dims(r);
-            const bays = Array.from({ length: r.faces[0].bays }, (_, i) => <span key={i} className="b" />);
+            const front = r.faces[0]; const back = r.faces[1];
             return (
               <div key={r.id}
-                className={`wd-rk ${r.orient}${sel === r.id ? ' sel' : ''}${!editMode ? ' view' : ''}`}
-                style={{ left: `${r.x}%`, top: `${topPct(r.y)}%`, width: `${w}%`, height: `${topPct(h)}%`, '--zc': ZC[r.faces[0].zone] }}
-                title={r.faces[0].name || r.faces[0].code}
+                className={`wd-rk${sel === r.id ? ' sel' : ''}${!editMode ? ' view' : ''}`}
+                style={{ left: `${r.x}%`, top: `${topPct(r.y)}%`, width: `${r.len}%`, height: `${topPct(r.thick)}%`,
+                  transform: `rotate(${r.angle || 0}deg)`, '--zc': ZC[front.zone] }}
+                title={front.name || front.code}
                 onPointerDown={(e) => onRackDown(e, r)} onClick={() => onRackClick(r)}>
-                <span className="cap" />
-                <span className="bays">{bays}</span>
-                {r.sides === 2 && <span className="wd-mid" />}
-                {r.sides === 2 && <span className="cap back" style={{ background: ZC[r.faces[1].zone] }} />}
-                <span className="lab">{r.faces[0].code}</span>
+                {r.sides === 2 ? (
+                  <>
+                    <span className="cap dual" style={{ background: `linear-gradient(180deg, ${ZC[front.zone]} 0 50%, ${ZC[back.zone]} 50% 100%)` }} />
+                    <span className="wd-dface">
+                      <span className="wd-dhalf"><span className="wd-dcode">{front.code}</span></span>
+                      <span className="wd-mid" />
+                      <span className="wd-dhalf"><span className="wd-dcode">{back.code}</span></span>
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="cap" />
+                    <span className="bays">{Array.from({ length: front.bays }, (_, i) => <span key={i} className="b" />)}</span>
+                    <span className="lab">{front.code}</span>
+                  </>
+                )}
               </div>
             );
           })}
 
           {editMode && selRack && (() => {
-            const { w, h } = dims(selRack);
-            const lenH = selRack.orient === 'h' ? { left: selRack.x + w, top: selRack.y + h / 2 } : { left: selRack.x + w / 2, top: selRack.y + h };
-            const thH = selRack.orient === 'h' ? { left: selRack.x + w / 2, top: selRack.y + h } : { left: selRack.x + w, top: selRack.y + h / 2 };
+            const A = rad(selRack.angle || 0), cosA = Math.cos(A), sinA = Math.sin(A);
+            const { cx, cy } = centerOf(selRack);
+            const lh = { x: cx + (selRack.len / 2) * cosA, y: cy + (selRack.len / 2) * sinA };
+            const th = { x: cx - (selRack.thick / 2) * sinA, y: cy + (selRack.thick / 2) * cosA };
+            const g = selRack.thick / 2 + 6;
+            const rk = { x: cx + g * sinA, y: cy - g * cosA };
             return (
               <>
-                <div className="wd-rh" style={{ left: `${lenH.left}%`, top: `${topPct(lenH.top)}%`, cursor: selRack.orient === 'h' ? 'ew-resize' : 'ns-resize' }}
-                  onPointerDown={(e) => startResize(e, selRack, 'len')} />
-                <div className="wd-rh" style={{ left: `${thH.left}%`, top: `${topPct(thH.top)}%`, cursor: selRack.orient === 'h' ? 'ns-resize' : 'ew-resize' }}
-                  onPointerDown={(e) => startResize(e, selRack, 'thick')} />
+                <div className="wd-rh" style={{ left: `${lh.x}%`, top: `${topPct(lh.y)}%` }} onPointerDown={(e) => startResize(e, selRack, 'len')} />
+                <div className="wd-rh" style={{ left: `${th.x}%`, top: `${topPct(th.y)}%` }} onPointerDown={(e) => startResize(e, selRack, 'thick')} />
+                <button className="wd-rotate" style={{ left: `${rk.x}%`, top: `${topPct(rk.y)}%` }} title="Drag to rotate"
+                  onPointerDown={(e) => startRotate(e, selRack)}><RotateCw size={13} /></button>
                 <RackPopover rack={selRack} onPatchFace={patchFace} onPatch={patchRack} onSides={setSides}
-                  onRotate={() => rotateRack(selRack.id)} onDelete={deleteRack}
-                  onHeadOn={() => setModalRack(selRack)} onClose={() => setSel(null)} />
+                  onDelete={deleteRack} onHeadOn={() => setModalRack(selRack)} onClose={() => setSel(null)} />
               </>
             );
           })()}
@@ -263,28 +284,26 @@ export default function WarehouseDesigner({ supplierId }) {
           : <>Press <strong>Edit</strong> to draw your unit and add racks.</>}</div>
       )}
 
-      {modalRack && <HeadOn rack={racks.find((r) => r.id === modalRack.id) || modalRack} onPatch={patchRack} onPatchFace={patchFace} onClose={() => setModalRack(null)} />}
+      {modalRack && <HeadOn rack={racks.find((r) => r.id === modalRack.id) || modalRack} onClose={() => setModalRack(null)} />}
     </div>
   );
 }
 
 // ── Compact editor popover, anchored next to the selected rack ─────────────────
-function RackPopover({ rack, onPatchFace, onPatch, onSides, onRotate, onDelete, onHeadOn, onClose }) {
+function RackPopover({ rack, onPatchFace, onPatch, onSides, onDelete, onHeadOn, onClose }) {
   const [fi, setFi] = useState(0);
   const faceIdx = Math.min(fi, rack.faces.length - 1);
   const face = rack.faces[faceIdx];
-  const { w, h } = dims(rack);
   const anchorRight = rack.x > 50;
   const below = rack.y < 30;
   const style = { position: 'absolute', zIndex: 40 };
-  if (anchorRight) style.right = `${100 - (rack.x + w)}%`; else style.left = `${rack.x}%`;
-  if (below) style.top = `calc(${topPct(rack.y + h)}% + 12px)`; else style.bottom = `calc(${100 - topPct(rack.y)}% + 12px)`;
+  if (anchorRight) style.right = `${100 - (rack.x + rack.len)}%`; else style.left = `${rack.x}%`;
+  if (below) style.top = `calc(${topPct(rack.y + rack.thick)}% + 14px)`; else style.bottom = `calc(${100 - topPct(rack.y)}% + 14px)`;
   return (
     <div className="wd-pop" style={style} onPointerDown={(e) => e.stopPropagation()}>
       <div className="wd-pop-head">
         <span className="wd-pop-title">Rack {rack.faces[0].code}</span>
         <div className="wd-pop-hactions">
-          <button onClick={onRotate} title="Rotate 90°"><RotateCw size={14} /></button>
           <button onClick={onDelete} title="Delete rack"><Trash2 size={14} /></button>
           <button onClick={onClose} title="Close"><X size={15} /></button>
         </div>
@@ -341,8 +360,8 @@ function RackPopover({ rack, onPatchFace, onPatch, onSides, onRotate, onDelete, 
   );
 }
 
-// ── Head-on view of a single rack (per side) ──────────────────────────────────
-function HeadOn({ rack, onPatch, onPatchFace, onClose }) {
+// ── Head-on view of a single rack — for linking products to sections ──────────
+function HeadOn({ rack, onClose }) {
   const sidesN = rack.sides === 2 ? 2 : 1;
   const SIDES = sidesN === 2 ? [{ i: 0, t: 'Front' }, { i: 1, t: 'Back' }] : [{ i: 0, t: '' }];
   const [si, setSi] = useState(0);
@@ -372,26 +391,6 @@ function HeadOn({ rack, onPatch, onPatchFace, onClose }) {
           <button className="wd-mx" onClick={onClose} aria-label="Close"><X size={16} /></button>
         </div>
 
-        <div className="wd-mtools">
-          <span className="wd-mtl">Sections</span>
-          <div className="wd-mtool">
-            <label><Boxes size={12} /> Bays</label>
-            <div className="wd-step">
-              <button onClick={() => onPatchFace(rack.id, sideIdx, { bays: clamp(1, 16, face.bays - 1) })} disabled={face.bays <= 1}><Minus size={13} /></button>
-              <span>{face.bays}</span>
-              <button onClick={() => onPatchFace(rack.id, sideIdx, { bays: clamp(1, 16, face.bays + 1) })} disabled={face.bays >= 16}><Plus size={13} /></button>
-            </div>
-          </div>
-          <div className="wd-mtool">
-            <label><Layers size={12} /> Levels</label>
-            <div className="wd-step">
-              <button onClick={() => onPatch(rack.id, { levels: clamp(1, 8, rack.levels - 1) })} disabled={rack.levels <= 1}><Minus size={13} /></button>
-              <span>{rack.levels}</span>
-              <button onClick={() => onPatch(rack.id, { levels: clamp(1, 8, rack.levels + 1) })} disabled={rack.levels >= 8}><Plus size={13} /></button>
-            </div>
-          </div>
-        </div>
-
         {sidesN === 2 && (
           <div className="wd-sidetabs">
             {SIDES.map((s) => (
@@ -411,7 +410,7 @@ function HeadOn({ rack, onPatch, onPatchFace, onClose }) {
                 {Array.from({ length: face.bays }, (_, bi) => {
                   const sc = `${code}·${String(bi + 1).padStart(2, '0')}·${l.k}`;
                   return (
-                    <button key={bi} className={`wd-fs${selSlot === sc ? ' sel' : ''}`} onClick={() => setSelSlot(sc)}>
+                    <button key={bi} className={`wd-fs${selSlot === sc ? ' sel' : ''}`} onClick={() => setSelSlot(sc)} title="Link a product">
                       <span className="wd-fc">{sc}</span>
                       <span className="wd-fp">＋</span>
                     </button>
@@ -425,9 +424,9 @@ function HeadOn({ rack, onPatch, onPatchFace, onClose }) {
 
         <div className="wd-mfoot">
           <div className="wd-minfo">
-            {selSlot ? <>Section <b>{selSlot}</b> — empty</> : 'Every section is a bin location. Linking your products to sections comes next.'}
+            {selSlot ? <>Section <b>{selSlot}</b> — no product linked yet</> : 'Tap a section (＋) to link a product from your catalogue.'}
           </div>
-          <button className="wd-mbtn" disabled>Assign product · soon</button>
+          <button className="wd-mbtn" disabled>Link from catalogue · soon</button>
         </div>
       </div>
     </div>
