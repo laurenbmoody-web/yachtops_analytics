@@ -5,6 +5,7 @@ import Icon from '../../components/AppIcon';
 import { formatDate } from '../../utils/dateFormat';
 import { getAllItems, bulkClearExpiry } from '../inventory/utils/inventoryStorage';
 import PushToBoardModal from '../inventory/components/PushToBoardModal';
+import EditorialDatePicker from '../../components/editorial/EditorialDatePicker';
 import '../../styles/editorial.css';
 import './attention.css';
 
@@ -78,6 +79,7 @@ const InventoryAttention = () => {
   const [loc, setLoc] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const [dateMode, setDateMode] = useState('dates'); // 'dates' | 'years'
   const [types, setTypes] = useState(() => new Set(['expired', 'belowpar', 'expiring']));
   const [sortBy, setSortBy] = useState('date');
   const [collapsed, setCollapsed] = useState(() => new Set());
@@ -106,6 +108,13 @@ const InventoryAttention = () => {
     });
     return [...s].sort((a, b) => a.localeCompare(b));
   }, [items, dept]);
+
+  // Distinct expiry years present in the data (for the year-range filter).
+  const expiryYears = useMemo(() => {
+    const s = new Set();
+    (items || []).forEach((i) => { const e = expDate(i); if (e) s.add(e.getFullYear()); });
+    return [...s].sort((a, b) => a - b);
+  }, [items]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -261,12 +270,36 @@ const InventoryAttention = () => {
                       </div>
                     )}
                     <div className="att-fgroup">
-                      <p className="att-flabel">Expiry between</p>
-                      <div className="att-fdates">
-                        <input type="date" className="att-fdate" value={fromDate} max={toDate || undefined} onChange={(e) => setFromDate(e.target.value)} aria-label="From date" />
-                        <span className="att-fdate-sep">→</span>
-                        <input type="date" className="att-fdate" value={toDate} min={fromDate || undefined} onChange={(e) => setToDate(e.target.value)} aria-label="To date" />
+                      <div className="att-fhead">
+                        <p className="att-flabel">{dateMode === 'years' ? 'Expiry year range' : 'Expiry between'}</p>
+                        <div className="att-fmode">
+                          <button type="button" className={dateMode === 'dates' ? 'on' : ''} onClick={() => setDateMode('dates')}>Dates</button>
+                          <button type="button" className={dateMode === 'years' ? 'on' : ''} onClick={() => setDateMode('years')}>Years</button>
+                        </div>
                       </div>
+                      {dateMode === 'dates' ? (
+                        <div className="att-fdates">
+                          <EditorialDatePicker value={fromDate} onChange={setFromDate} placeholder="From" ariaLabel="From date" rangeStart={toDate} />
+                          <span className="att-fdate-sep">→</span>
+                          <EditorialDatePicker value={toDate} onChange={setToDate} placeholder="To" ariaLabel="To date" rangeStart={fromDate} />
+                        </div>
+                      ) : (
+                        <div className="att-fdates">
+                          <FDropdown
+                            id="fromyear" placeholder="From year" value={fromDate ? String(new Date(fromDate).getFullYear()) : ''}
+                            options={[{ value: '', label: 'Any' }, ...expiryYears.map((y) => ({ value: String(y), label: String(y) }))]}
+                            ddOpen={ddOpen} setDDOpen={setDDOpen}
+                            onPick={(v) => setFromDate(v ? `${v}-01-01` : '')}
+                          />
+                          <span className="att-fdate-sep">→</span>
+                          <FDropdown
+                            id="toyear" placeholder="To year" value={toDate ? String(new Date(toDate).getFullYear()) : ''}
+                            options={[{ value: '', label: 'Any' }, ...expiryYears.map((y) => ({ value: String(y), label: String(y) }))]}
+                            ddOpen={ddOpen} setDDOpen={setDDOpen}
+                            onPick={(v) => setToDate(v ? `${v}-12-31` : '')}
+                          />
+                        </div>
+                      )}
                     </div>
                     {filterCount > 0 && (
                       <button className="att-fclear" onClick={clearFilters}>Clear filters</button>
