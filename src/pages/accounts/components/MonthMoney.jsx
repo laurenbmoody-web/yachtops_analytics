@@ -26,7 +26,6 @@ import React, { useState, useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
 import { formatMoney } from '../../../services/financeCalc';
 import {
-  fundingModel, fundingOutcome,
   monthEndStage, opensByDefault, stageSummary, lastDayOfMonth,
 } from '../../../services/monthEnd';
 import { findDifferenceCandidates, differenceLead } from '../../../services/differenceHunt';
@@ -44,7 +43,7 @@ const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('
 
 export default function MonthMoney({
   account, scoped, monthKey, monthLabel, txns = [], allTxns = [], monthStat,
-  figures, statement, checks = [], blockers = [], reconciliation, today,
+  figures, statement, checks = [], blockers = [], outcome, reconciliation, today,
   canEdit, busy, onField, onSave, onClose, onShowLine,
 }) {
   const cur = account?.currency;
@@ -53,17 +52,17 @@ export default function MonthMoney({
 
   const status = reconciliation?.status || 'open';
   const locked = status !== 'open';
-  const model = fundingModel(account);
   const stage = monthEndStage(monthKey, today || new Date(), status);
 
   const ready = scoped && blockers.length === 0;
   const diffs = blockers.filter((b) => b.key.startsWith('diff:'));
   const work = blockers.filter((b) => b.count > 0);
 
-  const outcome = fundingOutcome(model, figures, account);
+  // Computed by the page, because it's also written onto the reconciliation when
+  // the month closes — one figure, not one for the screen and one for the record.
   // With no float target, an imprest month's "reimbursement" IS the money out —
-  // the same figure four rows up. Only say it when it's saying something else.
-  const outcomeWorthSaying = scoped
+  // the same figure four rows up — so it only shows when it says something else.
+  const outcomeWorthSaying = scoped && outcome
     && Math.abs(outcome.amount - Math.abs(figures?.moneyOut || 0)) > 0.005;
 
   const candidates = useMemo(() => (diffs.length

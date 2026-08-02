@@ -3,7 +3,7 @@
 // categorised inline — confident lines get a one-tap File, two-sided vendors
 // (airline, supermarket, taxi) offer a guest-vs-crew choice instead of a guess.
 // Tag chips deep-link to the operational record that caused the spend.
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import '../../../styles/editorial.css';
@@ -28,7 +28,9 @@ import LineDetail from '../components/LineDetail';
 import ReceiptScanner from '../components/ReceiptScanner';
 import ReceiptClip from '../components/ReceiptClip';
 import { walletAccounts, accountLabel } from '../../../services/accountPick';
-import { monthFigures, statementChecks, closeBlockers } from '../../../services/monthEnd';
+import {
+  monthFigures, statementChecks, closeBlockers, fundingModel, fundingOutcome,
+} from '../../../services/monthEnd';
 
 // A scope, not an account id — "the lines that aren't on any card".
 export const UNASSIGNED = '__unassigned__';
@@ -313,13 +315,27 @@ export default function Ledger() {
   // Which blocker the list is currently showing, if any.
   const [need, setNeed] = useState('');
   useEffect(() => { setNeed(''); }, [filters.accountId, activeMonth]);
+
+  // Hydrating straight off `recon` meant every arrival of that object overwrote
+  // the fields — including the one that lands a moment AFTER the page opens,
+  // which would wipe figures typed in the meantime. Blank on a scope change, then
+  // fill once from the reconciliation that actually belongs to this scope.
+  const scopeKey = `${filters.accountId}|${periodMonth}`;
+  const filled = useRef('');
   useEffect(() => {
+    filled.current = '';
+    setStatement({ moneyOut: '', moneyIn: '', closing: '' });
+  }, [scopeKey]);
+  useEffect(() => {
+    if (!recon || filled.current === scopeKey) return;
+    if (recon.account_id !== filters.accountId || recon.period_month !== periodMonth) return;
+    filled.current = scopeKey;
     setStatement({
-      moneyOut: recon?.stmt_money_out ?? '',
-      moneyIn: recon?.stmt_money_in ?? '',
-      closing: recon?.stmt_closing ?? '',
+      moneyOut: recon.stmt_money_out ?? '',
+      moneyIn: recon.stmt_money_in ?? '',
+      closing: recon.stmt_closing ?? '',
     });
-  }, [recon]);
+  }, [recon, scopeKey, filters.accountId, periodMonth]);
 
   // The predicates that decide each count, kept beside closeBlockers' own so a
   // click shows exactly the lines the number counted — nothing more or less.
@@ -347,6 +363,17 @@ export default function Ledger() {
     [scopedAccount, monthAll],
   );
   const monthChecks = useMemo(() => statementChecks(monthFigs, statement), [monthFigs, statement]);
+
+  // What the funding model says is owed once the month closes — an imprest
+  // reimbursement, a prepaid balance, an APA return. It's written onto the
+  // reconciliation as funding_due, so it has to be computed even though the panel
+  // only shows it when it differs from the money out.
+  const monthOutcome = useMemo(
+    () => (scopedAccount
+      ? fundingOutcome(fundingModel(scopedAccount), monthFigs, scopedAccount)
+      : null),
+    [scopedAccount, monthFigs],
+  );
 
   const monthBlockers = useMemo(
     () => (scopedAccount
@@ -376,6 +403,7 @@ export default function Ledger() {
     });
     setSavingStatement(false);
     if (res.error) { flash('Could not save those figures'); return res; }
+    filled.current = '';           // let the saved figures flow back in
     setRecon(res.data);
     flash('Statement figures saved');
     return res;
@@ -888,6 +916,7 @@ export default function Ledger() {
             onSelect={(id) => { setF({ accountId: id }); setFiltersOpen(false); }}
             figures={(
               <MonthMoney
+                key={scopeKey}
                 account={scopedAccount}
                 scoped={Boolean(scopedAccount)}
                 monthKey={activeMonth}
@@ -899,6 +928,7 @@ export default function Ledger() {
                 statement={statement}
                 checks={monthChecks}
                 blockers={monthBlockers}
+                outcome={monthOutcome}
                 reconciliation={recon}
                 hasReceipt={(t) => hasEvidence(t, (attByTxn[t.id] || []).length > 0)}
                 splitCount={(t) => (splitsByTxn[t.id] || []).length}
@@ -909,7 +939,7 @@ export default function Ledger() {
                 onClose={() => handleCloseMonth({
                   openingBalance: monthFigs.opening,
                   closingBalance: monthFigs.closing,
-                  fundingDue: null,
+                  fundingDue: monthOutcome?.amount ?? null,
                   statement,
                 })}
                 onShowLine={showLine}
