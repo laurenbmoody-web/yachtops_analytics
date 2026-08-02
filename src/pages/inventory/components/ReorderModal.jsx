@@ -80,7 +80,7 @@ const ReorderModal = ({ item, suggestedQty = 1, onClose, onDone }) => {
         unit: item?.unit || 'each',
         estimated_unit_cost: item?.unitCost ?? null,
         inventory_item_id: item?.id,
-        source: 'reorder',
+        source: 'low_stock',
         status: 'draft',
       }]);
       window.showToast?.(`Added ${n} × ${item?.name} to “${listTitle}”`, 'success');
