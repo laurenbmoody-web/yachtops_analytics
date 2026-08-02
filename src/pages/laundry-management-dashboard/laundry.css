@@ -219,7 +219,7 @@
 }
 .lmf-field:hover { border-color: #C65A1A; }
 /* Open: the field connects seamlessly to its option list below (one unit). */
-.lmf-field.open { border-color: #C65A1A; border-bottom-color: transparent; background: #FFFFFF; border-radius: 9px 9px 0 0; }
+.lmf-field.open { border-color: #C65A1A; border-bottom: none; background: #FFFFFF; border-radius: 9px 9px 0 0; }
 .lmf-field.on .lmf-field-val, .lmf-field.open .lmf-field-val { color: #C65A1A; font-weight: 600; }
 .lmf-field .chev { color: #695880; transition: transform 0.15s; flex: none; }
 .lmf-field.open .chev { transform: rotate(180deg); color: #C65A1A; }
