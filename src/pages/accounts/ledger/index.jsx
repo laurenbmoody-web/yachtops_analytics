@@ -32,7 +32,6 @@ import { monthFigures, statementChecks } from '../../../services/monthEnd';
 
 // A scope, not an account id — "the lines that aren't on any card".
 export const UNASSIGNED = '__unassigned__';
-import MonthEndStrip from '../components/MonthEndStrip';
 import AccountStack from '../components/AccountStack';
 import MonthMoney from '../components/MonthMoney';
 import {
@@ -854,134 +853,33 @@ export default function Ledger() {
             onSelect={(id) => { setF({ accountId: id }); setFiltersOpen(false); }}
             figures={(
               <MonthMoney
-                currency={monthCur}
+                account={scopedAccount}
                 scoped={Boolean(scopedAccount)}
-                figures={monthFigs}
+                monthKey={activeMonth}
+                monthLabel={ymLabel(activeMonth)}
+                txns={monthAll}
+                allTxns={txns}
                 monthStat={monthStat}
+                figures={monthFigs}
                 statement={statement}
                 checks={monthChecks}
+                reconciliation={recon}
+                hasReceipt={(t) => hasEvidence(t, (attByTxn[t.id] || []).length > 0)}
+                splitCount={(t) => (splitsByTxn[t.id] || []).length}
                 canEdit={canEdit}
-                locked={(recon?.status || 'open') !== 'open'}
                 busy={savingStatement}
                 onField={(k, v) => setStatement((p) => ({ ...p, [k]: v }))}
                 onSave={handleSaveStatement}
+                onClose={() => handleCloseMonth({
+                  openingBalance: monthFigs.opening,
+                  closingBalance: monthFigs.closing,
+                  fundingDue: null,
+                  statement,
+                })}
+                onShowLine={showLine}
               />
             )}
           />
-
-          {/* Month-end close — per account, so only once one is filtered. Fed the
-              whole month rather than the visible rows: a close computed over a
-              "needs a look" filter would balance against a partial month. */}
-          {filters.accountId && accountsById[filters.accountId] && (
-            <MonthEndStrip
-              account={accountsById[filters.accountId]}
-              monthLabel={ymLabel(activeMonth)}
-              monthKey={activeMonth}
-              txns={monthAll}
-              allTxns={txns}
-              reconciliation={recon}
-              figures={monthFigs}
-              statement={statement}
-              hasReceipt={(t) => hasEvidence(t, (attByTxn[t.id] || []).length > 0)}
-              splitCount={(t) => (splitsByTxn[t.id] || []).length}
-              canEdit={canEdit}
-              onClose={handleCloseMonth}
-              onShowLine={showLine}
-            />
-          )}
-
-          {/* toolbar: search · filters · sort. Which rows to show is a filter like
-              any other, so it lives in the Filters panel rather than as its own
-              switch competing with the month for the top of the page. */}
-          <div className="ca-toolbar">
-            {/* How much of the month is categorised is a fact about THIS LIST, not
-                a fourth money figure — it was sat in the band beside money out, in
-                and net, which is why it read as stranded there. It belongs to the
-                count of the thing you're about to work through.
-                The month is the stepper's job and the close bar says it in a
-                sentence between the two, so no third "JULY 2026" here. */}
-            <p className="ca-toolbar-lab">
-              <span>
-                {monthRows.length < monthStat.entries
-                  ? `${monthRows.length} of ${monthStat.entries} lines`
-                  : `${monthStat.entries} ${monthStat.entries === 1 ? 'line' : 'lines'}`}
-              </span>
-              {monthStat.entries > 0 && (
-                <>
-                  <span className="ca-tl-meter" title={`${monthStat.filed} of ${monthStat.entries} filed`}>
-                    <i style={{ width: `${filedPct}%` }} />
-                  </span>
-                  <span className="ca-tl-prog">
-                    {filedPct}% categorised
-                    {monthStat.look > 0 && ` · ${monthStat.look} to go`}
-                  </span>
-                </>
-              )}
-            </p>
-            <div className="ca-toolbar-sp" />
-            <label className="ca-search">
-              <Icon name="Search" size={15} />
-              <input value={filters.search} onChange={(e) => setF({ search: e.target.value })}
-                placeholder="Search this month…" aria-label="Search description" />
-            </label>
-            <div className="ca-filterwrap">
-              <button type="button" className="ca-toolbtn" aria-expanded={filtersOpen}
-                onClick={() => setFiltersOpen((v) => !v)}>
-                <Icon name="SlidersHorizontal" size={14} /> Filters
-                {activeFilterCount > 0 && <span className="ca-toolbtn-badge">{activeFilterCount}</span>}
-              </button>
-              {filtersOpen && (
-                <div className="ca-filterpop">
-                  <div className="ca-fp-row">
-                    <span>Show</span>
-                    <div className="ca-fp-seg">
-                      {[['all', 'All', monthStat.entries], ['look', 'Needs a look', monthStat.look],
-                        ['filed', 'Filed', monthStat.filed]].map(([k, lbl, n]) => (
-                          <button key={k} type="button" aria-pressed={status === k} onClick={() => setStatus(k)}>
-                            {lbl} <em>{n}</em>
-                          </button>
-                      ))}
-                    </div>
-                  </div>
-                  <label className="ca-fp-row"><span>Account</span>
-                    <select className="ca-field" value={filters.accountId} onChange={(e) => setF({ accountId: e.target.value })}>
-                      <option value="">All accounts</option>
-                      {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
-                  </label>
-                  <label className="ca-fp-row"><span>Source</span>
-                    <select className="ca-field" value={filters.source} onChange={(e) => setF({ source: e.target.value })}>
-                      <option value="">All sources</option>
-                      {Object.entries(SOURCE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
-                  </label>
-                  <label className="ca-fp-row"><span>Category</span>
-                    <input className="ca-field" value={filters.category} onChange={(e) => setF({ category: e.target.value })} placeholder="Any category" />
-                  </label>
-                  {/* Which date decides the month: when it was spent (management
-                      accounts) or when the bank posted it (tying to a statement). */}
-                  <div className="ca-fp-row">
-                    <span>Month by</span>
-                    <div className="ca-fp-seg">
-                      {[['spend', 'Date spent'], ['statement', 'Date on statement']].map(([k, lbl]) => (
-                        <button key={k} type="button" aria-pressed={dateBasis === k}
-                          onClick={() => setDateBasis(k)}>{lbl}</button>
-                      ))}
-                    </div>
-                  </div>
-                  {activeFilterCount > 0 && (
-                    <button type="button" className="ca-fp-clear"
-                      onClick={() => { setF({ accountId: '', source: '', category: '' }); setStatus('all'); }}>
-                      Clear filters
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-            <button type="button" className="ca-toolbtn" onClick={() => setSortOldest((v) => !v)} title="Sort by date">
-              <Icon name={sortOldest ? 'ArrowUpNarrowWide' : 'ArrowDownWideNarrow'} size={14} /> {sortOldest ? 'Oldest' : 'Newest'}
-            </button>
-          </div>
 
           {/* list */}
           {loading ? (

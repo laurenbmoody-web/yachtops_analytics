@@ -1,6 +1,6 @@
-/* Cargo Accounts — the month's money beside the wallet. Scoped .mm-*.
-   Mirrors the month-end blockers panel below it, because they're two halves of
-   one job: what the month came to, and what's stopping it closing. */
+/* Cargo Accounts — the month's money and its close, beside the wallet. .mm-*.
+   One panel, so it's a single column of hairline rows rather than a boxed card.
+   The whole month-end section that used to sit below the page lives in here. */
 
 .mm-lab {
   font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
@@ -25,29 +25,80 @@
   font-weight: 400; font-size: 27px; color: #C65A1A;
 }
 
-.mm-stmt { margin-top: 24px; }
-.mm-fields { display: flex; gap: 14px; margin-top: 11px; flex-wrap: wrap; }
+/* ── against the statement, and closing ──────────────────────────────────── */
+.mm-close { margin-top: 24px; }
+.mm-closehead { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.mm-toggle {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid #E5E7EB; border-radius: 999px; background: #fff; cursor: pointer;
+  padding: 4px 11px; font: inherit; font-size: 11.5px; font-weight: 600; color: #6B7280;
+}
+.mm-toggle:hover { border-color: #C65A1A; color: #C65A1A; }
+.mm-toggle:focus-visible { outline: 2px solid #C65A1A; outline-offset: 2px; }
+.mm-say { margin: 9px 0 0; font-size: 12.5px; line-height: 1.5; color: #6B7280; }
+
+.mm-fields { display: flex; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
 .mm-field { display: flex; flex-direction: column; gap: 5px; flex: 1 1 140px; min-width: 0; }
 .mm-field > span { font-size: 10.5px; color: #6B7280; font-weight: 600; }
 .mm-field > span em { font-style: normal; color: #AEB4C2; font-weight: 500; }
+/* White, not the soft field cream. Against a white page the tint read as a
+   disabled box — these are the one thing on the panel you're meant to type into. */
 .mm-field input {
-  background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 10px;
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 10px;
   font: inherit; font-size: 13px; color: #1C1B3A; font-variant-numeric: tabular-nums;
   outline: none; width: 100%; box-sizing: border-box; min-width: 0;
 }
 .mm-field input::placeholder { color: #AEB4C2; }
-.mm-field input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
-.mm-field input.is-off { border-color: #C65A1A; background: #fff; }
-.mm-field input.is-ok { border-color: #CFE3DA; background: #fff; }
-.mm-field input:disabled { color: #6B7280; }
+.mm-field input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.mm-field input.is-off { border-color: #C65A1A; }
+.mm-field input.is-ok { border-color: #CFE3DA; }
+.mm-field input:disabled { color: #6B7280; background: #FAFAF8; }
 .mm-diff { font-size: 10.5px; font-weight: 700; color: #C65A1A; font-variant-numeric: tabular-nums; }
 .mm-match { font-size: 10.5px; font-weight: 700; color: #2F7A64; }
 .mm-none { font-size: 10.5px; font-weight: 500; color: #AEB4C2; font-style: italic; }
 
-.mm-save {
-  margin-top: 14px; border-radius: 10px; padding: 8px 16px; cursor: pointer;
-  background: #fff; border: 1px solid #E5E7EB; color: #1C1B3A;
-  font: inherit; font-size: 12.5px; font-weight: 600;
+/* what would account for the difference — leads to check, not findings */
+.mm-hunt { margin-top: 16px; padding-top: 14px; border-top: 1px solid #F0F1F5; }
+.mm-hunt-lead { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: #1C1B3A; }
+.mm-cand { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 8px 0; border-bottom: 1px solid #F5F6F8; }
+.mm-cand:last-of-type { border-bottom: 0; }
+.mm-cand-amt { grid-column: 1 / -1; font-size: 12.5px; font-weight: 600; color: #C65A1A; font-variant-numeric: tabular-nums; }
+.mm-cand-txt { font-size: 12.5px; color: #1C1B3A; min-width: 0; }
+.mm-cand-txt em { display: block; font-style: normal; font-size: 11.5px; color: #8B8478; margin-top: 2px; }
+.mm-cand-go {
+  display: inline-flex; align-items: center; gap: 4px; align-self: start;
+  border: 0; background: none; padding: 0; cursor: pointer; white-space: nowrap;
+  font: inherit; font-size: 11.5px; font-weight: 600; color: #6B7280;
 }
-.mm-save:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
-.mm-save:disabled { opacity: .5; cursor: not-allowed; }
+.mm-cand-go:hover { color: #C65A1A; }
+.mm-hunt-foot { margin: 10px 0 0; font-size: 11px; color: #AEB4C2; font-style: italic; }
+
+/* Only rendered when the funding model makes this a different number from the
+   money out four rows above. */
+.mm-outcome {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  margin: 16px 0 0; padding-top: 13px; border-top: 1px solid #F0F1F5;
+  font-size: 13px; color: #6B7280;
+}
+.mm-outcome b { font-size: 16.5px; font-weight: 600; color: #1C1B3A; font-variant-numeric: tabular-nums; }
+.mm-outcome .over { font-style: normal; color: #C65A1A; font-weight: 700; font-size: 11.5px; }
+
+/* the reasons Close is disabled, immediately above the button */
+.mm-todo { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; }
+.mm-todo li {
+  display: flex; gap: 8px; align-items: baseline; padding: 7px 0;
+  border-bottom: 1px solid #F5F6F8; font-size: 12.5px; color: #6B7280;
+}
+.mm-todo li:last-child { border-bottom: 0; }
+.mm-todo b { color: #1C1B3A; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mm-ok { display: flex; align-items: center; gap: 6px; margin: 16px 0 0; font-size: 12.5px; font-weight: 600; color: #2F7A64; }
+
+.mm-act { display: flex; gap: 9px; margin-top: 18px; flex-wrap: wrap; }
+.mm-btn { border-radius: 10px; padding: 9px 17px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.mm-btn.ghost { background: #fff; border: 1px solid #E5E7EB; color: #1C1B3A; }
+.mm-btn.ghost:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
+.mm-btn.primary { background: #C65A1A; border: 1px solid #C65A1A; color: #fff; }
+.mm-btn.primary:hover:not(:disabled) { background: #B14E16; }
+.mm-btn.primary:disabled { background: #E5E7EB; border-color: #E5E7EB; color: #AEB4C2; cursor: not-allowed; }
+.mm-btn.ghost:disabled { opacity: .5; cursor: not-allowed; }
+.mm-locked { margin: 14px 0 0; font-size: 12px; color: #8B8478; }

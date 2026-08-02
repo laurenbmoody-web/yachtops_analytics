@@ -1,30 +1,88 @@
-// Cargo Accounts — the month's money, beside the wallet it belongs to.
+// Cargo Accounts — the month's money for one card, and closing it.
 //
-// This used to be two blocks on one page: a money out / money in / net summary up
-// here, and a second opening → closing ladder inside the month-end section a few
-// hundred pixels below. Same month, same account, same figures, written twice —
-// and the statement you check them against was down with the second copy, so the
-// numbers and the check on them were never on screen together.
+// This was three blocks on one page: a summary beside the wallet, an opening →
+// closing ladder inside a month-end section below, and the statement fields down
+// there with it. Same account, same month, same figures — and the numbers were
+// never on screen beside the statement that tests them. It's one panel now.
 //
-// One panel now. When a card is chosen it carries the whole cash-book equation
-// and the statement fields that test it; on "All" there is no single statement to
-// test against, so it stays the summary it was.
-import React from 'react';
+// The section that used to sit underneath is gone rather than moved. What it held:
+//   the ladder            already up here, twice over
+//   the statement fields  already up here
+//   spend to reimburse    with no float target set this is |money out| exactly,
+//                         so it only appears when the funding model makes it a
+//                         different number
+//   the blockers          kept — they're the reasons Close is disabled, and they
+//                         belong next to the button
+//   the difference hunt   kept — it explains a gap between two figures that are
+//                         now side by side
+//
+// The statement half still waits for the month to be over (see monthEndStage):
+// you can't match July against a statement the bank hasn't issued. It collapses
+// to a line rather than a whole section, and a click always overrides.
+//
+// There is deliberately no way to plug a difference. An unexplained gap is the
+// thing this panel exists to surface.
+import React, { useState, useMemo } from 'react';
+import Icon from '../../../components/AppIcon';
 import { formatMoney } from '../../../services/financeCalc';
+import {
+  fundingModel, fundingOutcome, closeBlockers,
+  monthEndStage, opensByDefault, stageSummary, lastDayOfMonth,
+} from '../../../services/monthEnd';
+import { findDifferenceCandidates, differenceLead } from '../../../services/differenceHunt';
 import './month-money.css';
 
+// Same order as the ladder above them — in, then out, then what that leaves.
+// They used to run out-then-in, so the eye had to jump back up and re-pair them.
 const FIELDS = [
-  { key: 'moneyOut', label: 'Total out', ours: 'moneyOut', abs: true },
   { key: 'moneyIn', label: 'Total in', ours: 'moneyIn' },
+  { key: 'moneyOut', label: 'Total out', ours: 'moneyOut', abs: true },
   { key: 'closing', label: 'Closing balance', ours: 'closing' },
 ];
 
+const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');
+
 export default function MonthMoney({
-  currency, scoped, figures, monthStat, statement, checks = [],
-  canEdit, locked, busy, onField, onSave,
+  account, scoped, monthKey, monthLabel, txns = [], allTxns = [], monthStat,
+  figures, statement, checks = [], reconciliation,
+  hasReceipt, splitCount, requireReceipts = true, today,
+  canEdit, busy, onField, onSave, onClose, onShowLine,
 }) {
-  const money = (n) => formatMoney(n, currency);
-  const signed = (n) => formatMoney(n, currency, { signed: true });
+  const cur = account?.currency;
+  const money = (n) => formatMoney(n, cur);
+  const signed = (n) => formatMoney(n, cur, { signed: true });
+
+  const status = reconciliation?.status || 'open';
+  const locked = status !== 'open';
+  const model = fundingModel(account);
+  const stage = monthEndStage(monthKey, today || new Date(), status);
+
+  const blockers = useMemo(
+    () => (scoped
+      ? closeBlockers({ txns, figures, statement, hasReceipt, splitCount, requireReceipts })
+      : []),
+    [scoped, txns, figures, statement, hasReceipt, splitCount, requireReceipts],
+  );
+  const ready = scoped && blockers.length === 0;
+  const diffs = blockers.filter((b) => b.key.startsWith('diff:'));
+  const work = blockers.filter((b) => b.count > 0);
+
+  const outcome = fundingOutcome(model, figures, account);
+  // With no float target, an imprest month's "reimbursement" IS the money out —
+  // the same figure four rows up. Only say it when it's saying something else.
+  const outcomeWorthSaying = scoped
+    && Math.abs(outcome.amount - Math.abs(figures?.moneyOut || 0)) > 0.005;
+
+  const candidates = useMemo(() => (diffs.length
+    ? findDifferenceCandidates({
+      difference: diffs[0].ours - diffs[0].theirs,
+      monthTxns: txns, poolTxns: allTxns, accountId: account?.id, monthKey,
+    })
+    : []), [diffs, txns, allTxns, account?.id, monthKey]);
+
+  const [userOpen, setUserOpen] = useState(null);
+  const open = userOpen == null ? opensByDefault(stage) : userOpen;
+  const summary = stageSummary(stage, { monthLabel, blockers, statementDue: dmy(lastDayOfMonth(monthKey)) });
 
   return (
     <div className="mm">
@@ -39,7 +97,7 @@ export default function MonthMoney({
         </div>
       ) : (
         // No opening or closing across every card at once — those belong to one
-        // account and one statement, and adding them up would mean nothing.
+        // account and one statement, and summing them would mean nothing.
         <div className="mm-eq">
           <div className="r"><span>Money out</span><b className="neg">{signed(monthStat.outSum)}</b></div>
           <div className="r"><span>Money in</span><b>{signed(monthStat.inSum)}</b></div>
@@ -48,40 +106,105 @@ export default function MonthMoney({
       )}
 
       {scoped && (
-        <div className="mm-stmt">
-          <p className="mm-lab">
-            Against the statement
-            {!locked && <em className="mm-req"> required</em>}
-          </p>
-          <div className="mm-fields">
-            {FIELDS.map((f) => {
-              const c = checks.find((x) => x.key === f.key);
-              const ours = f.abs ? Math.abs(figures[f.ours]) : figures[f.ours];
-              return (
-                <label key={f.key} className="mm-field">
-                  {/* Cargo's own figure sits in the label, so the thing you're
-                      checking against is never off-screen while you type. */}
-                  <span>{f.label} <em>· Cargo says {money(ours)}</em></span>
-                  <input inputMode="decimal" value={statement[f.key]} disabled={locked || !canEdit}
-                    onChange={(e) => onField?.(f.key, e.target.value)} placeholder="—"
-                    className={c?.ok === false ? 'is-off' : (c?.ok ? 'is-ok' : '')} />
-                  {c?.ok === false && (
-                    <b className="mm-diff">
-                      {c.difference > 0 ? 'over by ' : 'short by '}{money(Math.abs(c.difference))}
-                    </b>
-                  )}
-                  {c?.ok === true && <b className="mm-match">agrees</b>}
-                  {c?.ok == null && <b className="mm-none">not stated</b>}
-                </label>
-              );
-            })}
-          </div>
-          {/* Saving is what you do to these fields, so it lives with them. Closing
-              the month is a different act and sits with the reasons it can't. */}
-          {canEdit && !locked && (
-            <button type="button" className="mm-save" onClick={onSave} disabled={busy}>
-              {busy ? 'Saving…' : 'Save figures'}
+        <div className="mm-close">
+          <div className="mm-closehead">
+            <p className="mm-lab">
+              Against the statement
+              {!locked && open && <em className="mm-req"> required</em>}
+            </p>
+            <button type="button" className="mm-toggle" aria-expanded={open}
+              onClick={() => setUserOpen(!open)}>
+              {open ? 'Hide' : (stage === 'due' ? 'Balance it' : 'Open')}
+              <Icon name={open ? 'ChevronUp' : 'ChevronDown'} size={13} />
             </button>
+          </div>
+
+          {/* Shut, this still has to be worth reading — it says where the month
+              stands rather than just naming a drawer. */}
+          {!open && <p className="mm-say">{summary}</p>}
+
+          {open && (
+            <>
+              <div className="mm-fields">
+                {FIELDS.map((f) => {
+                  const c = checks.find((x) => x.key === f.key);
+                  const ours = f.abs ? Math.abs(figures[f.ours]) : figures[f.ours];
+                  return (
+                    <label key={f.key} className="mm-field">
+                      {/* Cargo's own figure sits in the label, so the thing you're
+                          checking against is never off-screen while you type. */}
+                      <span>{f.label} <em>· Cargo says {money(ours)}</em></span>
+                      <input inputMode="decimal" value={statement[f.key]} disabled={locked || !canEdit}
+                        onChange={(e) => onField?.(f.key, e.target.value)} placeholder="—"
+                        className={c?.ok === false ? 'is-off' : (c?.ok ? 'is-ok' : '')} />
+                      {c?.ok === false && (
+                        <b className="mm-diff">
+                          {c.difference > 0 ? 'over by ' : 'short by '}{money(Math.abs(c.difference))}
+                        </b>
+                      )}
+                      {c?.ok === true && <b className="mm-match">agrees</b>}
+                      {c?.ok == null && <b className="mm-none">not stated</b>}
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* Cargo holds every line, both dates, the pending flag and the
+                  unassigned pile — so it names what would account for the gap
+                  rather than telling the crew to go and find it. */}
+              {diffs.length > 0 && (
+                <div className="mm-hunt">
+                  <p className="mm-hunt-lead">{differenceLead(candidates, diffs[0].ours > diffs[0].theirs)}</p>
+                  {candidates.map((c) => (
+                    <div key={c.key} className="mm-cand">
+                      <span className="mm-cand-amt">{money(c.amount)}</span>
+                      <span className="mm-cand-txt">{c.label}<em>{c.action}</em></span>
+                      {onShowLine && (
+                        <button type="button" className="mm-cand-go" onClick={() => onShowLine(c.txnIds[0])}>
+                          Show {c.txnIds.length > 1 ? 'them' : 'it'} <Icon name="ArrowRight" size={13} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <p className="mm-hunt-foot">
+                    Suggestions only &mdash; Cargo changes nothing on a hunch, and won&rsquo;t
+                    close a month it can&rsquo;t explain.
+                  </p>
+                </div>
+              )}
+
+              {outcomeWorthSaying && (
+                <p className="mm-outcome">
+                  <span>{outcome.label}</span><b>{money(outcome.amount)}</b>
+                  {outcome.overspent > 0 && <em className="over">overspent by {money(outcome.overspent)}</em>}
+                </p>
+              )}
+
+              {/* The reasons Close is disabled, immediately above the button. */}
+              {!locked && work.length > 0 && (
+                <ul className="mm-todo">
+                  {work.map((b) => (
+                    <li key={b.key}><b>{b.count}</b> {b.count === 1 ? 'line' : 'lines'} {b.label}</li>
+                  ))}
+                </ul>
+              )}
+              {ready && !locked && (
+                <p className="mm-ok"><Icon name="Check" size={14} /> Everything agrees</p>
+              )}
+
+              {canEdit && !locked && (
+                <div className="mm-act">
+                  <button type="button" className="mm-btn ghost" onClick={onSave} disabled={busy}>
+                    {busy ? 'Saving…' : 'Save figures'}
+                  </button>
+                  <button type="button" className="mm-btn primary" onClick={onClose} disabled={busy || !ready}
+                    title={ready ? `Close ${monthLabel}` : 'Sort the lines above first'}>
+                    Close {monthLabel}
+                  </button>
+                </div>
+              )}
+              {locked && <p className="mm-locked">{monthLabel} is closed. Reopen it from Check-off if something needs changing.</p>}
+            </>
           )}
         </div>
       )}
