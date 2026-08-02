@@ -39,6 +39,35 @@ const SORTS = [
 ];
 const TYPE_LABEL = { expired: 'Expired', belowpar: 'Below par', expiring: 'Expiring soon' };
 
+// Cargo-styled dropdown field (button + floating menu), single- or multi-select.
+const FDropdown = ({ id, placeholder, value, options, multi, ddOpen, setDDOpen, onPick }) => {
+  const open = ddOpen === id;
+  const display = multi
+    ? (value.size === 0 || value.size === options.length ? placeholder : options.filter((o) => value.has(o.value)).map((o) => o.label).join(', '))
+    : (options.find((o) => o.value === value)?.label || placeholder);
+  return (
+    <div className="att-fdd">
+      <button type="button" className={`att-fdd-btn${open ? ' open' : ''}`} onClick={() => setDDOpen(open ? null : id)}>
+        <span className="att-fdd-val">{display}</span>
+        <Icon name="ChevronDown" size={15} className={`att-caret${open ? ' open' : ''}`} />
+      </button>
+      {open && (
+        <div className="att-fdd-menu">
+          {options.map((o) => {
+            const active = multi ? value.has(o.value) : value === o.value;
+            return (
+              <button type="button" key={o.value} className={`att-fdd-item${active ? ' on' : ''}`} onClick={() => { onPick(o.value); if (!multi) setDDOpen(null); }}>
+                <span>{o.label}</span>
+                {active && <Icon name="Check" size={15} />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const InventoryAttention = () => {
   const navigate = useNavigate();
   const [items, setItems] = useState(null); // null = loading
@@ -51,6 +80,7 @@ const InventoryAttention = () => {
   const [sortBy, setSortBy] = useState('date');
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [openMenu, setOpenMenu] = useState(null); // 'filter' | 'sort' | null
+  const [ddOpen, setDDOpen] = useState(null); // which filter sub-dropdown is open
   const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
@@ -189,41 +219,35 @@ const InventoryAttention = () => {
                   <div className="att-menu att-filterpanel">
                     <div className="att-fgroup">
                       <p className="att-flabel">Type</p>
-                      <div className="att-fpills">
-                        {SECTIONS.map((s) => (
-                          <button
-                            key={s.key}
-                            className={`att-fpill${types.has(s.key) ? ' on' : ''}`}
-                            onClick={() => setTypes((prev) => {
-                              const n = new Set(prev);
-                              n.has(s.key) ? n.delete(s.key) : n.add(s.key);
-                              if (n.size === 0) return prev; // keep at least one
-                              return n;
-                            })}
-                          >
-                            {TYPE_LABEL[s.key]}
-                          </button>
-                        ))}
-                      </div>
+                      <FDropdown
+                        id="type" placeholder="All types" multi value={types}
+                        options={SECTIONS.map((s) => ({ value: s.key, label: TYPE_LABEL[s.key] }))}
+                        ddOpen={ddOpen} setDDOpen={setDDOpen}
+                        onPick={(v) => setTypes((prev) => { const n = new Set(prev); n.has(v) ? n.delete(v) : n.add(v); return n.size === 0 ? prev : n; })}
+                      />
                     </div>
                     <div className="att-fgroup">
                       <p className="att-flabel">Department</p>
-                      <select className="att-fselect" value={dept} onChange={(e) => { setDept(e.target.value); setLoc(''); }}>
-                        <option value="">All departments</option>
-                        {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-                      </select>
+                      <FDropdown
+                        id="dept" placeholder="All departments" value={dept}
+                        options={[{ value: '', label: 'All departments' }, ...departments.map((d) => ({ value: d, label: d }))]}
+                        ddOpen={ddOpen} setDDOpen={setDDOpen}
+                        onPick={(v) => { setDept(v); setLoc(''); }}
+                      />
                     </div>
                     {locations.length > 0 && (
                       <div className="att-fgroup">
                         <p className="att-flabel">Location / bag</p>
-                        <select className="att-fselect" value={loc} onChange={(e) => setLoc(e.target.value)}>
-                          <option value="">All locations</option>
-                          {locations.map((l) => <option key={l} value={l}>{l}</option>)}
-                        </select>
+                        <FDropdown
+                          id="loc" placeholder="All locations" value={loc}
+                          options={[{ value: '', label: 'All locations' }, ...locations.map((l) => ({ value: l, label: l }))]}
+                          ddOpen={ddOpen} setDDOpen={setDDOpen}
+                          onPick={(v) => setLoc(v)}
+                        />
                       </div>
                     )}
                     {filterCount > 0 && (
-                      <button className="att-fclear" onClick={() => { clearFilters(); }}>Clear filters</button>
+                      <button className="att-fclear" onClick={clearFilters}>Clear filters</button>
                     )}
                   </div>
                 )}
@@ -292,7 +316,7 @@ const InventoryAttention = () => {
         )}
       </div>
 
-      {openMenu && <div className="att-menu-backdrop" onClick={() => setOpenMenu(null)} />}
+      {openMenu && <div className="att-menu-backdrop" onClick={() => { setOpenMenu(null); setDDOpen(null); }} />}
 
       {selected.size > 0 && (
         <div className="att-bar">
