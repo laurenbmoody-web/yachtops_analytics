@@ -75,6 +75,7 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
               {d.brand && <p className="ow-full-brand">{d.brand}</p>}
               <div className="ow-full-meta">
                 {item.garmentType && <span className="ow-chip">{item.garmentType}</span>}
+                {d.gender && <span className="ow-chip subtle">{d.gender}</span>}
                 {d.size && <span className="ow-chip subtle">Size {d.size}</span>}
                 {item.colour && <span className="ow-chip subtle">{item.colour}</span>}
                 {d.condition && <span className="ow-chip subtle">{d.condition}</span>}
