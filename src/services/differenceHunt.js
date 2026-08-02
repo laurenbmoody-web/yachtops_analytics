@@ -148,13 +148,57 @@ export const findDifferenceCandidates = ({
 
 // The sentence above the list. Honest when there's nothing to offer — a false
 // "we found it" is worse than admitting the search came up empty.
-export const differenceLead = (candidates = [], cargoHasMore = true) => {
+// Is the typed figure a slip of the pen rather than a real disagreement? A
+// statement that's out by one digit, or by a swapped pair, or by a decimal place,
+// is almost always a mistype — and sending someone hunting for a missing
+// transaction to explain their own typo wastes the afternoon.
+//
+// Compared as fixed-2 strings, because that's the shape both numbers are read and
+// typed in.
+export const typoKind = (ours, theirs) => {
+  const a = Number(ours); const b = Number(theirs);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || a === b) return null;
+
+  const sa = Math.abs(a).toFixed(2);
+  const sb = Math.abs(b).toFixed(2);
+
+  if (sa.length === sb.length) {
+    let diffs = 0;
+    for (let i = 0; i < sa.length; i += 1) if (sa[i] !== sb[i]) diffs += 1;
+    if (diffs === 1) return 'one digit out';
+    const sorted = (x) => x.split('').sort().join('');
+    if (diffs === 2 && sorted(sa) === sorted(sb)) return 'two digits swapped';
+  }
+
+  // A decimal place adrift, either way.
+  if (Math.abs(a * 10 - b) < 0.005 || Math.abs(a / 10 - b) < 0.005) return 'a decimal place out';
+
+  // A digit dropped or added — same digits in order, one string shorter.
+  const digits = (x) => x.replace('.', '');
+  const [shortS, longS] = digits(sa).length < digits(sb).length ? [digits(sa), digits(sb)] : [digits(sb), digits(sa)];
+  if (longS.length === shortS.length + 1) {
+    for (let i = 0; i < longS.length; i += 1) {
+      if (longS.slice(0, i) + longS.slice(i + 1) === shortS) return 'a digit too many';
+    }
+  }
+  return null;
+};
+
+export const differenceLead = (candidates = [], cargoHasMore = true, { ours, theirs } = {}) => {
   if (candidates.length) {
     return candidates.length === 1
       ? 'One line would explain it:'
       : `${candidates.length} lines could explain it:`;
   }
+
+  // Check the typing first. "Look for a line the bank hasn't posted" is a long
+  // job, and it's the wrong one when the two figures differ by a single digit.
+  const typo = typoKind(ours, theirs);
+  if (typo) {
+    return `The two figures are ${typo} — worth checking what was typed against the statement before hunting for a line.`;
+  }
+
   return cargoHasMore
-    ? 'Nothing in this month matches the difference on its own. Check for a line the bank hasn’t posted, or two smaller ones together.'
-    : 'The bank has spend Cargo doesn’t. Check for a line that was never imported, or one filed to another card.';
+    ? 'Nothing in this month accounts for it on its own. Either a line hasn’t been entered yet, or the figure typed doesn’t match the statement.'
+    : 'The bank has spend Cargo doesn’t. Check for a line that was never imported, one filed to another card, or a mistyped figure.';
 };

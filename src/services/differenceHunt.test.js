@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findDifferenceCandidates, differenceLead } from './differenceHunt.js';
+import { findDifferenceCandidates, differenceLead, typoKind } from './differenceHunt.js';
 
 const t = (id, amount, extra = {}) => ({
   id, amount, txn_date: '2026-07-10', description: `Line ${id}`, status: 'posted', ...extra,
@@ -127,6 +127,49 @@ test('the lead counts what was found', () => {
 });
 
 test('finding nothing says so rather than pretending', () => {
-  assert.match(differenceLead([], true), /Nothing in this month matches/);
+  // It now names both real causes rather than only the long one.
+  assert.match(differenceLead([], true), /Nothing in this month accounts for it/);
   assert.match(differenceLead([], false), /bank has spend Cargo doesn’t/);
+});
+
+// ── a mistype is not a missing transaction ──────────────────────────────────
+test('one digit out reads as a mistype', () => {
+  // 12,923.90 typed as 12,921.90 — the £2.00 gap is a slip of the pen, and
+  // sending someone to look for a missing line wastes the afternoon.
+  assert.equal(typoKind(12923.90, 12921.90), 'one digit out');
+});
+
+test('a swapped pair reads as a mistype', () => {
+  assert.equal(typoKind(12923.90, 12932.90), 'two digits swapped');
+});
+
+test('a decimal place adrift is caught either way round', () => {
+  assert.equal(typoKind(129.23, 1292.30), 'a decimal place out');
+  assert.equal(typoKind(1292.30, 129.23), 'a decimal place out');
+});
+
+test('an extra digit is caught', () => {
+  assert.equal(typoKind(923.90, 9231.90), 'a digit too many');
+});
+
+test('a genuinely different figure is not a mistype', () => {
+  assert.equal(typoKind(12923.90, 11500.00), null);
+  assert.equal(typoKind(100, 100), null);
+  assert.equal(typoKind(100, NaN), null);
+});
+
+test('the lead checks the typing before sending anyone hunting', () => {
+  const lead = differenceLead([], true, { ours: 12923.90, theirs: 12921.90 });
+  assert.match(lead, /one digit out/);
+  assert.match(lead, /what was typed/);
+});
+
+test('with no typo it names both real possibilities', () => {
+  const lead = differenceLead([], true, { ours: 12923.90, theirs: 11500 });
+  assert.match(lead, /hasn’t been entered yet/);
+  assert.match(lead, /doesn’t match the statement/);
+});
+
+test('a matching line still wins over any of it', () => {
+  assert.equal(differenceLead([{ key: 'a' }], true, { ours: 1, theirs: 2 }), 'One line would explain it:');
 });
