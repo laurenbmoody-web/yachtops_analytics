@@ -316,12 +316,6 @@ const InventoryAttention = () => {
                   </div>
                 )}
               </div>
-              {(hiddenCount > 0 || showHidden) && (
-                <button className={`att-tool${showHidden ? ' on' : ''}`} onClick={() => { setShowHidden((v) => !v); setSelected(new Set()); }} title="Items you've hidden from this list">
-                  <Icon name={showHidden ? 'Eye' : 'EyeOff'} size={15} /> Hidden
-                  {hiddenCount > 0 && <span className="att-tool-count">{hiddenCount}</span>}
-                </button>
-              )}
               <div className="att-toolwrap">
                 <button className="att-tool" onClick={() => setOpenMenu(openMenu === 'sort' ? null : 'sort')}>
                   <Icon name="ArrowUpDown" size={15} /> Sort
@@ -337,6 +331,12 @@ const InventoryAttention = () => {
                   </div>
                 )}
               </div>
+              {(hiddenCount > 0 || showHidden) && (
+                <button className={`att-tool${showHidden ? ' on' : ''}`} onClick={() => { setShowHidden((v) => !v); setSelected(new Set()); }} title="Items you've hidden from this list">
+                  <Icon name={showHidden ? 'Eye' : 'EyeOff'} size={15} /> Hidden
+                  {hiddenCount > 0 && <span className="att-tool-count">{hiddenCount}</span>}
+                </button>
+              )}
             </div>
           </div>
         )}

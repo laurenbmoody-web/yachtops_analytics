@@ -2,20 +2,23 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
-  fetchProvisioningLists,
+  fetchListsForPicker,
   createProvisioningList,
   upsertItems,
   PROVISIONING_STATUS,
 } from '../../provisioning/utils/provisioningStorage';
 import './reorder.css';
 
-// Lists you can still add lines to (not yet sent to a supplier).
-const EDITABLE = new Set([PROVISIONING_STATUS.DRAFT, PROVISIONING_STATUS.PENDING_APPROVAL]);
+const STATUS_LABEL = {
+  draft: 'Draft', pending_approval: 'Pending approval', sent_to_supplier: 'Sent',
+  quote_received: 'Quote in', confirmed: 'Confirmed', partially_delivered: 'Part delivered', delivered: 'Delivered',
+};
+const statusText = (s) => STATUS_LABEL[s] || (s ? String(s).replace(/_/g, ' ') : '');
 
-// Reorder an inventory item into provisioning: pick an active list (or start a
+// Reorder an inventory item into provisioning: pick any active board (or start a
 // new one) and add the item as a draft line, linked back by inventory_item_id.
 const ReorderModal = ({ item, suggestedQty = 1, onClose, onDone }) => {
-  const { activeTenantId, currentUser, isCommand, isChief } = useAuth();
+  const { activeTenantId, currentUser } = useAuth();
   const [lists, setLists] = useState(null); // null = loading
   const [target, setTarget] = useState('new'); // a list id | 'new'
   const [newTitle, setNewTitle] = useState('');
@@ -27,12 +30,10 @@ const ReorderModal = ({ item, suggestedQty = 1, onClose, onDone }) => {
     let alive = true;
     (async () => {
       try {
-        const tier = isCommand ? 'COMMAND' : (isChief ? 'CHIEF' : '');
-        const all = await fetchProvisioningLists(activeTenantId, currentUser?.id, currentUser?.department_id || null, tier, 'active');
-        const editable = (all || []).filter((l) => EDITABLE.has(l?.status) && !l?.is_template);
+        const all = await fetchListsForPicker(activeTenantId);
         if (!alive) return;
-        setLists(editable);
-        setTarget(editable[0]?.id || 'new');
+        setLists(all);
+        setTarget(all[0]?.id || 'new');
       } catch {
         if (alive) { setLists([]); setTarget('new'); }
       }
@@ -111,10 +112,12 @@ const ReorderModal = ({ item, suggestedQty = 1, onClose, onDone }) => {
             <p className="ro-loading">Loading lists…</p>
           ) : (
             <div className="ro-lists">
+              {lists.length > 0 && <p className="ro-sub">Existing boards</p>}
               {lists.map((l) => (
                 <label key={l.id} className={`ro-opt${target === l.id ? ' on' : ''}`}>
                   <input type="radio" name="ro-target" checked={target === l.id} onChange={() => setTarget(l.id)} />
                   <span className="ro-opt-title">{l.title || 'Untitled list'}</span>
+                  {l.status && <span className="ro-opt-status">{statusText(l.status)}</span>}
                 </label>
               ))}
               <label className={`ro-opt${target === 'new' ? ' on' : ''}`}>
