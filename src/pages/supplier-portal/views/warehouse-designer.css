@@ -308,3 +308,10 @@
 
 /* head-on Front / Back tabs: active = orange */
 #sp-root .wd-sidetabs button.on { background: var(--orange, #C65A1A); color: #fff; }
+
+/* quiet, styled tooltip on the zone swatches (replaces the native title) */
+.wd-pz { position: relative; }
+.wd-pz::after { content: attr(data-label); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%) translateY(2px);
+  background: var(--navy-deep, #141D2E); color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 0.02em;
+  padding: 3px 7px; border-radius: 6px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .12s, transform .12s; z-index: 6; }
+.wd-pz:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
