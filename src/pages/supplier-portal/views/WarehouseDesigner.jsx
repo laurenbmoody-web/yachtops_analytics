@@ -12,7 +12,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Plus, Minus, Trash2, X, PenLine, Check, Boxes, Layers, Maximize2, Columns2, RotateCw, DoorOpen, ChevronLeft,
+  Plus, Minus, Trash2, X, PenLine, Check, Boxes, Layers, Maximize2, Columns2, RotateCw, DoorOpen, ChevronLeft, Copy,
 } from 'lucide-react';
 import { fetchWarehouseLayout, saveWarehouseLayout } from '../utils/supplierStorage';
 import './warehouse-designer.css';
@@ -240,6 +240,16 @@ export default function WarehouseDesigner({ supplierId }) {
     setSel(id);
   };
   const deleteEl = () => { setElements((rs) => rs.filter((r) => r.id !== sel)); setSel(null); };
+  const duplicateRack = () => {
+    const el = elements.find((r) => r.id === sel);
+    if (!el || el.kind === 'room') return;
+    const id = nextId('R', elements);
+    const copy = clampRack({
+      ...el, id, x: el.x + 4, y: el.y + 4,
+      faces: el.faces.map((f, i) => ({ ...f, code: i === 0 ? id : `${id}-B` })),
+    });
+    setElements((rs) => [...rs, copy]); setSel(id);
+  };
   const enterRoom = (id) => { setInsideRoomId(id); setSel(null); };
   const exitRoom = () => { setInsideRoomId(null); setSel(null); };
 
@@ -311,7 +321,7 @@ export default function WarehouseDesigner({ supplierId }) {
             if (r.kind === 'room') {
               return (
                 <div {...common} className={`wd-store${sel === r.id ? ' sel' : ''}${!editMode ? ' view' : ''}`} title={r.name}>
-                  <span className="wd-store-body" style={{ transform: `rotate(${-(r.angle || 0)}deg)` }}>
+                  <span className="wd-store-body" style={{ transform: `translate(-50%, -50%) rotate(${-(r.angle || 0)}deg)` }}>
                     <span className="wd-store-name"><DoorOpen size={13} /> {r.name || 'Walk-in'}</span>
                     <span className="wd-store-enter">Enter ›</span>
                   </span>
@@ -356,7 +366,7 @@ export default function WarehouseDesigner({ supplierId }) {
                 {selEl.kind === 'room'
                   ? <RoomPopover room={selEl} style={popoverStyle(selEl)} onPatch={patchEl} onEnter={() => enterRoom(selEl.id)} onDelete={deleteEl} onClose={() => setSel(null)} />
                   : <RackPopover rack={selEl} style={popoverStyle(selEl)} onPatchFace={patchFace} onPatch={patchEl} onSides={setSides}
-                      onDelete={deleteEl} onHeadOn={() => setModalRack(selEl)} onClose={() => setSel(null)} />}
+                      onDuplicate={duplicateRack} onDelete={deleteEl} onHeadOn={() => setModalRack(selEl)} onClose={() => setSel(null)} />}
               </>
             );
           })()}
@@ -414,7 +424,7 @@ function RoomPopover({ room, style, onPatch, onEnter, onDelete, onClose }) {
 }
 
 // ── Compact editor popover, anchored next to the selected rack ─────────────────
-function RackPopover({ rack, style, onPatchFace, onPatch, onSides, onDelete, onHeadOn, onClose }) {
+function RackPopover({ rack, style, onPatchFace, onPatch, onSides, onDuplicate, onDelete, onHeadOn, onClose }) {
   const [fi, setFi] = useState(0);
   const faceIdx = Math.min(fi, rack.faces.length - 1);
   const face = rack.faces[faceIdx];
@@ -423,6 +433,7 @@ function RackPopover({ rack, style, onPatchFace, onPatch, onSides, onDelete, onH
       <div className="wd-pop-head">
         <span className="wd-pop-title">Rack {rack.faces[0].code}</span>
         <div className="wd-pop-hactions">
+          <button onClick={onDuplicate} title="Duplicate rack"><Copy size={14} /></button>
           <button onClick={onDelete} title="Delete rack"><Trash2 size={14} /></button>
           <button onClick={onClose} title="Close"><X size={15} /></button>
         </div>
