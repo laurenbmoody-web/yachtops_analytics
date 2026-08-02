@@ -1125,11 +1125,16 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
             <h2 className="cf-member-nm">{selected.fullName}</h2>
             {(memberCabin?.cabin || memberAlloc.laundry_number || memberAlloc.laundry_colour) && (
               <span className="cf-member-alloc">
-                {memberCabin?.cabin && <span className="cf-alloc"><Icon name="BedDouble" size={13} /> {memberCabin.cabin}</span>}
+                {memberCabin?.cabin && (
+                  <span className="cf-alloc"><Icon name="BedDouble" size={13} /><span>{memberCabin.cabin}</span></span>
+                )}
                 {(memberAlloc.laundry_number || memberAlloc.laundry_colour) && (
                   <span className="cf-alloc">
-                    <Icon name="WashingMachine" size={13} /> {memberAlloc.laundry_number || ''}
-                    {memberAlloc.laundry_colour && <><span className="cf-alloc-dot" style={{ background: String(memberAlloc.laundry_colour).toLowerCase() }} /> {memberAlloc.laundry_colour}</>}
+                    <Icon name="WashingMachine" size={13} />
+                    <span>
+                      {memberAlloc.laundry_number || ''}
+                      {memberAlloc.laundry_colour && <><span className="cf-alloc-dot" style={{ background: String(memberAlloc.laundry_colour).toLowerCase() }} />{memberAlloc.laundry_colour}</>}
+                    </span>
                   </span>
                 )}
               </span>
