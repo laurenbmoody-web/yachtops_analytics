@@ -310,3 +310,30 @@
   background: var(--edp-sand-soft);
   color: var(--edp-rust);
 }
+
+/* A day past maxDate: still drawn so the month reads normally, but plainly not
+   selectable rather than silently inert. */
+.edp-day.is-disabled {
+  opacity: .3;
+  cursor: not-allowed;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.edp-day.is-disabled:hover { background: transparent; color: inherit; }
+
+/* Cargo's page palette is cool — navy, maritime white, terracotta accent — while
+   this component still carries the older warm sand tokens it shipped with. Any
+   caller can opt into the cool set until the shared component is moved over.
+   See CLAUDE.md: never a warm fill on a cool canvas. */
+.edp.is-cool {
+  --edp-cream:     #F8FAFC;
+  --edp-card:      #FFFFFF;
+  --edp-band:      #FAFAF8;
+  --edp-sand:      #E5E7EB;
+  --edp-sand-soft: #FBEFE9;
+  --edp-navy:      #1C1B3A;
+  --edp-muted:     #6B7280;
+  --edp-faint:     #AEB4C2;
+  --edp-hairline:  #ECEAE3;
+  --edp-shadow:    0 24px 60px -16px rgba(28, 27, 58, .32);
+}

@@ -102,6 +102,15 @@ const EditorialDatePicker = ({
   // the days between it and the selected/hovered day (rust range fill), so the
   // continuation from the start date is visible. Off by default — no rangeStart,
   // no change to behaviour.
+  // Optional upper bound (ISO 'YYYY-MM-DD'). Days after it are disabled in the
+  // grid and a typed date beyond it reverts, so the field can't emit a value the
+  // caller would have to reject. Native <input type="date"> had `max`; without an
+  // equivalent here, swapping to this component would quietly drop the rule.
+  maxDate = '',
+  // Opt into the cool page palette (navy / maritime white / terracotta) instead
+  // of the warm sand this component shipped with.
+  cool = false,
+  className = '',
   rangeStart = '',
   // Optional: already-spoken-for date spans to flag with a quiet dot under the
   // day (e.g. periods already logged elsewhere). Each item is { from, to } ISO;
@@ -244,6 +253,14 @@ const EditorialDatePicker = ({
     openPopover();
   };
   const handleInputChange = (e) => setText(e.target.value);
+  // Parsed once, so the grid and the typed field enforce the same bound.
+  const maxDay = React.useMemo(() => {
+    if (!maxDate) return null;
+    const d = parse(String(maxDate).slice(0, 10), 'yyyy-MM-dd', new Date());
+    return isValid(d) ? d : null;
+  }, [maxDate]);
+  const beyondMax = (d) => Boolean(maxDay && d > maxDay && !isSameDay(d, maxDay));
+
   const handleInputBlur = (e) => {
     // If focus moved into the popover, don't blur-process — the popover
     // owns the next interaction. Defer parsing until the field truly
@@ -256,7 +273,7 @@ const EditorialDatePicker = ({
       return;
     }
     const parsed = parse(raw, displayFormat, new Date());
-    if (isValid(parsed)) {
+    if (isValid(parsed) && !beyondMax(parsed)) {
       emit(parsed);
       setText(formatDisplay(parsed, displayFormat));   // canonicalise
     } else {
@@ -330,7 +347,7 @@ const EditorialDatePicker = ({
   }, [weekStart]);
 
   return (
-    <div className="edp" ref={wrapperRef}>
+    <div className={`edp${cool ? ' is-cool' : ''}${className ? ` ${className}` : ''}`} ref={wrapperRef}>
       <div className={`edp-field${open ? ' is-open' : ''}${disabled ? ' is-disabled' : ''}`}>
         <input
           ref={inputRef}
@@ -461,8 +478,10 @@ const EditorialDatePicker = ({
                 }
               }
               const isMarked = marked.some(r => d >= r.from && (!r.to || d <= r.to));
+              const tooLate = beyondMax(d);
               const cls = [
                 'edp-day',
+                tooLate     ? 'is-disabled' : '',
                 inMonth     ? '' : 'is-outside',
                 inRange     ? 'is-in-range' : '',
                 isAnchor && !isSelected ? 'is-range-anchor' : '',
@@ -480,7 +499,9 @@ const EditorialDatePicker = ({
                   aria-selected={isSelected || false}
                   aria-current={isTodayCell ? 'date' : undefined}
                   tabIndex={isFocused ? 0 : -1}
-                  onClick={() => selectDate(d)}
+                  disabled={tooLate}
+                  aria-disabled={tooLate || undefined}
+                  onClick={() => { if (!tooLate) selectDate(d); }}
                   onMouseEnter={() => { if (rangeAnchor) setHoverDate(d); }}
                 >
                   {format(d, 'd')}
