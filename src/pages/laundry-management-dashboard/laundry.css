@@ -218,15 +218,17 @@
   transition: border-color 0.14s, box-shadow 0.14s;
 }
 .lmf-field:hover { border-color: #C65A1A; }
-.lmf-field.open { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }
+/* Open: the field connects seamlessly to its option list below (one unit). */
+.lmf-field.open { border-color: #C65A1A; background: #FFFFFF; border-radius: 9px 9px 0 0; }
 .lmf-field.on .lmf-field-val { color: #C65A1A; font-weight: 600; }
 .lmf-field .chev { color: #695880; transition: transform 0.15s; flex: none; }
-.lmf-field.open .chev { transform: rotate(180deg); }
+.lmf-field.open .chev { transform: rotate(180deg); color: #C65A1A; }
 .lmf-field-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lmf-field-val.ph { color: #AEB4C2; font-weight: 500; }
 .lmf-fieldopts {
-  margin-top: 6px; display: flex; flex-direction: column; gap: 2px;
+  margin-top: 0; display: flex; flex-direction: column; gap: 2px;
   max-height: 232px; overflow-y: auto; padding: 4px;
-  border: 1px solid #EEF0F4; border-radius: 9px; background: #FFFFFF;
+  border: 1px solid #C65A1A; border-top: none; border-radius: 0 0 9px 9px; background: #FFFFFF;
 }
 .lmf-sortpop { left: auto; right: 0; width: 200px; padding: 6px; gap: 2px; }
 .lmf-sortopt {

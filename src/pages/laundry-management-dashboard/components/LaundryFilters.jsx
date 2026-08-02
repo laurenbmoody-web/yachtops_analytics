@@ -29,7 +29,7 @@ function FilterField({ group }) {
     <div className="lmf-group">
       <span className="lmf-label">{group.label}</span>
       <button type="button" className={`lmf-field${open ? ' open' : ''}${changed ? ' on' : ''}`} onClick={() => setOpen((o) => !o)}>
-        <span className="lmf-field-val">{current}</span>
+        <span className={`lmf-field-val${open ? ' ph' : ''}`}>{open ? 'Choose…' : current}</span>
         <Icon name="ChevronDown" size={14} className="chev" />
       </button>
       {open && (
