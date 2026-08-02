@@ -207,16 +207,6 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onAd
   const [busy, setBusy] = useState(false);
   const [scan, setScan] = useState(false); // QR scanner open
 
-  // A scanned tag resolves to a stocked item — drill to its folder and open its
-  // sizes so the interior just picks the size to issue.
-  const resolveScan = (id) => stock.find((i) => String(i.id) === String(id)) || null;
-  const pickScanned = (item) => {
-    setTrail(pathSegs(item));
-    setOpen((p) => ({ ...p, [item.id]: true }));
-    setScan(false);
-    window.showToast?.(`${item.name} — choose a size to issue`, 'success');
-  };
-
   const withRel = useMemo(() => stock.map((i) => ({ i, rel: pathSegs(i) })), [stock]);
   const atLevel = useMemo(
     () => withRel.filter((x) => trail.every((t, idx) => (x.rel[idx] || '').toLowerCase() === t.toLowerCase())),
@@ -251,6 +241,70 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onAd
   });
   const bump = (id, size, d, cap) => setSel((p) => ({ ...p, [skey(id, size)]: Math.max(0, Math.min(cap, (p[skey(id, size)] || 0) + d)) }));
 
+  // A scanned tag resolves to a stocked item — add it to the basket and keep the
+  // scanner open so several can be scanned in a row. Single-size items get +1
+  // straight away; size-run items just open so the size can be picked.
+  const resolveScan = (id) => stock.find((i) => String(i.id) === String(id)) || null;
+  const pickScanned = (item) => {
+    setOpen((p) => (item.id in p ? p : { ...p, [item.id]: true }));
+    if (!variantsOf(item).length) {
+      const cap = stockOf(item);
+      setSel((s) => ({ ...s, [skey(item.id, '')]: Math.min(cap, (s[skey(item.id, '')] || 0) + 1) }));
+    }
+  };
+
+  // Reusable inventory tile — image + name + per-size (or plain) steppers.
+  const renderTile = (i, { pinned = false } = {}) => {
+    const onboard = stockOf(i);
+    const opened = pinned || i.id in open;
+    const vs = variantsOf(i);
+    const plainQty = sel[skey(i.id, '')] || 0;
+    return (
+      <div className={`cf-itile${opened ? ' on' : ''}`} key={i.id}>
+        <button type="button" className="cf-itile-media" onClick={() => toggle(i)}>
+          {i.imageUrl ? <img src={i.imageUrl} alt={i.name} /> : <span className="cf-itile-ph"><Icon name={CATEGORY_ICON[kitCategoryOf(i)] || 'Package'} size={26} /></span>}
+          <span className="cf-itile-check"><Icon name={opened ? 'CheckSquare' : 'Square'} size={18} /></span>
+        </button>
+        <div className="cf-itile-body">
+          <span className="cf-itile-nm">{i.name}{!vs.length && i.size ? ` · ${i.size}` : ''}</span>
+          <span className="cf-itile-sub">{onboard} on board{showValue && i.unitCost != null ? ` · ${money(i.unitCost, i.currency)}` : ''}</span>
+        </div>
+        {opened && (vs.length ? (
+          <div className="cf-sizes">
+            {vs.map((v) => {
+              const cap = vQty(v);
+              const q = sel[skey(i.id, vSize(v))] || 0;
+              return (
+                <div className="cf-sizerow" key={vSize(v)}>
+                  <span className="cf-sizelbl">{vSize(v)}</span>
+                  <div className="cf-itile-qty">
+                    <button type="button" className="cf-qbtn" onClick={() => bump(i.id, vSize(v), -1, cap)} disabled={q <= 0} aria-label="Less">−</button>
+                    <span className="cf-qnum">{q}</span>
+                    <button type="button" className="cf-qbtn" onClick={() => bump(i.id, vSize(v), 1, cap)} disabled={q >= cap} aria-label="More">+</button>
+                  </div>
+                  <span className="cf-itile-of">of {cap}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="cf-itile-qty">
+            <button type="button" className="cf-qbtn" onClick={() => bump(i.id, '', -1, onboard)} disabled={plainQty <= 0} aria-label="Less">−</button>
+            <span className="cf-qnum">{plainQty}</span>
+            <button type="button" className="cf-qbtn" onClick={() => bump(i.id, '', 1, onboard)} disabled={plainQty >= onboard} aria-label="More">+</button>
+            <span className="cf-itile-of">of {onboard}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // The running basket — every opened item, in the order it was added, shown at
+  // the top so it stays visible while browsing other folders or scanning more.
+  const selectedIds = Object.keys(open);
+  const selectedItems = selectedIds.map((id) => stock.find((i) => String(i.id) === String(id))).filter(Boolean);
+  const inBasket = new Set(selectedIds.map(String));
+
   const alloc = [];
   stock.forEach((i) => {
     const vs = variantsOf(i);
@@ -276,7 +330,7 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onAd
         {/* Scan a tag to jump straight to that item, or browse inventory below. */}
         <button type="button" className="cf-scan-cta" onClick={() => setScan(true)}>
           <span className="cf-scan-ic"><Icon name="QrCode" size={18} /></span>
-          <span className="cf-scan-txt"><b>Scan a QR tag</b><span>Point at a uniform tag to issue it — or browse below</span></span>
+          <span className="cf-scan-txt"><b>Scan QR tags</b><span>Scan one after another — they stack up in Selected below</span></span>
           <Icon name="ChevronRight" size={16} className="cf-scan-arr" />
         </button>
 
@@ -292,6 +346,14 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onAd
         </div>
 
         <div className="cf-modal-body">
+          {selectedItems.length > 0 && (
+            <div className="cf-basket">
+              <div className="cf-basket-h"><Icon name="ListChecks" size={13} /> Selected <span className="cf-basket-ct">{selectedItems.length}</span></div>
+              <div className="cf-item-grid">
+                {selectedItems.map((i) => renderTile(i, { pinned: true }))}
+              </div>
+            </div>
+          )}
           {stock.length === 0 && folderRels.length === 0 ? (
             <p className="cf-empty-note">Nothing in inventory yet. Use <b>Add item</b> below to hand out kit that isn’t stocked.</p>
           ) : (
@@ -307,52 +369,9 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onAd
                   ))}
                 </div>
               )}
-              {itemsHere.length > 0 && (
+              {itemsHere.filter((i) => !inBasket.has(String(i.id))).length > 0 && (
                 <div className="cf-item-grid">
-                  {itemsHere.map((i) => {
-                    const onboard = stockOf(i);
-                    const opened = i.id in open;
-                    const vs = variantsOf(i);
-                    const plainQty = sel[skey(i.id, '')] || 0;
-                    return (
-                      <div className={`cf-itile${opened ? ' on' : ''}`} key={i.id}>
-                        <button type="button" className="cf-itile-media" onClick={() => toggle(i)}>
-                          {i.imageUrl ? <img src={i.imageUrl} alt={i.name} /> : <span className="cf-itile-ph"><Icon name={CATEGORY_ICON[kitCategoryOf(i)] || 'Package'} size={26} /></span>}
-                          <span className="cf-itile-check"><Icon name={opened ? 'CheckSquare' : 'Square'} size={18} /></span>
-                        </button>
-                        <div className="cf-itile-body">
-                          <span className="cf-itile-nm">{i.name}{!vs.length && i.size ? ` · ${i.size}` : ''}</span>
-                          <span className="cf-itile-sub">{onboard} on board{showValue && i.unitCost != null ? ` · ${money(i.unitCost, i.currency)}` : ''}</span>
-                        </div>
-                        {opened && (vs.length ? (
-                          <div className="cf-sizes">
-                            {vs.map((v) => {
-                              const cap = vQty(v);
-                              const q = sel[skey(i.id, vSize(v))] || 0;
-                              return (
-                                <div className="cf-sizerow" key={vSize(v)}>
-                                  <span className="cf-sizelbl">{vSize(v)}</span>
-                                  <div className="cf-itile-qty">
-                                    <button type="button" className="cf-qbtn" onClick={() => bump(i.id, vSize(v), -1, cap)} disabled={q <= 0} aria-label="Less">−</button>
-                                    <span className="cf-qnum">{q}</span>
-                                    <button type="button" className="cf-qbtn" onClick={() => bump(i.id, vSize(v), 1, cap)} disabled={q >= cap} aria-label="More">+</button>
-                                  </div>
-                                  <span className="cf-itile-of">of {cap}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ) : (
-                          <div className="cf-itile-qty">
-                            <button type="button" className="cf-qbtn" onClick={() => bump(i.id, '', -1, onboard)} disabled={plainQty <= 0} aria-label="Less">−</button>
-                            <span className="cf-qnum">{plainQty}</span>
-                            <button type="button" className="cf-qbtn" onClick={() => bump(i.id, '', 1, onboard)} disabled={plainQty >= onboard} aria-label="More">+</button>
-                            <span className="cf-itile-of">of {onboard}</span>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
+                  {itemsHere.filter((i) => !inBasket.has(String(i.id))).map((i) => renderTile(i))}
                 </div>
               )}
               {folders.length === 0 && itemsHere.length === 0 && <p className="cf-empty-note">Nothing filed here.</p>}

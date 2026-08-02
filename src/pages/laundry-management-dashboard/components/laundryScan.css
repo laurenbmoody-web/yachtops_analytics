@@ -31,6 +31,9 @@
 }
 
 .lsc-err { font-size: 12.5px; color: #C24632; background: #FBECEA; border: 1px solid #F5D9D4; border-radius: 8px; padding: 8px 12px; }
+.lsc-added { display: flex; align-items: center; gap: 8px; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C7A4B; background: #E9F6EE; border: 1px solid #C9E9D6; border-radius: 8px; padding: 8px 12px; }
+.lsc-added svg { color: #1C7A4B; flex: none; }
+.lsc-added b { font-weight: 800; }
 
 .lsc-actions { display: flex; gap: 10px; }
 .lsc-btn {
