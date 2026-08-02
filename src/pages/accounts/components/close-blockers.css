@@ -1,0 +1,43 @@
+/* Cargo Accounts — the close's outstanding work. Scoped .cb-*.
+   Counts of chores, set in the panel's serif figure so they carry the weight of
+   the thing actually holding the month open. Hairline cells, no chips. */
+
+.cb-lab {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; margin: 0;
+}
+.cb-set { display: flex; margin-top: 10px; border-top: 1px solid #E5E7EB; }
+.cb-item {
+  flex: 1 1 0; min-width: 0; text-align: left; cursor: pointer;
+  border: 0; border-bottom: 1px solid #E5E7EB; border-right: 1px solid #F0F1F5;
+  background: none; padding: 15px 18px 15px 0; font: inherit;
+  transition: background .12s ease;
+}
+.cb-item:last-child { border-right: 0; }
+.cb-item + .cb-item { padding-left: 20px; }
+.cb-item:hover { background: #FBFAF8; }
+.cb-item:focus-visible { outline: 2px solid #C65A1A; outline-offset: -2px; }
+
+.cb-item b {
+  display: block; font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 32px; line-height: 1; color: #C65A1A;
+  font-variant-numeric: tabular-nums;
+}
+.cb-item span { display: block; margin-top: 7px; font-size: 12.5px; line-height: 1.35; color: #6B7280; }
+.cb-item em {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 9px;
+  font-style: normal; font-size: 11.5px; font-weight: 650; color: #8B8478;
+}
+.cb-item:hover em { color: #C65A1A; }
+
+/* Selected: this is the filter the list is currently under, so it reads as held
+   down rather than merely hovered. */
+.cb-item.on b { color: #1C1B3A; }
+.cb-item.on em { color: #C65A1A; }
+.cb-item.on { background: #FBFAF8; box-shadow: inset 0 -2px 0 0 #C65A1A; }
+
+@media (max-width: 620px) {
+  .cb-set { flex-direction: column; }
+  .cb-item { border-right: 0; padding: 13px 0; }
+  .cb-item + .cb-item { padding-left: 0; }
+}

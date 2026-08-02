@@ -26,7 +26,7 @@ import React, { useState, useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
 import { formatMoney } from '../../../services/financeCalc';
 import {
-  fundingModel, fundingOutcome, closeBlockers,
+  fundingModel, fundingOutcome,
   monthEndStage, opensByDefault, stageSummary, lastDayOfMonth,
 } from '../../../services/monthEnd';
 import { findDifferenceCandidates, differenceLead } from '../../../services/differenceHunt';
@@ -44,8 +44,7 @@ const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('
 
 export default function MonthMoney({
   account, scoped, monthKey, monthLabel, txns = [], allTxns = [], monthStat,
-  figures, statement, checks = [], reconciliation,
-  hasReceipt, splitCount, requireReceipts = true, today,
+  figures, statement, checks = [], blockers = [], reconciliation, today,
   canEdit, busy, onField, onSave, onClose, onShowLine,
 }) {
   const cur = account?.currency;
@@ -57,12 +56,6 @@ export default function MonthMoney({
   const model = fundingModel(account);
   const stage = monthEndStage(monthKey, today || new Date(), status);
 
-  const blockers = useMemo(
-    () => (scoped
-      ? closeBlockers({ txns, figures, statement, hasReceipt, splitCount, requireReceipts })
-      : []),
-    [scoped, txns, figures, statement, hasReceipt, splitCount, requireReceipts],
-  );
   const ready = scoped && blockers.length === 0;
   const diffs = blockers.filter((b) => b.key.startsWith('diff:'));
   const work = blockers.filter((b) => b.count > 0);
@@ -131,19 +124,24 @@ export default function MonthMoney({
                   const ours = f.abs ? Math.abs(figures[f.ours]) : figures[f.ours];
                   return (
                     <label key={f.key} className="mm-field">
-                      {/* Cargo's own figure sits in the label, so the thing you're
-                          checking against is never off-screen while you type. */}
-                      <span>{f.label} <em>· Cargo says {money(ours)}</em></span>
+                      {/* One line, always. "Total out · Cargo says £12,923.90" wrapped
+                          on two of the three, so the inputs sat at three different
+                          heights — what Cargo makes it moved below the box, which is
+                          where your eye already is while you're typing anyway. */}
+                      <span>{f.label}</span>
                       <input inputMode="decimal" value={statement[f.key]} disabled={locked || !canEdit}
                         onChange={(e) => onField?.(f.key, e.target.value)} placeholder="—"
                         className={c?.ok === false ? 'is-off' : (c?.ok ? 'is-ok' : '')} />
-                      {c?.ok === false && (
-                        <b className="mm-diff">
-                          {c.difference > 0 ? 'over by ' : 'short by '}{money(Math.abs(c.difference))}
-                        </b>
-                      )}
-                      {c?.ok === true && <b className="mm-match">agrees</b>}
-                      {c?.ok == null && <b className="mm-none">not stated</b>}
+                      <span className="mm-vs">
+                        Cargo says {money(ours)}
+                        {c?.ok === false && (
+                          <b className="mm-diff">
+                            {c.difference > 0 ? 'over by ' : 'short by '}{money(Math.abs(c.difference))}
+                          </b>
+                        )}
+                        {c?.ok === true && <b className="mm-match">agrees</b>}
+                        {c?.ok == null && <b className="mm-none">not stated</b>}
+                      </span>
                     </label>
                   );
                 })}
@@ -180,16 +178,16 @@ export default function MonthMoney({
                 </p>
               )}
 
-              {/* The reasons Close is disabled, immediately above the button. */}
-              {!locked && work.length > 0 && (
-                <ul className="mm-todo">
-                  {work.map((b) => (
-                    <li key={b.key}><b>{b.count}</b> {b.count === 1 ? 'line' : 'lines'} {b.label}</li>
-                  ))}
-                </ul>
-              )}
               {ready && !locked && (
                 <p className="mm-ok"><Icon name="Check" size={14} /> Everything agrees</p>
+              )}
+
+              {/* The detail sits beside the wallet; a disabled button still has to
+                  say why it's disabled from where it is. */}
+              {!locked && work.length > 0 && (
+                <p className="mm-why">
+                  {work.reduce((n, b) => n + b.count, 0)} lines still to sort before it can close.
+                </p>
               )}
 
               {canEdit && !locked && (
@@ -198,7 +196,7 @@ export default function MonthMoney({
                     {busy ? 'Saving…' : 'Save figures'}
                   </button>
                   <button type="button" className="mm-btn primary" onClick={onClose} disabled={busy || !ready}
-                    title={ready ? `Close ${monthLabel}` : 'Sort the lines above first'}>
+                    title={ready ? `Close ${monthLabel}` : 'There is still work outstanding'}>
                     Close {monthLabel}
                   </button>
                 </div>

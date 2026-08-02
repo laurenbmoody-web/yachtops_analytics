@@ -10,7 +10,7 @@
      auto column grew to whatever the pill row wanted and shoved the figures off
      the right of the page — content in one cell silently resizing another. */
   grid-template-columns: 590px minmax(0, 1fr);
-  grid-template-areas: "stage figures" "pick figures" "orphan figures";
+  grid-template-areas: "stage figures" "pick figures" "orphan figures" "aside figures";
   align-content: start;
   gap: 0 48px;
   margin-top: 20px;
@@ -59,6 +59,10 @@
 .as-all.on { background: #C65A1A; border-color: #C65A1A; color: #fff; }
 .as-n { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; margin-left: 4px; }
 .as-orphan { grid-area: orphan; }
+/* The close's outstanding work, under the wallet. It sat between the statement
+   fields and the Close button, wedged into the money panel, while this half of
+   the band was empty. */
+.as-aside { grid-area: aside; min-width: 0; margin-top: 26px; }
 
 /* Money only, pushed to the page's right edge so its figures line up with the
    header's buttons above and the list's amount column below. Wide, because a
@@ -106,7 +110,7 @@
 .as-orphan:focus-visible { outline: 2px solid #C65A1A; outline-offset: 3px; border-radius: 4px; }
 
 @media (max-width: 1100px) {
-  .as { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "pick" "orphan" "figures"; }
+  .as { grid-template-columns: minmax(0, 1fr); grid-template-areas: "stage" "pick" "orphan" "aside" "figures"; }
   .as-figures { justify-self: start; align-self: start; margin-top: 26px; }
 }
 @media (max-width: 620px) {
