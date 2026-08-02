@@ -28,12 +28,13 @@ import LineDetail from '../components/LineDetail';
 import ReceiptScanner from '../components/ReceiptScanner';
 import ReceiptClip from '../components/ReceiptClip';
 import { walletAccounts, accountLabel } from '../../../services/accountPick';
-import { monthFigures, statementChecks } from '../../../services/monthEnd';
+import { monthFigures, statementChecks, closeBlockers } from '../../../services/monthEnd';
 
 // A scope, not an account id — "the lines that aren't on any card".
 export const UNASSIGNED = '__unassigned__';
 import AccountStack from '../components/AccountStack';
 import MonthMoney from '../components/MonthMoney';
+import CloseBlockers from '../components/CloseBlockers';
 import {
   getReconciliation, listReconciliationsForMonth, saveStatementFigures, closeMonth,
 } from '../../../services/reconcileService';
@@ -309,6 +310,9 @@ export default function Ledger() {
   // whether each agrees) and by the close panel (which won't close on a
   // difference), so it belongs to the page that renders both.
   const [statement, setStatement] = useState({ moneyOut: '', moneyIn: '', closing: '' });
+  // Which blocker the list is currently showing, if any.
+  const [need, setNeed] = useState('');
+  useEffect(() => { setNeed(''); }, [filters.accountId, activeMonth]);
   useEffect(() => {
     setStatement({
       moneyOut: recon?.stmt_money_out ?? '',
@@ -317,13 +321,23 @@ export default function Ledger() {
     });
   }, [recon]);
 
+  // The predicates that decide each count, kept beside closeBlockers' own so a
+  // click shows exactly the lines the number counted — nothing more or less.
+  const needTests = useMemo(() => ({
+    uncategorised: (t) => !t.category && (splitsByTxn[t.id] || []).length === 0,
+    unassigned: (t) => !t.account_id,
+    receipts: (t) => !hasEvidence(t, (attByTxn[t.id] || []).length > 0),
+    pending: (t) => Boolean(t.is_pending),
+  }), [splitsByTxn, attByTxn]);
+
   const monthRows = useMemo(() => {
     let list = monthAll;
+    if (need && needTests[need]) list = list.filter((t) => !isVoidRow(t) && needTests[need](t));
     if (status === 'look') list = list.filter(isLookRow);
     else if (status === 'filed') list = list.filter(isFiledRow);
     if (sortOldest) list = [...list].reverse();
     return list;
-  }, [monthAll, status, sortOldest]);
+  }, [monthAll, status, sortOldest, need, needTests]);
 
   const scopedAccount = accountsById[filters.accountId] || null;
   // One computation of the month's money, read by the panel beside the wallet and
@@ -333,6 +347,19 @@ export default function Ledger() {
     [scopedAccount, monthAll],
   );
   const monthChecks = useMemo(() => statementChecks(monthFigs, statement), [monthFigs, statement]);
+
+  const monthBlockers = useMemo(
+    () => (scopedAccount
+      ? closeBlockers({
+        txns: monthAll,
+        figures: monthFigs,
+        statement,
+        hasReceipt: (t) => hasEvidence(t, (attByTxn[t.id] || []).length > 0),
+        splitCount: (t) => (splitsByTxn[t.id] || []).length,
+      })
+      : []),
+    [scopedAccount, monthAll, monthFigs, statement, attByTxn, splitsByTxn],
+  );
   const [savingStatement, setSavingStatement] = useState(false);
   const monthStat = statsByMonth[activeMonth] || { entries: 0, look: 0, filed: 0, net: 0, inSum: 0, outSum: 0 };
   const axisIdx = axis.indexOf(activeMonth);
@@ -845,6 +872,14 @@ export default function Ledger() {
             activeId={filters.accountId}
             monthKey={activeMonth}
             reconFor={(id) => monthRecons.find((r) => r.account_id === id)}
+            aside={(
+              <CloseBlockers
+                blockers={monthBlockers}
+                activeNeed={need}
+                monthLabel={ymLabel(activeMonth)}
+                onPick={setNeed}
+              />
+            )}
             unassigned={stackStats['']?.count || 0}
             unassignedOn={filters.accountId === UNASSIGNED}
             onShowUnassigned={() => setF({
@@ -863,6 +898,7 @@ export default function Ledger() {
                 figures={monthFigs}
                 statement={statement}
                 checks={monthChecks}
+                blockers={monthBlockers}
                 reconciliation={recon}
                 hasReceipt={(t) => hasEvidence(t, (attByTxn[t.id] || []).length > 0)}
                 splitCount={(t) => (splitsByTxn[t.id] || []).length}

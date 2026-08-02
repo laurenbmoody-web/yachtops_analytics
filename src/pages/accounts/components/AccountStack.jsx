@@ -41,7 +41,7 @@ const stateFor = (recon, stage) => {
 
 export default function AccountStack({
   accounts = [], activeId = '', monthKey, reconFor,
-  unassigned = 0, onSelect, today, figures, unassignedOn = false, onShowUnassigned,
+  unassigned = 0, onSelect, today, figures, aside, unassignedOn = false, onShowUnassigned,
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   if (!accounts.length) return null;
@@ -170,6 +170,8 @@ export default function AccountStack({
           )}
         </button>
       )}
+
+      {aside && <div className="as-aside">{aside}</div>}
 
       {/* The month's money, beside the card it belongs to rather than stranded on
           its own row. A ledger that ladders to Net, not four flat tiles — same
