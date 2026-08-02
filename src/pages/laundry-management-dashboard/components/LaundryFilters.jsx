@@ -19,7 +19,33 @@ export const useMenu = () => {
   return [open, setOpen, ref];
 };
 
-// One "Filters" button → popover of labelled <select> groups.
+// One filter group — a Cargo field that expands its options inline (tick-list)
+// straight from the box, rather than a native <select> dropdown.
+function FilterField({ group }) {
+  const [open, setOpen] = useState(false);
+  const current = group.options.find((o) => o.value === group.value)?.label || 'Any';
+  const changed = group.value !== group.neutral;
+  return (
+    <div className="lmf-group">
+      <span className="lmf-label">{group.label}</span>
+      <button type="button" className={`lmf-field${open ? ' open' : ''}${changed ? ' on' : ''}`} onClick={() => setOpen((o) => !o)}>
+        <span className="lmf-field-val">{current}</span>
+        <Icon name="ChevronDown" size={14} className="chev" />
+      </button>
+      {open && (
+        <div className="lmf-fieldopts">
+          {group.options.map((o) => (
+            <button key={o.value} type="button" className={`lmf-sortopt${o.value === group.value ? ' sel' : ''}`} onClick={() => { group.onChange(o.value); setOpen(false); }}>
+              <span>{o.label}</span>{o.value === group.value && <Icon name="Check" size={15} />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// One "Filters" button → popover of labelled filter fields.
 // groups: [{ key, label, value, onChange, neutral, options: [{ value, label }] }]
 // The active badge counts any group whose value isn't its neutral (default).
 export function FilterMenu({ groups }) {
@@ -35,16 +61,7 @@ export function FilterMenu({ groups }) {
       </button>
       {open && (
         <div className="lmf-pop">
-          {(groups || []).map((g) => (
-            <div className="lmf-group" key={g.key}>
-              <span className="lmf-label">{g.label}</span>
-              <div className="lmf-select">
-                <select value={g.value} onChange={(e) => g.onChange(e.target.value)}>
-                  {g.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </div>
-            </div>
-          ))}
+          {(groups || []).map((g) => <FilterField key={g.key} group={g} />)}
         </div>
       )}
     </div>
