@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { formatDate } from '../../utils/dateFormat';
-import { getAllItems } from '../inventory/utils/inventoryStorage';
+import { getAllItems, bulkClearExpiry } from '../inventory/utils/inventoryStorage';
 import PushToBoardModal from '../inventory/components/PushToBoardModal';
 import '../../styles/editorial.css';
 import './attention.css';
@@ -45,6 +45,8 @@ const InventoryAttention = () => {
   const [dept, setDept] = useState('');
   const [sortBy, setSortBy] = useState('date');
   const [collapsed, setCollapsed] = useState(() => new Set());
+  const [openMenu, setOpenMenu] = useState(null); // 'filter' | 'sort' | null
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -102,6 +104,23 @@ const InventoryAttention = () => {
     [selected, byId],
   );
 
+  // Mark selected items as non-expiring — clears their expiry so they drop off.
+  const handleClearExpiry = async () => {
+    const ids = [...selected];
+    if (!ids.length || clearing) return;
+    setClearing(true);
+    const ok = await bulkClearExpiry(ids);
+    setClearing(false);
+    if (ok) {
+      const dropped = new Set(ids);
+      setItems((prev) => (prev || []).map((i) => (dropped.has(i.id) ? { ...i, expiryDate: null } : i)));
+      setSelected(new Set());
+      window.showToast?.(`${ids.length} item${ids.length === 1 ? '' : 's'} marked as non-expiring`, 'success');
+    } else {
+      window.showToast?.('Couldn’t update — try again', 'error');
+    }
+  };
+
   const metricFor = (i, key) => (key === 'belowpar'
     ? `${qtyOf(i)} / ${i?.restockLevel}${i?.unit ? ` ${i.unit}` : ''}`
     : (expDate(i) ? formatDate(i.expiryDate) : '—'));
@@ -116,19 +135,11 @@ const InventoryAttention = () => {
 
         <p className="editorial-meta att-meta">
           <span className="dot">●</span>
-          <span>INVENTORY</span>
+          <span>{items === null ? '…' : counts.expired} EXPIRED</span>
           <span className="bar" />
-          <span className="muted">NEEDS ATTENTION</span>
-          {items !== null && (
-            <>
-              <span className="bar" />
-              <span className="muted">{counts.expired} EXPIRED</span>
-              <span className="bar" />
-              <span className="muted">{counts.belowpar} BELOW PAR</span>
-              <span className="bar" />
-              <span className="muted">{counts.expiring} EXPIRING</span>
-            </>
-          )}
+          <span className="muted">{items === null ? '…' : counts.belowpar} BELOW PAR</span>
+          <span className="bar" />
+          <span className="muted">{items === null ? '…' : counts.expiring} EXPIRING</span>
         </p>
         <h1 className="editorial-greeting">
           ATTENTION<span className="period">,</span> <em>{total === 0 ? 'all clear' : 'act now'}</em><span className="period">.</span>
@@ -147,18 +158,38 @@ const InventoryAttention = () => {
               {search && <button className="att-clearsearch" onClick={() => setSearch('')} aria-label="Clear"><Icon name="X" size={14} /></button>}
             </div>
             <div className="att-selects">
-              <div className="att-select">
-                <Icon name="Filter" size={15} />
-                <select value={dept} onChange={(e) => setDept(e.target.value)}>
-                  <option value="">All departments</option>
-                  {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
+              <div className="att-toolwrap">
+                <button className={`att-tool${dept ? ' on' : ''}`} onClick={() => setOpenMenu(openMenu === 'filter' ? null : 'filter')}>
+                  <Icon name="SlidersHorizontal" size={15} /> Filter
+                  {dept && <span className="att-tool-count">1</span>}
+                </button>
+                {openMenu === 'filter' && (
+                  <div className="att-menu">
+                    <button className={`att-menu-item${!dept ? ' on' : ''}`} onClick={() => { setDept(''); setOpenMenu(null); }}>
+                      All departments{!dept && <Icon name="Check" size={14} />}
+                    </button>
+                    {departments.map((d) => (
+                      <button key={d} className={`att-menu-item${dept === d ? ' on' : ''}`} onClick={() => { setDept(d); setOpenMenu(null); }}>
+                        {d}{dept === d && <Icon name="Check" size={14} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="att-select">
-                <Icon name="ArrowUpDown" size={15} />
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-                  {SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
+              <div className="att-toolwrap">
+                <button className="att-tool" onClick={() => setOpenMenu(openMenu === 'sort' ? null : 'sort')}>
+                  <Icon name="ArrowUpDown" size={15} /> Sort
+                  <Icon name="ChevronDown" size={13} className={openMenu === 'sort' ? 'att-caret open' : 'att-caret'} />
+                </button>
+                {openMenu === 'sort' && (
+                  <div className="att-menu">
+                    {SORTS.map((s) => (
+                      <button key={s.value} className={`att-menu-item${sortBy === s.value ? ' on' : ''}`} onClick={() => { setSortBy(s.value); setOpenMenu(null); }}>
+                        {s.label}{sortBy === s.value && <Icon name="Check" size={14} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -208,11 +239,16 @@ const InventoryAttention = () => {
         )}
       </div>
 
+      {openMenu && <div className="att-menu-backdrop" onClick={() => setOpenMenu(null)} />}
+
       {selected.size > 0 && (
         <div className="att-bar">
           <span className="att-bar-count">{selected.size} selected</span>
           <div className="att-bar-actions">
             <button className="att-bar-ghost" onClick={() => setSelected(new Set())}>Clear</button>
+            <button className="att-bar-alt" onClick={handleClearExpiry} disabled={clearing} title="Clear the expiry on these — for items that don't actually expire">
+              <Icon name="CalendarOff" size={15} /> {clearing ? 'Updating…' : "Doesn't expire"}
+            </button>
             <button className="att-bar-prim" onClick={() => setShowPush(true)}>
               <Icon name="ShoppingCart" size={15} /> Push to provisioning
             </button>
