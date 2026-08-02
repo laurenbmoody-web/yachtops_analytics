@@ -1,17 +1,16 @@
 // Warehouse layout designer — the supplier draws their unit and lays out racks.
 //
 // The room is a free-form polygon: drag wall points, add or remove them, make
-// any shape. Racks drop onto the floor and can be dragged and physically
-// resized. Selecting a rack opens a properties bar where you set its name,
-// code, temperature zone, orientation (horizontal / vertical) and — decoupled
-// from its physical size — how many bays (sections across) and levels (shelves
-// up) it has. Click a rack to look at it head-on, section by section. Saves as
-// you go. Coordinate space is x:0..100, y:0..60 (the room keeps that aspect, so
-// a unit is square in both axes). Persisted via supplier_warehouse_layout.
+// any shape. Racks drop onto the floor, can be dragged and physically resized.
+// Clicking a rack SELECTS it and opens its properties bar (name, code, zone,
+// orientation, sides, bays, levels); "Head-on" opens the section view. Racks
+// can be single- or double-sided (products on the front, or front and back).
+// Autosaves silently. Coordinate space is x:0..100, y:0..60. Persisted via
+// supplier_warehouse_layout.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Plus, Minus, Trash2, X, PenLine, Check, Move, Boxes, Layers, Maximize2,
+  Plus, Minus, Trash2, X, PenLine, Check, Boxes, Layers, Maximize2, Columns2,
 } from 'lucide-react';
 import { fetchWarehouseLayout, saveWarehouseLayout } from '../utils/supplierStorage';
 import './warehouse-designer.css';
@@ -37,11 +36,12 @@ const levelDefs = (n) => {
 };
 // Fill in any fields missing from older saved racks.
 const normalizeRack = (r) => ({
-  name: '', code: r.id, bays: 4, levels: DEFAULT_LEVELS[r.zone] || 3,
+  name: '', code: r.id, bays: 4, levels: DEFAULT_LEVELS[r.zone] || 3, sides: 1,
   ...r,
   code: r.code || r.id,
   bays: clamp(1, 16, r.bays || 4),
   levels: clamp(1, 8, r.levels || DEFAULT_LEVELS[r.zone] || 3),
+  sides: r.sides === 2 ? 2 : 1,
 });
 
 export default function WarehouseDesigner({ supplierId }) {
@@ -49,10 +49,8 @@ export default function WarehouseDesigner({ supplierId }) {
   const [racks, setRacks] = useState([]);
   const [sel, setSel] = useState(null);
   const [editWalls, setEditWalls] = useState(false);
-  const [newZone, setNewZone] = useState('ambient');
   const [modalRack, setModalRack] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saveState, setSaveState] = useState('idle'); // idle | saving | saved
   const [error, setError] = useState(null);
 
   const roomRef = useRef(null);
@@ -69,13 +67,12 @@ export default function WarehouseDesigner({ supplierId }) {
     })();
   }, []);
 
+  // Autosave silently, debounced — no toast.
   useEffect(() => {
-    if (!loaded.current) return;
-    setSaveState('saving');
-    const t = setTimeout(async () => {
-      try { await saveWarehouseLayout(supplierId, { shape, racks }); setSaveState('saved'); }
-      catch (e) { setError(e.message); setSaveState('idle'); }
-    }, 600);
+    if (!loaded.current) return undefined;
+    const t = setTimeout(() => {
+      saveWarehouseLayout(supplierId, { shape, racks }).catch((e) => setError(e.message));
+    }, 500);
     return () => clearTimeout(t);
   }, [shape, racks, supplierId]);
 
@@ -125,16 +122,14 @@ export default function WarehouseDesigner({ supplierId }) {
     };
     const onUp = () => {
       const ds = dragRef.current; dragRef.current = null;
-      if (!ds) return;
-      if (ds.type === 'rack' && !ds.moved) {
-        if (sel === ds.id) setModalRack(racks.find((r) => r.id === ds.id));
-        else setSel(ds.id);
-      }
+      // A click (no drag) just selects the rack — head-on is a deliberate
+      // action via the properties bar, so you can edit details first.
+      if (ds && ds.type === 'rack' && !ds.moved) setSel(ds.id);
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     return () => { window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp); };
-  }, [sel, racks]);
+  }, []);
 
   const startRackDrag = (e, r) => {
     if (editWalls) return;
@@ -150,11 +145,11 @@ export default function WarehouseDesigner({ supplierId }) {
   const startVertex = (e, i) => { e.stopPropagation(); dragRef.current = { type: 'vertex', i, cx: e.clientX, cy: e.clientY, moved: false }; };
 
   // ── rack ops ──
-  const nextId = (zone) => { const p = zone[0].toUpperCase(); let n = 1; while (racks.some((r) => r.id === p + n)) n += 1; return p + n; };
+  const nextId = () => { let n = 1; while (racks.some((r) => r.id === `R${n}`)) n += 1; return `R${n}`; };
   const addRack = () => {
     setEditWalls(false);
-    const id = nextId(newZone);
-    const r = clampRack({ id, code: id, name: '', zone: newZone, orient: 'h', x: 40, y: 24, len: 28, thick: 6, bays: 4, levels: DEFAULT_LEVELS[newZone] });
+    const id = nextId();
+    const r = clampRack({ id, code: id, name: '', zone: 'ambient', orient: 'h', x: 40, y: 24, len: 28, thick: 6, bays: 4, levels: DEFAULT_LEVELS.ambient, sides: 1 });
     setRacks((rs) => [...rs, r]); setSel(id);
   };
   const deleteRack = () => { setRacks((rs) => rs.filter((r) => r.id !== sel)); setSel(null); };
@@ -184,31 +179,19 @@ export default function WarehouseDesigner({ supplierId }) {
         <p className="wd-eyebrow"><span className="dot" />WAREHOUSE<span className="bar" />LAYOUT DESIGNER
           <span className="bar" />{racks.length} RACK{racks.length === 1 ? '' : 'S'}</p>
         <h1 className="wd-headline">WAREHOUSE<span className="p">,</span> <em>designed</em><span className="p">.</span></h1>
-        <p className="wd-lead">Draw your unit, drop in racks, and tap one to open it head-on.</p>
       </div>
 
       {error && <div className="wd-error" onClick={() => setError(null)}>{error} <X size={12} /></div>}
 
-      {/* toolbar */}
+      {/* toolbar — two real buttons */}
       <div className="wd-toolbar">
-        <button className="wd-btn primary" onClick={addRack}><Plus size={15} /> Add rack</button>
-        <div className="wd-zonesel">
-          {ZONES.map((z) => (
-            <button key={z.key} className={`wd-zpill${newZone === z.key ? ' on' : ''}`} style={{ '--zc': z.color }}
-              onClick={() => setNewZone(z.key)}><i />{z.label}</button>
-          ))}
-        </div>
+        <button className="wd-btn primary" onClick={addRack}><Plus size={16} /> Add rack</button>
         <button className={`wd-btn ghost${editWalls ? ' active' : ''}`} onClick={() => { setEditWalls((v) => !v); setSel(null); }}>
-          {editWalls ? <><Check size={15} /> Done editing walls</> : <><PenLine size={15} /> Edit room shape</>}
+          {editWalls ? <><Check size={16} /> Done</> : <><PenLine size={16} /> Edit warehouse layout</>}
         </button>
-        <span className={`wd-save ${saveState}`}>
-          {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? <>Saved <Check size={12} /></> : ''}
-        </span>
       </div>
 
-      <div className="wd-subhint"><Move size={12} /> {editWalls ? 'Drag wall points · tap ＋ to add a point · double-tap one to remove' : 'Drag racks to move · round handles resize · click a rack to open it head-on'}</div>
-
-      {/* properties bar for the selected rack — pinned above the room so it's always in view */}
+      {/* properties bar for the selected rack — pinned above the room */}
       {selRack && !editWalls && (
         <RackProps rack={selRack} onPatch={patchRack} onDelete={deleteRack} onHeadOn={() => setModalRack(selRack)} />
       )}
@@ -232,6 +215,7 @@ export default function WarehouseDesigner({ supplierId }) {
                 title={r.name || r.code} onPointerDown={(e) => startRackDrag(e, r)}>
                 <span className="cap" />
                 <span className="bays">{bays}</span>
+                {r.sides === 2 && <span className="wd-mid" />}
                 <span className="lab">{r.code}</span>
               </div>
             );
@@ -265,7 +249,6 @@ export default function WarehouseDesigner({ supplierId }) {
             );
           })}
 
-          {/* in-canvas Done pill while editing walls — so you can always get out */}
           {editWalls && (
             <button className="wd-donepill" onClick={() => setEditWalls(false)}><Check size={15} /> Done editing walls</button>
           )}
@@ -281,8 +264,7 @@ export default function WarehouseDesigner({ supplierId }) {
   );
 }
 
-// ── Properties bar for the selected rack (name / code / zone / orientation /
-// bays / levels), pinned above the room so it's always reachable. ─────────────
+// ── Properties bar for the selected rack ──────────────────────────────────────
 function RackProps({ rack, onPatch, onDelete, onHeadOn }) {
   return (
     <div className="wd-props">
@@ -310,6 +292,13 @@ function RackProps({ rack, onPatch, onDelete, onHeadOn }) {
           <button className={rack.orient === 'v' ? 'on' : ''} onClick={() => onPatch(rack.id, { orient: 'v' })}>Vertical</button>
         </div>
       </div>
+      <div className="wd-pfield">
+        <label><Columns2 size={11} /> Sides</label>
+        <div className="wd-seg">
+          <button className={rack.sides !== 2 ? 'on' : ''} onClick={() => onPatch(rack.id, { sides: 1 })}>Single</button>
+          <button className={rack.sides === 2 ? 'on' : ''} onClick={() => onPatch(rack.id, { sides: 2 })}>Double</button>
+        </div>
+      </div>
       <Stepper label={<><Boxes size={11} /> Bays</>} value={rack.bays} min={1} max={16} onChange={(v) => onPatch(rack.id, { bays: v })} />
       <Stepper label={<><Layers size={11} /> Levels</>} value={rack.levels} min={1} max={8} onChange={(v) => onPatch(rack.id, { levels: v })} />
       <div className="wd-pacts">
@@ -333,12 +322,16 @@ function Stepper({ label, value, min, max, onChange }) {
   );
 }
 
-// ── Head-on view of a single rack (bays × levels) ──────────────────────────────
+// ── Head-on view of a single rack (bays × levels, per side) ────────────────────
 function HeadOn({ rack, onPatch, onClose }) {
+  const sidesN = rack.sides === 2 ? 2 : 1;
+  const SIDES = sidesN === 2 ? [{ k: 'F', t: 'Front' }, { k: 'B', t: 'Back' }] : [{ k: '', t: '' }];
+  const [side, setSide] = useState(SIDES[0].k);
   const [selSlot, setSelSlot] = useState(null);
   const levels = levelDefs(rack.levels || DEFAULT_LEVELS[rack.zone] || 3);
   const code = rack.code || rack.id;
-  const total = rack.bays * levels.length;
+  const total = rack.bays * levels.length * sidesN;
+  const curSide = SIDES.find((s) => s.k === side) ? side : SIDES[0].k;
   return (
     <div className="wd-back" onPointerDown={(e) => { if (e.target.classList.contains('wd-back')) onClose(); }}>
       <div className="wd-modal" role="dialog" aria-label={`Rack ${code}`}>
@@ -352,6 +345,7 @@ function HeadOn({ rack, onPatch, onClose }) {
               </span>
               <span><Boxes size={12} /> {rack.bays} bays</span>
               <span><Layers size={12} /> {levels.length} levels</span>
+              {sidesN === 2 && <span><Columns2 size={12} /> 2 sides</span>}
               <span>{total} sections</span>
             </div>
           </div>
@@ -380,6 +374,14 @@ function HeadOn({ rack, onPatch, onClose }) {
           </div>
         )}
 
+        {sidesN === 2 && (
+          <div className="wd-sidetabs">
+            {SIDES.map((s) => (
+              <button key={s.k} className={curSide === s.k ? 'on' : ''} onClick={() => setSide(s.k)}>{s.t} side</button>
+            ))}
+          </div>
+        )}
+
         <div className="wd-front">
           <div className="wd-fnums" style={{ gridTemplateColumns: `repeat(${rack.bays}, 1fr)` }}>
             {Array.from({ length: rack.bays }, (_, i) => <span key={i}>Bay {String(i + 1).padStart(2, '0')}</span>)}
@@ -389,7 +391,7 @@ function HeadOn({ rack, onPatch, onClose }) {
               <span className="wd-ftag">{l.t}</span>
               <div className="wd-frow" style={{ gridTemplateColumns: `repeat(${rack.bays}, 1fr)` }}>
                 {Array.from({ length: rack.bays }, (_, bi) => {
-                  const sc = `${code}·${String(bi + 1).padStart(2, '0')}·${l.k}`;
+                  const sc = `${code}${curSide ? `·${curSide}` : ''}·${String(bi + 1).padStart(2, '0')}·${l.k}`;
                   return (
                     <button key={bi} className={`wd-fs${selSlot === sc ? ' sel' : ''}`} onClick={() => setSelSlot(sc)}>
                       <span className="wd-fc">{sc}</span>

@@ -89,6 +89,11 @@
 .wd-rk.sel { outline-color: var(--orange, #C65A1A); box-shadow: 0 10px 22px -8px rgba(198,90,26,.55); z-index: 15; }
 .wd-rk.sel .lab { color: var(--orange, #C65A1A); }
 
+/* double-sided rack: a centre divider running the length of the rack */
+.wd-rk .wd-mid { position: absolute; background: rgba(20,29,46,.28); pointer-events: none; }
+.wd-rk.h .wd-mid { left: 9px; right: 2px; top: 50%; height: 1.5px; transform: translateY(-50%); }
+.wd-rk.v .wd-mid { top: 9px; bottom: 2px; left: 50%; width: 1.5px; transform: translateX(-50%); }
+
 /* selected-rack floating toolbar */
 .wd-rtb { position: absolute; display: flex; gap: 3px; background: var(--navy-deep, #141D2E); border-radius: 8px; padding: 3px;
   z-index: 30; box-shadow: 0 8px 20px -8px rgba(0,0,0,.5); transform: translateY(-115%); }
@@ -185,7 +190,13 @@
 .wd-mtool { display: inline-flex; align-items: center; gap: 8px; }
 .wd-mtool label { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--fg, #0C0E14); }
 
-.wd-front { margin: 16px 0 0; border: 2px solid var(--wd-steel-d); border-radius: 8px; padding: 13px 15px 5px;
+/* Front / Back side tabs for a double-sided rack */
+.wd-sidetabs { display: inline-flex; border: 1px solid var(--line, #E2E8F0); border-radius: 8px; overflow: hidden; margin: 14px 0 0; }
+.wd-sidetabs button { border: none; background: var(--card, #fff); padding: 8px 18px; font-family: inherit; font-size: 12px; font-weight: 700;
+  color: var(--muted-strong, #64748B); cursor: pointer; }
+.wd-sidetabs button.on { background: var(--navy-deep, #141D2E); color: #fff; }
+
+.wd-front { margin: 12px 0 0; border: 2px solid var(--wd-steel-d); border-radius: 8px; padding: 13px 15px 5px;
   background: linear-gradient(180deg, var(--wd-steel), var(--bg-2, #F6F8FC)); position: relative; }
 .wd-front::before, .wd-front::after { content: ""; position: absolute; top: 6px; bottom: 6px; width: 7px; border-radius: 3px;
   background: linear-gradient(90deg, var(--wd-steel-d), var(--wd-steel-2)); }
