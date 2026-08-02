@@ -37,7 +37,7 @@ const OTHER_CHARTER = '__other__';
 const NOTE_EXAMPLE = {
   Bridge: 'e.g. paper charts for the Balearics',
   Interior: 'e.g. replacement bed linen for the VIP cabin',
-  Deck: 'e.g. fender covers for the passerelle',
+  Deck: 'e.g. teak cleaner and deck brushes',
   Engineering: 'e.g. hydraulic hose for the tender crane',
   Galley: 'e.g. dry stores for the Sardinia trip',
   Spa: 'e.g. massage oils and treatment towels',
