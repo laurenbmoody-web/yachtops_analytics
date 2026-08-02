@@ -25,18 +25,22 @@ function FilterField({ group }) {
   const [open, setOpen] = useState(false);
   const current = group.options.find((o) => o.value === group.value)?.label || 'Any';
   const changed = group.value !== group.neutral;
+  // The box IS the current/selected option — the list below is the other choices,
+  // so the value never appears twice.
+  const others = group.options.filter((o) => o.value !== group.value);
   return (
     <div className="lmf-group">
       <span className="lmf-label">{group.label}</span>
       <button type="button" className={`lmf-field${open ? ' open' : ''}${changed ? ' on' : ''}`} onClick={() => setOpen((o) => !o)}>
-        <span className={`lmf-field-val${open ? ' ph' : ''}`}>{open ? 'Choose…' : current}</span>
+        <span className="lmf-field-val">{current}</span>
+        {open && <Icon name="Check" size={15} className="lmf-field-tick" />}
         <Icon name="ChevronDown" size={14} className="chev" />
       </button>
-      {open && (
+      {open && others.length > 0 && (
         <div className="lmf-fieldopts">
-          {group.options.map((o) => (
-            <button key={o.value} type="button" className={`lmf-sortopt${o.value === group.value ? ' sel' : ''}`} onClick={() => { group.onChange(o.value); setOpen(false); }}>
-              <span>{o.label}</span>{o.value === group.value && <Icon name="Check" size={15} />}
+          {others.map((o) => (
+            <button key={o.value} type="button" className="lmf-sortopt" onClick={() => { group.onChange(o.value); setOpen(false); }}>
+              <span>{o.label}</span>
             </button>
           ))}
         </div>
