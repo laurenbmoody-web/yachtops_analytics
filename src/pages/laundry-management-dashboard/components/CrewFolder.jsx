@@ -1163,22 +1163,30 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
             <h2 className="cf-member-nm">{selected.fullName}</h2>
             {(memberCabin?.cabin || memberAlloc.laundry_number || memberAlloc.laundry_colour) && (
               <span className="cf-member-alloc">
-                {memberCabin?.cabin && (
-                  <span className="cf-alloc"><Icon name="BedDouble" size={13} /><span>{memberCabin.cabin}</span></span>
-                )}
-                {memberCabin?.cabin && (memberAlloc.laundry_number || memberAlloc.laundry_colour) && <span className="cf-alloc-sep" />}
-                {(memberAlloc.laundry_number || memberAlloc.laundry_colour) && (
-                  <span className="cf-alloc">
-                    <Icon name="WashingMachine" size={13} />
-                    {memberAlloc.laundry_number && <span>{memberAlloc.laundry_number}</span>}
-                    {memberAlloc.laundry_colour && (
-                      <span className="cf-alloc-colour">
+                {(() => {
+                  const segs = [];
+                  if (memberCabin?.cabin) {
+                    segs.push(
+                      <span key="cabin" className="cf-alloc"><Icon name="BedDouble" size={13} /><span>{memberCabin.cabin}</span></span>,
+                    );
+                  }
+                  if (memberAlloc.laundry_number) {
+                    segs.push(
+                      <span key="lnum" className="cf-alloc"><Icon name="WashingMachine" size={13} /><span>{memberAlloc.laundry_number}</span></span>,
+                    );
+                  }
+                  if (memberAlloc.laundry_colour) {
+                    segs.push(
+                      <span key="lcol" className="cf-alloc">
                         <span className="cf-alloc-sw" style={{ background: String(memberAlloc.laundry_colour).toLowerCase() }} title={`Laundry colour · ${memberAlloc.laundry_colour}`} />
-                        {memberAlloc.laundry_colour}
-                      </span>
-                    )}
-                  </span>
-                )}
+                        <span>{memberAlloc.laundry_colour}</span>
+                      </span>,
+                    );
+                  }
+                  return segs.flatMap((seg, i) => (
+                    i === 0 ? [seg] : [<span key={`sep${i}`} className="cf-alloc-sep" />, seg]
+                  ));
+                })()}
               </span>
             )}
           </div>
