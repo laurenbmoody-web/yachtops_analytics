@@ -124,3 +124,6 @@ select.ld-input { cursor: pointer; }
 /* Disabled is where a fill is meaningful — it says "not yours to change" rather
    than decorating an editable box. */
 .ld-input:disabled { background: #FAFAF8; color: #8B8478; }
+
+/* Who pays needs room for "Charter (APA)" without squeezing the fields beside it. */
+.ld-field.ld-whopays { min-width: 168px; }

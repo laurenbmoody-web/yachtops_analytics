@@ -30,6 +30,22 @@ import './line-detail.css';
 
 const CURRENCIES = ['GBP', 'EUR', 'USD', 'CHF', 'AUD'];
 const OTHER_CHARTER = '__other__';
+
+// The note is the crew's own words about what a line was for, so the prompt shows
+// the kind of thing THIS department buys. A galley hand asked for "a hydraulic
+// hose for the tender crane" reads it as someone else's form.
+const NOTE_EXAMPLE = {
+  Bridge: 'e.g. paper charts for the Balearics',
+  Interior: 'e.g. replacement bed linen for the VIP cabin',
+  Deck: 'e.g. fender covers for the passerelle',
+  Engineering: 'e.g. hydraulic hose for the tender crane',
+  Galley: 'e.g. dry stores for the Sardinia trip',
+  Spa: 'e.g. massage oils and treatment towels',
+  Security: 'e.g. replacement CCTV camera for the aft deck',
+  Aviation: 'e.g. helideck netting inspection',
+  'Shore / Management': 'e.g. flights for the incoming chief stew',
+};
+const noteExample = (dept) => NOTE_EXAMPLE[dept] || 'e.g. what this was actually for';
 const blankSplit = () => ({ amount: '', category: '', category_code: '', department: '', note: '' });
 const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');
 
@@ -196,7 +212,7 @@ export default function LineDetail({
         <label className="ld-field ld-wide">
           {label('Description / note')}
           <input className="ld-input" value={note} onChange={(e) => setNote(e.target.value)}
-            placeholder="What this was actually for — e.g. hydraulic hose for the tender crane"
+            placeholder={noteExample(department)}
             disabled={!canEdit} />
         </label>
 
@@ -249,7 +265,7 @@ export default function LineDetail({
 
       {/* Row B — who bears it, and which charter when that has to be stated */}
       <div className="ld-row">
-        <div className="ld-field">
+        <div className="ld-field ld-whopays">
           {label('Who pays')}
           {/* A dropdown like the two fields beside it, rather than a segmented
               toggle — same shape, same white ground, one row of controls that
