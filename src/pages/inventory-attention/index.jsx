@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { formatDate } from '../../utils/dateFormat';
-import { getAllItems, bulkClearExpiry } from '../inventory/utils/inventoryStorage';
+import { getAllItems, setItemsAttentionHidden } from '../inventory/utils/inventoryStorage';
 import PushToBoardModal from '../inventory/components/PushToBoardModal';
 import EditorialDatePicker from '../../components/editorial/EditorialDatePicker';
 import '../../styles/editorial.css';
@@ -12,6 +12,7 @@ import './attention.css';
 const DAY = 24 * 60 * 60 * 1000;
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 
+const isHidden = (i) => !!(i?.customFields || i?.custom_fields || {}).attention_hidden;
 const qtyOf = (i) => Number(i?.totalQty ?? i?.quantity ?? 0) || 0;
 const shortfall = (i) => (i?.restockLevel != null ? Math.max(1, i.restockLevel - qtyOf(i)) : 1);
 const expDate = (i) => { const e = i?.expiryDate ? new Date(i.expiryDate) : null; return e && !Number.isNaN(e.getTime()) ? e : null; };
@@ -85,7 +86,8 @@ const InventoryAttention = () => {
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [openMenu, setOpenMenu] = useState(null); // 'filter' | 'sort' | null
   const [ddOpen, setDDOpen] = useState(null); // which filter sub-dropdown is open
-  const [clearing, setClearing] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
+  const [hiding, setHiding] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -122,6 +124,8 @@ const InventoryAttention = () => {
     const to = toDate ? new Date(toDate) : null;
     if (to) to.setHours(23, 59, 59, 999);
     return (items || []).filter((i) => {
+      // Hidden items only appear in the "hidden" view; normally they're excluded.
+      if (showHidden ? !isHidden(i) : isHidden(i)) return false;
       if (dept && i?.location !== dept) return false;
       if (loc && !String(i?.subLocation || '').split(' > ').map((x) => x.trim()).includes(loc)) return false;
       // Expiry date range applies only to items that have an expiry (below-par
@@ -139,7 +143,9 @@ const InventoryAttention = () => {
       }
       return true;
     });
-  }, [items, search, dept, loc, fromDate, toDate]);
+  }, [items, search, dept, loc, fromDate, toDate, showHidden]);
+
+  const hiddenCount = useMemo(() => (items || []).filter(isHidden).length, [items]);
 
   const buckets = useMemo(() => {
     const today = startOfToday();
@@ -179,18 +185,21 @@ const InventoryAttention = () => {
     [selected, byId],
   );
 
-  // Mark selected items as non-expiring — clears their expiry so they drop off.
-  const handleClearExpiry = async () => {
-    const ids = [...selected];
-    if (!ids.length || clearing) return;
-    setClearing(true);
-    const ok = await bulkClearExpiry(ids);
-    setClearing(false);
+  // Hide (or unhide) selected items from this list — keeps their expiry & data.
+  const handleToggleHidden = async () => {
+    const chosen = [...selected].map((id) => byId.get(id)).filter(Boolean);
+    if (!chosen.length || hiding) return;
+    const hide = !showHidden; // in the hidden view the action un-hides
+    setHiding(true);
+    const ok = await setItemsAttentionHidden(chosen, hide);
+    setHiding(false);
     if (ok) {
-      const dropped = new Set(ids);
-      setItems((prev) => (prev || []).map((i) => (dropped.has(i.id) ? { ...i, expiryDate: null } : i)));
+      const touched = new Set(chosen.map((i) => i.id));
+      setItems((prev) => (prev || []).map((i) => (touched.has(i.id)
+        ? { ...i, customFields: (() => { const cf = { ...(i.customFields || {}) }; if (hide) cf.attention_hidden = true; else delete cf.attention_hidden; return cf; })() }
+        : i)));
       setSelected(new Set());
-      window.showToast?.(`${ids.length} item${ids.length === 1 ? '' : 's'} marked as non-expiring`, 'success');
+      window.showToast?.(`${chosen.length} item${chosen.length === 1 ? '' : 's'} ${hide ? 'hidden from this list' : 'restored'}`, 'success');
     } else {
       window.showToast?.('Couldn’t update — try again', 'error');
     }
@@ -307,6 +316,12 @@ const InventoryAttention = () => {
                   </div>
                 )}
               </div>
+              {(hiddenCount > 0 || showHidden) && (
+                <button className={`att-tool${showHidden ? ' on' : ''}`} onClick={() => { setShowHidden((v) => !v); setSelected(new Set()); }} title="Items you've hidden from this list">
+                  <Icon name={showHidden ? 'Eye' : 'EyeOff'} size={15} /> Hidden
+                  {hiddenCount > 0 && <span className="att-tool-count">{hiddenCount}</span>}
+                </button>
+              )}
               <div className="att-toolwrap">
                 <button className="att-tool" onClick={() => setOpenMenu(openMenu === 'sort' ? null : 'sort')}>
                   <Icon name="ArrowUpDown" size={15} /> Sort
@@ -330,9 +345,11 @@ const InventoryAttention = () => {
           <p className="att-loading">Loading…</p>
         ) : visibleTotal === 0 ? (
           <p className="att-empty">
-            {total === 0 && !search && !dept && !loc && !fromDate && !toDate
-              ? 'Nothing expired, expiring within 30 days, or below par. Everything’s in good shape.'
-              : 'No matches — try clearing the search or filters.'}
+            {showHidden
+              ? 'Nothing hidden.'
+              : (total === 0 && !search && !dept && !loc && !fromDate && !toDate
+                ? 'Nothing expired, expiring within 30 days, or below par. Everything’s in good shape.'
+                : 'No matches — try clearing the search or filters.')}
           </p>
         ) : (
           SECTIONS.map(({ key, label, icon, tone }) => {
@@ -378,8 +395,8 @@ const InventoryAttention = () => {
           <span className="att-bar-count">{selected.size} selected</span>
           <div className="att-bar-actions">
             <button className="att-bar-ghost" onClick={() => setSelected(new Set())}>Clear</button>
-            <button className="att-bar-alt" onClick={handleClearExpiry} disabled={clearing} title="Clear the expiry on these — for items that don't actually expire">
-              <Icon name="CalendarOff" size={15} /> {clearing ? 'Updating…' : "Doesn't expire"}
+            <button className="att-bar-alt" onClick={handleToggleHidden} disabled={hiding} title={showHidden ? 'Restore these to the list' : 'Hide these from this list (keeps their expiry)'}>
+              <Icon name={showHidden ? 'Eye' : 'EyeOff'} size={15} /> {hiding ? 'Updating…' : (showHidden ? 'Unhide' : 'Hide from list')}
             </button>
             <button className="att-bar-prim" onClick={() => setShowPush(true)}>
               <Icon name="ShoppingCart" size={15} /> Push to provisioning
