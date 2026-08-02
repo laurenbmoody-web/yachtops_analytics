@@ -89,5 +89,7 @@
 
 .rc-none { margin: 4px 14px; font-size: 12px; color: #8B8478; font-style: italic; }
 
-/* The invoice-backed state: a document, not a missing receipt. */
-.rc-att-open .lucide-arrow-up-right { margin-left: auto; color: #AEB4C2; }
+/* The invoice-backed state: a document, not a missing receipt. Sits on .rc-item
+   so it lines up with every other row in the menu. */
+.rc-item.is-doc svg:last-child { margin-left: auto; color: #AEB4C2; }
+.rc-item.is-doc:hover svg:last-child { color: #C65A1A; }
