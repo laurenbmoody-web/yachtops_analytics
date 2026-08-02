@@ -1,9 +1,22 @@
 /* Owner wardrobe catalogue — cool maritime palette (never warm beige). */
 .ow-view { display: flex; flex-direction: column; gap: 16px; }
 .ow-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.ow-person-head { display: flex; align-items: baseline; gap: 12px; margin: -2px 0 2px; }
+.ow-person-head { display: flex; align-items: center; gap: 13px; margin: 2px 0 6px; }
 .ow-person-nm { font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; color: #1C1B3A; line-height: 1.1; }
 .ow-person-ct { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.9px; text-transform: uppercase; color: #8B8478; }
+.ow-avatar { width: 46px; height: 46px; border-radius: 999px; overflow: hidden; background: #FBEFE9; border: 1px solid #F3D9CB; display: grid; place-items: center; flex: none; }
+.ow-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.ow-avatar span { font: 800 15px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; }
+.ow-person-who { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ow-person-who .editorial-meta { margin: 0; }
+
+/* Editorial confirm / prompt dialogs (replace window.confirm / prompt) */
+.ow-dialog { width: 100%; max-width: 440px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32); display: flex; flex-direction: column; overflow: hidden; }
+.ow-dialog-body { padding: 16px 26px 6px; font: 500 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #4B5563; line-height: 1.5; }
+.ow-dialog-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 18px 26px 22px; }
+.ow-field-l { padding: 16px 26px 0; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.9px; text-transform: uppercase; color: #8B8478; }
+.ow-field { margin: 8px 26px 0; padding: 10px 12px; border: 1px solid #E5E7EB; border-radius: 10px; background: #FAFAF8; font: 500 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.ow-field:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }
 
 .ow-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
 .ow-search { position: relative; display: flex; align-items: center; flex: 1; min-width: 240px; max-width: 460px; }
