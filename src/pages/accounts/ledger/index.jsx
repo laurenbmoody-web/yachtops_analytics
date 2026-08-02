@@ -882,6 +882,7 @@ export default function Ledger() {
         <LineDetail
           txn={t}
           account={acct}
+          accounts={accounts}
           crew={crew}
           trips={trips}
           chartGroups={pickerGroups}

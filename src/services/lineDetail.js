@@ -82,25 +82,26 @@ export const defaultDepartment = (txn, { spenderDepartment, reconcilerDepartment
 // (general, petty_cash) is ambiguous and must be stated per line.
 export const isDedicatedCharterAccount = (account) => (account?.funds_type === 'charter_apa');
 
-// Was the vessel on charter when this was spent? Offering "Charter (APA)" on a
-// boat that isn't chartering is offering a wrong answer — the guest's money
-// doesn't exist to spend. A charter-funded card answers yes by itself; otherwise
-// it takes a charter trip covering the day.
-export const charterCovering = (trips = [], isoDate = '') => {
-  const day = String(isoDate || '').slice(0, 10);
-  if (!day) return null;
-  return trips.find((t) => String(t?.trip_type || '').toLowerCase() === 'charter'
-    && String(t?.start_date || '').slice(0, 10) <= day
-    && (!t?.end_date || day <= String(t.end_date).slice(0, 10))) || null;
-};
+export const isCharterTrip = (t) => String(t?.trip_type || '').toLowerCase() === 'charter';
 
-export const canBeCharter = ({ account, trips = [], isoDate = '', allocation = '' } = {}) => (
-  // An existing charter allocation always stays offerable — hiding the option
-  // wouldn't unset the value, it would just make it impossible to see or change.
+// Does this vessel charter at all? NOT "is it on charter today" — provisioning
+// for a charter happens weeks ahead of it, so the date a thing was bought says
+// nothing about whose money bought it. Tying the option to a charter covering the
+// spend date meant a crate of wine bought in July for a September charter had no
+// way to be coded as charter money.
+//
+// "Set up for charter" in Cargo's terms is an APA/charter account on the books or
+// a charter trip on record. A line already allocated to charter keeps the option
+// regardless — hiding it wouldn't unset the value, just make it unreadable.
+export const canBeCharter = ({ account, accounts = [], trips = [], allocation = '' } = {}) => (
   allocation === 'charter'
   || isDedicatedCharterAccount(account)
-  || Boolean(charterCovering(trips, isoDate))
+  || accounts.some(isDedicatedCharterAccount)
+  || trips.some(isCharterTrip)
 );
+
+// The charters a line can be pinned to — every one on record, whenever it runs.
+export const charterOptions = (trips = []) => trips.filter(isCharterTrip);
 export const isDedicatedOwnerAccount = (account) => (account?.funds_type === 'owner');
 
 // Does this account settle the allocation question on its own?

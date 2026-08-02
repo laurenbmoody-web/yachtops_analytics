@@ -12,7 +12,7 @@ import {
   maxSpendDate, isSpendDateValid, canVoidTxn, voidBlockedReason,
   looksLikeRefund, findRefundCandidate, refundInheritedFields, defaultDepartment,
   outstandingText, hasEvidence, receiptWaiverPatch,
-  charterCovering, canBeCharter,
+  canBeCharter, charterOptions, isCharterTrip,
 } from './lineDetail.js';
 
 // ── department ──────────────────────────────────────────────────────────────
@@ -556,41 +556,41 @@ test('the completeness count ignores the optional ones', () => {
   assert.equal(st.count, 3);            // complete without a note
 });
 
-// ── charter is only on the table when there IS a charter ────────────────────
+// ── charter is on the table when the vessel charters, whatever the date ─────
 const TRIPS = [
-  { id: 't1', trip_type: 'Charter', start_date: '2026-07-10', end_date: '2026-07-20' },
-  { id: 't2', trip_type: 'Owner', start_date: '2026-08-01', end_date: '2026-08-30' },
+  { id: 't1', name: 'Sept charter', trip_type: 'Charter', start_date: '2026-09-10', end_date: '2026-09-20' },
+  { id: 't2', name: 'Owner cruise', trip_type: 'Owner', start_date: '2026-08-01', end_date: '2026-08-30' },
 ];
 
-test('a charter covering the day makes charter offerable', () => {
-  assert.equal(charterCovering(TRIPS, '2026-07-15')?.id, 't1');
+test('buying in July for a September charter is still charter money', () => {
+  // The rule used to need a charter covering the spend date, so a crate of wine
+  // bought two months ahead had no way to be coded to the charter that drank it.
   assert.equal(canBeCharter({ trips: TRIPS, isoDate: '2026-07-15' }), true);
 });
 
-test('outside every charter, charter is not offered', () => {
-  // Offering the guest's money on a boat that isn't chartering offers a wrong
-  // answer, and someone will eventually pick it.
-  assert.equal(charterCovering(TRIPS, '2026-07-28'), null);
-  assert.equal(canBeCharter({ trips: TRIPS, isoDate: '2026-07-28' }), false);
+test('a vessel with no charter trips and no APA account is not offered it', () => {
+  assert.equal(canBeCharter({ trips: [{ trip_type: 'Owner' }], accounts: [] }), false);
 });
 
-test('an owner trip is not a charter', () => {
-  assert.equal(charterCovering(TRIPS, '2026-08-10'), null);
+test('an APA account anywhere on the books means the vessel charters', () => {
+  assert.equal(canBeCharter({ accounts: [{ funds_type: 'charter_apa' }], trips: [] }), true);
 });
 
-test('a charter-funded card is charter whatever the calendar says', () => {
-  assert.equal(canBeCharter({ account: { funds_type: 'charter_apa' }, trips: [], isoDate: '2026-01-01' }), true);
+test('the line own charter-funded card answers it too', () => {
+  assert.equal(canBeCharter({ account: { funds_type: 'charter_apa' }, trips: [] }), true);
 });
 
 test('a line already allocated to charter keeps the option', () => {
   // Hiding it wouldn't unset the stored value — it would just make a line
   // impossible to read or correct.
-  assert.equal(canBeCharter({ trips: [], isoDate: '2026-01-01', allocation: 'charter' }), true);
+  assert.equal(canBeCharter({ trips: [], accounts: [], allocation: 'charter' }), true);
 });
 
-test('an open-ended charter still covers days after it starts', () => {
-  const open = [{ trip_type: 'Charter', start_date: '2026-06-01', end_date: null }];
-  assert.equal(canBeCharter({ trips: open, isoDate: '2026-09-09' }), true);
+test('the charter picker offers every charter, not the current one', () => {
+  const opts = charterOptions(TRIPS);
+  assert.equal(opts.length, 1);
+  assert.equal(opts[0].name, 'Sept charter');
+  assert.equal(isCharterTrip({ trip_type: 'Owner' }), false);
 });
 
 test('the department no longer nags — it follows the card', () => {
