@@ -197,15 +197,15 @@ export const differenceLead = (
   // job, and it's the wrong one when the two figures differ by a single digit.
   const typo = typoKind(ours, theirs);
   if (typo) {
-    return `The two figures are ${typo} — check what was typed against the statement before hunting for a line.`;
+    // Same voice: what's wrong, then what to do about it.
+    return `These two figures are ${typo}. Check the one you typed against the statement before looking for a missing line.`;
   }
 
-  // By here nothing single, paired, pending, straddling or unassigned came to the
-  // amount — so say the amount, and name the two things that are actually left.
-  // "The figure typed doesn't match the statement" was circular: that mismatch is
-  // the whole reason this sentence is on screen.
+  // Which way round it is decides where you go and look, so that leads. Then the
+  // two jobs, in the order anyone would actually do them: the ledger first,
+  // because that's where a real error lives, and the typing second.
   const gap = amountText || 'the difference';
   return cargoHasMore
-    ? `Nothing here adds up to ${gap}. Either Cargo is holding spend the bank never charged, or the statement figure was mistyped.`
-    : `Nothing here adds up to ${gap}. Either spend on the statement never reached Cargo, or the statement figure was mistyped.`;
+    ? `Cargo is ${gap} higher than the statement. Check for a line the bank never charged — then re-check the figure you typed.`
+    : `The statement is ${gap} higher than Cargo. Check for spending that never made it in — then re-check the figure you typed.`;
 };
