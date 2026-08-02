@@ -76,6 +76,8 @@ const InventoryAttention = () => {
   const [search, setSearch] = useState('');
   const [dept, setDept] = useState('');
   const [loc, setLoc] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [types, setTypes] = useState(() => new Set(['expired', 'belowpar', 'expiring']));
   const [sortBy, setSortBy] = useState('date');
   const [collapsed, setCollapsed] = useState(() => new Set());
@@ -107,16 +109,28 @@ const InventoryAttention = () => {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const from = fromDate ? new Date(fromDate) : null;
+    const to = toDate ? new Date(toDate) : null;
+    if (to) to.setHours(23, 59, 59, 999);
     return (items || []).filter((i) => {
       if (dept && i?.location !== dept) return false;
       if (loc && !String(i?.subLocation || '').split(' > ').map((x) => x.trim()).includes(loc)) return false;
+      // Expiry date range applies only to items that have an expiry (below-par
+      // items with no expiry pass through — that's a quantity concern).
+      if (from || to) {
+        const e = expDate(i);
+        if (e) {
+          if (from && e < from) return false;
+          if (to && e > to) return false;
+        }
+      }
       if (q) {
         const hay = `${i?.name || ''} ${i?.location || ''} ${i?.subLocation || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [items, search, dept, loc]);
+  }, [items, search, dept, loc, fromDate, toDate]);
 
   const buckets = useMemo(() => {
     const today = startOfToday();
@@ -138,8 +152,8 @@ const InventoryAttention = () => {
   const counts = { expired: buckets.expired.length, belowpar: buckets.belowpar.length, expiring: buckets.expiring.length };
   const total = counts.expired + counts.belowpar + counts.expiring;
   const visibleTotal = SECTIONS.reduce((s, sec) => s + (types.has(sec.key) ? buckets[sec.key].length : 0), 0);
-  const filterCount = (dept ? 1 : 0) + (loc ? 1 : 0) + (types.size < 3 ? 1 : 0);
-  const clearFilters = () => { setDept(''); setLoc(''); setTypes(new Set(['expired', 'belowpar', 'expiring'])); };
+  const filterCount = (dept ? 1 : 0) + (loc ? 1 : 0) + (types.size < 3 ? 1 : 0) + ((fromDate || toDate) ? 1 : 0);
+  const clearFilters = () => { setDept(''); setLoc(''); setFromDate(''); setToDate(''); setTypes(new Set(['expired', 'belowpar', 'expiring'])); };
   const byId = useMemo(() => { const m = new Map(); (items || []).forEach((i) => m.set(i.id, i)); return m; }, [items]);
 
   const toggle = (id) => setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -246,6 +260,14 @@ const InventoryAttention = () => {
                         />
                       </div>
                     )}
+                    <div className="att-fgroup">
+                      <p className="att-flabel">Expiry between</p>
+                      <div className="att-fdates">
+                        <input type="date" className="att-fdate" value={fromDate} max={toDate || undefined} onChange={(e) => setFromDate(e.target.value)} aria-label="From date" />
+                        <span className="att-fdate-sep">→</span>
+                        <input type="date" className="att-fdate" value={toDate} min={fromDate || undefined} onChange={(e) => setToDate(e.target.value)} aria-label="To date" />
+                      </div>
+                    </div>
                     {filterCount > 0 && (
                       <button className="att-fclear" onClick={clearFilters}>Clear filters</button>
                     )}
@@ -275,7 +297,7 @@ const InventoryAttention = () => {
           <p className="att-loading">Loading…</p>
         ) : visibleTotal === 0 ? (
           <p className="att-empty">
-            {total === 0 && !search && !dept && !loc
+            {total === 0 && !search && !dept && !loc && !fromDate && !toDate
               ? 'Nothing expired, expiring within 30 days, or below par. Everything’s in good shape.'
               : 'No matches — try clearing the search or filters.'}
           </p>
