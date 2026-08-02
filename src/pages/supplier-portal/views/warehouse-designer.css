@@ -338,3 +338,11 @@
 .wd-crumb.cur i { width: 8px; height: 8px; border-radius: 50%; background: var(--zc, #2563EB); display: inline-block; }
 .wd-crumb.cur em { font-style: normal; font-weight: 600; color: var(--muted-strong, #64748B); text-transform: capitalize; margin-left: 3px; }
 .wd-crumb-sep { color: var(--faint, #94A3B8); }
+
+/* Keep the resize / rotate / wall handles clickable above the editor popover
+   (the popover is z-40; it's positioned clear of the handles, this is a
+   belt-and-braces net for large elements near the canvas edge). */
+#sp-root .wd-rh { z-index: 46; }
+#sp-root .wd-vx { z-index: 46; }
+#sp-root .wd-edge { z-index: 44; }
+#sp-root .wd-rotate { z-index: 47; }

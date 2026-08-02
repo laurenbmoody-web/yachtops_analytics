@@ -131,6 +131,30 @@ export default function WarehouseDesigner({ supplierId }) {
     const rect = roomRef.current.getBoundingClientRect();
     return { x: ((e.clientX - rect.left) / rect.width) * 100, y: ((e.clientY - rect.top) / rect.height) * 60 };
   };
+
+  // Anchor the editor popover just OUTSIDE the element's true (rotated,
+  // screen-measured) bounding box, so it never lands on the resize/rotate
+  // handles that sit on the element's edges. Follows the element as it moves,
+  // resizes and rotates. Falls back to a simple below-anchor pre-measure.
+  const popoverStyle = (el) => {
+    const base = { position: 'absolute', zIndex: 40 };
+    const node = roomRef.current;
+    if (!node) return { ...base, left: `${clamp(0, 72, el.x)}%`, top: `calc(${topPct(el.y + el.thick)}% + 18px)` };
+    const { width: W, height: H } = node.getBoundingClientRect();
+    const A = rad(el.angle || 0), cs = Math.abs(Math.cos(A)), sn = Math.abs(Math.sin(A));
+    const hw = ((el.len / 100) * W) / 2, hh = ((el.thick / 60) * H) / 2;
+    const bh = hw * sn + hh * cs;                 // rotated half-height, px
+    const cxpx = ((el.x + el.len / 2) / 100) * W;
+    const cypx = ((el.y + el.thick / 2) / 60) * H;
+    const G = 24;                                 // clears the rotate knob (~26px)
+    const POPW = Math.min(340, W - 16);
+    const leftpx = clamp(6, Math.max(6, W - POPW - 6), cxpx - POPW / 2);
+    base.left = `${(leftpx / W) * 100}%`;
+    // prefer below unless there's clearly more room above
+    if ((H - (cypx + bh)) > 160 || (cypx - bh) < 170) base.top = `${((cypx + bh + G) / H) * 100}%`;
+    else base.bottom = `${((H - (cypx - bh - G)) / H) * 100}%`;
+    return base;
+  };
   const clampRack = (r) => ({ ...r, x: clamp(-r.len / 2, 100 - r.len / 2, r.x), y: clamp(-r.thick / 2, 60 - r.thick / 2, r.y) });
   const patchEl = (id, patch) => setElements((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const patchFace = (id, fi, patch) => setElements((rs) => rs.map((r) => (r.id === id
@@ -330,8 +354,8 @@ export default function WarehouseDesigner({ supplierId }) {
                 <button className="wd-rotate" style={{ left: `${rk.x}%`, top: `${topPct(rk.y)}%` }} title="Drag to rotate"
                   onPointerDown={(e) => startRotate(e, selEl)}><RotateCw size={13} /></button>
                 {selEl.kind === 'room'
-                  ? <RoomPopover room={selEl} onPatch={patchEl} onEnter={() => enterRoom(selEl.id)} onDelete={deleteEl} onClose={() => setSel(null)} />
-                  : <RackPopover rack={selEl} onPatchFace={patchFace} onPatch={patchEl} onSides={setSides}
+                  ? <RoomPopover room={selEl} style={popoverStyle(selEl)} onPatch={patchEl} onEnter={() => enterRoom(selEl.id)} onDelete={deleteEl} onClose={() => setSel(null)} />
+                  : <RackPopover rack={selEl} style={popoverStyle(selEl)} onPatchFace={patchFace} onPatch={patchEl} onSides={setSides}
                       onDelete={deleteEl} onHeadOn={() => setModalRack(selEl)} onClose={() => setSel(null)} />}
               </>
             );
@@ -364,12 +388,7 @@ export default function WarehouseDesigner({ supplierId }) {
 }
 
 // ── Walk-in room editor popover ───────────────────────────────────────────────
-function RoomPopover({ room, onPatch, onEnter, onDelete, onClose }) {
-  const anchorRight = room.x > 50;
-  const below = room.y < 30;
-  const style = { position: 'absolute', zIndex: 40 };
-  if (anchorRight) style.right = `${100 - (room.x + room.len)}%`; else style.left = `${room.x}%`;
-  if (below) style.top = `calc(${topPct(room.y + room.thick)}% + 14px)`; else style.bottom = `calc(${100 - topPct(room.y)}% + 14px)`;
+function RoomPopover({ room, style, onPatch, onEnter, onDelete, onClose }) {
   return (
     <div className="wd-pop" style={style} onPointerDown={(e) => e.stopPropagation()}>
       <div className="wd-pop-head">
@@ -395,15 +414,10 @@ function RoomPopover({ room, onPatch, onEnter, onDelete, onClose }) {
 }
 
 // ── Compact editor popover, anchored next to the selected rack ─────────────────
-function RackPopover({ rack, onPatchFace, onPatch, onSides, onDelete, onHeadOn, onClose }) {
+function RackPopover({ rack, style, onPatchFace, onPatch, onSides, onDelete, onHeadOn, onClose }) {
   const [fi, setFi] = useState(0);
   const faceIdx = Math.min(fi, rack.faces.length - 1);
   const face = rack.faces[faceIdx];
-  const anchorRight = rack.x > 50;
-  const below = rack.y < 30;
-  const style = { position: 'absolute', zIndex: 40 };
-  if (anchorRight) style.right = `${100 - (rack.x + rack.len)}%`; else style.left = `${rack.x}%`;
-  if (below) style.top = `calc(${topPct(rack.y + rack.thick)}% + 14px)`; else style.bottom = `calc(${100 - topPct(rack.y)}% + 14px)`;
   return (
     <div className="wd-pop" style={style} onPointerDown={(e) => e.stopPropagation()}>
       <div className="wd-pop-head">
