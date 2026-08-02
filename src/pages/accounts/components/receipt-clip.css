@@ -88,3 +88,6 @@
 .rc-save:disabled { background: #E5E7EB; border-color: #E5E7EB; color: #AEB4C2; cursor: default; }
 
 .rc-none { margin: 4px 14px; font-size: 12px; color: #8B8478; font-style: italic; }
+
+/* The invoice-backed state: a document, not a missing receipt. */
+.rc-att-open .lucide-arrow-up-right { margin-left: auto; color: #AEB4C2; }

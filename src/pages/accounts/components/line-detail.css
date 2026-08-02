@@ -117,3 +117,10 @@ select.ld-input { cursor: pointer; }
    they sit on the grid the same way the inputs beside them do. */
 .ld-field .edp, .ld-field .es { width: 100%; }
 .ld-split .es { min-width: 0; }
+
+/* Provenance, at the foot of the opened line rather than on the row. */
+.ld-links { margin-top: 18px; padding-top: 14px; border-top: 1px solid #F0F1F5; }
+.ld-links .ca-links { margin-top: 0; font-size: 12px; }
+.ld-links .ca-links-l {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
+}

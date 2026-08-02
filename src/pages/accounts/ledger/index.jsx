@@ -639,14 +639,17 @@ export default function Ledger() {
     else flash('Could not void — please try again');
   };
 
-  // Where the line came from, as a sentence rather than a row of badges: "raised
-  // against a supplier invoice". Only rendered when the line actually carries one.
+  // Where the line came from. This used to print on the row itself — "raised
+  // against supplier invoice · purchase order" — which put a fourth line of text
+  // under lines that already carried three, to say something you'd only act on
+  // occasionally. It lives in the opened detail now, and the invoice specifically
+  // lives behind the clip, because that's where a line's documents belong.
   const renderLinks = (t) => {
     const links = TAGS.filter((tag) => t[tag.key]);
     if (!links.length) return null;
     return (
       <div className="ca-links">
-        <span className="ca-links-l">raised against</span>
+        <span className="ca-links-l">Raised against</span>
         {links.map((tag, i) => (
           <React.Fragment key={tag.key}>
             {i > 0 && <span className="ca-links-sep">·</span>}
@@ -802,7 +805,6 @@ export default function Ledger() {
               {alloc && <span className={`ca-allocx${alloc === 'charter' ? ' is-charter' : ''}`}>{alloc === 'charter' ? 'charter · APA' : 'owner'}</span>}
             </div>
           )}
-          {renderLinks(t)}
         </div>
         {!oneAccount && (
           <span className={`ca-txn-acct${!t.account_id ? ' is-unassigned' : ''}`}>
@@ -823,7 +825,8 @@ export default function Ledger() {
               onPhotograph={(txn) => setPhotoFor(txn.id)}
               onUpload={handleReceiptFor}
               onWaive={handleWaiveReceipt}
-              onDeleteAttachment={handleDeleteAttachment} />
+              onDeleteAttachment={handleDeleteAttachment}
+              onOpenInvoice={() => navigate('/provisioning')} />
           )}
           {!t.account_id && !voided && canEdit && (
             <button type="button" className="ca-link" onClick={() => setAssignTxn(t)}>Assign →</button>
@@ -851,6 +854,7 @@ export default function Ledger() {
           onSave={handleSaveDetail}
           onUploadReceipt={handleReceiptFor}
           onDeleteAttachment={handleDeleteAttachment}
+          links={renderLinks(t)}
           onClose={() => setExpandedId(null)}
         />
       )}
