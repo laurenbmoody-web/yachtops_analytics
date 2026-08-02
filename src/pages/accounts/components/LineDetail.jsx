@@ -20,7 +20,8 @@ import EditorialDatePicker from '../../../components/editorial/EditorialDatePick
 import { DEPARTMENTS } from '../../../utils/authStorage';
 import { formatMoney } from '../../../services/financeCalc';
 import {
-  departmentForCode, defaultAllocation, needsTripPick, isDedicatedCharterAccount, canBeCharter,
+  departmentForCode, defaultAllocation, needsTripPick, isDedicatedCharterAccount,
+  canBeCharter, charterOptions,
   defaultCardholder, isBorrowedCard, splitRemainder, validateSplits, signedSplits,
   netOfVat, vatFromRate, baseFromFx, clampSplitAmount, maxSpendDate, isSpendDateValid,
   defaultDepartment,
@@ -28,11 +29,12 @@ import {
 import './line-detail.css';
 
 const CURRENCIES = ['GBP', 'EUR', 'USD', 'CHF', 'AUD'];
+const OTHER_CHARTER = '__other__';
 const blankSplit = () => ({ amount: '', category: '', category_code: '', department: '', note: '' });
 const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');
 
 export default function LineDetail({
-  txn, account, crew = [], trips = [], chartGroups = [], attachments = [], splits = [],
+  txn, account, accounts = [], crew = [], trips = [], chartGroups = [], attachments = [], splits = [],
   onSave, onUploadReceipt, onDeleteAttachment, onClose, canEdit = true, meId = null,
   // Where this line came from — the provisioning order, the trip, the defect.
   // It used to print on the row itself, which made a busy line busier to say
@@ -57,16 +59,21 @@ export default function LineDetail({
   const [charterText, setCharterText] = useState(
     txn.charter_ref || trips.find((t) => t.id === txn.trip_id)?.name || '',
   );
+  // Naming a charter that has no trip record yet — provisioning often runs ahead
+  // of the calendar entry.
+  const [typedCharter, setTypedCharter] = useState(
+    Boolean(txn.charter_ref) && !txn.trip_id,
+  );
   const [vatAmount, setVatAmount] = useState(txn.vat_amount ?? '');
   const [vatRate, setVatRate] = useState(txn.vat_rate ?? '');
   const [currency, setCurrency] = useState(txn.currency || account?.currency || 'GBP');
   const [fxRate, setFxRate] = useState(txn.fx_rate ?? 1);
   const [spendDate, setSpendDate] = useState((txn.txn_date || '').slice(0, 10));
 
-  // Whether "Charter (APA)" belongs on the list at all, for the day this was
-  // spent. Recomputed as the date changes, so moving a line into a charter week
-  // makes the option appear.
-  const charterOffered = canBeCharter({ account, trips, isoDate: spendDate, allocation });
+  // Whether "Charter (APA)" belongs on the list at all — a question about the
+  // vessel, not about the day. See canBeCharter.
+  const charterOffered = canBeCharter({ account, accounts, trips, allocation });
+  const charters = charterOptions(trips);
 
   // Split rows hold MAGNITUDES — the parent's direction is applied on save.
   const [rows, setRows] = useState(() => (splits.length
@@ -258,29 +265,43 @@ export default function LineDetail({
           {isDedicatedCharterAccount(account) && (
             <span className="ld-hint">Charter/APA card — charter by default</span>
           )}
-          {!charterOffered && (
-            <span className="ld-hint">No charter covers this date</span>
-          )}
+
         </div>
 
         {askCharter && (
           <div className="ld-field ld-grow">
             {label('Which charter', 'required')}
-            <input className={`ld-input${!charterNamed ? ' is-need' : ''}`} value={charterText}
-              list="ld-charters" autoComplete="off"
-              onChange={(e) => setCharterText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
-              placeholder={trips.length ? 'Type or pick a charter…' : 'Charter name or reference'}
-              disabled={!canEdit} />
-            <datalist id="ld-charters">
-              {trips.map((t) => (
-                <option key={t.id} value={t.name}>{t.start_date ? dmy(t.start_date) : ''}</option>
-              ))}
-            </datalist>
+            {/* Pick one of the vessel's charters, or name one that isn't on record
+                yet — a charter often gets provisioned before anyone has entered
+                the trip. Every charter is listed whatever its dates, because what
+                was bought in July can belong to September. */}
+            {charters.length > 0 && (
+              <EditorialSelect ariaLabel="Which charter" disabled={!canEdit}
+                placeholder="Pick a charter…"
+                value={typedCharter ? OTHER_CHARTER : (matchedTrip?.name || '')}
+                options={[
+                  ...charters.map((t) => ({
+                    value: t.name,
+                    label: t.start_date ? `${t.name} · ${dmy(t.start_date)}` : t.name,
+                  })),
+                  { value: OTHER_CHARTER, label: 'Another charter…' },
+                ]}
+                onChange={(v) => {
+                  if (v === OTHER_CHARTER) { setTypedCharter(true); setCharterText(''); }
+                  else { setTypedCharter(false); setCharterText(v); }
+                }} />
+            )}
+            {(typedCharter || charters.length === 0) && (
+              <input className={`ld-input${!charterNamed ? ' is-need' : ''}`} value={charterText}
+                autoComplete="off" autoFocus={typedCharter}
+                onChange={(e) => setCharterText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
+                placeholder="Charter name or reference" disabled={!canEdit} />
+            )}
             <span className="ld-hint">
               {matchedTrip
                 ? `Linked to the ${matchedTrip.name} trip`
-                : (charterText.trim() ? 'Saved as typed — not linked to a trip record' : 'Type it, or choose from your trips')}
+                : (charterText.trim() ? 'Saved as typed — not linked to a trip record' : 'Choose one, or name a charter not on record yet')}
             </span>
           </div>
         )}
