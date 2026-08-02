@@ -103,12 +103,25 @@ const PushToBoardModal = ({ items = [], onClose, onDone }) => {
         </div>
 
         <div className="ro-body">
-          <p className="ro-note">Each item is added at its suggested reorder quantity — you can adjust everything on the board before sending to a supplier.</p>
+          <p className="ro-note">Each item is added at its suggested reorder quantity. Nothing is sent yet — you review and edit everything on the board first.</p>
+
+          {count > 0 && (
+            <div className="ro-preview">
+              {items.slice(0, 6).map((it, i) => (
+                <span className="ro-chip" key={it?.id || i}>
+                  {it?.name || 'Item'}<span className="ro-chip-qty">×{Math.max(1, Math.round(it?.suggestedQty || 1))}</span>
+                </span>
+              ))}
+              {count > 6 && <span className="ro-chip ro-chip-more">+{count - 6} more</span>}
+            </div>
+          )}
+
           <label className="ro-lab">Add to list</label>
           {lists === null ? (
             <p className="ro-loading">Loading lists…</p>
           ) : (
             <div className="ro-lists">
+              {lists.length > 0 && <p className="ro-sub">Existing lists</p>}
               {lists.map((l) => (
                 <label key={l.id} className={`ro-opt${target === l.id ? ' on' : ''}`}>
                   <input type="radio" name="ro-target" checked={target === l.id} onChange={() => setTarget(l.id)} />
@@ -117,10 +130,10 @@ const PushToBoardModal = ({ items = [], onClose, onDone }) => {
               ))}
               <label className={`ro-opt${target === 'new' ? ' on' : ''}`}>
                 <input type="radio" name="ro-target" checked={target === 'new'} onChange={() => setTarget('new')} />
-                <span className="ro-opt-title">New list…</span>
+                <span className="ro-opt-title"><Icon name="Plus" size={14} /> New list</span>
               </label>
               {target === 'new' && (
-                <input className="ro-newtitle" placeholder={defaultTitle} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+                <input className="ro-newtitle" placeholder={defaultTitle} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} autoFocus />
               )}
             </div>
           )}
