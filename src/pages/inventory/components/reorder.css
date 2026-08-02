@@ -12,7 +12,7 @@
 }
 .ro-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 20px 22px 12px; }
 .ro-eyebrow { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #C65A1A; }
-.ro-title { margin: 4px 0 0; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; line-height: 1.15; color: #1C1B3A; }
+.ro-title { display: inline-flex; align-items: center; margin: 4px 0 0; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; line-height: 1.15; color: #1C1B3A; }
 .ro-x { flex: none; border: 0; background: none; color: #8B8478; cursor: pointer; padding: 4px; border-radius: 8px; }
 .ro-x:hover { color: #1C1B3A; background: #F0F1F5; }
 
@@ -29,15 +29,24 @@
 .ro-loading { font-size: 13px; color: #8B8478; margin: 4px 0; }
 .ro-note { font-size: 12.5px; line-height: 1.5; color: #6B7280; margin: 2px 0 4px; }
 
-.ro-preview { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; max-height: 108px; overflow-y: auto; }
-.ro-chip {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 5px 9px; border-radius: 999px; background: #F4F5F8; color: #1C1B3A;
-  font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif;
-  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+/* Info (i) with hover tooltip next to the title. */
+.ro-info { display: inline-flex; align-items: center; margin-left: 7px; color: #AEB4C2; cursor: help; vertical-align: middle; }
+.ro-info:hover, .ro-info:focus { color: #C65A1A; outline: none; }
+
+/* Collapsible "Review items" list — collapsed by default. */
+.ro-reviewwrap { margin: 2px 0 8px; }
+.ro-review {
+  display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; cursor: pointer;
+  font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280;
 }
-.ro-chip-qty { color: #C65A1A; font-weight: 700; }
-.ro-chip-more { background: none; color: #8B8478; }
+.ro-review:hover { color: #C65A1A; }
+.ro-review-caret { transition: transform .15s ease; color: #AEB4C2; }
+.ro-review-caret.open { transform: rotate(90deg); }
+.ro-review:hover .ro-review-caret { color: #C65A1A; }
+.ro-itemlist { list-style: none; margin: 8px 0 0; padding: 0; max-height: 168px; overflow-y: auto; border-top: 1px solid #F0F1F5; }
+.ro-itemlist li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 2px; border-bottom: 1px solid #F5F6F8; }
+.ro-item-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: #1C1B3A; }
+.ro-item-qty { flex: none; font: 700 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; font-variant-numeric: tabular-nums; }
 
 .ro-sub { margin: 2px 0 -2px; font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; }
 .ro-lists { display: flex; flex-direction: column; gap: 8px; }
