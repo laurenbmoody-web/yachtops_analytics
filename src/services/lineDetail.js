@@ -126,7 +126,17 @@ export const needsTripPick = (allocation, account) =>
 // ── Cardholder ───────────────────────────────────────────────────────────────
 // Defaults to the card's holder; an explicit crew_id on the line always wins
 // (that's the "someone borrowed the card" case).
-export const defaultCardholder = (txn, account) => txn?.crew_id || account?.holder_user_id || null;
+// Who spent it. A named spender on the line wins; then the card's holder, since a
+// crew card is in one person's pocket. Failing both — a vessel card nobody holds —
+// it falls to whoever is reconciling: they connected the account and it's their
+// spend until they say otherwise.
+//
+// That last step is a default, not a finding. On a shared card someone else may
+// well have spent it, and they have to change it; the field is right there and
+// the line isn't saved until they press Save.
+export const defaultCardholder = (txn, account, viewerId = null) => (
+  txn?.crew_id || account?.holder_user_id || viewerId || null
+);
 
 // True when the line's spender isn't the card's own holder — worth flagging in the
 // UI so it's a visible, deliberate exception rather than a silent mis-assignment.

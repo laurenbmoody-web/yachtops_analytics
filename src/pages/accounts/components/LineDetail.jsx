@@ -58,12 +58,12 @@ export default function LineDetail({
   links = null,
 }) {
   const [note, setNote] = useState(txn.note || '');
-  const [cardholder, setCardholder] = useState(defaultCardholder(txn, account) || '');
+  const [cardholder, setCardholder] = useState(defaultCardholder(txn, account, meId) || '');
   const spenderDept = (id) => crew.find((c) => c.id === id)?.department || '';
   const reconcilerDepartment = spenderDept(meId);
   const [department, setDepartment] = useState(
     defaultDepartment(txn, {
-      spenderDepartment: spenderDept(defaultCardholder(txn, account)),
+      spenderDepartment: spenderDept(defaultCardholder(txn, account, meId)),
       reconcilerDepartment,
     }),
   );
@@ -231,13 +231,6 @@ export default function LineDetail({
           <EditorialSelect value={department} disabled={!canEdit} ariaLabel="Department"
             onChange={(v) => { setDepartment(v); setDeptTouched(true); }}
             options={[{ value: '', label: 'Not set' }, ...DEPARTMENTS.map((d) => ({ value: d, label: d }))]} />
-          {!deptTouched && department && (
-            <span className="ld-hint">
-              {spenderDept(cardholder) === department
-                ? 'From whose card it is'
-                : (departmentForCode(txn.category_code) === department ? 'From the category' : 'From you')}
-            </span>
-          )}
         </div>
 
         <div className="ld-field">
@@ -291,10 +284,29 @@ export default function LineDetail({
                 yet — a charter often gets provisioned before anyone has entered
                 the trip. Every charter is listed whatever its dates, because what
                 was bought in July can belong to September. */}
-            {charters.length > 0 && (
+            {/* One control in this slot, never two. Choosing "Another charter…"
+                turns the picker INTO the box you type in, with the chevron to go
+                back to the list — rather than dropping a second full-width field
+                underneath the first. */}
+            {typedCharter || charters.length === 0 ? (
+              <div className="ld-combo">
+                <input className={`ld-input${!charterNamed ? ' is-need' : ''}`} value={charterText}
+                  autoComplete="off" autoFocus={typedCharter}
+                  onChange={(e) => setCharterText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
+                  placeholder="Charter name or reference" disabled={!canEdit} />
+                {charters.length > 0 && canEdit && (
+                  <button type="button" className="ld-combo-back"
+                    title="Choose from the vessel's charters"
+                    onClick={() => { setTypedCharter(false); setCharterText(''); }}>
+                    <Icon name="ChevronDown" size={15} />
+                  </button>
+                )}
+              </div>
+            ) : (
               <EditorialSelect ariaLabel="Which charter" disabled={!canEdit}
                 placeholder="Pick a charter…"
-                value={typedCharter ? OTHER_CHARTER : (matchedTrip?.name || '')}
+                value={matchedTrip?.name || ''}
                 options={[
                   ...charters.map((t) => ({
                     value: t.name,
@@ -306,13 +318,6 @@ export default function LineDetail({
                   if (v === OTHER_CHARTER) { setTypedCharter(true); setCharterText(''); }
                   else { setTypedCharter(false); setCharterText(v); }
                 }} />
-            )}
-            {(typedCharter || charters.length === 0) && (
-              <input className={`ld-input${!charterNamed ? ' is-need' : ''}`} value={charterText}
-                autoComplete="off" autoFocus={typedCharter}
-                onChange={(e) => setCharterText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
-                placeholder="Charter name or reference" disabled={!canEdit} />
             )}
             <span className="ld-hint">
               {matchedTrip
