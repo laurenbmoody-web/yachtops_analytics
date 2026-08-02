@@ -18,7 +18,7 @@ const PANEL_W = 320;
 
 export default function ReceiptClip({
   txn, attachments = [], canEdit = true,
-  onPhotograph, onUpload, onWaive, onDeleteAttachment,
+  onPhotograph, onUpload, onWaive, onDeleteAttachment, onOpenInvoice,
 }) {
   const btnRef = useRef(null);
   const panelRef = useRef(null);
@@ -29,6 +29,10 @@ export default function ReceiptClip({
 
   const has = attachments.length > 0;
   const waived = Boolean(txn.receipt_waived) && Boolean(String(txn.receipt_waived_reason || '').trim());
+  // A line raised from a supplier invoice already has its document — see
+  // hasEvidence. The clip is where evidence lives, so it says so and opens it,
+  // rather than showing an empty paperclip on a line that's fully supported.
+  const invoiced = Boolean(txn.supplier_invoice_id) && !has;
 
   const close = useCallback(() => { setAt(null); setStage('menu'); }, []);
 
@@ -86,13 +90,15 @@ export default function ReceiptClip({
   return (
     <>
       <button ref={btnRef} type="button"
-        className={`ca-clip${has ? ' has' : ''}${!has && waived ? ' is-waived' : ''}`}
+        className={`ca-clip${has || invoiced ? ' has' : ''}${!has && !invoiced && waived ? ' is-waived' : ''}`}
         aria-haspopup="menu" aria-expanded={Boolean(at)}
         title={has
           ? `${attachments.length} receipt${attachments.length > 1 ? 's' : ''}`
-          : (waived ? `No receipt — ${txn.receipt_waived_reason}` : 'Receipt')}
+          : invoiced
+            ? 'Supported by its supplier invoice'
+            : (waived ? `No receipt — ${txn.receipt_waived_reason}` : 'Receipt')}
         onClick={() => (at ? close() : open())}>
-        <Icon name={has ? 'Paperclip' : (waived ? 'FileX' : 'Paperclip')} size={13} />
+        <Icon name={invoiced ? 'FileText' : (has ? 'Paperclip' : (waived ? 'FileX' : 'Paperclip'))} size={13} />
         {attachments.length > 1 ? attachments.length : ''}
       </button>
 
@@ -101,6 +107,17 @@ export default function ReceiptClip({
           style={at.flip
             ? { left: at.left, bottom: at.bottom, width: PANEL_W }
             : { left: at.left, top: at.top, width: PANEL_W }}>
+
+          {invoiced && (
+            <div className="rc-group">
+              <p className="rc-label">Its document</p>
+              <button type="button" className="rc-att-open" onClick={() => { close(); onOpenInvoice?.(txn); }}>
+                <Icon name="FileText" size={13} /> Supplier invoice
+                <Icon name="ArrowUpRight" size={12} />
+              </button>
+              <p className="rc-none">This line was raised from it, so it needs no separate receipt.</p>
+            </div>
+          )}
 
           {has && (
             <div className="rc-group">

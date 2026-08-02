@@ -34,6 +34,10 @@ const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('
 export default function LineDetail({
   txn, account, crew = [], trips = [], chartGroups = [], attachments = [], splits = [],
   onSave, onUploadReceipt, onDeleteAttachment, onClose, canEdit = true, meId = null,
+  // Where this line came from — the provisioning order, the trip, the defect.
+  // It used to print on the row itself, which made a busy line busier to say
+  // something you follow up on now and then, not while scanning.
+  links = null,
 }) {
   const [note, setNote] = useState(txn.note || '');
   const [cardholder, setCardholder] = useState(defaultCardholder(txn, account) || '');
@@ -379,6 +383,8 @@ export default function LineDetail({
           </div>
         )}
       </div>
+
+      {links && <div className="ld-links">{links}</div>}
 
       {err && <p className="ld-err">{err}</p>}
 
