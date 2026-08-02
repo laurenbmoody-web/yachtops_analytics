@@ -1,56 +1,83 @@
 /* Inventory → Needs attention board (expired / below par / expiring). */
 .att-page { min-height: 100vh; background: #F8FAFC; }
-.att-wrap { width: 100%; max-width: none; padding: 92px 40px 120px; box-sizing: border-box; }
+.att-wrap { width: 100%; max-width: none; padding: 96px 40px 140px; box-sizing: border-box; }
 
 .att-back {
-  display: inline-flex; align-items: center; gap: 7px; margin-bottom: 18px;
+  display: inline-flex; align-items: center; gap: 7px; margin-bottom: 22px;
   background: none; border: 0; cursor: pointer; padding: 0;
   font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280;
 }
 .att-back:hover { color: #C65A1A; }
 .att-back svg { color: inherit; }
 
-.att-meta { margin-bottom: 10px; }
-.att-loading, .att-empty { font-size: 14px; color: #8B8478; margin-top: 24px; }
+.att-meta { margin-bottom: 12px; }
+.att-loading, .att-empty { font-size: 14px; color: #8B8478; margin-top: 32px; }
 
-.att-sec { margin-top: 34px; }
-.att-sec-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.att-sec-title { display: inline-flex; align-items: center; gap: 8px; font: 700 12px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #1C1B3A; }
-.att-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #EEF0F4; color: #6B7280; font-size: 11px; font-weight: 700; }
+/* ── toolbar: search + department + sort ─────────────────────────────── */
+.att-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 28px 0 8px; }
+.att-searchwrap {
+  flex: 1 1 320px; min-width: 220px; display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px;
+}
+.att-searchwrap svg { color: #AEB4C2; flex: none; }
+.att-searchwrap:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.att-search { flex: 1; border: 0; outline: none; background: none; font: 500 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.att-search::placeholder { color: #AEB4C2; }
+.att-clearsearch { border: 0; background: none; color: #AEB4C2; cursor: pointer; padding: 2px; display: flex; }
+.att-clearsearch:hover { color: #1C1B3A; }
+.att-selects { display: flex; gap: 10px; }
+.att-select {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 0 12px; height: 46px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px;
+}
+.att-select svg { color: #8B8478; flex: none; }
+.att-select select {
+  border: 0; outline: none; background: none; cursor: pointer; padding-right: 4px;
+  font: 500 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+}
+
+/* ── sections ────────────────────────────────────────────────────────── */
+.att-sec { margin-top: 30px; background: #FFFFFF; border: 1px solid #EEF0F4; border-radius: 16px; overflow: hidden; }
+.att-sec-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; }
+.att-sec-toggle { display: inline-flex; align-items: center; gap: 10px; background: none; border: 0; cursor: pointer; padding: 0; }
+.att-chevron { color: #AEB4C2; transition: transform .15s ease; flex: none; }
+.att-chevron.open { transform: rotate(90deg); }
+.att-sec-title { display: inline-flex; align-items: center; gap: 8px; font: 700 12px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: #1C1B3A; }
+.att-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 21px; padding: 0 7px; border-radius: 999px; background: #EEF0F4; color: #6B7280; font-size: 11px; font-weight: 700; }
+.att-selhere { font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; margin-left: 2px; }
 .tone-red svg { color: #B42318; }
 .tone-amber svg { color: #C65A1A; }
 .tone-blue svg { color: #1C6DB4; }
-.att-selall { background: none; border: 0; cursor: pointer; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; }
+.att-selall { background: none; border: 0; cursor: pointer; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; white-space: nowrap; }
 .att-selall:hover { text-decoration: underline; }
 
-.att-list { display: flex; flex-direction: column; }
+.att-list { padding: 0 8px 8px; }
 .att-row {
-  display: grid; grid-template-columns: auto 1fr 1.2fr auto; align-items: center; gap: 14px;
-  padding: 11px 8px; border-bottom: 1px solid #EEF0F4; cursor: pointer;
-  border-radius: 8px; transition: background .12s;
+  display: grid; grid-template-columns: auto 1.4fr 1.4fr auto; align-items: center; gap: 16px;
+  padding: 13px 12px; border-top: 1px solid #F3F4F7; cursor: pointer; transition: background .12s;
 }
-.att-row:hover { background: #FFFFFF; }
+.att-row:hover { background: #FBFBFA; }
 .att-row.on { background: #FBEFE9; }
-.att-row input { accent-color: #C65A1A; width: 16px; height: 16px; }
+.att-row input { accent-color: #C65A1A; width: 16px; height: 16px; flex: none; }
 .att-name { font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .att-loc { font-size: 12.5px; color: #8B8478; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.att-metric { justify-self: end; font: 700 13px 'Plus Jakarta Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #1C1B3A; }
+.att-metric { justify-self: end; font: 700 13px 'Plus Jakarta Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #1C1B3A; white-space: nowrap; }
 .att-metric.tone-red { color: #B42318; }
 .att-metric.tone-amber { color: #C65A1A; }
 .att-metric.tone-blue { color: #1C6DB4; }
 
-@media (max-width: 720px) {
-  .att-wrap { padding: 88px 18px 120px; }
+@media (max-width: 760px) {
+  .att-wrap { padding: 88px 16px 140px; }
   .att-row { grid-template-columns: auto 1fr auto; }
   .att-loc { display: none; }
 }
 
-/* Sticky selection action bar. */
+/* ── sticky selection action bar ─────────────────────────────────────── */
 .att-bar {
-  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 40;
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 40;
   display: flex; align-items: center; gap: 18px;
-  padding: 12px 14px 12px 20px; border-radius: 14px;
-  background: #1C1B3A; color: #FFFFFF; box-shadow: 0 20px 50px -12px rgba(28,27,58,0.5);
+  padding: 12px 14px 12px 22px; border-radius: 14px;
+  background: #1C1B3A; color: #FFFFFF; box-shadow: 0 22px 54px -14px rgba(28,27,58,0.55);
 }
 .att-bar-count { font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; }
 .att-bar-actions { display: flex; align-items: center; gap: 8px; }
