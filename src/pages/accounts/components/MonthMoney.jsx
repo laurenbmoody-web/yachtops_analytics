@@ -152,8 +152,11 @@ export default function MonthMoney({
               {diffs.length > 0 && (
                 <div className="mm-hunt">
                   <p className="mm-hunt-lead">
-                    {differenceLead(candidates, diffs[0].ours > diffs[0].theirs,
-                      { ours: diffs[0].ours, theirs: diffs[0].theirs })}
+                    {differenceLead(candidates, diffs[0].ours > diffs[0].theirs, {
+                      ours: diffs[0].ours,
+                      theirs: diffs[0].theirs,
+                      amountText: money(Math.abs(diffs[0].ours - diffs[0].theirs)),
+                    })}
                   </p>
                   {candidates.map((c) => (
                     <div key={c.key} className="mm-cand">
