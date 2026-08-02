@@ -283,3 +283,28 @@
 .wd-rk.h .cap.back { width: 7px; align-self: stretch; margin-left: auto; }
 .wd-rk.v .cap.back { height: 7px; align-self: stretch; margin-top: auto; }
 .wd-rk.view { cursor: pointer; }
+
+/* ── Free-rotation rack tile (base horizontal, rotated via transform) ── */
+#sp-root .wd-rk { transform-origin: center center; cursor: grab; }
+#sp-root .wd-rk.view { cursor: pointer; }
+#sp-root .wd-rk .cap { width: 7px; height: auto; align-self: stretch; }
+#sp-root .wd-rk .cap.dual { width: 7px; align-self: stretch; }
+#sp-root .wd-rk .bays { flex-direction: row; }
+#sp-root .wd-rk .bays .b { border-right: 1px solid rgba(20,29,46,.15); border-bottom: none; }
+
+/* double-sided tile: two stacked half-rows, each with its face code */
+.wd-dface { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.wd-dhalf { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.wd-dcode { font-size: 9px; font-weight: 800; color: #3A4358; text-shadow: 0 1px 0 rgba(255,255,255,.5); white-space: nowrap; }
+.wd-rk .wd-dface .wd-mid { position: static; flex: none; width: 100%; height: 1.5px; background: rgba(20,29,46,.30); }
+
+/* rotate knob on the selected rack — drag to any angle */
+#sp-root .wd-rotate { position: absolute; width: 24px; height: 24px; border-radius: 50%; transform: translate(-50%,-50%);
+  background: var(--navy-deep, #141D2E); color: #fff; border: 2px solid #fff; cursor: grab; z-index: 32;
+  display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: 0 4px 10px -3px rgba(20,29,46,.5); }
+#sp-root .wd-rotate:hover { background: var(--orange, #C65A1A); }
+#sp-root .wd-rotate:active { cursor: grabbing; }
+#sp-root .wd-rh { cursor: nwse-resize; }
+
+/* head-on Front / Back tabs: active = orange */
+#sp-root .wd-sidetabs button.on { background: var(--orange, #C65A1A); color: #fff; }
