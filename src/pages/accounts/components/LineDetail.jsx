@@ -15,6 +15,8 @@
 // and the allocation is implied by a dedicated charter/APA or owner card.
 import React, { useState, useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
+import EditorialSelect from '../../../components/editorial/EditorialSelect';
+import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
 import { DEPARTMENTS } from '../../../utils/authStorage';
 import { formatMoney } from '../../../services/financeCalc';
 import {
@@ -181,20 +183,21 @@ export default function LineDetail({
             disabled={!canEdit} />
         </label>
 
-        <label className="ld-field">
+        <div className="ld-field">
           {label('Date spent')}
-          <input className={`ld-input${!isSpendDateValid(spendDate, txn.statement_date) ? ' is-need' : ''}`}
-            type="date" value={spendDate} max={maxSpendDate(txn) || undefined}
-            onChange={(e) => setSpendDate(e.target.value)} disabled={!canEdit} />
-        </label>
+          {/* Cargo's own calendar rather than the browser's. maxDate keeps the
+              rule the native field's `max` enforced: you can't have spent it
+              after the bank posted it. */}
+          <EditorialDatePicker cool value={spendDate} onChange={setSpendDate}
+            maxDate={maxSpendDate(txn) || ''} disabled={!canEdit} ariaLabel="Date spent"
+            className={!isSpendDateValid(spendDate, txn.statement_date) ? 'is-need' : ''} />
+        </div>
 
-        <label className="ld-field">
+        <div className="ld-field">
           {label('Department')}
-          <select className="ld-input" value={department} disabled={!canEdit}
-            onChange={(e) => { setDepartment(e.target.value); setDeptTouched(true); }}>
-            <option value="">Not set</option>
-            {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
+          <EditorialSelect value={department} disabled={!canEdit} ariaLabel="Department"
+            onChange={(v) => { setDepartment(v); setDeptTouched(true); }}
+            options={[{ value: '', label: 'Not set' }, ...DEPARTMENTS.map((d) => ({ value: d, label: d }))]} />
           {!deptTouched && department && (
             <span className="ld-hint">
               {spenderDept(cardholder) === department
@@ -202,13 +205,19 @@ export default function LineDetail({
                 : (departmentForCode(txn.category_code) === department ? 'From the category' : 'From you')}
             </span>
           )}
-        </label>
+        </div>
 
-        <label className="ld-field">
+        <div className="ld-field">
           {label('Who spent it')}
-          <select className="ld-input" value={cardholder} disabled={!canEdit}
-            onChange={(e) => {
-              const id = e.target.value;
+          <EditorialSelect value={cardholder} disabled={!canEdit} ariaLabel="Who spent it"
+            options={[
+              { value: '', label: 'Not set' },
+              ...crew.map((c) => ({
+                value: c.id,
+                label: `${c.name}${c.id === account?.holder_user_id ? ' — cardholder' : ''}`,
+              })),
+            ]}
+            onChange={(id) => {
               setCardholder(id);
               // The spender only fills the department in when the category hasn't
               // already decided it and the user hasn't chosen one themselves.
@@ -216,16 +225,9 @@ export default function LineDetail({
                 setDepartment(defaultDepartment({ ...txn, department: null },
                   { spenderDepartment: spenderDept(id), reconcilerDepartment }));
               }
-            }}>
-            <option value="">Not set</option>
-            {crew.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}{c.id === account?.holder_user_id ? ' — cardholder' : ''}
-              </option>
-            ))}
-          </select>
+            }} />
           {borrowed && <span className="ld-hint warn">Borrowed card</span>}
-        </label>
+        </div>
       </div>
 
       {/* Row B — who bears it, and which charter when that has to be stated */}
@@ -315,12 +317,11 @@ export default function LineDetail({
             {canEdit && <button type="button" className="ld-mini" onClick={applyVatRate}>Work it out</button>}
           </div>
         </label>
-        <label className="ld-field">
+        <div className="ld-field">
           {label('Currency')}
-          <select className="ld-input" value={currency} onChange={(e) => setCurrency(e.target.value)} disabled={!canEdit}>
-            {[...new Set([currency, ...CURRENCIES])].map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </label>
+          <EditorialSelect value={currency} onChange={setCurrency} disabled={!canEdit} ariaLabel="Currency"
+            options={[...new Set([currency, ...CURRENCIES])].filter(Boolean).map((c) => ({ value: c, label: c }))} />
+        </div>
         <label className="ld-field">
           {label('FX rate to base')}
           <input className="ld-input" inputMode="decimal" value={fxRate}
@@ -348,20 +349,15 @@ export default function LineDetail({
                 <input className={`ld-input ld-split-amt${shakeIdx === i ? ' is-shake' : ''}`}
                   inputMode="decimal" value={r.amount}
                   onChange={(e) => setRowAmount(i, e.target.value)} placeholder="0.00" disabled={!canEdit} />
-                <select className="ld-input ld-split-cat"
+                <EditorialSelect className="ld-split-cat" ariaLabel="Category for this part"
                   value={r.category ? `${r.category_code || ''}|${r.category}` : ''}
-                  onChange={(e) => pickSplitCategory(i, e.target.value)} disabled={!canEdit}>
-                  <option value="">Pick a category…</option>
-                  {chartGroups.map((g) => (
-                    <optgroup key={g.bucket} label={g.bucket}>
-                      {g.lines.map((l) => (
-                        <option key={`${l.code}|${l.category}`} value={`${l.code || ''}|${l.category}`}>
-                          {l.code ? `${l.code} · ` : ''}{l.category}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
+                  onChange={(v) => pickSplitCategory(i, v)} disabled={!canEdit}
+                  placeholder="Pick a category…"
+                  options={chartGroups.flatMap((g) => g.lines.map((l) => ({
+                    value: `${l.code || ''}|${l.category}`,
+                    label: `${l.code ? `${l.code} · ` : ''}${l.category}`,
+                    group: g.bucket,
+                  })))} />
                 <input className="ld-input ld-split-note" value={r.note || ''}
                   onChange={(e) => setRow(i, { note: e.target.value })} placeholder="Description / note" disabled={!canEdit} />
                 {canEdit && (

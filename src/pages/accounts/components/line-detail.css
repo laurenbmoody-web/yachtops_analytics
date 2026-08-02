@@ -108,3 +108,12 @@ select.ld-input { cursor: pointer; }
 /* A stated reason there's no receipt is declared on the row's clip, not here —
    this just reports it, so the coding panel shows the whole picture. */
 .ld-waived { font-size: 12px; color: #8B8478; font-style: italic; }
+
+/* A spend date that can't be right (after the bank posted it) — the same warning
+   the native field carried, now on the editorial picker's own frame. */
+.edp.is-need .edp-field { border-color: #C9A227; box-shadow: 0 0 0 3px #FBF3DC; }
+
+/* The picker and the dropdowns are full-width controls in a field column, so
+   they sit on the grid the same way the inputs beside them do. */
+.ld-field .edp, .ld-field .es { width: 100%; }
+.ld-split .es { min-width: 0; }
