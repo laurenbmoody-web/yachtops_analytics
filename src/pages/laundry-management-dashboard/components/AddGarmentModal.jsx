@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import DeckPlanPicker from './DeckPlanPicker';
 import MapPickerModal from '../../vessel-map/components/MapPickerModal';
+import OwSelect from './OwSelect';
 import { createWardrobe } from '../utils/laundryWardrobes';
 import { createLaundryItem, LaundryStatus, availableLaundryTags, formatLaundryTag } from '../utils/laundryStorage';
 import './ownerWardrobe.css';
@@ -11,6 +12,8 @@ const CURRENCIES = ['EUR', 'GBP', 'USD'];
 const CONDITIONS = ['New', 'Excellent', 'Good', 'Fair', 'Worn'];
 const SEASONS = ['All year', 'Summer', 'Winter', 'Spring', 'Autumn', 'Resort', 'Formal'];
 const GENDERS = ['Womens', 'Mens', 'Unisex', 'Girls', 'Boys', 'Baby'];
+// Option list with a leading "—" clear row for optional selects.
+const dash = (arr) => [{ value: '', label: '—' }, ...arr.map((x) => ({ value: x, label: x }))];
 
 const fileToDataUrl = (file) => new Promise((res, rej) => {
   const r = new FileReader();
@@ -141,13 +144,13 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
             </div>
             <div>
               <label className="ow-l">Type</label>
-              <div className="ow-select"><select value={type} onChange={(e) => setType(e.target.value)}><option value="">—</option>{GARMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></div>
+              <OwSelect value={type} onChange={setType} options={dash(GARMENT_TYPES)} />
             </div>
           </div>
           <div className="ow-row2">
             <div>
               <label className="ow-l">Cut</label>
-              <div className="ow-select"><select value={gender} onChange={(e) => setGender(e.target.value)}><option value="">—</option>{GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}</select></div>
+              <OwSelect value={gender} onChange={setGender} options={dash(GENDERS)} />
             </div>
             <div>
               <label className="ow-l">Size</label>
@@ -167,7 +170,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
           <div className="ow-row2">
             <div>
               <label className="ow-l">Condition</label>
-              <div className="ow-select"><select value={condition} onChange={(e) => setCondition(e.target.value)}><option value="">—</option>{CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+              <OwSelect value={condition} onChange={setCondition} options={dash(CONDITIONS)} />
             </div>
             <div />
           </div>
@@ -186,14 +189,14 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
               <div>
                 <label className="ow-l">Value <span className="ow-opt">optional</span></label>
                 <div className="ow-value">
-                  <div className="ow-select ow-cur"><select value={currency} onChange={(e) => setCurrency(e.target.value)}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+                  <div className="ow-cur"><OwSelect value={currency} onChange={setCurrency} options={CURRENCIES} /></div>
                   <input className="ow-input" type="number" min="0" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0.00" />
                 </div>
               </div>
             ) : <div />}
             <div>
               <label className="ow-l">Season</label>
-              <div className="ow-select"><select value={season} onChange={(e) => setSeason(e.target.value)}><option value="">—</option>{SEASONS.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
+              <OwSelect value={season} onChange={setSeason} options={dash(SEASONS)} />
             </div>
           </div>
 
@@ -223,11 +226,11 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
           <div className="ow-row2">
             <div>
               <label className="ow-l">Wardrobe <button type="button" className="ow-inline-map" onClick={() => setShowPlan(true)}><Icon name="Map" size={12} /> plan</button></label>
-              <div className="ow-select"><select value={wardrobeId} onChange={(e) => setWardrobeId(e.target.value)}>{wlist.length === 0 && <option value="">No wardrobe yet</option>}{wlist.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
+              <OwSelect value={wardrobeId} onChange={setWardrobeId} placeholder={wlist.length === 0 ? 'No wardrobe yet' : '—'} options={wlist.map((w) => ({ value: w.id, label: w.name }))} />
             </div>
             <div>
               <label className="ow-l">Belongs to</label>
-              <div className="ow-select"><select value={guestId} onChange={(e) => setGuestId(e.target.value)}><option value="">Owner (unassigned)</option>{guests.map((g) => <option key={g.id} value={g.id}>{g.name || g.fullName || [g.firstName, g.lastName].filter(Boolean).join(' ') || 'Guest'}</option>)}</select></div>
+              <OwSelect value={guestId} onChange={setGuestId} options={[{ value: '', label: 'Owner (unassigned)' }, ...guests.map((g) => ({ value: g.id, label: g.name || g.fullName || [g.firstName, g.lastName].filter(Boolean).join(' ') || 'Guest' }))]} />
             </div>
           </div>
           <label className="ow-check-row">
