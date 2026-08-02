@@ -2,15 +2,14 @@
 //
 // The room is a free-form polygon: drag wall points, add or remove them, make
 // any shape. Racks drop onto the floor, can be dragged and physically resized.
-// Clicking a rack SELECTS it and opens its properties bar (name, code, zone,
-// orientation, sides, bays, levels); "Head-on" opens the section view. Racks
-// can be single- or double-sided (products on the front, or front and back).
-// Autosaves silently. Coordinate space is x:0..100, y:0..60. Persisted via
-// supplier_warehouse_layout.
+// Clicking a rack selects it and opens a compact editor popover anchored right
+// next to it (name, code, zone, sides, bays, levels, head-on, delete); a rotate
+// badge on the rack flips it horizontal/vertical. Racks can be single- or
+// double-sided. Autosaves silently. Coordinate space x:0..100, y:0..60.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Plus, Minus, Trash2, X, PenLine, Check, Boxes, Layers, Maximize2, Columns2,
+  Plus, Minus, Trash2, X, PenLine, Check, Boxes, Layers, Maximize2, Columns2, RotateCw,
 } from 'lucide-react';
 import { fetchWarehouseLayout, saveWarehouseLayout } from '../utils/supplierStorage';
 import './warehouse-designer.css';
@@ -27,14 +26,12 @@ const clamp = (min, max, v) => Math.max(min, Math.min(max, v));
 const dims = (r) => (r.orient === 'h' ? { w: r.len, h: r.thick } : { w: r.thick, h: r.len });
 const topPct = (y) => (y / 60) * 100;
 
-// A rack's levels, top → bottom, as { key, label }. n levels = Ground + (n-1) up.
 const levelDefs = (n) => {
   const out = [];
   for (let i = n - 1; i >= 1; i -= 1) out.push({ k: String(i), t: `Level ${i}` });
   out.push({ k: 'G', t: 'Ground' });
   return out;
 };
-// Fill in any fields missing from older saved racks.
 const normalizeRack = (r) => ({
   name: '', code: r.id, bays: 4, levels: DEFAULT_LEVELS[r.zone] || 3, sides: 1,
   ...r,
@@ -67,7 +64,6 @@ export default function WarehouseDesigner({ supplierId }) {
     })();
   }, []);
 
-  // Autosave silently, debounced — no toast.
   useEffect(() => {
     if (!loaded.current) return undefined;
     const t = setTimeout(() => {
@@ -91,7 +87,6 @@ export default function WarehouseDesigner({ supplierId }) {
   };
   const patchRack = (id, patch) => setRacks((rs) => rs.map((r) => (r.id === id ? clampRack({ ...r, ...patch }) : r)));
 
-  // ── drag loop ──
   useEffect(() => {
     const onMove = (e) => {
       const ds = dragRef.current; if (!ds) return;
@@ -122,8 +117,6 @@ export default function WarehouseDesigner({ supplierId }) {
     };
     const onUp = () => {
       const ds = dragRef.current; dragRef.current = null;
-      // A click (no drag) just selects the rack — head-on is a deliberate
-      // action via the properties bar, so you can edit details first.
       if (ds && ds.type === 'rack' && !ds.moved) setSel(ds.id);
     };
     window.addEventListener('pointermove', onMove);
@@ -144,7 +137,6 @@ export default function WarehouseDesigner({ supplierId }) {
   };
   const startVertex = (e, i) => { e.stopPropagation(); dragRef.current = { type: 'vertex', i, cx: e.clientX, cy: e.clientY, moved: false }; };
 
-  // ── rack ops ──
   const nextId = () => { let n = 1; while (racks.some((r) => r.id === `R${n}`)) n += 1; return `R${n}`; };
   const addRack = () => {
     setEditWalls(false);
@@ -154,7 +146,6 @@ export default function WarehouseDesigner({ supplierId }) {
   };
   const deleteRack = () => { setRacks((rs) => rs.filter((r) => r.id !== sel)); setSel(null); };
 
-  // ── wall ops ──
   const addPoint = (i) => setShape((s) => {
     const a = s.points[i], b = s.points[(i + 1) % s.points.length];
     const mid = [Math.round((a[0] + b[0]) / 2), Math.round((a[1] + b[1]) / 2)];
@@ -175,26 +166,22 @@ export default function WarehouseDesigner({ supplierId }) {
 
   return (
     <div className="wd">
-      <div className="wd-hero">
-        <p className="wd-eyebrow"><span className="dot" />WAREHOUSE<span className="bar" />LAYOUT DESIGNER
-          <span className="bar" />{racks.length} RACK{racks.length === 1 ? '' : 'S'}</p>
-        <h1 className="wd-headline">WAREHOUSE<span className="p">,</span> <em>designed</em><span className="p">.</span></h1>
+      <div className="wd-topline">
+        <div className="wd-hero">
+          <p className="wd-eyebrow"><span className="dot" />WAREHOUSE<span className="bar" />LAYOUT DESIGNER
+            <span className="bar" />{racks.length} RACK{racks.length === 1 ? '' : 'S'}</p>
+          <h1 className="wd-headline">WAREHOUSE<span className="p">,</span> <em>designed</em><span className="p">.</span></h1>
+        </div>
+        {/* actions — real buttons, right side */}
+        <div className="wd-toolbar">
+          <button className={`wd-btn ghost${editWalls ? ' active' : ''}`} onClick={() => { setEditWalls((v) => !v); setSel(null); }}>
+            {editWalls ? <><Check size={16} /> Done</> : <><PenLine size={16} /> Edit warehouse layout</>}
+          </button>
+          <button className="wd-btn primary" onClick={addRack}><Plus size={16} /> Add rack</button>
+        </div>
       </div>
 
       {error && <div className="wd-error" onClick={() => setError(null)}>{error} <X size={12} /></div>}
-
-      {/* toolbar — two real buttons */}
-      <div className="wd-toolbar">
-        <button className="wd-btn primary" onClick={addRack}><Plus size={16} /> Add rack</button>
-        <button className={`wd-btn ghost${editWalls ? ' active' : ''}`} onClick={() => { setEditWalls((v) => !v); setSel(null); }}>
-          {editWalls ? <><Check size={16} /> Done</> : <><PenLine size={16} /> Edit warehouse layout</>}
-        </button>
-      </div>
-
-      {/* properties bar for the selected rack — pinned above the room */}
-      {selRack && !editWalls && (
-        <RackProps rack={selRack} onPatch={patchRack} onDelete={deleteRack} onHeadOn={() => setModalRack(selRack)} />
-      )}
 
       {/* the room */}
       <div className={`wd-roomcard${editWalls ? ' editing' : ''}`}>
@@ -221,22 +208,28 @@ export default function WarehouseDesigner({ supplierId }) {
             );
           })}
 
-          {/* resize handles for selected rack */}
+          {/* selected-rack chrome: rotate badge, resize handles, editor popover */}
           {selRack && !editWalls && (() => {
             const { w, h } = dims(selRack);
             const lenH = selRack.orient === 'h' ? { left: selRack.x + w, top: selRack.y + h / 2 } : { left: selRack.x + w / 2, top: selRack.y + h };
             const thH = selRack.orient === 'h' ? { left: selRack.x + w / 2, top: selRack.y + h } : { left: selRack.x + w, top: selRack.y + h / 2 };
             return (
               <>
+                <button className="wd-rotate" style={{ left: `${selRack.x}%`, top: `${topPct(selRack.y)}%` }}
+                  title="Rotate 90°" onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => patchRack(selRack.id, { orient: selRack.orient === 'h' ? 'v' : 'h' })}>
+                  <RotateCw size={13} />
+                </button>
                 <div className="wd-rh" style={{ left: `${lenH.left}%`, top: `${topPct(lenH.top)}%`, cursor: selRack.orient === 'h' ? 'ew-resize' : 'ns-resize' }}
                   onPointerDown={(e) => startResize(e, selRack, 'len')} />
                 <div className="wd-rh" style={{ left: `${thH.left}%`, top: `${topPct(thH.top)}%`, cursor: selRack.orient === 'h' ? 'ns-resize' : 'ew-resize' }}
                   onPointerDown={(e) => startResize(e, selRack, 'thick')} />
+                <RackPopover rack={selRack} onPatch={patchRack} onDelete={deleteRack}
+                  onHeadOn={() => setModalRack(selRack)} onClose={() => setSel(null)} />
               </>
             );
           })()}
 
-          {/* wall editing handles */}
           {editWalls && shape.points.map((p, i) => {
             const b = shape.points[(i + 1) % shape.points.length];
             const mid = [(p[0] + b[0]) / 2, (p[1] + b[1]) / 2];
@@ -256,7 +249,7 @@ export default function WarehouseDesigner({ supplierId }) {
       </div>
 
       {racks.length === 0 && (
-        <div className="wd-empty">Your floor is empty — hit <strong>Add rack</strong> to place your first one, then select it to name it and set its bays and shelves.</div>
+        <div className="wd-empty">Your floor is empty — hit <strong>Add rack</strong> to place your first one, then click it to name it and set its bays and shelves.</div>
       )}
 
       {modalRack && <HeadOn rack={racks.find((r) => r.id === modalRack.id) || modalRack} onPatch={patchRack} onClose={() => setModalRack(null)} />}
@@ -264,55 +257,57 @@ export default function WarehouseDesigner({ supplierId }) {
   );
 }
 
-// ── Properties bar for the selected rack ──────────────────────────────────────
-function RackProps({ rack, onPatch, onDelete, onHeadOn }) {
+// ── Compact editor popover, anchored next to the selected rack ─────────────────
+function RackPopover({ rack, onPatch, onDelete, onHeadOn, onClose }) {
+  const { w, h } = dims(rack);
+  const anchorRight = rack.x > 50;
+  const below = rack.y < 30;
+  const style = { position: 'absolute', zIndex: 40 };
+  if (anchorRight) style.right = `${100 - (rack.x + w)}%`; else style.left = `${rack.x}%`;
+  if (below) style.top = `calc(${topPct(rack.y + h)}% + 12px)`; else style.bottom = `calc(${100 - topPct(rack.y)}% + 12px)`;
   return (
-    <div className="wd-props">
-      <div className="wd-pfield code">
-        <label>Code</label>
-        <input value={rack.code} maxLength={8} onChange={(e) => onPatch(rack.id, { code: e.target.value.toUpperCase() })} />
-      </div>
-      <div className="wd-pfield name">
-        <label>Name</label>
-        <input value={rack.name} placeholder="e.g. Dry goods, Spirits" onChange={(e) => onPatch(rack.id, { name: e.target.value })} />
-      </div>
-      <div className="wd-pfield">
-        <label>Zone</label>
-        <div className="wd-pzones">
-          {ZONES.map((z) => (
-            <button key={z.key} className={`wd-pz${rack.zone === z.key ? ' on' : ''}`} style={{ '--zc': z.color }}
-              onClick={() => onPatch(rack.id, { zone: z.key })} title={z.label}><i /></button>
-          ))}
+    <div className="wd-pop" style={style} onPointerDown={(e) => e.stopPropagation()}>
+      <div className="wd-pop-head">
+        <span className="wd-pop-title">Rack {rack.code}</span>
+        <div className="wd-pop-hactions">
+          <button onClick={onDelete} title="Delete rack"><Trash2 size={14} /></button>
+          <button onClick={onClose} title="Close"><X size={15} /></button>
         </div>
       </div>
-      <div className="wd-pfield">
-        <label>Orientation</label>
-        <div className="wd-seg">
-          <button className={rack.orient === 'h' ? 'on' : ''} onClick={() => onPatch(rack.id, { orient: 'h' })}>Horizontal</button>
-          <button className={rack.orient === 'v' ? 'on' : ''} onClick={() => onPatch(rack.id, { orient: 'v' })}>Vertical</button>
+      <div className="wd-pop-row">
+        <label className="wd-pop-f code"><span>Code</span>
+          <input value={rack.code} maxLength={8} onChange={(e) => onPatch(rack.id, { code: e.target.value.toUpperCase() })} /></label>
+        <label className="wd-pop-f name"><span>Name</span>
+          <input value={rack.name} placeholder="e.g. Dry goods" onChange={(e) => onPatch(rack.id, { name: e.target.value })} /></label>
+      </div>
+      <div className="wd-pop-row">
+        <div className="wd-pop-f"><span>Zone</span>
+          <div className="wd-pzones">
+            {ZONES.map((z) => (
+              <button key={z.key} className={`wd-pz${rack.zone === z.key ? ' on' : ''}`} style={{ '--zc': z.color }}
+                onClick={() => onPatch(rack.id, { zone: z.key })} title={z.label}><i /></button>
+            ))}
+          </div>
+        </div>
+        <div className="wd-pop-f"><span>Sides</span>
+          <div className="wd-seg">
+            <button className={rack.sides !== 2 ? 'on' : ''} onClick={() => onPatch(rack.id, { sides: 1 })}>Single</button>
+            <button className={rack.sides === 2 ? 'on' : ''} onClick={() => onPatch(rack.id, { sides: 2 })}>Double</button>
+          </div>
         </div>
       </div>
-      <div className="wd-pfield">
-        <label><Columns2 size={11} /> Sides</label>
-        <div className="wd-seg">
-          <button className={rack.sides !== 2 ? 'on' : ''} onClick={() => onPatch(rack.id, { sides: 1 })}>Single</button>
-          <button className={rack.sides === 2 ? 'on' : ''} onClick={() => onPatch(rack.id, { sides: 2 })}>Double</button>
-        </div>
+      <div className="wd-pop-row">
+        <Stepper label={<><Boxes size={11} /> Bays</>} value={rack.bays} min={1} max={16} onChange={(v) => onPatch(rack.id, { bays: v })} />
+        <Stepper label={<><Layers size={11} /> Levels</>} value={rack.levels} min={1} max={8} onChange={(v) => onPatch(rack.id, { levels: v })} />
       </div>
-      <Stepper label={<><Boxes size={11} /> Bays</>} value={rack.bays} min={1} max={16} onChange={(v) => onPatch(rack.id, { bays: v })} />
-      <Stepper label={<><Layers size={11} /> Levels</>} value={rack.levels} min={1} max={8} onChange={(v) => onPatch(rack.id, { levels: v })} />
-      <div className="wd-pacts">
-        <button className="wd-pbtn ghost" onClick={onHeadOn}><Maximize2 size={14} /> Head-on</button>
-        <button className="wd-pbtn del" onClick={onDelete} title="Delete rack"><Trash2 size={14} /></button>
-      </div>
+      <button className="wd-pop-headon" onClick={onHeadOn}><Maximize2 size={14} /> Open head-on</button>
     </div>
   );
 }
 
 function Stepper({ label, value, min, max, onChange }) {
   return (
-    <div className="wd-pfield">
-      <label>{label}</label>
+    <div className="wd-pop-f"><span>{label}</span>
       <div className="wd-step">
         <button onClick={() => onChange(clamp(min, max, value - 1))} disabled={value <= min}><Minus size={13} /></button>
         <span>{value}</span>
