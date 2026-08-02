@@ -145,12 +145,38 @@
 .ow-photo img { width: 100%; height: 100%; object-fit: cover; }
 .ow-photo-ph { display: flex; flex-direction: column; align-items: center; gap: 6px; color: #8B93A0; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; }
 
+/* Rich add-garment form */
+.ow-modal-wide { max-width: 640px; }
+.ow-sec { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #1C1B3A; margin: 14px 0 2px; padding-bottom: 7px; border-bottom: 1px solid #EEF0F4; }
+.ow-sec:first-child { margin-top: 0; }
+.ow-textarea { font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 10px; padding: 11px 13px; width: 100%; resize: vertical; line-height: 1.45; }
+.ow-textarea:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }
+.ow-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.ow-photo-thumb { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; border: 1px solid #E5E7EB; background: #F5F6F8; }
+.ow-photo-thumb.cover { border-color: #C65A1A; box-shadow: 0 0 0 2px #FAECE7; }
+.ow-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ow-photo-badge { position: absolute; left: 6px; bottom: 6px; font: 800 8px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #FFFFFF; background: #C65A1A; border-radius: 999px; padding: 3px 7px; }
+.ow-photo-cover { position: absolute; left: 6px; bottom: 6px; font: 700 8px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: #1C1B3A; background: rgba(255, 255, 255, 0.92); border: none; border-radius: 999px; padding: 3px 7px; cursor: pointer; opacity: 0; transition: opacity 0.14s; }
+.ow-photo-thumb:hover .ow-photo-cover { opacity: 1; }
+.ow-photo-del { position: absolute; top: 5px; right: 5px; width: 22px; height: 22px; display: grid; place-items: center; border: none; border-radius: 7px; background: rgba(28, 27, 58, 0.62); color: #FFFFFF; cursor: pointer; }
+.ow-photo-del:hover { background: #C24632; }
+.ow-photo-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; aspect-ratio: 1; border: 1.5px dashed #C7CBD6; border-radius: 12px; background: #F8FAFC; cursor: pointer; color: #8B93A0; font: 600 11px 'Plus Jakarta Sans', system-ui, sans-serif; text-align: center; }
+.ow-photo-add:hover { border-color: #C65A1A; color: #C65A1A; }
+.ow-qr-note { display: flex; align-items: center; gap: 7px; margin-top: 14px; padding: 10px 12px; background: #FBEFE9; border: 1px solid #F3D9CB; border-radius: 10px; font: 500 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8A5A3A; }
+.ow-qr-note svg { color: #C65A1A; flex: none; }
+
 /* full view */
 .ow-full { width: 100%; max-width: 720px; max-height: 90vh; background: #FFFFFF; border-radius: 18px; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; position: relative; }
 .ow-full-x { position: absolute; top: 12px; right: 12px; z-index: 3; width: 34px; height: 34px; display: grid; place-items: center; border: none; background: rgba(255,255,255,0.9); border-radius: 9px; cursor: pointer; color: #1C1B3A; }
-.ow-full-media { background: #EEF1F5; display: grid; place-items: center; min-height: 320px; }
+.ow-full-media { position: relative; background: #EEF1F5; display: grid; place-items: center; min-height: 320px; }
 .ow-full-media img { width: 100%; height: 100%; object-fit: cover; }
 .ow-full-ph { color: #B9BEC9; }
+.ow-full-thumbs { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 6px; padding: 8px; overflow-x: auto; background: linear-gradient(to top, rgba(28,27,58,0.5), transparent); }
+.ow-full-thumb { flex: none; width: 42px; height: 42px; border-radius: 8px; overflow: hidden; border: 2px solid transparent; padding: 0; cursor: pointer; background: none; }
+.ow-full-thumb.on { border-color: #FFFFFF; }
+.ow-full-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.ow-full-brand { margin: -2px 0 0; font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
+.ow-full-desc { margin: 2px 0 0; font: 400 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #4B5563; line-height: 1.5; }
 .ow-full-info { padding: 26px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
 .ow-full-nm { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 26px; margin: 0; color: #1C1B3A; }
 .ow-full-meta { display: flex; flex-wrap: wrap; gap: 6px; }
