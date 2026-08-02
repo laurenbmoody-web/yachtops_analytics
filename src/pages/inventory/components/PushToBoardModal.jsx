@@ -81,7 +81,7 @@ const PushToBoardModal = ({ items = [], onClose, onDone }) => {
         unit: it?.unit || 'each',
         estimated_unit_cost: it?.unitCost ?? null,
         inventory_item_id: it?.id,
-        source: 'reorder',
+        source: it?.source || 'low_stock',
         status: 'draft',
       }));
       await upsertItems(lines);

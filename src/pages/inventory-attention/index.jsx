@@ -180,10 +180,14 @@ const InventoryAttention = () => {
   });
   const toggleSection = (key) => setCollapsed((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
 
-  const selectedItems = useMemo(
-    () => [...selected].map((id) => byId.get(id)).filter(Boolean).map((i) => ({ ...i, suggestedQty: shortfall(i) })),
-    [selected, byId],
-  );
+  const selectedItems = useMemo(() => {
+    const today = startOfToday();
+    return [...selected].map((id) => byId.get(id)).filter(Boolean).map((i) => ({
+      ...i,
+      suggestedQty: shortfall(i),
+      source: bucketOf(i, today) === 'belowpar' ? 'low_stock' : 'expiring_soon',
+    }));
+  }, [selected, byId]);
 
   // Hide (or unhide) selected items from this list — keeps their expiry & data.
   const handleToggleHidden = async () => {
