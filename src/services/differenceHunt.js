@@ -184,7 +184,9 @@ export const typoKind = (ours, theirs) => {
   return null;
 };
 
-export const differenceLead = (candidates = [], cargoHasMore = true, { ours, theirs } = {}) => {
+export const differenceLead = (
+  candidates = [], cargoHasMore = true, { ours, theirs, amountText = '' } = {},
+) => {
   if (candidates.length) {
     return candidates.length === 1
       ? 'One line would explain it:'
@@ -195,10 +197,15 @@ export const differenceLead = (candidates = [], cargoHasMore = true, { ours, the
   // job, and it's the wrong one when the two figures differ by a single digit.
   const typo = typoKind(ours, theirs);
   if (typo) {
-    return `The two figures are ${typo} — worth checking what was typed against the statement before hunting for a line.`;
+    return `The two figures are ${typo} — check what was typed against the statement before hunting for a line.`;
   }
 
+  // By here nothing single, paired, pending, straddling or unassigned came to the
+  // amount — so say the amount, and name the two things that are actually left.
+  // "The figure typed doesn't match the statement" was circular: that mismatch is
+  // the whole reason this sentence is on screen.
+  const gap = amountText || 'the difference';
   return cargoHasMore
-    ? 'Nothing in this month accounts for it on its own. Either a line hasn’t been entered yet, or the figure typed doesn’t match the statement.'
-    : 'The bank has spend Cargo doesn’t. Check for a line that was never imported, one filed to another card, or a mistyped figure.';
+    ? `Nothing here adds up to ${gap}. Either Cargo is holding spend the bank never charged, or the statement figure was mistyped.`
+    : `Nothing here adds up to ${gap}. Either spend on the statement never reached Cargo, or the statement figure was mistyped.`;
 };

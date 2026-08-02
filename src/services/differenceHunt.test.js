@@ -126,10 +126,17 @@ test('the lead counts what was found', () => {
   assert.equal(differenceLead([{}, {}]), '2 lines could explain it:');
 });
 
-test('finding nothing says so rather than pretending', () => {
-  // It now names both real causes rather than only the long one.
-  assert.match(differenceLead([], true), /Nothing in this month accounts for it/);
-  assert.match(differenceLead([], false), /bank has spend Cargo doesn’t/);
+test('finding nothing names the amount and the two real causes', () => {
+  // Not "a line hasn't been entered" — by here nothing single OR paired matched,
+  // so the honest options are a charge that never happened and a mistype.
+  const more = differenceLead([], true, { ours: 100, theirs: 98, amountText: '£2.00' });
+  assert.match(more, /Nothing here adds up to £2\.00/);
+  assert.match(more, /the bank never charged/);
+  assert.match(more, /mistyped/);
+
+  const less = differenceLead([], false, { ours: 98, theirs: 100, amountText: '£2.00' });
+  assert.match(less, /never reached Cargo/);
+  assert.match(less, /mistyped/);
 });
 
 // ── a mistype is not a missing transaction ──────────────────────────────────
@@ -164,10 +171,8 @@ test('the lead checks the typing before sending anyone hunting', () => {
   assert.match(lead, /what was typed/);
 });
 
-test('with no typo it names both real possibilities', () => {
-  const lead = differenceLead([], true, { ours: 12923.90, theirs: 11500 });
-  assert.match(lead, /hasn’t been entered yet/);
-  assert.match(lead, /doesn’t match the statement/);
+test('with no amount given it still reads as a sentence', () => {
+  assert.match(differenceLead([], true, { ours: 12923.90, theirs: 11500 }), /adds up to the difference/);
 });
 
 test('a matching line still wins over any of it', () => {
