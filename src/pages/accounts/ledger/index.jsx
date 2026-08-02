@@ -11,6 +11,7 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import {
   listAccounts, listTransactions, createTransaction, voidTransaction, assignTransactionAccount,
+  listInvoicesByIds,
   uploadReceipt, listAttachments, deleteAttachment, fileTransaction, fileTransactions,
   listMerchantRules, setMerchantRule, linkRefund, currentUserId,
   updateTransactionDetail, listSplits, saveSplits, listTripsLite, listTenantCrew,
@@ -64,12 +65,24 @@ const STANDARD_GROUPS = STANDARD_BUCKET_ORDER.map((bucket) => ({
 // Where a line came from operationally → the module that owns that record. Only
 // records the line was *raised against* belong here: the crew member who spent it
 // is a field on the line, not an operational source, so there's no profile link.
+// Every one of these used to point at '/provisioning' regardless of which record
+// it named — the id was in the label's meaning but never in the destination, so
+// following any of them dropped you at the top of the section to find it yourself.
 const TAGS = [
-  { key: 'supplier_invoice_id', label: 'supplier invoice', path: () => '/provisioning' },
-  { key: 'supplier_order_id', label: 'purchase order', path: () => '/provisioning' },
+  {
+    key: 'supplier_invoice_id',
+    label: 'supplier invoice',
+    // The invoice's own order, resolved from the invoice; the invoice id isn't a
+    // route on the vessel side, but the order it belongs to is.
+    path: (t, ctx) => {
+      const orderId = ctx?.invoiceById?.[t.supplier_invoice_id]?.order_id;
+      return orderId ? `/provisioning/orders/${orderId}` : '/provisioning';
+    },
+  },
+  { key: 'supplier_order_id', label: 'purchase order', path: (t) => `/provisioning/orders/${t.supplier_order_id}` },
   { key: 'provisioning_item_id', label: 'provisioning item', path: () => '/provisioning' },
-  { key: 'trip_id', label: 'trip', path: () => '/trips-management-dashboard' },
-  { key: 'defect_id', label: 'defect', path: () => '/defects' },
+  { key: 'trip_id', label: 'trip', path: (t) => `/trips-management-dashboard?trip=${t.trip_id}` },
+  { key: 'defect_id', label: 'defect', path: (t) => `/defects?defect=${t.defect_id}` },
 ];
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -136,6 +149,9 @@ export default function Ledger() {
   const [recon, setRecon] = useState(null);        // this account+month's reconciliation row
   const [monthRecons, setMonthRecons] = useState([]);  // every account's, for the overview
   const [reconTick, setReconTick] = useState(0);       // bumped on close, to refresh it
+  // invoice id → the invoice, so a line can be sent to its document and its order
+  // rather than to the top of Provisioning.
+  const [invoiceById, setInvoiceById] = useState({});
   const [scanOpen, setScanOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanSeed, setScanSeed] = useState(null);   // parsed receipt → prefills Add spending
@@ -200,6 +216,14 @@ export default function Ledger() {
     }
     // accountId deliberately absent — it no longer changes what's fetched.
   }, [activeTenantId, filters.source, filters.category, filters.search, filters.from, filters.to]);
+
+  useEffect(() => {
+    const ids = txns.map((t) => t.supplier_invoice_id).filter(Boolean);
+    if (!ids.length) { setInvoiceById({}); return; }
+    listInvoicesByIds(ids).then(({ data }) => {
+      setInvoiceById(Object.fromEntries((data || []).map((i) => [i.id, i])));
+    });
+  }, [txns]);
 
   useEffect(() => { loadAccounts(); }, [loadAccounts]);
   useEffect(() => { loadTxns(); }, [loadTxns]);
@@ -653,7 +677,7 @@ export default function Ledger() {
         {links.map((tag, i) => (
           <React.Fragment key={tag.key}>
             {i > 0 && <span className="ca-links-sep">·</span>}
-            <button type="button" className="ca-link" onClick={() => navigate(tag.path(t))}>
+            <button type="button" className="ca-link" onClick={() => navigate(tag.path(t, { invoiceById }))}>
               {tag.label}
             </button>
           </React.Fragment>
@@ -826,7 +850,14 @@ export default function Ledger() {
               onUpload={handleReceiptFor}
               onWaive={handleWaiveReceipt}
               onDeleteAttachment={handleDeleteAttachment}
-              onOpenInvoice={() => navigate('/provisioning')} />
+              invoice={invoiceById[t.supplier_invoice_id] || null}
+              onOpenInvoice={(inv) => {
+                // The document itself when we hold one; otherwise the order it
+                // belongs to, which is the nearest real thing to open.
+                if (inv?.pdf_url) window.open(inv.pdf_url, '_blank', 'noopener');
+                else if (inv?.order_id) navigate(`/provisioning/orders/${inv.order_id}`);
+                else navigate('/provisioning');
+              }} />
           )}
           {!t.account_id && !voided && canEdit && (
             <button type="button" className="ca-link" onClick={() => setAssignTxn(t)}>Assign →</button>

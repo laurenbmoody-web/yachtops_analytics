@@ -18,7 +18,7 @@ const PANEL_W = 320;
 
 export default function ReceiptClip({
   txn, attachments = [], canEdit = true,
-  onPhotograph, onUpload, onWaive, onDeleteAttachment, onOpenInvoice,
+  onPhotograph, onUpload, onWaive, onDeleteAttachment, onOpenInvoice, invoice = null,
 }) {
   const btnRef = useRef(null);
   const panelRef = useRef(null);
@@ -111,11 +111,14 @@ export default function ReceiptClip({
           {invoiced && (
             <div className="rc-group">
               <p className="rc-label">Its document</p>
-              <button type="button" className="rc-att-open" onClick={() => { close(); onOpenInvoice?.(txn); }}>
-                <Icon name="FileText" size={13} /> Supplier invoice
+              {/* rc-item, not rc-att-open: that one takes its left padding from a
+                  wrapper this row doesn't have, so it sat flush against the edge
+                  while every other row in the menu was indented. */}
+              <button type="button" className="rc-item is-doc" onClick={() => { close(); onOpenInvoice?.(invoice, txn); }}>
+                <Icon name="FileText" size={14} />
+                {invoice?.invoice_number ? `Invoice ${invoice.invoice_number}` : 'Supplier invoice'}
                 <Icon name="ArrowUpRight" size={12} />
               </button>
-              <p className="rc-none">This line was raised from it, so it needs no separate receipt.</p>
             </div>
           )}
 

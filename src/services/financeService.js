@@ -126,6 +126,21 @@ export const updateAccount = async (id, patch) => {
 
 export const deactivateAccount = async (id) => updateAccount(id, { is_active: false });
 
+// ── Supplier invoices behind a ledger line ────────────────────────────────────
+// A line raised from a supplier invoice carries only the invoice's id, which is
+// not somewhere a person can be sent. This resolves the ids on screen to the
+// things they can actually open: the invoice document itself (pdf_url) and the
+// order it belongs to.
+export const listInvoicesByIds = async (ids = []) => {
+  const clean = [...new Set(ids.filter(Boolean))];
+  if (!clean.length) return { data: [], error: null };
+  const { data, error } = await supabase
+    .from('supplier_invoices')
+    .select('id, invoice_number, order_id, pdf_url, amount, currency, issue_date')
+    .in('id', clean);
+  return { data: data || [], error };
+};
+
 // ── Transactions ──────────────────────────────────────────────────────────────
 
 // filters: { accountId, source, category, from, to, search, needsAttention }
