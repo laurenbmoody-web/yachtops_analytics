@@ -325,6 +325,26 @@ export const fetchProvisioningList = async (listId) => {
   }
 };
 
+// Lists to offer in a "push to a board" picker — every active (non-archived,
+// non-template) board in the tenant the caller can see (RLS-scoped). Simpler and
+// less restrictive than fetchProvisioningLists, whose owner/department visibility
+// filter hides boards the user didn't create. Ordered most-recent first.
+export const fetchListsForPicker = async (tenantId) => {
+  try {
+    if (!tenantId) return [];
+    const { data, error } = await supabase
+      ?.from('provisioning_lists')
+      ?.select('id, title, status, is_template, archived_at')
+      ?.eq('tenant_id', tenantId)
+      ?.order('created_at', { ascending: false });
+    if (error) { console.error('[provisioningStorage] fetchListsForPicker error:', error?.message); return []; }
+    return (data || []).filter((l) => !l?.is_template && !l?.archived_at);
+  } catch (err) {
+    console.error('[provisioningStorage] fetchListsForPicker exception:', err?.message);
+    return [];
+  }
+};
+
 export const createProvisioningList = async (listData) => {
   try {
     const now = new Date().toISOString();

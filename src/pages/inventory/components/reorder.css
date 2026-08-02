@@ -49,8 +49,9 @@
 .ro-opt:hover { border-color: #C9CED6; }
 .ro-opt.on { border-color: #C65A1A; background: #FBEFE9; }
 .ro-opt input { accent-color: #C65A1A; }
-.ro-opt-title { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: #1C1B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ro-opt-title { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: #1C1B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ro-opt-title svg { color: #C65A1A; flex: none; }
+.ro-opt-status { flex: none; font: 600 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: #8B8478; background: #F0F1F5; border-radius: 999px; padding: 3px 8px; }
 .ro-err { margin: 12px 0 0; font-size: 12.5px; color: #B42318; }
 
 .ro-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 22px 20px; }
