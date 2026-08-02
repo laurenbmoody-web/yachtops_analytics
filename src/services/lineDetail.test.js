@@ -12,6 +12,7 @@ import {
   maxSpendDate, isSpendDateValid, canVoidTxn, voidBlockedReason,
   looksLikeRefund, findRefundCandidate, refundInheritedFields, defaultDepartment,
   outstandingText, hasEvidence, receiptWaiverPatch,
+  charterCovering, canBeCharter,
 } from './lineDetail.js';
 
 // ── department ──────────────────────────────────────────────────────────────
@@ -216,8 +217,9 @@ test('requirementState reports each requirement and a count', () => {
   const ship = { funds_type: 'general' };
   const bare = requirementState({}, { account: ship, hasReceipt: false });
   assert.equal(bare.count, 0);
-  // Four required; the note is tracked but optional, so it isn't one of them.
-  assert.equal(bare.total, 4);
+  // Three required — what it was, proof of it, who bears it. The note and the
+  // department are tracked but optional: both are answered before anyone looks.
+  assert.equal(bare.total, 3);
   assert.equal(bare.done.category, false);
 
   const part = requirementState({ category: 'Deck Consumables', note: 'hose' }, { account: ship, hasReceipt: false });
@@ -230,7 +232,7 @@ test('a split line counts department as covered — the parts carry it', () => {
   const ctx = { account: { funds_type: 'owner' }, hasReceipt: true, splitCount: 2 };
   const r = requirementState({ category: 'X', note: 'y' }, ctx);
   assert.equal(r.done.department, true);
-  assert.equal(r.count, 4);
+  assert.equal(r.count, 3);
 });
 
 test('charter allocation is only "done" once the charter is named', () => {
@@ -416,7 +418,7 @@ test('declaring there is no receipt counts as evidence', () => {
     { category: 'X', note: 'y', department: 'Deck', receipt_waived: true, receipt_waived_reason: 'Bank charge' }, ctx,
   );
   assert.equal(waived.done.receipt, true);
-  assert.equal(waived.count, 4);
+  assert.equal(waived.count, 3);
   assert.equal(lineState({ category: 'X', note: 'y', department: 'Deck', receipt_waived: true, receipt_waived_reason: 'Bank charge' }, ctx), 'complete');
 });
 
@@ -430,7 +432,7 @@ test('outstandingText says what is actually missing', () => {
   );
   assert.equal(
     outstandingText({ category: 'X' }, ctx),
-    'needs a department',
+    '',                                   // the department follows the card
   );
   assert.match(outstandingText({}, { account: { funds_type: 'general' }, hasReceipt: false }), /and \d+ more/);
 });
@@ -531,20 +533,11 @@ test('a note is not outstanding — it is worth having, not required', () => {
 });
 
 test('a department Cargo can work out is answered, not outstanding', () => {
-  // The row said "needs a department" while the panel showed one, because the
-  // panel displays the derived value and the check only read the stored one.
   const txn = { category: 'Crew Uniforms', allocation: 'owner' };
   assert.equal(
     outstandingText(txn, { hasReceipt: true, spenderDepartment: 'Interior' }),
     '',
   );
-});
-
-test('but the reconciler own department does not answer it', () => {
-  // "Whoever happens to be looking is Bridge" is a prompt, not a fact about the
-  // spend — so it stays outstanding.
-  const txn = { category: 'Crew Travelling', allocation: 'owner' };
-  assert.match(outstandingText(txn, { hasReceipt: true }), /a department/);
 });
 
 test('the four that matter are still demanded', () => {
@@ -553,11 +546,54 @@ test('the four that matter are still demanded', () => {
   assert.match(text, /a category/);
   assert.match(text, /a receipt/);
   assert.doesNotMatch(text, /a note/);
+  assert.doesNotMatch(text, /a department/);
 });
 
 test('the completeness count ignores the optional ones', () => {
   const txn = { category: 'X', department: 'Galley', allocation: 'owner', note: '' };
   const st = requirementState(txn, { hasReceipt: true });
-  assert.equal(st.total, 4);
-  assert.equal(st.count, 4);            // complete without a note
+  assert.equal(st.total, 3);
+  assert.equal(st.count, 3);            // complete without a note
+});
+
+// ── charter is only on the table when there IS a charter ────────────────────
+const TRIPS = [
+  { id: 't1', trip_type: 'Charter', start_date: '2026-07-10', end_date: '2026-07-20' },
+  { id: 't2', trip_type: 'Owner', start_date: '2026-08-01', end_date: '2026-08-30' },
+];
+
+test('a charter covering the day makes charter offerable', () => {
+  assert.equal(charterCovering(TRIPS, '2026-07-15')?.id, 't1');
+  assert.equal(canBeCharter({ trips: TRIPS, isoDate: '2026-07-15' }), true);
+});
+
+test('outside every charter, charter is not offered', () => {
+  // Offering the guest's money on a boat that isn't chartering offers a wrong
+  // answer, and someone will eventually pick it.
+  assert.equal(charterCovering(TRIPS, '2026-07-28'), null);
+  assert.equal(canBeCharter({ trips: TRIPS, isoDate: '2026-07-28' }), false);
+});
+
+test('an owner trip is not a charter', () => {
+  assert.equal(charterCovering(TRIPS, '2026-08-10'), null);
+});
+
+test('a charter-funded card is charter whatever the calendar says', () => {
+  assert.equal(canBeCharter({ account: { funds_type: 'charter_apa' }, trips: [], isoDate: '2026-01-01' }), true);
+});
+
+test('a line already allocated to charter keeps the option', () => {
+  // Hiding it wouldn't unset the stored value — it would just make a line
+  // impossible to read or correct.
+  assert.equal(canBeCharter({ trips: [], isoDate: '2026-01-01', allocation: 'charter' }), true);
+});
+
+test('an open-ended charter still covers days after it starts', () => {
+  const open = [{ trip_type: 'Charter', start_date: '2026-06-01', end_date: null }];
+  assert.equal(canBeCharter({ trips: open, isoDate: '2026-09-09' }), true);
+});
+
+test('the department no longer nags — it follows the card', () => {
+  const txn = { category: 'Crew Travelling', allocation: 'owner' };
+  assert.equal(outstandingText(txn, { hasReceipt: true }), '');
 });

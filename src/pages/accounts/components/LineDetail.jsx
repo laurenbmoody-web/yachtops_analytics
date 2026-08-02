@@ -20,7 +20,7 @@ import EditorialDatePicker from '../../../components/editorial/EditorialDatePick
 import { DEPARTMENTS } from '../../../utils/authStorage';
 import { formatMoney } from '../../../services/financeCalc';
 import {
-  departmentForCode, defaultAllocation, needsTripPick, isDedicatedCharterAccount,
+  departmentForCode, defaultAllocation, needsTripPick, isDedicatedCharterAccount, canBeCharter,
   defaultCardholder, isBorrowedCard, splitRemainder, validateSplits, signedSplits,
   netOfVat, vatFromRate, baseFromFx, clampSplitAmount, maxSpendDate, isSpendDateValid,
   defaultDepartment,
@@ -62,6 +62,12 @@ export default function LineDetail({
   const [currency, setCurrency] = useState(txn.currency || account?.currency || 'GBP');
   const [fxRate, setFxRate] = useState(txn.fx_rate ?? 1);
   const [spendDate, setSpendDate] = useState((txn.txn_date || '').slice(0, 10));
+
+  // Whether "Charter (APA)" belongs on the list at all, for the day this was
+  // spent. Recomputed as the date changes, so moving a line into a charter week
+  // makes the option appear.
+  const charterOffered = canBeCharter({ account, trips, isoDate: spendDate, allocation });
+
   // Split rows hold MAGNITUDES — the parent's direction is applied on save.
   const [rows, setRows] = useState(() => (splits.length
     ? splits.map((s) => ({ ...s, amount: String(Math.abs(Number(s.amount) || 0)) }))
@@ -238,14 +244,22 @@ export default function LineDetail({
       <div className="ld-row">
         <div className="ld-field">
           {label('Who pays')}
-          <div className="ld-seg">
-            {[['owner', 'Owner'], ['charter', 'Charter (APA)']].map(([k, t]) => (
-              <button key={k} type="button" aria-pressed={allocation === k} disabled={!canEdit}
-                onClick={() => { setAllocation(k); if (k !== 'charter') setCharterText(''); }}>{t}</button>
-            ))}
-          </div>
+          {/* A dropdown like the two fields beside it, rather than a segmented
+              toggle — same shape, same white ground, one row of controls that
+              behave alike. Charter is only on the list when there IS a charter:
+              see canBeCharter. Offering the guest's money on a boat that isn't
+              chartering offers a wrong answer, and eventually someone picks it. */}
+          <EditorialSelect value={allocation} disabled={!canEdit} ariaLabel="Who pays"
+            options={[
+              { value: 'owner', label: 'Owner' },
+              ...(charterOffered ? [{ value: 'charter', label: 'Charter (APA)' }] : []),
+            ]}
+            onChange={(v) => { setAllocation(v); if (v !== 'charter') setCharterText(''); }} />
           {isDedicatedCharterAccount(account) && (
             <span className="ld-hint">Charter/APA card — charter by default</span>
+          )}
+          {!charterOffered && (
+            <span className="ld-hint">No charter covers this date</span>
           )}
         </div>
 

@@ -81,6 +81,26 @@ export const defaultDepartment = (txn, { spenderDepartment, reconcilerDepartment
 // itself. 'charter_apa' → charter money; 'owner' → owner money. Anything else
 // (general, petty_cash) is ambiguous and must be stated per line.
 export const isDedicatedCharterAccount = (account) => (account?.funds_type === 'charter_apa');
+
+// Was the vessel on charter when this was spent? Offering "Charter (APA)" on a
+// boat that isn't chartering is offering a wrong answer — the guest's money
+// doesn't exist to spend. A charter-funded card answers yes by itself; otherwise
+// it takes a charter trip covering the day.
+export const charterCovering = (trips = [], isoDate = '') => {
+  const day = String(isoDate || '').slice(0, 10);
+  if (!day) return null;
+  return trips.find((t) => String(t?.trip_type || '').toLowerCase() === 'charter'
+    && String(t?.start_date || '').slice(0, 10) <= day
+    && (!t?.end_date || day <= String(t.end_date).slice(0, 10))) || null;
+};
+
+export const canBeCharter = ({ account, trips = [], isoDate = '', allocation = '' } = {}) => (
+  // An existing charter allocation always stays offerable — hiding the option
+  // wouldn't unset the value, it would just make it impossible to see or change.
+  allocation === 'charter'
+  || isDedicatedCharterAccount(account)
+  || Boolean(charterCovering(trips, isoDate))
+);
 export const isDedicatedOwnerAccount = (account) => (account?.funds_type === 'owner');
 
 // Does this account settle the allocation question on its own?
@@ -238,7 +258,11 @@ export const REQUIREMENTS = [
   { key: 'category', label: 'Category' },
   { key: 'note', label: 'Description', optional: true },
   { key: 'receipt', label: 'Receipt' },
-  { key: 'department', label: 'Department' },
+  // Also optional: the department follows the card, and the card follows its
+  // holder — so it's answered before anyone looks at the line, and the panel
+  // writes the derived value down on any save. Occasionally someone moves a line
+  // to another department; that's an edit, not an outstanding task.
+  { key: 'department', label: 'Department', optional: true },
   { key: 'allocation', label: 'Who pays' },
 ];
 
