@@ -10,6 +10,7 @@ export const GARMENT_TYPES = ['Shirt', 'T-shirt', 'Top', 'Trousers', 'Shorts', '
 const CURRENCIES = ['EUR', 'GBP', 'USD'];
 const CONDITIONS = ['New', 'Excellent', 'Good', 'Fair', 'Worn'];
 const SEASONS = ['All year', 'Summer', 'Winter', 'Spring', 'Autumn', 'Resort', 'Formal'];
+const GENDERS = ['Womens', 'Mens', 'Unisex', 'Girls', 'Boys', 'Baby'];
 
 const fileToDataUrl = (file) => new Promise((res, rej) => {
   const r = new FileReader();
@@ -31,6 +32,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
   const [size, setSize] = useState('');
   const [colour, setColour] = useState('');
   const [material, setMaterial] = useState('');
+  const [gender, setGender] = useState('');
   const [condition, setCondition] = useState('');
   const [season, setSeason] = useState('');
   const [purchasedPlace, setPurchasedPlace] = useState('');
@@ -79,7 +81,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
       const details = {};
       const put = (k, v) => { const t = typeof v === 'string' ? v.trim() : v; if (t) details[k] = t; };
       put('brand', brand); put('description', description); put('sku', sku); put('size', size);
-      put('material', material); put('condition', condition); put('season', season);
+      put('material', material); put('gender', gender); put('condition', condition); put('season', season);
       put('purchasedPlace', purchasedPlace); put('purchasedDate', purchasedDate); put('monogram', monogram);
       const guest = guests.find((g) => g.id === guestId);
       const created = await createLaundryItem({
@@ -144,23 +146,30 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
           </div>
           <div className="ow-row2">
             <div>
-              <label className="ow-l">Size</label>
-              <input className="ow-input" value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. 40R / M / UK 8" />
+              <label className="ow-l">Cut</label>
+              <div className="ow-select"><select value={gender} onChange={(e) => setGender(e.target.value)}><option value="">—</option>{GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}</select></div>
             </div>
             <div>
-              <label className="ow-l">Colour</label>
-              <input className="ow-input" value={colour} onChange={(e) => setColour(e.target.value)} placeholder="e.g. Navy" />
+              <label className="ow-l">Size</label>
+              <input className="ow-input" value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. 40R / M / UK 8" />
             </div>
           </div>
           <div className="ow-row2">
             <div>
+              <label className="ow-l">Colour</label>
+              <input className="ow-input" value={colour} onChange={(e) => setColour(e.target.value)} placeholder="e.g. Navy" />
+            </div>
+            <div>
               <label className="ow-l">Material / fabric</label>
               <input className="ow-input" value={material} onChange={(e) => setMaterial(e.target.value)} placeholder="e.g. 100% linen" />
             </div>
+          </div>
+          <div className="ow-row2">
             <div>
               <label className="ow-l">Condition</label>
               <div className="ow-select"><select value={condition} onChange={(e) => setCondition(e.target.value)}><option value="">—</option>{CONDITIONS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             </div>
+            <div />
           </div>
           <label className="ow-l">Description <span className="ow-opt">optional</span></label>
           <textarea className="ow-textarea" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Cut, styling, distinguishing detail…" />

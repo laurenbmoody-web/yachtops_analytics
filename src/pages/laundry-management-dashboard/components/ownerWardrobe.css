@@ -27,9 +27,13 @@
 .ow-search-scan:hover { background: #FBEFE9; color: #C65A1A; }
 .ow-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
-.ow-grouptoggle { display: inline-flex; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 2px; }
-.ow-grouptoggle button { border: none; background: none; cursor: pointer; border-radius: 8px; padding: 7px 12px; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; }
+.ow-grouptoggle { display: inline-flex; align-items: stretch; height: 42px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 3px; }
+.ow-grouptoggle button { display: inline-flex; align-items: center; border: none; background: none; cursor: pointer; border-radius: 8px; padding: 0 14px; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; }
 .ow-grouptoggle button.on { background: #1C1B3A; color: #FFFFFF; }
+/* Keep every toolbar control the same height and baseline. */
+.ow-toolbar { align-items: center; }
+.ow-tools { align-items: center; }
+.ow-toolbar .ow-btn { height: 42px; }
 
 .ow-groups { display: flex; flex-direction: column; gap: 26px; }
 .ow-group { display: flex; flex-direction: column; gap: 12px; }
@@ -117,7 +121,7 @@
 .ow-modal-title { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 22px; margin: 2px 0 0; color: #1C1B3A; }
 .ow-x { background: none; border: none; cursor: pointer; color: #8B93A0; padding: 4px; border-radius: 8px; display: grid; place-items: center; flex: none; }
 .ow-x:hover { background: #F4F6FA; color: #1C1B3A; }
-.ow-modal-body { padding: 20px 26px; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; }
+.ow-modal-body { padding: 20px 26px 24px; overflow-y: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 9px; }
 .ow-modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 26px; border-top: 1px solid #EEF0F4; }
 
 .ow-l { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; margin-top: 6px; }
@@ -149,7 +153,7 @@
 .ow-modal-wide { max-width: 640px; }
 .ow-sec { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #1C1B3A; margin: 14px 0 2px; padding-bottom: 7px; border-bottom: 1px solid #EEF0F4; }
 .ow-sec:first-child { margin-top: 0; }
-.ow-textarea { font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 10px; padding: 11px 13px; width: 100%; resize: vertical; line-height: 1.45; }
+.ow-textarea { font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 10px; padding: 11px 13px; width: 100%; min-height: 58px; resize: vertical; line-height: 1.45; }
 .ow-textarea:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }
 .ow-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
 .ow-photo-thumb { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; border: 1px solid #E5E7EB; background: #F5F6F8; }
