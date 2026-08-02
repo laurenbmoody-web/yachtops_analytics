@@ -34,12 +34,6 @@ select.ld-input { cursor: pointer; }
 .ld-mini.is-mut { border-color: transparent; color: #AEB4C2; }
 .ld-mini.is-mut:hover { color: #C65A1A; }
 
-/* owner vs charter */
-.ld-seg { display: inline-flex; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 999px; padding: 3px; }
-.ld-seg button { border: 0; background: none; font: inherit; font-size: 12px; font-weight: 600;
-  color: #6B7280; padding: 6px 13px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
-.ld-seg button[aria-pressed="true"] { background: #C65A1A; color: #fff; }
-
 /* receipts */
 .ld-block { display: block; }
 .ld-blockhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
