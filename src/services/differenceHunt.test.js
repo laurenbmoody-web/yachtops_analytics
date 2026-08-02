@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findDifferenceCandidates, differenceLead, typoKind } from './differenceHunt.js';
+import {
+  findDifferenceCandidates, differenceLead, typoKind, differenceMeaning,
+} from './differenceHunt.js';
 
 const t = (id, amount, extra = {}) => ({
   id, amount, txn_date: '2026-07-10', description: `Line ${id}`, status: 'posted', ...extra,
@@ -126,15 +128,52 @@ test('the lead counts what was found', () => {
   assert.equal(differenceLead([{}, {}]), '2 lines could explain it:');
 });
 
-test('finding nothing leads with which way round it is, then the two jobs', () => {
-  // The direction is what decides where you go and look, so it comes first.
-  const more = differenceLead([], true, { ours: 100, theirs: 98, amountText: '£2.00' });
-  assert.match(more, /^Cargo is £2\.00 higher than the statement\./);
+// ── which number is bigger is NOT what the gap means ────────────────────────
+test('on total out, Cargo higher means Cargo holds a charge the bank never made', () => {
+  assert.equal(differenceMeaning('moneyOut', 12935.90, 12923.90), 'extraOut');
+  assert.equal(differenceMeaning('moneyOut', 12923.90, 12935.90), 'missingOut');
+});
+
+test('on the closing balance it is the other way round', () => {
+  // More money left means LESS spend recorded. Read off ours > theirs alone,
+  // this case got exactly the wrong advice.
+  assert.equal(differenceMeaning('closing', 9167, 9155), 'missingOut');
+  assert.equal(differenceMeaning('closing', 9155, 9167), 'extraOut');
+});
+
+test('the two views of one discrepancy agree with each other', () => {
+  // £12 more out and £12 less left are the same event; they must not send the
+  // crew looking for two different things.
+  const outLead = differenceLead([], { key: 'moneyOut', ours: 12923.90, theirs: 12935.90, amountText: '£12.00' });
+  const closeLead = differenceLead([], { key: 'closing', ours: 9167, theirs: 9155, amountText: '£12.00' });
+  assert.equal(outLead, closeLead);
+  assert.match(outLead, /missing £12\.00 of spending/);
+});
+
+test('money in has its own pair of causes', () => {
+  // Deliberately not a near-miss like 500 vs 400 — that IS one digit out, and the
+  // typo check rightly speaks first.
+  assert.equal(differenceMeaning('moneyIn', 500, 380), 'extraIn');
+  assert.match(differenceLead([], { key: 'moneyIn', ours: 500, theirs: 380, amountText: '£120.00' }),
+    /payment that never actually arrived/);
+  assert.match(differenceLead([], { key: 'moneyIn', ours: 380, theirs: 500, amountText: '£120.00' }),
+    /never recorded/);
+});
+
+test('an opening balance out is last month’s problem, and says so', () => {
+  assert.equal(differenceMeaning('opening', 100, 90), 'opening');
+  assert.match(differenceLead([], { key: 'opening', ours: 100, theirs: 90, amountText: '£10.00' }),
+    /last month’s closing balance/);
+});
+
+test('finding nothing leads with what the gap means, then the two jobs', () => {
+  const more = differenceLead([], { key: 'moneyOut', ours: 100, theirs: 98, amountText: '£2.00' });
+  assert.match(more, /^Cargo has £2\.00 of spending the statement doesn’t\./);
   assert.match(more, /the bank never charged/);
   assert.match(more, /re-check the figure you typed/);
 
-  const less = differenceLead([], false, { ours: 98, theirs: 100, amountText: '£2.00' });
-  assert.match(less, /^The statement is £2\.00 higher than Cargo\./);
+  const less = differenceLead([], { key: 'moneyOut', ours: 98, theirs: 100, amountText: '£2.00' });
+  assert.match(less, /^Cargo is missing £2\.00 of spending/);
   assert.match(less, /never made it in/);
   assert.match(less, /re-check the figure you typed/);
 });
@@ -166,15 +205,15 @@ test('a genuinely different figure is not a mistype', () => {
 });
 
 test('the lead checks the typing before sending anyone hunting', () => {
-  const lead = differenceLead([], true, { ours: 12923.90, theirs: 12921.90 });
+  const lead = differenceLead([], { ours: 12923.90, theirs: 12921.90 });
   assert.match(lead, /one digit out/);
   assert.match(lead, /the one you typed/);
 });
 
 test('with no amount given it still reads as a sentence', () => {
-  assert.match(differenceLead([], true, { ours: 12923.90, theirs: 11500 }), /the difference higher than the statement/);
+  assert.match(differenceLead([], { ours: 12923.90, theirs: 11500 }), /the difference of spending/);
 });
 
 test('a matching line still wins over any of it', () => {
-  assert.equal(differenceLead([{ key: 'a' }], true, { ours: 1, theirs: 2 }), 'One line would explain it:');
+  assert.equal(differenceLead([{ key: 'a' }], { ours: 1, theirs: 2 }), 'One line would explain it:');
 });

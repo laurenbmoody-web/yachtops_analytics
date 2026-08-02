@@ -152,7 +152,8 @@ export default function MonthMoney({
               {diffs.length > 0 && (
                 <div className="mm-hunt">
                   <p className="mm-hunt-lead">
-                    {differenceLead(candidates, diffs[0].ours > diffs[0].theirs, {
+                    {differenceLead(candidates, {
+                      key: diffs[0].key.replace('diff:', ''),
                       ours: diffs[0].ours,
                       theirs: diffs[0].theirs,
                       amountText: money(Math.abs(diffs[0].ours - diffs[0].theirs)),
