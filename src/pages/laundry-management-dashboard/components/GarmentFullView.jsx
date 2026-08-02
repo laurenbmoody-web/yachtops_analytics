@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { updateLaundryItem, LaundryStatus, availableLaundryTags, formatLaundryTag } from '../utils/laundryStorage';
 import { money } from '../utils/laundryBilling';
+import { printLaundryLabels } from '../utils/laundryLabels';
 import { GARMENT_TYPES } from './AddGarmentModal';
 import './ownerWardrobe.css';
 
@@ -26,10 +27,14 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
     staysOnboard: item.staysOnboard !== false,
   });
   const [busy, setBusy] = useState(false);
+  const gallery = (Array.isArray(item.photos) && item.photos.length ? item.photos : (item.photo ? [item.photo] : [])).filter(Boolean);
+  const [active, setActive] = useState(0);
   const st = STATUS[item.status] || { label: item.status, cls: 'stored' };
-  const photo = (Array.isArray(item.photos) && item.photos[0]) || item.photo || '';
+  const photo = gallery[active] || gallery[0] || '';
   const home = wardrobes.find((w) => w.id === item.wardrobeId);
   const homeLabel = home ? [home.name, home.locationName].filter(Boolean).join(' · ') : '—';
+  const d = item.details || {};
+  const purchased = [d.purchasedPlace, d.purchasedDate ? fmtDate(d.purchasedDate) : ''].filter(Boolean).join(' · ');
 
   const toggleTag = (t) => setDraft((d) => ({ ...d, tags: d.tags.includes(t) ? d.tags.filter((x) => x !== t) : [...d.tags, t] }));
 
@@ -52,6 +57,13 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
         <button type="button" className="ow-full-x" onClick={onClose} aria-label="Close"><Icon name="X" size={20} /></button>
         <div className="ow-full-media">
           {photo ? <img src={photo} alt={item.description || 'Garment'} /> : <span className="ow-full-ph"><Icon name="Shirt" size={54} /></span>}
+          {gallery.length > 1 && (
+            <div className="ow-full-thumbs">
+              {gallery.map((src, i) => (
+                <button type="button" key={i} className={`ow-full-thumb${i === active ? ' on' : ''}`} onClick={() => setActive(i)}><img src={src} alt="" /></button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="ow-full-info">
@@ -60,17 +72,26 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
           {!edit ? (
             <>
               <h2 className="ow-full-nm">{item.description || 'Garment'}</h2>
+              {d.brand && <p className="ow-full-brand">{d.brand}</p>}
               <div className="ow-full-meta">
                 {item.garmentType && <span className="ow-chip">{item.garmentType}</span>}
+                {d.size && <span className="ow-chip subtle">Size {d.size}</span>}
                 {item.colour && <span className="ow-chip subtle">{item.colour}</span>}
+                {d.condition && <span className="ow-chip subtle">{d.condition}</span>}
                 {showValue && item.garmentValue != null && <span className="ow-chip subtle">{money(item.garmentValue, item.garmentValueCurrency)}</span>}
                 {item.staysOnboard && <span className="ow-chip stays"><Icon name="Anchor" size={11} /> Stays aboard</span>}
               </div>
+              {d.description && <p className="ow-full-desc">{d.description}</p>}
               {Array.isArray(item.tags) && item.tags.length > 0 && (
                 <div className="ow-full-tags">{item.tags.map((t, i) => <span className="ow-care" key={i}>{formatLaundryTag(t)}</span>)}</div>
               )}
               <dl className="ow-full-dl">
                 <div><dt>Home</dt><dd>{homeLabel}</dd></div>
+                {d.material && <div><dt>Material</dt><dd>{d.material}</dd></div>}
+                {d.season && <div><dt>Season</dt><dd>{d.season}</dd></div>}
+                {d.sku && <div><dt>Style / SKU</dt><dd>{d.sku}</dd></div>}
+                {d.monogram && <div><dt>Monogram</dt><dd>{d.monogram}</dd></div>}
+                {purchased && <div><dt>Purchased</dt><dd>{purchased}</dd></div>}
                 <div><dt>Added</dt><dd>{fmtDate(item.createdAt)}</dd></div>
               </dl>
             </>
@@ -108,6 +129,7 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
                 {item.status === LaundryStatus.STORED && <button type="button" className="ow-btn ghost" onClick={() => act('launder')}><Icon name="Waves" size={15} /> Launder</button>}
                 <button type="button" className="ow-btn ghost" onClick={() => act('pack')}><Icon name="Package" size={15} /> Pack</button>
                 <button type="button" className="ow-btn ghost" onClick={() => act('move')}><Icon name="FolderInput" size={15} /> Move</button>
+                <button type="button" className="ow-btn ghost" onClick={() => printLaundryLabels([item])}><Icon name="QrCode" size={15} /> QR tag</button>
                 <button type="button" className="ow-btn ghost" onClick={() => setEdit(true)}><Icon name="Pencil" size={15} /> Edit</button>
                 <button type="button" className="ow-btn danger" onClick={() => act('archive')}><Icon name="Trash2" size={15} /> Archive</button>
               </>

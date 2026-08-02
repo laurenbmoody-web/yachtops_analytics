@@ -80,6 +80,7 @@ const mapRow = (r) => ({
   garmentValue: r.garment_value != null ? r.garment_value : null,
   garmentValueCurrency: r.garment_value_currency || 'EUR',
   staysOnboard: r.stays_onboard != null ? r.stays_onboard : null,
+  details: (r.details && typeof r.details === 'object') ? r.details : {},
 });
 
 // ── date helpers ─────────────────────────────────────────────────────────────
@@ -479,6 +480,7 @@ export const createLaundryItem = async (itemData) => {
     garment_value: (itemData?.garmentValue != null && itemData?.garmentValue !== '') ? Number(itemData.garmentValue) : null,
     garment_value_currency: itemData?.garmentValueCurrency || null,
     stays_onboard: (itemData?.staysOnboard != null) ? itemData.staysOnboard : null,
+    details: (itemData?.details && typeof itemData.details === 'object') ? itemData.details : {},
     created_by: authData?.user?.id || null,
     created_by_name: currentUser?.fullName || currentUser?.name || 'Unknown User',
   };
@@ -544,7 +546,7 @@ export const updateLaundryItem = async (itemId, updates) => {
     serviceLocation: 'service_location', vendor: 'vendor', sentAt: 'sent_at', expectedBack: 'expected_back',
     charge: 'charge', caseId: 'case_id', wardrobeId: 'wardrobe_id',
     garmentType: 'garment_type', garmentValue: 'garment_value', garmentValueCurrency: 'garment_value_currency',
-    staysOnboard: 'stays_onboard',
+    staysOnboard: 'stays_onboard', details: 'details',
   };
   // Photos edited → upload any new data URLs to the bucket before saving.
   let up = updates || {};
