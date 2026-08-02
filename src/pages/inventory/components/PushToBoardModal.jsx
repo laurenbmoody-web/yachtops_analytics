@@ -25,6 +25,7 @@ const PushToBoardModal = ({ items = [], onClose, onDone }) => {
   const [newTitle, setNewTitle] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [reviewOpen, setReviewOpen] = useState(false);
   const count = items.length;
 
   useEffect(() => {
@@ -99,22 +100,33 @@ const PushToBoardModal = ({ items = [], onClose, onDone }) => {
         <div className="ro-head">
           <div>
             <span className="ro-eyebrow">Push to provisioning</span>
-            <h2 className="ro-title">{count} item{count === 1 ? '' : 's'}</h2>
+            <h2 className="ro-title">
+              {count} item{count === 1 ? '' : 's'}
+              <span className="ro-info" tabIndex={0} title="Added at the suggested reorder quantity — you can review and edit everything (quantities, supplier, remove lines) on the provisioning board, just like normal. Nothing is sent to a supplier until you do it there.">
+                <Icon name="Info" size={14} />
+              </span>
+            </h2>
           </div>
           <button className="ro-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
         </div>
 
         <div className="ro-body">
-          <p className="ro-note">Each item is added at its suggested reorder quantity. Nothing is sent yet — you review and edit everything on the board first.</p>
-
           {count > 0 && (
-            <div className="ro-preview">
-              {items.slice(0, 6).map((it, i) => (
-                <span className="ro-chip" key={it?.id || i}>
-                  {it?.name || 'Item'}<span className="ro-chip-qty">×{Math.max(1, Math.round(it?.suggestedQty || 1))}</span>
-                </span>
-              ))}
-              {count > 6 && <span className="ro-chip ro-chip-more">+{count - 6} more</span>}
+            <div className="ro-reviewwrap">
+              <button type="button" className="ro-review" onClick={() => setReviewOpen((o) => !o)}>
+                <Icon name="ChevronRight" size={15} className={`ro-review-caret${reviewOpen ? ' open' : ''}`} />
+                {reviewOpen ? 'Hide items' : `Review items (${count})`}
+              </button>
+              {reviewOpen && (
+                <ul className="ro-itemlist">
+                  {items.map((it, i) => (
+                    <li key={it?.id || i}>
+                      <span className="ro-item-name">{it?.name || 'Item'}</span>
+                      <span className="ro-item-qty">×{Math.max(1, Math.round(it?.suggestedQty || 1))}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
