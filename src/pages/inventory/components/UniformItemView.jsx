@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { money } from '../../laundry-management-dashboard/utils/laundryBilling';
 import { duplicateItem } from '../utils/inventoryStorage';
+import { printKitTags } from '../../laundry-management-dashboard/utils/kitLabels';
 import WithCrewSection from './WithCrewSection';
 import LocPath from './LocPath';
 import './uniformView.css';
@@ -144,18 +145,19 @@ const UniformItemView = ({ item, canEdit, onEdit, onDuplicated, onClose }) => {
           {item?.notes && <p className="uv-notes">{item.notes}</p>}
         </div>
 
-        {(canEdit || onDuplicated) && (
-          <div className="uv-foot">
-            {onDuplicated && (
-              <button type="button" className="uv-btn uv-btn-quiet" onClick={handleDuplicate} disabled={dupBusy}>
-                <Icon name="Copy" size={14} /> {dupBusy ? 'Duplicating…' : 'Duplicate'}
-              </button>
-            )}
-            {canEdit && (
-              <button type="button" className="uv-btn" onClick={() => onEdit?.(item)}><Icon name="Pencil" size={14} /> Edit</button>
-            )}
-          </div>
-        )}
+        <div className="uv-foot">
+          <button type="button" className="uv-btn uv-btn-quiet" onClick={() => printKitTags([item])}>
+            <Icon name="QrCode" size={14} /> QR tag
+          </button>
+          {onDuplicated && (
+            <button type="button" className="uv-btn uv-btn-quiet" onClick={handleDuplicate} disabled={dupBusy}>
+              <Icon name="Copy" size={14} /> {dupBusy ? 'Duplicating…' : 'Duplicate'}
+            </button>
+          )}
+          {canEdit && (
+            <button type="button" className="uv-btn" onClick={() => onEdit?.(item)}><Icon name="Pencil" size={14} /> Edit</button>
+          )}
+        </div>
       </aside>
     </>
   );

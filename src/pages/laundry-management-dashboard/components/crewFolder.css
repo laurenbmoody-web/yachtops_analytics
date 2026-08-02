@@ -237,6 +237,13 @@
 .cf-check-sub { display: block; font-size: 12px; color: #8B8478; margin-top: 2px; }
 
 /* Issue browser — Uniform-scoped folder tiles + selectable item rows w/ allocator. */
+.cf-scan-cta { display: flex; align-items: center; gap: 12px; width: calc(100% - 44px); margin: 2px 22px 12px; padding: 11px 13px; background: #FBEFE9; border: 1px solid #F3D9CB; border-radius: 12px; cursor: pointer; text-align: left; transition: background 0.14s, border-color 0.14s; }
+.cf-scan-cta:hover { background: #F6E0D3; border-color: #C65A1A; }
+.cf-scan-ic { flex: none; width: 34px; height: 34px; border-radius: 9px; background: #C65A1A; color: #FFFFFF; display: grid; place-items: center; }
+.cf-scan-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.cf-scan-txt b { font: 700 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.cf-scan-txt span { font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
+.cf-scan-arr { color: #C65A1A; flex: none; margin-left: auto; }
 .cf-crumb { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 0 22px 8px; }
 .cf-crumb-seg { background: none; border: none; padding: 0; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; cursor: pointer; }
 .cf-crumb-seg:last-child { color: #1C1B3A; }
