@@ -394,6 +394,10 @@ export default function Ledger() {
   const filedPct = monthStat.entries ? Math.round((monthStat.filed / monthStat.entries) * 100) : 0;
   const monthCur = monthRows[0]?.currency;
 
+  // Scoped to a single account (a card, or the no-card pile) — the account column
+  // then repeats one value down the whole list.
+  const oneAccount = Boolean(filters.accountId);
+
   const setF = (patch) => setFilters((p) => ({ ...p, ...patch }));
 
   const handleSaveStatement = async () => {
@@ -709,7 +713,7 @@ export default function Ledger() {
     return (
       <React.Fragment key={t.id}>
       <div id={`ca-txn-${t.id}`}
-        className={`ca-txn is-${state}${voided ? ' is-void' : ''}${open ? ' is-open' : ''}`}>
+        className={`ca-txn is-${state}${oneAccount ? ' is-scoped' : ''}${voided ? ' is-void' : ''}${open ? ' is-open' : ''}`}>
         <button type="button" className={`ca-exp-btn${open ? ' is-open' : ''}`}
           aria-expanded={open} aria-label={open ? 'Hide detail' : 'Show detail'}
           onClick={() => setExpandedId(open ? null : t.id)}>
@@ -741,9 +745,15 @@ export default function Ledger() {
         </span>
         <div className="ca-txn-desc">
           <div className="ca-txn-title">{t.description || SOURCE_LABEL[t.source] || 'Transaction'}</div>
+          {/* Source only when it ISN'T the feed. Nearly every line on this page
+              comes from the bank, so printing "Bank feed" on all of them says
+              nothing — where a line was typed or imported by hand, that's worth
+              knowing, and the Filters panel still has the full picker. */}
           <div className="ca-txn-cat">
             {t.category ? <span className="ca-txn-filed">✓ {t.category_code ? `${t.category_code} · ` : ''}{t.category}</span> : null}
-            {t.category ? ' · ' : ''}{SOURCE_LABEL[t.source] || t.source}
+            {t.source !== 'bank_feed' && (
+              <>{t.category ? ' · ' : ''}{SOURCE_LABEL[t.source] || t.source}</>
+            )}
             {t.note ? <span className="ca-txn-note"> · {t.note}</span> : null}
             {voided ? ' · voided' : ''}
           </div>
@@ -779,9 +789,12 @@ export default function Ledger() {
           {/* What's outstanding, in words. A row of anonymous ticks couldn't say what
               was actually needed — you had to hover to find out — so this states it
               as ordinary muted text alongside the category and source. */}
-          {!voided && (outstanding || t.is_pending || straddlesMonth(t) || alloc) && (
+          {!voided && ((outstanding && !need) || t.is_pending || straddlesMonth(t) || alloc) && (
             <div className="ca-state">
-              {outstanding && <span className="ca-needs">{outstanding}</span>}
+              {/* Suppressed under a blocker filter: with "4 lines without a
+                  receipt" as the heading, printing "needs a receipt" on each of
+                  the four is the same sentence five times. */}
+              {outstanding && !need && <span className="ca-needs">{outstanding}</span>}
               {t.is_pending && <span className="ca-pend" title="Card authorisation not settled">pending</span>}
               {straddlesMonth(t) && (
                 <span className="ca-straddle" title={`Spent ${fmtDMY(t.txn_date)} but posted ${fmtDMY(t.statement_date)} — different months`}>crosses month</span>
@@ -791,9 +804,11 @@ export default function Ledger() {
           )}
           {renderLinks(t)}
         </div>
-        <span className={`ca-txn-acct${!t.account_id ? ' is-unassigned' : ''}`}>
-          {acct ? accountLabel(acct, { withCurrency: false }) : 'Unassigned'}
-        </span>
+        {!oneAccount && (
+          <span className={`ca-txn-acct${!t.account_id ? ' is-unassigned' : ''}`}>
+            {acct ? accountLabel(acct, { withCurrency: false }) : 'Unassigned'}
+          </span>
+        )}
         <span className="ca-txn-amt">
           <b className={t.amount < 0 ? 'ca-neg' : 'ca-pos'}>{formatMoney(t.amount, t.currency, { signed: true })}</b>
           {t.running != null && !voided && (
@@ -958,11 +973,13 @@ export default function Ledger() {
             </div>
           ) : (
             <>
-            <div className="ca-txnhead" aria-hidden="true">
+            {/* No Account column when the page is already scoped to one — every
+                row would print the card named on the wallet above it. */}
+            <div className={`ca-txnhead${oneAccount ? ' is-scoped' : ''}`} aria-hidden="true">
               <span />
               <span>Spent / posted</span>
               <span>Detail</span>
-              <span className="h-acct">Account</span>
+              {!oneAccount && <span className="h-acct">Account</span>}
               <span className="r">Amount</span>
               <span className="r">Actions</span>
             </div>

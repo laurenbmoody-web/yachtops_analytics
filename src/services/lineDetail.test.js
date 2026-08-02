@@ -497,3 +497,25 @@ test('a ticked box with no reason asks for the reason, not a receipt', () => {
     '',
   );
 });
+
+// ── a supplier invoice is the receipt ───────────────────────────────────────
+test('a line raised against a supplier invoice is already evidenced', () => {
+  // The invoice is in Cargo and linked to the line. Demanding a photo of a
+  // receipt on top of it held the month open for nothing.
+  assert.equal(hasEvidence({ supplier_invoice_id: 'inv-1' }, false), true);
+});
+
+test('a purchase order is not evidence', () => {
+  // A PO says what was ordered, not what was paid — which is the whole claim a
+  // receipt makes.
+  assert.equal(hasEvidence({ supplier_order_id: 'po-1' }, false), false);
+});
+
+test('an invoice-backed line needs no waiver reason', () => {
+  assert.equal(hasEvidence({ supplier_invoice_id: 'inv-1', receipt_waived: false }, false), true);
+});
+
+test('everything else still needs a receipt or a stated reason', () => {
+  assert.equal(hasEvidence({ supplier_invoice_id: null }, false), false);
+  assert.equal(hasEvidence({ supplier_invoice_id: '' }, false), false);
+});
