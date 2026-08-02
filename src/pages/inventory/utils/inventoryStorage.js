@@ -759,6 +759,25 @@ export const bulkDeleteItemsByIds = async (itemIds) => {
 };
 
 /** Move multiple items to a new location/sub_location */
+// Clear the expiry date on many items — used by the attention board to mark
+// items that don't actually expire (so they drop off the expired/expiring list).
+export const bulkClearExpiry = async (itemIds) => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId || !itemIds?.length) return false;
+    const { error } = await supabase
+      ?.from('inventory_items')
+      ?.update({ expiry_date: null, updated_at: new Date().toISOString() })
+      ?.in('id', itemIds)
+      ?.eq('tenant_id', tenantId);
+    if (error) { console.error('[inventoryStorage] bulkClearExpiry error:', error?.message); return false; }
+    return true;
+  } catch (err) {
+    console.error('[inventoryStorage] bulkClearExpiry exception:', err?.message);
+    return false;
+  }
+};
+
 export const bulkMoveItemsByIds = async (itemIds, newLocation, newSubLocation = null) => {
   try {
     const tenantId = getActiveTenantId();
