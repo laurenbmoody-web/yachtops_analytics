@@ -1,6 +1,6 @@
 /* Inventory → Needs attention board (expired / below par / expiring). */
-.att-page { min-height: 100vh; background: #F8FAFC; }
-.att-wrap { width: 100%; max-width: none; padding: 78px 40px 140px; box-sizing: border-box; }
+.att-page { min-height: calc(100vh - 64px); background: #F8FAFC; }
+.att-wrap { width: 100%; max-width: none; padding: 26px 40px 120px; box-sizing: border-box; }
 
 .att-back {
   display: inline-flex; align-items: center; gap: 7px; margin-bottom: 16px;
@@ -53,6 +53,28 @@
 .att-menu-item.on { color: #C65A1A; font-weight: 600; }
 .att-menu-item svg { color: #C65A1A; flex: none; }
 .att-menu-backdrop { position: fixed; inset: 0; z-index: 45; }
+
+/* Filter panel (multi-dimension). */
+.att-filterpanel { min-width: 258px; padding: 14px; }
+.att-fgroup { margin-bottom: 14px; }
+.att-fgroup:last-of-type { margin-bottom: 8px; }
+.att-flabel { margin: 0 0 8px; font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.att-fpills { display: flex; flex-wrap: wrap; gap: 6px; }
+.att-fpill {
+  padding: 6px 11px; border-radius: 999px; cursor: pointer;
+  background: #FFFFFF; border: 1px solid #E5E7EB; color: #6B7280;
+  font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.att-fpill:hover { border-color: #C9CED6; }
+.att-fpill.on { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+.att-fselect {
+  width: 100%; box-sizing: border-box; padding: 9px 11px; cursor: pointer;
+  background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 9px;
+  font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+}
+.att-fselect:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.att-fclear { width: 100%; margin-top: 4px; padding: 9px; border: 0; border-radius: 9px; cursor: pointer; background: #F4F5F8; color: #C65A1A; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; }
+.att-fclear:hover { background: #EEF0F4; }
 
 /* ── sections ────────────────────────────────────────────────────────── */
 .att-sec { margin-top: 30px; background: #FFFFFF; border: 1px solid #EEF0F4; border-radius: 16px; overflow: hidden; }
