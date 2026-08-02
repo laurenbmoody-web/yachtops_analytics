@@ -778,6 +778,32 @@ export const bulkClearExpiry = async (itemIds) => {
   }
 };
 
+// Hide / unhide items from the "Needs attention" list WITHOUT touching their
+// data (expiry, quantity, location all stay) — it just flags custom_fields so
+// the attention board filters them out. Pass the item objects (need their
+// current customFields to merge). Reversible: hidden=false removes the flag.
+export const setItemsAttentionHidden = async (items, hidden) => {
+  try {
+    const tenantId = getActiveTenantId();
+    if (!tenantId || !items?.length) return false;
+    const now = new Date().toISOString();
+    const results = await Promise.all(items.map((it) => {
+      const cf = { ...(it?.customFields || it?.custom_fields || {}) };
+      if (hidden) cf.attention_hidden = true; else delete cf.attention_hidden;
+      const payload = Object.keys(cf).length > 0 ? cf : null;
+      return supabase
+        ?.from('inventory_items')
+        ?.update({ custom_fields: payload, updated_at: now })
+        ?.eq('id', it?.id)
+        ?.eq('tenant_id', tenantId);
+    }));
+    return results.every((r) => !r?.error);
+  } catch (err) {
+    console.error('[inventoryStorage] setItemsAttentionHidden exception:', err?.message);
+    return false;
+  }
+};
+
 export const bulkMoveItemsByIds = async (itemIds, newLocation, newSubLocation = null) => {
   try {
     const tenantId = getActiveTenantId();
