@@ -13,6 +13,7 @@ const KitScanModal = ({ resolve, onPick, onClose }) => {
   const [scanning, setScanning] = useState(false);
   const [err, setErr] = useState('');
   const [manual, setManual] = useState('');
+  const [added, setAdded] = useState([]); // names added this session, newest first
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const loopRef = useRef(null);
@@ -36,7 +37,10 @@ const KitScanModal = ({ resolve, onPick, onClose }) => {
     const item = id ? resolve?.(id) : null;
     if (!item) { setErr('That tag isn’t a stocked item — check inventory or add it manually.'); return; }
     if (navigator.vibrate) navigator.vibrate(60);
-    stop();
+    // Keep scanning — accumulate several tags in one session.
+    setErr('');
+    setManual('');
+    setAdded((a) => [item.name || 'Item', ...a]);
     onPick?.(item);
   };
 
@@ -78,10 +82,17 @@ const KitScanModal = ({ resolve, onPick, onClose }) => {
         <div className="lsc-head">
           <div>
             <span className="lsc-eyebrow">Issue</span>
-            <h2 className="lsc-title">Scan a kit tag</h2>
+            <h2 className="lsc-title">Scan kit tags</h2>
           </div>
           <button type="button" className="lsc-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
         </div>
+
+        {added.length > 0 && (
+          <div className="lsc-added">
+            <Icon name="Check" size={14} />
+            <span><b>{added.length}</b> added{added[0] ? ` · ${added[0]}` : ''}</span>
+          </div>
+        )}
 
         <div className="lsc-stage">
           {scanning ? (
@@ -112,6 +123,11 @@ const KitScanModal = ({ resolve, onPick, onClose }) => {
           {scanning && (
             <button type="button" className="lsc-btn ghost" onClick={stop}>
               <Icon name="Square" size={16} /> Stop
+            </button>
+          )}
+          {added.length > 0 && (
+            <button type="button" className="lsc-btn primary" onClick={onClose}>
+              <Icon name="Check" size={16} /> Done ({added.length})
             </button>
           )}
         </div>

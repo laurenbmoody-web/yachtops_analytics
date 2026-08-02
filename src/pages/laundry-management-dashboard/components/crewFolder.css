@@ -237,6 +237,10 @@
 .cf-check-sub { display: block; font-size: 12px; color: #8B8478; margin-top: 2px; }
 
 /* Issue browser — Uniform-scoped folder tiles + selectable item rows w/ allocator. */
+.cf-basket { margin: 0 22px 14px; padding: 12px; background: #F8FAFC; border: 1px solid #EEF0F4; border-radius: 12px; }
+.cf-basket-h { display: flex; align-items: center; gap: 7px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 10px; }
+.cf-basket-h svg { color: #C65A1A; flex: none; }
+.cf-basket-ct { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: #C65A1A; color: #FFFFFF; font: 800 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0; }
 .cf-scan-cta { display: flex; align-items: center; gap: 12px; width: calc(100% - 44px); margin: 2px 22px 12px; padding: 11px 13px; background: #FBEFE9; border: 1px solid #F3D9CB; border-radius: 12px; cursor: pointer; text-align: left; transition: background 0.14s, border-color 0.14s; }
 .cf-scan-cta:hover { background: #F6E0D3; border-color: #C65A1A; }
 .cf-scan-ic { flex: none; width: 34px; height: 34px; border-radius: 9px; background: #C65A1A; color: #FFFFFF; display: grid; place-items: center; }
