@@ -840,6 +840,50 @@ export const saveWarehouseLayout = async (supplierId, { shape, racks }) => {
   if (error) throw error;
 };
 
+// ─── Warehouse slots (section ↔ catalogue product links) ─────────────────────
+
+// All slots for the current supplier, each with its linked catalogue item's
+// display fields. RLS scopes the read. Returned as a map keyed by section_code
+// so the head-on view can look up "what's in this cell" in O(1).
+export const fetchWarehouseSlots = async () => {
+  const { data, error } = await supabase
+    .from('supplier_warehouse_slots')
+    .select('section_code, rack_id, catalogue_item_id, item:catalogue_item_id(id, name, sku, unit, pack_size, pack_unit, category, image_url, in_stock)');
+  if (error) throw error;
+  const bySection = {};
+  (data || []).forEach((r) => { if (r.section_code) bySection[r.section_code] = r; });
+  return bySection;
+};
+
+// Pin a catalogue item to a section (upsert on supplier_id + section_code, so
+// re-linking a cell replaces what was there).
+export const linkWarehouseSlot = async (supplierId, { sectionCode, rackId, roomId, catalogueItemId }) => {
+  const { data, error } = await supabase
+    .from('supplier_warehouse_slots')
+    .upsert({
+      supplier_id: supplierId,
+      section_code: sectionCode,
+      rack_id: rackId ?? null,
+      room_id: roomId ?? null,
+      catalogue_item_id: catalogueItemId,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'supplier_id,section_code' })
+    .select('section_code, rack_id, catalogue_item_id, item:catalogue_item_id(id, name, sku, unit, pack_size, pack_unit, category, image_url, in_stock)')
+    .single();
+  if (error) throw error;
+  return data;
+};
+
+// Clear a section.
+export const unlinkWarehouseSlot = async (supplierId, sectionCode) => {
+  const { error } = await supabase
+    .from('supplier_warehouse_slots')
+    .delete()
+    .eq('supplier_id', supplierId)
+    .eq('section_code', sectionCode);
+  if (error) throw error;
+};
+
 // Upload a product photo to the public `catalogue-images` bucket and write
 // the public URL onto the catalogue row. Same pattern as uploadSupplierLogo.
 export const uploadCatalogueImage = async (supplierId, itemId, file) => {

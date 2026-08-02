@@ -13,8 +13,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus, Minus, Trash2, X, PenLine, Check, Boxes, Layers, Maximize2, Columns2, RotateCw, DoorOpen, ChevronLeft, Copy,
+  Search, Package, Unlink,
 } from 'lucide-react';
-import { fetchWarehouseLayout, saveWarehouseLayout } from '../utils/supplierStorage';
+import {
+  fetchWarehouseLayout, saveWarehouseLayout,
+  fetchWarehouseSlots, linkWarehouseSlot, unlinkWarehouseSlot, fetchCatalogueItems,
+} from '../utils/supplierStorage';
 import './warehouse-designer.css';
 
 const ZONES = [
@@ -392,7 +396,8 @@ export default function WarehouseDesigner({ supplierId }) {
           : <>Press <strong>Edit</strong> to draw your unit and add racks.</>}</div>
       )}
 
-      {modalRack && <HeadOn rack={elements.find((r) => r.id === modalRack.id) || modalRack} onClose={() => setModalRack(null)} />}
+      {modalRack && <HeadOn rack={elements.find((r) => r.id === modalRack.id) || modalRack}
+        supplierId={supplierId} roomId={insideRoomId} onClose={() => setModalRack(null)} />}
     </div>
   );
 }
@@ -490,17 +495,70 @@ function RackPopover({ rack, style, onPatchFace, onPatch, onSides, onDuplicate, 
   );
 }
 
-// ── Head-on view of a single rack — for linking products to sections ──────────
-function HeadOn({ rack, onClose }) {
+// ── Head-on view of a single rack — link catalogue products to its sections ────
+const packLabel = (it) => {
+  if (it.pack_size && (it.unit_size || it.pack_unit)) return `${it.pack_size} × ${it.unit_size || it.pack_unit}`;
+  return it.unit || it.pack_unit || '';
+};
+
+function HeadOn({ rack, supplierId, roomId, onClose }) {
   const sidesN = rack.sides === 2 ? 2 : 1;
   const SIDES = sidesN === 2 ? [{ i: 0, t: 'Front' }, { i: 1, t: 'Back' }] : [{ i: 0, t: '' }];
   const [si, setSi] = useState(0);
   const sideIdx = Math.min(si, rack.faces.length - 1);
   const face = rack.faces[sideIdx];
   const [selSlot, setSelSlot] = useState(null);
+  const [slots, setSlots] = useState({});
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [query, setQuery] = useState('');
+  const [err, setErr] = useState(null);
   const levels = levelDefs(rack.levels);
   const code = face.code || rack.id;
   const totalSections = rack.faces.reduce((s, f) => s + f.bays, 0) * levels.length;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [sl, its] = await Promise.all([fetchWarehouseSlots(), fetchCatalogueItems(supplierId)]);
+        if (!cancelled) { setSlots(sl); setItems(its); }
+      } catch (e) { if (!cancelled) setErr(e.message); }
+      finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [supplierId]);
+
+  // Stored section_code is namespaced by walk-in room so an inner rack's "R1"
+  // never collides with a top-floor "R1"; the human-facing code stays clean.
+  const keyOf = (human) => (roomId ? `${roomId}::${human}` : human);
+  const current = selSlot ? slots[selSlot.key] : null;
+  const filledCount = Object.values(slots).filter((s) => s.rack_id === rack.id && (s.room_id || null) === (roomId || null)).length;
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? items.filter((it) => `${it.name} ${it.sku || ''} ${it.category || ''}`.toLowerCase().includes(q))
+    : items;
+
+  const pick = async (it) => {
+    if (!selSlot) return;
+    setSaving(true); setErr(null);
+    try {
+      const row = await linkWarehouseSlot(supplierId, { sectionCode: selSlot.key, rackId: rack.id, roomId, catalogueItemId: it.id });
+      setSlots((s) => ({ ...s, [selSlot.key]: row }));
+    } catch (e) { setErr(e.message); }
+    finally { setSaving(false); }
+  };
+  const clear = async () => {
+    if (!selSlot) return;
+    setSaving(true); setErr(null);
+    try {
+      await unlinkWarehouseSlot(supplierId, selSlot.key);
+      setSlots((s) => { const n = { ...s }; delete n[selSlot.key]; return n; });
+    } catch (e) { setErr(e.message); }
+    finally { setSaving(false); }
+  };
+
   return (
     <div className="wd-back" onPointerDown={(e) => { if (e.target.classList.contains('wd-back')) onClose(); }}>
       <div className="wd-modal" role="dialog" aria-label={`Rack ${code}`}>
@@ -515,7 +573,7 @@ function HeadOn({ rack, onClose }) {
               <span><Boxes size={12} /> {face.bays} bays</span>
               <span><Layers size={12} /> {levels.length} levels</span>
               {sidesN === 2 && <span><Columns2 size={12} /> 2 sides</span>}
-              <span>{totalSections} sections</span>
+              <span><Package size={12} /> {filledCount}/{totalSections} filled</span>
             </div>
           </div>
           <button className="wd-mx" onClick={onClose} aria-label="Close"><X size={16} /></button>
@@ -538,11 +596,26 @@ function HeadOn({ rack, onClose }) {
               <span className="wd-ftag">{l.t}</span>
               <div className="wd-frow" style={{ gridTemplateColumns: `repeat(${face.bays}, 1fr)` }}>
                 {Array.from({ length: face.bays }, (_, bi) => {
-                  const sc = `${code}·${String(bi + 1).padStart(2, '0')}·${l.k}`;
+                  const human = `${code}·${String(bi + 1).padStart(2, '0')}·${l.k}`;
+                  const key = keyOf(human);
+                  const slot = slots[key];
                   return (
-                    <button key={bi} className={`wd-fs${selSlot === sc ? ' sel' : ''}`} onClick={() => setSelSlot(sc)} title="Link a product">
-                      <span className="wd-fc">{sc}</span>
-                      <span className="wd-fp">＋</span>
+                    <button key={bi} className={`wd-fs${selSlot?.key === key ? ' sel' : ''}${slot ? ' filled' : ''}`}
+                      onClick={() => { setSelSlot({ human, key }); setQuery(''); }} title={slot ? slot.item?.name : 'Link a product'}>
+                      {slot ? (
+                        <>
+                          <span className="wd-fs-thumb">{slot.item?.image_url
+                            ? <img src={slot.item.image_url} alt="" />
+                            : <Package size={13} />}</span>
+                          <span className="wd-fs-prod">{slot.item?.name || 'Linked'}</span>
+                          <span className="wd-fs-code">{human}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="wd-fc">{human}</span>
+                          <span className="wd-fp">＋</span>
+                        </>
+                      )}
                     </button>
                   );
                 })}
@@ -553,10 +626,44 @@ function HeadOn({ rack, onClose }) {
         </div>
 
         <div className="wd-mfoot">
-          <div className="wd-minfo">
-            {selSlot ? <>Section <b>{selSlot}</b> — no product linked yet</> : 'Tap a section (＋) to link a product from your catalogue.'}
-          </div>
-          <button className="wd-mbtn" disabled>Link from catalogue · soon</button>
+          {err && <div className="wd-perr">{err}</div>}
+          {selSlot ? (
+            <div className="wd-picker">
+              <div className="wd-picker-head">
+                <div className="wd-picker-sec">
+                  Section <b>{selSlot.human}</b>
+                  {current ? <span className="wd-picker-cur"> — {current.item?.name}</span> : <span className="wd-picker-empty"> — empty</span>}
+                </div>
+                <div className="wd-picker-actions">
+                  {current && <button className="wd-unlink" onClick={clear} disabled={saving}><Unlink size={13} /> Clear</button>}
+                  <button className="wd-picker-x" onClick={() => setSelSlot(null)} aria-label="Done"><X size={15} /></button>
+                </div>
+              </div>
+              <div className="wd-picker-search">
+                <Search size={14} />
+                <input autoFocus placeholder="Search your catalogue…" value={query} onChange={(e) => setQuery(e.target.value)} />
+              </div>
+              <div className="wd-picker-list">
+                {loading ? <div className="wd-pi-empty">Loading your catalogue…</div>
+                  : filtered.length === 0 ? <div className="wd-pi-empty">{items.length ? 'No products match.' : 'Your catalogue is empty — add products first.'}</div>
+                    : filtered.slice(0, 60).map((it) => {
+                      const on = current?.catalogue_item_id === it.id;
+                      return (
+                        <button key={it.id} className={`wd-pi${on ? ' on' : ''}`} onClick={() => pick(it)} disabled={saving}>
+                          <span className="wd-pi-thumb">{it.image_url ? <img src={it.image_url} alt="" /> : <Package size={15} />}</span>
+                          <span className="wd-pi-main">
+                            <span className="wd-pi-name">{it.name}</span>
+                            <span className="wd-pi-meta">{[it.sku, it.category, packLabel(it)].filter(Boolean).join(' · ')}</span>
+                          </span>
+                          {on && <Check size={16} className="wd-pi-check" />}
+                        </button>
+                      );
+                    })}
+              </div>
+            </div>
+          ) : (
+            <div className="wd-minfo">Tap a section to link a product from your catalogue. <b>{filledCount}</b> of {totalSections} filled.</div>
+          )}
         </div>
       </div>
     </div>

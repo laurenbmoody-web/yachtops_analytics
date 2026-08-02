@@ -346,3 +346,48 @@
 #sp-root .wd-vx { z-index: 46; }
 #sp-root .wd-edge { z-index: 44; }
 #sp-root .wd-rotate { z-index: 47; }
+
+/* ── Head-on: filled sections + catalogue picker (Stage 2) ── */
+#sp-root .wd-fs.filled { border-color: #E7C9B8; background: #FCF3EE; }
+#sp-root .wd-fs.filled:hover { border-color: var(--orange, #C65A1A); }
+.wd-fs-thumb { width: 20px; height: 20px; border-radius: 5px; overflow: hidden; flex: none; display: flex; align-items: center;
+  justify-content: center; background: #fff; border: 1px solid #EADFD6; color: var(--orange, #C65A1A); }
+.wd-fs-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.wd-fs-prod { font-size: 9.5px; font-weight: 700; color: var(--navy-deep, #141D2E); line-height: 1.12; text-align: center;
+  max-height: 22px; overflow: hidden; }
+.wd-fs-code { font-size: 7.5px; font-weight: 800; letter-spacing: 0.03em; color: var(--faint, #94A3B8); font-variant-numeric: tabular-nums; }
+
+.wd-perr { flex-basis: 100%; width: 100%; font-size: 12px; color: #B91C1C; background: #FEF2F2; border: 1px solid #FECACA;
+  border-radius: 8px; padding: 7px 10px; margin-bottom: 4px; }
+
+.wd-picker { width: 100%; display: flex; flex-direction: column; gap: 9px; }
+.wd-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.wd-picker-sec { font-size: 12.5px; color: var(--muted-strong, #64748B); }
+.wd-picker-sec b { color: var(--fg, #0C0E14); font-variant-numeric: tabular-nums; }
+.wd-picker-cur { color: var(--orange, #C65A1A); font-weight: 700; }
+.wd-picker-empty { color: var(--faint, #94A3B8); }
+.wd-picker-actions { display: flex; align-items: center; gap: 6px; }
+#sp-root .wd-unlink { display: inline-flex; align-items: center; gap: 5px; font-family: inherit; font-size: 11.5px; font-weight: 700;
+  color: #B91C1C; background: #FEF2F2; border: 1px solid #F5C2C2; border-radius: 8px; padding: 5px 9px; cursor: pointer; }
+#sp-root .wd-unlink:hover { background: #FEE2E2; }
+#sp-root .wd-picker-x { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--line, #E2E8F0); background: #fff;
+  color: var(--muted-strong, #64748B); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+#sp-root .wd-picker-x:hover { background: var(--bg-2, #EEF2F7); }
+.wd-picker-search { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line, #E2E8F0); border-radius: 9px;
+  padding: 8px 11px; background: #FAFAF8; color: var(--muted-strong, #64748B); }
+.wd-picker-search input { flex: 1; min-width: 0; border: none; background: none; outline: none; font-family: inherit;
+  font-size: 13px; color: var(--fg, #0C0E14); }
+.wd-picker-search:focus-within { border-color: var(--orange, #C65A1A); box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.wd-picker-list { display: flex; flex-direction: column; gap: 5px; max-height: 232px; overflow: auto; margin: 0 -2px; padding: 0 2px; }
+#sp-root .wd-pi { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font-family: inherit; background: #fff;
+  border: 1px solid var(--line, #E2E8F0); border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+#sp-root .wd-pi:hover { border-color: var(--orange, #C65A1A); background: #FFFDFB; }
+#sp-root .wd-pi.on { border-color: var(--orange, #C65A1A); background: #FCF3EE; }
+.wd-pi-thumb { width: 34px; height: 34px; border-radius: 7px; overflow: hidden; flex: none; display: flex; align-items: center;
+  justify-content: center; background: var(--bg-2, #EEF2F7); color: var(--muted-strong, #64748B); }
+.wd-pi-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.wd-pi-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.wd-pi-name { font-size: 13px; font-weight: 700; color: var(--navy-deep, #141D2E); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wd-pi-meta { font-size: 11px; color: var(--muted-strong, #64748B); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wd-pi-check { color: var(--orange, #C65A1A); flex: none; }
+.wd-pi-empty { font-size: 12.5px; color: var(--muted-strong, #64748B); padding: 14px 4px; text-align: center; }
