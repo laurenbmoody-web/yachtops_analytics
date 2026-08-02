@@ -229,16 +229,16 @@ export default function WarehouseDesigner({ supplierId }) {
                   <>
                     <span className="cap dual" style={{ background: `linear-gradient(180deg, ${ZC[front.zone]} 0 50%, ${ZC[back.zone]} 50% 100%)` }} />
                     <span className="wd-dface">
-                      <span className="wd-dhalf"><span className="wd-dcode">{front.code}</span></span>
+                      <span className="wd-dhalf"><span className="wd-dcode" style={{ transform: `rotate(${-(r.angle || 0)}deg)` }}>{front.code}</span></span>
                       <span className="wd-mid" />
-                      <span className="wd-dhalf"><span className="wd-dcode">{back.code}</span></span>
+                      <span className="wd-dhalf"><span className="wd-dcode" style={{ transform: `rotate(${-(r.angle || 0)}deg)` }}>{back.code}</span></span>
                     </span>
                   </>
                 ) : (
                   <>
                     <span className="cap" />
                     <span className="bays">{Array.from({ length: front.bays }, (_, i) => <span key={i} className="b" />)}</span>
-                    <span className="lab">{front.code}</span>
+                    <span className="lab" style={{ transform: `translate(-50%, -50%) rotate(${-(r.angle || 0)}deg)` }}>{front.code}</span>
                   </>
                 )}
               </div>
@@ -250,8 +250,11 @@ export default function WarehouseDesigner({ supplierId }) {
             const { cx, cy } = centerOf(selRack);
             const lh = { x: cx + (selRack.len / 2) * cosA, y: cy + (selRack.len / 2) * sinA };
             const th = { x: cx - (selRack.thick / 2) * sinA, y: cy + (selRack.thick / 2) * cosA };
-            const g = selRack.thick / 2 + 6;
-            const rk = { x: cx + g * sinA, y: cy - g * cosA };
+            // rotate knob sits on the rack's top-right corner (attached, not floating)
+            const rk = {
+              x: cx + (selRack.len / 2) * cosA + (selRack.thick / 2) * sinA,
+              y: cy + (selRack.len / 2) * sinA - (selRack.thick / 2) * cosA,
+            };
             return (
               <>
                 <div className="wd-rh" style={{ left: `${lh.x}%`, top: `${topPct(lh.y)}%` }} onPointerDown={(e) => startResize(e, selRack, 'len')} />
@@ -343,7 +346,7 @@ function RackPopover({ rack, onPatchFace, onPatch, onSides, onDelete, onHeadOn, 
           <div className="wd-pzones">
             {ZONES.map((z) => (
               <button key={z.key} className={`wd-pz${face.zone === z.key ? ' on' : ''}`} style={{ '--zc': z.color }}
-                onClick={() => onPatchFace(rack.id, faceIdx, { zone: z.key })} title={z.label}><i /></button>
+                onClick={() => onPatchFace(rack.id, faceIdx, { zone: z.key })} data-label={z.label} aria-label={z.label}><i /></button>
             ))}
           </div>
         </div>
