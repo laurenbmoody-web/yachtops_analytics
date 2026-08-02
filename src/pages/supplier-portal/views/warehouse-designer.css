@@ -119,8 +119,8 @@
 .wd-pop-hactions { display: flex; gap: 4px; }
 .wd-pop-hactions button { border: none; background: var(--bg-2, #EEF2F7); width: 28px; height: 28px; border-radius: 8px; cursor: pointer;
   color: var(--muted-strong, #64748B); display: flex; align-items: center; justify-content: center; }
-.wd-pop-hactions button:first-child:hover { background: #FEF2F2; color: #B91C1C; }
-.wd-pop-hactions button:last-child:hover { background: var(--line, #E2E8F0); color: var(--fg, #0C0E14); }
+.wd-pop-hactions button:hover { background: var(--line, #E2E8F0); color: var(--fg, #0C0E14); }
+.wd-pop-hactions button[title^="Delete"]:hover { background: #FEF2F2; color: #B91C1C; }
 .wd-pop-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-end; }
 .wd-pop-f { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .wd-pop-f.code { width: 76px; flex: none; }
