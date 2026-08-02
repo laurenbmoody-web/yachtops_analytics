@@ -4,6 +4,7 @@ import { updateLaundryItem, LaundryStatus, availableLaundryTags, formatLaundryTa
 import { money } from '../utils/laundryBilling';
 import { printLaundryLabels } from '../utils/laundryLabels';
 import { GARMENT_TYPES } from './AddGarmentModal';
+import OwSelect from './OwSelect';
 import './ownerWardrobe.css';
 
 const STATUS = {
@@ -101,14 +102,14 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
               <label className="ow-l">Name</label>
               <input className="ow-input" value={draft.description} onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))} />
               <div className="ow-row2">
-                <div><label className="ow-l">Type</label><div className="ow-select"><select value={draft.garmentType} onChange={(e) => setDraft((d) => ({ ...d, garmentType: e.target.value }))}><option value="">—</option>{GARMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></div></div>
+                <div><label className="ow-l">Type</label><OwSelect value={draft.garmentType} onChange={(v) => setDraft((d) => ({ ...d, garmentType: v }))} options={[{ value: '', label: '—' }, ...GARMENT_TYPES.map((t) => ({ value: t, label: t }))]} /></div>
                 <div><label className="ow-l">Colour</label><input className="ow-input" value={draft.colour} onChange={(e) => setDraft((d) => ({ ...d, colour: e.target.value }))} /></div>
               </div>
               <div className="ow-row2">
                 {showValue ? (
-                  <div><label className="ow-l">Value</label><div className="ow-value"><div className="ow-select ow-cur"><select value={draft.garmentValueCurrency} onChange={(e) => setDraft((d) => ({ ...d, garmentValueCurrency: e.target.value }))}>{CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div><input className="ow-input" type="number" min="0" step="0.01" value={draft.garmentValue} onChange={(e) => setDraft((d) => ({ ...d, garmentValue: e.target.value }))} /></div></div>
+                  <div><label className="ow-l">Value</label><div className="ow-value"><div className="ow-cur"><OwSelect value={draft.garmentValueCurrency} onChange={(v) => setDraft((d) => ({ ...d, garmentValueCurrency: v }))} options={CURRENCIES} /></div><input className="ow-input" type="number" min="0" step="0.01" value={draft.garmentValue} onChange={(e) => setDraft((d) => ({ ...d, garmentValue: e.target.value }))} /></div></div>
                 ) : <div />}
-                <div><label className="ow-l">Wardrobe</label><div className="ow-select"><select value={draft.wardrobeId} onChange={(e) => setDraft((d) => ({ ...d, wardrobeId: e.target.value }))}>{wardrobes.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div></div>
+                <div><label className="ow-l">Wardrobe</label><OwSelect value={draft.wardrobeId} onChange={(v) => setDraft((d) => ({ ...d, wardrobeId: v }))} options={wardrobes.map((w) => ({ value: w.id, label: w.name }))} /></div>
               </div>
               <label className="ow-check-row">
                 <input type="checkbox" checked={draft.staysOnboard} onChange={(e) => setDraft((d) => ({ ...d, staysOnboard: e.target.checked }))} />
