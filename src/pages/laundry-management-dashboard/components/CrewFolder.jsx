@@ -19,6 +19,7 @@ import { canViewCost } from '../../../utils/costPermissions';
 import { money } from '../utils/laundryBilling';
 import PersonTiles from './PersonTiles';
 import { FilterMenu, SortMenu } from './LaundryFilters';
+import KitScanModal from './KitScanModal';
 import './crewFolder.css';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -204,6 +205,17 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onAd
   const [open, setOpen] = useState({});   // itemId -> ticked open for allocation
   const [sel, setSel] = useState({});     // `${itemId}|${size}` -> allocated qty
   const [busy, setBusy] = useState(false);
+  const [scan, setScan] = useState(false); // QR scanner open
+
+  // A scanned tag resolves to a stocked item — drill to its folder and open its
+  // sizes so the interior just picks the size to issue.
+  const resolveScan = (id) => stock.find((i) => String(i.id) === String(id)) || null;
+  const pickScanned = (item) => {
+    setTrail(pathSegs(item));
+    setOpen((p) => ({ ...p, [item.id]: true }));
+    setScan(false);
+    window.showToast?.(`${item.name} — choose a size to issue`, 'success');
+  };
 
   const withRel = useMemo(() => stock.map((i) => ({ i, rel: pathSegs(i) })), [stock]);
   const atLevel = useMemo(
@@ -260,6 +272,13 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onAd
           <div><span className="cf-eyebrow">Issue item</span><h2 className="cf-modal-title">To {crewName}</h2></div>
           <button type="button" className="cf-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
         </div>
+
+        {/* Scan a tag to jump straight to that item, or browse inventory below. */}
+        <button type="button" className="cf-scan-cta" onClick={() => setScan(true)}>
+          <span className="cf-scan-ic"><Icon name="QrCode" size={18} /></span>
+          <span className="cf-scan-txt"><b>Scan a QR tag</b><span>Point at a uniform tag to issue it — or browse below</span></span>
+          <Icon name="ChevronRight" size={16} className="cf-scan-arr" />
+        </button>
 
         {/* Breadcrumb — Inventory is the root; each tile drills a folder deeper. */}
         <div className="cf-crumb">
@@ -350,6 +369,7 @@ const IssueModal = ({ crewName, stock, folderRels = [], showValue, onIssue, onAd
           </button>
         </div>
       </div>
+      {scan && <KitScanModal resolve={resolveScan} onPick={pickScanned} onClose={() => setScan(false)} />}
     </div>
   );
 };
