@@ -387,7 +387,6 @@ const OwnerWardrobeView = ({ onBack }) => {
       <div className="ow-view">
         <div className="ow-bar">
           <button type="button" className="lm-back" onClick={onBack}><Icon name="ArrowLeft" size={16} /> Back to wardrobe management</button>
-          <button type="button" className="ow-btn ghost" onClick={() => setShowNewWardrobe(true)}><Icon name="FolderPlus" size={15} /> New wardrobe</button>
         </div>
         <p className="editorial-meta">
           <span className="dot">●</span>
@@ -398,12 +397,12 @@ const OwnerWardrobeView = ({ onBack }) => {
 
         {toolbar(
           <>
+            <FilterMenu groups={filterGroups} />
+            <SortMenu value={sort} onChange={setSort} options={sortOptions} />
             <div className="ow-grouptoggle" role="tablist" aria-label="View">
               <button type="button" className={landView === 'owner' ? 'on' : ''} onClick={() => setLandView('owner')}>By owner</button>
               <button type="button" className={landView === 'list' ? 'on' : ''} onClick={() => setLandView('list')}>List</button>
             </div>
-            <FilterMenu groups={filterGroups} />
-            <SortMenu value={sort} onChange={setSort} options={sortOptions} />
             <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>
           </>
         )}
