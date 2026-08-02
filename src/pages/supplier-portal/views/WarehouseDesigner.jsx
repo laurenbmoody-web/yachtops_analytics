@@ -250,11 +250,8 @@ export default function WarehouseDesigner({ supplierId }) {
             const { cx, cy } = centerOf(selRack);
             const lh = { x: cx + (selRack.len / 2) * cosA, y: cy + (selRack.len / 2) * sinA };
             const th = { x: cx - (selRack.thick / 2) * sinA, y: cy + (selRack.thick / 2) * cosA };
-            // rotate knob sits on the rack's top-right corner (attached, not floating)
-            const rk = {
-              x: cx + (selRack.len / 2) * cosA + (selRack.thick / 2) * sinA,
-              y: cy + (selRack.len / 2) * sinA - (selRack.thick / 2) * cosA,
-            };
+            // rotate knob sits on the top edge, directly opposite the thick resize dot
+            const rk = { x: cx + (selRack.thick / 2) * sinA, y: cy - (selRack.thick / 2) * cosA };
             return (
               <>
                 <div className="wd-rh" style={{ left: `${lh.x}%`, top: `${topPct(lh.y)}%` }} onPointerDown={(e) => startResize(e, selRack, 'len')} />
