@@ -239,8 +239,18 @@ export const REQUIREMENTS = [
 //
 // The reason is not optional — ticking "no receipt" without saying why proves
 // nothing, so a blank reason leaves the line unevidenced.
+//
+// A line raised against a supplier invoice already HAS its document: the invoice
+// is in Cargo, linked to this line, and is better evidence than a photographed
+// till slip. Asking the crew to go and attach a receipt for it was asking them to
+// re-prove something the system was holding — and it blocked the month's close
+// until they did.
+//
+// A purchase order is NOT evidence and never counts. A PO says what was ordered;
+// it says nothing about what was paid, which is the thing a receipt attests to.
 export const hasEvidence = (txn, hasAttachment) => {
   if (hasAttachment) return true;
+  if (txn?.supplier_invoice_id) return true;
   return Boolean(txn?.receipt_waived) && Boolean(String(txn?.receipt_waived_reason || '').trim());
 };
 

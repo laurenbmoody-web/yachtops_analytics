@@ -83,6 +83,9 @@
 
 /* Transaction rows */
 .ca-txn { display: grid; grid-template-columns: 26px 104px 1fr 150px 130px 96px; align-items: center; gap: 16px; padding: 11px 8px 11px 10px; border-bottom: 1px solid #EEF0F4; }
+/* Scoped to one card: the account column would repeat that card on every row,
+   under a wallet that already names it. */
+.ca-txn.is-scoped { grid-template-columns: 26px 104px 1fr 130px 96px; }
 .ca-txn.is-void { opacity: 0.45; }
 /* Three-state rail: nothing done yet / part-way / finished. Replaces the old
    single "needs attention" bar and the "needs X" pills. */
@@ -370,6 +373,7 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
    rather than as part of it. The caps and the whitespace do the separating. */
 .ca-txnhead{display:grid; grid-template-columns:26px 104px 1fr 150px 130px 96px; align-items:end; gap:16px;
   padding:0 8px 9px 10px; margin-top:18px}
+.ca-txnhead.is-scoped{grid-template-columns:26px 104px 1fr 130px 96px}
 .ca-txnhead span{font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#AEB4C2}
 .ca-txnhead .r{text-align:right}
 .ca-txnhead .h-acct{text-align:right}
