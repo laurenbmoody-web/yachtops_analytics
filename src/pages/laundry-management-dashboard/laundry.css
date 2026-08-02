@@ -205,19 +205,29 @@
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; width: 244px;
   background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px;
   box-shadow: 0 20px 44px -18px rgba(28, 27, 58, 0.22); padding: 14px;
-  display: flex; flex-direction: column; gap: 12px;
+  display: flex; flex-direction: column; gap: 12px; max-height: 70vh; overflow-y: auto;
 }
 .lmf-group { display: flex; flex-direction: column; gap: 6px; }
 .lmf-label { font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; }
-.lmf-select select {
-  width: 100%; appearance: none; -webkit-appearance: none; -moz-appearance: none;
-  height: 38px; padding: 0 30px 0 12px; cursor: pointer;
-  font: 400 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
-  border: 1px solid #E5E7EB; border-radius: 9px; background-color: #FAFAF8;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23695880' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat; background-position: right 10px center; background-size: 14px;
+/* Cargo filter field — a button that expands its options inline (no native select). */
+.lmf-field {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  height: 38px; padding: 0 12px; cursor: pointer; text-align: left;
+  font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  border: 1px solid #E5E7EB; border-radius: 9px; background: #FAFAF8;
+  transition: border-color 0.14s, box-shadow 0.14s;
 }
-.lmf-select select:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.lmf-field:hover { border-color: #C65A1A; }
+.lmf-field.open { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }
+.lmf-field.on .lmf-field-val { color: #C65A1A; font-weight: 600; }
+.lmf-field .chev { color: #695880; transition: transform 0.15s; flex: none; }
+.lmf-field.open .chev { transform: rotate(180deg); }
+.lmf-field-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lmf-fieldopts {
+  margin-top: 6px; display: flex; flex-direction: column; gap: 2px;
+  max-height: 232px; overflow-y: auto; padding: 4px;
+  border: 1px solid #EEF0F4; border-radius: 9px; background: #FFFFFF;
+}
 .lmf-sortpop { left: auto; right: 0; width: 200px; padding: 6px; gap: 2px; }
 .lmf-sortopt {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
