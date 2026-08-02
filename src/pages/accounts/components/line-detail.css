@@ -127,3 +127,17 @@ select.ld-input { cursor: pointer; }
 
 /* Who pays needs room for "Charter (APA)" without squeezing the fields beside it. */
 .ld-field.ld-whopays { min-width: 168px; }
+
+/* Charter: the picker and the free-text box occupy the same slot, so choosing
+   "Another charter…" replaces the control instead of stacking a second field
+   under it. The chevron goes back to the list. */
+.ld-combo { position: relative; display: block; }
+.ld-combo .ld-input { padding-right: 38px; }
+.ld-combo-back {
+  position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+  width: 26px; height: 26px; border: 0; border-radius: 7px; background: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; color: #AEB4C2; padding: 0;
+}
+.ld-combo-back:hover { background: #FAFAF8; color: #C65A1A; }
+.ld-combo-back:focus-visible { outline: 2px solid #C65A1A; outline-offset: 1px; }

@@ -597,3 +597,21 @@ test('the department no longer nags — it follows the card', () => {
   const txn = { category: 'Crew Travelling', allocation: 'owner' };
   assert.equal(outstandingText(txn, { hasReceipt: true }), '');
 });
+
+// ── who spent it ────────────────────────────────────────────────────────────
+test('a vessel card with no holder falls to whoever is reconciling', () => {
+  // It's their connected account; the spend is theirs until they say otherwise.
+  assert.equal(defaultCardholder({}, { holder_user_id: null }, 'me-1'), 'me-1');
+});
+
+test('the card holder still wins over the viewer', () => {
+  assert.equal(defaultCardholder({}, { holder_user_id: 'crew-9' }, 'me-1'), 'crew-9');
+});
+
+test('a spender named on the line wins over both', () => {
+  assert.equal(defaultCardholder({ crew_id: 'crew-3' }, { holder_user_id: 'crew-9' }, 'me-1'), 'crew-3');
+});
+
+test('with no viewer it is still nobody, not undefined', () => {
+  assert.equal(defaultCardholder({}, {}), null);
+});
