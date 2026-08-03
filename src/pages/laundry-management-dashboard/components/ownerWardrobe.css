@@ -94,6 +94,7 @@
 .ow-status { font: 700 8.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.05em; text-transform: uppercase; border-radius: 999px; padding: 3px 9px; align-self: flex-start; }
 .ow-status.sm { margin-top: 4px; }
 .ow-status.stored { color: #4A4863; background: #EEF0F4; }
+.ow-status.away { color: #4A4863; background: #EEF0F4; }
 .ow-status.prog { color: #B7791F; background: #FBF1DF; }
 .ow-status.ready { color: #2F6E8F; background: #E9F1F5; }
 .ow-status.done { color: #2F7D5A; background: #E7F2EC; }

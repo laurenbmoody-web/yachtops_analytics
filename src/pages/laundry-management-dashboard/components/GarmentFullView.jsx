@@ -7,12 +7,7 @@ import { GARMENT_TYPES } from './AddGarmentModal';
 import OwSelect from './OwSelect';
 import './ownerWardrobe.css';
 
-const STATUS = {
-  Stored: { label: 'In wardrobe', cls: 'stored' },
-  InProgress: { label: 'In laundry', cls: 'prog' },
-  ReadyToDeliver: { label: 'Ready', cls: 'ready' },
-  Delivered: { label: 'Delivered', cls: 'done' },
-};
+const inWash = (i) => i.status === LaundryStatus.IN_PROGRESS || i.status === LaundryStatus.READY_TO_DELIVER;
 const CURRENCIES = ['EUR', 'GBP', 'USD'];
 const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
 
@@ -30,7 +25,9 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
   const [busy, setBusy] = useState(false);
   const gallery = (Array.isArray(item.photos) && item.photos.length ? item.photos : (item.photo ? [item.photo] : [])).filter(Boolean);
   const [active, setActive] = useState(0);
-  const st = STATUS[item.status] || { label: item.status, cls: 'stored' };
+  const st = item.caseId
+    ? { label: `Away · in ${caseName || 'a case'}`, cls: 'away' }
+    : inWash(item) ? { label: 'In laundry', cls: 'prog' } : { label: 'On board', cls: 'stored' };
   const photo = gallery[active] || gallery[0] || '';
   const home = wardrobes.find((w) => w.id === item.wardrobeId);
   const homeLabel = home ? [home.name, home.locationName].filter(Boolean).join(' · ') : '—';
@@ -68,7 +65,7 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
         </div>
 
         <div className="ow-full-info">
-          <span className={`ow-status ${st.cls}`}>{st.label}{caseName ? ` · in ${caseName}` : ''}</span>
+          <span className={`ow-status ${st.cls}`}>{st.label}</span>
 
           {!edit ? (
             <>
