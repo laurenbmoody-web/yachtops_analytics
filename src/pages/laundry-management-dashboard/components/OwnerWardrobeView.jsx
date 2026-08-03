@@ -387,7 +387,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   if (personId === null) {
     return (
       <div className="ow-view">
-        <div className="ow-bar">
+        <div className="ow-topbar">
           <button type="button" className="lm-back" onClick={onBack}><Icon name="ArrowLeft" size={16} /> Back to wardrobe management</button>
         </div>
         <p className="editorial-meta">
@@ -428,7 +428,7 @@ const OwnerWardrobeView = ({ onBack }) => {
 
   return (
     <div className="ow-view">
-      <div className="ow-bar">
+      <div className="ow-topbar">
         <button type="button" className="lm-back" onClick={() => setPersonId(null)}><Icon name="ArrowLeft" size={16} /> Back to owners</button>
       </div>
       {selectedPerson && (
