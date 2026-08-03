@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { formatDate } from '../../utils/dateFormat';
+import { money } from '../laundry-management-dashboard/utils/laundryBilling';
 import { getAllItems, setItemsAttentionHidden } from '../inventory/utils/inventoryStorage';
 import PushToBoardModal from '../inventory/components/PushToBoardModal';
+import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
 import EditorialDatePicker from '../../components/editorial/EditorialDatePicker';
 import '../../styles/editorial.css';
 import './attention.css';
@@ -14,16 +16,18 @@ const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); retur
 
 const isHidden = (i) => !!(i?.customFields || i?.custom_fields || {}).attention_hidden;
 const qtyOf = (i) => Number(i?.totalQty ?? i?.quantity ?? 0) || 0;
+const costOf = (i) => { const c = Number(i?.unitCost); return Number.isFinite(c) && c !== 0 ? c : 0; };
+const valueOf = (i) => costOf(i) * qtyOf(i);
 const shortfall = (i) => (i?.restockLevel != null ? Math.max(1, i.restockLevel - qtyOf(i)) : 1);
 const expDate = (i) => { const e = i?.expiryDate ? new Date(i.expiryDate) : null; return e && !Number.isNaN(e.getTime()) ? e : null; };
 
-// One bucket per item, by urgency: expired → below par → expiring (≤30 days).
-const bucketOf = (i, today) => {
+// One bucket per item, by urgency: expired → below par → expiring (≤window days).
+const bucketOf = (i, today, window = 30) => {
   const exp = expDate(i);
   if (exp && exp < today) return 'expired';
   const belowPar = !!i?.restockEnabled && i?.restockLevel != null && qtyOf(i) <= i.restockLevel;
   if (belowPar) return 'belowpar';
-  if (exp) { const days = Math.ceil((exp - today) / DAY); if (days >= 0 && days <= 30) return 'expiring'; }
+  if (exp) { const days = Math.ceil((exp - today) / DAY); if (days >= 0 && days <= window) return 'expiring'; }
   return null;
 };
 
@@ -89,6 +93,8 @@ const InventoryAttention = () => {
   const [showHidden, setShowHidden] = useState(false);
   const [hiding, setHiding] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [expWindow, setExpWindow] = useState(30); // expiring-soon window in days
+  const [quickViewItem, setQuickViewItem] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -148,10 +154,19 @@ const InventoryAttention = () => {
 
   const hiddenCount = useMemo(() => (items || []).filter(isHidden).length, [items]);
 
+  // Value summary for the visible list (only meaningful when items have a cost).
+  const summary = useMemo(() => {
+    const visible = SECTIONS.filter((s) => types.has(s.key)).flatMap((s) => buckets[s.key]);
+    const totalValue = visible.reduce((sum, i) => sum + valueOf(i), 0);
+    const restockCost = types.has('belowpar') ? buckets.belowpar.reduce((sum, i) => sum + shortfall(i) * costOf(i), 0) : 0;
+    const cur = visible.find((i) => costOf(i) > 0)?.currency || 'USD';
+    return { totalValue, restockCost, withCost: visible.some((i) => costOf(i) > 0), cur };
+  }, [buckets, types]);
+
   const buckets = useMemo(() => {
     const today = startOfToday();
     const out = { expired: [], belowpar: [], expiring: [] };
-    filtered.forEach((i) => { const b = bucketOf(i, today); if (b) out[b].push(i); });
+    filtered.forEach((i) => { const b = bucketOf(i, today, expWindow); if (b) out[b].push(i); });
     const cmp = {
       date: (a, b) => (expDate(a)?.getTime() || 0) - (expDate(b)?.getTime() || 0),
       name: (a, b) => (a?.name || '').localeCompare(b?.name || ''),
@@ -163,7 +178,7 @@ const InventoryAttention = () => {
     out.expiring.sort(cmp);
     out.belowpar.sort(sortBy === 'date' ? (a, b) => shortfall(b) - shortfall(a) : cmp);
     return out;
-  }, [filtered, sortBy]);
+  }, [filtered, sortBy, expWindow]);
 
   const counts = { expired: buckets.expired.length, belowpar: buckets.belowpar.length, expiring: buckets.expiring.length };
   const total = counts.expired + counts.belowpar + counts.expiring;
@@ -211,7 +226,7 @@ const InventoryAttention = () => {
     return [...selected].map((id) => byId.get(id)).filter(Boolean).map((i) => ({
       ...i,
       suggestedQty: shortfall(i),
-      source: bucketOf(i, today) === 'belowpar' ? 'low_stock' : 'expiring_soon',
+      source: bucketOf(i, today, expWindow) === 'belowpar' ? 'low_stock' : 'expiring_soon',
     }));
   }, [selected, byId]);
 
@@ -258,6 +273,20 @@ const InventoryAttention = () => {
         <h1 className="editorial-greeting">
           ATTENTION<span className="period">,</span> <em>{total === 0 ? 'all clear' : 'act now'}</em><span className="period">.</span>
         </h1>
+
+        {items !== null && summary.withCost && (
+          <p className="att-summary">
+            <span className="att-summary-val">{money(summary.totalValue, summary.cur)}</span>
+            <span className="att-summary-lbl">on this list</span>
+            {summary.restockCost > 0 && (
+              <>
+                <span className="att-summary-sep">·</span>
+                <span className="att-summary-val">{money(summary.restockCost, summary.cur)}</span>
+                <span className="att-summary-lbl">to restock</span>
+              </>
+            )}
+          </p>
+        )}
 
         {items !== null && (items.length > 0) && (
           <div className="att-toolbar">
@@ -410,17 +439,27 @@ const InventoryAttention = () => {
                     <span className="att-count">{list.length}</span>
                     {selHere > 0 && <span className="att-selhere">{selHere} selected</span>}
                   </button>
-                  <button className="att-selall" onClick={() => toggleGroup(list)}>{allSel ? 'Deselect all' : 'Select all'}</button>
+                  <div className="att-sec-r">
+                    {key === 'expiring' && (
+                      <div className="att-winmode">
+                        {[30, 60, 90].map((w) => (
+                          <button key={w} type="button" className={expWindow === w ? 'on' : ''} onClick={() => setExpWindow(w)}>{w}d</button>
+                        ))}
+                      </div>
+                    )}
+                    <button className="att-selall" onClick={() => toggleGroup(list)}>{allSel ? 'Deselect all' : 'Select all'}</button>
+                  </div>
                 </div>
                 {!isCollapsed && (
                   <div className="att-list">
                     {list.map((i) => (
-                      <label className={`att-row${selected.has(i.id) ? ' on' : ''}`} key={i.id}>
-                        <input type="checkbox" checked={selected.has(i.id)} onChange={() => toggle(i.id)} />
-                        <span className="att-name">{i.name}</span>
+                      <div className={`att-row${selected.has(i.id) ? ' on' : ''}`} key={i.id} onClick={() => toggle(i.id)}>
+                        <input type="checkbox" checked={selected.has(i.id)} onChange={() => toggle(i.id)} onClick={(e) => e.stopPropagation()} />
+                        <button type="button" className="att-name att-name-btn" onClick={(e) => { e.stopPropagation(); setQuickViewItem(i); }} title="Open item">{i.name}</button>
                         <span className="att-loc">{[i.location, i.subLocation].filter(Boolean).join(' › ')}</span>
+                        <span className="att-value">{costOf(i) > 0 ? money(valueOf(i), i.currency || 'USD') : ''}</span>
                         <span className={`att-metric tone-${tone}`}>{metricFor(i, key)}</span>
-                      </label>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -452,6 +491,14 @@ const InventoryAttention = () => {
           items={selectedItems}
           onClose={() => setShowPush(false)}
           onDone={() => { setSelected(new Set()); }}
+        />
+      )}
+
+      {quickViewItem && (
+        <ItemQuickViewPanel
+          item={quickViewItem}
+          canEdit
+          onClose={() => setQuickViewItem(null)}
         />
       )}
     </div>
