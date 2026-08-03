@@ -26,7 +26,7 @@ import React, { useState, useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
 import { formatMoney } from '../../../services/financeCalc';
 import {
-  monthEndStage, opensByDefault, stageSummary, lastDayOfMonth,
+  monthEndStage, opensByDefault, stageSummary, lastDayOfMonth, closeDrift,
 } from '../../../services/monthEnd';
 import { findDifferenceCandidates, differenceLead, isFedAccount } from '../../../services/differenceHunt';
 import './month-money.css';
@@ -72,6 +72,11 @@ export default function MonthMoney({
     })
     : []), [diffs, txns, allTxns, account?.id, monthKey]);
 
+  // Management often close before the last day of the month, or the day after.
+  // Lines keep arriving either way, so a closed month has to say when it has
+  // stopped matching what was signed off.
+  const drift = scoped ? closeDrift(reconciliation, txns, figures?.opening) : null;
+
   const [userOpen, setUserOpen] = useState(null);
   const open = userOpen == null ? opensByDefault(stage) : userOpen;
   const summary = stageSummary(stage, { monthLabel, blockers, statementDue: dmy(lastDayOfMonth(monthKey)) });
@@ -114,6 +119,37 @@ export default function MonthMoney({
           {/* Shut, this still has to be worth reading — it says where the month
               stands rather than just naming a drawer. */}
           {!open && <p className="mm-say">{summary}</p>}
+
+          {/* Shown whether the panel is open or shut: a signed-off figure that no
+              longer matches the ledger is not a detail to go looking for. */}
+          {drift && (
+            <div className="mm-drift">
+              <p className="mm-drift-head">
+                <Icon name="AlertCircle" size={15} />
+                {monthLabel} was closed on {dmy(drift.closedAt)}, and has moved since.
+              </p>
+              <div className="mm-drift-rows">
+                {drift.lines > 0 && (
+                  <div className="r">
+                    <span>{drift.lines} {drift.lines === 1 ? 'line' : 'lines'} arrived after the close</span>
+                    <b>{money(Math.abs(drift.lineTotal))}</b>
+                  </div>
+                )}
+                <div className="r">
+                  <span>Closing balance signed off</span>
+                  <b>{drift.recordedClosing == null ? '—' : money(drift.recordedClosing)}</b>
+                </div>
+                <div className="r is-now">
+                  <span>Closing balance now</span>
+                  <b>{money(drift.closingNow)}</b>
+                </div>
+              </div>
+              <p className="mm-drift-foot">
+                The office balanced against the figure above, so it needs reopening and
+                closing again — or these lines moving into {monthLabel === 'this month' ? 'the next month' : 'the following month'}.
+              </p>
+            </div>
+          )}
 
           {open && (
             <>
@@ -208,7 +244,9 @@ export default function MonthMoney({
                   </button>
                 </div>
               )}
-              {locked && <p className="mm-locked">{monthLabel} is closed. Reopen it from Check-off if something needs changing.</p>}
+              {locked && !drift && (
+            <p className="mm-locked">{monthLabel} is closed. Reopen it from Check-off if something needs changing.</p>
+          )}
             </>
           )}
         </div>

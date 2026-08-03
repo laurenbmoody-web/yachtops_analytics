@@ -6,7 +6,7 @@ import {
   fundingModel, fundingModelLabel, monthFigures,
   compareFigure, isBalanced, statementChecks, hasEnoughStatement,
   fundingOutcome, closeBlockers, canCloseMonth, closeMessage, closeHeadline,
-  monthEndStage, opensByDefault, stageSummary, lastDayOfMonth,
+  monthEndStage, opensByDefault, stageSummary, lastDayOfMonth, closeDrift,
 } from './monthEnd.js';
 
 // ── funding model ───────────────────────────────────────────────────────────
@@ -318,4 +318,58 @@ test('the other stages each say their own thing', () => {
   assert.match(stageSummary('due', { monthLabel: 'June 2026' }), /over and waiting to be balanced/);
   assert.match(stageSummary('closed', { monthLabel: 'June 2026' }), /is closed/);
   assert.match(stageSummary('ahead', { monthLabel: 'August 2026' }), /hasn’t started/);
+});
+
+// ── a closed month that kept moving ─────────────────────────────────────────
+const CLOSED = { status: 'submitted', submitted_at: '2026-07-28T10:00:00Z', closing_balance: 1000 };
+const line = (id, amount, createdAt) => ({
+  id, amount, txn_date: '2026-07-29', created_at: createdAt, status: 'posted',
+});
+
+test('an open month has no drift to report', () => {
+  assert.equal(closeDrift({ status: 'open' }, [], 0), null);
+  assert.equal(closeDrift(null, [], 0), null);
+});
+
+test('a closed month that nothing touched is silent', () => {
+  const txns = [line('a', -200, '2026-07-10T09:00:00Z')];
+  // opening 1200 − 200 = 1000, exactly what was recorded.
+  assert.equal(closeDrift(CLOSED, txns, 1200), null);
+});
+
+test('lines arriving after the close are counted and priced', () => {
+  // Management closed on the 28th; the feed delivered the 29th–31st afterwards.
+  const txns = [
+    line('a', -200, '2026-07-10T09:00:00Z'),
+    line('b', -50, '2026-07-30T09:00:00Z'),
+    line('c', -12, '2026-08-01T09:00:00Z'),
+  ];
+  const d = closeDrift(CLOSED, txns, 1200);
+  assert.equal(d.lines, 2);
+  assert.equal(d.lineTotal, -62);
+  assert.equal(d.recordedClosing, 1000);
+  assert.equal(d.closingNow, 938);
+  assert.equal(d.movedBy, -62);
+});
+
+test('a void line arriving after the close is not drift', () => {
+  const txns = [
+    line('a', -200, '2026-07-10T09:00:00Z'),
+    { ...line('b', -50, '2026-07-30T09:00:00Z'), status: 'void' },
+  ];
+  assert.equal(closeDrift(CLOSED, txns, 1200), null);
+});
+
+test('an edit that moves the balance is caught even with no new lines', () => {
+  // Nothing arrived, but a line's amount changed — the recorded closing balance
+  // is no longer the ledger's.
+  const txns = [line('a', -260, '2026-07-10T09:00:00Z')];
+  const d = closeDrift(CLOSED, txns, 1200);
+  assert.equal(d.lines, 0);
+  assert.equal(d.movedBy, -60);
+});
+
+test('an approved month drifts the same as a submitted one', () => {
+  const txns = [line('a', -200, '2026-07-10T09:00:00Z'), line('b', -50, '2026-07-30T09:00:00Z')];
+  assert.equal(closeDrift({ ...CLOSED, status: 'approved' }, txns, 1200).lines, 1);
 });
