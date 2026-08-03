@@ -34,6 +34,8 @@ const InventoryHealthWidget = () => {
   const hasItems = stats?.total > 0;
   const attentionCount = (stats?.outOfStock || 0) + (stats?.lowStock || 0) + (stats?.expired || 0) + (stats?.expiringSoon || 0);
   const isHealthy = hasItems && attentionCount === 0;
+  // When anything needs attention, jump to the actionable board; otherwise browse.
+  const target = attentionCount > 0 ? '/inventory/attention' : '/inventory';
 
   // Attention rows — stock first, then freshness. Coloured only when non-zero.
   const rows = [
@@ -61,15 +63,15 @@ const InventoryHealthWidget = () => {
       className="ce-card rounded-xl p-5 cursor-pointer"
       role="button"
       tabIndex={0}
-      onClick={() => navigate('/inventory')}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/inventory'); } }}
+      onClick={() => navigate(target)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(target); } }}
     >
       <div className="flex items-start justify-between mb-5">
         <div>
           <h3 className="ce-title">Inventory health</h3>
           <p className={`ce-status${statusAttention ? ' is-attention' : ''}`}>{statusText}</p>
         </div>
-        <span className="ce-link">View all</span>
+        <span className="ce-link">{attentionCount > 0 ? 'Review' : 'View all'}</span>
       </div>
 
       {loading ? (
