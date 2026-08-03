@@ -27,9 +27,10 @@
 .ow-search-scan:hover { background: #FBEFE9; color: #C65A1A; }
 .ow-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
-.ow-grouptoggle { display: inline-flex; align-items: stretch; height: 42px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 3px; }
-.ow-grouptoggle button { display: inline-flex; align-items: center; border: none; background: none; cursor: pointer; border-radius: 8px; padding: 0 14px; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; }
-.ow-grouptoggle button.on { background: #1C1B3A; color: #FFFFFF; }
+.ow-grouptoggle { display: inline-flex; align-items: stretch; height: 42px; background: #F0F1F5; border: 1px solid #E5E7EB; border-radius: 10px; padding: 3px; }
+.ow-grouptoggle button { display: inline-flex; align-items: center; border: none; background: none; cursor: pointer; border-radius: 8px; padding: 0 14px; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; transition: background 0.14s, color 0.14s; }
+.ow-grouptoggle button:hover { color: #1C1B3A; }
+.ow-grouptoggle button.on { background: #FFFFFF; color: #1C1B3A; box-shadow: 0 1px 3px rgba(28, 27, 58, 0.12); }
 /* Keep every toolbar control the same height and baseline. */
 .ow-toolbar { align-items: center; }
 .ow-tools { align-items: center; }
