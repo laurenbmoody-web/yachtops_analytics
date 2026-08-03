@@ -145,6 +145,43 @@ export const statementChecks = (figures, statement = {}) => {
 export const hasEnoughStatement = (checks) =>
   checks.some((c) => c.stated && (c.key === 'moneyOut' || c.key === 'moneyIn' || c.key === 'closing'));
 
+// ── A closed month that kept moving ──────────────────────────────────────────
+// Management often close before the last day of the month, or the day after — the
+// crew's job is to get the entries in, and the office closes when it's ready to
+// balance the owner's funds against the vessel's spending.
+//
+// Nothing stopped a month closing early, and nothing noticed what happened next:
+// lines dated 29–31 July land in a July that was closed on the 28th, the recorded
+// closing balance quietly stops matching the ledger, and the figure the office
+// balanced against is no longer the figure Cargo holds.
+//
+// This says so. It doesn't undo anything — reopening is a decision, not a
+// side effect — it just refuses to let a closed month drift in silence.
+export const closeDrift = (reconciliation, txns = [], openingBalance) => {
+  const closedAt = reconciliation?.submitted_at;
+  const status = reconciliation?.status || 'open';
+  if (status === 'open' || !closedAt) return null;
+
+  // Anything that arrived after the close was recorded. created_at, not txn_date:
+  // a line dated the 3rd can be entered on the 20th, and it's the entry that the
+  // closed figures didn't know about.
+  const since = txns.filter((t) => isLive(t) && t.created_at && t.created_at > closedAt);
+
+  const now = monthFigures(openingBalance, txns);
+  const recorded = reconciliation.closing_balance;
+  const movedBy = recorded == null ? 0 : round2(now.closing - Number(recorded));
+
+  if (!since.length && Math.abs(movedBy) < 0.005) return null;
+  return {
+    closedAt,
+    lines: since.length,
+    lineTotal: round2(since.reduce((sum, t) => sum + Number(t.amount || 0), 0)),
+    recordedClosing: recorded == null ? null : Number(recorded),
+    closingNow: now.closing,
+    movedBy,
+  };
+};
+
 // ── What each funding model owes or holds at the end of the month ────────────
 // Derived from the figures — never typed, never used to force a balance.
 export const fundingOutcome = (model, figures, account) => {

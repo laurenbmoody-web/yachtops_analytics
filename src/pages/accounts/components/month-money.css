@@ -106,3 +106,21 @@
 .mm-locked { margin: 14px 0 0; font-size: 12px; color: #8B8478; }
 
 @media (max-width: 700px) { .mm-fields { grid-template-columns: minmax(0, 1fr); } }
+
+/* A closed month that kept moving. Not a boxed warning — the same hairline rows
+   as the money above it, because it IS the money, just after the fact. */
+.mm-drift { margin-top: 16px; padding-top: 14px; border-top: 1px solid #F0F1F5; }
+.mm-drift-head {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0;
+  font-size: 13px; font-weight: 650; color: #1C1B3A; line-height: 1.45;
+}
+.mm-drift-head svg { flex: 0 0 auto; margin-top: 1px; color: #C65A1A; }
+.mm-drift-rows { display: flex; flex-direction: column; margin-top: 10px; }
+.mm-drift-rows .r {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 20px;
+  padding: 7px 0; border-bottom: 1px solid #F5F6F8; font-size: 12.5px; color: #6B7280;
+}
+.mm-drift-rows .r:last-child { border-bottom: 0; }
+.mm-drift-rows .r b { font-size: 14px; font-weight: 600; color: #1C1B3A; font-variant-numeric: tabular-nums; }
+.mm-drift-rows .r.is-now b { color: #C65A1A; }
+.mm-drift-foot { margin: 10px 0 0; font-size: 11.5px; color: #8B8478; line-height: 1.5; }
