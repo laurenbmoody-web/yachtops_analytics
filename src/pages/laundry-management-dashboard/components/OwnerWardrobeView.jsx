@@ -36,11 +36,14 @@ const AGES = [
   { value: 'o', label: 'On board 6 months+' },
 ];
 const inWash = (i) => i.status === LaundryStatus.IN_PROGRESS || i.status === LaundryStatus.READY_TO_DELIVER;
-const STATUS = {
-  Stored: { label: 'In wardrobe', cls: 'stored' },
-  InProgress: { label: 'In laundry', cls: 'prog' },
-  ReadyToDeliver: { label: 'Ready', cls: 'ready' },
-  Delivered: { label: 'Delivered', cls: 'done' },
+// Resident garments live on board permanently — the laundry lifecycle
+// (Ready / Delivered) is a separate concern, so we only surface a presence
+// state when a garment is temporarily elsewhere: away in a case, or at the
+// laundry. On board in its wardrobe = the default, no pill.
+const garmentState = (it) => {
+  if (it.caseId) return { label: 'Away', cls: 'away' };
+  if (inWash(it)) return { label: 'In laundry', cls: 'prog' };
+  return null;
 };
 // Age filter is cumulative — "≤ 1 month" includes items only days old. `o`
 // (6 months+) is the one open-ended band.
@@ -174,9 +177,9 @@ const OwnerWardrobeView = ({ onBack }) => {
       else list = list.filter((i) => i.wardrobeId === fLoc);
     }
     if (fType !== 'all') list = list.filter((i) => i.garmentType === fType);
-    if (fStatus === 'wardrobe') list = list.filter((i) => i.status === LaundryStatus.STORED);
+    if (fStatus === 'onboard') list = list.filter((i) => !i.caseId && !inWash(i));
+    else if (fStatus === 'away') list = list.filter((i) => i.caseId);
     else if (fStatus === 'laundry') list = list.filter(inWash);
-    else if (fStatus === 'delivered') list = list.filter((i) => i.status === LaundryStatus.DELIVERED);
     if (fAge !== 'all') list = list.filter((i) => ageWithin(i.createdAt, fAge));
     const s = [...list];
     s.sort((a, b) => {
@@ -210,7 +213,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   const filterGroups = [
     { key: 'loc', label: 'Location', value: fLoc, neutral: 'all', onChange: setFLoc, options: [{ value: 'all', label: 'Everywhere' }, ...wardrobes.map((w) => ({ value: w.id, label: w.name })), { value: 'away', label: 'Away (in a case)' }] },
     { key: 'type', label: 'Type of clothing', value: fType, neutral: 'all', onChange: setFType, options: [{ value: 'all', label: 'All types' }, ...types.map((t) => ({ value: t, label: t }))] },
-    { key: 'status', label: 'Status', value: fStatus, neutral: 'all', onChange: setFStatus, options: [{ value: 'all', label: 'Any status' }, { value: 'wardrobe', label: 'In wardrobe' }, { value: 'laundry', label: 'In laundry' }, { value: 'delivered', label: 'Delivered' }] },
+    { key: 'status', label: 'Where', value: fStatus, neutral: 'all', onChange: setFStatus, options: [{ value: 'all', label: 'Anywhere' }, { value: 'onboard', label: 'On board' }, { value: 'away', label: 'Away (in a case)' }, { value: 'laundry', label: 'In laundry' }] },
     { key: 'age', label: 'Time on board', value: fAge, neutral: 'all', onChange: setFAge, options: AGES },
   ];
 
@@ -282,7 +285,6 @@ const OwnerWardrobeView = ({ onBack }) => {
 
   const renderCard = (it) => {
     const photo = (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
-    const st = STATUS[it.status] || { label: it.status, cls: 'stored' };
     return (
       <div className={`ow-card${sel.has(it.id) ? ' sel' : ''}`} key={it.id}>
         <button type="button" className="ow-check" onClick={() => toggle(it.id)} aria-label="Select"><Icon name={sel.has(it.id) ? 'CheckSquare' : 'Square'} size={18} /></button>
@@ -294,14 +296,14 @@ const OwnerWardrobeView = ({ onBack }) => {
         <button type="button" className="ow-card-body" onClick={() => setFullItem(it)}>
           <span className="ow-card-nm">{it.description || 'Garment'}</span>
           <span className="ow-card-sub">{it.garmentType || '—'}{showValue && it.garmentValue != null ? ` · ${money(it.garmentValue, it.garmentValueCurrency)}` : ''}</span>
-          <span className={`ow-status sm ${st.cls}`}>{st.label}</span>
+          {inWash(it) && !it.caseId && <span className="ow-status sm prog">In laundry</span>}
         </button>
       </div>
     );
   };
   const renderRow = (it) => {
     const photo = (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
-    const st = STATUS[it.status] || { label: it.status, cls: 'stored' };
+    const gs = garmentState(it);
     return (
       <div className={`ow-lrow${sel.has(it.id) ? ' sel' : ''}`} key={it.id}>
         <button type="button" className="ow-check" onClick={() => toggle(it.id)} aria-label="Select"><Icon name={sel.has(it.id) ? 'CheckSquare' : 'Square'} size={18} /></button>
@@ -311,7 +313,7 @@ const OwnerWardrobeView = ({ onBack }) => {
           <span className="ow-card-sub">{[it.garmentType, it.colour, wardrobeName(it.wardrobeId)].filter(Boolean).join(' · ')}</span>
         </button>
         {showValue && it.garmentValue != null && <span className="ow-lval">{money(it.garmentValue, it.garmentValueCurrency)}</span>}
-        <span className={`ow-status sm ${st.cls}`}>{it.caseId ? 'Away' : st.label}</span>
+        {gs && <span className={`ow-status sm ${gs.cls}`}>{gs.label}</span>}
       </div>
     );
   };
