@@ -28,7 +28,7 @@ import { formatMoney } from '../../../services/financeCalc';
 import {
   monthEndStage, opensByDefault, stageSummary, lastDayOfMonth,
 } from '../../../services/monthEnd';
-import { findDifferenceCandidates, differenceLead } from '../../../services/differenceHunt';
+import { findDifferenceCandidates, differenceLead, isFedAccount } from '../../../services/differenceHunt';
 import './month-money.css';
 
 // Same order as the ladder above them — in, then out, then what that leaves.
@@ -153,6 +153,7 @@ export default function MonthMoney({
                 <div className="mm-hunt">
                   <p className="mm-hunt-lead">
                     {differenceLead(candidates, {
+                      fed: isFedAccount(txns),
                       key: diffs[0].key.replace('diff:', ''),
                       ours: diffs[0].ours,
                       theirs: diffs[0].theirs,

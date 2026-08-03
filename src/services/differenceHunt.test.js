@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  findDifferenceCandidates, differenceLead, typoKind, differenceMeaning,
+  findDifferenceCandidates, differenceLead, typoKind, differenceMeaning, isFedAccount,
 } from './differenceHunt.js';
 
 const t = (id, amount, extra = {}) => ({
@@ -216,4 +216,44 @@ test('with no amount given it still reads as a sentence', () => {
 
 test('a matching line still wins over any of it', () => {
   assert.equal(differenceLead([{ key: 'a' }], { ours: 1, theirs: 2 }), 'One line would explain it:');
+});
+
+// ── a fed card can't be missing much ────────────────────────────────────────
+test('a card with bank-feed lines is a fed card', () => {
+  assert.equal(isFedAccount([{ source: 'bank_feed' }]), true);
+  assert.equal(isFedAccount([{ source: 'manual' }, { source: 'import' }]), false);
+  assert.equal(isFedAccount([{ source: 'bank_feed', status: 'void' }]), false);
+  assert.equal(isFedAccount([]), false);
+});
+
+test('on a fed card, "a line never made it in" is not the advice', () => {
+  // Plaid IS the bank. Sending someone to look for a line that never arrived
+  // sends them after something that can't be there.
+  const lead = differenceLead([], {
+    key: 'moneyOut', ours: 98, theirs: 200, amountText: '£102.00', fed: true,
+  });
+  assert.doesNotMatch(lead, /never made it in/);
+  assert.match(lead, /bank feeds this card/);
+  assert.match(lead, /voided here/);
+});
+
+test('on a card with no feed it still is', () => {
+  const lead = differenceLead([], {
+    key: 'moneyOut', ours: 98, theirs: 200, amountText: '£102.00', fed: false,
+  });
+  assert.match(lead, /never made it in/);
+});
+
+test('an extra charge on a fed card points at a hand-typed line', () => {
+  const lead = differenceLead([], {
+    key: 'moneyOut', ours: 200, theirs: 98, amountText: '£102.00', fed: true,
+  });
+  assert.match(lead, /typed in on top of the feed/);
+});
+
+test('the opening balance says the same thing either way', () => {
+  const a = differenceLead([], { key: 'opening', ours: 100, theirs: 80, amountText: '£20.00', fed: true });
+  const b = differenceLead([], { key: 'opening', ours: 100, theirs: 80, amountText: '£20.00', fed: false });
+  assert.equal(a, b);
+  assert.match(a, /last month’s closing balance/);
 });

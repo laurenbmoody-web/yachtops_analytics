@@ -197,15 +197,42 @@ export const differenceMeaning = (key, ours, theirs) => {
   return cargoHigher ? 'extraOut' : 'missingOut';   // moneyOut
 };
 
+// Does this card's spending arrive by bank feed? On a fed card the feed IS the
+// bank, so "a line never made it in" is close to impossible — telling someone to
+// go and look for one sends them after something that can't be there. What CAN
+// happen on a fed card is a line voided by hand, or one typed in on top of the
+// feed. On a card with no feed, spending genuinely does get missed.
+export const isFedAccount = (txns = []) =>
+  txns.some((t) => t && t.status !== 'void' && t.source === 'bank_feed');
+
+// Two sets of second halves. The first job differs by whether a feed is filling
+// this card in; the second — re-check what you typed — never does.
 const SAY = {
-  extraOut: (gap) => `Cargo has ${gap} of spending the statement doesn’t. Check for a line the bank never charged — then re-check the figure you typed.`,
-  missingOut: (gap) => `Cargo is missing ${gap} of spending the statement has. Check for a line that never made it in — then re-check the figure you typed.`,
-  extraIn: (gap) => `Cargo has ${gap} of money in the statement doesn’t. Check for a payment that never actually arrived — then re-check the figure you typed.`,
-  missingIn: (gap) => `Cargo is missing ${gap} of money in the statement has. Check for a payment in that was never recorded — then re-check the figure you typed.`,
-  opening: (gap) => `The opening balance is ${gap} out. That figure is last month’s closing balance — check that month before this one.`,
+  extraOut: {
+    open: (gap) => `Cargo has ${gap} of spending the statement doesn’t. Check for a line the bank never charged — then re-check the figure you typed.`,
+    fed: (gap) => `Cargo has ${gap} of spending the statement doesn’t. On a card the bank feeds, that usually means a line typed in on top of the feed — otherwise re-check the figure you typed.`,
+  },
+  missingOut: {
+    open: (gap) => `Cargo is missing ${gap} of spending the statement has. Check for a line that never made it in — then re-check the figure you typed.`,
+    fed: (gap) => `Cargo is missing ${gap} of spending the statement has. The bank feeds this card, so little should be missing — re-check the figure you typed, or look for a line voided here.`,
+  },
+  extraIn: {
+    open: (gap) => `Cargo has ${gap} of money in the statement doesn’t. Check for a payment that never actually arrived — then re-check the figure you typed.`,
+    fed: (gap) => `Cargo has ${gap} of money in the statement doesn’t. On a card the bank feeds, that usually means a payment entered by hand as well — otherwise re-check the figure you typed.`,
+  },
+  missingIn: {
+    open: (gap) => `Cargo is missing ${gap} of money in the statement has. Check for a payment in that was never recorded — then re-check the figure you typed.`,
+    fed: (gap) => `Cargo is missing ${gap} of money in the statement has. The bank feeds this card, so re-check the figure you typed first.`,
+  },
+  opening: {
+    open: (gap) => `The opening balance is ${gap} out. That figure is last month’s closing balance — check that month before this one.`,
+    fed: (gap) => `The opening balance is ${gap} out. That figure is last month’s closing balance — check that month before this one.`,
+  },
 };
 
-export const differenceLead = (candidates = [], { key = 'moneyOut', ours, theirs, amountText = '' } = {}) => {
+export const differenceLead = (
+  candidates = [], { key = 'moneyOut', ours, theirs, amountText = '', fed = false } = {},
+) => {
   if (candidates.length) {
     return candidates.length === 1
       ? 'One line would explain it:'
@@ -220,6 +247,6 @@ export const differenceLead = (candidates = [], { key = 'moneyOut', ours, theirs
   }
 
   const gap = amountText || 'the difference';
-  return SAY[differenceMeaning(key, ours, theirs)](gap);
+  return SAY[differenceMeaning(key, ours, theirs)][fed ? 'fed' : 'open'](gap);
 };
 
