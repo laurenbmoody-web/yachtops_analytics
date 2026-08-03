@@ -371,15 +371,34 @@ const OwnerWardrobeView = ({ onBack }) => {
     </div>
   );
 
-  // Landing figures: how many people have garments stored on board, and how many
-  // garments that is. Plus per-person counts recomputed from the filtered set.
+  // Landing figures: how many people have garments stored on board, how many
+  // garments, the total wardrobe value, and how many are away / at the laundry.
   const onboardStored = items.filter((i) => i.status === LaundryStatus.STORED && !i.caseId);
   const peopleOnboard = new Set(onboardStored.map((i) => i.ownerGuestId || 'owner')).size;
+  const totalValue = items.reduce((a, i) => a + (Number(i.garmentValue) || 0), 0);
+  const valueCur = items.find((i) => i.garmentValue != null)?.garmentValueCurrency || 'EUR';
+  const awayAll = items.filter((i) => i.caseId).length;
+  const washAll = items.filter(inWash).length;
   const anyFilter = !!query.trim() || fLoc !== 'all' || fType !== 'all' || fStatus !== 'all' || fAge !== 'all';
-  const shownCounts = new Map();
-  shown.forEach((it) => { const k = it.ownerGuestId || 'owner'; shownCounts.set(k, (shownCounts.get(k) || 0) + 1); });
+  // Per-person aggregates from the filtered set — count, a few thumbnails, total
+  // value, and movement (away / at laundry) — so each tile reads like a wardrobe.
+  const byPerson = new Map();
+  shown.forEach((it) => {
+    const k = it.ownerGuestId || 'owner';
+    const e = byPerson.get(k) || { count: 0, thumbs: [], value: 0, cur: null, away: 0, wash: 0 };
+    e.count += 1;
+    const photo = (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
+    if (photo && e.thumbs.length < 5) e.thumbs.push(photo);
+    if (it.garmentValue != null) { e.value += Number(it.garmentValue) || 0; if (!e.cur) e.cur = it.garmentValueCurrency || 'EUR'; }
+    if (it.caseId) e.away += 1;
+    if (inWash(it)) e.wash += 1;
+    byPerson.set(k, e);
+  });
   const landingPeople = people
-    .map((p) => ({ ...p, count: shownCounts.get(p.id) || 0 }))
+    .map((p) => {
+      const e = byPerson.get(p.id) || { count: 0, thumbs: [], value: 0, cur: null, away: 0, wash: 0 };
+      return { ...p, count: e.count, thumbs: e.thumbs, away: e.away, wash: e.wash, value: showValue && e.value > 0 ? money(e.value, e.cur || 'EUR') : '' };
+    })
     .filter((p) => (anyFilter ? p.count > 0 : true));
 
   // Landing — everyone with garments on board. Toggle person tiles (By owner)
@@ -394,6 +413,8 @@ const OwnerWardrobeView = ({ onBack }) => {
           <span className="dot">●</span>
           <span className="muted">{peopleOnboard} {peopleOnboard === 1 ? 'person' : 'people'} on board</span>
           <span className="bar" /><span className="muted">{onboardStored.length} stored on board</span>
+          {showValue && totalValue > 0 && <><span className="bar" /><span className="muted">{money(totalValue, valueCur)} total value</span></>}
+          {(awayAll + washAll) > 0 && <><span className="bar" /><span className="muted">{awayAll} away · {washAll} at laundry</span></>}
         </p>
         <h1 className="editorial-greeting">STORED<span className="period">,</span> <em>onboard</em><span className="period">.</span></h1>
 
