@@ -7,6 +7,7 @@ import {
   compareFigure, isBalanced, statementChecks, hasEnoughStatement,
   fundingOutcome, closeBlockers, canCloseMonth, closeMessage, closeHeadline,
   monthEndStage, opensByDefault, stageSummary, lastDayOfMonth, closeDrift,
+  reconcilePeriod, nextMonth, postedLate,
 } from './monthEnd.js';
 
 // ── funding model ───────────────────────────────────────────────────────────
@@ -372,4 +373,53 @@ test('an edit that moves the balance is caught even with no new lines', () => {
 test('an approved month drifts the same as a submitted one', () => {
   const txns = [line('a', -200, '2026-07-10T09:00:00Z'), line('b', -50, '2026-07-30T09:00:00Z')];
   assert.equal(closeDrift({ ...CLOSED, status: 'approved' }, txns, 1200).lines, 1);
+});
+
+// ── the close draws the period line, not the calendar ───────────────────────
+const CLOSES = { '2026-07': '2026-07-28T10:00:00Z' };
+
+test('next month rolls the year over', () => {
+  assert.equal(nextMonth('2026-07'), '2026-08');
+  assert.equal(nextMonth('2026-12'), '2027-01');
+});
+
+test('a line that arrives after the close posts to the next period', () => {
+  // Spent 30 July, but July was closed on the 28th — management balanced without
+  // it, so it belongs in August's reconciliation.
+  const late = { created_at: '2026-07-30T09:00:00Z' };
+  assert.equal(reconcilePeriod(late, '2026-07', CLOSES), '2026-08');
+  assert.equal(postedLate(late, '2026-07', CLOSES), true);
+});
+
+test('a line that was already there when it closed stays put', () => {
+  // It was part of the figures that were signed off. Moving it would falsify them.
+  const early = { created_at: '2026-07-02T09:00:00Z' };
+  assert.equal(reconcilePeriod(early, '2026-07', CLOSES), '2026-07');
+  assert.equal(postedLate(early, '2026-07', CLOSES), false);
+});
+
+test('an open month keeps everything', () => {
+  const anyLine = { created_at: '2026-08-30T09:00:00Z' };
+  assert.equal(reconcilePeriod(anyLine, '2026-08', CLOSES), '2026-08');
+});
+
+test('it keeps rolling while the periods it lands in are also closed', () => {
+  const closes = {
+    '2026-07': '2026-07-28T10:00:00Z',
+    '2026-08': '2026-08-28T10:00:00Z',
+  };
+  const veryLate = { created_at: '2026-09-01T09:00:00Z' };
+  assert.equal(reconcilePeriod(veryLate, '2026-07', closes), '2026-09');
+});
+
+test('a line with no created_at is left where it is', () => {
+  // No way to know whether it predated the close, and guessing would move money
+  // between periods on nothing.
+  assert.equal(reconcilePeriod({}, '2026-07', CLOSES), '2026-07');
+});
+
+test('the spend date is untouched — only the period moves', () => {
+  const late = { created_at: '2026-07-30T09:00:00Z', txn_date: '2026-07-30' };
+  reconcilePeriod(late, '2026-07', CLOSES);
+  assert.equal(late.txn_date, '2026-07-30');
 });

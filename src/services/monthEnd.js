@@ -145,6 +145,51 @@ export const statementChecks = (figures, statement = {}) => {
 export const hasEnoughStatement = (checks) =>
   checks.some((c) => c.stated && (c.key === 'moneyOut' || c.key === 'moneyIn' || c.key === 'closing'));
 
+// ── Which period a line actually reconciles in ───────────────────────────────
+// A close draws a line under the account, and management balance the owner's
+// funds against what was under it. So a line that arrives AFTER July was closed
+// doesn't belong to July's reconciliation, whatever day it was spent — it posts
+// to the next period that's still open. That's how a cash book has always worked:
+// the spend date is a fact about the purchase, the period is a fact about when it
+// was accounted for, and closing early simply moves the boundary.
+//
+// A line that already existed when the month closed stays put. It was part of the
+// figures that were signed off, and moving it would falsify them.
+//
+// `closes` maps 'YYYY-MM' → the ISO time that month was closed (submitted_at).
+// Months with no entry are open.
+export const reconcilePeriod = (txn, naturalMonth, closes = {}) => {
+  if (!txn || !naturalMonth) return naturalMonth || null;
+  const born = txn.created_at;
+  // Without a creation time there's no way to know whether it predated the close,
+  // and moving money between periods on a guess is worse than leaving it.
+  if (!born) return naturalMonth;
+  let month = naturalMonth;
+
+  // Walk forward while the period is closed and this line arrived after the fact.
+  // Bounded: a line can't roll past a period that isn't closed, and 24 hops is far
+  // more than any real backlog.
+  for (let i = 0; i < 24; i += 1) {
+    const closedAt = closes[month];
+    if (!closedAt) return month;                 // open period — it lands here
+    if (born <= closedAt) return month;          // it was in the figures that closed
+    month = nextMonth(month);
+  }
+  return month;
+};
+
+export const nextMonth = (monthKey) => {
+  const [y, m] = String(monthKey || '').split('-').map(Number);
+  if (!y || !m) return monthKey;
+  const d = new Date(Date.UTC(y, m, 1));         // m is 1-based, so this is the next month
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+
+// True when a line is being reconciled somewhere other than where it was spent —
+// worth saying on the row, because the money moved months without anyone doing it.
+export const postedLate = (txn, naturalMonth, closes = {}) =>
+  reconcilePeriod(txn, naturalMonth, closes) !== naturalMonth;
+
 // ── A closed month that kept moving ──────────────────────────────────────────
 // Management often close before the last day of the month, or the day after — the
 // crew's job is to get the entries in, and the office closes when it's ready to

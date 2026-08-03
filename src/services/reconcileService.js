@@ -37,6 +37,19 @@ export async function listReconciliationsForMonth(tenantId, periodMonth) {
 }
 
 // Ensure a row exists for (account, month) so status can be tracked. Idempotent.
+// Every period this account has closed, so the page can tell which months are
+// shut and when they shut. A close draws the period boundary — see
+// monthEnd.reconcilePeriod — so the ledger can't group by calendar alone.
+export async function listReconciliationsForAccount(accountId) {
+  if (!accountId) return { data: [], error: null };
+  const { data, error } = await supabase
+    .from('account_reconciliations')
+    .select('period_month, status, submitted_at')
+    .eq('account_id', accountId)
+    .neq('status', 'open');
+  return { data: data || [], error };
+}
+
 export async function ensureReconciliation({ tenantId, accountId, periodMonth }) {
   const existing = await getReconciliation(accountId, periodMonth);
   if (existing.data || existing.error) return existing;
