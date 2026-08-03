@@ -31,6 +31,7 @@ import ReceiptClip from '../components/ReceiptClip';
 import { walletAccounts, accountLabel } from '../../../services/accountPick';
 import {
   monthFigures, statementChecks, closeBlockers, fundingModel, fundingOutcome,
+  reconcilePeriod, postedLate,
 } from '../../../services/monthEnd';
 
 // A scope, not an account id — "the lines that aren't on any card".
@@ -39,7 +40,8 @@ import AccountStack from '../components/AccountStack';
 import MonthMoney from '../components/MonthMoney';
 import CloseBlockers from '../components/CloseBlockers';
 import {
-  getReconciliation, listReconciliationsForMonth, saveStatementFigures, closeMonth,
+  getReconciliation, listReconciliationsForMonth, listReconciliationsForAccount,
+  saveStatementFigures, closeMonth,
 } from '../../../services/reconcileService';
 import { STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER } from '../budgets/data/mybaChartOfAccounts';
 import { formatMoney, isLiveTxn } from '../../../services/financeCalc';
@@ -99,8 +101,10 @@ const thisYm = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d
 // Every calendar month from the earliest transaction to the latest (or today,
 // whichever is later), ascending — including empty ones, so stepping never
 // silently skips a gap.
-const buildAxis = (rows, basis) => {
-  const yms = rows.map((r) => ymOf(effectiveDate(r, basis))).filter(Boolean);
+const buildAxis = (rows, basis, closes = {}) => {
+  const yms = rows
+    .map((r) => reconcilePeriod(r, ymOf(effectiveDate(r, basis)), closes))
+    .filter(Boolean);
   if (!yms.length) return [thisYm()];
   const min = yms.reduce((a, b) => (a < b ? a : b));
   const max = [...yms, thisYm()].reduce((a, b) => (a > b ? a : b));
@@ -152,6 +156,9 @@ export default function Ledger() {
   // invoice id → the invoice, so a line can be sent to its document and its order
   // rather than to the top of Provisioning.
   const [invoiceById, setInvoiceById] = useState({});
+  // period 'YYYY-MM' → when it was closed. A line arriving after a close belongs
+  // to the next open period, not to the month it was spent in.
+  const [closes, setCloses] = useState({});
   const [scanOpen, setScanOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [scanSeed, setScanSeed] = useState(null);   // parsed receipt → prefills Add spending
@@ -225,6 +232,15 @@ export default function Ledger() {
     });
   }, [txns]);
 
+  useEffect(() => {
+    if (!filters.accountId || filters.accountId === UNASSIGNED) { setCloses({}); return; }
+    listReconciliationsForAccount(filters.accountId).then(({ data }) => {
+      setCloses(Object.fromEntries(
+        (data || []).filter((r) => r.submitted_at).map((r) => [String(r.period_month).slice(0, 7), r.submitted_at]),
+      ));
+    });
+  }, [filters.accountId, reconTick]);
+
   useEffect(() => { loadAccounts(); }, [loadAccounts]);
   useEffect(() => { loadTxns(); }, [loadTxns]);
   useEffect(() => { loadRules(); }, [loadRules]);
@@ -259,12 +275,19 @@ export default function Ledger() {
     return withRun.reverse();
   }, [txns, filters.accountId, accountsById]);
 
-  // Month axis + per-month stats for the navigator and quick-jump strip.
-  const axis = useMemo(() => buildAxis(rows, dateBasis), [rows, dateBasis]);
+  // Which period a line reconciles in. Its spend date never moves; the period
+  // does, when the month it belongs to was closed before the line existed.
+  const periodOf = useCallback(
+    (t) => reconcilePeriod(t, ymOf(effectiveDate(t, dateBasis)), closes),
+    [dateBasis, closes],
+  );
+
+  // Month axis + per-period stats for the navigator and quick-jump strip.
+  const axis = useMemo(() => buildAxis(rows, dateBasis, closes), [rows, dateBasis, closes]);
   const statsByMonth = useMemo(() => {
     const m = {};
     rows.forEach((t) => {
-      const ym = ymOf(effectiveDate(t, dateBasis)); if (!ym) return;
+      const ym = periodOf(t); if (!ym) return;
       const s = (m[ym] ||= { entries: 0, look: 0, filed: 0, net: 0, inSum: 0, outSum: 0 });
       s.entries += 1;
       if (isLookRow(t)) s.look += 1;
@@ -276,7 +299,7 @@ export default function Ledger() {
       }
     });
     return m;
-  }, [rows, dateBasis]);
+  }, [rows, periodOf]);
 
   // Keep the active month valid: default to the newest month, re-clamp if the axis
   // changes (e.g. a filter narrows the set).
@@ -304,8 +327,8 @@ export default function Ledger() {
   // Everything in the month, before the Show filter. Balancing is about the whole
   // month's money — a list narrowed to "needs a look" would total the wrong figure.
   const monthAll = useMemo(
-    () => rows.filter((t) => ymOf(effectiveDate(t, dateBasis)) === activeMonth),
-    [rows, activeMonth, dateBasis],
+    () => rows.filter((t) => periodOf(t) === activeMonth),
+    [rows, activeMonth, periodOf],
   );
 
   // Per-account figures for the wallet stack — taken from every account's rows,
@@ -313,14 +336,14 @@ export default function Ledger() {
   const stackStats = useMemo(() => {
     const m = {};
     txns.forEach((t) => {
-      if (ymOf(effectiveDate(t, dateBasis)) !== activeMonth) return;
+      if (periodOf(t) !== activeMonth) return;
       const k = t.account_id || '';
       const s = (m[k] ||= { count: 0, out: 0 });
       s.count += 1;
       if (isLiveTxn(t) && Number(t.amount) < 0) s.out += Number(t.amount);
     });
     return m;
-  }, [txns, activeMonth, dateBasis]);
+  }, [txns, activeMonth, periodOf]);
 
   // See walletAccounts: the vessel's own money, plus any card that moved money
   // this month. Showing every account put all twelve of the boat's cards in the
@@ -832,6 +855,15 @@ export default function Ledger() {
               {t.is_pending && <span className="ca-pend" title="Card authorisation not settled">pending</span>}
               {straddlesMonth(t) && (
                 <span className="ca-straddle" title={`Spent ${fmtDMY(t.txn_date)} but posted ${fmtDMY(t.statement_date)} — different months`}>crosses month</span>
+              )}
+              {/* Its own month was already closed when it arrived, so it reconciles
+                  here instead. The spend date is untouched — only the period moved,
+                  and saying nothing would make the line look misfiled. */}
+              {postedLate(t, ymOf(effectiveDate(t, dateBasis)), closes) && (
+                <span className="ca-late"
+                  title={`Spent in ${ymLabel(ymOf(effectiveDate(t, dateBasis)))}, which had already been closed — so it reconciles in ${ymLabel(periodOf(t))}`}>
+                  posted late from {ymLabel(ymOf(effectiveDate(t, dateBasis)))}
+                </span>
               )}
               {alloc && <span className={`ca-allocx${alloc === 'charter' ? ' is-charter' : ''}`}>{alloc === 'charter' ? 'charter · APA' : 'owner'}</span>}
             </div>
