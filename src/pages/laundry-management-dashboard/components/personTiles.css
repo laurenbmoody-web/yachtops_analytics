@@ -21,9 +21,21 @@
 .pt-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; color: #1C1B3A; line-height: 1.15; }
 .pt-sub { font-size: 11.5px; color: #8B8478; }
 .pt-count {
-  margin-top: 8px; font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #1C1B3A; line-height: 1;
+  font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #1C1B3A; line-height: 1;
 }
 .pt-count small { font: 700 8px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #9A93A0; margin-left: 5px; }
+
+/* Optional enrichment (owner/guest worlds pass these; crew doesn't) */
+.pt-thumbs { display: flex; gap: 5px; margin-top: 11px; }
+.pt-thumb { width: 30px; height: 30px; border-radius: 7px; overflow: hidden; background: #F5F6F8; border: 1px solid #EEF0F4; display: grid; place-items: center; color: #C9CDD6; flex: none; }
+.pt-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.pt-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; width: 100%; margin-top: 11px; }
+.pt-foot-r { display: flex; align-items: center; gap: 6px; }
+.pt-value { font: 800 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.pt-mv { display: inline-flex; align-items: center; gap: 3px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; border-radius: 999px; padding: 3px 7px; }
+.pt-mv svg { flex: none; }
+.pt-mv.away { color: #4A4863; background: #EEF0F4; }
+.pt-mv.wash { color: #B7791F; background: #FBF1DF; }
 
 .pt-go { position: absolute; top: 16px; right: 16px; color: #AEB4C2; transition: color 0.16s, transform 0.16s; }
 .pt-tile:hover .pt-go { color: #C65A1A; transform: translateX(2px); }
