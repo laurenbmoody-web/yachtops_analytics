@@ -34,6 +34,17 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
   const d = item.details || {};
   const purchased = [d.purchasedPlace, d.purchasedDate ? fmtDate(d.purchasedDate) : ''].filter(Boolean).join(' · ');
 
+  const [stays, setStays] = useState(!!item.staysOnboard);
+  const [staysBusy, setStaysBusy] = useState(false);
+  const toggleStays = async () => {
+    if (staysBusy) return;
+    const next = !stays;
+    setStays(next); setStaysBusy(true);
+    await updateLaundryItem(item.id, { staysOnboard: next });
+    setStaysBusy(false);
+    window.showToast?.(next ? 'Kept on board — belongs here permanently' : 'No longer marked as staying on board', 'success');
+  };
+
   const toggleTag = (t) => setDraft((d) => ({ ...d, tags: d.tags.includes(t) ? d.tags.filter((x) => x !== t) : [...d.tags, t] }));
 
   const save = async () => {
@@ -78,7 +89,7 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
                 {item.colour && <span className="ow-chip subtle">{item.colour}</span>}
                 {d.condition && <span className="ow-chip subtle">{d.condition}</span>}
                 {showValue && item.garmentValue != null && <span className="ow-chip subtle">{money(item.garmentValue, item.garmentValueCurrency)}</span>}
-                {item.staysOnboard && <span className="ow-chip stays"><Icon name="Anchor" size={11} /> Stays aboard</span>}
+                {stays && <span className="ow-chip stays"><Icon name="Anchor" size={11} /> Stays aboard</span>}
               </div>
               {d.description && <p className="ow-full-desc">{d.description}</p>}
               {Array.isArray(item.tags) && item.tags.length > 0 && (
@@ -125,6 +136,7 @@ const GarmentFullView = ({ item, wardrobes = [], showValue = true, caseName = nu
               </>
             ) : (
               <>
+                <button type="button" className={`ow-btn ${stays ? 'onboard-on' : 'ghost'}`} onClick={toggleStays} disabled={staysBusy} title="Belongs on board permanently"><Icon name="Anchor" size={15} /> {stays ? 'On board' : 'Keep on board'}</button>
                 {item.status === LaundryStatus.STORED && <button type="button" className="ow-btn ghost" onClick={() => act('launder')}><Icon name="Waves" size={15} /> Launder</button>}
                 <button type="button" className="ow-btn ghost" onClick={() => act('pack')}><Icon name="Package" size={15} /> Pack</button>
                 <button type="button" className="ow-btn ghost" onClick={() => act('move')}><Icon name="FolderInput" size={15} /> Move</button>
