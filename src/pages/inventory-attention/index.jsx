@@ -88,6 +88,7 @@ const InventoryAttention = () => {
   const [ddOpen, setDDOpen] = useState(null); // which filter sub-dropdown is open
   const [showHidden, setShowHidden] = useState(false);
   const [hiding, setHiding] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -179,6 +180,31 @@ const InventoryAttention = () => {
     return n;
   });
   const toggleSection = (key) => setCollapsed((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+
+  // Export the currently-visible list (respects filters + type toggles).
+  const exportRows = useMemo(
+    () => SECTIONS.filter((s) => types.has(s.key)).flatMap((s) => buckets[s.key]),
+    [buckets, types],
+  );
+  const handleExport = async (fmt) => {
+    setOpenMenu(null);
+    if (!exportRows.length || exporting) return;
+    setExporting(true);
+    try {
+      const opts = { items: exportRows, scope: 'attention', folderPath: showHidden ? 'Hidden from attention' : 'Needs attention', includeImages: false };
+      if (fmt === 'pdf') {
+        const { exportInventoryToPDF } = await import('../enhanced-4-level-inventory-navigation/utils/inventoryPdfExport');
+        await exportInventoryToPDF(opts);
+      } else {
+        const { exportInventoryToXLSX } = await import('../enhanced-4-level-inventory-navigation/utils/inventoryXlsxExport');
+        await exportInventoryToXLSX(opts);
+      }
+    } catch {
+      window.showToast?.('Export failed — try again', 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const selectedItems = useMemo(() => {
     const today = startOfToday();
@@ -341,6 +367,18 @@ const InventoryAttention = () => {
                   {hiddenCount > 0 && <span className="att-tool-count">{hiddenCount}</span>}
                 </button>
               )}
+              <div className="att-toolwrap">
+                <button className="att-tool" onClick={() => setOpenMenu(openMenu === 'export' ? null : 'export')} disabled={exporting || exportRows.length === 0}>
+                  <Icon name="Download" size={15} /> {exporting ? 'Exporting…' : 'Export'}
+                  <Icon name="ChevronDown" size={13} className={openMenu === 'export' ? 'att-caret open' : 'att-caret'} />
+                </button>
+                {openMenu === 'export' && (
+                  <div className="att-menu">
+                    <button className="att-menu-item" onClick={() => handleExport('xlsx')}>Excel (.xlsx)</button>
+                    <button className="att-menu-item" onClick={() => handleExport('pdf')}>PDF</button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
