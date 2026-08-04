@@ -123,3 +123,36 @@ export const fleetHeadline = (fleet = []) => {
   if (!waiting) return 'Nothing waiting on you.';
   return `${waiting} ${waiting === 1 ? 'month' : 'months'} waiting on you across ${boats} ${boats === 1 ? 'vessel' : 'vessels'}.`;
 };
+
+// ── the vessel's side: who in the office can see this boat ───────────────────
+// COMMAND reads this list on Check-off. It's the same relationship from the
+// other end, so it lives beside the rest of the management shaping rather than
+// in managementAccess.js, which imports the database client and so can't be
+// tested on its own.
+
+export const accessState = (row) => {
+  if (!row) return 'none';
+  if (!row.active) return 'withdrawn';
+  return row.has_login ? 'active' : 'awaiting sign-up';
+};
+
+// The office is a firm, not a person — but before they've signed up there IS no
+// name, so the address does the work rather than a placeholder.
+export const accessLabel = (row) =>
+  row?.person_name || row?.company_name || row?.email || 'Someone';
+
+export const accessSub = (row) => {
+  const bits = [];
+  if (row?.person_name && row?.company_name) bits.push(row.company_name);
+  if (row?.email && row.email !== accessLabel(row)) bits.push(row.email);
+  return bits.join(' · ');
+};
+
+// Withdrawn grants stay on file — months they signed off carry their user id,
+// and the vessel is entitled to know who signed what after the relationship
+// ends — but they sort below the people who currently have access.
+export const sortAccess = (rows = []) =>
+  (rows || []).slice().sort((a, b) => {
+    if (!!a?.active !== !!b?.active) return a?.active ? -1 : 1;
+    return String(accessLabel(a)).localeCompare(String(accessLabel(b)), undefined, { sensitivity: 'base' });
+  });
