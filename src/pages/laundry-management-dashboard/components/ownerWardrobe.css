@@ -288,3 +288,20 @@
 .ow-chooser-chev { stroke: #C7CBD6; }
 .ow-chooser-new { display: inline-flex; align-items: center; gap: 6px; margin: 12px 8px 0; align-self: flex-start; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 9px 14px; color: #C65A1A; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; }
 .ow-chooser-new:hover { border-color: #C65A1A; background: #FBEFE9; }
+
+/* Manage wardrobes */
+.ow-wm-list { padding: 8px 14px; overflow-y: auto; display: flex; flex-direction: column; }
+.ow-wm-row { display: flex; align-items: center; gap: 11px; padding: 11px 6px; border-bottom: 1px solid #EEF0F4; }
+.ow-wm-row:last-child { border-bottom: none; }
+.ow-wm-ic { flex: none; width: 34px; height: 34px; border-radius: 9px; background: #FBEFE9; color: #C65A1A; display: grid; place-items: center; }
+.ow-wm-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ow-wm-nm { font: 700 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.ow-wm-sub { font: 500 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
+.ow-wm-input { flex: 1; }
+.ow-wm-acts { display: flex; align-items: center; gap: 6px; flex: none; }
+.ow-wm-icon { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid #E5E7EB; background: #FFFFFF; border-radius: 8px; color: #6B7280; cursor: pointer; }
+.ow-wm-icon:hover { border-color: #C65A1A; color: #C65A1A; }
+.ow-wm-icon.danger:hover { border-color: #C24632; color: #C24632; background: #FBECEA; }
+.ow-wm-btn { border: none; background: #C65A1A; color: #FFFFFF; border-radius: 8px; padding: 8px 13px; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; }
+.ow-wm-btn.quiet { background: #FFFFFF; color: #6B7280; border: 1px solid #E5E7EB; }
+.ow-wm-foot { padding: 14px; border-top: 1px solid #EEF0F4; display: flex; justify-content: flex-end; }
