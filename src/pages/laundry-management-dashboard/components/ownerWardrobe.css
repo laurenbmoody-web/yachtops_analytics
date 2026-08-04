@@ -235,6 +235,11 @@
 .ow-hist-act { font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
 .ow-hist-meta { font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #9AA1AE; }
 .ow-hist-empty { margin: 4px 0 0; font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #9AA1AE; }
+.ow-hist-changes { list-style: none; margin: 4px 0 0; padding: 6px 10px; background: #F8FAFC; border: 1px solid #EEF0F4; border-radius: 8px; display: flex; flex-direction: column; gap: 3px; }
+.ow-hist-changes li { font: 500 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; line-height: 1.4; }
+.ow-hist-field { font-weight: 700; color: #1C1B3A; }
+.ow-hist-from { color: #9AA1AE; text-decoration: line-through; }
+.ow-hist-to { color: #1C1B3A; font-weight: 600; }
 
 /* Detail / History tabs */
 .ow-full-tabs { display: flex; margin-top: 12px; border-bottom: 1px solid #EEF0F4; }

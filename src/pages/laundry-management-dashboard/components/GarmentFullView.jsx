@@ -174,15 +174,25 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
                     <p className="ow-hist-empty">No activity yet.</p>
                   ) : (
                     <ul className="ow-hist">
-                      {[...events].reverse().map((e) => (
-                        <li className="ow-hist-row" key={e.id}>
-                          <span className="ow-hist-dot" />
-                          <div>
-                            <span className="ow-hist-act">{actionLabel(e.action)}</span>
-                            <span className="ow-hist-meta">{[e.actorName, fmtWhen(e.at)].filter(Boolean).join(' · ')}</span>
-                          </div>
-                        </li>
-                      ))}
+                      {[...events].reverse().map((e) => {
+                        const chg = e.action === 'edited' && Array.isArray(e.changes) ? e.changes : [];
+                        return (
+                          <li className="ow-hist-row" key={e.id}>
+                            <span className="ow-hist-dot" />
+                            <div>
+                              <span className="ow-hist-act">{chg.length ? 'Edited' : actionLabel(e.action)}</span>
+                              <span className="ow-hist-meta">{[e.actorName, fmtWhen(e.at)].filter(Boolean).join(' · ')}</span>
+                              {chg.length > 0 && (
+                                <ul className="ow-hist-changes">
+                                  {chg.map((c, i) => (
+                                    <li key={i}><span className="ow-hist-field">{c.field}</span> <span className="ow-hist-from">{c.from}</span> → <span className="ow-hist-to">{c.to}</span></li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )
                 )}
