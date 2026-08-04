@@ -29,6 +29,7 @@ import LineDetail from '../components/LineDetail';
 import ReceiptScanner from '../components/ReceiptScanner';
 import ReceiptClip from '../components/ReceiptClip';
 import { walletAccounts, accountLabel } from '../../../services/accountPick';
+import { buildPackCsv, packFilename } from '../../../services/monthEndPack';
 import {
   monthFigures, statementChecks, closeBlockers, fundingModel, fundingOutcome,
   reconcilePeriod, postedLate,
@@ -458,6 +459,38 @@ export default function Ledger() {
     setRecon(res.data);
     flash('Statement figures saved');
     return res;
+  };
+
+  // The month-end pack, straight from what's on screen — the closed summary and
+  // every line under it. Built client-side so it can never disagree with the
+  // figures the crew just balanced.
+  const handleExportPack = () => {
+    const csv = buildPackCsv({
+      account: scopedAccount,
+      monthLabel: ymLabel(activeMonth),
+      reconciliation: recon,
+      figures: monthFigs,
+      statement,
+      outcome: monthOutcome,
+      closedByName: crew.find((c) => c.id === recon?.submitted_by)?.name || '',
+      txns: monthAll,
+      currency: scopedAccount?.currency,
+      crewById: Object.fromEntries(crew.map((c) => [c.id, c])),
+      hasReceipt: (t) => hasEvidence(t, (attByTxn[t.id] || []).length > 0),
+      period: activeMonth,
+      naturalMonthOf: (t) => ymOf(effectiveDate(t, dateBasis)),
+      monthLabelOf: (m) => ymLabel(m),
+    });
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = packFilename(scopedAccount, activeMonth);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    flash('Month-end pack downloaded');
   };
 
   const handleCloseMonth = async ({ openingBalance, closingBalance, fundingDue, statement }) => {
@@ -1033,6 +1066,7 @@ export default function Ledger() {
                   statement,
                 })}
                 onShowLine={showLine}
+                onExport={handleExportPack}
               />
             )}
           />
