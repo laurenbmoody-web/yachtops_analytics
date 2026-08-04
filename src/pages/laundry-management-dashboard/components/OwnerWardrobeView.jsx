@@ -397,8 +397,9 @@ const OwnerWardrobeView = ({ onBack }) => {
   // Archived is a mode, not a filter — a toolbar toggle (only shown when there
   // is something archived, or while you're viewing it).
   const archivedBtn = (archived.length > 0 || showArchived) ? (
-    <button type="button" className={`ow-btn ghost${showArchived ? ' on' : ''}`} onClick={() => { setShowArchived((v) => !v); clearSel(); }}>
-      <Icon name="Archive" size={15} /> {showArchived ? 'Exit archived' : `Archived (${archived.length})`}
+    <button type="button" className={`ow-btn ghost ow-arch-btn${showArchived ? ' on' : ''}`} onClick={() => { setShowArchived((v) => !v); clearSel(); }} title={showArchived ? 'Exit archived' : `Archived (${archived.length})`}>
+      <Icon name="Archive" size={15} />
+      <span className="ow-arch-label">{showArchived ? 'Exit archived' : `Archived (${archived.length})`}</span>
     </button>
   ) : null;
 

@@ -64,6 +64,10 @@
 .ow-btn.onboard-on:hover:not(:disabled) { background: #DCEAF1; }
 .ow-btn.ghost.on { background: #1C1B3A; color: #FFFFFF; border-color: #1C1B3A; }
 .ow-btn.ghost.on:hover { background: #2A2850; }
+/* Archived toggle — icon only, label expands on hover (or while active). */
+.ow-arch-btn { gap: 0; }
+.ow-arch-label { max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0; transition: max-width 0.22s ease, opacity 0.16s ease, margin-left 0.22s ease; }
+.ow-arch-btn:hover .ow-arch-label, .ow-arch-btn.on .ow-arch-label, .ow-arch-btn:focus-visible .ow-arch-label { max-width: 150px; opacity: 1; margin-left: 7px; }
 
 /* selection bar */
 .ow-selbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #1C1B3A; color: #FFFFFF; border-radius: 12px; padding: 10px 14px; }
