@@ -3,8 +3,27 @@ import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import { useNavigate } from 'react-router-dom';
 import { getInventoryHealthStats } from '../../inventory/utils/inventoryStorage';
+import './inventory-health.css';
 
-const EMPTY = { healthy: 0, lowStock: 0, outOfStock: 0, total: 0, expiringSoon: 0, expired: 0 };
+const EMPTY = { healthy: 0, lowStock: 0, outOfStock: 0, total: 0, expiringSoon: 0, expired: 0, mostUrgent: null };
+
+// Hero-row copy for whichever item is most pressing (picked in the data layer).
+const heroContent = (u) => {
+  if (!u) return null;
+  const place = u.place || 'location not set';
+  switch (u.kind) {
+    case 'out':
+      return { severe: true, eyebrow: 'Most urgent · out of stock', sub: `Below par · ${place}`, num: '0', lbl: 'in stock' };
+    case 'expired':
+      return { severe: true, eyebrow: 'Most urgent · expired', sub: `Past its date · ${place}`, num: `${u.days}d`, lbl: 'over' };
+    case 'low':
+      return { severe: false, eyebrow: 'Most urgent · below par', sub: `Running low · ${place}`, num: `${u.qty}/${u.par}`, lbl: 'in stock' };
+    case 'expiring':
+      return { severe: false, eyebrow: 'Most urgent · expiring', sub: `Use soon · ${place}`, num: `${u.days}d`, lbl: 'left' };
+    default:
+      return null;
+  }
+};
 
 const InventoryHealthWidget = () => {
   const navigate = useNavigate();
@@ -32,101 +51,124 @@ const InventoryHealthWidget = () => {
   }, [load]);
 
   const hasItems = stats?.total > 0;
-  const attentionCount = (stats?.outOfStock || 0) + (stats?.lowStock || 0) + (stats?.expired || 0) + (stats?.expiringSoon || 0);
+  const expired = stats?.expired || 0;
+  const expiringSoon = stats?.expiringSoon || 0;
+  const lowStock = stats?.lowStock || 0;
+  const outOfStock = stats?.outOfStock || 0;
+  const stockIssues = lowStock + outOfStock;
+  const attentionCount = expired + expiringSoon + stockIssues;
   const isHealthy = hasItems && attentionCount === 0;
-  // When anything needs attention, jump to the actionable board; otherwise browse.
-  const target = attentionCount > 0 ? '/inventory/attention' : '/inventory';
 
-  // KPI tiles — stock first, then freshness. Tinted only when non-zero.
-  const tiles = [
-    { label: 'Out of stock', count: stats?.outOfStock || 0, fg: '#B23A2E', bg: 'rgba(178,58,46,0.08)' },
-    { label: 'Low stock', count: stats?.lowStock || 0, fg: '#A8791C', bg: 'rgba(168,121,28,0.10)' },
-    { label: 'Expiring ≤ 30d', count: stats?.expiringSoon || 0, fg: '#1C6DB4', bg: 'rgba(28,109,180,0.09)' },
-    { label: 'Expired', count: stats?.expired || 0, fg: '#B23A2E', bg: 'rgba(178,58,46,0.08)' },
-  ];
-  // Health bar: green (healthy) · amber (low + expiring) · red (out + expired).
-  const healthyN = Math.max(0, (stats?.total || 0) - attentionCount);
-  const amberN = (stats?.lowStock || 0) + (stats?.expiringSoon || 0);
-  const redN = (stats?.outOfStock || 0) + (stats?.expired || 0);
-  const pct = (n) => (stats?.total > 0 ? (n / stats.total) * 100 : 0);
+  const goBoard = () => navigate('/inventory/attention');
+  const goInventory = () => navigate('/inventory');
 
-  // Status subline — most urgent first.
+  const hero = heroContent(stats?.mostUrgent);
+
   let statusText = 'All healthy';
-  let statusAttention = false;
-  if (loading) statusText = 'Loading…';
-  else if (error) statusText = 'Couldn’t load';
-  else if (!hasItems) statusText = 'Nothing tracked yet';
-  else if (stats?.expired > 0) { statusText = `${stats.expired} expired`; statusAttention = true; }
-  else if (stats?.outOfStock > 0) { statusText = `${stats.outOfStock} out of stock`; statusAttention = true; }
-  else if (stats?.expiringSoon > 0) { statusText = `${stats.expiringSoon} expiring soon`; statusAttention = true; }
-  else if (stats?.lowStock > 0) { statusText = `${stats.lowStock} low stock`; statusAttention = true; }
+  let statusTone = 'ok';
+  if (loading) { statusText = 'Loading…'; statusTone = ''; }
+  else if (error) { statusText = 'Couldn’t load'; statusTone = ''; }
+  else if (!hasItems) { statusText = 'Nothing tracked yet'; statusTone = ''; }
+  else if (attentionCount > 0) { statusText = `${attentionCount} of ${stats.total} need attention`; statusTone = 'att'; }
+  else { statusText = `${stats.total} items · all healthy`; statusTone = 'ok'; }
 
   return (
-    <div
-      className="ce-card rounded-xl p-5 cursor-pointer"
-      role="button"
-      tabIndex={0}
-      onClick={() => navigate(target)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(target); } }}
-    >
-      <div className="flex items-start justify-between mb-5">
+    <div className="ce-card ih rounded-xl p-5">
+      <div className="ih-head">
         <div>
           <h3 className="ce-title">Inventory health</h3>
-          <p className={`ce-status${statusAttention ? ' is-attention' : ''}`}>{statusText}</p>
+          <p className={`ih-status${statusTone ? ` ${statusTone}` : ''}`}>{statusText}</p>
         </div>
-        <span className="ce-link">{attentionCount > 0 ? 'Review' : 'View all'}</span>
+        <button type="button" className="ce-link" onClick={attentionCount > 0 ? goBoard : goInventory}>
+          {attentionCount > 0 ? 'Review' : 'View all'}
+        </button>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-10"><LogoSpinner size={32} /></div>
+        <div className="ih-load"><LogoSpinner size={32} /></div>
       ) : error ? (
-        <div className="flex items-center gap-2 py-8 justify-center text-sm" style={{ color: '#9A2B12' }}>
+        <div className="ih-err">
           <Icon name="AlertTriangle" size={16} /> Couldn’t load inventory.
-          <button type="button" onClick={(e) => { e.stopPropagation(); load(); }} className="font-bold underline">Retry</button>
+          <button type="button" className="ih-retry" onClick={load}>Retry</button>
         </div>
+      ) : !hasItems ? (
+        <div className="ih-calm">
+          <div className="ih-calm-num" style={{ color: '#1C1B3A' }}>Empty</div>
+          <div className="ih-calm-sub">Nothing tracked yet — begin the inventory →</div>
+        </div>
+      ) : isHealthy ? (
+        <>
+          <div className="ih-calm">
+            <div className="ih-calm-num">All good</div>
+            <div className="ih-calm-sub">{stats.total} items tracked · nothing expired, expiring or below par.</div>
+          </div>
+          <div className="ih-foot">
+            <button type="button" className="ih-action" onClick={goInventory}>
+              Browse inventory <Icon name="ArrowRight" size={14} />
+            </button>
+          </div>
+        </>
       ) : (
         <>
-          {!hasItems ? (
-            <div className="text-center py-6">
-              <p className="ce-title">Nothing tracked yet.</p>
-              <p className="ce-status is-attention mt-1">Begin the inventory →</p>
-            </div>
-          ) : (
-            <>
-              {/* headline + health bar */}
-              <div className="mb-4">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-bold" style={{ color: isHealthy ? '#5C9B6A' : '#A8791C', lineHeight: 1 }}>
-                    {isHealthy ? 'All good' : attentionCount}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {isHealthy ? `${stats?.total} tracked` : `need attention · ${stats?.total} tracked`}
-                  </span>
-                </div>
-                <div className="flex w-full rounded-full overflow-hidden mt-3" style={{ height: 10, background: '#EEF0F4' }}>
-                  {healthyN > 0 && <div style={{ width: `${pct(healthyN)}%`, background: '#5C9B6A' }} title={`${healthyN} healthy`} />}
-                  {amberN > 0 && <div style={{ width: `${pct(amberN)}%`, background: '#D69A2D' }} title={`${amberN} low / expiring`} />}
-                  {redN > 0 && <div style={{ width: `${pct(redN)}%`, background: '#B23A2E' }} title={`${redN} out / expired`} />}
-                </div>
+          {hero && (
+            <button type="button" className={`ih-hero${hero.severe ? ' sev-red' : ''}`} onClick={goBoard} title={stats.mostUrgent?.name}>
+              <div className="ih-hero-main">
+                <div className="ih-eyebrow">{hero.eyebrow}</div>
+                <div className="ih-hero-name">{stats.mostUrgent?.name || 'Untitled item'}</div>
+                <div className="ih-hero-sub">{hero.sub}</div>
               </div>
-
-              {/* KPI stat tiles */}
-              <div className="grid grid-cols-2 gap-2">
-                {tiles.map((t) => {
-                  const on = t.count > 0;
-                  return (
-                    <div key={t.label} className="rounded-lg px-3 py-2.5" style={{ background: on ? t.bg : '#FAFAF8' }}>
-                      <div className="text-2xl font-bold" style={{ color: on ? t.fg : '#1C1B3A', lineHeight: 1 }}>{t.count}</div>
-                      <div className="mt-1.5 flex items-center gap-1.5" style={{ fontSize: 11, color: '#6B7280' }}>
-                        <span className="rounded-full" style={{ width: 6, height: 6, background: on ? t.fg : '#D6D8E0' }} />
-                        {t.label}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="ih-hero-metric">
+                <div className="m-num">{hero.num}</div>
+                <div className="m-lbl">{hero.lbl}</div>
               </div>
-            </>
+            </button>
           )}
+
+          <div className="ih-rows">
+            <button type="button" className="ih-row" onClick={goBoard}>
+              <span className={`ih-rnum ${expired ? 'red' : 'zero'}`}>{expired}</span>
+              <span className="ih-rmain">
+                <span className="ih-rlabel">Expired</span>
+                <span className="ih-rsub">past their date</span>
+              </span>
+              <Icon name="ChevronRight" size={16} className="ih-chev" />
+            </button>
+
+            <button type="button" className="ih-row" onClick={goBoard}>
+              <span className={`ih-rnum ${expiringSoon ? 'amber' : 'zero'}`}>{expiringSoon}</span>
+              <span className="ih-rmain">
+                <span className="ih-rlabel">Expiring soon</span>
+                <span className="ih-rsub">within 30 days</span>
+              </span>
+              <Icon name="ChevronRight" size={16} className="ih-chev" />
+            </button>
+
+            {stockIssues > 0 ? (
+              <button type="button" className="ih-row" onClick={goBoard}>
+                <span className="ih-rnum red">{stockIssues}</span>
+                <span className="ih-rmain">
+                  <span className="ih-rlabel">Below par</span>
+                  <span className="ih-rsub">{outOfStock > 0 ? `${outOfStock} out of stock` : 'running low'}</span>
+                </span>
+                <Icon name="ChevronRight" size={16} className="ih-chev" />
+              </button>
+            ) : (
+              <div className="ih-row is-quiet">
+                <span className="ih-rnum zero">0</span>
+                <span className="ih-rmain">
+                  <span className="ih-rlabel">Stock levels</span>
+                  <span className="ih-rsub">all at par</span>
+                </span>
+                <Icon name="Check" size={16} className="ih-tick" />
+              </div>
+            )}
+          </div>
+
+          <div className="ih-foot">
+            <button type="button" className="ih-action" onClick={goBoard}>
+              Open needs-attention board <Icon name="ArrowRight" size={14} />
+            </button>
+          </div>
         </>
       )}
     </div>

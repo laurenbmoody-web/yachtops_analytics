@@ -926,34 +926,57 @@ export const updatePartialBottle = async (itemId, fraction) => {
 //   healthy / lowStock / outOfStock — stock levels
 //   expiringSoon (≤30 days) / expired — freshness
 export const getInventoryHealthStats = async (tenantId = getActiveTenantId()) => {
-  const empty = { healthy: 0, lowStock: 0, outOfStock: 0, total: 0, expiringSoon: 0, expired: 0 };
+  const empty = { healthy: 0, lowStock: 0, outOfStock: 0, total: 0, expiringSoon: 0, expired: 0, mostUrgent: null };
   if (!tenantId) return empty;
   const { data, error } = await supabase
     .from('inventory_items')
-    .select('quantity, total_qty, stock_locations, restock_enabled, restock_level, expiry_date')
+    .select('id, name, location, sub_location, quantity, total_qty, stock_locations, restock_enabled, restock_level, expiry_date')
     .eq('tenant_id', tenantId);
   if (error || !data) { if (error) console.error('[inventoryStorage] health stats failed', error); return empty; }
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const soon = new Date(today); soon.setDate(soon.getDate() + 30);
+  const DAY = 86400000;
 
   let healthy = 0; let lowStock = 0; let outOfStock = 0; let expiringSoon = 0; let expired = 0;
+  // Track the single most pressing item for the widget's hero row. Priority:
+  // out of stock → most-overdue expired → below par → soonest expiring.
+  let mostUrgent = null;
+  const consider = (cand) => {
+    if (!mostUrgent || cand.rank < mostUrgent.rank
+      || (cand.rank === mostUrgent.rank && cand.score > mostUrgent.score)) mostUrgent = cand;
+  };
+  const placeOf = (row) => row.sub_location || row.location || null;
+
   for (const row of data) {
     const qty = Array.isArray(row.stock_locations) && row.stock_locations.length
       ? row.stock_locations.reduce((s, l) => s + (Number(l?.qty ?? l?.quantity) || 0), 0)
       : (Number(row.total_qty ?? row.quantity) || 0);
+    let stockState = 'ok';
     if (!row.restock_enabled || row.restock_level == null) healthy += 1;
-    else if (qty === 0) outOfStock += 1;
-    else if (qty <= row.restock_level) lowStock += 1;
+    else if (qty === 0) { outOfStock += 1; stockState = 'out'; }
+    else if (qty <= row.restock_level) { lowStock += 1; stockState = 'low'; }
     else healthy += 1;
 
+    let expState = null; let daysOver = 0;
     if (row.expiry_date) {
       const exp = new Date(row.expiry_date); exp.setHours(0, 0, 0, 0);
-      if (exp < today) expired += 1;
-      else if (exp <= soon) expiringSoon += 1;
+      if (exp < today) { expired += 1; expState = 'expired'; daysOver = Math.round((today - exp) / DAY); }
+      else if (exp <= soon) { expiringSoon += 1; expState = 'expiring'; daysOver = Math.round((exp - today) / DAY); }
+    }
+
+    // Feed the hero-row picker (lower rank = more urgent; higher score breaks ties).
+    if (stockState === 'out') {
+      consider({ rank: 0, score: 0, id: row.id, name: row.name, place: placeOf(row), kind: 'out', qty, par: row.restock_level });
+    } else if (expState === 'expired') {
+      consider({ rank: 1, score: daysOver, id: row.id, name: row.name, place: placeOf(row), kind: 'expired', days: daysOver });
+    } else if (stockState === 'low') {
+      consider({ rank: 2, score: (row.restock_level || 0) - qty, id: row.id, name: row.name, place: placeOf(row), kind: 'low', qty, par: row.restock_level });
+    } else if (expState === 'expiring') {
+      consider({ rank: 3, score: -daysOver, id: row.id, name: row.name, place: placeOf(row), kind: 'expiring', days: daysOver });
     }
   }
-  return { healthy, lowStock, outOfStock, total: data.length, expiringSoon, expired };
+  return { healthy, lowStock, outOfStock, total: data.length, expiringSoon, expired, mostUrgent };
 };
 
 // ============================================
