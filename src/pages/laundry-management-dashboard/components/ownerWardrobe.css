@@ -95,6 +95,9 @@
 .ow-card-ph { position: absolute; inset: 0; display: grid; place-items: center; color: #B9BEC9; }
 .ow-away { position: absolute; bottom: 8px; right: 8px; font: 700 8px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #FFFFFF; background: rgba(28,27,58,0.8); border-radius: 999px; padding: 3px 8px; }
 .ow-stays { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; display: grid; place-items: center; background: rgba(255,255,255,0.92); border-radius: 7px; color: #2F6E8F; }
+.ow-qty { position: absolute; bottom: 8px; left: 8px; font: 800 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #FFFFFF; background: #1C1B3A; border-radius: 999px; padding: 2px 8px; font-variant-numeric: tabular-nums; }
+.ow-qty-inline { margin-left: 7px; font: 800 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; }
+.ow-qty-badge { margin-left: 10px; font: 700 15px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; }
 .ow-card-body { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; text-align: left; border: none; background: none; cursor: pointer; padding: 11px 12px 12px; }
 .ow-card-nm { font: 600 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .ow-card-sub { font-size: 11.5px; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }

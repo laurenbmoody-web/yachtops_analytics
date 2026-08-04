@@ -73,6 +73,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
   const [colour, setColour] = useState('');
   const [material, setMaterial] = useState('');
   const [gender, setGender] = useState('');
+  const [quantity, setQuantity] = useState(1);
   const [condition, setCondition] = useState('');
   const [season, setSeason] = useState('');
   const [purchasedPlace, setPurchasedPlace] = useState('');
@@ -149,6 +150,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
       put('brand', brand); put('description', description); put('sku', sku); put('size', size);
       put('material', material); put('gender', gender); put('condition', condition); put('season', season);
       put('purchasedPlace', purchasedPlace); put('purchasedDate', purchasedDate); put('monogram', monogram);
+      if (Number(quantity) > 1) details.quantity = Number(quantity);
       const guest = guests.find((g) => g.id === guestId);
       const created = await createLaundryItem({
         description: name.trim(),
@@ -244,7 +246,10 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
               <label className="ow-l">Condition</label>
               <OwSelect value={condition} onChange={setCondition} options={dash(CONDITIONS)} />
             </div>
-            <div />
+            <div>
+              <label className="ow-l">Quantity <span className="ow-opt">if multiples</span></label>
+              <input className="ow-input" type="number" min="1" step="1" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))} />
+            </div>
           </div>
           <label className="ow-l">Description <span className="ow-opt">optional</span></label>
           <textarea className="ow-textarea" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Cut, styling, distinguishing detail…" />

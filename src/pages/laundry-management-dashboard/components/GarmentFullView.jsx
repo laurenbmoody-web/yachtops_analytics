@@ -33,7 +33,7 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
     description: item.description || '', brand: dd.brand || '', longDesc: dd.description || '',
     sku: dd.sku || '', monogram: dd.monogram || '', purchasedPlace: dd.purchasedPlace || '', purchasedDate: dd.purchasedDate || '',
     garmentType: item.garmentType || '', gender: dd.gender || '', size: dd.size || '', colour: item.colour || '',
-    material: dd.material || '', condition: dd.condition || '', season: dd.season || '',
+    material: dd.material || '', condition: dd.condition || '', season: dd.season || '', quantity: Number(dd.quantity) || 1,
     garmentValue: item.garmentValue ?? '', garmentValueCurrency: item.garmentValueCurrency || 'EUR',
     tags: Array.isArray(item.tags) ? item.tags : [], notes: item.notes || '',
     wardrobeId: item.wardrobeId || '', guestId: item.ownerGuestId || '', staysOnboard: item.staysOnboard !== false,
@@ -55,6 +55,7 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
   const owner = item.ownerGuestId ? guestLabel(guests.find((g) => g.id === item.ownerGuestId)) || item.ownerName : 'Owner';
   const purchased = [dd.purchasedPlace, dd.purchasedDate ? fmtDate(dd.purchasedDate) : ''].filter(Boolean).join(' · ');
   const careText = (Array.isArray(item.tags) ? item.tags : []).map(formatLaundryTag).join(' · ');
+  const qty = Math.max(1, Number(dd.quantity) || 1);
   const hasPurchase = (showValue && item.garmentValue != null) || dd.sku || dd.monogram || purchased;
 
   const [stays, setStays] = useState(!!item.staysOnboard);
@@ -90,6 +91,7 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
     put('brand', draft.brand); put('description', draft.longDesc); put('sku', draft.sku); put('size', draft.size);
     put('material', draft.material); put('gender', draft.gender); put('condition', draft.condition); put('season', draft.season);
     put('purchasedPlace', draft.purchasedPlace); put('purchasedDate', draft.purchasedDate); put('monogram', draft.monogram);
+    if (Number(draft.quantity) > 1) details.quantity = Number(draft.quantity); else delete details.quantity;
     const guest = guests.find((g) => g.id === draft.guestId);
     const ownerPatch = guest
       ? { ownerType: 'guest', ownerGuestId: guest.id, ownerName: guestLabel(guest), ownerDisplayName: guestLabel(guest) }
@@ -130,7 +132,7 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
             <>
               <div className="ow-full-head">
                 <span className={`ow-full-state ${st.cls}`}>{st.label}</span>
-                <h2 className="ow-full-nm">{item.description || 'Garment'}</h2>
+                <h2 className="ow-full-nm">{item.description || 'Garment'}{qty > 1 && <span className="ow-qty-badge">×{qty}</span>}</h2>
                 {dd.brand && <p className="ow-full-brand">{dd.brand}</p>}
                 {item.flag && (
                   <div className={`ow-flag-banner ${item.flag}`}>
@@ -156,10 +158,11 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
                       <Row k="Colour" v={item.colour} />
                       <Row k="Material" v={dd.material} />
                       <Row k="Condition" v={dd.condition} />
+                      {qty > 1 && <Row k="Quantity" v={`×${qty}`} />}
                       <Row k="Care" v={careText} />
 
                       {hasPurchase && <div className="ow-dl-sec">Purchase &amp; value</div>}
-                      {showValue && item.garmentValue != null && <Row k="Value" v={money(item.garmentValue, item.garmentValueCurrency)} />}
+                      {showValue && item.garmentValue != null && <Row k="Value" v={qty > 1 ? `${money(item.garmentValue, item.garmentValueCurrency)} × ${qty} = ${money(item.garmentValue * qty, item.garmentValueCurrency)}` : money(item.garmentValue, item.garmentValueCurrency)} />}
                       <Row k="Style / SKU" v={dd.sku} />
                       <Row k="Monogram" v={dd.monogram} />
                       <Row k="Purchased" v={purchased} />
@@ -255,7 +258,7 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
                 </div>
                 <div className="ow-row2">
                   <div><label className="ow-l">Condition</label><OwSelect value={draft.condition} onChange={(v) => set('condition', v)} options={dashOpts(CONDITIONS)} /></div>
-                  <div />
+                  <div><label className="ow-l">Quantity</label><input className="ow-input" type="number" min="1" step="1" value={draft.quantity} onChange={(e) => set('quantity', Math.max(1, parseInt(e.target.value, 10) || 1))} /></div>
                 </div>
                 <label className="ow-l">Description</label>
                 <textarea className="ow-textarea" rows={2} value={draft.longDesc} onChange={(e) => set('longDesc', e.target.value)} />
