@@ -939,13 +939,10 @@ export const getInventoryHealthStats = async (tenantId = getActiveTenantId()) =>
   const DAY = 86400000;
 
   let healthy = 0; let lowStock = 0; let outOfStock = 0; let expiringSoon = 0; let expired = 0;
-  // Track the single most pressing item for the widget's hero row. Priority:
-  // out of stock → most-overdue expired → below par → soonest expiring.
-  let mostUrgent = null;
-  const consider = (cand) => {
-    if (!mostUrgent || cand.rank < mostUrgent.rank
-      || (cand.rank === mostUrgent.rank && cand.score > mostUrgent.score)) mostUrgent = cand;
-  };
+  // Collect the most pressing items for the widget's attention list. Priority
+  // (lower rank first): out of stock → most-overdue expired → below par →
+  // soonest expiring; `score` (higher first) breaks ties within a rank.
+  const attention = [];
   const placeOf = (row) => row.sub_location || row.location || null;
 
   for (const row of data) {
@@ -958,25 +955,29 @@ export const getInventoryHealthStats = async (tenantId = getActiveTenantId()) =>
     else if (qty <= row.restock_level) { lowStock += 1; stockState = 'low'; }
     else healthy += 1;
 
-    let expState = null; let daysOver = 0;
+    let expState = null; let days = 0;
     if (row.expiry_date) {
       const exp = new Date(row.expiry_date); exp.setHours(0, 0, 0, 0);
-      if (exp < today) { expired += 1; expState = 'expired'; daysOver = Math.round((today - exp) / DAY); }
-      else if (exp <= soon) { expiringSoon += 1; expState = 'expiring'; daysOver = Math.round((exp - today) / DAY); }
+      if (exp < today) { expired += 1; expState = 'expired'; days = Math.round((today - exp) / DAY); }
+      else if (exp <= soon) { expiringSoon += 1; expState = 'expiring'; days = Math.round((exp - today) / DAY); }
     }
 
-    // Feed the hero-row picker (lower rank = more urgent; higher score breaks ties).
+    const base = { id: row.id, name: row.name || 'Untitled item', place: placeOf(row) };
     if (stockState === 'out') {
-      consider({ rank: 0, score: 0, id: row.id, name: row.name, place: placeOf(row), kind: 'out', qty, par: row.restock_level });
+      attention.push({ ...base, rank: 0, score: 0, sev: 'expired', label: 'None left' });
     } else if (expState === 'expired') {
-      consider({ rank: 1, score: daysOver, id: row.id, name: row.name, place: placeOf(row), kind: 'expired', days: daysOver });
+      attention.push({ ...base, rank: 1, score: days, sev: 'expired', label: `${days}d over` });
     } else if (stockState === 'low') {
-      consider({ rank: 2, score: (row.restock_level || 0) - qty, id: row.id, name: row.name, place: placeOf(row), kind: 'low', qty, par: row.restock_level });
+      attention.push({ ...base, rank: 2, score: (row.restock_level || 0) - qty, sev: 'amber', label: `${qty} / ${row.restock_level}` });
     } else if (expState === 'expiring') {
-      consider({ rank: 3, score: -daysOver, id: row.id, name: row.name, place: placeOf(row), kind: 'expiring', days: daysOver });
+      attention.push({ ...base, rank: 3, score: -days, sev: 'amber', label: `${days}d left` });
     }
   }
-  return { healthy, lowStock, outOfStock, total: data.length, expiringSoon, expired, mostUrgent };
+  attention.sort((a, b) => (a.rank - b.rank) || (b.score - a.score));
+  return {
+    healthy, lowStock, outOfStock, total: data.length, expiringSoon, expired,
+    attention: attention.slice(0, 6),
+  };
 };
 
 // ============================================

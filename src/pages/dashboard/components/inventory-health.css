@@ -1,70 +1,52 @@
-/* Inventory health widget — editorial rebuild.
-   Follows the app's signature "hero row + compressed rows" pattern (as in the
-   "What's coming up" widget): the single most-pressing item gets weight in a
-   tinted hero, the two axes (freshness + stock) sit beneath as quiet, tappable
-   one-liners with serif counts on hairlines. Semantic RAG kept distinct from
-   the terracotta app accent. */
-.ih{
+/* Inventory health widget — twin of the Document renewals widget.
+   Hairline-divided stat row (no filled boxes, no gradient bar), quiet clickable
+   attention rows, one typeface. Muted semantic RAG on bare numbers + a 7px dot
+   only — kept distinct from the terracotta app accent. */
+.ih {
   --ih-ink:#1C1B3A; --ih-muted:#6B7280; --ih-faint:#AEB4C2; --ih-hair:#ECEDF3;
   --ih-red:#B23A2E; --ih-orange:#C15A28; --ih-amber:#A8791C; --ih-green:#3F7A52;
-  --ih-accent:#C65A1A; --ih-accent2:#B14E16; --ih-tint:#FBEFE9;
   font-family:'Inter',system-ui,sans-serif;
 }
-.ih-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;}
+.ih-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;}
 .ih-status{font-family:'Inter',system-ui,sans-serif;font-size:12.5px;font-weight:500;color:var(--ih-muted);margin:3px 0 0;}
 .ih-status.att{color:var(--ih-orange);font-weight:600;}
 .ih-status.ok{color:var(--ih-green);font-weight:600;}
 
-/* Hero — the single most-urgent item, weighted and tinted. A real button. */
-.ih-hero{display:flex;align-items:center;gap:14px;width:100%;text-align:left;cursor:pointer;
-  border:1px solid rgba(198,90,26,.16);background:var(--ih-tint);border-radius:12px;
-  padding:13px 15px;font-family:inherit;transition:border-color .12s ease,background .12s ease;}
-.ih-hero:hover{border-color:rgba(198,90,26,.34);}
-.ih-hero:focus-visible{outline:none;box-shadow:0 0 0 3px #FAECE7;}
-.ih-hero.sev-red{border-color:rgba(178,58,46,.18);background:rgba(178,58,46,.055);}
-.ih-hero.sev-red:hover{border-color:rgba(178,58,46,.36);}
-.ih-hero-main{min-width:0;flex:1;}
-.ih-eyebrow{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--ih-accent);}
-.ih-hero.sev-red .ih-eyebrow{color:var(--ih-red);}
-.ih-hero-name{font-family:'DM Serif Display','DM Serif Text',Georgia,serif;font-weight:400;font-size:19px;
-  line-height:1.15;color:var(--ih-ink);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ih-hero-sub{font-size:11.5px;color:var(--ih-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ih-hero-metric{flex:none;text-align:right;line-height:1;}
-.ih-hero-metric .m-num{font-family:'DM Serif Display',Georgia,serif;font-size:28px;color:var(--ih-red);font-variant-numeric:tabular-nums;}
-.ih-hero-metric .m-lbl{font-size:8.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--ih-muted);margin-top:4px;}
+/* Stat row — three numbers on hairlines, coloured by severity. */
+.ih-stats{display:grid;grid-template-columns:repeat(3,1fr);margin:0 0 6px;}
+.ih-stat{text-align:center;padding:2px 6px 10px;}
+.ih-stat + .ih-stat{border-left:1px solid var(--ih-hair);}
+.ih-num{font-family:'DM Serif Display',Georgia,serif;font-size:27px;line-height:1;color:var(--ih-ink);font-variant-numeric:tabular-nums;}
+.ih-num[data-sev="expired"]{color:var(--ih-red);}
+.ih-num[data-sev="amber"]{color:var(--ih-amber);}
+.ih-num[data-sev="ok"]{color:var(--ih-green);}
+.ih-num.zero{color:var(--ih-faint);}
+.ih-lbl{font-size:9px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ih-muted);margin-top:7px;}
 
-/* Compressed axis rows — serif count · label · chevron, each tappable. */
-.ih-rows{display:flex;flex-direction:column;margin-top:8px;}
-.ih-row{display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:none;border:0;
-  border-top:1px solid var(--ih-hair);padding:11px 2px;cursor:pointer;font-family:inherit;transition:background .12s ease;}
-.ih-row:hover{background:rgba(28,27,58,.014);}
+/* Attention rows — each a real button, deep-links to the needs-attention board. */
+.ih-list{display:flex;flex-direction:column;border-top:1px solid var(--ih-hair);margin-top:8px;}
+.ih-row{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:none;border:0;
+  border-bottom:1px solid var(--ih-hair);padding:10px 4px;cursor:pointer;font-family:inherit;transition:background .12s ease;}
+.ih-row:hover{background:#FAFAFC;}
 .ih-row:focus-visible{outline:none;box-shadow:0 0 0 2px #FAECE7 inset;border-radius:8px;}
-.ih-row.is-quiet{cursor:default;}
-.ih-row.is-quiet:hover{background:none;}
-.ih-rnum{font-family:'DM Serif Display',Georgia,serif;font-size:23px;line-height:1;color:var(--ih-ink);
-  font-variant-numeric:tabular-nums;min-width:34px;text-align:center;}
-.ih-rnum.red{color:var(--ih-red);} .ih-rnum.amber{color:var(--ih-amber);} .ih-rnum.zero{color:var(--ih-faint);}
-.ih-rmain{flex:1;min-width:0;}
-.ih-rlabel{font-size:12.5px;font-weight:600;color:var(--ih-ink);}
-.ih-rsub{font-size:11px;color:var(--ih-faint);margin-top:1px;}
-.ih-tick{color:var(--ih-green);flex:none;}
-.ih-chev{color:var(--ih-faint);flex:none;}
+.ih-dot{width:7px;height:7px;border-radius:999px;flex:0 0 auto;background:var(--ih-faint);}
+.ih-dot[data-sev="expired"]{background:var(--ih-red);}
+.ih-dot[data-sev="amber"]{background:var(--ih-amber);}
+.ih-main{min-width:0;flex:1;}
+.ih-name{font-size:12.5px;font-weight:600;color:var(--ih-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ih-place{font-size:11px;color:var(--ih-faint);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ih-when{flex:none;font-size:11px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ih-amber);}
+.ih-when[data-sev="expired"]{color:var(--ih-red);}
+.ih-more{background:none;border:0;padding:9px 4px 0;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:600;color:var(--ih-muted);text-align:left;}
+.ih-more:hover{color:#C65A1A;}
 
-/* Calm all-healthy state — echoes the "nothing left to do" panels. */
-.ih-calm{padding:14px 2px 4px;}
-.ih-calm-num{font-family:'DM Serif Display',Georgia,serif;font-size:34px;line-height:1;color:var(--ih-green);}
-.ih-calm-sub{font-size:12px;color:var(--ih-muted);margin-top:6px;}
+/* Calm all-healthy / empty states. */
+.ih-calm{padding:10px 4px 2px;font-size:12.5px;color:var(--ih-muted);}
 
-/* Footer action. */
-.ih-foot{margin-top:14px;padding-top:13px;border-top:1px solid var(--ih-hair);}
-.ih-action{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;font-family:inherit;
-  font-size:12px;font-weight:700;padding:9px;border-radius:10px;border:1px solid var(--ih-hair);
-  background:#fff;color:var(--ih-ink);cursor:pointer;transition:border-color .12s ease,color .12s ease;}
-.ih-action:hover{border-color:var(--ih-accent);color:var(--ih-accent);}
-
+/* Error + loading. */
 .ih-err{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding:11px 12px;border-radius:10px;
   background:#FDF1ED;color:#9A2B12;font-size:12.5px;}
 .ih-retry{background:none;border:0;padding:0;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;color:#9A2B12;text-decoration:underline;}
 .ih-load{display:flex;align-items:center;justify-content:center;padding:38px 0;}
 
-@media (prefers-reduced-motion:reduce){.ih-hero,.ih-row,.ih-action{transition:none;}}
+@media (prefers-reduced-motion:reduce){.ih-row{transition:none;}}
