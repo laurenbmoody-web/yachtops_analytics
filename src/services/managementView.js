@@ -124,38 +124,59 @@ export const fleetHeadline = (fleet = []) => {
   return `${waiting} ${waiting === 1 ? 'month' : 'months'} waiting on you across ${boats} ${boats === 1 ? 'vessel' : 'vessels'}.`;
 };
 
-// ── the vessel's side: who in the office can see this boat ───────────────────
-// COMMAND reads this list on Check-off. It's the same relationship from the
+// ── the vessel's side: which firms can see this boat ────────────────────────
+// COMMAND reads this list on /month-end. It's the same relationship from the
 // other end, so it lives beside the rest of the management shaping rather than
 // in managementAccess.js, which imports the database client and so can't be
 // tested on its own.
+//
+// A row here is an ENGAGEMENT — vessel ←→ firm — not a person. The people at the
+// firm come with it, because the boat gave access to a company and is entitled
+// to see which humans that turned out to be.
 
 export const accessState = (row) => {
   if (!row) return 'none';
-  if (!row.active) return 'withdrawn';
-  return row.has_login ? 'active' : 'awaiting sign-up';
+  if (!row.active) return 'ended';
+  // A firm whose people have all been added but none have signed up yet can see
+  // nothing, and a captain should not read that as live access.
+  return (row.people || []).some((p) => p.has_login) ? 'active' : 'awaiting sign-up';
 };
 
-// The office is a firm, not a person — but before they've signed up there IS no
-// name, so the address does the work rather than a placeholder.
-export const accessLabel = (row) =>
-  row?.person_name || row?.company_name || row?.email || 'Someone';
+export const accessLabel = (row) => row?.company_name || 'A management company';
 
-export const accessSub = (row) => {
-  const bits = [];
-  if (row?.person_name && row?.company_name) bits.push(row.company_name);
-  if (row?.email && row.email !== accessLabel(row)) bits.push(row.email);
-  return bits.join(' · ');
+// Who that firm actually is, right now — the reason a captain trusts a company
+// grant at all. Named, up to a point, then counted.
+export const accessPeople = (row, max = 3) => {
+  const people = row?.people || [];
+  if (!people.length) return 'Nobody added yet';
+  const names = people.slice(0, max).map((p) => p.name || p.email);
+  const rest = people.length - names.length;
+  return rest > 0 ? `${names.join(', ')} +${rest} more` : names.join(', ');
 };
 
-// Withdrawn grants stay on file — months they signed off carry their user id,
-// and the vessel is entitled to know who signed what after the relationship
-// ends — but they sort below the people who currently have access.
+// Ended engagements stay on file — months the firm signed off name their people,
+// and the vessel keeps that after the relationship ends — but they sort below
+// the firms that currently have access.
 export const sortAccess = (rows = []) =>
   (rows || []).slice().sort((a, b) => {
     if (!!a?.active !== !!b?.active) return a?.active ? -1 : 1;
     return String(accessLabel(a)).localeCompare(String(accessLabel(b)), undefined, { sensitivity: 'base' });
   });
+
+// ── the firm's own team ──────────────────────────────────────────────────────
+// Mirrors the supplier workspace tiers. A VIEWER reads a month but does not sign
+// it off — juniors preparing the file for a director to approve is the normal
+// shape of an accounts office.
+export const TEAM_TIERS = [
+  { key: 'OWNER', label: 'Owner', note: 'Runs the company and its team' },
+  { key: 'ADMIN', label: 'Admin', note: 'Can add and remove people' },
+  { key: 'MEMBER', label: 'Member', note: 'Reads vessels and signs months off' },
+  { key: 'VIEWER', label: 'Viewer', note: 'Reads only — cannot sign anything off' },
+];
+
+export const tierLabel = (key) => TEAM_TIERS.find((t) => t.key === key)?.label || key;
+export const canRunTeam = (tier) => tier === 'OWNER' || tier === 'ADMIN';
+export const canSignOffAs = (tier) => tier === 'OWNER' || tier === 'ADMIN' || tier === 'MEMBER';
 
 // ── what a grant covers ──────────────────────────────────────────────────────
 // The shore office reads more than the money. /month-end already models the

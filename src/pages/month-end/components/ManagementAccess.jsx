@@ -5,20 +5,24 @@
 // them too. This page is already "everything that must be signed off each
 // month", so it's the honest home for who receives it.
 //
-// The grant is by email, not by picking a user, because the office is routinely
-// added before they have a Cargo login. Until someone signs in with that
-// address the row is inert; it grants nothing.
+// What the vessel engages is a FIRM, not a person. The captain names it and
+// gives one address; that address becomes the firm's first owner, and the firm
+// adds its own people from there. So this list changes without the captain
+// touching it — which is why each row shows who the firm currently is.
 //
-// Granting an address that already has access REPLACES what it covers — that's
-// how a captain narrows or widens the office's view without ending up with two
-// rows to withdraw.
+// The trade, stated plainly: the vessel controls the engagement and its scopes,
+// the firm controls its team. What that buys is per-person identity — a month
+// signed off names the human who signed it, not a shared office mailbox.
+//
+// Engaging a firm that is already here replaces what the engagement covers,
+// which is how a captain narrows or widens it without a second row to end.
 import React, { useCallback, useEffect, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import {
   listManagementAccess, grantManagementAccess, revokeManagementAccess,
 } from '../../../services/managementAccess';
 import {
-  accessState, accessLabel, accessSub, sortAccess, describeScopes, SCOPES,
+  accessState, accessLabel, accessPeople, sortAccess, describeScopes, SCOPES,
 } from '../../../services/managementView';
 import './management-access.css';
 
@@ -58,11 +62,14 @@ export default function ManagementAccess({ tenantId, onToast }) {
     setScopes((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
   };
 
-  // Changing an existing grant is the same action as making one — same address,
-  // new set of areas — so the form opens filled in rather than being a separate
-  // screen with its own rules.
+  // Changing an engagement is the same action as making one, so the form opens
+  // filled in rather than being a separate screen with its own rules. The
+  // address comes from the firm's owner: the captain is not being asked to
+  // remember who they first invited in order to change what the firm can see.
   const edit = (row) => {
-    setEmail(row.email || '');
+    const people = row.people || [];
+    const owner = people.find((p) => p.tier === 'OWNER') || people[0];
+    setEmail(owner?.email || '');
     setCompany(row.company_name || '');
     setScopes(row.scopes?.length ? [...row.scopes] : ['accounts']);
     setErr(null);
@@ -76,7 +83,7 @@ export default function ManagementAccess({ tenantId, onToast }) {
     setBusy(false);
     // The database owns these rules — a rubbish address, someone already crew,
     // an empty choice — so its wording shows rather than a guess made up here.
-    if (error) { setErr(error.message || 'Could not give access'); return; }
+    if (error) { setErr(error.message || 'Could not engage them'); return; }
     onToast?.('Management access updated');
     reset();
     load();
@@ -86,8 +93,8 @@ export default function ManagementAccess({ tenantId, onToast }) {
     setBusy(true);
     const { error } = await revokeManagementAccess(row.id);
     setBusy(false);
-    if (error) { onToast?.(error.message || 'Could not withdraw access'); return; }
-    onToast?.(`Access withdrawn from ${accessLabel(row)}`);
+    if (error) { onToast?.(error.message || 'Could not end the engagement'); return; }
+    onToast?.(`Engagement with ${accessLabel(row)} ended`);
     load();
   };
 
@@ -102,28 +109,30 @@ export default function ManagementAccess({ tenantId, onToast }) {
         <span className="ma-rule" />
         {!open && (
           <button type="button" className="ma-add" onClick={() => setOpen(true)}>
-            <Icon name="Plus" size={13} /> Give access
+            <Icon name="Plus" size={13} /> Engage a company
           </button>
         )}
       </div>
 
       <p className="ma-say">
         {live.length === 0
-          ? 'Nobody in the shore office can see this vessel yet. Give access and they read what you choose — they can sign a closed month off or send it back, but they can never change what the crew entered.'
-          : `${live.length} ${live.length === 1 ? 'person' : 'people'} in the shore office can read this vessel. They can sign a closed month off or send it back; none of them can change what the crew entered.`}
+          ? 'No management company is engaged on this vessel yet. Name one and they read what you choose — they can sign a closed month off or send it back, but they can never change what the crew entered.'
+          : `${live.length} ${live.length === 1 ? 'management company reads' : 'management companies read'} this vessel. Their people can sign a closed month off or send it back; none of them can change what the crew entered. The company adds and removes its own staff — the list below is who that is right now.`}
       </p>
 
       {open && (
         <form className="ma-form" onSubmit={submit}>
           <label className="ma-field">
-            <span>Their email <em className="req">required</em></span>
-            <input type="email" value={email} autoFocus placeholder="accounts@office.com"
-              onChange={(e) => { setEmail(e.target.value); setErr(null); }} />
+            <span>Management company <em className="req">required</em></span>
+            <input type="text" value={company} autoFocus placeholder="e.g. Blue Water Yacht Management"
+              onChange={(e) => { setCompany(e.target.value); setErr(null); }} />
           </label>
           <label className="ma-field">
-            <span>Company <em className="opt">optional</em></span>
-            <input type="text" value={company} placeholder="e.g. Blue Water Yacht Management"
-              onChange={(e) => setCompany(e.target.value)} />
+            {/* One address, and only for a firm Cargo hasn't met. They become
+                its owner and add the rest of their office themselves. */}
+            <span>Who to set up <em className="req">required</em></span>
+            <input type="email" value={email} placeholder="accounts@bluewater.com"
+              onChange={(e) => { setEmail(e.target.value); setErr(null); }} />
           </label>
 
           <fieldset className="ma-scopes">
@@ -142,7 +151,8 @@ export default function ManagementAccess({ tenantId, onToast }) {
 
           <div className="ma-act">
             <button type="button" className="ma-btn ghost" onClick={reset}>Cancel</button>
-            <button type="submit" className="ma-btn primary" disabled={busy || !email.trim() || !scopes.length}>
+            <button type="submit" className="ma-btn primary"
+              disabled={busy || !email.trim() || !company.trim() || !scopes.length}>
               {busy ? 'Saving…' : 'Give access'}
             </button>
           </div>
@@ -153,27 +163,30 @@ export default function ManagementAccess({ tenantId, onToast }) {
       {loading ? (
         <p className="ma-empty">Loading…</p>
       ) : rows.length === 0 ? (
-        !open && <p className="ma-empty">No access given yet.</p>
+        !open && <p className="ma-empty">No management company engaged yet.</p>
       ) : (
         <div className="ma-rows">
           {rows.map((r) => {
             const state = accessState(r);
-            const sub = accessSub(r);
             return (
               <div key={r.id} className={`ma-row${r.active ? '' : ' is-off'}`}>
                 <span className="ma-who">
                   <b>{accessLabel(r)}</b>
-                  {sub && <em>{sub}</em>}
+                  {/* The firm runs its own team, so this list changes without
+                      the captain doing anything. Showing it is the whole reason
+                      a company-level grant is safe to give. */}
+                  <em>{accessPeople(r)}</em>
                 </span>
                 <span className="ma-sees">{describeScopes(r.scopes)}</span>
                 <span className={`ma-state s-${state.replace(/\s+/g, '-')}`}>
-                  {state === 'awaiting sign-up' ? 'Not signed up yet' : state === 'withdrawn' ? 'Withdrawn' : 'Has access'}
+                  {state === 'awaiting sign-up' ? 'Nobody signed in yet'
+                    : state === 'ended' ? 'Ended' : `${r.people_count} with access`}
                 </span>
                 <span className="ma-when">{dmy(r.granted_at)}</span>
                 {r.active ? (
                   <span className="ma-go">
                     <button type="button" disabled={busy} onClick={() => edit(r)}>Change</button>
-                    <button type="button" disabled={busy} onClick={() => withdraw(r)}>Withdraw</button>
+                    <button type="button" disabled={busy} onClick={() => withdraw(r)}>End</button>
                   </span>
                 ) : <span className="ma-go" />}
               </div>
@@ -182,12 +195,12 @@ export default function ManagementAccess({ tenantId, onToast }) {
         </div>
       )}
 
-      {/* A withdrawn grant is kept rather than deleted, and it's worth saying
-          why — a captain who sees an old name here should know it's a record,
+      {/* An ended engagement is kept rather than deleted, and it's worth saying
+          why — a captain who sees an old firm here should know it's a record,
           not access. */}
       {rows.some((r) => !r.active) && (
         <p className="ma-foot">
-          Withdrawn access stays listed so you can still see who signed off which month.
+          Ended engagements stay listed so you can still see who signed off which month.
         </p>
       )}
     </section>
