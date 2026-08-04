@@ -4,6 +4,7 @@ import {
   accessState, accessLabel, accessPeople, sortAccess,
   cleanScopes, describeScopes, scopeLabel,
   tierLabel, canRunTeam, canSignOffAs,
+  TEAM_TIERS, TIER_POWERS, tierCan, engagementNote,
 } from './managementView.js';
 
 const eng = (over = {}) => ({
@@ -85,4 +86,34 @@ test('only an owner or admin runs the team', () => {
 test('tiers have a human label', () => {
   assert.equal(tierLabel('MEMBER'), 'Member');
   assert.equal(tierLabel('WHAT'), 'WHAT');
+});
+
+test('the permission table matches what the tier helpers allow', () => {
+  // The matrix on the settings screen and the buttons on the vessel page must
+  // never disagree — a screen that claims a power the database refuses is worse
+  // than no screen at all.
+  TEAM_TIERS.forEach((t) => {
+    assert.equal(tierCan(t.key, 'sign'), canSignOffAs(t.key), `sign: ${t.key}`);
+    assert.equal(tierCan(t.key, 'team'), canRunTeam(t.key), `team: ${t.key}`);
+  });
+});
+
+test('nobody can change what the crew entered', () => {
+  const edit = TIER_POWERS.find((p) => p.key === 'edit');
+  assert.deepEqual(edit.tiers, []);
+  TEAM_TIERS.forEach((t) => assert.equal(tierCan(t.key, 'edit'), false, t.key));
+});
+
+test('every power lists only real tiers', () => {
+  const known = TEAM_TIERS.map((t) => t.key);
+  TIER_POWERS.forEach((p) => {
+    p.tiers.forEach((k) => assert.ok(known.includes(k), `${p.key} lists unknown tier ${k}`));
+  });
+});
+
+test('the engagement note says who is in charge of it', () => {
+  assert.equal(engagementNote([]), 'No vessel has engaged you yet.');
+  assert.match(engagementNote([{ active: true }]), /^1 vessel has engaged you\./);
+  assert.match(engagementNote([{ active: true }, { active: true }, { active: false }]),
+    /^2 vessels have engaged you\./);
 });

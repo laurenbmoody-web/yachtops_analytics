@@ -208,3 +208,32 @@ export const describeScopes = (scopes = []) => {
   if (names.length === 1) return names[0];
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 };
+
+// ── what each tier may actually do ───────────────────────────────────────────
+// The office's first question about Cargo is "what can my staff do in here",
+// and the honest answer is short. Written as data so the settings screen and
+// the tier picker say the same thing, and so nothing claims a power the
+// database wouldn't grant.
+//
+// The last column is the one that matters and is easy to miss: NOBODY here can
+// change a line the crew entered. It isn't a permission that exists.
+export const TIER_POWERS = [
+  { key: 'read', label: 'Read a vessel’s closed months', tiers: ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'] },
+  { key: 'export', label: 'Export the month-end pack', tiers: ['OWNER', 'ADMIN', 'MEMBER', 'VIEWER'] },
+  { key: 'sign', label: 'Sign a month off', tiers: ['OWNER', 'ADMIN', 'MEMBER'] },
+  { key: 'query', label: 'Send a month back with a question', tiers: ['OWNER', 'ADMIN', 'MEMBER'] },
+  { key: 'team', label: 'Add and remove colleagues', tiers: ['OWNER', 'ADMIN'] },
+  { key: 'company', label: 'Change the company’s details', tiers: ['OWNER', 'ADMIN'] },
+  { key: 'edit', label: 'Change what the crew entered', tiers: [] },
+];
+
+export const tierCan = (tier, power) =>
+  (TIER_POWERS.find((p) => p.key === power)?.tiers || []).includes(tier);
+
+// A vessel decides what its engagement covers; the office cannot. Said plainly
+// on the settings screen so nobody goes hunting for the control.
+export const engagementNote = (engagements = []) => {
+  const live = (engagements || []).filter((e) => e.active);
+  if (!live.length) return 'No vessel has engaged you yet.';
+  return `${live.length} ${live.length === 1 ? 'vessel has' : 'vessels have'} engaged you. Each decides what you can see — only their command can change or end it.`;
+};

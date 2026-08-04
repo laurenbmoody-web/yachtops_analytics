@@ -98,6 +98,7 @@ import ManagementProtectedRoute from './components/ManagementProtectedRoute';
 import ManagementFleet from './pages/management';
 import ManagementVessel from './pages/management/vessel';
 import ManagementTeam from './pages/management/team';
+import ManagementSettings from './pages/management/settings';
 import SupplierRoleGuard from './components/SupplierRoleGuard';
 import SupplierPortal from './pages/supplier-portal';
 import SupplierPortalDemo from './pages/supplier-portal-demo';
@@ -1094,6 +1095,7 @@ const Routes = () => {
         <Route path="/management" element={<ManagementProtectedRoute><ManagementFleet /></ManagementProtectedRoute>} />
         <Route path="/management/vessel/:tenantId" element={<ManagementProtectedRoute><ManagementVessel /></ManagementProtectedRoute>} />
         <Route path="/management/team" element={<ManagementProtectedRoute><ManagementTeam /></ManagementProtectedRoute>} />
+        <Route path="/management/settings" element={<ManagementProtectedRoute><ManagementSettings /></ManagementProtectedRoute>} />
 
         <Route path="/invite-accept" element={<InviteAcceptPage />} />
         <Route path="/invite" element={<InviteRedirect />} />

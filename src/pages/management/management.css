@@ -3,37 +3,42 @@
  * A deliberate departure from the hairline-row rule in CLAUDE.md, for this
  * surface only. That rule is right for a dense working page the crew live in all
  * day. The office opens Cargo a few times a month to answer one question, and
- * bare rules on an empty canvas read as unfinished rather than editorial — so
- * this is built as tiles: layered surfaces, real depth, the number as the thing
- * your eye lands on. Palette, type and radii stay exactly as the system says. */
+ * bare rules on an empty canvas read as unfinished — so vessels are cards you
+ * act on, not rows you read. Palette, type and radii stay as the system says. */
 
-.mgf { max-width: 1180px; }
+.mgf, .mgt, .mgs { max-width: 1180px; }
 
-/* ── the numbers, as widgets ──────────────────────────────────────────────── */
+/* ── the numbers ──────────────────────────────────────────────────────────── */
 .mgf-stats {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px; margin: 26px 0 34px;
+  gap: 14px; margin: 26px 0 38px;
 }
 
 .mgf-stat {
   position: relative; overflow: hidden;
   background: #fff; border: 1px solid rgba(28, 27, 58, 0.07); border-radius: 20px;
-  padding: 20px 22px 18px;
+  padding: 18px 20px 17px;
   box-shadow: 0 1px 2px rgba(28, 27, 58, 0.04), 0 10px 30px -18px rgba(28, 27, 58, 0.22);
 }
-/* A hairline of colour along the top, the way a widget carries its accent. */
 .mgf-stat::before {
-  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px;
-  background: #EEF0F4;
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: #EEF0F4;
 }
 .mgf-stat.is-live::before { background: linear-gradient(90deg, #C65A1A, #E08A4F); }
 .mgf-stat.is-query::before { background: linear-gradient(90deg, #D8A657, #E8C78F); }
 .mgf-stat.is-done::before { background: linear-gradient(90deg, #2F855A, #6FB08C); }
 
+.mgf-stat-ic {
+  display: grid; place-items: center; width: 34px; height: 34px;
+  border-radius: 11px; background: #F4F6F9; color: #8B8478; margin-bottom: 13px;
+}
+.mgf-stat.is-live .mgf-stat-ic { background: #FBEFE9; color: #C65A1A; }
+.mgf-stat.is-query .mgf-stat-ic { background: #FBF3E4; color: #98701F; }
+.mgf-stat.is-done .mgf-stat-ic { background: #EAF4EE; color: #2F855A; }
+
 .mgf-stat-n {
   display: block;
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 40px; line-height: 1; letter-spacing: -1px; color: #1C1B3A;
+  font-size: 38px; line-height: 1; letter-spacing: -1px; color: #1C1B3A;
   font-variant-numeric: tabular-nums;
 }
 .mgf-stat.is-live .mgf-stat-n { color: #C65A1A; }
@@ -44,84 +49,118 @@
 }
 .mgf-stat-s { display: block; margin-top: 4px; font-size: 12px; color: #AEB4C2; }
 
-/* ── the vessels ──────────────────────────────────────────────────────────── */
-.mgf-say {
-  margin: 10px 0 0; max-width: 66ch;
-  font-size: 14px; line-height: 1.6; color: #6B7280;
+/* ── the vessels, as cards ────────────────────────────────────────────────── */
+.mgf-lab, .mgs-lab {
+  margin: 0 0 13px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
 }
 
+.mgf-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
+}
+
+.mgf-card {
+  display: flex; flex-direction: column; align-items: stretch;
+  text-align: left; font: inherit; cursor: pointer;
+  background: #fff; border: 1px solid rgba(28, 27, 58, 0.07); border-radius: 22px;
+  padding: 20px 20px 18px; min-height: 208px;
+  box-shadow: 0 1px 2px rgba(28, 27, 58, 0.04), 0 10px 30px -20px rgba(28, 27, 58, 0.2);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.mgf-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(198, 90, 26, 0.3);
+  box-shadow: 0 2px 5px rgba(28, 27, 58, 0.06), 0 22px 44px -22px rgba(28, 27, 58, 0.34);
+}
+.mgf-card:active { transform: translateY(-1px); }
+
+.mgf-card.is-ghost {
+  cursor: default; pointer-events: none;
+  background: linear-gradient(100deg, #fff 30%, #F4F6F9 50%, #fff 70%);
+  background-size: 220% 100%;
+  animation: mgf-shimmer 1.5s linear infinite;
+  border-color: rgba(28, 27, 58, 0.05); box-shadow: none;
+}
+@keyframes mgf-shimmer { to { background-position: -220% 0; } }
+
+.mgf-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+
+/* The vessel's monogram — how you recognise a boat in a grid of them. */
+.mgf-mono {
+  width: 52px; height: 52px; border-radius: 17px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  background: #1C1B3A; color: #fff;
+  font-family: 'DM Serif Display', Georgia, serif; font-size: 19px; letter-spacing: 0.02em;
+}
+.mgf-card.need .mgf-mono { background: #C65A1A; }
+.mgf-card.query .mgf-mono { background: #B8863A; }
+
+/* How much of what this boat has closed is signed off. */
+.mgf-ring { position: relative; width: 52px; height: 52px; flex: 0 0 auto; display: grid; place-items: center; }
+.mgf-ring svg { position: absolute; inset: 0; width: 52px; height: 52px; }
+.mgf-ring .track { fill: none; stroke: #EEF0F4; stroke-width: 4; }
+.mgf-ring .fill {
+  fill: none; stroke: #2F855A; stroke-width: 4; stroke-linecap: round;
+  transition: stroke-dasharray 0.5s ease;
+}
+.mgf-ring.need .fill { stroke: #C65A1A; }
+.mgf-ring.query .fill { stroke: #D8A657; }
+.mgf-ring b {
+  position: relative; font-size: 11.5px; font-weight: 700; color: #6B7280;
+  font-variant-numeric: tabular-nums;
+}
+
+.mgf-card-name {
+  display: block; margin: 16px 0 0;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 24px; font-weight: 400; color: #1C1B3A; letter-spacing: -0.4px; line-height: 1.15;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.mgf-card-scopes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.mgf-chip {
+  padding: 4px 10px; border-radius: 999px;
+  background: #F4F6F9; color: #6B7280; font-size: 11px; font-weight: 600;
+}
+
+.mgf-card-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: auto; padding-top: 16px;
+}
+
+.mgf-state {
+  display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 999px;
+  background: #F4F6F9; color: #6B7280;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.mgf-state.need { background: #FBEFE9; color: #B14E16; }
+.mgf-state.query { background: #FBF3E4; color: #98701F; }
+
+.mgf-go {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: #AEB4C2; white-space: nowrap;
+}
+.mgf-card:hover .mgf-go { color: #C65A1A; }
+.mgf-go svg { transition: transform 0.18s ease; }
+.mgf-card:hover .mgf-go svg { transform: translateX(3px); }
+
+.mgf-foot { margin: 20px 0 0; font-size: 12px; line-height: 1.6; color: #AEB4C2; max-width: 70ch; }
+
+/* ── shared feedback ──────────────────────────────────────────────────────── */
 .mgf-err, .mgv-err {
   display: flex; align-items: center; gap: 8px;
   margin: 0 0 18px; padding: 12px 15px;
   background: #FDF3EE; border: 1px solid #F3D9C9; border-radius: 12px;
   font-size: 13px; color: #B14E16;
 }
-
-.mgf-lab {
-  margin: 0 0 12px;
-  font-size: 9px; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: #8B8478;
+.mgf-ok {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 18px; padding: 12px 15px;
+  background: #EFF6F2; border: 1px solid #CFE6DA; border-radius: 12px;
+  font-size: 13px; color: #2F6B4F;
 }
-
-.mgf-rows { display: grid; gap: 12px; }
-
-.mgf-row {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) auto 20px;
-  align-items: center; gap: 22px;
-  width: 100%; text-align: left; font: inherit;
-  background: #fff; border: 1px solid rgba(28, 27, 58, 0.07); border-radius: 18px;
-  padding: 20px 22px;
-  cursor: pointer;
-  box-shadow: 0 1px 2px rgba(28, 27, 58, 0.04), 0 10px 30px -20px rgba(28, 27, 58, 0.2);
-  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
-}
-.mgf-row:hover {
-  transform: translateY(-2px);
-  border-color: rgba(198, 90, 26, 0.28);
-  box-shadow: 0 2px 4px rgba(28, 27, 58, 0.05), 0 18px 40px -20px rgba(28, 27, 58, 0.3);
-}
-.mgf-row:active { transform: translateY(0); }
-.mgf-row > svg { color: #CFD4DC; justify-self: end; transition: color 0.16s ease, transform 0.16s ease; }
-.mgf-row:hover > svg { color: #C65A1A; transform: translateX(2px); }
-
-/* The vessel, with a status dot tucked against the name rather than floating in
-   its own column — one object, not two. */
-.mgf-name { min-width: 0; display: flex; align-items: flex-start; gap: 11px; }
-.mgf-dot {
-  flex: 0 0 auto; width: 9px; height: 9px; margin-top: 9px;
-  border-radius: 999px; background: #DDE1E7;
-}
-.mgf-dot.need { background: #C65A1A; box-shadow: 0 0 0 4px rgba(198, 90, 26, 0.13); }
-.mgf-dot.query { background: #D8A657; box-shadow: 0 0 0 4px rgba(216, 166, 87, 0.16); }
-
-.mgf-name-t { min-width: 0; }
-.mgf-name-t b {
-  display: block;
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 23px; font-weight: 400; color: #1C1B3A; letter-spacing: -0.3px; line-height: 1.15;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mgf-name-t em {
-  display: block; margin-top: 4px; font-style: normal; font-size: 12px; color: #8B8478;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* Status as a soft capsule — the one place a pill earns its keep, because it is
-   the answer to "does this boat need me". */
-.mgf-state {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 7px 14px; border-radius: 999px;
-  background: #F4F6F9; color: #6B7280;
-  font-size: 12.5px; font-weight: 600; white-space: nowrap;
-}
-.mgf-state.need { background: #FBEFE9; color: #B14E16; }
-.mgf-state.query { background: #FBF3E4; color: #98701F; }
-
-.mgf-last { font-size: 12px; color: #AEB4C2; white-space: nowrap; }
-
-/* ── nothing yet ──────────────────────────────────────────────────────────── */
 .mgf-empty, .mgv-empty { margin: 0; padding: 18px 2px; font-size: 13.5px; color: #AEB4C2; }
 
 .mgf-none {
@@ -141,14 +180,12 @@
 }
 
 @media (max-width: 900px) {
-  .mgf-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-  .mgf-stat { padding: 16px 16px 14px; border-radius: 16px; }
-  .mgf-stat-n { font-size: 30px; }
+  .mgf-stat { padding: 15px 15px 14px; border-radius: 17px; }
+  .mgf-stat-n { font-size: 29px; }
+  .mgf-stat-ic { width: 30px; height: 30px; margin-bottom: 10px; }
 }
-
 @media (max-width: 720px) {
-  .mgf-stats { grid-template-columns: minmax(0, 1fr); }
-  .mgf-row { grid-template-columns: minmax(0, 1fr) 20px; row-gap: 14px; padding: 17px 18px; }
-  .mgf-state { grid-column: 1; justify-self: start; }
-  .mgf-last { display: none; }
+  .mgf-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .mgf-stat-s { display: none; }
+  .mgf-grid { grid-template-columns: minmax(0, 1fr); }
 }
