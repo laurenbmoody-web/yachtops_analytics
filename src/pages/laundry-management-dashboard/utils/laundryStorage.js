@@ -108,7 +108,7 @@ const ACTION_FOR_STATUS = {
   [LaundryStatus.READY_TO_DELIVER]: 'ready',
   [LaundryStatus.DELIVERED]: 'delivered',
 };
-const logLaundryEvent = async (itemId, tenantId, action) => {
+const logLaundryEvent = async (itemId, tenantId, action, changes = []) => {
   if (!itemId || !tenantId || !action) return;
   try {
     const { data: authData } = await supabase.auth.getUser();
@@ -126,11 +126,47 @@ const logLaundryEvent = async (itemId, tenantId, action) => {
       tenant_id: tenantId, item_id: itemId, action,
       actor_id: authData?.user?.id || null,
       actor_name: actorName,
+      changes: Array.isArray(changes) ? changes : [],
     });
   } catch (e) { /* non-fatal */ }
 };
 
-const mapEvent = (r) => ({ id: r.id, itemId: r.item_id, action: r.action, actorName: r.actor_name, actorId: r.actor_id, at: r.at });
+const mapEvent = (r) => ({ id: r.id, itemId: r.item_id, action: r.action, actorName: r.actor_name, actorId: r.actor_id, at: r.at, changes: Array.isArray(r.changes) ? r.changes : [] });
+
+// Human-readable field labels + value formatting for the edit change log.
+const CHANGE_COLS = {
+  description: 'Name', garment_type: 'Type', colour: 'Colour', notes: 'Notes',
+  garment_value: 'Value', garment_value_currency: 'Currency', stays_onboard: 'Stays aboard',
+  flag: 'Flag', flag_note: 'Flag note', owner_name: 'Belongs to',
+};
+const DETAIL_LABELS = {
+  brand: 'Brand', description: 'Description', sku: 'Style / SKU', size: 'Size', material: 'Material',
+  gender: 'Cut', condition: 'Condition', season: 'Season', purchasedPlace: 'Purchased at',
+  purchasedDate: 'Purchased on', monogram: 'Monogram',
+};
+const fmtChange = (col, v) => {
+  if (v == null || v === '') return '—';
+  if (col === 'tags') return (Array.isArray(v) ? v : []).map(formatLaundryTag).join(', ') || '—';
+  if (col === 'stays_onboard') return v ? 'Yes' : 'No';
+  if (col === 'flag') return { damaged: 'Damaged', repair: 'Needs repair', missing: 'Missing' }[v] || String(v);
+  return String(v);
+};
+const sameTags = (a, b) => JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort());
+
+// Diff two laundry item rows → [{ field, from, to }] for the edit history.
+const diffLaundryItem = (before, after) => {
+  const out = [];
+  Object.entries(CHANGE_COLS).forEach(([col, label]) => {
+    const a = before?.[col]; const b = after?.[col];
+    if (String(a ?? '') !== String(b ?? '')) out.push({ field: label, from: fmtChange(col, a), to: fmtChange(col, b) });
+  });
+  if (!sameTags(before?.tags, after?.tags)) out.push({ field: 'Care', from: fmtChange('tags', before?.tags), to: fmtChange('tags', after?.tags) });
+  const bd = before?.details || {}; const ad = after?.details || {};
+  Object.entries(DETAIL_LABELS).forEach(([k, label]) => {
+    if (String(bd[k] ?? '') !== String(ad[k] ?? '')) out.push({ field: label, from: fmtChange(k, bd[k]), to: fmtChange(k, ad[k]) });
+  });
+  return out;
+};
 
 export const getLaundryEvents = async (itemId) => {
   if (!itemId) return [];
@@ -566,9 +602,12 @@ export const updateLaundryItem = async (itemId, updates) => {
   }
   const patch = { updated_at: new Date().toISOString() };
   Object.entries(up).forEach(([k, v]) => { if (map[k]) patch[map[k]] = v; });
+  // Snapshot the row before the edit so we can log exactly what changed.
+  const { data: before } = await supabase.from('laundry_items').select('*').eq('id', itemId).maybeSingle();
   const { data, error } = await supabase.from('laundry_items').update(patch).eq('id', itemId).select('*').single();
   if (error) { console.error('[laundry] update failed', error); showToast('Could not update item', 'error'); return null; }
-  logLaundryEvent(data.id, data.tenant_id, 'edited');
+  const changes = before ? diffLaundryItem(before, data) : [];
+  if (changes.length) logLaundryEvent(data.id, data.tenant_id, 'edited', changes);
   showToast('Laundry item updated', 'success');
   return mapRow(data);
 };
