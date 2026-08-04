@@ -45,6 +45,8 @@ const garmentState = (it) => {
   if (inWash(it)) return { label: 'In laundry', cls: 'prog' };
   return null;
 };
+// A garment record can represent multiples (e.g. 6 identical polos).
+const qtyOf = (i) => Math.max(1, Number(i?.details?.quantity) || 1);
 // Age filter is cumulative — "≤ 1 month" includes items only days old. `o`
 // (6 months+) is the one open-ended band.
 const AGE_MAX_DAYS = { w: 7, m: 31, h: 182 };
@@ -152,7 +154,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   // owner guest/family member — the tile landing, matching the Crew folder.
   const people = useMemo(() => {
     const counts = new Map();
-    items.forEach((it) => { const k = it.ownerGuestId || 'owner'; counts.set(k, (counts.get(k) || 0) + 1); });
+    items.forEach((it) => { const k = it.ownerGuestId || 'owner'; counts.set(k, (counts.get(k) || 0) + qtyOf(it)); });
     const arr = [{ id: 'owner', name: 'Owner', subtitle: 'Unassigned garments', count: counts.get('owner') || 0, countLabel: 'garments' }];
     guests.forEach((g) => arr.push({
       id: g.id, name: guestName(g), subtitle: g.cabinLocationLabel || g.cabinAllocated || '',
@@ -180,7 +182,10 @@ const OwnerWardrobeView = ({ onBack }) => {
   const shown = useMemo(() => {
     let list = personItems;
     const q = query.trim().toLowerCase();
-    if (q) list = list.filter((i) => `${i.description} ${i.garmentType} ${i.colour} ${(i.tags || []).join(' ')}`.toLowerCase().includes(q));
+    if (q) list = list.filter((i) => {
+      const dt = i.details || {};
+      return `${i.description} ${i.garmentType} ${i.colour} ${(i.tags || []).join(' ')} ${dt.brand || ''} ${dt.size || ''} ${dt.material || ''} ${dt.sku || ''} ${dt.gender || ''} ${i.notes || ''}`.toLowerCase().includes(q);
+    });
     if (fLoc !== 'all') {
       if (fLoc === 'away') list = list.filter((i) => i.caseId);
       else list = list.filter((i) => i.wardrobeId === fLoc);
@@ -308,6 +313,7 @@ const OwnerWardrobeView = ({ onBack }) => {
         <button type="button" className="ow-card-media" onClick={() => setFullItem(it)}>
           {photo ? <img src={photo} alt={it.description || 'Garment'} loading="lazy" /> : <span className="ow-card-ph"><Icon name="Shirt" size={30} /></span>}
           {it.caseId && <span className="ow-away">Away</span>}
+          {qtyOf(it) > 1 && <span className="ow-qty">×{qtyOf(it)}</span>}
           {it.staysOnboard && <span className="ow-stays" title="Usually stays on board"><Icon name="Anchor" size={11} /></span>}
         </button>
         <button type="button" className="ow-card-body" onClick={() => setFullItem(it)}>
@@ -326,7 +332,7 @@ const OwnerWardrobeView = ({ onBack }) => {
         <button type="button" className="ow-check" onClick={() => toggle(it.id)} aria-label="Select"><Icon name={sel.has(it.id) ? 'CheckSquare' : 'Square'} size={18} /></button>
         <button type="button" className="ow-lthumb" onClick={() => setFullItem(it)}>{photo ? <img src={photo} alt="" loading="lazy" /> : <Icon name="Shirt" size={18} />}</button>
         <button type="button" className="ow-lmain" onClick={() => setFullItem(it)}>
-          <span className="ow-card-nm">{it.description || 'Garment'}</span>
+          <span className="ow-card-nm">{it.description || 'Garment'}{qtyOf(it) > 1 && <span className="ow-qty-inline">×{qtyOf(it)}</span>}</span>
           <span className="ow-card-sub">{[it.garmentType, it.colour, wardrobeName(it.wardrobeId)].filter(Boolean).join(' · ')}</span>
         </button>
         {showValue && it.garmentValue != null && <span className="ow-lval">{money(it.garmentValue, it.garmentValueCurrency)}</span>}
@@ -406,8 +412,9 @@ const OwnerWardrobeView = ({ onBack }) => {
   // Landing figures: how many people have garments stored on board, how many
   // garments, the total wardrobe value, and how many are away / at the laundry.
   const onboardStored = items.filter((i) => i.status === LaundryStatus.STORED && !i.caseId);
+  const onboardPieces = onboardStored.reduce((a, i) => a + qtyOf(i), 0);
   const peopleOnboard = new Set(onboardStored.map((i) => i.ownerGuestId || 'owner')).size;
-  const totalValue = items.reduce((a, i) => a + (Number(i.garmentValue) || 0), 0);
+  const totalValue = items.reduce((a, i) => a + (Number(i.garmentValue) || 0) * qtyOf(i), 0);
   const valueCur = items.find((i) => i.garmentValue != null)?.garmentValueCurrency || 'EUR';
   const awayAll = items.filter((i) => i.caseId).length;
   const washAll = items.filter(inWash).length;
@@ -418,10 +425,10 @@ const OwnerWardrobeView = ({ onBack }) => {
   shown.forEach((it) => {
     const k = it.ownerGuestId || 'owner';
     const e = byPerson.get(k) || { count: 0, thumbs: [], value: 0, cur: null, away: 0, wash: 0 };
-    e.count += 1;
+    e.count += qtyOf(it);
     const photo = (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
     if (photo && e.thumbs.length < 5) e.thumbs.push(photo);
-    if (it.garmentValue != null) { e.value += Number(it.garmentValue) || 0; if (!e.cur) e.cur = it.garmentValueCurrency || 'EUR'; }
+    if (it.garmentValue != null) { e.value += (Number(it.garmentValue) || 0) * qtyOf(it); if (!e.cur) e.cur = it.garmentValueCurrency || 'EUR'; }
     if (it.caseId) e.away += 1;
     if (inWash(it)) e.wash += 1;
     byPerson.set(k, e);
@@ -444,7 +451,7 @@ const OwnerWardrobeView = ({ onBack }) => {
         <p className="editorial-meta">
           <span className="dot">●</span>
           <span className="muted">{peopleOnboard} {peopleOnboard === 1 ? 'person' : 'people'} on board</span>
-          <span className="bar" /><span className="muted">{onboardStored.length} stored on board</span>
+          <span className="bar" /><span className="muted">{onboardPieces} stored on board</span>
           {showValue && totalValue > 0 && <><span className="bar" /><span className="muted">{money(totalValue, valueCur)} total value</span></>}
           {(awayAll + washAll) > 0 && <><span className="bar" /><span className="muted">{awayAll} away · {washAll} at laundry</span></>}
         </p>
