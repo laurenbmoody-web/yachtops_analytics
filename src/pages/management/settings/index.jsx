@@ -12,8 +12,7 @@
 //                     shouldn't exist
 import React, { useCallback, useEffect, useState } from 'react';
 import Icon from '../../../components/AppIcon';
-import '../../../styles/editorial.css';
-import ManagementShell from '../components/ManagementShell';
+import ManagementLayout from '../components/ManagementLayout';
 import useManagementCompany from '../../../hooks/useManagementCompany';
 import { getManagementProfile, updateManagementCompany } from '../../../services/managementAccess';
 import {
@@ -74,26 +73,19 @@ export default function ManagementSettings() {
   const engagements = profile?.engagements || [];
 
   return (
-    <ManagementShell>
-      <div className="mgs">
-        <p className="editorial-meta">
-          <span className="dot">●</span><span>Management</span>
-          <span className="bar" /><span className="muted">{profile?.company?.name || company?.company_name || ''}</span>
-          <span className="bar" /><span className="muted">{tierLabel(profile?.my_tier)}</span>
-        </p>
-        <h1 className="editorial-greeting">
-          Company<span className="period">,</span> <em>and what it may do</em><span className="period">.</span>
-        </h1>
+    <ManagementLayout
+      eyebrow={`Management · ${tierLabel(profile?.my_tier)}`}
+      title={<>Company<span className="accent">, and what it may do</span>.</>}
+    >
+      {err && <div className="mg-banner bad mb-4"><Icon name="AlertCircle" size={15} /> {err}</div>}
+      {saved && <div className="mg-banner good mb-4"><Icon name="Check" size={15} /> Saved</div>}
 
-        {err && <p className="mgf-err"><Icon name="AlertCircle" size={15} /> {err}</p>}
-        {saved && <p className="mgf-ok"><Icon name="Check" size={15} /> Saved</p>}
-
-        {loading ? (
-          <p className="mgf-empty">Loading…</p>
-        ) : (
-          <div className="mgs-cols">
+      {loading ? (
+        <p className="ce-status">Loading…</p>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             {/* ── who we are ─────────────────────────────────────────────── */}
-            <section className="mgs-card">
+            <section className="ce-card rounded-xl p-5 lg:col-span-6">
               <div className="mgs-card-h">
                 <span className="mgs-ic"><Icon name="Building2" size={17} /></span>
                 <span className="mgs-card-t">
@@ -104,7 +96,7 @@ export default function ManagementSettings() {
 
               <form onSubmit={save}>
                 {FIELDS.map((f) => (
-                  <label key={f.key} className="mgs-field">
+                  <label key={f.key} className="mg-field">
                     <span>{f.label}{f.required && <em className="req">required</em>}</span>
                     <input type={f.type || 'text'} value={form[f.key] || ''} disabled={!mayEdit || busy}
                       placeholder={f.placeholder}
@@ -113,7 +105,7 @@ export default function ManagementSettings() {
                 ))}
                 {mayEdit && (
                   <div className="mgs-act">
-                    <button type="submit" className="mgv-btn primary" disabled={busy || !form.name?.trim()}>
+                    <button type="submit" className="ce-btn-navy px-4 py-2 text-xs" disabled={busy || !form.name?.trim()}>
                       {busy ? 'Saving…' : 'Save changes'}
                     </button>
                   </div>
@@ -127,7 +119,7 @@ export default function ManagementSettings() {
             </section>
 
             {/* ── what we can do ─────────────────────────────────────────── */}
-            <section className="mgs-card">
+            <section className="ce-card rounded-xl p-5 lg:col-span-6">
               <div className="mgs-card-h">
                 <span className="mgs-ic"><Icon name="ShieldCheck" size={17} /></span>
                 <span className="mgs-card-t">
@@ -167,7 +159,7 @@ export default function ManagementSettings() {
             </section>
 
             {/* ── who trusts us ──────────────────────────────────────────── */}
-            <section className="mgs-card is-wide">
+            <section className="ce-card rounded-xl p-5 lg:col-span-12">
               <div className="mgs-card-h">
                 <span className="mgs-ic"><Icon name="Anchor" size={17} /></span>
                 <span className="mgs-card-t">
@@ -177,7 +169,7 @@ export default function ManagementSettings() {
               </div>
 
               {engagements.length === 0 ? (
-                <p className="mgf-empty">Nothing yet — a captain engages you from their month-end page.</p>
+                <p className="ce-status">Nothing yet — a captain engages you from their month-end page.</p>
               ) : (
                 <div className="mgs-eng">
                   {engagements.map((e) => (
@@ -195,9 +187,8 @@ export default function ManagementSettings() {
                 </div>
               )}
             </section>
-          </div>
-        )}
-      </div>
-    </ManagementShell>
+        </div>
+      )}
+    </ManagementLayout>
   );
 }

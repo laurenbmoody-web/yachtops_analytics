@@ -1,149 +1,77 @@
-/* The firm's own team — a grouped inset list, the way a settings screen holds
-   people: one card, rows divided from the inside, the avatar carrying the row. */
+/* Team list + tier picker. Colours resolve from the shared --d-* tokens. */
 
-.mgt { max-width: 780px; }
-
-.mgt-say {
-  margin: 10px 0 26px; max-width: 62ch;
-  font-size: 14px; line-height: 1.65; color: #6B7280;
-}
-
-.mgt-lab {
-  margin: 0 0 12px;
-  font-size: 9px; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: #8B8478;
-}
-
-/* ── the card ─────────────────────────────────────────────────────────────── */
-.mgt-card {
-  background: #fff; border: 1px solid rgba(28, 27, 58, 0.07); border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(28, 27, 58, 0.04), 0 10px 30px -20px rgba(28, 27, 58, 0.2);
-  overflow: hidden;
-}
+.mgt-list { display: flex; flex-direction: column; }
 
 .mgt-row {
-  display: grid; grid-template-columns: 42px minmax(0, 1fr) auto auto;
-  align-items: center; gap: 14px;
-  padding: 15px 20px;
-  position: relative;
+  display: grid; grid-template-columns: 38px minmax(0, 1fr) auto auto;
+  align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--d-border-soft);
 }
-/* Divider inset past the avatar, so the list reads as one object. */
-.mgt-row + .mgt-row::before {
-  content: ''; position: absolute; top: 0; left: 76px; right: 0;
-  height: 1px; background: #F0F1F5;
-}
+.mgt-row:last-child { border-bottom: 0; }
 .mgt-row.is-off { opacity: 0.5; }
 
 .mgt-av {
-  width: 42px; height: 42px; border-radius: 14px;
-  background: #1C1B3A; color: #fff;
-  display: grid; place-items: center;
-  font-family: 'DM Serif Display', Georgia, serif; font-size: 15px; letter-spacing: 0.02em;
+  width: 38px; height: 38px; border-radius: 11px;
+  background: var(--d-navy); color: #fff;
+  display: grid; place-items: center; font-weight: 700; font-size: 12.5px;
 }
-.mgt-av.pend { background: #FBEFE9; color: #C65A1A; }
+.mgt-av.pend { background: var(--d-cream-warm); color: var(--d-orange); }
 
 .mgt-who { min-width: 0; }
 .mgt-who b {
-  display: block; font-size: 14.5px; font-weight: 600; color: #1C1B3A;
+  display: block; font-size: 13.5px; font-weight: 700; color: var(--d-navy-deep);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .mgt-who em {
-  display: block; margin-top: 2px; font-style: normal; font-size: 12px; color: #8B8478;
+  display: block; margin-top: 1px; font-style: normal; font-size: 11.5px; color: var(--d-muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-.mgt-meta { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.mgt-meta { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.mgt-pill {
+  padding: 4px 10px; border-radius: 999px;
+  background: var(--d-border-soft); color: var(--d-muted);
+  font-size: 11px; font-weight: 600;
+}
+.mgt-pill.owner { background: var(--d-cream-warm); color: var(--d-orange); }
+.mgt-pill.warn { background: var(--d-warn-soft); color: var(--d-warn); }
+
+.mgt-x { min-width: 54px; text-align: right; }
+.mgt-x:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── tier picker ──────────────────────────────────────────────────────────── */
+.mgt-tiers { border: 0; padding: 0; margin: 18px 0 0; display: grid; gap: 7px; }
+.mgt-tiers legend { padding: 0; margin-bottom: 8px; }
+
 .mgt-tier {
-  padding: 5px 11px; border-radius: 999px;
-  background: #F4F6F9; color: #6B7280; font-size: 11.5px; font-weight: 600;
-}
-.mgt-tier.owner { background: #FBEFE9; color: #B14E16; }
-.mgt-pend {
-  padding: 5px 11px; border-radius: 999px;
-  background: #FBF3E4; color: #98701F; font-size: 11.5px; font-weight: 600;
-}
-
-.mgt-go {
-  background: none; border: 0; padding: 6px 2px; cursor: pointer;
-  font-size: 12.5px; font-weight: 600; color: #AEB4C2;
-}
-.mgt-go:hover:not(:disabled) { color: #C65A1A; }
-.mgt-go:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* ── add someone ──────────────────────────────────────────────────────────── */
-.mgt-add {
-  display: flex; align-items: center; gap: 12px; width: 100%;
-  background: #fff; border: 1px dashed rgba(28, 27, 58, 0.16); border-radius: 18px;
-  padding: 16px 20px; margin-bottom: 14px; cursor: pointer; font: inherit;
+  display: flex; align-items: center; gap: 11px; width: 100%;
+  text-align: left; font: inherit; cursor: pointer;
+  background: var(--d-bg); border: 1px solid var(--d-border); border-radius: 10px;
+  padding: 11px 13px;
   transition: border-color 0.14s ease, background 0.14s ease;
 }
-.mgt-add:hover { border-color: #C65A1A; background: #FFFCFA; }
-.mgt-add-ic {
-  width: 40px; height: 40px; border-radius: 13px; flex: 0 0 auto;
-  background: #FBEFE9; color: #C65A1A; display: grid; place-items: center;
-}
-.mgt-add-t b { display: block; font-size: 14px; font-weight: 600; color: #1C1B3A; }
-.mgt-add-t em { display: block; margin-top: 2px; font-style: normal; font-size: 12px; color: #8B8478; }
+.mgt-tier:hover { border-color: var(--d-muted-soft); }
+.mgt-tier.on { border-color: var(--d-orange); background: var(--d-card); }
 
-/* ── the form ─────────────────────────────────────────────────────────────── */
-.mgt-form {
-  background: #fff; border: 1px solid rgba(28, 27, 58, 0.07); border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(28, 27, 58, 0.04), 0 10px 30px -20px rgba(28, 27, 58, 0.2);
-  padding: 22px 24px; margin-bottom: 18px;
-}
-
-.mgt-field { display: flex; flex-direction: column; gap: 7px; }
-.mgt-field > span {
-  font-size: 9px; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: #8B8478;
-}
-.mgt-field .req { font-style: normal; color: #C65A1A; margin-left: 4px; }
-.mgt-field input {
-  width: 100%; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 12px;
-  padding: 12px 14px; font: inherit; font-size: 14px; color: #1C1B3A;
-  transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
-}
-.mgt-field input::placeholder { color: #C3C7D0; }
-.mgt-field input:focus {
-  outline: none; background: #fff; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7;
-}
-
-/* Tier as a segmented choice — four options, one answer, no dropdown. */
-.mgt-tiers { border: 0; padding: 0; margin: 20px 0 0; display: grid; gap: 8px; }
-.mgt-tiers legend {
-  padding: 0; margin-bottom: 10px;
-  font-size: 9px; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: #8B8478;
-}
-.mgt-tier-opt {
-  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font: inherit;
-  background: #FAFAF8; border: 1px solid #EEF0F4; border-radius: 14px;
-  padding: 13px 15px; cursor: pointer;
-  transition: border-color 0.14s ease, background 0.14s ease;
-}
-.mgt-tier-opt:hover { border-color: #D6D9DF; }
-.mgt-tier-opt.on { border-color: #C65A1A; background: #FFF9F6; }
 .mgt-radio {
-  width: 20px; height: 20px; flex: 0 0 auto; border-radius: 999px;
-  border: 1.5px solid #D6D9DF; background: #fff;
+  width: 18px; height: 18px; flex: 0 0 auto; border-radius: 999px;
+  border: 1.5px solid var(--d-border); background: var(--d-card);
   display: grid; place-items: center;
 }
-.mgt-tier-opt.on .mgt-radio { border-color: #C65A1A; }
+.mgt-tier.on .mgt-radio { border-color: var(--d-orange); }
 .mgt-radio i {
-  width: 10px; height: 10px; border-radius: 999px; background: #C65A1A;
+  width: 9px; height: 9px; border-radius: 999px; background: var(--d-orange);
   transform: scale(0); transition: transform 0.14s ease;
 }
-.mgt-tier-opt.on .mgt-radio i { transform: scale(1); }
-.mgt-tier-txt b { display: block; font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
-.mgt-tier-txt em {
-  display: block; margin-top: 2px; font-style: normal; font-size: 12px;
-  line-height: 1.45; color: #8B8478;
+.mgt-tier.on .mgt-radio i { transform: scale(1); }
+
+.mgt-tier-t b { display: block; font-size: 13px; font-weight: 700; color: var(--d-navy-deep); }
+.mgt-tier-t em {
+  display: block; margin-top: 1px; font-style: normal; font-size: 11.5px;
+  line-height: 1.45; color: var(--d-muted);
 }
 
-.mgt-act { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
-
-@media (max-width: 640px) {
-  .mgt-row { grid-template-columns: 42px minmax(0, 1fr) auto; row-gap: 8px; }
+@media (max-width: 620px) {
+  .mgt-row { grid-template-columns: 38px minmax(0, 1fr) auto; row-gap: 7px; }
   .mgt-meta { grid-column: 2 / -1; }
-  .mgt-row + .mgt-row::before { left: 20px; }
 }

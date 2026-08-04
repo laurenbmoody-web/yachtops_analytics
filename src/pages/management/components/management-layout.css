@@ -1,0 +1,135 @@
+/* Shore-office portal chrome. Metrics mirror SupplierLayout's sidebar/topbar so
+   the two external-party portals feel like the same product; colours come from
+   the shared --d-* tokens rather than a private palette. */
+
+.mgl {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--d-bg);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
+.mgl-side {
+  background: var(--d-bg);
+  border-right: 1px solid var(--d-border);
+  padding: 20px 14px 18px;
+  display: flex; flex-direction: column;
+  height: 100vh; position: sticky; top: 0;
+  overflow-y: auto;
+}
+
+.mgl-logo {
+  display: flex; align-items: center; gap: 10px;
+  padding: 2px 8px 18px; margin-bottom: 14px;
+  border-bottom: 1px solid var(--d-border-soft);
+  cursor: pointer;
+}
+.mgl-logo img { height: 26px; width: auto; object-fit: contain; }
+.mgl-logo:hover { opacity: 0.85; }
+
+.mgl-who {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 2px 6px; padding: 10px 11px;
+  background: var(--d-card); border: 1px solid var(--d-border); border-radius: 11px;
+}
+.mgl-who-mark {
+  width: 32px; height: 32px; border-radius: 9px; flex: 0 0 auto;
+  background: var(--d-navy); color: #fff;
+  display: grid; place-items: center;
+  font-weight: 700; font-size: 12px; letter-spacing: 0.02em;
+}
+.mgl-who-t { min-width: 0; }
+.mgl-who-t b {
+  display: block; font-size: 12.5px; font-weight: 700; color: var(--d-navy-deep);
+  line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mgl-who-t em {
+  display: block; font-style: normal; font-size: 11px; color: var(--d-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.mgl-nav { display: flex; flex-direction: column; flex: 1; }
+.mgl-nav-group { margin: 2px 0 6px; }
+.mgl-nav-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--d-muted);
+  margin: 14px 12px 4px;
+}
+.mgl-nav-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 8px 12px; border-radius: 9px;
+  font-size: 13.5px; font-weight: 500; color: var(--d-navy);
+  text-decoration: none; cursor: pointer;
+  transition: background 120ms ease;
+}
+.mgl-nav-item svg { width: 16px; height: 16px; color: var(--d-muted-soft); flex-shrink: 0; }
+.mgl-nav-item:hover { background: var(--d-border-soft); }
+.mgl-nav-item.active {
+  background: var(--d-card); color: var(--d-navy-deep);
+  box-shadow: inset 0 0 0 1px var(--d-border);
+}
+.mgl-nav-item.active svg { color: var(--d-orange); }
+
+.mgl-foot {
+  margin-top: auto; padding: 14px 10px 2px;
+  display: flex; align-items: center; gap: 10px;
+  border-top: 1px solid var(--d-border-soft);
+}
+.mgl-avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto;
+  background: var(--d-navy); color: #fff;
+  display: grid; place-items: center; font-weight: 700; font-size: 11.5px;
+}
+.mgl-foot-t { min-width: 0; flex: 1; }
+.mgl-foot-t b {
+  display: block; font-size: 12.5px; font-weight: 700; color: var(--d-navy-deep);
+  line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mgl-foot-t em { display: block; font-style: normal; font-size: 11px; color: var(--d-muted); }
+.mgl-foot button {
+  width: 28px; height: 28px; border-radius: 7px; flex: 0 0 auto;
+  display: grid; place-items: center;
+  background: none; border: 0; cursor: pointer; color: var(--d-muted);
+}
+.mgl-foot button:hover { color: var(--d-orange); background: var(--d-border-soft); }
+
+/* ── Main ─────────────────────────────────────────────────────────────────── */
+.mgl-main { min-width: 0; display: flex; flex-direction: column; }
+
+.mgl-top {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 20px;
+  padding: 22px 30px 18px;
+  background: var(--d-bg);
+  border-bottom: 1px solid var(--d-border-soft);
+  position: sticky; top: 0; z-index: 30;
+}
+.mgl-top-t { min-width: 0; }
+.mgl-top-h {
+  margin: 2px 0 0;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 30px; font-weight: 500; line-height: 1.1; letter-spacing: -0.6px;
+  color: var(--d-navy-deep);
+}
+.mgl-top-h .accent {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-style: italic; font-weight: 400; color: var(--d-orange);
+}
+.mgl-top-a { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+
+.mgl-body { padding: 24px 30px 70px; min-width: 0; }
+
+@media (max-width: 1024px) {
+  .mgl { grid-template-columns: 68px minmax(0, 1fr); }
+  .mgl-nav-label, .mgl-nav-item span, .mgl-who-t, .mgl-foot-t { display: none; }
+  .mgl-nav-item { justify-content: center; padding-left: 0; padding-right: 0; }
+  .mgl-who { justify-content: center; padding: 8px; }
+  .mgl-foot { justify-content: center; }
+  .mgl-logo img { width: 30px; object-position: left; }
+}
+@media (max-width: 640px) {
+  .mgl-top { padding: 16px 18px 14px; }
+  .mgl-top-h { font-size: 24px; }
+  .mgl-body { padding: 18px 18px 60px; }
+}
