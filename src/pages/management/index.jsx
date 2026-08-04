@@ -1,17 +1,14 @@
 // The shore office's fleet — where a management login lands.
 //
 // A management company opens Cargo to answer one question: which boats need me
-// today. So the list is ordered by that, not alphabetically — vessels waiting on
-// a signature first, then ones the office has queried and is waiting on, then
-// the quiet ones (see managementView.sortFleet).
+// today. So the vessels are ordered by that, not alphabetically (see
+// managementView.sortFleet), and each one is a card you act on rather than a row
+// you read — a monogram to recognise it by, a ring showing how much of its year
+// is signed off, and the action it is waiting for.
 //
 // It is also the front door on purpose. With a dozen yachts on the books, and
 // two of them called Serenity, arriving INSIDE one is how a month gets signed
 // off on the wrong boat. You pick a vessel here; you never land in one.
-//
-// Built as tiles rather than the hairline rows used elsewhere in Cargo: the
-// office visits a few times a month to answer one question, and the answer
-// should be the thing your eye lands on.
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
@@ -19,16 +16,43 @@ import '../../styles/editorial.css';
 import ManagementShell from './components/ManagementShell';
 import useManagementCompany from '../../hooks/useManagementCompany';
 import { listManagedVessels } from '../../services/managementService';
-import { sortFleet, fleetHeadline, describeScopes } from '../../services/managementView';
+import { sortFleet, describeScopes, SCOPES } from '../../services/managementView';
 import './management.css';
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const periodLabel = (iso) => {
   if (!iso) return '';
   const [y, m] = String(iso).slice(0, 7).split('-');
   return `${MONTHS[Number(m) - 1]} ${y}`;
 };
+
+// Two letters to recognise a boat by at a glance, the way an app icon works.
+const monogram = (name) => {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  const two = parts.length > 1 ? parts[0][0] + parts[1][0] : String(name || '?').slice(0, 2);
+  return two.toUpperCase();
+};
+
+const scopeShort = (key) => SCOPES.find((s) => s.key === key)?.label || key;
+
+// A ring rather than a bar: it reads as a state at a glance and takes no width,
+// which is what lets the card stay a card.
+function Ring({ done, total, tone }) {
+  const pct = total > 0 ? Math.min(1, done / total) : 0;
+  const r = 22;
+  const c = 2 * Math.PI * r;
+  return (
+    <span className={`mgf-ring ${tone}`}>
+      <svg viewBox="0 0 52 52" aria-hidden="true">
+        <circle cx="26" cy="26" r={r} className="track" />
+        <circle cx="26" cy="26" r={r} className="fill"
+          strokeDasharray={`${c * pct} ${c}`} transform="rotate(-90 26 26)" />
+      </svg>
+      <b>{total > 0 ? `${done}/${total}` : '—'}</b>
+    </span>
+  );
+}
 
 export default function ManagementFleet() {
   const navigate = useNavigate();
@@ -66,23 +90,25 @@ export default function ManagementFleet() {
         <h1 className="editorial-greeting">
           Fleet<span className="period">,</span> <em>{waiting ? 'waiting on you' : 'in order'}</em><span className="period">.</span>
         </h1>
-        <p className="mgf-say">{fleetHeadline(fleet)}</p>
 
-        {/* The three numbers the office came for, before the list of boats that
-            explains them. */}
+        {/* The three numbers the office came for, before the boats that explain
+            them. Clickable where clicking means something. */}
         {!loading && fleet.length > 0 && (
           <div className="mgf-stats">
             <div className={`mgf-stat${waiting ? ' is-live' : ''}`}>
+              <span className="mgf-stat-ic"><Icon name="PenLine" size={16} /></span>
               <b className="mgf-stat-n">{waiting}</b>
               <span className="mgf-stat-l">To sign off</span>
               <span className="mgf-stat-s">{waiting ? 'Closed by the vessel, waiting on you' : 'Nothing outstanding'}</span>
             </div>
             <div className={`mgf-stat${queried ? ' is-query' : ''}`}>
+              <span className="mgf-stat-ic"><Icon name="Undo2" size={16} /></span>
               <b className="mgf-stat-n">{queried}</b>
               <span className="mgf-stat-l">Sent back</span>
               <span className="mgf-stat-s">{queried ? 'With the crew to fix' : 'None outstanding'}</span>
             </div>
             <div className={`mgf-stat${done ? ' is-done' : ''}`}>
+              <span className="mgf-stat-ic"><Icon name="BadgeCheck" size={16} /></span>
               <b className="mgf-stat-n">{done}</b>
               <span className="mgf-stat-l">Signed off</span>
               <span className="mgf-stat-s">Across the whole fleet</span>
@@ -93,7 +119,9 @@ export default function ManagementFleet() {
         {err && <p className="mgf-err"><Icon name="AlertCircle" size={15} /> {err}</p>}
 
         {loading ? (
-          <p className="mgf-empty">Loading…</p>
+          <div className="mgf-grid">
+            {[0, 1, 2].map((i) => <div key={i} className="mgf-card is-ghost" />)}
+          </div>
         ) : fleet.length === 0 ? (
           <div className="mgf-none">
             <span className="mgf-none-ic"><Icon name="Anchor" size={26} /></span>
@@ -109,36 +137,46 @@ export default function ManagementFleet() {
         ) : (
           <>
             <p className="mgf-lab">Vessels</p>
-            <div className="mgf-rows">
+            <div className="mgf-grid">
               {fleet.map((v) => {
                 const needs = v.awaiting_signoff || 0;
                 const back = v.queried || 0;
-                const tone = needs ? 'need' : (back ? 'query' : '');
+                const signed = v.signed_off || 0;
+                const tone = needs ? 'need' : (back ? 'query' : 'calm');
                 return (
-                  <button key={`${v.tenant_id}-${v.company_id}`} type="button" className="mgf-row"
+                  <button key={`${v.tenant_id}-${v.company_id}`} type="button" className={`mgf-card ${tone}`}
                     onClick={() => navigate(`/management/vessel/${v.tenant_id}`)}>
-                    <span className="mgf-name">
-                      <span className={`mgf-dot ${tone}`} />
-                      <span className="mgf-name-t">
-                        <b>{v.vessel_name}</b>
-                        <em>{describeScopes(v.scopes)}</em>
+                    <span className="mgf-card-top">
+                      <span className="mgf-mono">{monogram(v.vessel_name)}</span>
+                      <Ring done={signed} total={signed + needs + back} tone={tone} />
+                    </span>
+
+                    <span className="mgf-card-name">{v.vessel_name}</span>
+                    <span className="mgf-card-scopes">
+                      {(v.scopes || []).map((s) => (
+                        <span key={s} className="mgf-chip">{scopeShort(s)}</span>
+                      ))}
+                    </span>
+
+                    <span className="mgf-card-foot">
+                      <span className={`mgf-state ${tone}`}>
+                        {needs > 0
+                          ? `${needs} to sign off`
+                          : back > 0 ? `${back} sent back` : 'Nothing waiting'}
+                      </span>
+                      <span className="mgf-go">
+                        {v.latest_period ? periodLabel(v.latest_period) : 'Open'}
+                        <Icon name="ArrowRight" size={15} />
                       </span>
                     </span>
-                    <span className={`mgf-state ${tone}`}>
-                      {needs > 0
-                        ? `${needs} ${needs === 1 ? 'month' : 'months'} to sign off`
-                        : back > 0
-                          ? `${back} back with the vessel`
-                          : 'Nothing waiting'}
-                    </span>
-                    <span className="mgf-last">
-                      {v.latest_period ? `to ${periodLabel(v.latest_period)}` : '—'}
-                    </span>
-                    <Icon name="ChevronRight" size={18} />
                   </button>
                 );
               })}
             </div>
+            <p className="mgf-foot">
+              Ordered by what needs you. {describeScopes(fleet[0]?.scopes || [])} is what
+              {fleet.length === 1 ? ' this vessel has' : ' the first vessel has'} shared — each boat decides its own.
+            </p>
           </>
         )}
       </div>

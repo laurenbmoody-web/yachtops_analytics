@@ -90,3 +90,26 @@ export async function claimManagementAccess() {
   const { data, error } = await supabase.rpc('claim_management_access');
   return { claimed: data || 0, error };
 }
+
+// ── the firm's own profile ───────────────────────────────────────────────────
+// Everything a settings screen needs in one call: the company, the caller's
+// standing in it, and what it is engaged on.
+export async function getManagementProfile(companyId) {
+  if (!companyId) return { data: null, error: null };
+  const { data, error } = await supabase.rpc('management_company_profile', { p_company_id: companyId });
+  return { data: data || null, error };
+}
+
+// Owner or admin only, enforced in the database. Sends only the fields the form
+// owns — a field left undefined is left alone rather than cleared.
+export async function updateManagementCompany(companyId, patch = {}) {
+  if (!companyId) return { data: null, error: new Error('No company') };
+  const { data, error } = await supabase.rpc('management_company_update', {
+    p_company_id: companyId,
+    p_name: patch.name ?? null,
+    p_contact_email: patch.contact_email ?? null,
+    p_phone: patch.phone ?? null,
+    p_website: patch.website ?? null,
+  });
+  return { data: data || null, error };
+}

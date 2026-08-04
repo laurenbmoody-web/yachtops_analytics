@@ -41,6 +41,9 @@ export default function ManagementShell({ children }) {
           <NavLink to="/management/team" className={({ isActive }) => `mg-link${isActive ? ' on' : ''}`}>
             {canRunTeam(company?.permission_tier) ? 'Team' : 'Colleagues'}
           </NavLink>
+          <NavLink to="/management/settings" className={({ isActive }) => `mg-link${isActive ? ' on' : ''}`}>
+            Company
+          </NavLink>
         </nav>
 
         {/* The label is wrapped so it can drop away on a narrow bar, leaving the
