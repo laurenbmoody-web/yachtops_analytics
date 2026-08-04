@@ -1,0 +1,115 @@
+/* VesselSwitcher — the vessel name in the header, and the fleet behind it. */
+
+.vs { position: relative; flex: 0 0 auto; }
+
+.vs-solo,
+.vs-name {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 16px;
+  line-height: 1;
+  color: #1C1B3A;
+  letter-spacing: -0.2px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vs-solo { margin: 0; }
+
+.vs-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  padding: 4px 6px;
+  margin-left: -6px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #AEB4C2;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.vs-trigger:hover { background: #F4F6F9; }
+.vs-trigger:hover,
+.vs-trigger.is-open { color: #C65A1A; }
+.vs-trigger svg { transition: transform 0.15s ease; }
+.vs-trigger.is-open svg { transform: rotate(180deg); }
+
+.vs-list {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: -6px;
+  z-index: 80;
+  min-width: 268px;
+  max-height: 380px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ECEAE3;
+  border-radius: 14px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  padding: 6px;
+}
+
+.vs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 8px 10px 7px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+}
+.vs-head span { color: #AEB4C2; letter-spacing: 0; }
+
+.vs-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 10px;
+  cursor: pointer;
+  color: #1C1B3A;
+  transition: background 0.12s ease;
+}
+.vs-opt:hover:not(:disabled) { background: #FAFAF8; }
+.vs-opt.on { background: #FBEFE9; color: #C65A1A; }
+.vs-opt:disabled { cursor: default; opacity: 0.55; }
+
+.vs-opt-txt { flex: 1; min-width: 0; }
+.vs-opt-txt b {
+  display: block;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vs-opt-txt em {
+  display: block;
+  margin-top: 1px;
+  font-style: normal;
+  font-size: 11px;
+  color: #8B8478;
+  text-transform: capitalize;
+}
+.vs-opt.on .vs-opt-txt em { color: #C98A63; }
+
+.vs-going { font-size: 11px; color: #C65A1A; flex: 0 0 auto; }
+
+.vs-foot {
+  margin: 4px 0 2px;
+  padding: 8px 10px 4px;
+  border-top: 1px solid #F0F1F5;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #AEB4C2;
+}

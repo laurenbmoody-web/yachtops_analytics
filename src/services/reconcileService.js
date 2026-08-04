@@ -10,7 +10,10 @@ import { currentUserId } from './financeService.js';
 const RECON_SELECT =
   'id, tenant_id, account_id, period_month, status, opening_balance, closing_balance, ' +
   'note, submitted_by, submitted_at, approved_by, approved_at, created_at, updated_at, ' +
-  'stmt_opening, stmt_money_in, stmt_money_out, stmt_closing, funding_due';
+  'stmt_opening, stmt_money_in, stmt_money_out, stmt_closing, funding_due, ' +
+  // The office's side of the conversation. Kept apart from `note`, which is the
+  // crew's — management sign off and query, they don't edit what was entered.
+  'queried_at, queried_by, query_note, signoff_note';
 
 // The reconciliation row for an account+month, or null if not started yet.
 export async function getReconciliation(accountId, periodMonth) {

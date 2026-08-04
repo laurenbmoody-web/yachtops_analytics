@@ -18,6 +18,7 @@ import { amIPlatformAdmin } from '../../pages/cargo-console/utils';
 import { canAccessGuestManagement } from '../../pages/guest-management-dashboard/utils/guestPermissions';
 import { canAccessTrips } from '../../pages/trips-management-dashboard/utils/tripPermissions';
 import AlertsDrawer from './AlertsDrawer';
+import VesselSwitcher from './VesselSwitcher';
 import './header-search.css';
 import { getUnreadCount, checkDueAndOverdueJobs } from '../../pages/team-jobs-management/utils/notifications';
 import { fetchDbUnreadCount } from '../../lib/dbNotifications';
@@ -608,18 +609,23 @@ const Header = () => {
         </div>
       )}
       <header className="nav-header">
-        {/* LEFT ZONE: Logo + Brand */}
-        <div 
-          className="flex items-center gap-3 flex-shrink-0 cursor-pointer hover:opacity-80 transition-smooth"
-          onClick={() => navigate('/dashboard')}
-        >
+        {/* LEFT ZONE: Logo + the vessel you're on */}
+        <div className="flex items-center gap-3 flex-shrink-0">
           <Image
             src="/centered-logo.svg"
             alt="Cargo"
-            className="h-8 w-auto object-contain"
+            className="h-8 w-auto object-contain cursor-pointer hover:opacity-80 transition-smooth"
+            onClick={() => navigate('/dashboard')}
           />
-          <div className="text-muted-foreground text-xl">|</div>
-          
+          {/* The divider has always implied a vessel name after it. A login with
+              more than one boat — a management company, or crew covering a
+              sister ship — can change vessel from here instead of signing out. */}
+          {!unberthed && (
+            <>
+              <div className="text-muted-foreground text-xl">|</div>
+              <VesselSwitcher />
+            </>
+          )}
         </div>
         {/* CENTRE ZONE: Search Bar — vessel-scoped, so hidden between vessels */}
         <div className="flex-1 flex justify-center px-8">
