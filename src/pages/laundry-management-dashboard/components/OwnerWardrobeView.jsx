@@ -6,6 +6,7 @@ import AddGarmentModal from './AddGarmentModal';
 import GarmentFullView from './GarmentFullView';
 import WardrobeEditorModal from './WardrobeEditorModal';
 import WardrobeManageModal from './WardrobeManageModal';
+import WardrobeIcon from './WardrobeIcon';
 import PersonTiles from './PersonTiles';
 import { canViewCost } from '../../../utils/costPermissions';
 import { loadWardrobes, createWardrobe } from '../utils/laundryWardrobes';
@@ -479,7 +480,7 @@ const OwnerWardrobeView = ({ onBack }) => {
               <button type="button" className={landView === 'owner' ? 'on' : ''} onClick={() => setLandView('owner')}>By owner</button>
               <button type="button" className={landView === 'list' ? 'on' : ''} onClick={() => setLandView('list')}>List</button>
             </div>
-            {!showArchived && <button type="button" className="ow-btn ghost ow-iconbtn" title="Manage wardrobes" aria-label="Manage wardrobes" onClick={() => setShowManageWardrobes(true)}><Icon name="Columns2" size={17} /></button>}
+            {!showArchived && <button type="button" className="ow-btn ghost ow-iconbtn" title="Manage wardrobes" aria-label="Manage wardrobes" onClick={() => setShowManageWardrobes(true)}><WardrobeIcon size={18} /></button>}
             {!showArchived && items.length > 0 && <button type="button" className="ow-btn ghost" disabled={exportingManifest} onClick={() => doManifest(items, 'Owner wardrobe')}><Icon name="FileDown" size={15} /> {exportingManifest ? 'Exporting…' : 'Export'}</button>}
             {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>}
           </>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
+import WardrobeIcon from './WardrobeIcon';
 import { updateWardrobe, archiveWardrobe } from '../utils/laundryWardrobes';
 import { setLaundryItemsWardrobe } from '../utils/laundryStorage';
 import './ownerWardrobe.css';
@@ -48,7 +49,7 @@ const WardrobeManageModal = ({ wardrobes = [], items = [], onNew, onChanged, onC
             const n = countFor(w.id);
             return (
               <div className="ow-wm-row" key={w.id}>
-                <span className="ow-wm-ic"><Icon name="Shirt" size={16} /></span>
+                <span className="ow-wm-ic"><WardrobeIcon size={17} /></span>
                 {editing === w.id ? (
                   <input className="ow-input ow-wm-input" autoFocus value={name} onChange={(e) => setName(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(w); if (e.key === 'Escape') setEditing(null); }} />
