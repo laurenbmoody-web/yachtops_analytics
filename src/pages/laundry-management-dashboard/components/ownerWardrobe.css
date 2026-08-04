@@ -35,6 +35,7 @@
 .ow-toolbar { align-items: center; }
 .ow-tools { align-items: center; }
 .ow-toolbar .ow-btn { height: 42px; }
+.ow-iconbtn { width: 42px; padding: 0 !important; flex: none; }
 
 .ow-groups { display: flex; flex-direction: column; gap: 26px; }
 .ow-group { display: flex; flex-direction: column; gap: 12px; }
