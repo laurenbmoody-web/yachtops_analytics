@@ -7,6 +7,7 @@ import GarmentFullView from './GarmentFullView';
 import WardrobeEditorModal from './WardrobeEditorModal';
 import WardrobeManageModal from './WardrobeManageModal';
 import WardrobeIcon from './WardrobeIcon';
+import ToolMenu from './ToolMenu';
 import PersonTiles from './PersonTiles';
 import { canViewCost } from '../../../utils/costPermissions';
 import { loadWardrobes, createWardrobe } from '../utils/laundryWardrobes';
@@ -414,14 +415,6 @@ const OwnerWardrobeView = ({ onBack }) => {
     </div>
   );
 
-  // Archived is a mode, not a filter — a toolbar toggle (only shown when there
-  // is something archived, or while you're viewing it).
-  const archivedBtn = (archived.length > 0 || showArchived) ? (
-    <button type="button" className={`ow-btn ghost ow-arch-btn${showArchived ? ' on' : ''}`} onClick={() => { setShowArchived((v) => !v); clearSel(); }} title={showArchived ? 'Exit archived' : `Archived (${archived.length})`}>
-      <Icon name="Archive" size={15} />
-      <span className="ow-arch-label">{showArchived ? 'Exit archived' : `Archived (${archived.length})`}</span>
-    </button>
-  ) : null;
 
   // Landing figures: how many people have garments stored on board, how many
   // garments, the total wardrobe value, and how many are away / at the laundry.
@@ -473,15 +466,17 @@ const OwnerWardrobeView = ({ onBack }) => {
 
         {toolbar(
           <>
-            {archivedBtn}
             <FilterMenu groups={filterGroups} />
             <SortMenu value={sort} onChange={setSort} options={sortOptions} />
             <div className="ow-grouptoggle" role="tablist" aria-label="View">
               <button type="button" className={landView === 'owner' ? 'on' : ''} onClick={() => setLandView('owner')}>By owner</button>
               <button type="button" className={landView === 'list' ? 'on' : ''} onClick={() => setLandView('list')}>List</button>
             </div>
-            {!showArchived && <button type="button" className="ow-btn ghost ow-iconbtn" title="Manage wardrobes" aria-label="Manage wardrobes" onClick={() => setShowManageWardrobes(true)}><WardrobeIcon size={18} /></button>}
-            {!showArchived && items.length > 0 && <button type="button" className="ow-btn ghost" disabled={exportingManifest} onClick={() => doManifest(items, 'Owner wardrobe')}><Icon name="FileDown" size={15} /> {exportingManifest ? 'Exporting…' : 'Export'}</button>}
+            <ToolMenu items={[
+              { node: <WardrobeIcon size={16} />, label: 'Manage wardrobes', onClick: () => setShowManageWardrobes(true), show: !showArchived },
+              { node: <Icon name="Archive" size={16} />, label: showArchived ? 'Exit archived' : `Archived (${archived.length})`, active: showArchived, onClick: () => { setShowArchived((v) => !v); clearSel(); }, show: archived.length > 0 || showArchived },
+              { node: <Icon name="FileDown" size={16} />, label: exportingManifest ? 'Exporting…' : 'Export', onClick: () => doManifest(items, 'Owner wardrobe'), show: !showArchived && items.length > 0 },
+            ]} />
             {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>}
           </>
         )}
@@ -524,7 +519,6 @@ const OwnerWardrobeView = ({ onBack }) => {
 
       {toolbar(
         <>
-          {archivedBtn}
           <div className="ow-grouptoggle" role="tablist" aria-label="Group by">
             <button type="button" className={groupBy === 'location' ? 'on' : ''} onClick={() => setGroupBy('location')}>By location</button>
             <button type="button" className={groupBy === 'guest' ? 'on' : ''} onClick={() => setGroupBy('guest')}>By guest</button>
@@ -535,7 +529,10 @@ const OwnerWardrobeView = ({ onBack }) => {
             <button type="button" className={view === 'image' ? 'on' : ''} onClick={() => setView('image')} aria-label="Image view"><Icon name="LayoutGrid" size={15} /></button>
             <button type="button" className={view === 'list' ? 'on' : ''} onClick={() => setView('list')} aria-label="List view"><Icon name="List" size={15} /></button>
           </div>
-          {!showArchived && personItems.length > 0 && <button type="button" className="ow-btn ghost" disabled={exportingManifest} onClick={() => doManifest(personItems, selectedPerson?.name || 'Wardrobe')}><Icon name="FileDown" size={15} /> {exportingManifest ? 'Exporting…' : 'Export'}</button>}
+          <ToolMenu items={[
+            { node: <Icon name="Archive" size={16} />, label: showArchived ? 'Exit archived' : `Archived (${archived.length})`, active: showArchived, onClick: () => { setShowArchived((v) => !v); clearSel(); }, show: archived.length > 0 || showArchived },
+            { node: <Icon name="FileDown" size={16} />, label: exportingManifest ? 'Exporting…' : 'Export', onClick: () => doManifest(personItems, selectedPerson?.name || 'Wardrobe'), show: !showArchived && personItems.length > 0 },
+          ]} />
           {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>}
         </>
       )}

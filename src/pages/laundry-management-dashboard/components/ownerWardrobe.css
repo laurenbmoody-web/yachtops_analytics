@@ -36,6 +36,15 @@
 .ow-tools { align-items: center; }
 .ow-toolbar .ow-btn { height: 42px; }
 .ow-iconbtn { width: 42px; padding: 0 !important; flex: none; }
+/* Overflow (⋯) menu for less-frequent toolbar actions */
+.ow-toolmenu { position: relative; }
+.ow-toolmenu-pop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; min-width: 190px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; box-shadow: 0 18px 40px -16px rgba(28, 27, 58, 0.3); padding: 6px; display: flex; flex-direction: column; }
+.ow-toolmenu-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: none; background: none; border-radius: 8px; cursor: pointer; font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; text-align: left; }
+.ow-toolmenu-item:hover { background: #F4F6FA; }
+.ow-toolmenu-item.on { color: #C65A1A; }
+.ow-toolmenu-item svg { flex: none; color: #6B7280; }
+.ow-toolmenu-item.on svg { color: #C65A1A; }
+.ow-toolmenu-item.danger { color: #C24632; }
 
 .ow-groups { display: flex; flex-direction: column; gap: 26px; }
 .ow-group { display: flex; flex-direction: column; gap: 12px; }
