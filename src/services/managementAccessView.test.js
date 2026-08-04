@@ -1,43 +1,51 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  accessState, accessLabel, accessSub, sortAccess,
+  accessState, accessLabel, accessPeople, sortAccess,
   cleanScopes, describeScopes, scopeLabel,
+  tierLabel, canRunTeam, canSignOffAs,
 } from './managementView.js';
 
-test('a grant made before the office had a login reads as awaiting sign-up', () => {
-  assert.equal(accessState({ active: true, has_login: false }), 'awaiting sign-up');
-  assert.equal(accessState({ active: true, has_login: true }), 'active');
-  assert.equal(accessState({ active: false, has_login: true }), 'withdrawn');
+const eng = (over = {}) => ({
+  active: true, company_name: 'Blue Water', people: [{ email: 'a@b.com', has_login: true }], ...over,
+});
+
+test('a firm whose people have all yet to sign up is not live access', () => {
+  assert.equal(accessState(eng()), 'active');
+  assert.equal(accessState(eng({ people: [{ email: 'a@b.com', has_login: false }] })), 'awaiting sign-up');
+  assert.equal(accessState(eng({ people: [] })), 'awaiting sign-up');
+  assert.equal(accessState(eng({ active: false })), 'ended');
   assert.equal(accessState(null), 'none');
 });
 
-test('the label falls back down to the address, never to a placeholder', () => {
-  assert.equal(accessLabel({ person_name: 'Ana Reyes', company_name: 'Blue Water', email: 'a@b.com' }), 'Ana Reyes');
-  assert.equal(accessLabel({ company_name: 'Blue Water', email: 'a@b.com' }), 'Blue Water');
-  assert.equal(accessLabel({ email: 'a@b.com' }), 'a@b.com');
-  assert.equal(accessLabel({}), 'Someone');
+test('the row is named for the firm, not a person', () => {
+  assert.equal(accessLabel(eng()), 'Blue Water');
+  assert.equal(accessLabel({}), 'A management company');
 });
 
-test('the sub line never repeats the label', () => {
+test('a captain can see who the firm actually is', () => {
+  assert.equal(accessPeople(eng({ people: [] })), 'Nobody added yet');
   assert.equal(
-    accessSub({ person_name: 'Ana Reyes', company_name: 'Blue Water', email: 'a@b.com' }),
-    'Blue Water · a@b.com',
+    accessPeople(eng({ people: [{ name: 'Ana Reyes' }, { email: 'tom@bw.com' }] })),
+    'Ana Reyes, tom@bw.com',
   );
-  assert.equal(accessSub({ company_name: 'Blue Water', email: 'a@b.com' }), 'a@b.com');
-  assert.equal(accessSub({ email: 'a@b.com' }), '');
+  assert.equal(
+    accessPeople(eng({ people: [{ name: 'A' }, { name: 'B' }, { name: 'C' }, { name: 'D' }, { name: 'E' }] })),
+    'A, B, C +2 more',
+  );
 });
 
-test('withdrawn access stays on file but sorts below current access', () => {
+test('ended engagements stay on file but sort below live ones', () => {
   const rows = [
-    { active: false, person_name: 'Aaron Old' },
-    { active: true, person_name: 'Zoe Now' },
-    { active: true, person_name: 'Ana Now' },
+    { active: false, company_name: 'Aaron Marine' },
+    { active: true, company_name: 'Zephyr Management' },
+    { active: true, company_name: 'Ana Yachting' },
   ];
-  assert.deepEqual(sortAccess(rows).map((r) => r.person_name), ['Ana Now', 'Zoe Now', 'Aaron Old']);
+  assert.deepEqual(sortAccess(rows).map((r) => r.company_name),
+    ['Ana Yachting', 'Zephyr Management', 'Aaron Marine']);
 });
 
-test('a grant names which parts of the vessel it covers', () => {
+test('an engagement names which parts of the vessel it covers', () => {
   assert.deepEqual(cleanScopes(['month_end', 'accounts']), ['accounts', 'month_end']);
   assert.deepEqual(cleanScopes(['accounts', 'accounts', 'nonsense']), ['accounts']);
   assert.deepEqual(cleanScopes([]), []);
@@ -57,4 +65,24 @@ test('scopes read as prose, not as keys', () => {
 test('an unknown scope key still renders as something', () => {
   assert.equal(scopeLabel('accounts'), 'Month-end spending');
   assert.equal(scopeLabel('mystery'), 'mystery');
+});
+
+test('a viewer at the firm reads but does not sign', () => {
+  assert.equal(canSignOffAs('VIEWER'), false);
+  assert.equal(canSignOffAs('MEMBER'), true);
+  assert.equal(canSignOffAs('ADMIN'), true);
+  assert.equal(canSignOffAs('OWNER'), true);
+});
+
+test('only an owner or admin runs the team', () => {
+  assert.equal(canRunTeam('OWNER'), true);
+  assert.equal(canRunTeam('ADMIN'), true);
+  assert.equal(canRunTeam('MEMBER'), false);
+  assert.equal(canRunTeam('VIEWER'), false);
+  assert.equal(canRunTeam(undefined), false);
+});
+
+test('tiers have a human label', () => {
+  assert.equal(tierLabel('MEMBER'), 'Member');
+  assert.equal(tierLabel('WHAT'), 'WHAT');
 });
