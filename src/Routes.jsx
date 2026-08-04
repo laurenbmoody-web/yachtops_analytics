@@ -93,6 +93,7 @@ import DriverTokenPage from './pages/driver/DriverTokenPage';
 import SeaServiceSignPage from './seatime/SeaServiceSignPage';
 import SupplierSignup from './pages/supplier-signup';
 import SupplierProtectedRoute from './components/SupplierProtectedRoute';
+import NoVesselAccess from './components/NoVesselAccess';
 import ManagementProtectedRoute from './components/ManagementProtectedRoute';
 import ManagementFleet from './pages/management';
 import ManagementVessel from './pages/management/vessel';
@@ -438,40 +439,12 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null,
   }
   
   // STEP 3: Check tenant requirement
-  // If tenant_id is null AND route requires tenant => render "No active vessel access" (NO REDIRECT)
+  // No tenant: NoVesselAccess decides what that means — crew between boats get
+  // the notice, the shore office gets sent to their own side. No redirect here.
   if (requiresTenant && !tenant_id) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 p-4">
-        <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
-          <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        </div>
-        <div className="text-center max-w-md">
-          <h2 className="text-xl font-semibold text-foreground mb-2">No active vessel access</h2>
-          <p className="text-muted-foreground mb-6">
-            You're logged in but not linked to a vessel yet.
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <a
-              href="/dashboard"
-              className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Back to Dashboard
-            </a>
-            <button
-              type="button"
-              onClick={async () => {
-                try { localStorage.clear(); await supabase?.auth?.signOut(); } catch (e) { /* ignore */ }
-                window.location.href = '/login-authentication';
-              }}
-              className="inline-block px-6 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-        
+      <>
+        <NoVesselAccess />
         {/* DEV MODE DEBUG PANEL */}
         {DEV_MODE && (
           <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
@@ -491,7 +464,7 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null,
             </div>
           </div>
         )}
-      </div>
+      </>
     );
   }
   
@@ -703,58 +676,7 @@ const CommandRoute = ({ children }) => {
 
   // Check tenant
   if (!tenant_id) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 p-4">
-        <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
-          <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        </div>
-        <div className="text-center max-w-md">
-          <h2 className="text-xl font-semibold text-foreground mb-2">No active vessel access</h2>
-          <p className="text-muted-foreground mb-6">
-            You're logged in but not linked to a vessel yet.
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <a
-              href="/dashboard"
-              className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Back to Dashboard
-            </a>
-            <button
-              type="button"
-              onClick={async () => {
-                try { localStorage.clear(); await supabase?.auth?.signOut(); } catch (e) { /* ignore */ }
-                window.location.href = '/login-authentication';
-              }}
-              className="inline-block px-6 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-
-        {DEV_MODE && (
-          <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
-            <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
-            <div className="space-y-1 text-gray-600 dark:text-gray-400">
-              <div><span className="font-semibold">path:</span> {currentPath}</div>
-              <div><span className="font-semibold">session:</span> {session ? 'true' : 'false'}</div>
-              <div><span className="font-semibold">tenant_id:</span> {tenant_id || 'null'}</div>
-              <div><span className="font-semibold">role:</span> {role || 'null'}</div>
-              <div><span className="font-semibold">authLoading:</span> {authLoading ? 'true' : 'false'}</div>
-              <div><span className="font-semibold">contextLoading:</span> {contextLoading ? 'true' : 'false'}</div>
-              <div><span className="font-semibold">bootstrapComplete:</span> {bootstrapComplete ? 'true' : 'false'}</div>
-              <div><span className="font-semibold">isContextLoading:</span> {isContextLoading ? 'true' : 'false'}</div>
-              <div className="pt-1 border-t border-gray-300 dark:border-gray-600 mt-2">
-                <span className="font-semibold">decision:</span> <span className="font-bold">{decision}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
+    return <NoVesselAccess />;
   }
 
   // Check role - COMMAND only
@@ -912,58 +834,7 @@ const CommandChiefRoute = ({ children }) => {
 
   // Check tenant
   if (!tenant_id) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 p-4">
-        <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
-          <svg className="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        </div>
-        <div className="text-center max-w-md">
-          <h2 className="text-xl font-semibold text-foreground mb-2">No active vessel access</h2>
-          <p className="text-muted-foreground mb-6">
-            You're logged in but not linked to a vessel yet.
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <a
-              href="/dashboard"
-              className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Back to Dashboard
-            </a>
-            <button
-              type="button"
-              onClick={async () => {
-                try { localStorage.clear(); await supabase?.auth?.signOut(); } catch (e) { /* ignore */ }
-                window.location.href = '/login-authentication';
-              }}
-              className="inline-block px-6 py-2 border border-border rounded-lg hover:bg-muted transition-colors"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-
-        {DEV_MODE && (
-          <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs font-mono max-w-md w-full">
-            <div className="font-bold mb-2 text-gray-700 dark:text-gray-300">🔧 DEV DEBUG</div>
-            <div className="space-y-1 text-gray-600 dark:text-gray-400">
-              <div><span className="font-semibold">path:</span> {currentPath}</div>
-              <div><span className="font-semibold">session:</span> {session ? 'true' : 'false'}</div>
-              <div><span className="font-semibold">tenant_id:</span> {tenant_id || 'null'}</div>
-              <div><span className="font-semibold">role:</span> {role || 'null'}</div>
-              <div><span className="font-semibold">authLoading:</span> {authLoading ? 'true' : 'false'}</div>
-              <div><span className="font-semibold">contextLoading:</span> {contextLoading ? 'true' : 'false'}</div>
-              <div><span className="font-semibold">bootstrapComplete:</span> {bootstrapComplete ? 'true' : 'false'}</div>
-              <div><span className="font-semibold">isContextLoading:</span> {isContextLoading ? 'true' : 'false'}</div>
-              <div className="pt-1 border-t border-gray-300 dark:border-gray-600 mt-2">
-                <span className="font-semibold">decision:</span> <span className="font-bold">{decision}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
+    return <NoVesselAccess />;
   }
 
   // Check role - COMMAND or CHIEF
@@ -1079,15 +950,7 @@ const VesselAdminRoute = ({ children, allowedTiers = ['COMMAND', 'CHIEF'] }) => 
   }
 
   if (!tenant_id) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 p-4">
-        <div className="text-center max-w-md">
-          <h2 className="text-xl font-semibold text-foreground mb-2">No active vessel access</h2>
-          <p className="text-muted-foreground mb-6">You're logged in but not linked to a vessel yet.</p>
-          <a href="/dashboard" className="inline-block px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors">Back to Dashboard</a>
-        </div>
-      </div>
-    );
+    return <NoVesselAccess />;
   }
 
   const normalizedRole = (role || '')?.toUpperCase()?.trim();
