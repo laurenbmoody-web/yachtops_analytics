@@ -11,7 +11,7 @@ import { loadWardrobes, createWardrobe } from '../utils/laundryWardrobes';
 import { loadCases, createCase } from '../utils/laundryCases';
 import {
   loadAllLaundryItems, setLaundryItemsWardrobe, setLaundryItemsCase, setLaundryItemsStatus,
-  archiveLaundryItems, LaundryStatus, formatLaundryTag,
+  archiveLaundryItems, restoreLaundryItems, LaundryStatus, formatLaundryTag,
 } from '../utils/laundryStorage';
 import { resolveLaundryPhotos } from '../utils/laundryPhotos';
 import { money } from '../utils/laundryBilling';
@@ -100,6 +100,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   const [wardrobes, setWardrobes] = useState([]);
   const [guests, setGuests] = useState([]);
   const [items, setItems] = useState([]);
+  const [archived, setArchived] = useState([]);
   const [loading, setLoading] = useState(true);
   const [personId, setPersonId] = useState(null); // null = landing (all people); 'owner' or a guestId = drilled in
   const [landView, setLandView] = useState('owner'); // landing content: owner (tiles) | list (flat)
@@ -129,11 +130,14 @@ const OwnerWardrobeView = ({ onBack }) => {
     const gIds = new Set(ownerGuests.map((g) => g.id));
     // Owner garments: homed in an owner wardrobe, OR belonging to an owner-type
     // guest, OR the generic "Owner" (ownerType 'other').
-    const owned = all.filter((i) => !i.isArchivedFromToday && (
-      (i.wardrobeId && wIds.has(i.wardrobeId)) || (i.ownerGuestId && gIds.has(i.ownerGuestId)) || (i.ownerType === 'other')
-    ));
-    const resolved = await resolveLaundryPhotos(owned).catch(() => owned);
-    setWardrobes(ws); setGuests(ownerGuests); setItems(resolved); setLoading(false);
+    const isOwned = (i) => (i.wardrobeId && wIds.has(i.wardrobeId)) || (i.ownerGuestId && gIds.has(i.ownerGuestId)) || (i.ownerType === 'other');
+    const owned = all.filter((i) => !i.isArchivedFromToday && isOwned(i));
+    const arch = all.filter((i) => i.isArchivedFromToday && isOwned(i));
+    const [resolved, resolvedArch] = await Promise.all([
+      resolveLaundryPhotos(owned).catch(() => owned),
+      resolveLaundryPhotos(arch).catch(() => arch),
+    ]);
+    setWardrobes(ws); setGuests(ownerGuests); setItems(resolved); setArchived(resolvedArch); setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
@@ -162,11 +166,15 @@ const OwnerWardrobeView = ({ onBack }) => {
     return { name: guestName(g), photo: g.photo || g.avatarUrl || '', cabin: g.cabinLocationLabel || g.cabinAllocated || '' };
   }, [personId, guestsById]);
   const initialsOf = (nm) => (nm || '?').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+  // Archived garments live behind the "Archived" filter; everything else works
+  // off the active set.
+  const viewingArchived = fStatus === 'archived';
+  const sourceItems = viewingArchived ? archived : items;
   const personItems = useMemo(() => {
-    if (!personId) return items;
-    if (personId === 'owner') return items.filter((it) => !it.ownerGuestId);
-    return items.filter((it) => it.ownerGuestId === personId);
-  }, [items, personId]);
+    if (!personId) return sourceItems;
+    if (personId === 'owner') return sourceItems.filter((it) => !it.ownerGuestId);
+    return sourceItems.filter((it) => it.ownerGuestId === personId);
+  }, [sourceItems, personId]);
 
   const shown = useMemo(() => {
     let list = personItems;
@@ -213,7 +221,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   const filterGroups = [
     { key: 'loc', label: 'Location', value: fLoc, neutral: 'all', onChange: setFLoc, options: [{ value: 'all', label: 'Everywhere' }, ...wardrobes.map((w) => ({ value: w.id, label: w.name })), { value: 'away', label: 'Away (in a case)' }] },
     { key: 'type', label: 'Type of clothing', value: fType, neutral: 'all', onChange: setFType, options: [{ value: 'all', label: 'All types' }, ...types.map((t) => ({ value: t, label: t }))] },
-    { key: 'status', label: 'Where', value: fStatus, neutral: 'all', onChange: setFStatus, options: [{ value: 'all', label: 'Anywhere' }, { value: 'onboard', label: 'On board' }, { value: 'away', label: 'Away (in a case)' }, { value: 'laundry', label: 'In laundry' }] },
+    { key: 'status', label: 'Where', value: fStatus, neutral: 'all', onChange: setFStatus, options: [{ value: 'all', label: 'Anywhere' }, { value: 'onboard', label: 'On board' }, { value: 'away', label: 'Away (in a case)' }, { value: 'laundry', label: 'In laundry' }, { value: 'archived', label: `Archived${archived.length ? ` (${archived.length})` : ''}` }] },
     { key: 'age', label: 'Time on board', value: fAge, neutral: 'all', onChange: setFAge, options: AGES },
   ];
 
@@ -245,9 +253,17 @@ const OwnerWardrobeView = ({ onBack }) => {
       });
       return;
     }
+    if (kind === 'restore') {
+      setConfirmState({
+        title: 'Restore garments', body: `Restore ${n} garment${n === 1 ? '' : 's'} back into the wardrobe?`, confirmLabel: 'Restore',
+        onConfirm: async () => { await restoreLaundryItems(selIds); clearSel(); load(); },
+      });
+      return;
+    }
     openChooser(kind, selIds); // pack | move
   };
   const singleAction = async (kind, item) => {
+    if (kind === 'restore') { await restoreLaundryItems([item.id]); setFullItem(null); load(); return; }
     if (kind === 'launder') { await setLaundryItemsStatus([item.id], LaundryStatus.IN_PROGRESS); setFullItem(null); load(); return; }
     if (kind === 'archive') {
       setConfirmState({
@@ -325,10 +341,16 @@ const OwnerWardrobeView = ({ onBack }) => {
       <button type="button" className="ow-selact" onClick={selectAllShown}>Select all shown{fLoc !== 'all' ? ' in wardrobe' : ''}</button>
       <button type="button" className="ow-selact" onClick={clearSel}>Clear</button>
       <span className="ow-selgap" />
-      <button type="button" className="ow-selbtn" onClick={() => runBulk('pack')}><Icon name="Package" size={14} /> Pack</button>
-      <button type="button" className="ow-selbtn" onClick={() => runBulk('launder')}><Icon name="Waves" size={14} /> Launder</button>
-      <button type="button" className="ow-selbtn" onClick={() => runBulk('move')}><Icon name="FolderInput" size={14} /> Move</button>
-      <button type="button" className="ow-selbtn danger" onClick={() => runBulk('archive')}><Icon name="Trash2" size={14} /> Archive</button>
+      {viewingArchived ? (
+        <button type="button" className="ow-selbtn" onClick={() => runBulk('restore')}><Icon name="Undo2" size={14} /> Restore</button>
+      ) : (
+        <>
+          <button type="button" className="ow-selbtn" onClick={() => runBulk('pack')}><Icon name="Package" size={14} /> Pack</button>
+          <button type="button" className="ow-selbtn" onClick={() => runBulk('launder')}><Icon name="Waves" size={14} /> Launder</button>
+          <button type="button" className="ow-selbtn" onClick={() => runBulk('move')}><Icon name="FolderInput" size={14} /> Move</button>
+          <button type="button" className="ow-selbtn danger" onClick={() => runBulk('archive')}><Icon name="Trash2" size={14} /> Archive</button>
+        </>
+      )}
     </div>
   ) : null;
 
