@@ -479,6 +479,7 @@ const OwnerWardrobeView = ({ onBack }) => {
               <button type="button" className={landView === 'owner' ? 'on' : ''} onClick={() => setLandView('owner')}>By owner</button>
               <button type="button" className={landView === 'list' ? 'on' : ''} onClick={() => setLandView('list')}>List</button>
             </div>
+            {!showArchived && <button type="button" className="ow-btn ghost ow-iconbtn" title="Manage wardrobes" aria-label="Manage wardrobes" onClick={() => setShowManageWardrobes(true)}><Icon name="DoorClosed" size={17} /></button>}
             {!showArchived && items.length > 0 && <button type="button" className="ow-btn ghost" disabled={exportingManifest} onClick={() => doManifest(items, 'Owner wardrobe')}><Icon name="FileDown" size={15} /> {exportingManifest ? 'Exporting…' : 'Export'}</button>}
             {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>}
           </>
@@ -534,7 +535,6 @@ const OwnerWardrobeView = ({ onBack }) => {
             <button type="button" className={view === 'list' ? 'on' : ''} onClick={() => setView('list')} aria-label="List view"><Icon name="List" size={15} /></button>
           </div>
           {!showArchived && personItems.length > 0 && <button type="button" className="ow-btn ghost" disabled={exportingManifest} onClick={() => doManifest(personItems, selectedPerson?.name || 'Wardrobe')}><Icon name="FileDown" size={15} /> {exportingManifest ? 'Exporting…' : 'Export'}</button>}
-          {!showArchived && <button type="button" className="ow-btn ghost ow-iconbtn" title="Manage wardrobes" aria-label="Manage wardrobes" onClick={() => setShowManageWardrobes(true)}><Icon name="DoorClosed" size={17} /></button>}
           {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>}
         </>
       )}
