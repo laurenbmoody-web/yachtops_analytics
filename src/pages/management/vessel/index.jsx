@@ -162,13 +162,16 @@ export default function ManagementVessel() {
                     <span className={`mgv-state s-${state.replace(/\s+/g, '-')}`}>{state}</span>
                   </div>
 
+                  {/* The closing balance is what the office is actually here
+                      for, so it carries the accent rather than being the last
+                      row of a ladder. */}
                   <div className="mgv-eq">
-                    <div className="r"><span>Opening balance</span><b>{money(m.reconciliation?.opening_balance)}</b></div>
+                    <div className="r"><span>Opening</span><b>{money(m.reconciliation?.opening_balance)}</b></div>
                     <div className="r"><span>Money in</span><b>{money(m.moneyIn)}</b></div>
                     <div className="r"><span>Money out</span><b>{money(Math.abs(m.moneyOut))}</b></div>
-                    <div className="r is-tot"><span>Closing balance</span><b>{money(m.reconciliation?.closing_balance)}</b></div>
-                    <div className="r is-sub"><span>Lines</span><b>{m.count}</b></div>
+                    <div className="r is-tot"><span>Closing</span><b>{money(m.reconciliation?.closing_balance)}</b></div>
                   </div>
+                  <p className="mgv-sub">{m.count} {m.count === 1 ? 'line' : 'lines'} in this month</p>
 
                   {/* Everything that would be a reason to send it back, counted
                       rather than scored — the office decides, Cargo just says

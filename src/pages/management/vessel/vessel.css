@@ -1,125 +1,164 @@
-/* One vessel's month, as the office reads it. */
+/* One vessel's month, as the office reads it. Same tile language as the fleet. */
+
+.mgv { max-width: 1180px; }
 
 .mgv-back {
   display: inline-flex; align-items: center; gap: 5px;
-  background: none; border: 0; padding: 2px 0; margin-bottom: 16px;
-  cursor: pointer; font-size: 12.5px; font-weight: 600; color: #8B8478;
+  background: none; border: 0; padding: 6px 10px 6px 6px; margin: 0 0 16px -6px;
+  border-radius: 999px; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; color: #8B8478;
+  transition: background 0.14s ease, color 0.14s ease;
 }
-.mgv-back:hover { color: #C65A1A; }
+.mgv-back:hover { background: #EFF2F6; color: #C65A1A; }
 
-/* ── which month ──────────────────────────────────────────────────────────── */
-.mgv-periods { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0 28px; }
+/* ── which month: a segmented control, not a row of loose pills ───────────── */
+.mgv-periods {
+  display: inline-flex; gap: 4px; margin: 22px 0 28px; padding: 4px;
+  background: #EDF0F4; border-radius: 999px; max-width: 100%; overflow-x: auto;
+}
 .mgv-period {
-  display: inline-flex; align-items: center; gap: 7px;
-  background: #fff; border: 1px solid #E5E7EB; border-radius: 999px;
-  padding: 7px 15px; cursor: pointer;
-  font: inherit; font-size: 12.5px; font-weight: 600; color: #6B7280;
+  display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;
+  background: none; border: 0; border-radius: 999px;
+  padding: 9px 18px; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600; color: #6B7280;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
-.mgv-period:hover { border-color: #C65A1A; color: #C65A1A; }
-.mgv-period.on { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.mgv-period:hover { color: #1C1B3A; }
+.mgv-period.on {
+  background: #fff; color: #1C1B3A;
+  box-shadow: 0 1px 2px rgba(28, 27, 58, 0.08), 0 4px 12px -6px rgba(28, 27, 58, 0.24);
+}
 .mgv-pill {
-  display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 5px;
-  border-radius: 999px; background: #FBEFE9; color: #C65A1A; font-size: 10.5px; font-weight: 700;
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 6px;
+  border-radius: 999px; background: #C65A1A; color: #fff; font-size: 10.5px; font-weight: 700;
 }
-.mgv-period.on .mgv-pill { background: rgba(255, 255, 255, 0.24); color: #fff; }
 
 /* ── one account ──────────────────────────────────────────────────────────── */
-.mgv-accs { display: flex; flex-direction: column; gap: 14px; }
+.mgv-accs { display: grid; gap: 16px; }
 
 .mgv-acc {
-  background: #fff; border: 1px solid #E5E7EB; border-radius: 14px;
-  padding: 20px 22px;
+  background: #fff; border: 1px solid rgba(28, 27, 58, 0.07); border-radius: 20px;
+  padding: 22px 24px 20px;
+  box-shadow: 0 1px 2px rgba(28, 27, 58, 0.04), 0 10px 30px -20px rgba(28, 27, 58, 0.2);
 }
 
 .mgv-acc-h {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
-  padding-bottom: 13px; border-bottom: 1px solid #F0F1F5;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin-bottom: 18px;
 }
 .mgv-acc-n b {
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 20px; font-weight: 400; color: #1C1B3A; letter-spacing: -0.2px;
+  font-size: 22px; font-weight: 400; color: #1C1B3A; letter-spacing: -0.3px;
 }
 .mgv-acc-n em {
-  margin-left: 9px; font-style: normal; font-size: 12px; color: #AEB4C2;
+  margin-left: 10px; font-style: normal; font-size: 12px; color: #AEB4C2;
   font-variant-numeric: tabular-nums;
 }
 
 .mgv-state {
-  flex: 0 0 auto; font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  flex: 0 0 auto; padding: 6px 13px; border-radius: 999px;
+  background: #F4F6F9; color: #6B7280;
+  font-size: 11.5px; font-weight: 600; white-space: nowrap;
+}
+.mgv-state.s-awaiting-sign-off { background: #FBEFE9; color: #B14E16; }
+.mgv-state.s-signed-off { background: #EAF4EE; color: #2F855A; }
+.mgv-state.s-queried { background: #FBF3E4; color: #98701F; }
+
+/* The figures as a strip of tiles — the closing balance is what the office is
+   actually here for, so it gets the accent rather than a row in a ladder. */
+.mgv-eq {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
+}
+.mgv-eq .r {
+  background: #FAFBFC; border: 1px solid #EEF0F4; border-radius: 14px;
+  padding: 13px 15px;
+}
+.mgv-eq .r span {
+  display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px;
   text-transform: uppercase; color: #8B8478;
 }
-.mgv-state.s-awaiting-sign-off { color: #C65A1A; }
-.mgv-state.s-signed-off { color: #2F855A; }
-.mgv-state.s-queried { color: #B7791F; }
-
-.mgv-eq { display: flex; flex-direction: column; margin-top: 4px; }
-.mgv-eq .r {
-  display: flex; justify-content: space-between; align-items: baseline; gap: 20px;
-  padding: 9px 0; border-bottom: 1px solid #F5F6F8; font-size: 13px; color: #6B7280;
+.mgv-eq .r b {
+  display: block; margin-top: 7px;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 22px; font-weight: 400; color: #1C1B3A;
+  letter-spacing: -0.4px; font-variant-numeric: tabular-nums;
 }
-.mgv-eq .r b { font-size: 15px; font-weight: 600; color: #1C1B3A; font-variant-numeric: tabular-nums; }
+.mgv-eq .r.is-tot { background: #FFF9F6; border-color: #F3DFD2; }
 .mgv-eq .r.is-tot b { color: #C65A1A; }
-.mgv-eq .r.is-sub { border-bottom: 0; font-size: 12px; }
-.mgv-eq .r.is-sub b { font-size: 13px; color: #6B7280; }
+
+.mgv-sub { margin: 12px 0 0; font-size: 12px; color: #AEB4C2; }
 
 .mgv-reasons, .mgv-clean {
-  display: flex; align-items: flex-start; gap: 8px; margin: 14px 0 0;
+  display: flex; align-items: flex-start; gap: 9px; margin: 16px 0 0;
+  padding: 12px 15px; border-radius: 12px;
   font-size: 12.5px; line-height: 1.55;
 }
-.mgv-reasons { color: #B7791F; }
-.mgv-clean { color: #2F855A; }
-.mgv-reasons svg, .mgv-clean svg { flex: 0 0 auto; margin-top: 2px; }
+.mgv-reasons { background: #FBF3E4; color: #8A6414; }
+.mgv-clean { background: #EFF6F2; color: #2F6B4F; }
+.mgv-reasons svg, .mgv-clean svg { flex: 0 0 auto; margin-top: 1px; }
 
 .mgv-note {
-  margin: 12px 0 0; padding: 11px 13px;
-  background: #FAFAF8; border-left: 2px solid #C65A1A; border-radius: 0 8px 8px 0;
-  font-size: 12.5px; line-height: 1.55; color: #1C1B3A;
+  margin: 12px 0 0; padding: 13px 15px;
+  background: #FAFAF8; border-left: 3px solid #C65A1A; border-radius: 4px 12px 12px 4px;
+  font-size: 12.5px; line-height: 1.6; color: #1C1B3A;
 }
 .mgv-note.is-ok { border-left-color: #2F855A; color: #6B7280; }
 .mgv-note b { font-weight: 650; }
 
-.mgv-act { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
-.mgv-readonly { margin: 14px 0 0; font-size: 12px; color: #AEB4C2; line-height: 1.5; }
+.mgv-act { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.mgv-readonly { margin: 16px 0 0; font-size: 12px; color: #AEB4C2; line-height: 1.5; }
 
 .mgv-btn {
-  border-radius: 10px; padding: 9px 17px; font-size: 13px; font-weight: 600;
+  border-radius: 12px; padding: 11px 20px; font-size: 13.5px; font-weight: 600;
   cursor: pointer; border: 1px solid transparent; font-family: inherit;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
 }
 .mgv-btn.ghost { background: #fff; border-color: #E5E7EB; color: #6B7280; }
 .mgv-btn.ghost:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
-.mgv-btn.primary { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.mgv-btn.primary {
+  background: #C65A1A; border-color: #C65A1A; color: #fff;
+  box-shadow: 0 1px 2px rgba(198, 90, 26, 0.2), 0 8px 20px -10px rgba(198, 90, 26, 0.55);
+}
 .mgv-btn.primary:hover:not(:disabled) { background: #B14E16; }
 .mgv-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.mgv-btn.primary:disabled { background: #E5E7EB; border-color: #E5E7EB; color: #AEB4C2; }
+.mgv-btn.primary:disabled { background: #E5E7EB; border-color: #E5E7EB; color: #AEB4C2; box-shadow: none; }
 
 /* ── naming it back before it happens ─────────────────────────────────────── */
 .mgv-ask {
   position: fixed; inset: 0; z-index: 90;
-  background: rgba(28, 27, 58, 0.34);
+  background: rgba(28, 27, 58, 0.32);
+  backdrop-filter: blur(3px);
   display: grid; place-items: center; padding: 24px;
 }
 .mgv-ask-p {
-  width: 100%; max-width: 460px;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
-  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
-  padding: 24px 26px 20px;
+  width: 100%; max-width: 470px;
+  background: #fff; border: 1px solid #ECEAE3; border-radius: 22px;
+  box-shadow: 0 30px 70px -18px rgba(28, 27, 58, 0.4);
+  padding: 26px 28px 22px;
 }
 .mgv-ask-h {
-  margin: 0 0 8px;
+  margin: 0 0 9px;
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 22px; font-weight: 400; color: #1C1B3A; line-height: 1.25; letter-spacing: -0.3px;
+  font-size: 24px; font-weight: 400; color: #1C1B3A; line-height: 1.25; letter-spacing: -0.4px;
 }
-.mgv-ask-s { margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #8B8478; }
+.mgv-ask-s { margin: 0 0 18px; font-size: 13px; line-height: 1.6; color: #8B8478; }
 .mgv-ask-p textarea {
-  width: 100%; background: #fff; border: 1px solid #E5E7EB; border-radius: 10px;
-  padding: 11px 13px; font: inherit; font-size: 13.5px; color: #1C1B3A; resize: vertical;
+  width: 100%; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 13px;
+  padding: 13px 15px; font: inherit; font-size: 13.5px; color: #1C1B3A; resize: vertical;
+  transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
 .mgv-ask-p textarea::placeholder { color: #C3C7D0; }
-.mgv-ask-p textarea:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
-.mgv-ask-a { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+.mgv-ask-p textarea:focus {
+  outline: none; background: #fff; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7;
+}
+.mgv-ask-a { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 
+@media (max-width: 900px) {
+  .mgv-eq { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 620px) {
-  .mgv-acc { padding: 17px 16px; }
+  .mgv-acc { padding: 18px 17px; border-radius: 17px; }
+  .mgv-acc-h { flex-direction: column; align-items: flex-start; gap: 9px; }
   .mgv-act { flex-direction: column-reverse; }
   .mgv-act .mgv-btn { width: 100%; }
 }
