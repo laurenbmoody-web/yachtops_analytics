@@ -20,12 +20,16 @@ export async function listManagementAccess(tenantId) {
   return { data: data || [], error };
 }
 
-export async function grantManagementAccess(tenantId, email, companyName) {
+// `scopes` names which parts of the vessel the grant covers — see
+// managementView.SCOPES. Granting the same address again REPLACES them, which is
+// how a captain narrows or widens what the office can see without a second row.
+export async function grantManagementAccess(tenantId, email, companyName, scopes = ['accounts']) {
   if (!tenantId) return { data: null, error: new Error('No vessel') };
   const { data, error } = await supabase.rpc('grant_management_access', {
     p_tenant_id: tenantId,
     p_email: (email || '').trim(),
     p_company_name: (companyName || '').trim() || null,
+    p_scopes: scopes,
   });
   return { data: data || null, error };
 }

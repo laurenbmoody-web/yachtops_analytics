@@ -156,3 +156,34 @@ export const sortAccess = (rows = []) =>
     if (!!a?.active !== !!b?.active) return a?.active ? -1 : 1;
     return String(accessLabel(a)).localeCompare(String(accessLabel(b)), undefined, { sensitivity: 'base' });
   });
+
+// ── what a grant covers ──────────────────────────────────────────────────────
+// The shore office reads more than the money. /month-end already models the
+// vessel's monthly close-off as packs — Hours of Rest live, the rest planned —
+// and the office is the recipient of all of it, so a grant names which parts.
+//
+// Keys match the database's check constraint. Adding an area is a value here and
+// a value there; it is deliberately not a column, because the pack list grows.
+export const SCOPES = [
+  { key: 'accounts', label: 'Month-end spending', note: 'Closed months, the lines under them, and signing them off' },
+  { key: 'hor', label: 'Hours of Rest', note: 'The signed monthly rest-hours pack' },
+  { key: 'month_end', label: 'Monthly checks', note: 'The rest of the month-end close-off packs' },
+];
+
+const SCOPE_BY_KEY = SCOPES.reduce((m, s) => { m[s.key] = s; return m; }, {});
+
+export const scopeLabel = (key) => SCOPE_BY_KEY[key]?.label || key;
+
+// Drops anything the database wouldn't accept and orders it the way SCOPES is
+// written, so two grants of the same areas always read identically.
+export const cleanScopes = (scopes = []) =>
+  SCOPES.map((s) => s.key).filter((k) => (scopes || []).includes(k));
+
+// "Month-end spending and Hours of Rest" — a sentence fragment, because it sits
+// inside a line of prose on the vessel's list rather than in a column.
+export const describeScopes = (scopes = []) => {
+  const names = cleanScopes(scopes).map(scopeLabel);
+  if (!names.length) return 'nothing';
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+};

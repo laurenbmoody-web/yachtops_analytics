@@ -25,6 +25,7 @@ import { sendDbNotification } from '../../lib/dbNotifications';
 import { loadRotaHorExportData } from '../crew-rota/rotaHorExportData';
 import { buildRestLogPDF, buildRestLogCSV } from '../crew-rota/rotaHorExport';
 import HorReviewModal from './components/HorReviewModal';
+import ManagementAccess from './components/ManagementAccess';
 import './month-end.css';
 
 // Blob → base64 (no data: prefix) for JSON transport to the email edge function.
@@ -368,6 +369,13 @@ export default function MonthEnd() {
               </div>
             );
           })}
+
+          {/* Everything above closes each month and then goes ashore. Who it
+              goes to — and which of it they can see — belongs on the same page,
+              not tucked inside Accounts, because the office reads the Hours of
+              Rest pack and the rest of these just as much as the money. */}
+          <ManagementAccess tenantId={activeTenantId}
+            onToast={(m) => { setToast(m); setTimeout(() => setToast(''), 2600); }} />
         </div>
 
         {toast && <div className="me-toast">{toast}</div>}
