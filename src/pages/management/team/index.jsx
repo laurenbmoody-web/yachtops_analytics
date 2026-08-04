@@ -19,6 +19,15 @@ import { TEAM_TIERS, tierLabel, canRunTeam } from '../../../services/managementV
 import '../management.css';
 import './team.css';
 
+// Two letters off whatever we know them by — a name once they've signed up, the
+// address until then.
+const initials = (row) => {
+  const src = row.person_name || row.email || '';
+  const parts = src.replace(/@.*$/, '').split(/[\s._-]+/).filter(Boolean);
+  const two = parts.length > 1 ? parts[0][0] + parts[1][0] : src.slice(0, 2);
+  return (two || '?').toUpperCase();
+};
+
 export default function ManagementTeam() {
   const { company } = useManagementCompany();
   const [rows, setRows] = useState([]);
@@ -77,16 +86,20 @@ export default function ManagementTeam() {
         <h1 className="editorial-greeting">
           Team<span className="period">,</span> <em>at the office</em><span className="period">.</span>
         </h1>
-        <p className="mgf-say">
+        <p className="mgt-say">
           Everyone here reaches every vessel {company?.company_name || 'your company'} is engaged on, with
-          whatever each vessel gave. What they do is recorded against their own name, which is the
+          whatever each vessel gave. What they do is recorded against their own name — which is the
           reason to add people individually rather than share one login.
           {company?.vessels != null && ` Currently ${company.vessels} ${company.vessels === 1 ? 'vessel' : 'vessels'}.`}
         </p>
 
         {mayRun && !open && (
           <button type="button" className="mgt-add" onClick={() => setOpen(true)}>
-            <Icon name="Plus" size={14} /> Add someone
+            <span className="mgt-add-ic"><Icon name="UserPlus" size={19} /></span>
+            <span className="mgt-add-t">
+              <b>Add someone</b>
+              <em>They can be added before they have a Cargo login</em>
+            </span>
           </button>
         )}
 
@@ -101,8 +114,9 @@ export default function ManagementTeam() {
               <legend>What they can do</legend>
               {TEAM_TIERS.map((t) => (
                 <button key={t.key} type="button" aria-pressed={tier === t.key}
-                  className={`mgt-tier${tier === t.key ? ' on' : ''}`} onClick={() => setTier(t.key)}>
-                  <b>{t.label}</b><em>{t.note}</em>
+                  className={`mgt-tier-opt${tier === t.key ? ' on' : ''}`} onClick={() => setTier(t.key)}>
+                  <span className="mgt-radio"><i /></span>
+                  <span className="mgt-tier-txt"><b>{t.label}</b><em>{t.note}</em></span>
                 </button>
               ))}
             </fieldset>
@@ -113,34 +127,43 @@ export default function ManagementTeam() {
                 {busy ? 'Adding…' : 'Add them'}
               </button>
             </div>
-            {err && <p className="mgv-err"><Icon name="AlertCircle" size={14} /> {err}</p>}
+            {err && <p className="mgf-err"><Icon name="AlertCircle" size={14} /> {err}</p>}
           </form>
         )}
 
-        {err && !open && <p className="mgv-err"><Icon name="AlertCircle" size={14} /> {err}</p>}
+        {err && !open && <p className="mgf-err"><Icon name="AlertCircle" size={14} /> {err}</p>}
 
         {loading ? (
-          <p className="mgv-empty">Loading…</p>
+          <p className="mgf-empty">Loading…</p>
         ) : (
-          <div className="mgt-rows">
-            {rows.map((r) => (
-              <div key={r.id} className={`mgt-row${r.active ? '' : ' is-off'}`}>
-                <span className="mgt-who">
-                  <b>{r.person_name || r.email}</b>
-                  {r.person_name && <em>{r.email}</em>}
-                </span>
-                <span className="mgt-tierlab">{tierLabel(r.permission_tier)}</span>
-                <span className={`mgt-state${r.has_login ? '' : ' pend'}`}>
-                  {!r.active ? 'Removed' : r.has_login ? 'Signed up' : 'Not signed up yet'}
-                </span>
-                {mayRun && r.active ? (
-                  <button type="button" className="mgt-go" disabled={busy} onClick={() => remove(r)}>
-                    Remove
-                  </button>
-                ) : <span className="mgt-go" />}
-              </div>
-            ))}
-          </div>
+          <>
+            <p className="mgt-lab">At {company?.company_name || 'the office'}</p>
+            <div className="mgt-card">
+              {rows.map((r) => (
+                <div key={r.id} className={`mgt-row${r.active ? '' : ' is-off'}`}>
+                  <span className={`mgt-av${r.has_login ? '' : ' pend'}`}>{initials(r)}</span>
+                  <span className="mgt-who">
+                    <b>{r.person_name || r.email}</b>
+                    {r.person_name && <em>{r.email}</em>}
+                  </span>
+                  <span className="mgt-meta">
+                    <span className={`mgt-tier${r.permission_tier === 'OWNER' ? ' owner' : ''}`}>
+                      {tierLabel(r.permission_tier)}
+                    </span>
+                    {/* Only worth saying when it's still true — "signed up" on
+                        every row is a column of noise. */}
+                    {r.active && !r.has_login && <span className="mgt-pend">Not signed up</span>}
+                    {!r.active && <span className="mgt-pend">Removed</span>}
+                  </span>
+                  {mayRun && r.active ? (
+                    <button type="button" className="mgt-go" disabled={busy} onClick={() => remove(r)}>
+                      Remove
+                    </button>
+                  ) : <span className="mgt-go" />}
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </ManagementShell>

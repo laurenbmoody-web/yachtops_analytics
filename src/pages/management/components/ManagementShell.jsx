@@ -43,8 +43,10 @@ export default function ManagementShell({ children }) {
           </NavLink>
         </nav>
 
+        {/* The label is wrapped so it can drop away on a narrow bar, leaving the
+            icon — the rule that hides it needs something to hide. */}
         <button type="button" className="mg-out" onClick={signOut}>
-          <Icon name="LogOut" size={15} /> Sign out
+          <Icon name="LogOut" size={15} /><span>Sign out</span>
         </button>
       </header>
 
