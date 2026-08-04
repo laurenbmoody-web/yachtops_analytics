@@ -93,6 +93,10 @@ import DriverTokenPage from './pages/driver/DriverTokenPage';
 import SeaServiceSignPage from './seatime/SeaServiceSignPage';
 import SupplierSignup from './pages/supplier-signup';
 import SupplierProtectedRoute from './components/SupplierProtectedRoute';
+import ManagementProtectedRoute from './components/ManagementProtectedRoute';
+import ManagementFleet from './pages/management';
+import ManagementVessel from './pages/management/vessel';
+import ManagementTeam from './pages/management/team';
 import SupplierRoleGuard from './components/SupplierRoleGuard';
 import SupplierPortal from './pages/supplier-portal';
 import SupplierPortalDemo from './pages/supplier-portal-demo';
@@ -1221,6 +1225,13 @@ const Routes = () => {
         <Route path="/drive/:token" element={<DriverTokenPage />} />
         <Route path="/sea-service/sign/:token" element={<SeaServiceSignPage />} />
         <Route path="/case/:token" element={<LaundryCaseShare />} />
+        {/* The shore office's side. Not ProtectedRoute: a management user has
+            no tenant and no crew role — they're a firm the vessel engaged, and
+            the guard asks that question instead. */}
+        <Route path="/management" element={<ManagementProtectedRoute><ManagementFleet /></ManagementProtectedRoute>} />
+        <Route path="/management/vessel/:tenantId" element={<ManagementProtectedRoute><ManagementVessel /></ManagementProtectedRoute>} />
+        <Route path="/management/team" element={<ManagementProtectedRoute><ManagementTeam /></ManagementProtectedRoute>} />
+
         <Route path="/invite-accept" element={<InviteAcceptPage />} />
         <Route path="/invite" element={<InviteRedirect />} />
         <Route path="/accept-invite" element={<InviteRedirect />} />

@@ -143,7 +143,10 @@ const PersonalModeScreen = ({ userName, userId }) => {
 // Personal pages that must stay reachable in unberthed mode — when the user is
 // on one of these, the full-screen personal landing steps aside so the page
 // renders. Anything else shows the landing.
-const UNBERTHED_ALLOW = ['/my-profile', '/profile', '/settings', '/supplier', '/invite', '/invite-accept', '/reset-password', '/forgot-password', '/login'];
+// '/management' is here because the shore office has no vessel BY DESIGN —
+// they're a firm a vessel engaged, not crew — so the unberthed landing must
+// step aside rather than telling them they're between boats.
+const UNBERTHED_ALLOW = ['/my-profile', '/profile', '/settings', '/supplier', '/management', '/invite', '/invite-accept', '/reset-password', '/forgot-password', '/login'];
 
 export const VesselFallbackUI = () => {
   const { vesselChooserOptions, noVesselAccess, selectVesselFromChooser, userDisplayName, userId } = useTenant();
