@@ -80,10 +80,10 @@ Deno.serve(async (req: Request) => {
     '- brand: the maker from the label, else ""\n' +
     `- type: the single best match from [${types.join(', ')}], else ""\n` +
     `- gender: one of [${genders.join(', ')}], else ""\n` +
-    '- size: exactly as printed on the label, e.g. "40R", "M", "UK 8", else ""\n' +
+    '- size: the WEARER size exactly as printed, e.g. "M", "40R", "UK 8", "32/34"; for childrenswear this is usually an age range like "2-3yrs" or "3-4yrs". NEVER put a long style/reference/barcode number here.\n' +
     '- colour: the main colour, else ""\n' +
     '- material: the fibre composition from the care/brand label, e.g. "100% linen", else ""\n' +
-    '- sku: any style/reference code printed on the label, else ""\n' +
+    '- sku: the manufacturer style/reference/barcode code (often a long alphanumeric like "H72-631-384"), NOT the wearer size; else ""\n' +
     `- condition: one of [${conditions.join(', ')}] judging from the photos, else ""\n` +
     `- care: an array, subset of [${careTags.join(', ')}], inferred from the care label symbols/text; [] if unsure\n` +
     '- description: one short sentence of distinguishing detail, else ""\n' +
