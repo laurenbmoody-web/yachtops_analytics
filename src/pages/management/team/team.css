@@ -1,0 +1,85 @@
+/* The firm's own team. */
+
+.mgt-add {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: none; border: 0; padding: 2px 0; margin-bottom: 20px;
+  cursor: pointer; font-size: 13px; font-weight: 600; color: #C65A1A;
+}
+.mgt-add:hover { color: #B14E16; }
+
+.mgt-form {
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 14px;
+  padding: 20px 22px; margin-bottom: 24px; max-width: 560px;
+}
+
+.mgt-field { display: flex; flex-direction: column; gap: 6px; }
+.mgt-field > span {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.mgt-field .req { font-style: normal; color: #C65A1A; margin-left: 4px; }
+.mgt-field input {
+  width: 100%; background: #fff; border: 1px solid #E5E7EB; border-radius: 9px;
+  padding: 9px 11px; font: inherit; font-size: 13.5px; color: #1C1B3A;
+}
+.mgt-field input::placeholder { color: #C3C7D0; }
+.mgt-field input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+
+.mgt-tiers { border: 0; padding: 0; margin: 18px 0 0; display: grid; gap: 8px; }
+.mgt-tiers legend {
+  padding: 0; margin-bottom: 8px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.mgt-tier {
+  display: block; width: 100%; text-align: left; font: inherit;
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 10px;
+  padding: 10px 13px; cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.mgt-tier:hover { border-color: #D6D9DF; }
+.mgt-tier.on { border-color: #C65A1A; background: #FDF7F4; }
+.mgt-tier b { display: block; font-size: 13px; font-weight: 600; color: #1C1B3A; }
+.mgt-tier em {
+  display: block; margin-top: 2px; font-style: normal; font-size: 11.5px;
+  line-height: 1.45; color: #8B8478;
+}
+
+.mgt-act { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+
+/* ── the list ─────────────────────────────────────────────────────────────── */
+.mgt-rows { display: flex; flex-direction: column; max-width: 760px; }
+
+.mgt-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 96px 132px 78px;
+  align-items: center; gap: 16px;
+  padding: 13px 2px; border-bottom: 1px solid #F0F1F5;
+}
+.mgt-row.is-off { opacity: 0.5; }
+
+.mgt-who { min-width: 0; }
+.mgt-who b {
+  display: block; font-size: 13.5px; font-weight: 600; color: #1C1B3A;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mgt-who em {
+  display: block; margin-top: 1px; font-style: normal; font-size: 11.5px; color: #8B8478;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.mgt-tierlab { font-size: 12px; color: #6B7280; }
+.mgt-state { font-size: 12px; color: #2F855A; }
+.mgt-state.pend { color: #C65A1A; }
+
+.mgt-go {
+  justify-self: end; background: none; border: 0; padding: 2px 0; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: #8B8478;
+}
+.mgt-go:hover:not(:disabled) { color: #C65A1A; }
+.mgt-go:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+  .mgt-row { grid-template-columns: minmax(0, 1fr) auto; row-gap: 5px; }
+  .mgt-tierlab { grid-column: 1; font-size: 11.5px; }
+  .mgt-state { grid-column: 2; justify-self: end; }
+}

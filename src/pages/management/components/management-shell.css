@@ -1,0 +1,46 @@
+/* The shore office's frame. Cargo editorial system: cool canvas, navy ink,
+   terracotta accent, hairlines rather than boxes. */
+
+.mg { min-height: 100vh; background: #F8FAFC; font-family: 'Inter', system-ui, sans-serif; }
+
+.mg-bar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; gap: 26px;
+  height: 64px; padding: 0 40px;
+  background: #fff; border-bottom: 1px solid #E5E7EB;
+}
+
+.mg-brand { display: flex; align-items: center; gap: 12px; cursor: pointer; flex: 0 0 auto; }
+.mg-brand:hover { opacity: 0.85; }
+.mg-logo { height: 30px; width: auto; object-fit: contain; }
+.mg-div { color: #AEB4C2; font-size: 20px; line-height: 1; }
+.mg-co {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 16px; color: #1C1B3A; letter-spacing: -0.2px;
+  max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.mg-nav { display: flex; align-items: center; gap: 4px; flex: 1; }
+.mg-link {
+  padding: 7px 12px; border-radius: 999px; text-decoration: none;
+  font-size: 13px; font-weight: 600; color: #6B7280;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.mg-link:hover { background: #F4F6F9; color: #1C1B3A; }
+.mg-link.on { background: #FBEFE9; color: #C65A1A; }
+
+.mg-out {
+  display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto;
+  background: none; border: 0; padding: 6px 4px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: #8B8478;
+}
+.mg-out:hover { color: #C65A1A; }
+
+.mg-body { padding: 30px 40px 90px; max-width: none; width: 100%; }
+
+@media (max-width: 720px) {
+  .mg-bar { padding: 0 18px; gap: 14px; }
+  .mg-co { max-width: 130px; font-size: 14px; }
+  .mg-body { padding: 22px 18px 70px; }
+  .mg-out span { display: none; }
+}
