@@ -150,10 +150,33 @@ const UNBERTHED_ALLOW = ['/my-profile', '/profile', '/settings', '/supplier', '/
 
 export const VesselFallbackUI = () => {
   const { vesselChooserOptions, noVesselAccess, selectVesselFromChooser, userDisplayName, userId } = useTenant();
+  // Having no vessel means two completely different things. Crew between boats
+  // get the personal landing. Someone at a management company has no vessel BY
+  // DESIGN — they're a firm a vessel engaged — and telling them they're
+  // "between vessels" would be the app failing to recognise its own user.
+  // Asked only once we already know there's no membership, so it costs a call
+  // for the rare case rather than on every sign-in.
+  const [shore, setShore] = useState(null);   // null = unknown yet
+
+  useEffect(() => {
+    if (!noVesselAccess || !userId) return undefined;
+    let live = true;
+    supabase?.rpc?.('my_management_companies')
+      ?.then?.(({ data }) => { if (live) setShore((data || []).length > 0); })
+      ?.catch?.(() => { if (live) setShore(false); });
+    return () => { live = false; };
+  }, [noVesselAccess, userId]);
 
   if (noVesselAccess) {
     const path = (typeof window !== 'undefined' && window.location?.pathname) || '';
     if (UNBERTHED_ALLOW.some((p) => path.startsWith(p))) return null;
+    // Don't flash the wrong screen at them while we find out which they are.
+    if (shore === null) return null;
+    if (shore) {
+      // A full navigation, not a router push: this renders above the router.
+      if (typeof window !== 'undefined') window.location.replace('/management');
+      return null;
+    }
     return <PersonalModeScreen userName={userDisplayName} userId={userId} />;
   }
 
