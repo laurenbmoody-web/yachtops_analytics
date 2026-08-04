@@ -8,6 +8,8 @@ import WardrobeEditorModal from './WardrobeEditorModal';
 import WardrobeManageModal from './WardrobeManageModal';
 import WardrobeIcon from './WardrobeIcon';
 import ToolMenu from './ToolMenu';
+import CasesListModal from './CasesListModal';
+import CaseMovementModal from './CaseMovementModal';
 import PersonTiles from './PersonTiles';
 import { canViewCost } from '../../../utils/costPermissions';
 import { loadWardrobes, createWardrobe } from '../utils/laundryWardrobes';
@@ -130,6 +132,8 @@ const OwnerWardrobeView = ({ onBack }) => {
   const [promptState, setPromptState] = useState(null);   // { title, label, placeholder, submitLabel, onSubmit }
   const [showArchived, setShowArchived] = useState(false); // dedicated archived mode (not a filter)
   const [exportingManifest, setExportingManifest] = useState(false);
+  const [showCases, setShowCases] = useState(false);
+  const [openCaseId, setOpenCaseId] = useState(null);
 
   const doManifest = async (scopeItems, subject) => {
     if (exportingManifest || !scopeItems.length) return;
@@ -381,6 +385,8 @@ const OwnerWardrobeView = ({ onBack }) => {
       {showAdd && <AddGarmentModal wardrobes={wardrobes} guests={guests} defaultWardrobeId={fLoc !== 'all' && fLoc !== 'away' ? fLoc : null} showValue={showValue} onClose={() => setShowAdd(false)} onCreated={load} />}
       {showNewWardrobe && <WardrobeEditorModal scope="owner" onClose={() => setShowNewWardrobe(false)} onCreated={load} />}
       {showManageWardrobes && <WardrobeManageModal wardrobes={wardrobes} items={[...items, ...archived]} onNew={() => setShowNewWardrobe(true)} onChanged={load} onClose={() => setShowManageWardrobes(false)} />}
+      {showCases && <CasesListModal items={items} onOpenCase={(id) => { setShowCases(false); setOpenCaseId(id); }} onClose={() => setShowCases(false)} />}
+      {openCaseId && <CaseMovementModal caseId={openCaseId} wardrobes={wardrobes} onChanged={load} onClose={() => setOpenCaseId(null)} />}
       {fullItem && <GarmentFullView item={fullItem} wardrobes={wardrobes} guests={guests} showValue={showValue} caseName={fullItem.caseId ? caseName(fullItem.caseId) : null} onClose={() => setFullItem(null)} onChanged={() => { load(); setFullItem(null); }} onAction={singleAction} />}
       {showScan && <LaundryScanModal onClose={() => setShowScan(false)} onDetect={onScan} />}
       {chooser && (
@@ -473,6 +479,7 @@ const OwnerWardrobeView = ({ onBack }) => {
               <button type="button" className={landView === 'list' ? 'on' : ''} onClick={() => setLandView('list')}>List</button>
             </div>
             <ToolMenu items={[
+              { node: <Icon name="Package" size={16} />, label: 'Cases & movements', onClick: () => setShowCases(true), show: !showArchived },
               { node: <WardrobeIcon size={16} />, label: 'Manage wardrobes', onClick: () => setShowManageWardrobes(true), show: !showArchived },
               { node: <Icon name="Archive" size={16} />, label: showArchived ? 'Exit archived' : `Archived (${archived.length})`, active: showArchived, onClick: () => { setShowArchived((v) => !v); clearSel(); }, show: archived.length > 0 || showArchived },
               { node: <Icon name="FileDown" size={16} />, label: exportingManifest ? 'Exporting…' : 'Export', onClick: () => doManifest(items, 'Owner wardrobe'), show: !showArchived && items.length > 0 },
@@ -530,6 +537,7 @@ const OwnerWardrobeView = ({ onBack }) => {
             <button type="button" className={view === 'list' ? 'on' : ''} onClick={() => setView('list')} aria-label="List view"><Icon name="List" size={15} /></button>
           </div>
           <ToolMenu items={[
+            { node: <Icon name="Package" size={16} />, label: 'Cases & movements', onClick: () => setShowCases(true), show: !showArchived },
             { node: <Icon name="Archive" size={16} />, label: showArchived ? 'Exit archived' : `Archived (${archived.length})`, active: showArchived, onClick: () => { setShowArchived((v) => !v); clearSel(); }, show: archived.length > 0 || showArchived },
             { node: <Icon name="FileDown" size={16} />, label: exportingManifest ? 'Exporting…' : 'Export', onClick: () => doManifest(personItems, selectedPerson?.name || 'Wardrobe'), show: !showArchived && personItems.length > 0 },
           ]} />
