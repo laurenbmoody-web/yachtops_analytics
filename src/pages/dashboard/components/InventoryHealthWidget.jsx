@@ -37,13 +37,18 @@ const InventoryHealthWidget = () => {
   // When anything needs attention, jump to the actionable board; otherwise browse.
   const target = attentionCount > 0 ? '/inventory/attention' : '/inventory';
 
-  // Attention rows — stock first, then freshness. Coloured only when non-zero.
-  const rows = [
-    { label: 'Out of stock', count: stats?.outOfStock, sev: 'red' },
-    { label: 'Low stock', count: stats?.lowStock, sev: 'amber' },
-    { label: 'Expiring ≤ 30d', count: stats?.expiringSoon, sev: 'amber' },
-    { label: 'Expired', count: stats?.expired, sev: 'red' },
+  // KPI tiles — stock first, then freshness. Tinted only when non-zero.
+  const tiles = [
+    { label: 'Out of stock', count: stats?.outOfStock || 0, fg: '#B23A2E', bg: 'rgba(178,58,46,0.08)' },
+    { label: 'Low stock', count: stats?.lowStock || 0, fg: '#A8791C', bg: 'rgba(168,121,28,0.10)' },
+    { label: 'Expiring ≤ 30d', count: stats?.expiringSoon || 0, fg: '#1C6DB4', bg: 'rgba(28,109,180,0.09)' },
+    { label: 'Expired', count: stats?.expired || 0, fg: '#B23A2E', bg: 'rgba(178,58,46,0.08)' },
   ];
+  // Health bar: green (healthy) · amber (low + expiring) · red (out + expired).
+  const healthyN = Math.max(0, (stats?.total || 0) - attentionCount);
+  const amberN = (stats?.lowStock || 0) + (stats?.expiringSoon || 0);
+  const redN = (stats?.outOfStock || 0) + (stats?.expired || 0);
+  const pct = (n) => (stats?.total > 0 ? (n / stats.total) * 100 : 0);
 
   // Status subline — most urgent first.
   let statusText = 'All healthy';
@@ -55,8 +60,6 @@ const InventoryHealthWidget = () => {
   else if (stats?.outOfStock > 0) { statusText = `${stats.outOfStock} out of stock`; statusAttention = true; }
   else if (stats?.expiringSoon > 0) { statusText = `${stats.expiringSoon} expiring soon`; statusAttention = true; }
   else if (stats?.lowStock > 0) { statusText = `${stats.lowStock} low stock`; statusAttention = true; }
-
-  const sevColor = (sev, on) => (on ? (sev === 'red' ? '#B23A2E' : '#A8791C') : '#D6D8E0');
 
   return (
     <div
@@ -83,40 +86,46 @@ const InventoryHealthWidget = () => {
         </div>
       ) : (
         <>
-          <div className="text-center py-3 mb-4">
-            {!hasItems ? (
-              <>
-                <p className="ce-title">Nothing tracked yet.</p>
-                <p className="ce-status is-attention mt-1">Begin the inventory →</p>
-              </>
-            ) : isHealthy ? (
-              <>
-                <p className="text-3xl font-bold ce-fg-success" style={{ lineHeight: 1 }}>All good</p>
-                <p className="text-xs text-muted-foreground mt-2">{`${stats?.total} items tracked`}</p>
-              </>
-            ) : (
-              <>
-                <p className="text-4xl font-bold ce-fg-warn" style={{ lineHeight: 1 }}>{attentionCount}</p>
-                <p className="text-xs text-muted-foreground mt-2">{`need attention · ${stats?.total} tracked`}</p>
-              </>
-            )}
-          </div>
-
-          {hasItems && (
-            <div className="space-y-1.5">
-              {rows.map((r) => {
-                const on = (r.count || 0) > 0;
-                return (
-                  <div key={r.label} className="flex items-center justify-between py-2 px-3 rounded-lg" style={{ background: '#FAFAF8' }}>
-                    <span className="flex items-center gap-2 text-xs" style={{ color: '#6B7280' }}>
-                      <span className="rounded-full" style={{ width: 6, height: 6, background: sevColor(r.sev, on) }} />
-                      {r.label}
-                    </span>
-                    <span className="text-sm font-bold" style={{ color: on ? sevColor(r.sev, true) : '#1C1B3A' }}>{r.count}</span>
-                  </div>
-                );
-              })}
+          {!hasItems ? (
+            <div className="text-center py-6">
+              <p className="ce-title">Nothing tracked yet.</p>
+              <p className="ce-status is-attention mt-1">Begin the inventory →</p>
             </div>
+          ) : (
+            <>
+              {/* headline + health bar */}
+              <div className="mb-4">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold" style={{ color: isHealthy ? '#5C9B6A' : '#A8791C', lineHeight: 1 }}>
+                    {isHealthy ? 'All good' : attentionCount}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {isHealthy ? `${stats?.total} tracked` : `need attention · ${stats?.total} tracked`}
+                  </span>
+                </div>
+                <div className="flex w-full rounded-full overflow-hidden mt-3" style={{ height: 10, background: '#EEF0F4' }}>
+                  {healthyN > 0 && <div style={{ width: `${pct(healthyN)}%`, background: '#5C9B6A' }} title={`${healthyN} healthy`} />}
+                  {amberN > 0 && <div style={{ width: `${pct(amberN)}%`, background: '#D69A2D' }} title={`${amberN} low / expiring`} />}
+                  {redN > 0 && <div style={{ width: `${pct(redN)}%`, background: '#B23A2E' }} title={`${redN} out / expired`} />}
+                </div>
+              </div>
+
+              {/* KPI stat tiles */}
+              <div className="grid grid-cols-2 gap-2">
+                {tiles.map((t) => {
+                  const on = t.count > 0;
+                  return (
+                    <div key={t.label} className="rounded-lg px-3 py-2.5" style={{ background: on ? t.bg : '#FAFAF8' }}>
+                      <div className="text-2xl font-bold" style={{ color: on ? t.fg : '#1C1B3A', lineHeight: 1 }}>{t.count}</div>
+                      <div className="mt-1.5 flex items-center gap-1.5" style={{ fontSize: 11, color: '#6B7280' }}>
+                        <span className="rounded-full" style={{ width: 6, height: 6, background: on ? t.fg : '#D6D8E0' }} />
+                        {t.label}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </>
       )}
