@@ -53,7 +53,7 @@ export const exportWardrobeManifest = async ({ subject, vesselName, generatedAt,
 
   // Header
   doc.setTextColor(...TERRA); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-  doc.text('WARDROBE — MANIFEST & VALUATION', M, 20);
+  doc.text('WARDROBE — INVENTORY & VALUATION', M, 20);
   doc.setTextColor(...NAVY); doc.setFont('times', 'normal'); doc.setFontSize(22);
   doc.text(subject || vesselName || 'Wardrobe', M, 30);
   let hy = 36;
@@ -121,5 +121,5 @@ export const exportWardrobeManifest = async ({ subject, vesselName, generatedAt,
   }
 
   const safe = (subject || vesselName || 'wardrobe').replace(/[^a-z0-9]+/gi, '-');
-  doc.save(`Wardrobe-manifest-${safe}.pdf`);
+  doc.save(`Wardrobe-${safe}.pdf`);
 };

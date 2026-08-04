@@ -12,7 +12,8 @@ const WardrobeManageModal = ({ wardrobes = [], items = [], onNew, onChanged, onC
   const [confirm, setConfirm] = useState(null);  // { id, count }
   const [busy, setBusy] = useState(false);
 
-  const countFor = (id) => items.filter((i) => i.wardrobeId === id).length;
+  // Everything homed in this wardrobe (all people), counted in pieces.
+  const countFor = (id) => items.filter((i) => i.wardrobeId === id).reduce((a, i) => a + Math.max(1, Number(i?.details?.quantity) || 1), 0);
 
   const startEdit = (w) => { setEditing(w.id); setName(w.name); };
   const saveEdit = async (w) => {
