@@ -154,15 +154,6 @@ const InventoryAttention = () => {
 
   const hiddenCount = useMemo(() => (items || []).filter(isHidden).length, [items]);
 
-  // Value summary for the visible list (only meaningful when items have a cost).
-  const summary = useMemo(() => {
-    const visible = SECTIONS.filter((s) => types.has(s.key)).flatMap((s) => buckets[s.key]);
-    const totalValue = visible.reduce((sum, i) => sum + valueOf(i), 0);
-    const restockCost = types.has('belowpar') ? buckets.belowpar.reduce((sum, i) => sum + shortfall(i) * costOf(i), 0) : 0;
-    const cur = visible.find((i) => costOf(i) > 0)?.currency || 'USD';
-    return { totalValue, restockCost, withCost: visible.some((i) => costOf(i) > 0), cur };
-  }, [buckets, types]);
-
   const buckets = useMemo(() => {
     const today = startOfToday();
     const out = { expired: [], belowpar: [], expiring: [] };
@@ -183,6 +174,14 @@ const InventoryAttention = () => {
   const counts = { expired: buckets.expired.length, belowpar: buckets.belowpar.length, expiring: buckets.expiring.length };
   const total = counts.expired + counts.belowpar + counts.expiring;
   const visibleTotal = SECTIONS.reduce((s, sec) => s + (types.has(sec.key) ? buckets[sec.key].length : 0), 0);
+  // Value summary for the visible list (only meaningful when items have a cost).
+  const summary = useMemo(() => {
+    const visible = SECTIONS.filter((s) => types.has(s.key)).flatMap((s) => buckets[s.key]);
+    const totalValue = visible.reduce((sum, i) => sum + valueOf(i), 0);
+    const restockCost = types.has('belowpar') ? buckets.belowpar.reduce((sum, i) => sum + shortfall(i) * costOf(i), 0) : 0;
+    const cur = visible.find((i) => costOf(i) > 0)?.currency || 'USD';
+    return { totalValue, restockCost, withCost: visible.some((i) => costOf(i) > 0), cur };
+  }, [buckets, types]);
   const filterCount = (dept ? 1 : 0) + (loc ? 1 : 0) + (types.size < 3 ? 1 : 0) + ((fromDate || toDate) ? 1 : 0);
   const clearFilters = () => { setDept(''); setLoc(''); setFromDate(''); setToDate(''); setTypes(new Set(['expired', 'belowpar', 'expiring'])); };
   const byId = useMemo(() => { const m = new Map(); (items || []).forEach((i) => m.set(i.id, i)); return m; }, [items]);
