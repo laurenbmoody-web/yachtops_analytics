@@ -18,7 +18,10 @@ export const useTenant = () => {
 
 // ─── Vessel Chooser UI ───────────────────────────────────────────────────────
 const VesselChooserModal = ({ options, onSelect }) => (
-  <ModalShell onClose={onClose} panelClassName="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+  // No onClose: there is no app behind this until a vessel is chosen, and the
+  // identifier used to be passed straight through from nowhere — a ReferenceError
+  // the moment this rendered.
+  <ModalShell onClose={() => {}} panelClassName="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
     <div className="flex items-center gap-3 mb-5">
       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,6 +170,11 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
   const [currentTenantMember, setCurrentTenantMember] = useState(null);
   const [vesselChooserOptions, setVesselChooserOptions] = useState(null);
   const [noVesselAccess, setNoVesselAccess] = useState(false);
+  // Every vessel this login can reach, named — the chooser above only ever held
+  // these during the ambiguous bootstrap path, so there was nothing for a header
+  // switcher to read. Loaded once, separately, because bootstrap deliberately
+  // selects the narrowest set of columns it can get away with.
+  const [memberships, setMemberships] = useState([]);
   const bootstrapComplete = useRef(false);
   const lastUserId = useRef(null);
   const devFallbackApplied = useRef(false);
@@ -495,6 +503,49 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
     setActiveTenantId(tenantId);
   };
 
+  // ── The fleet this login can reach ──────────────────────────────────────────
+  // A management company has a dozen boats on the books and moves between them
+  // all morning; a crew member who covers a sister ship has two. Either way the
+  // list has to exist before a switcher can be drawn, so it's loaded on its own
+  // rather than inferred from whichever bootstrap branch happened to run.
+  useEffect(() => {
+    const uid = authUser?.id;
+    if (!uid) { setMemberships([]); return undefined; }
+    let live = true;
+    (async () => {
+      const { data, error } = await supabase
+        ?.from('tenant_members')
+        ?.select('tenant_id, permission_tier, tenants:tenant_id (id, name, type)')
+        ?.eq('user_id', uid)
+        ?.eq('active', true) || {};
+      if (!live) return;
+      // A failure here costs the switcher, not the session — the active vessel
+      // is already resolved by bootstrap and nothing else depends on this list.
+      if (error) { console.warn('[TENANT] Could not load vessel list:', error?.message); return; }
+      setMemberships(data || []);
+    })();
+    return () => { live = false; };
+  }, [authUser?.id]);
+
+  // Change vessel in place. Every page in Cargo is tenant-scoped and most cache
+  // their own fetch, so this re-enters the app rather than trying to invalidate
+  // it — and lands on `to`, which the caller works out from the current path
+  // (see services/vesselSwitch.landingAfterSwitch: a record from the boat you
+  // just left is not a page you want to arrive on).
+  const switchVessel = async (tenantId, to = '/dashboard') => {
+    if (!tenantId || tenantId === activeTenantId) return;
+    try {
+      await supabase?.from('profiles')?.update({ last_active_tenant_id: tenantId })?.eq('id', authUser?.id);
+    } catch (err) {
+      // The write is a convenience for the NEXT login; localStorage below is
+      // what this one reads, so a failure must not block the switch.
+      console.warn('[TENANT] Could not persist last active vessel:', err?.message);
+    }
+    localStorage.setItem('activeTenantId', tenantId);
+    localStorage.setItem('last_active_tenant_id', tenantId);
+    window.location.assign(to);
+  };
+
   // Bootstrap on auth session ready
   useEffect(() => {
     const currentUserId = authUser?.id;
@@ -531,6 +582,8 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
     vesselChooserOptions,
     noVesselAccess,
     currentTenantMember,
+    memberships,
+    switchVessel,
     userId: authUser?.id || null,
     userDisplayName: authUser?.user_metadata?.full_name || authUser?.email || '',
     setActiveTenantId,
