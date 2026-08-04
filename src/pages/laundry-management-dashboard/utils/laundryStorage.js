@@ -481,6 +481,8 @@ export const createLaundryItem = async (itemData) => {
     garment_value_currency: itemData?.garmentValueCurrency || null,
     stays_onboard: (itemData?.staysOnboard != null) ? itemData.staysOnboard : null,
     details: (itemData?.details && typeof itemData.details === 'object') ? itemData.details : {},
+    flag: itemData?.flag || null,
+    flag_note: itemData?.flagNote || null,
     created_by: authData?.user?.id || null,
     created_by_name: currentUser?.fullName || currentUser?.name || 'Unknown User',
   };

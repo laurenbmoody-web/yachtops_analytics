@@ -17,6 +17,21 @@ export const GENDERS = ['Womens', 'Mens', 'Unisex', 'Girls', 'Boys', 'Baby'];
 export const dashOpts = (arr) => [{ value: '', label: '—' }, ...arr.map((x) => ({ value: x, label: x }))];
 const dash = dashOpts;
 
+// Attention flag — a garment can be marked as needing attention (kept in sync
+// with the laundry log's damaged/missing flags, plus a "needs repair" state).
+export const FLAG_OPTIONS = [{ v: '', label: 'None' }, { v: 'damaged', label: 'Damaged' }, { v: 'repair', label: 'Needs repair' }, { v: 'missing', label: 'Missing' }];
+export const FLAG_LABELS = { damaged: 'Damaged', repair: 'Needs repair', missing: 'Missing' };
+export const FlagField = ({ flag, note, onFlag, onNote }) => (
+  <div className="ow-flag">
+    <div className="ow-flag-opts">
+      {FLAG_OPTIONS.map((o) => (
+        <button type="button" key={o.v || 'none'} className={`ow-flag-opt${flag === o.v ? ` on ${o.v || 'none'}` : ''}`} onClick={() => onFlag(o.v)}>{o.label}</button>
+      ))}
+    </div>
+    {flag && <input className="ow-input" placeholder={flag === 'missing' ? 'Where was it last seen?' : 'What needs attention?'} value={note} onChange={(e) => onNote(e.target.value)} />}
+  </div>
+);
+
 // Downscale + JPEG-compress a captured photo before upload. Phone photos are
 // several MB; sending them raw was failing silently for all but one — this keeps
 // each around ~200KB so every photo saves reliably.
@@ -73,6 +88,8 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
   const [scanPlace, setScanPlace] = useState(null);
   const [guestId, setGuestId] = useState('');
   const [staysOnboard, setStaysOnboard] = useState(true);
+  const [flag, setFlag] = useState('');
+  const [flagNote, setFlagNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
 
@@ -145,6 +162,8 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
         photos,
         wardrobeId: wardrobeId || null,
         staysOnboard,
+        flag: flag || null,
+        flagNote: flag ? flagNote.trim() : '',
         ...(guest
           ? { ownerType: 'guest', ownerGuestId: guest.id, ownerName: guest.name || guest.fullName, ownerDisplayName: guest.name || guest.fullName }
           : { ownerType: 'other', ownerName: 'Owner' }),
@@ -290,6 +309,8 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
             <input type="checkbox" checked={staysOnboard} onChange={(e) => setStaysOnboard(e.target.checked)} />
             <span><b>Usually stays on board</b> — a hint for crew; it can still be packed and sent anytime.</span>
           </label>
+          <label className="ow-l">Flag <span className="ow-opt">needs attention?</span></label>
+          <FlagField flag={flag} note={flagNote} onFlag={setFlag} onNote={setFlagNote} />
           <label className="ow-l">Notes <span className="ow-opt">optional</span></label>
           <textarea className="ow-textarea" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything else the crew should know…" />
 

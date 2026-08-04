@@ -3,7 +3,7 @@ import Icon from '../../../components/AppIcon';
 import { updateLaundryItem, LaundryStatus, availableLaundryTags, formatLaundryTag, getLaundryEvents } from '../utils/laundryStorage';
 import { money } from '../utils/laundryBilling';
 import { printLaundryLabels } from '../utils/laundryLabels';
-import { GARMENT_TYPES, GENDERS, CONDITIONS, SEASONS, CURRENCIES, dashOpts } from './AddGarmentModal';
+import { GARMENT_TYPES, GENDERS, CONDITIONS, SEASONS, CURRENCIES, dashOpts, FlagField, FLAG_LABELS } from './AddGarmentModal';
 import OwSelect from './OwSelect';
 import './ownerWardrobe.css';
 
@@ -37,7 +37,9 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
     garmentValue: item.garmentValue ?? '', garmentValueCurrency: item.garmentValueCurrency || 'EUR',
     tags: Array.isArray(item.tags) ? item.tags : [], notes: item.notes || '',
     wardrobeId: item.wardrobeId || '', guestId: item.ownerGuestId || '', staysOnboard: item.staysOnboard !== false,
+    flag: item.flag || '', flagNote: item.flagNote || '',
   });
+  const [tab, setTab] = useState('details');
   const [busy, setBusy] = useState(false);
   const gallery = (Array.isArray(item.photos) && item.photos.length ? item.photos : (item.photo ? [item.photo] : [])).filter(Boolean);
   const [active, setActive] = useState(0);
@@ -93,6 +95,7 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
       description: draft.description.trim(), garmentType: draft.garmentType || null, colour: draft.colour.trim(),
       garmentValue: draft.garmentValue === '' ? null : Number(draft.garmentValue), garmentValueCurrency: draft.garmentValueCurrency,
       tags: draft.tags, notes: draft.notes.trim(), details, wardrobeId: draft.wardrobeId || null, staysOnboard: draft.staysOnboard,
+      flag: draft.flag || null, flagNote: draft.flag ? draft.flagNote.trim() : '',
       ...ownerPatch,
     });
     setBusy(false);
@@ -126,50 +129,62 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
                 <span className={`ow-full-state ${st.cls}`}>{st.label}</span>
                 <h2 className="ow-full-nm">{item.description || 'Garment'}</h2>
                 {dd.brand && <p className="ow-full-brand">{dd.brand}</p>}
+                {item.flag && (
+                  <div className={`ow-flag-banner ${item.flag}`}>
+                    <Icon name={item.flag === 'missing' ? 'HelpCircle' : 'AlertTriangle'} size={15} />
+                    <span><b>{FLAG_LABELS[item.flag] || 'Flagged'}</b>{item.flagNote ? ` — ${item.flagNote}` : ''}</span>
+                  </div>
+                )}
+                <div className="ow-full-tabs" role="tablist">
+                  <button type="button" className={tab === 'details' ? 'on' : ''} onClick={() => setTab('details')}>Details</button>
+                  <button type="button" className={tab === 'history' ? 'on' : ''} onClick={() => setTab('history')}>History{events.length ? ` (${events.length})` : ''}</button>
+                </div>
               </div>
 
               <div className="ow-full-scroll">
-                {dd.description && <p className="ow-full-desc">{dd.description}</p>}
+                {tab === 'details' ? (
+                  <>
+                    {dd.description && <p className="ow-full-desc">{dd.description}</p>}
+                    <dl className="ow-full-dl">
+                      <div className="ow-dl-sec">Details</div>
+                      <Row k="Type" v={item.garmentType} />
+                      <Row k="Cut" v={dd.gender} />
+                      <Row k="Size" v={dd.size} />
+                      <Row k="Colour" v={item.colour} />
+                      <Row k="Material" v={dd.material} />
+                      <Row k="Condition" v={dd.condition} />
+                      <Row k="Care" v={careText} />
 
-                <dl className="ow-full-dl">
-                  <div className="ow-dl-sec">Details</div>
-                  <Row k="Type" v={item.garmentType} />
-                  <Row k="Cut" v={dd.gender} />
-                  <Row k="Size" v={dd.size} />
-                  <Row k="Colour" v={item.colour} />
-                  <Row k="Material" v={dd.material} />
-                  <Row k="Condition" v={dd.condition} />
-                  <Row k="Care" v={careText} />
+                      {hasPurchase && <div className="ow-dl-sec">Purchase &amp; value</div>}
+                      {showValue && item.garmentValue != null && <Row k="Value" v={money(item.garmentValue, item.garmentValueCurrency)} />}
+                      <Row k="Style / SKU" v={dd.sku} />
+                      <Row k="Monogram" v={dd.monogram} />
+                      <Row k="Purchased" v={purchased} />
 
-                  {hasPurchase && <div className="ow-dl-sec">Purchase &amp; value</div>}
-                  {showValue && item.garmentValue != null && <Row k="Value" v={money(item.garmentValue, item.garmentValueCurrency)} />}
-                  <Row k="Style / SKU" v={dd.sku} />
-                  <Row k="Monogram" v={dd.monogram} />
-                  <Row k="Purchased" v={purchased} />
-
-                  <div className="ow-dl-sec">On board</div>
-                  <Row k="Belongs to" v={owner} />
-                  <Row k="Location" v={locationLabel || 'Not placed'} />
-                  <Row k="Season" v={dd.season} />
-                  <Row k="Added" v={fmtDate(item.createdAt)} />
-                  {item.notes && <Row k="Notes" v={item.notes} />}
-                </dl>
-
-                <div className="ow-dl-sec">History</div>
-                {events.length === 0 ? (
-                  <p className="ow-hist-empty">No activity yet.</p>
+                      <div className="ow-dl-sec">On board</div>
+                      <Row k="Belongs to" v={owner} />
+                      <Row k="Location" v={locationLabel || 'Not placed'} />
+                      <Row k="Season" v={dd.season} />
+                      <Row k="Added" v={fmtDate(item.createdAt)} />
+                      {item.notes && <Row k="Notes" v={item.notes} />}
+                    </dl>
+                  </>
                 ) : (
-                  <ul className="ow-hist">
-                    {[...events].reverse().map((e) => (
-                      <li className="ow-hist-row" key={e.id}>
-                        <span className="ow-hist-dot" />
-                        <div>
-                          <span className="ow-hist-act">{actionLabel(e.action)}</span>
-                          <span className="ow-hist-meta">{[e.actorName, fmtWhen(e.at)].filter(Boolean).join(' · ')}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
+                  events.length === 0 ? (
+                    <p className="ow-hist-empty">No activity yet.</p>
+                  ) : (
+                    <ul className="ow-hist">
+                      {[...events].reverse().map((e) => (
+                        <li className="ow-hist-row" key={e.id}>
+                          <span className="ow-hist-dot" />
+                          <div>
+                            <span className="ow-hist-act">{actionLabel(e.action)}</span>
+                            <span className="ow-hist-meta">{[e.actorName, fmtWhen(e.at)].filter(Boolean).join(' · ')}</span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )
                 )}
               </div>
 
@@ -244,6 +259,8 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
                   <input type="checkbox" checked={draft.staysOnboard} onChange={(e) => set('staysOnboard', e.target.checked)} />
                   <span><b>Stays aboard</b> — belongs on board permanently; can still be packed anytime.</span>
                 </label>
+                <label className="ow-l">Flag</label>
+                <FlagField flag={draft.flag} note={draft.flagNote} onFlag={(v) => set('flag', v)} onNote={(v) => set('flagNote', v)} />
                 <label className="ow-l">Notes</label>
                 <textarea className="ow-textarea" rows={2} value={draft.notes} onChange={(e) => set('notes', e.target.value)} />
               </div>
