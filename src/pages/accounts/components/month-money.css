@@ -124,3 +124,7 @@
 .mm-drift-rows .r b { font-size: 14px; font-weight: 600; color: #1C1B3A; font-variant-numeric: tabular-nums; }
 .mm-drift-rows .r.is-now b { color: #C65A1A; }
 .mm-drift-foot { margin: 10px 0 0; font-size: 11.5px; color: #8B8478; line-height: 1.5; }
+
+.mm-done { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 14px; }
+.mm-done .mm-locked { margin: 0; }
+.mm-done .mm-btn { display: inline-flex; align-items: center; gap: 7px; }

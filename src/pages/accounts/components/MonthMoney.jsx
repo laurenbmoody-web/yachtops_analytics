@@ -44,7 +44,7 @@ const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('
 export default function MonthMoney({
   account, scoped, monthKey, monthLabel, txns = [], allTxns = [], monthStat,
   figures, statement, checks = [], blockers = [], outcome, reconciliation, today,
-  canEdit, busy, onField, onSave, onClose, onShowLine,
+  canEdit, busy, onField, onSave, onClose, onShowLine, onExport,
 }) {
   const cur = account?.currency;
   const money = (n) => formatMoney(n, cur);
@@ -244,8 +244,20 @@ export default function MonthMoney({
                   </button>
                 </div>
               )}
-              {locked && !drift && (
-            <p className="mm-locked">{monthLabel} is closed. Reopen it from Check-off if something needs changing.</p>
+              {locked && (
+            <div className="mm-done">
+              {!drift && (
+                <p className="mm-locked">{monthLabel} is closed. Reopen it from Check-off if something needs changing.</p>
+              )}
+              {/* The office balances the owner's funds against this month, so the
+                  closed pack is the thing they actually need — summary and every
+                  line under it, in one file. */}
+              {onExport && (
+                <button type="button" className="mm-btn ghost" onClick={onExport}>
+                  <Icon name="Download" size={14} /> Export for management
+                </button>
+              )}
+            </div>
           )}
             </>
           )}
