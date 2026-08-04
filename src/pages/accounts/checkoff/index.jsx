@@ -14,6 +14,7 @@ import { periodMonthISO } from '../../../services/reconcileState';
 import { buildCheckoffRows, groupByLane, checkoffCounts } from '../../../services/checkoffState';
 import { formatMoney } from '../../../services/financeCalc';
 import AccountsShell from '../components/AccountsShell';
+import ManagementAccess from './ManagementAccess';
 import '../accounts.css';
 import './checkoff.css';
 
@@ -166,6 +167,10 @@ export default function Checkoff() {
               </div>
             ))
           )}
+
+          {/* The other end of the same subject: a month checked off here is a
+              month the shore office reads. Who they are belongs next to it. */}
+          <ManagementAccess tenantId={activeTenantId} onToast={flash} />
         </div>
         {toast && <div className="ca-toast">{toast}</div>}
       </div>

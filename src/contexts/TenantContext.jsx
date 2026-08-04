@@ -523,6 +523,16 @@ export const TenantProvider = ({ children, authSession, authUser }) => {
       // is already resolved by bootstrap and nothing else depends on this list.
       if (error) { console.warn('[TENANT] Could not load vessel list:', error?.message); return; }
       setMemberships(data || []);
+
+      // A shore office is routinely given access to a vessel before they have a
+      // Cargo login at all. That grant is inert until it's attached to a user,
+      // and this is where it attaches — a no-op for everyone else, which is
+      // almost everyone, so it costs one cheap call at boot.
+      supabase?.rpc?.('claim_management_access')
+        ?.then?.(({ error: claimErr }) => {
+          if (claimErr) console.warn('[TENANT] Could not claim management access:', claimErr?.message);
+        })
+        ?.catch?.(() => {});
     })();
     return () => { live = false; };
   }, [authUser?.id]);
