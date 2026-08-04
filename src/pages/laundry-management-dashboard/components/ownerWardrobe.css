@@ -185,6 +185,12 @@
 .ow-photo-del:hover { background: #C24632; }
 .ow-photo-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; aspect-ratio: 1; border: 1.5px dashed #C7CBD6; border-radius: 12px; background: #F8FAFC; cursor: pointer; color: #8B93A0; font: 600 11px 'Plus Jakarta Sans', system-ui, sans-serif; text-align: center; }
 .ow-photo-add:hover { border-color: #C65A1A; color: #C65A1A; }
+.ow-ai-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; width: 100%; margin-top: 10px; padding: 11px 14px; border-radius: 10px; border: 1px solid #C65A1A; background: #FBEFE9; color: #C65A1A; font: 700 13px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; transition: background 0.14s; }
+.ow-ai-btn:hover:not(:disabled) { background: #F6E0D3; }
+.ow-ai-btn:disabled { opacity: 0.7; cursor: default; }
+.ow-ai-spin { animation: ow-spin 0.9s linear infinite; }
+@keyframes ow-spin { to { transform: rotate(360deg); } }
+.ow-ai-hint { margin: 7px 2px 2px; font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #9A93A0; line-height: 1.45; }
 .ow-qr-note { display: flex; align-items: center; gap: 7px; margin-top: 14px; padding: 10px 12px; background: #FBEFE9; border: 1px solid #F3D9CB; border-radius: 10px; font: 500 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8A5A3A; }
 .ow-qr-note svg { color: #C65A1A; flex: none; }
 

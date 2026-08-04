@@ -5,6 +5,7 @@ import MapPickerModal from '../../vessel-map/components/MapPickerModal';
 import OwSelect from './OwSelect';
 import { createWardrobe } from '../utils/laundryWardrobes';
 import { createLaundryItem, LaundryStatus, availableLaundryTags, formatLaundryTag } from '../utils/laundryStorage';
+import { parseGarmentPhotos } from '../utils/garmentAi';
 import './ownerWardrobe.css';
 
 export const GARMENT_TYPES = ['Shirt', 'T-shirt', 'Top', 'Trousers', 'Shorts', 'Dress', 'Skirt', 'Suit', 'Jacket', 'Coat', 'Knitwear', 'Swimwear', 'Activewear', 'Underwear', 'Nightwear', 'Footwear', 'Bag', 'Accessory', 'Jewellery', 'Watch', 'Other'];
@@ -52,8 +53,32 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
   const [guestId, setGuestId] = useState('');
   const [staysOnboard, setStaysOnboard] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
 
   const toggleTag = (t) => setTags((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
+
+  // Read the garment's photos (front/back + brand & care labels) and pre-fill any
+  // fields the crew haven't filled yet — never overwrites what they've typed.
+  const autofill = async () => {
+    if (aiBusy || !photos.length) return;
+    setAiBusy(true);
+    const f = await parseGarmentPhotos(photos, { types: GARMENT_TYPES, genders: GENDERS, conditions: CONDITIONS, careTags: availableLaundryTags });
+    setAiBusy(false);
+    let filled = 0;
+    const fill = (cur, val, setter) => { if (!cur && val) { setter(val); filled += 1; } };
+    fill(name, f.name, setName);
+    fill(brand, f.brand, setBrand);
+    fill(type, f.type, setType);
+    fill(gender, f.gender, setGender);
+    fill(size, f.size, setSize);
+    fill(colour, f.colour, setColour);
+    fill(material, f.material, setMaterial);
+    fill(condition, f.condition, setCondition);
+    fill(sku, f.sku, setSku);
+    fill(description, f.description, setDescription);
+    if (Array.isArray(f.care) && f.care.length) { setTags((p) => Array.from(new Set([...p, ...f.care]))); filled += 1; }
+    window.showToast?.(filled ? 'Filled from photos — please review' : 'Couldn’t read details from these photos', filled ? 'success' : 'error');
+  };
 
   const addPhotos = async (e) => {
     const files = [...(e.target.files || [])];
@@ -133,6 +158,13 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
               <input type="file" accept="image/*" multiple onChange={addPhotos} hidden />
             </label>
           </div>
+          {photos.length > 0 && (
+            <button type="button" className="ow-ai-btn" onClick={autofill} disabled={aiBusy}>
+              <Icon name={aiBusy ? 'Loader' : 'Sparkles'} size={15} className={aiBusy ? 'ow-ai-spin' : ''} />
+              {aiBusy ? 'Reading photos…' : 'Auto-fill from photos'}
+            </button>
+          )}
+          <p className="ow-ai-hint">Tip: front &amp; back on the hanger, plus the brand and care labels — AI fills the rest.</p>
 
           <div className="ow-sec">Essentials</div>
           <label className="ow-l">Item name <span className="ow-req">required</span></label>
