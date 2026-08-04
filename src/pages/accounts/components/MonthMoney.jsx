@@ -120,6 +120,28 @@ export default function MonthMoney({
               stands rather than just naming a drawer. */}
           {!open && <p className="mm-say">{summary}</p>}
 
+          {/* The office sent it back. This is the one thing on the page the crew
+              didn't put there, so it says so plainly and stays visible whether
+              the panel is open or shut — a query the boat doesn't see is a month
+              that quietly never closes. */}
+          {reconciliation?.queried_at && status === 'open' && (
+            <div className="mm-query">
+              <p className="mm-query-head">
+                <Icon name="Undo2" size={15} />
+                Management sent this back on {dmy(reconciliation.queried_at)}
+              </p>
+              {reconciliation.query_note && <p className="mm-query-note">{reconciliation.query_note}</p>}
+            </div>
+          )}
+
+          {status === 'approved' && (
+            <p className="mm-signed">
+              <Icon name="BadgeCheck" size={14} />
+              Signed off by management{reconciliation?.approved_at ? ` on ${dmy(reconciliation.approved_at)}` : ''}.
+              {reconciliation?.signoff_note && <em> {reconciliation.signoff_note}</em>}
+            </p>
+          )}
+
           {/* Shown whether the panel is open or shut: a signed-off figure that no
               longer matches the ledger is not a detail to go looking for. */}
           {drift && (
@@ -246,8 +268,10 @@ export default function MonthMoney({
               )}
               {locked && (
             <div className="mm-done">
-              {!drift && (
-                <p className="mm-locked">{monthLabel} is closed. Reopen it from Check-off if something needs changing.</p>
+              {/* Once management have signed off, the line above already says so
+                  — repeating "it's closed" underneath it is noise. */}
+              {!drift && status === 'submitted' && (
+                <p className="mm-locked">{monthLabel} is closed and with management. Reopen it from Check-off if something needs changing.</p>
               )}
               {/* The office balances the owner's funds against this month, so the
                   closed pack is the thing they actually need — summary and every

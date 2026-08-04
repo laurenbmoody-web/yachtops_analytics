@@ -1,0 +1,125 @@
+// Cargo Accounts — shaping a month for the management company's screen.
+//
+// The office is not doing the crew's job. They are answering one question per
+// account — does this month hang together well enough to post against the
+// owner's funds — and then either signing it off or sending it back. So what
+// this builds is a verdict per account, not an editable ledger.
+//
+// The period rule is deliberately NOT reimplemented here: a line entered after
+// its month was closed reconciles into the next month, and that rule lives in
+// monthEnd.reconcilePeriod with its own tests. Postgres hands over a window of
+// lines and the vessel's closes; this applies the one implementation to them.
+
+import { reconcilePeriod } from './monthEnd.js';
+
+export const monthKeyOf = (value) => (value ? String(value).slice(0, 7) : '');
+
+// The RPC returns closes as rows; reconcilePeriod wants { '2026-07': iso }.
+export const closesMap = (closes = []) => {
+  const out = {};
+  (closes || []).forEach((c) => {
+    const key = monthKeyOf(c?.period_month);
+    if (key && c?.submitted_at) out[key] = c.submitted_at;
+  });
+  return out;
+};
+
+// A line's own month, before the close rule moves it. The vessel reconciles on
+// the statement date where it has one — that's the date the bank used.
+export const naturalMonthOf = (line) =>
+  monthKeyOf(line?.statement_date || line?.txn_date);
+
+export const linesForPeriod = (lines = [], period, closes = {}) => {
+  const key = monthKeyOf(period);
+  if (!key) return [];
+  return (lines || []).filter((l) => reconcilePeriod(l, naturalMonthOf(l), closes) === key);
+};
+
+// ── one account's month, as a verdict ────────────────────────────────────────
+const num = (v) => (v == null || v === '' || Number.isNaN(Number(v)) ? 0 : Number(v));
+
+// Where the office's own eye goes: is every line coded, is every line evidenced,
+// and does what the vessel typed off the statement agree with what Cargo holds.
+// Anything unanswered is a reason to query rather than sign, so it's counted
+// rather than summarised into a score.
+export const accountMonth = (account, lines = [], reconciliation = null) => {
+  const mine = (lines || []).filter((l) => l.account_id === account?.id);
+  const moneyIn = mine.filter((l) => num(l.amount) > 0).reduce((s, l) => s + num(l.amount), 0);
+  const moneyOut = mine.filter((l) => num(l.amount) < 0).reduce((s, l) => s + num(l.amount), 0);
+
+  const uncoded = mine.filter((l) => !l.category_code && !l.category).length;
+  const unevidenced = mine.filter((l) => !l.has_receipt).length;
+
+  const stated = (v) => v != null && v !== '';
+  const off = [];
+  if (reconciliation) {
+    const pairs = [
+      ['Total in', reconciliation.stmt_money_in, moneyIn],
+      ['Total out', reconciliation.stmt_money_out, Math.abs(moneyOut)],
+      ['Closing balance', reconciliation.stmt_closing, reconciliation.closing_balance],
+    ];
+    pairs.forEach(([label, theirs, ours]) => {
+      if (!stated(theirs) || !stated(ours)) return;
+      const gap = Math.round((num(ours) - num(theirs)) * 100) / 100;
+      if (Math.abs(gap) > 0.005) off.push({ label, ours: num(ours), theirs: num(theirs), gap });
+    });
+  }
+
+  return {
+    account,
+    reconciliation,
+    lines: mine,
+    count: mine.length,
+    moneyIn: Math.round(moneyIn * 100) / 100,
+    moneyOut: Math.round(moneyOut * 100) / 100,
+    net: Math.round((moneyIn + moneyOut) * 100) / 100,
+    uncoded,
+    unevidenced,
+    mismatches: off,
+    state: reconciliationState(reconciliation),
+  };
+};
+
+// ── where a month stands ─────────────────────────────────────────────────────
+// 'queried' is not a status in the database — it's an open month that the office
+// sent back, which reads very differently from one the vessel simply hasn't
+// finished. Telling them apart is the whole point of the queried_at stamp.
+export const reconciliationState = (r) => {
+  if (!r) return 'not started';
+  if (r.status === 'approved') return 'signed off';
+  if (r.status === 'submitted') return 'awaiting sign-off';
+  if (r.queried_at) return 'queried';
+  return 'with the vessel';
+};
+
+// Only a month the vessel has closed can be signed off — the office approves
+// figures, it does not produce them. Kept here so the button and the function
+// that refuses the write agree about when it should be offered.
+export const canSignOff = (r) => r?.status === 'submitted';
+export const canQuery = (r) => r?.status === 'submitted' || r?.status === 'approved';
+
+// ── the fleet list ───────────────────────────────────────────────────────────
+// A management company opens Cargo to find out which boats need them today, so
+// the list sorts by that rather than alphabetically — vessels waiting on a
+// signature first, then ones they've queried and are waiting on, then the quiet
+// ones. Within a group, by name, because that's how they're spoken about.
+export const sortFleet = (fleet = []) => {
+  const rank = (v) => {
+    if ((v?.awaiting_signoff || 0) > 0) return 0;
+    if ((v?.queried || 0) > 0) return 1;
+    return 2;
+  };
+  return (fleet || []).slice().sort((a, b) => {
+    const d = rank(a) - rank(b);
+    if (d) return d;
+    return String(a?.vessel_name || '').localeCompare(String(b?.vessel_name || ''), undefined, { sensitivity: 'base' });
+  });
+};
+
+export const fleetHeadline = (fleet = []) => {
+  const waiting = (fleet || []).reduce((n, v) => n + (v?.awaiting_signoff || 0), 0);
+  const boats = (fleet || []).filter((v) => (v?.awaiting_signoff || 0) > 0).length;
+  if (!fleet?.length) return 'No vessels on your books yet.';
+  if (!waiting) return 'Nothing waiting on you.';
+  return `${waiting} ${waiting === 1 ? 'month' : 'months'} waiting on you across ${boats} ${boats === 1 ? 'vessel' : 'vessels'}.`;
+};
