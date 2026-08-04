@@ -5,9 +5,11 @@ import LaundryScanModal from './LaundryScanModal';
 import AddGarmentModal from './AddGarmentModal';
 import GarmentFullView from './GarmentFullView';
 import WardrobeEditorModal from './WardrobeEditorModal';
+import WardrobeManageModal from './WardrobeManageModal';
 import PersonTiles from './PersonTiles';
 import { canViewCost } from '../../../utils/costPermissions';
 import { loadWardrobes, createWardrobe } from '../utils/laundryWardrobes';
+import { exportWardrobeManifest } from '../utils/wardrobeManifestExport';
 import { loadCases, createCase } from '../utils/laundryCases';
 import {
   loadAllLaundryItems, setLaundryItemsWardrobe, setLaundryItemsCase, setLaundryItemsStatus,
@@ -120,10 +122,20 @@ const OwnerWardrobeView = ({ onBack }) => {
   const [fullItem, setFullItem] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showNewWardrobe, setShowNewWardrobe] = useState(false);
+  const [showManageWardrobes, setShowManageWardrobes] = useState(false);
   const [showScan, setShowScan] = useState(false);
   const [confirmState, setConfirmState] = useState(null); // { title, body, confirmLabel, danger, onConfirm }
   const [promptState, setPromptState] = useState(null);   // { title, label, placeholder, submitLabel, onSubmit }
   const [showArchived, setShowArchived] = useState(false); // dedicated archived mode (not a filter)
+  const [exportingManifest, setExportingManifest] = useState(false);
+
+  const doManifest = async (scopeItems, subject) => {
+    if (exportingManifest || !scopeItems.length) return;
+    setExportingManifest(true);
+    try { await exportWardrobeManifest({ subject, generatedAt: new Date().toLocaleDateString('en-GB'), items: scopeItems, showValue }); }
+    catch (e) { window.showToast?.('Could not export manifest', 'error'); }
+    finally { setExportingManifest(false); }
+  };
   const sortOptions = showValue ? SORTS : SORTS.filter((s) => !s.val.startsWith('price'));
 
   const load = async () => {
@@ -366,6 +378,7 @@ const OwnerWardrobeView = ({ onBack }) => {
     <>
       {showAdd && <AddGarmentModal wardrobes={wardrobes} guests={guests} defaultWardrobeId={fLoc !== 'all' && fLoc !== 'away' ? fLoc : null} showValue={showValue} onClose={() => setShowAdd(false)} onCreated={load} />}
       {showNewWardrobe && <WardrobeEditorModal scope="owner" onClose={() => setShowNewWardrobe(false)} onCreated={load} />}
+      {showManageWardrobes && <WardrobeManageModal wardrobes={wardrobes} items={[...items, ...archived]} onNew={() => setShowNewWardrobe(true)} onChanged={load} onClose={() => setShowManageWardrobes(false)} />}
       {fullItem && <GarmentFullView item={fullItem} wardrobes={wardrobes} guests={guests} showValue={showValue} caseName={fullItem.caseId ? caseName(fullItem.caseId) : null} onClose={() => setFullItem(null)} onChanged={() => { load(); setFullItem(null); }} onAction={singleAction} />}
       {showScan && <LaundryScanModal onClose={() => setShowScan(false)} onDetect={onScan} />}
       {chooser && (
@@ -466,6 +479,7 @@ const OwnerWardrobeView = ({ onBack }) => {
               <button type="button" className={landView === 'owner' ? 'on' : ''} onClick={() => setLandView('owner')}>By owner</button>
               <button type="button" className={landView === 'list' ? 'on' : ''} onClick={() => setLandView('list')}>List</button>
             </div>
+            {!showArchived && items.length > 0 && <button type="button" className="ow-btn ghost" disabled={exportingManifest} onClick={() => doManifest(items, 'Owner wardrobe')}><Icon name="FileDown" size={15} /> {exportingManifest ? 'Exporting…' : 'Manifest'}</button>}
             {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>}
           </>
         )}
@@ -519,7 +533,8 @@ const OwnerWardrobeView = ({ onBack }) => {
             <button type="button" className={view === 'image' ? 'on' : ''} onClick={() => setView('image')} aria-label="Image view"><Icon name="LayoutGrid" size={15} /></button>
             <button type="button" className={view === 'list' ? 'on' : ''} onClick={() => setView('list')} aria-label="List view"><Icon name="List" size={15} /></button>
           </div>
-          {!showArchived && <button type="button" className="ow-btn ghost" onClick={() => setShowNewWardrobe(true)}><Icon name="FolderPlus" size={15} /> Wardrobe</button>}
+          {!showArchived && personItems.length > 0 && <button type="button" className="ow-btn ghost" disabled={exportingManifest} onClick={() => doManifest(personItems, selectedPerson?.name || 'Wardrobe')}><Icon name="FileDown" size={15} /> {exportingManifest ? 'Exporting…' : 'Manifest'}</button>}
+          {!showArchived && <button type="button" className="ow-btn ghost" onClick={() => setShowManageWardrobes(true)}><Icon name="FolderCog" size={15} /> Wardrobes</button>}
           {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>}
         </>
       )}
