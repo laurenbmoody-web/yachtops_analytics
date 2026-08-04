@@ -121,6 +121,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   const [showScan, setShowScan] = useState(false);
   const [confirmState, setConfirmState] = useState(null); // { title, body, confirmLabel, danger, onConfirm }
   const [promptState, setPromptState] = useState(null);   // { title, label, placeholder, submitLabel, onSubmit }
+  const [showArchived, setShowArchived] = useState(false); // dedicated archived mode (not a filter)
   const sortOptions = showValue ? SORTS : SORTS.filter((s) => !s.val.startsWith('price'));
 
   const load = async () => {
@@ -168,7 +169,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   const initialsOf = (nm) => (nm || '?').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   // Archived garments live behind the "Archived" filter; everything else works
   // off the active set.
-  const viewingArchived = fStatus === 'archived';
+  const viewingArchived = showArchived;
   const sourceItems = viewingArchived ? archived : items;
   const personItems = useMemo(() => {
     if (!personId) return sourceItems;
@@ -221,7 +222,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   const filterGroups = [
     { key: 'loc', label: 'Location', value: fLoc, neutral: 'all', onChange: setFLoc, options: [{ value: 'all', label: 'Everywhere' }, ...wardrobes.map((w) => ({ value: w.id, label: w.name })), { value: 'away', label: 'Away (in a case)' }] },
     { key: 'type', label: 'Type of clothing', value: fType, neutral: 'all', onChange: setFType, options: [{ value: 'all', label: 'All types' }, ...types.map((t) => ({ value: t, label: t }))] },
-    { key: 'status', label: 'Where', value: fStatus, neutral: 'all', onChange: setFStatus, options: [{ value: 'all', label: 'Anywhere' }, { value: 'onboard', label: 'On board' }, { value: 'away', label: 'Away (in a case)' }, { value: 'laundry', label: 'In laundry' }, { value: 'archived', label: `Archived${archived.length ? ` (${archived.length})` : ''}` }] },
+    { key: 'status', label: 'Where', value: fStatus, neutral: 'all', onChange: setFStatus, options: [{ value: 'all', label: 'Anywhere' }, { value: 'onboard', label: 'On board' }, { value: 'away', label: 'Away (in a case)' }, { value: 'laundry', label: 'In laundry' }] },
     { key: 'age', label: 'Time on board', value: fAge, neutral: 'all', onChange: setFAge, options: AGES },
   ];
 
@@ -393,6 +394,14 @@ const OwnerWardrobeView = ({ onBack }) => {
     </div>
   );
 
+  // Archived is a mode, not a filter — a toolbar toggle (only shown when there
+  // is something archived, or while you're viewing it).
+  const archivedBtn = (archived.length > 0 || showArchived) ? (
+    <button type="button" className={`ow-btn ghost${showArchived ? ' on' : ''}`} onClick={() => { setShowArchived((v) => !v); clearSel(); }}>
+      <Icon name="Archive" size={15} /> {showArchived ? 'Exit archived' : `Archived (${archived.length})`}
+    </button>
+  ) : null;
+
   // Landing figures: how many people have garments stored on board, how many
   // garments, the total wardrobe value, and how many are away / at the laundry.
   const onboardStored = items.filter((i) => i.status === LaundryStatus.STORED && !i.caseId);
@@ -401,7 +410,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   const valueCur = items.find((i) => i.garmentValue != null)?.garmentValueCurrency || 'EUR';
   const awayAll = items.filter((i) => i.caseId).length;
   const washAll = items.filter(inWash).length;
-  const anyFilter = !!query.trim() || fLoc !== 'all' || fType !== 'all' || fStatus !== 'all' || fAge !== 'all';
+  const anyFilter = !!query.trim() || fLoc !== 'all' || fType !== 'all' || fStatus !== 'all' || fAge !== 'all' || showArchived;
   // Per-person aggregates from the filtered set — count, a few thumbnails, total
   // value, and movement (away / at laundry) — so each tile reads like a wardrobe.
   const byPerson = new Map();
@@ -442,13 +451,14 @@ const OwnerWardrobeView = ({ onBack }) => {
 
         {toolbar(
           <>
+            {archivedBtn}
             <FilterMenu groups={filterGroups} />
             <SortMenu value={sort} onChange={setSort} options={sortOptions} />
             <div className="ow-grouptoggle" role="tablist" aria-label="View">
               <button type="button" className={landView === 'owner' ? 'on' : ''} onClick={() => setLandView('owner')}>By owner</button>
               <button type="button" className={landView === 'list' ? 'on' : ''} onClick={() => setLandView('list')}>List</button>
             </div>
-            <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>
+            {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>}
           </>
         )}
 
@@ -490,6 +500,7 @@ const OwnerWardrobeView = ({ onBack }) => {
 
       {toolbar(
         <>
+          {archivedBtn}
           <div className="ow-grouptoggle" role="tablist" aria-label="Group by">
             <button type="button" className={groupBy === 'location' ? 'on' : ''} onClick={() => setGroupBy('location')}>By location</button>
             <button type="button" className={groupBy === 'guest' ? 'on' : ''} onClick={() => setGroupBy('guest')}>By guest</button>
@@ -500,8 +511,8 @@ const OwnerWardrobeView = ({ onBack }) => {
             <button type="button" className={view === 'image' ? 'on' : ''} onClick={() => setView('image')} aria-label="Image view"><Icon name="LayoutGrid" size={15} /></button>
             <button type="button" className={view === 'list' ? 'on' : ''} onClick={() => setView('list')} aria-label="List view"><Icon name="List" size={15} /></button>
           </div>
-          <button type="button" className="ow-btn ghost" onClick={() => setShowNewWardrobe(true)}><Icon name="FolderPlus" size={15} /> Wardrobe</button>
-          <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>
+          {!showArchived && <button type="button" className="ow-btn ghost" onClick={() => setShowNewWardrobe(true)}><Icon name="FolderPlus" size={15} /> Wardrobe</button>}
+          {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>}
         </>
       )}
 
