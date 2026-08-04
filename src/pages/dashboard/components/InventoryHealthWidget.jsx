@@ -83,31 +83,21 @@ const InventoryHealthWidget = () => {
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-center py-4 mb-4">
-            <div className={`w-20 h-20 rounded-full flex items-center justify-center ${
-              isHealthy ? 'ce-bg-success' : hasItems ? 'ce-bg-warn' : 'bg-muted'
-            }`}>
-              <Icon
-                name={isHealthy ? 'CheckCircle' : hasItems ? 'AlertTriangle' : 'Package'}
-                className={`w-10 h-10 ${isHealthy ? 'ce-fg-success' : hasItems ? 'ce-fg-warn' : 'text-muted-foreground'}`}
-              />
-            </div>
-          </div>
-
-          <div className="text-center mb-4">
+          <div className="text-center py-3 mb-4">
             {!hasItems ? (
               <>
                 <p className="ce-title">Nothing tracked yet.</p>
                 <p className="ce-status is-attention mt-1">Begin the inventory →</p>
               </>
+            ) : isHealthy ? (
+              <>
+                <p className="text-3xl font-bold ce-fg-success" style={{ lineHeight: 1 }}>All good</p>
+                <p className="text-xs text-muted-foreground mt-2">{`${stats?.total} items tracked`}</p>
+              </>
             ) : (
               <>
-                <p className={`text-lg font-semibold ${isHealthy ? 'ce-fg-success' : 'ce-fg-warn'}`}>
-                  {isHealthy ? 'Healthy' : 'Needs attention'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {`${stats?.total} item${stats?.total !== 1 ? 's' : ''} tracked`}
-                </p>
+                <p className="text-4xl font-bold ce-fg-warn" style={{ lineHeight: 1 }}>{attentionCount}</p>
+                <p className="text-xs text-muted-foreground mt-2">{`need attention · ${stats?.total} tracked`}</p>
               </>
             )}
           </div>
