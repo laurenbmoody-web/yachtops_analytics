@@ -62,6 +62,8 @@
 .ow-btn.danger:hover { background: #FBECEA; }
 .ow-btn.onboard-on { background: #E9F1F5; color: #2F6E8F; border-color: #CFE1EA; }
 .ow-btn.onboard-on:hover:not(:disabled) { background: #DCEAF1; }
+.ow-btn.ghost.on { background: #1C1B3A; color: #FFFFFF; border-color: #1C1B3A; }
+.ow-btn.ghost.on:hover { background: #2A2850; }
 
 /* selection bar */
 .ow-selbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #1C1B3A; color: #FFFFFF; border-radius: 12px; padding: 10px 14px; }
