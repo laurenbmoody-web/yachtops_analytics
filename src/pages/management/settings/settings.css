@@ -1,104 +1,79 @@
-/* The firm's own settings — cards, in the same language as the fleet. */
+/* The firm's own settings. Card frame comes from .ce-card; this adds the
+   card header, the permission matrix and the engagement rows. All colours
+   resolve from the shared --d-* tokens. */
 
-.mgs-cols {
-  display: grid; gap: 16px; margin-top: 26px;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  align-items: start;
-}
-.mgs-card.is-wide { grid-column: 1 / -1; }
-
-.mgs-card {
-  background: #fff; border: 1px solid rgba(28, 27, 58, 0.07); border-radius: 22px;
-  padding: 22px 24px 20px;
-  box-shadow: 0 1px 2px rgba(28, 27, 58, 0.04), 0 10px 30px -20px rgba(28, 27, 58, 0.2);
-}
-
-.mgs-card-h { display: flex; align-items: flex-start; gap: 13px; margin-bottom: 20px; }
+.mgs-card-h { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
 .mgs-ic {
-  width: 40px; height: 40px; border-radius: 13px; flex: 0 0 auto;
-  background: #FBEFE9; color: #C65A1A; display: grid; place-items: center;
+  width: 36px; height: 36px; border-radius: 11px; flex: 0 0 auto;
+  background: var(--d-cream-warm); color: var(--d-orange);
+  display: grid; place-items: center;
 }
 .mgs-card-t { min-width: 0; }
 .mgs-card-t b {
   display: block;
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 19px; font-weight: 400; color: #1C1B3A; letter-spacing: -0.3px;
+  font-size: 19px; font-weight: 500; letter-spacing: -0.4px; color: var(--d-navy-deep);
 }
 .mgs-card-t em {
-  display: block; margin-top: 3px; font-style: normal; font-size: 12.5px;
-  line-height: 1.5; color: #8B8478;
+  display: block; margin-top: 2px; font-style: normal;
+  font-size: 12.5px; line-height: 1.5; color: var(--d-muted);
 }
 
-/* ── fields ───────────────────────────────────────────────────────────────── */
-.mgs-field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
-.mgs-field > span {
-  font-size: 9px; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: #8B8478;
-}
-.mgs-field .req { font-style: normal; color: #C65A1A; margin-left: 5px; }
-.mgs-field input {
-  width: 100%; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 12px;
-  padding: 12px 14px; font: inherit; font-size: 14px; color: #1C1B3A;
-  transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
-}
-.mgs-field input::placeholder { color: #C3C7D0; }
-.mgs-field input:focus {
-  outline: none; background: #fff; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7;
-}
-.mgs-field input:disabled { background: #F6F7F9; color: #8B8478; cursor: not-allowed; }
-
-.mgs-act { display: flex; justify-content: flex-end; margin-top: 18px; }
+.mgs-act { display: flex; justify-content: flex-end; margin-top: 16px; }
 
 .mgs-note {
-  margin: 16px 0 0; padding-top: 14px; border-top: 1px solid #F0F1F5;
-  font-size: 12px; line-height: 1.6; color: #AEB4C2;
+  margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--d-border-soft);
+  font-size: 12px; line-height: 1.6; color: var(--d-muted-soft);
 }
-.mgs-note.is-strong { color: #6B7280; }
+.mgs-note.is-strong { color: var(--d-muted); }
 
 /* ── the permission matrix ────────────────────────────────────────────────── */
 .mgs-matrix { display: flex; flex-direction: column; }
 
 .mgs-mrow {
-  display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, 58px);
-  align-items: center; gap: 4px;
-  padding: 10px 0; border-bottom: 1px solid #F5F6F8;
+  display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, 54px);
+  align-items: center; gap: 3px;
+  padding: 9px 0; border-bottom: 1px solid var(--d-border-soft);
 }
 .mgs-mrow:last-child { border-bottom: 0; }
 .mgs-mrow > span { text-align: center; }
-.mgs-mrow > span.you { background: #FDF7F4; border-radius: 9px; }
+.mgs-mrow > span.you { background: var(--d-cream-warm); border-radius: 8px; }
 
-.mgs-mrow.is-head {
-  border-bottom: 1px solid #EEF0F4; padding-bottom: 12px;
-}
+.mgs-mrow.is-head { border-bottom: 1px solid var(--d-border); padding-bottom: 10px; }
 .mgs-mrow.is-head > span {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.6px;
-  text-transform: uppercase; color: #8B8478; padding: 6px 0;
+  font-size: 9px; font-weight: 600; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--d-muted); padding: 5px 0;
 }
-.mgs-mrow.is-head > span.you { color: #C65A1A; }
+.mgs-mrow.is-head > span.you { color: var(--d-orange); }
 .mgs-mrow.is-head em {
-  display: block; font-style: normal; font-size: 8.5px; letter-spacing: 0.4px; color: #C98A63;
+  display: block; font-style: normal; font-size: 8.5px;
+  letter-spacing: 0.6px; color: var(--d-orange);
 }
 
 .mgs-mlab {
-  text-align: left !important; font-size: 13px; color: #1C1B3A; line-height: 1.4;
-  padding-right: 10px;
+  text-align: left !important; font-size: 13px; line-height: 1.4;
+  color: var(--d-navy); padding-right: 10px;
 }
-.mgs-mrow .yes { color: #2F855A; }
+.mgs-mrow .yes { color: var(--d-success); display: inline-block; }
 .mgs-mrow .no {
-  display: inline-block; width: 12px; height: 1.5px; border-radius: 2px; background: #DDE1E7;
+  display: inline-block; width: 11px; height: 1.5px; border-radius: 2px;
+  background: var(--d-border);
 }
 
 /* The row nobody has. It reads as a statement, not an omission. */
-.mgs-mrow.is-never { background: #FBFBFC; border-radius: 10px; padding: 12px 0; margin-top: 4px; }
-.mgs-mrow.is-never .mgs-mlab { color: #8B8478; padding-left: 10px; }
-.mgs-mrow.is-never .no { background: #C9CEd6; }
+.mgs-mrow.is-never {
+  background: var(--d-bg); border-radius: 10px; border-bottom: 0;
+  padding: 11px 0; margin-top: 5px;
+}
+.mgs-mrow.is-never .mgs-mlab { color: var(--d-muted); padding-left: 10px; }
+.mgs-mrow.is-never .no { background: var(--d-muted-soft); }
 
 /* ── engagements ──────────────────────────────────────────────────────────── */
 .mgs-eng { display: flex; flex-direction: column; }
 .mgs-engrow {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 84px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 80px;
   align-items: center; gap: 16px;
-  padding: 14px 0; border-bottom: 1px solid #F5F6F8;
+  padding: 13px 0; border-bottom: 1px solid var(--d-border-soft);
 }
 .mgs-engrow:last-child { border-bottom: 0; }
 .mgs-engrow.is-off { opacity: 0.5; }
@@ -106,19 +81,22 @@
 .mgs-engn b {
   display: block;
   font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 18px; font-weight: 400; color: #1C1B3A; letter-spacing: -0.2px;
+  font-size: 18px; font-weight: 500; letter-spacing: -0.3px; color: var(--d-navy-deep);
 }
-.mgs-engn em { display: block; margin-top: 2px; font-style: normal; font-size: 11.5px; color: #AEB4C2; }
-.mgs-engs { font-size: 12.5px; color: #6B7280; line-height: 1.45; }
+.mgs-engn em {
+  display: block; margin-top: 1px; font-style: normal;
+  font-size: 11.5px; color: var(--d-muted-soft);
+}
+.mgs-engs { font-size: 12.5px; line-height: 1.45; color: var(--d-muted); }
 .mgs-engst {
-  justify-self: end; padding: 5px 12px; border-radius: 999px;
-  background: #EAF4EE; color: #2F855A; font-size: 11.5px; font-weight: 600;
+  justify-self: end; padding: 4px 11px; border-radius: 999px;
+  background: var(--d-success-soft); color: var(--d-success);
+  font-size: 11px; font-weight: 600;
 }
-.mgs-engst.off { background: #F4F6F9; color: #AEB4C2; }
+.mgs-engst.off { background: var(--d-border-soft); color: var(--d-muted-soft); }
 
 @media (max-width: 760px) {
-  .mgs-cols { grid-template-columns: minmax(0, 1fr); }
-  .mgs-mrow { grid-template-columns: minmax(0, 1fr) repeat(4, 42px); }
-  .mgs-engrow { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
+  .mgs-mrow { grid-template-columns: minmax(0, 1fr) repeat(4, 40px); }
+  .mgs-engrow { grid-template-columns: minmax(0, 1fr) auto; row-gap: 5px; }
   .mgs-engs { grid-column: 1 / -1; }
 }

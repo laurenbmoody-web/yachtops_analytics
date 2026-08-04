@@ -12,8 +12,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
-import '../../../styles/editorial.css';
-import ManagementShell from '../components/ManagementShell';
+import ManagementLayout from '../components/ManagementLayout';
 import useManagementCompany from '../../../hooks/useManagementCompany';
 import { listManagedPeriods, getManagedMonth, signOffMonth, queryMonth } from '../../../services/managementService';
 import {
@@ -107,40 +106,34 @@ export default function ManagementVessel() {
   };
 
   return (
-    <ManagementShell>
-      <div className="mgv">
-        <button type="button" className="mgv-back" onClick={() => navigate('/management')}>
-          <Icon name="ChevronLeft" size={15} /> All vessels
+    <ManagementLayout
+      eyebrow={`Management · ${vesselName}${period ? ` · ${periodLabel(period)}` : ''}`}
+      title={<>{vesselName}<span className="accent">, to review</span>.</>}
+      actions={(
+        <button type="button" className="ce-action" onClick={() => navigate('/management')}>
+          <Icon name="ChevronLeft" size={14} /> All vessels
         </button>
+      )}
+    >
+      {periods.length > 1 && (
+        <div className="mgv-periods">
+          {periods.map((p) => (
+            <button key={p.period_month} type="button"
+              className={`mgv-period${p.period_month === period ? ' on' : ''}`}
+              onClick={() => setPeriod(p.period_month)}>
+              {periodLabel(p.period_month)}
+              {p.awaiting > 0 && <span className="mgv-pill">{p.awaiting}</span>}
+            </button>
+          ))}
+        </div>
+      )}
 
-        <p className="editorial-meta">
-          <span className="dot">●</span><span>Management</span>
-          <span className="bar" /><span className="muted">{vesselName}</span>
-          {period && (<><span className="bar" /><span className="muted">{periodLabel(period)}</span></>)}
-        </p>
-        <h1 className="editorial-greeting">
-          {vesselName}<span className="period">,</span> <em>to review</em><span className="period">.</span>
-        </h1>
-
-        {periods.length > 1 && (
-          <div className="mgv-periods">
-            {periods.map((p) => (
-              <button key={p.period_month} type="button"
-                className={`mgv-period${p.period_month === period ? ' on' : ''}`}
-                onClick={() => setPeriod(p.period_month)}>
-                {periodLabel(p.period_month)}
-                {p.awaiting > 0 && <span className="mgv-pill">{p.awaiting}</span>}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {err && <p className="mgv-err"><Icon name="AlertCircle" size={15} /> {err}</p>}
+      {err && <div className="mg-banner bad mb-4"><Icon name="AlertCircle" size={15} /> {err}</div>}
 
         {loading ? (
-          <p className="mgv-empty">Loading…</p>
+          <p className="ce-status">Loading…</p>
         ) : !periods.length ? (
-          <p className="mgv-empty">This vessel hasn&rsquo;t closed a month yet. Nothing to review.</p>
+          <p className="ce-status">This vessel hasn&rsquo;t closed a month yet. Nothing to review.</p>
         ) : (
           <div className="mgv-accs">
             {view.map((m) => {
@@ -153,7 +146,7 @@ export default function ManagementVessel() {
               m.mismatches.forEach((x) => reasons.push(`${x.label} out by ${money(Math.abs(x.gap))}`));
 
               return (
-                <section key={m.account.id} className="mgv-acc">
+                <section key={m.account.id} className="ce-card rounded-xl p-5">
                   <div className="mgv-acc-h">
                     <span className="mgv-acc-n">
                       <b>{m.account.name}</b>
@@ -254,7 +247,6 @@ export default function ManagementVessel() {
             </div>
           </div>
         )}
-      </div>
-    </ManagementShell>
+    </ManagementLayout>
   );
 }

@@ -1,46 +1,31 @@
 /* One vessel's month, as the office reads it. Same tile language as the fleet. */
 
-.mgv { max-width: 1180px; }
-
-.mgv-back {
-  display: inline-flex; align-items: center; gap: 5px;
-  background: none; border: 0; padding: 6px 10px 6px 6px; margin: 0 0 16px -6px;
-  border-radius: 999px; cursor: pointer;
-  font-size: 12.5px; font-weight: 600; color: #8B8478;
-  transition: background 0.14s ease, color 0.14s ease;
-}
-.mgv-back:hover { background: #EFF2F6; color: #C65A1A; }
 
 /* ── which month: a segmented control, not a row of loose pills ───────────── */
 .mgv-periods {
   display: inline-flex; gap: 4px; margin: 22px 0 28px; padding: 4px;
-  background: #EDF0F4; border-radius: 999px; max-width: 100%; overflow-x: auto;
+  background: var(--d-border-soft); border-radius: 999px; max-width: 100%; overflow-x: auto;
 }
 .mgv-period {
   display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;
   background: none; border: 0; border-radius: 999px;
   padding: 9px 18px; cursor: pointer;
-  font: inherit; font-size: 13px; font-weight: 600; color: #6B7280;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--d-muted);
   transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
-.mgv-period:hover { color: #1C1B3A; }
+.mgv-period:hover { color: var(--d-navy-deep); }
 .mgv-period.on {
-  background: #fff; color: #1C1B3A;
+  background: var(--d-card); color: var(--d-navy-deep);
   box-shadow: 0 1px 2px rgba(28, 27, 58, 0.08), 0 4px 12px -6px rgba(28, 27, 58, 0.24);
 }
 .mgv-pill {
   display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 6px;
-  border-radius: 999px; background: #C65A1A; color: #fff; font-size: 10.5px; font-weight: 700;
+  border-radius: 999px; background: var(--d-orange); color: var(--d-card); font-size: 10.5px; font-weight: 700;
 }
 
 /* ── one account ──────────────────────────────────────────────────────────── */
 .mgv-accs { display: grid; gap: 16px; }
 
-.mgv-acc {
-  background: #fff; border: 1px solid rgba(28, 27, 58, 0.07); border-radius: 20px;
-  padding: 22px 24px 20px;
-  box-shadow: 0 1px 2px rgba(28, 27, 58, 0.04), 0 10px 30px -20px rgba(28, 27, 58, 0.2);
-}
 
 .mgv-acc-h {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
@@ -48,21 +33,21 @@
 }
 .mgv-acc-n b {
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 22px; font-weight: 400; color: #1C1B3A; letter-spacing: -0.3px;
+  font-size: 22px; font-weight: 400; color: var(--d-navy-deep); letter-spacing: -0.3px;
 }
 .mgv-acc-n em {
-  margin-left: 10px; font-style: normal; font-size: 12px; color: #AEB4C2;
+  margin-left: 10px; font-style: normal; font-size: 12px; color: var(--d-muted-soft);
   font-variant-numeric: tabular-nums;
 }
 
 .mgv-state {
   flex: 0 0 auto; padding: 6px 13px; border-radius: 999px;
-  background: #F4F6F9; color: #6B7280;
+  background: var(--d-border-soft); color: var(--d-muted);
   font-size: 11.5px; font-weight: 600; white-space: nowrap;
 }
-.mgv-state.s-awaiting-sign-off { background: #FBEFE9; color: #B14E16; }
-.mgv-state.s-signed-off { background: #EAF4EE; color: #2F855A; }
-.mgv-state.s-queried { background: #FBF3E4; color: #98701F; }
+.mgv-state.s-awaiting-sign-off { background: var(--d-cream-warm); color: var(--d-navy-deep); }
+.mgv-state.s-signed-off { background: var(--d-success-soft); color: var(--d-success); }
+.mgv-state.s-queried { background: var(--d-warn-soft); color: var(--d-warn); }
 
 /* The figures as a strip of tiles — the closing balance is what the office is
    actually here for, so it gets the accent rather than a row in a ladder. */
@@ -70,58 +55,58 @@
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
 }
 .mgv-eq .r {
-  background: #FAFBFC; border: 1px solid #EEF0F4; border-radius: 14px;
+  background: var(--d-bg); border: 1px solid var(--d-border-soft); border-radius: 14px;
   padding: 13px 15px;
 }
 .mgv-eq .r span {
   display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: #8B8478;
+  text-transform: uppercase; color: var(--d-muted);
 }
 .mgv-eq .r b {
   display: block; margin-top: 7px;
   font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 22px; font-weight: 400; color: #1C1B3A;
+  font-size: 22px; font-weight: 400; color: var(--d-navy-deep);
   letter-spacing: -0.4px; font-variant-numeric: tabular-nums;
 }
-.mgv-eq .r.is-tot { background: #FFF9F6; border-color: #F3DFD2; }
-.mgv-eq .r.is-tot b { color: #C65A1A; }
+.mgv-eq .r.is-tot { background: var(--d-cream-warm); border-color: var(--d-cream-warm); }
+.mgv-eq .r.is-tot b { color: var(--d-orange); }
 
-.mgv-sub { margin: 12px 0 0; font-size: 12px; color: #AEB4C2; }
+.mgv-sub { margin: 12px 0 0; font-size: 12px; color: var(--d-muted-soft); }
 
 .mgv-reasons, .mgv-clean {
   display: flex; align-items: flex-start; gap: 9px; margin: 16px 0 0;
   padding: 12px 15px; border-radius: 12px;
   font-size: 12.5px; line-height: 1.55;
 }
-.mgv-reasons { background: #FBF3E4; color: #8A6414; }
-.mgv-clean { background: #EFF6F2; color: #2F6B4F; }
+.mgv-reasons { background: var(--d-warn-soft); color: var(--d-warn); }
+.mgv-clean { background: var(--d-success-soft); color: var(--d-success); }
 .mgv-reasons svg, .mgv-clean svg { flex: 0 0 auto; margin-top: 1px; }
 
 .mgv-note {
   margin: 12px 0 0; padding: 13px 15px;
-  background: #FAFAF8; border-left: 3px solid #C65A1A; border-radius: 4px 12px 12px 4px;
-  font-size: 12.5px; line-height: 1.6; color: #1C1B3A;
+  background: var(--d-bg); border-left: 3px solid var(--d-orange); border-radius: 4px 12px 12px 4px;
+  font-size: 12.5px; line-height: 1.6; color: var(--d-navy-deep);
 }
-.mgv-note.is-ok { border-left-color: #2F855A; color: #6B7280; }
+.mgv-note.is-ok { border-left-color: var(--d-success); color: var(--d-muted); }
 .mgv-note b { font-weight: 650; }
 
 .mgv-act { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-.mgv-readonly { margin: 16px 0 0; font-size: 12px; color: #AEB4C2; line-height: 1.5; }
+.mgv-readonly { margin: 16px 0 0; font-size: 12px; color: var(--d-muted-soft); line-height: 1.5; }
 
 .mgv-btn {
   border-radius: 12px; padding: 11px 20px; font-size: 13.5px; font-weight: 600;
   cursor: pointer; border: 1px solid transparent; font-family: inherit;
   transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
 }
-.mgv-btn.ghost { background: #fff; border-color: #E5E7EB; color: #6B7280; }
-.mgv-btn.ghost:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
+.mgv-btn.ghost { background: var(--d-card); border-color: var(--d-border); color: var(--d-muted); }
+.mgv-btn.ghost:hover:not(:disabled) { border-color: var(--d-orange); color: var(--d-orange); }
 .mgv-btn.primary {
-  background: #C65A1A; border-color: #C65A1A; color: #fff;
+  background: var(--d-orange); border-color: var(--d-orange); color: var(--d-card);
   box-shadow: 0 1px 2px rgba(198, 90, 26, 0.2), 0 8px 20px -10px rgba(198, 90, 26, 0.55);
 }
-.mgv-btn.primary:hover:not(:disabled) { background: #B14E16; }
+.mgv-btn.primary:hover:not(:disabled) { background: var(--d-navy-deep); }
 .mgv-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.mgv-btn.primary:disabled { background: #E5E7EB; border-color: #E5E7EB; color: #AEB4C2; box-shadow: none; }
+.mgv-btn.primary:disabled { background: var(--d-border); border-color: var(--d-border); color: var(--d-muted-soft); box-shadow: none; }
 
 /* ── naming it back before it happens ─────────────────────────────────────── */
 .mgv-ask {
@@ -132,24 +117,24 @@
 }
 .mgv-ask-p {
   width: 100%; max-width: 470px;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 22px;
+  background: var(--d-card); border: 1px solid var(--d-border); border-radius: 22px;
   box-shadow: 0 30px 70px -18px rgba(28, 27, 58, 0.4);
   padding: 26px 28px 22px;
 }
 .mgv-ask-h {
   margin: 0 0 9px;
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 24px; font-weight: 400; color: #1C1B3A; line-height: 1.25; letter-spacing: -0.4px;
+  font-size: 24px; font-weight: 400; color: var(--d-navy-deep); line-height: 1.25; letter-spacing: -0.4px;
 }
-.mgv-ask-s { margin: 0 0 18px; font-size: 13px; line-height: 1.6; color: #8B8478; }
+.mgv-ask-s { margin: 0 0 18px; font-size: 13px; line-height: 1.6; color: var(--d-muted); }
 .mgv-ask-p textarea {
-  width: 100%; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 13px;
-  padding: 13px 15px; font: inherit; font-size: 13.5px; color: #1C1B3A; resize: vertical;
+  width: 100%; background: var(--d-bg); border: 1px solid var(--d-border); border-radius: 13px;
+  padding: 13px 15px; font: inherit; font-size: 13.5px; color: var(--d-navy-deep); resize: vertical;
   transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
 }
-.mgv-ask-p textarea::placeholder { color: #C3C7D0; }
+.mgv-ask-p textarea::placeholder { color: var(--d-muted-soft); }
 .mgv-ask-p textarea:focus {
-  outline: none; background: #fff; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7;
+  outline: none; background: var(--d-card); border-color: var(--d-orange); box-shadow: 0 0 0 3px var(--d-cream-warm);
 }
 .mgv-ask-a { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
 
@@ -157,8 +142,7 @@
   .mgv-eq { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 620px) {
-  .mgv-acc { padding: 18px 17px; border-radius: 17px; }
-  .mgv-acc-h { flex-direction: column; align-items: flex-start; gap: 9px; }
+    .mgv-acc-h { flex-direction: column; align-items: flex-start; gap: 9px; }
   .mgv-act { flex-direction: column-reverse; }
   .mgv-act .mgv-btn { width: 100%; }
 }
