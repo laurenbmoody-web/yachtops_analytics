@@ -9,18 +9,39 @@ import { parseGarmentPhotos } from '../utils/garmentAi';
 import './ownerWardrobe.css';
 
 export const GARMENT_TYPES = ['Shirt', 'T-shirt', 'Top', 'Trousers', 'Shorts', 'Dress', 'Skirt', 'Suit', 'Jacket', 'Coat', 'Knitwear', 'Swimwear', 'Activewear', 'Underwear', 'Nightwear', 'Footwear', 'Bag', 'Accessory', 'Jewellery', 'Watch', 'Other'];
-const CURRENCIES = ['EUR', 'GBP', 'USD'];
-const CONDITIONS = ['New', 'Excellent', 'Good', 'Fair', 'Worn'];
-const SEASONS = ['All year', 'Summer', 'Winter', 'Spring', 'Autumn', 'Resort', 'Formal'];
-const GENDERS = ['Womens', 'Mens', 'Unisex', 'Girls', 'Boys', 'Baby'];
+export const CURRENCIES = ['EUR', 'GBP', 'USD'];
+export const CONDITIONS = ['New', 'Excellent', 'Good', 'Fair', 'Worn'];
+export const SEASONS = ['All year', 'Summer', 'Winter', 'Spring', 'Autumn', 'Resort', 'Formal'];
+export const GENDERS = ['Womens', 'Mens', 'Unisex', 'Girls', 'Boys', 'Baby'];
 // Option list with a leading "—" clear row for optional selects.
-const dash = (arr) => [{ value: '', label: '—' }, ...arr.map((x) => ({ value: x, label: x }))];
+export const dashOpts = (arr) => [{ value: '', label: '—' }, ...arr.map((x) => ({ value: x, label: x }))];
+const dash = dashOpts;
 
-const fileToDataUrl = (file) => new Promise((res, rej) => {
-  const r = new FileReader();
-  r.onload = () => res(r.result);
-  r.onerror = rej;
-  r.readAsDataURL(file);
+// Downscale + JPEG-compress a captured photo before upload. Phone photos are
+// several MB; sending them raw was failing silently for all but one — this keeps
+// each around ~200KB so every photo saves reliably.
+export const compressImage = (file, maxDim = 1600, quality = 0.82) => new Promise((res) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) { height = Math.round((height * maxDim) / width); width = maxDim; }
+        else { width = Math.round((width * maxDim) / height); height = maxDim; }
+      }
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        res(canvas.toDataURL('image/jpeg', quality));
+      } catch { res(reader.result); }
+    };
+    img.onerror = () => res(reader.result);
+    img.src = reader.result;
+  };
+  reader.onerror = () => res('');
+  reader.readAsDataURL(file);
 });
 
 // Add a resident garment straight into a wardrobe — a rich, catalogue-grade
@@ -83,7 +104,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
   const addPhotos = async (e) => {
     const files = [...(e.target.files || [])];
     if (!files.length) return;
-    try { const urls = await Promise.all(files.map(fileToDataUrl)); setPhotos((p) => [...p, ...urls]); } catch { /* ignore */ }
+    try { const urls = (await Promise.all(files.map((f) => compressImage(f)))).filter(Boolean); setPhotos((p) => [...p, ...urls]); } catch { /* ignore */ }
     e.target.value = '';
   };
   const removePhoto = (i) => setPhotos((p) => p.filter((_, idx) => idx !== i));

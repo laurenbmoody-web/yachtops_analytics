@@ -337,7 +337,7 @@ const OwnerWardrobeView = ({ onBack }) => {
     <>
       {showAdd && <AddGarmentModal wardrobes={wardrobes} guests={guests} defaultWardrobeId={fLoc !== 'all' && fLoc !== 'away' ? fLoc : null} showValue={showValue} onClose={() => setShowAdd(false)} onCreated={load} />}
       {showNewWardrobe && <WardrobeEditorModal scope="owner" onClose={() => setShowNewWardrobe(false)} onCreated={load} />}
-      {fullItem && <GarmentFullView item={fullItem} wardrobes={wardrobes} showValue={showValue} caseName={fullItem.caseId ? caseName(fullItem.caseId) : null} onClose={() => setFullItem(null)} onChanged={() => { load(); setFullItem(null); }} onAction={singleAction} />}
+      {fullItem && <GarmentFullView item={fullItem} wardrobes={wardrobes} guests={guests} showValue={showValue} caseName={fullItem.caseId ? caseName(fullItem.caseId) : null} onClose={() => setFullItem(null)} onChanged={() => { load(); setFullItem(null); }} onAction={singleAction} />}
       {showScan && <LaundryScanModal onClose={() => setShowScan(false)} onDetect={onScan} />}
       {chooser && (
         <div className="ow-overlay" onClick={() => setChooser(null)}>

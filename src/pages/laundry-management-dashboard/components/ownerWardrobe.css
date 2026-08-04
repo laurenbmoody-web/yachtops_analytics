@@ -224,8 +224,17 @@
 .ow-dl-row dd { margin: 0; font: 500 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; line-height: 1.4; }
 .ow-edit { display: flex; flex-direction: column; gap: 8px; }
 
-.ow-full-actions { flex: none; display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 14px; border-top: 1px solid #EEF0F4; }
-.ow-full-actions .ow-btn { padding: 9px 13px; font-size: 12.5px; }
+.ow-full-actions { flex: none; display: flex; align-items: stretch; gap: 8px; margin-top: auto; padding-top: 14px; border-top: 1px solid #EEF0F4; }
+.ow-full-actions .ow-btn { height: 40px; padding: 0 13px; font-size: 12.5px; white-space: nowrap; }
+
+/* History timeline */
+.ow-hist { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.ow-hist-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; }
+.ow-hist-dot { flex: none; width: 7px; height: 7px; border-radius: 999px; background: #C65A1A; margin-top: 5px; }
+.ow-hist-row > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ow-hist-act { font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.ow-hist-meta { font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #9AA1AE; }
+.ow-hist-empty { margin: 4px 0 0; font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #9AA1AE; }
 .ow-menu { position: relative; margin-left: auto; }
 .ow-menu-btn { padding: 9px 11px !important; }
 .ow-menu-pop { position: absolute; bottom: calc(100% + 6px); right: 0; z-index: 5; min-width: 172px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; box-shadow: 0 18px 40px -16px rgba(28,27,58,0.3); padding: 6px; display: flex; flex-direction: column; }
