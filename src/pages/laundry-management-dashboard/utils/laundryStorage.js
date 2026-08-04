@@ -365,6 +365,17 @@ export const archiveLaundryItems = async (itemIds) => {
   return true;
 };
 
+// Restore archived items back into the active wardrobe (clears archived_at).
+export const restoreLaundryItems = async (itemIds) => {
+  const ids = (itemIds || []).filter(Boolean);
+  if (!ids.length) return false;
+  const { error } = await supabase.from('laundry_items')
+    .update({ archived_at: null, updated_at: new Date().toISOString() })
+    .in('id', ids);
+  if (error) { console.error('[laundry] bulk restore failed', error); showToast('Could not restore items', 'error'); return false; }
+  return true;
+};
+
 // Assign items to a wardrobe home (wardrobeId), or clear the home (null). Bulk.
 export const setLaundryItemsWardrobe = async (itemIds, wardrobeId) => {
   const ids = (itemIds || []).filter(Boolean);

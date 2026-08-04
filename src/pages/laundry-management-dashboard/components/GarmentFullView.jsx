@@ -43,9 +43,12 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
   const [busy, setBusy] = useState(false);
   const gallery = (Array.isArray(item.photos) && item.photos.length ? item.photos : (item.photo ? [item.photo] : [])).filter(Boolean);
   const [active, setActive] = useState(0);
-  const st = item.caseId
-    ? { label: `Away · in ${caseName || 'a case'}`, cls: 'away' }
-    : inWash(item) ? { label: 'In laundry', cls: 'prog' } : { label: 'On board', cls: 'stored' };
+  const archivedItem = !!item.isArchivedFromToday;
+  const st = archivedItem
+    ? { label: 'Archived', cls: 'away' }
+    : item.caseId
+      ? { label: `Away · in ${caseName || 'a case'}`, cls: 'away' }
+      : inWash(item) ? { label: 'In laundry', cls: 'prog' } : { label: 'On board', cls: 'stored' };
   const photo = gallery[active] || gallery[0] || '';
   const home = wardrobes.find((w) => w.id === item.wardrobeId);
   const locationLabel = home ? [home.name, home.locationName].filter(Boolean).join(' · ') : '';
@@ -199,20 +202,37 @@ const GarmentFullView = ({ item, wardrobes = [], guests = [], showValue = true, 
               </div>
 
               <div className="ow-full-actions">
-                <button type="button" className={`ow-btn ${stays ? 'onboard-on' : 'ghost'}`} onClick={toggleStays} disabled={staysBusy} title="Stays aboard permanently"><Icon name="Anchor" size={15} /> {stays ? 'Stays aboard' : 'Keep aboard'}</button>
-                {item.status === LaundryStatus.STORED && <button type="button" className="ow-btn ghost" onClick={() => act('launder')}><Icon name="Waves" size={15} /> Launder</button>}
-                <button type="button" className="ow-btn ghost" onClick={() => act('pack')}><Icon name="Package" size={15} /> Pack</button>
-                <div className="ow-menu" ref={menuRef}>
-                  <button type="button" className="ow-btn ghost ow-menu-btn" onClick={() => setMenu((o) => !o)} aria-label="More actions"><Icon name="MoreHorizontal" size={18} /></button>
-                  {menu && (
-                    <div className="ow-menu-pop">
-                      <button type="button" onClick={() => { setMenu(false); act('move'); }}><Icon name="FolderInput" size={15} /> Move</button>
-                      <button type="button" onClick={() => { setMenu(false); printLaundryLabels([item]); }}><Icon name="QrCode" size={15} /> QR tag</button>
-                      <button type="button" onClick={() => { setMenu(false); setEdit(true); }}><Icon name="Pencil" size={15} /> Edit</button>
-                      <button type="button" className="danger" onClick={() => { setMenu(false); act('archive'); }}><Icon name="Trash2" size={15} /> Archive</button>
+                {archivedItem ? (
+                  <>
+                    <button type="button" className="ow-btn primary" onClick={() => act('restore')}><Icon name="Undo2" size={15} /> Restore to wardrobe</button>
+                    <div className="ow-menu" ref={menuRef}>
+                      <button type="button" className="ow-btn ghost ow-menu-btn" onClick={() => setMenu((o) => !o)} aria-label="More actions"><Icon name="MoreHorizontal" size={18} /></button>
+                      {menu && (
+                        <div className="ow-menu-pop">
+                          <button type="button" onClick={() => { setMenu(false); setEdit(true); }}><Icon name="Pencil" size={15} /> Edit</button>
+                          <button type="button" onClick={() => { setMenu(false); printLaundryLabels([item]); }}><Icon name="QrCode" size={15} /> QR tag</button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" className={`ow-btn ${stays ? 'onboard-on' : 'ghost'}`} onClick={toggleStays} disabled={staysBusy} title="Stays aboard permanently"><Icon name="Anchor" size={15} /> {stays ? 'Stays aboard' : 'Keep aboard'}</button>
+                    {item.status === LaundryStatus.STORED && <button type="button" className="ow-btn ghost" onClick={() => act('launder')}><Icon name="Waves" size={15} /> Launder</button>}
+                    <button type="button" className="ow-btn ghost" onClick={() => act('pack')}><Icon name="Package" size={15} /> Pack</button>
+                    <div className="ow-menu" ref={menuRef}>
+                      <button type="button" className="ow-btn ghost ow-menu-btn" onClick={() => setMenu((o) => !o)} aria-label="More actions"><Icon name="MoreHorizontal" size={18} /></button>
+                      {menu && (
+                        <div className="ow-menu-pop">
+                          <button type="button" onClick={() => { setMenu(false); act('move'); }}><Icon name="FolderInput" size={15} /> Move</button>
+                          <button type="button" onClick={() => { setMenu(false); printLaundryLabels([item]); }}><Icon name="QrCode" size={15} /> QR tag</button>
+                          <button type="button" onClick={() => { setMenu(false); setEdit(true); }}><Icon name="Pencil" size={15} /> Edit</button>
+                          <button type="button" className="danger" onClick={() => { setMenu(false); act('archive'); }}><Icon name="Trash2" size={15} /> Archive</button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </>
           ) : (
