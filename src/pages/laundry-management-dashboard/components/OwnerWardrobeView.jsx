@@ -10,6 +10,7 @@ import WardrobeIcon from './WardrobeIcon';
 import ToolMenu from './ToolMenu';
 import CasesListModal from './CasesListModal';
 import CaseMovementModal from './CaseMovementModal';
+import LuggageModal from './LuggageModal';
 import PersonTiles from './PersonTiles';
 import { canViewCost } from '../../../utils/costPermissions';
 import { loadWardrobes, createWardrobe } from '../utils/laundryWardrobes';
@@ -134,6 +135,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   const [exportingManifest, setExportingManifest] = useState(false);
   const [showCases, setShowCases] = useState(false);
   const [openCaseId, setOpenCaseId] = useState(null);
+  const [luggage, setLuggage] = useState(null); // { mode: 'pack' | 'unpack' } — per-person luggage hub
 
   const doManifest = async (scopeItems, subject) => {
     if (exportingManifest || !scopeItems.length) return;
@@ -187,6 +189,13 @@ const OwnerWardrobeView = ({ onBack }) => {
     return { name: guestName(g), photo: g.photo || g.avatarUrl || '', cabin: g.cabinLocationLabel || g.cabinAllocated || '' };
   }, [personId, guestsById]);
   const initialsOf = (nm) => (nm || '?').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+  // A person's live (non-archived) garments — what the luggage hub packs from,
+  // independent of the archived view.
+  const personActiveItems = useMemo(() => {
+    if (personId === 'owner') return items.filter((it) => !it.ownerGuestId);
+    return items.filter((it) => it.ownerGuestId === personId);
+  }, [items, personId]);
+  const luggagePerson = selectedPerson ? { id: personId, name: selectedPerson.name, cabin: selectedPerson.cabin || '' } : null;
   // Archived garments live behind the "Archived" filter; everything else works
   // off the active set.
   const viewingArchived = showArchived;
@@ -387,6 +396,7 @@ const OwnerWardrobeView = ({ onBack }) => {
       {showManageWardrobes && <WardrobeManageModal wardrobes={wardrobes} items={[...items, ...archived]} onNew={() => setShowNewWardrobe(true)} onChanged={load} onClose={() => setShowManageWardrobes(false)} />}
       {showCases && <CasesListModal items={items} onOpenCase={(id) => { setShowCases(false); setOpenCaseId(id); }} onClose={() => setShowCases(false)} />}
       {openCaseId && <CaseMovementModal caseId={openCaseId} wardrobes={wardrobes} onChanged={load} onClose={() => setOpenCaseId(null)} />}
+      {luggage && luggagePerson && <LuggageModal person={luggagePerson} personItems={personActiveItems} wardrobes={wardrobes} guests={guests} showValue={showValue} initialMode={luggage.mode} onChanged={load} onClose={() => setLuggage(null)} />}
       {fullItem && <GarmentFullView item={fullItem} wardrobes={wardrobes} guests={guests} showValue={showValue} caseName={fullItem.caseId ? caseName(fullItem.caseId) : null} onClose={() => setFullItem(null)} onChanged={() => { load(); setFullItem(null); }} onAction={singleAction} />}
       {showScan && <LaundryScanModal onClose={() => setShowScan(false)} onDetect={onScan} />}
       {chooser && (
@@ -521,6 +531,12 @@ const OwnerWardrobeView = ({ onBack }) => {
             </p>
             <h2 className="ow-person-nm">{selectedPerson.name}</h2>
           </div>
+          {!showArchived && (
+            <div className="ow-person-acts">
+              <button type="button" className="ow-btn ghost" onClick={() => setLuggage({ mode: 'pack' })}><Icon name="Luggage" size={15} /> Pack</button>
+              <button type="button" className="ow-btn ghost" onClick={() => setLuggage({ mode: 'unpack' })}><Icon name="PackageOpen" size={15} /> Unpack</button>
+            </div>
+          )}
         </div>
       )}
 

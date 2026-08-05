@@ -344,3 +344,24 @@
 .ow-case-count { font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; }
 .ow-case-unpack { padding: 6px 4px; }
 .ow-case-unpack-note { margin-top: 10px; font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
+
+/* Per-person luggage hub */
+.ow-person-acts { margin-left: auto; display: flex; gap: 8px; flex: none; }
+.ow-lug { max-width: 640px; }
+.ow-lug .ow-eyebrow { display: block; margin-bottom: 4px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.ow-lug-back { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 8px; padding: 0; background: none; border: none; cursor: pointer; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
+.ow-lug-back:hover { color: #C65A1A; }
+.ow-lug-edit { margin-left: 8px; display: inline-flex; align-items: center; gap: 3px; background: none; border: none; cursor: pointer; font: 600 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; }
+.ow-lug-meta { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.ow-lug-cover { flex: none; width: 34px; height: 34px; border-radius: 9px; overflow: hidden; background: #FBEFE9; color: #C65A1A; display: grid; place-items: center; }
+.ow-lug-cover img { width: 100%; height: 100%; object-fit: cover; }
+.ow-lug-galleries { display: flex; flex-direction: column; gap: 14px; padding-bottom: 6px; margin-bottom: 8px; border-bottom: 1px solid #F0F1F5; }
+.ow-lug-photos .ow-photos, .ow-lug-ref .ow-photos { margin-top: 6px; }
+.ow-lug-plabel { display: flex; align-items: baseline; gap: 8px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.ow-lug-plabel span { font-size: 10px; font-weight: 500; letter-spacing: 0; text-transform: none; color: #AEB4C2; }
+.ow-lug-ref { margin-top: 14px; }
+.ow-lug-contents-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 2px 8px; font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.02em; text-transform: uppercase; color: #8B8478; }
+.ow-lug-add { display: flex; gap: 6px; }
+.ow-btn.sm { height: 30px; padding: 0 10px; font-size: 12px; }
+.ow-full-actions .ow-btn.ghost.danger { color: #C24632; }
+.ow-full-actions .ow-btn.ghost.danger:hover { border-color: #C24632; background: #FBECEA; }
