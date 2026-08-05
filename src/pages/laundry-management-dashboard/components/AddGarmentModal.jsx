@@ -62,7 +62,7 @@ export const compressImage = (file, maxDim = 1600, quality = 0.82) => new Promis
 // Add a resident garment straight into a wardrobe — a rich, catalogue-grade
 // record (multiple photos first, then the full descriptive detail a high-value
 // wardrobe warrants). Created "Stored" so it doesn't hit the active laundry list.
-const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null, showValue = true, onClose, onCreated }) => {
+const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null, defaultGuestId = '', showValue = true, onClose, onCreated }) => {
   const [photos, setPhotos] = useState([]);
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
@@ -87,7 +87,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
   const [wardrobeId, setWardrobeId] = useState(defaultWardrobeId || wardrobes[0]?.id || '');
   const [showPlan, setShowPlan] = useState(false);
   const [scanPlace, setScanPlace] = useState(null);
-  const [guestId, setGuestId] = useState('');
+  const [guestId, setGuestId] = useState(defaultGuestId || '');
   const [staysOnboard, setStaysOnboard] = useState(true);
   const [flag, setFlag] = useState('');
   const [flagNote, setFlagNote] = useState('');
