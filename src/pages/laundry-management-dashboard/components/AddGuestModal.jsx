@@ -34,19 +34,23 @@ const AddGuestModal = ({ scope = 'guest', onClose, onCreated }) => {
           <div><span className="ow-eyebrow">{scope === 'owner' ? 'Owner' : 'Guest'}</span><h2 className="ow-modal-title">Add a {scope === 'owner' ? 'person' : 'guest'}</h2></div>
           <button type="button" className="ow-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
         </div>
-        <div className="ow-row2">
-          <div>
-            <label className="ow-l">First name <span className="ow-req">required</span></label>
-            <input className="ow-input" autoFocus value={first} onChange={(e) => setFirst(e.target.value)} placeholder="e.g. Jane" />
+        <div className="ow-dialog-fields">
+          <div className="ow-row2">
+            <div className="ow-fieldcol">
+              <label className="ow-l">First name <span className="ow-req">required</span></label>
+              <input className="ow-input" autoFocus value={first} onChange={(e) => setFirst(e.target.value)} placeholder="e.g. Jane" />
+            </div>
+            <div className="ow-fieldcol">
+              <label className="ow-l">Last name</label>
+              <input className="ow-input" value={last} onChange={(e) => setLast(e.target.value)} placeholder="e.g. Doe" />
+            </div>
           </div>
-          <div>
-            <label className="ow-l">Last name</label>
-            <input className="ow-input" value={last} onChange={(e) => setLast(e.target.value)} placeholder="e.g. Doe" />
+          <div className="ow-fieldcol">
+            <label className="ow-l">Cabin</label>
+            <input className="ow-input" value={cabin} onChange={(e) => setCabin(e.target.value)} placeholder="e.g. Main Deck VIP" />
           </div>
+          <p className="ow-dialog-hint">Full details (dates, contact, preferences) live in Guest management.</p>
         </div>
-        <label className="ow-l">Cabin</label>
-        <input className="ow-input" value={cabin} onChange={(e) => setCabin(e.target.value)} placeholder="e.g. Main Deck VIP" />
-        <p className="ow-empty-note" style={{ textAlign: 'left', maxWidth: 'none', margin: '4px 0 0' }}>Full details (dates, contact, preferences) live in Guest management.</p>
         <div className="ow-dialog-foot">
           <button type="button" className="ow-btn ghost" onClick={onClose}>Cancel</button>
           <button type="submit" className="ow-btn primary" disabled={!first.trim() || busy}>{busy ? 'Adding…' : 'Add'}</button>
