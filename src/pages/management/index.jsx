@@ -72,6 +72,9 @@ export default function ManagementFleet() {
     <ManagementLayout
       eyebrow={`Management · ${company?.company_name || ''}`}
       title={<>Fleet<span className="accent">, {waiting ? 'waiting on you' : 'in order'}</span>.</>}
+      lede={waiting
+        ? `${waiting} ${waiting === 1 ? 'month' : 'months'} closed by ${fleet.length === 1 ? 'the vessel' : 'vessels'} and waiting on your signature.`
+        : 'Nothing waiting on you. Vessels appear here as they close their months.'}
     >
       {err && (
         <div className="ce-card rounded-xl p-4 mb-5 flex items-center gap-2">
@@ -80,27 +83,29 @@ export default function ManagementFleet() {
         </div>
       )}
 
-      {/* The three numbers the office came for. */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <Stat icon="PenLine" value={waiting} label="To sign off" tone={waiting ? 'is-live' : ''}
-          sub={waiting ? 'Closed by the vessel' : 'Nothing outstanding'} />
-        <Stat icon="Undo2" value={queried} label="Sent back" tone={queried ? 'is-warn' : ''}
-          sub={queried ? 'With the crew to fix' : 'None outstanding'} />
-        <Stat icon="BadgeCheck" value={done} label="Signed off" tone={done ? 'is-good' : ''}
-          sub="Across the whole fleet" />
-      </div>
-
-      <div className="flex items-center justify-between mb-3">
-        <p className="ce-eyebrow m-0">Vessels</p>
-        <span className="ce-status">{fleet.length} {fleet.length === 1 ? 'vessel' : 'vessels'}</span>
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* The three numbers the office came for. */}
+        <div className="lg:col-span-4">
+          <Stat icon="PenLine" value={waiting} label="To sign off" tone={waiting ? 'is-live' : ''}
+            sub={waiting ? 'Closed by the vessel' : 'Nothing outstanding'} />
+        </div>
+        <div className="lg:col-span-4">
+          <Stat icon="Undo2" value={queried} label="Sent back" tone={queried ? 'is-warn' : ''}
+            sub={queried ? 'With the crew to fix' : 'None outstanding'} />
+        </div>
+        <div className="lg:col-span-4">
+          <Stat icon="BadgeCheck" value={done} label="Signed off" tone={done ? 'is-good' : ''}
+            sub="Across the whole fleet" />
+        </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[0, 1, 2].map((i) => <div key={i} className="ce-card rounded-xl mg-ghost" />)}
-        </div>
+        <>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="lg:col-span-4"><div className="ce-card rounded-xl mg-ghost" /></div>
+          ))}
+        </>
       ) : fleet.length === 0 ? (
-        <div className="ce-card rounded-xl p-10 text-center">
+        <div className="lg:col-span-12 ce-card rounded-xl p-10 text-center">
           <div className="mg-empty-ic"><Icon name="Anchor" size={24} /></div>
           <h3 className="ce-title mt-3">No vessels yet</h3>
           {/* The office cannot help itself to a boat — a captain has to engage
@@ -112,13 +117,14 @@ export default function ManagementFleet() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <>
           {fleet.map((v) => {
             const needs = v.awaiting_signoff || 0;
             const back = v.queried || 0;
             const tone = needs ? 'need' : (back ? 'query' : '');
             return (
-              <button key={`${v.tenant_id}-${v.company_id}`} type="button"
+              <div key={`${v.tenant_id}-${v.company_id}`} className="lg:col-span-4">
+              <button type="button"
                 className={`ce-card rounded-xl p-5 mg-vessel ${tone}`}
                 onClick={() => navigate(`/management/vessel/${v.tenant_id}`)}>
                 <div className="flex items-start justify-between gap-3">
@@ -138,10 +144,12 @@ export default function ManagementFleet() {
                   <span className="ce-link mg-open">Open <Icon name="ArrowRight" size={13} /></span>
                 </div>
               </button>
+              </div>
             );
           })}
-        </div>
+        </>
       )}
+      </div>
     </ManagementLayout>
   );
 }

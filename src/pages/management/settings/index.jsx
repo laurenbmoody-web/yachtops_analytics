@@ -83,7 +83,7 @@ export default function ManagementSettings() {
       {loading ? (
         <p className="ce-status">Loading…</p>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* ── who we are ─────────────────────────────────────────────── */}
             <section className="ce-card rounded-xl p-5 lg:col-span-6">
               <div className="mgs-card-h">

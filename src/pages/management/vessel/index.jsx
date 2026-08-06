@@ -135,7 +135,7 @@ export default function ManagementVessel() {
         ) : !periods.length ? (
           <p className="ce-status">This vessel hasn&rsquo;t closed a month yet. Nothing to review.</p>
         ) : (
-          <div className="mgv-accs">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {view.map((m) => {
               const state = reconciliationState(m.reconciliation);
               const cur = m.account.currency;
@@ -146,7 +146,7 @@ export default function ManagementVessel() {
               m.mismatches.forEach((x) => reasons.push(`${x.label} out by ${money(Math.abs(x.gap))}`));
 
               return (
-                <section key={m.account.id} className="ce-card rounded-xl p-5">
+                <section key={m.account.id} className="ce-card rounded-xl p-5 lg:col-span-6">
                   <div className="mgv-acc-h">
                     <span className="mgv-acc-n">
                       <b>{m.account.name}</b>
