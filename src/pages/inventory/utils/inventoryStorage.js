@@ -964,13 +964,13 @@ export const getInventoryHealthStats = async (tenantId = getActiveTenantId()) =>
 
     const base = { id: row.id, name: row.name || 'Untitled item', place: placeOf(row) };
     if (stockState === 'out') {
-      attention.push({ ...base, rank: 0, score: 0, sev: 'expired', label: 'None left' });
+      attention.push({ ...base, rank: 0, score: 0, kind: 'out', tag: 'Out of stock', label: 'None left', detail: 'none in stock' });
     } else if (expState === 'expired') {
-      attention.push({ ...base, rank: 1, score: days, sev: 'expired', label: `${days}d over` });
+      attention.push({ ...base, rank: 1, score: days, kind: 'expired', tag: 'Most overdue', label: `${days}d over`, detail: `${days} days past date` });
     } else if (stockState === 'low') {
-      attention.push({ ...base, rank: 2, score: (row.restock_level || 0) - qty, sev: 'amber', label: `${qty} / ${row.restock_level}` });
+      attention.push({ ...base, rank: 2, score: (row.restock_level || 0) - qty, kind: 'low', tag: 'Below par', label: `${qty} / ${row.restock_level}`, detail: `${qty} of ${row.restock_level} in stock` });
     } else if (expState === 'expiring') {
-      attention.push({ ...base, rank: 3, score: -days, sev: 'amber', label: `${days}d left` });
+      attention.push({ ...base, rank: 3, score: -days, kind: 'expiring', tag: 'Expiring soon', label: `${days}d left`, detail: `${days} days left` });
     }
   }
   attention.sort((a, b) => (a.rank - b.rank) || (b.score - a.score));

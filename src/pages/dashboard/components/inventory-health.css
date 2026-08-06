@@ -1,47 +1,40 @@
-/* Inventory health widget — twin of the Document renewals widget.
-   Hairline-divided stat row (no filled boxes, no gradient bar), quiet clickable
-   attention rows, one typeface. Muted semantic RAG on bare numbers + a 7px dot
-   only — kept distinct from the terracotta app accent. */
+/* Inventory health widget — two-axis inset-cells treatment.
+   Inventory health is two separate questions — is it in date (Expired) and is
+   it in stock (Stock) — so the card splits into two soft-field panels, then
+   names the single worst culprit beneath. Terracotta is the only accent: it
+   marks whichever axis needs attention; a settled axis sits in faint grey. */
 .ih {
-  --ih-ink:#1C1B3A; --ih-muted:#6B7280; --ih-faint:#AEB4C2; --ih-hair:#ECEDF3;
-  --ih-red:#B23A2E; --ih-orange:#C15A28; --ih-amber:#A8791C; --ih-green:#3F7A52;
+  --ih-ink:#1C1B3A; --ih-terra:#C65A1A; --ih-terra-hi:#B14E16;
+  --ih-muted:#6B7280; --ih-faint:#AEB4C2; --ih-hair:#ECEDF3;
+  --ih-cell:#FAFAF8; --ih-cell-bd:#EEF0F4; --ih-tint:#FBEFE9;
   font-family:'Inter',system-ui,sans-serif;
 }
-.ih-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:16px;}
-.ih-status{font-family:'Inter',system-ui,sans-serif;font-size:12.5px;font-weight:500;color:var(--ih-muted);margin:3px 0 0;}
-.ih-status.att{color:var(--ih-orange);font-weight:600;}
-.ih-status.ok{color:var(--ih-green);font-weight:600;}
+.ih-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px;}
 
-/* Stat row — three numbers on hairlines, coloured by severity. */
-.ih-stats{display:grid;grid-template-columns:repeat(3,1fr);margin:0 0 6px;}
-.ih-stat{text-align:center;padding:2px 6px 10px;}
-.ih-stat + .ih-stat{border-left:1px solid var(--ih-hair);}
-.ih-num{font-family:'DM Serif Display',Georgia,serif;font-size:27px;line-height:1;color:var(--ih-ink);font-variant-numeric:tabular-nums;}
-.ih-num[data-sev="expired"]{color:var(--ih-red);}
-.ih-num[data-sev="amber"]{color:var(--ih-amber);}
-.ih-num[data-sev="ok"]{color:var(--ih-green);}
-.ih-num.zero{color:var(--ih-faint);}
-.ih-lbl{font-size:9px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ih-muted);margin-top:7px;}
+/* Two axes as soft-field inset panels. */
+.ih-axes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
+.ih-axis{background:var(--ih-cell);border:1px solid var(--ih-cell-bd);border-radius:12px;padding:14px 14px 13px;}
+.ih-al{font-size:9px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--ih-faint);}
+.ih-an{font-family:'DM Serif Display',Georgia,serif;font-size:44px;line-height:.86;margin-top:11px;
+  color:var(--ih-terra);letter-spacing:-.5px;font-variant-numeric:tabular-nums;}
+.ih-an.calm{color:var(--ih-faint);}
+.ih-as{font-size:12px;color:var(--ih-ink);font-weight:500;margin-top:9px;}
+.ih-af{font-size:11.5px;color:var(--ih-muted);margin-top:12px;padding-top:11px;border-top:1px solid #E7E9F0;}
+.ih-af b{color:var(--ih-ink);font-weight:600;}
 
-/* Attention rows — each a real button, deep-links to the needs-attention board. */
-.ih-list{display:flex;flex-direction:column;border-top:1px solid var(--ih-hair);margin-top:8px;}
-.ih-row{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:none;border:0;
-  border-bottom:1px solid var(--ih-hair);padding:10px 4px;cursor:pointer;font-family:inherit;transition:background .12s ease;}
-.ih-row:hover{background:#FAFAFC;}
-.ih-row:focus-visible{outline:none;box-shadow:0 0 0 2px #FAECE7 inset;border-radius:8px;}
-.ih-dot{width:7px;height:7px;border-radius:999px;flex:0 0 auto;background:var(--ih-faint);}
-.ih-dot[data-sev="expired"]{background:var(--ih-red);}
-.ih-dot[data-sev="amber"]{background:var(--ih-amber);}
-.ih-main{min-width:0;flex:1;}
-.ih-name{font-size:12.5px;font-weight:600;color:var(--ih-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ih-place{font-size:11px;color:var(--ih-faint);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ih-when{flex:none;font-size:11px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ih-amber);}
-.ih-when[data-sev="expired"]{color:var(--ih-red);}
-.ih-more{background:none;border:0;padding:9px 4px 0;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:600;color:var(--ih-muted);text-align:left;}
-.ih-more:hover{color:#C65A1A;}
+/* Worst-culprit strip — the single most-pressing item, a real button. */
+.ih-culprit{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;
+  margin-top:14px;padding:13px 2px 2px;border-top:1px solid var(--ih-hair);cursor:pointer;font-family:inherit;}
+.ih-culprit:focus-visible{outline:none;box-shadow:0 0 0 2px #FAECE7 inset;border-radius:8px;}
+.ih-cul-tag{flex:none;font-size:8.5px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ih-terra);
+  background:var(--ih-tint);padding:4px 8px;border-radius:999px;white-space:nowrap;}
+.ih-cul-main{min-width:0;flex:1;}
+.ih-cul-nm{font-size:13px;font-weight:600;color:var(--ih-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ih-cul-mt{font-size:11px;color:var(--ih-faint);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ih-culprit:hover .ih-cul-nm{color:var(--ih-terra-hi);}
 
-/* Calm all-healthy / empty states. */
-.ih-calm{padding:10px 4px 2px;font-size:12.5px;color:var(--ih-muted);}
+/* Calm / empty states. */
+.ih-calm{margin-top:14px;padding:13px 2px 2px;border-top:1px solid var(--ih-hair);font-size:12.5px;color:var(--ih-muted);}
 
 /* Error + loading. */
 .ih-err{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;padding:11px 12px;border-radius:10px;
@@ -49,4 +42,4 @@
 .ih-retry{background:none;border:0;padding:0;cursor:pointer;font-family:inherit;font-size:12.5px;font-weight:700;color:#9A2B12;text-decoration:underline;}
 .ih-load{display:flex;align-items:center;justify-content:center;padding:38px 0;}
 
-@media (prefers-reduced-motion:reduce){.ih-row{transition:none;}}
+@media (prefers-reduced-motion:reduce){.ih-culprit{transition:none;}}
