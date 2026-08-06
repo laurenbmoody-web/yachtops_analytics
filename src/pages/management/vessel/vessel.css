@@ -24,8 +24,6 @@
 }
 
 /* ── one account ──────────────────────────────────────────────────────────── */
-.mgv-accs { display: grid; gap: 16px; }
-
 
 .mgv-acc-h {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;

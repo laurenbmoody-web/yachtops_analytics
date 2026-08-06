@@ -1,15 +1,14 @@
-// The shore office's portal chrome.
+// The shore office's page frame — the crew dashboard's frame, not a sidebar.
 //
-// Modelled on SupplierLayout, not on the crew Header — because management are
-// the same kind of user a supplier is: an outside party with their own
-// workspace, their own team and a handful of sections, who is not crew on any
-// vessel. That layout is already the answer for that shape, so this mirrors it
-// (sidebar with grouped nav, sticky topbar, workspace identity at the top, the
-// person at the bottom) rather than inventing a third pattern.
+// Same three parts, in the same order, as pages/dashboard/index.jsx:
+//   .nav-header fixed top bar (+ its 64px spacer)
+//   a max-w-[1600px] centred container on the #F8FAFC ground
+//   a .cargo-editorial 12-column grid of .ce-card widgets
 //
-// Surfaces use the --d-* tokens from styles/editorial-tokens.css via the
-// .cargo-editorial scope, which is the same system the overview dashboard's
-// widgets are built on — so a card here and a card there are the same card.
+// The crew <Header /> itself can't be reused: it's vessel-scoped — search,
+// alerts, basket, a nav built from a tenant_members role — and a management user
+// has none of those. So this is the same bar with the office's own contents,
+// using the same global .nav-header class rather than a private copy of it.
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
@@ -22,27 +21,13 @@ import '../../../styles/editorial-tokens.css';
 import '../../dashboard/dashboard-widgets.css';
 import './management-layout.css';
 
-const NAV_GROUPS = [
-  {
-    label: 'Work',
-    items: [{ to: '/management', end: true, icon: 'LayoutDashboard', label: 'Fleet' }],
-  },
-  {
-    label: 'Your company',
-    items: [
-      { to: '/management/team', icon: 'Users', label: 'Team' },
-      { to: '/management/settings', icon: 'Building2', label: 'Company' },
-    ],
-  },
-];
-
 const initialsOf = (s) => {
   const parts = String(s || '').replace(/@.*$/, '').split(/[\s._-]+/).filter(Boolean);
   const two = parts.length > 1 ? parts[0][0] + parts[1][0] : String(s || '?').slice(0, 2);
   return two.toUpperCase();
 };
 
-export default function ManagementLayout({ title, eyebrow, actions, children }) {
+export default function ManagementLayout({ eyebrow, title, lede, actions, children }) {
   const navigate = useNavigate();
   const { company } = useManagementCompany();
   const { user } = useAuth();
@@ -52,65 +37,58 @@ export default function ManagementLayout({ title, eyebrow, actions, children }) 
     window.location.href = '/login-authentication';
   };
 
-  const name = user?.user_metadata?.full_name || user?.email || '';
+  const who = user?.user_metadata?.full_name || user?.email || '';
+  const nav = [
+    { to: '/management', end: true, label: 'Fleet' },
+    { to: '/management/team', label: canRunTeam(company?.permission_tier) ? 'Team' : 'Colleagues' },
+    { to: '/management/settings', label: 'Company' },
+  ];
 
   return (
-    <div className="cargo-editorial mgl">
-      <aside className="mgl-side">
-        <div className="mgl-logo" onClick={() => navigate('/management')} role="button" tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter') navigate('/management'); }}>
-          <Image src="/centered-logo.svg" alt="Cargo" />
+    <div className="min-h-screen" style={{ backgroundColor: '#F8FAFC' }}>
+      <header className="nav-header">
+        <div className="flex items-center gap-3 flex-shrink-0 cursor-pointer" onClick={() => navigate('/management')}>
+          <Image src="/centered-logo.svg" alt="Cargo" className="h-8 w-auto object-contain" />
+          <div className="text-muted-foreground text-xl">|</div>
+          {/* The firm, where the vessel name sits for crew — a management user
+              may also hold a crew login, so whose workspace this is matters. */}
+          <span className="mgl-co">{company?.company_name || 'Management'}</span>
         </div>
 
-        {/* Whose workspace this is. A management user may hold a Cargo login for
-            a boat too, so naming the firm up front removes the doubt. */}
-        <div className="mgl-who">
-          <span className="mgl-who-mark">{initialsOf(company?.company_name)}</span>
-          <span className="mgl-who-t">
-            <b>{company?.company_name || 'Management'}</b>
-            <em>{company?.vessels != null
-              ? `${company.vessels} ${company.vessels === 1 ? 'vessel' : 'vessels'}`
-              : 'Shore office'}</em>
-          </span>
-        </div>
-
-        <nav className="mgl-nav">
-          {NAV_GROUPS.map((g) => (
-            <div key={g.label} className="mgl-nav-group">
-              <div className="mgl-nav-label">{g.label}</div>
-              {g.items.map((it) => (
-                <NavLink key={it.to} to={it.to} end={it.end}
-                  className={({ isActive }) => `mgl-nav-item${isActive ? ' active' : ''}`}>
-                  <Icon name={it.icon} size={16} />
-                  <span>{it.label === 'Team' && !canRunTeam(company?.permission_tier) ? 'Colleagues' : it.label}</span>
-                </NavLink>
-              ))}
-            </div>
+        <nav className="flex items-center gap-1 flex-1 justify-center">
+          {nav.map((n) => (
+            <NavLink key={n.to} to={n.to} end={n.end}
+              className={({ isActive }) => `mgl-tab${isActive ? ' on' : ''}`}>
+              {n.label}
+            </NavLink>
           ))}
         </nav>
 
-        <div className="mgl-foot">
-          <span className="mgl-avatar">{initialsOf(name)}</span>
-          <span className="mgl-foot-t">
-            <b>{name}</b>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="mgl-who">
+            <b>{who}</b>
             <em>{tierLabel(company?.permission_tier)}</em>
           </span>
-          <button type="button" onClick={signOut} aria-label="Sign out" title="Sign out">
-            <Icon name="LogOut" size={15} />
+          <span className="mgl-avatar">{initialsOf(who)}</span>
+          <div className="w-px h-6 bg-border mx-1" />
+          <button type="button" className="mgl-out" onClick={signOut} title="Sign out" aria-label="Sign out">
+            <Icon name="LogOut" size={17} />
           </button>
         </div>
-      </aside>
+      </header>
+      <div className="h-16" aria-hidden="true" />
 
-      <div className="mgl-main">
-        <header className="mgl-top">
-          <div className="mgl-top-t">
+      <div className="max-w-[1600px] mx-auto p-6">
+        <div className="flex items-end justify-between gap-6 mb-6">
+          <div className="min-w-0">
             {eyebrow && <p className="ce-eyebrow"><span className="dot">●</span> {eyebrow}</p>}
-            <h1 className="mgl-top-h">{title}</h1>
+            <h1 className="mgl-h1">{title}</h1>
+            {lede && <p className="mgl-lede">{lede}</p>}
           </div>
-          {actions && <div className="mgl-top-a">{actions}</div>}
-        </header>
+          {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
+        </div>
 
-        <main className="mgl-body">{children}</main>
+        <div className="cargo-editorial">{children}</div>
       </div>
     </div>
   );
