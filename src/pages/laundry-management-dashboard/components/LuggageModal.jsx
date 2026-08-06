@@ -200,7 +200,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
       <div className="ow-case-body">
         {loading ? <p className="ow-hist-empty">Loading…</p> : (
           <div className="ow-wm-list">
-            {bags.length === 0 && !creating && <p className="ow-empty-note" style={{ padding: '8px 4px' }}>No bags yet. Create one to pack {person.name === 'Owner' ? 'the owner’s' : `${person.name}’s`} things for travel.</p>}
+            {bags.length === 0 && !creating && <p className="ow-empty-note ow-lug-empty">No bags yet. Create one to pack {person.name === 'Owner' ? 'the owner’s' : `${person.name}’s`} things for travel.</p>}
             {bags.map((c) => {
               const n = personItems.filter((i) => i.caseId === c.id).length;
               const s = STATE[c.status] || STATE.open;
