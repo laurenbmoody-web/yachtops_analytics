@@ -5,7 +5,7 @@ import {
   cleanScopes, describeScopes, scopeLabel,
   tierLabel, canRunTeam, canSignOffAs,
   TEAM_TIERS, TIER_POWERS, tierCan, engagementNote,
-  VESSEL_AREAS, areaState, SCOPES,
+  VESSEL_AREAS, areaState, SCOPES, monthReadiness, monthActivity,
 } from './managementView.js';
 
 const eng = (over = {}) => ({
@@ -144,4 +144,29 @@ test('every area is gated on a real scope', () => {
   VESSEL_AREAS.forEach((a) => {
     if (a.scope) assert.ok(known.includes(a.scope), `${a.key} gated on unknown scope ${a.scope}`);
   });
+});
+
+test('readiness tells "nothing to do" apart from "nothing ready"', () => {
+  assert.equal(monthReadiness({ count: 0 }).pct, null);
+  assert.equal(monthReadiness({ count: 4, uncoded: 0, unevidenced: 0 }).pct, 100);
+  assert.equal(monthReadiness({ count: 4, uncoded: 4, unevidenced: 4 }).pct, 0);
+});
+
+test('a line that is both uncoded and unevidenced is only blocked once', () => {
+  // Adding the two counts would claim 4 of 4 lines blocked when it may be 2.
+  const r = monthReadiness({ count: 4, uncoded: 2, unevidenced: 2 });
+  assert.equal(r.blocked, 2);
+  assert.equal(r.ready, 2);
+  assert.equal(r.pct, 50);
+});
+
+test('activity is built from the stamps, newest first', () => {
+  const acts = monthActivity([
+    { id: '1', account_id: 'a', submitted_at: '2026-07-28T09:00:00Z', approved_at: '2026-07-30T09:00:00Z' },
+    { id: '2', account_id: 'b', queried_at: '2026-07-29T09:00:00Z', query_note: 'Fuel receipt' },
+  ], { a: { name: 'Deck card' }, b: { name: 'Galley card' } });
+
+  assert.deepEqual(acts.map((x) => x.kind), ['signed', 'queried', 'closed']);
+  assert.equal(acts[0].name, 'Deck card');
+  assert.equal(acts[1].note, 'Fuel receipt');
 });

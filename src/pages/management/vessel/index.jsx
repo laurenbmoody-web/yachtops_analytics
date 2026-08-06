@@ -24,6 +24,7 @@ import {
 import {
   closesMap, linesForPeriod, accountMonth, reconciliationState,
   canSignOff, canQuery, monthKeyOf, canSignOffAs, VESSEL_AREAS, areaState,
+  monthReadiness, monthActivity,
 } from '../../../services/managementView';
 import { formatMoney } from '../../../services/financeCalc';
 import '../management.css';
@@ -108,6 +109,12 @@ export default function ManagementVessel() {
   const vesselName = pack?.vessel?.name || vessel?.vessel_name || 'Vessel';
   const scopes = vessel?.scopes || [];
   const waiting = view.filter((m) => canSignOff(m.reconciliation)).length;
+  // The office's own trail on this boat, from the reconciliation stamps rather
+  // than a separate log — so it cannot drift from what actually happened.
+  const activity = useMemo(() => monthActivity(
+    pack?.reconciliations,
+    Object.fromEntries((pack?.accounts || []).map((a) => [a.id, a])),
+  ), [pack]);
 
   const act = async () => {
     if (!asking) return;
@@ -123,6 +130,7 @@ export default function ManagementVessel() {
     setAsking(null); setNote(''); setErr(null);
     loadMonth();
   };
+
 
   return (
     <ManagementLayout
@@ -140,90 +148,73 @@ export default function ManagementVessel() {
       {err && <div className="mg-banner bad mb-4"><Icon name="AlertCircle" size={15} /> {err}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* The areas of the vessel, as widgets. */}
-        {VESSEL_AREAS.map((a) => {
-          const st = areaState(a, scopes);
-          return (
-            <div key={a.key} className="lg:col-span-4">
-              <div className={`ce-card rounded-xl p-5 mg-area${st === 'live' ? ' is-live' : ''}`}>
-                <div className="flex items-start justify-between">
-                  <span className={`mg-area-ic${st === 'live' ? ' on' : ''}`}>
-                    <Icon name={a.icon} size={17} />
-                  </span>
-                  {st !== 'live' && (
-                    <span className={`mg-area-tag${st === 'not shared' ? ' off' : ''}`}>
-                      {st === 'not shared' ? 'Not shared' : 'Planned'}
-                    </span>
-                  )}
-                </div>
-                <h3 className="ce-title mt-4">{a.label}</h3>
-                <p className="ce-status">
-                  {st === 'not shared'
-                    ? `${vesselName} didn’t include this in your engagement.`
-                    : st === 'live'
-                      ? (periods.length
-                        ? `${periods.length} ${periods.length === 1 ? 'month' : 'months'} closed · through ${periodLabel(periods[0]?.period_month)}`
-                        : 'No months closed yet')
-                      : a.note}
-                </p>
-              </div>
+        {/* ── LEFT: the substance ───────────────────────────────────────── */}
+        <div className="lg:col-span-8 flex flex-col gap-6">
+          {!periods.length ? (
+            <div className="ce-card rounded-xl p-5">
+              <h3 className="ce-title">Month-end spending</h3>
+              <p className="ce-status">
+                {vesselName} hasn’t closed a month yet. It appears here the moment they do.
+              </p>
             </div>
-          );
-        })}
+          ) : loading ? (
+            <div className="ce-card rounded-xl mg-ghost" />
+          ) : view.map((m) => {
+            const state = reconciliationState(m.reconciliation);
+            const cur = m.account.currency;
+            const money = (n) => formatMoney(n, cur);
+            const rd = monthReadiness(m);
+            const reasons = [];
+            if (m.uncoded) reasons.push(`${m.uncoded} not coded`);
+            if (m.unevidenced) reasons.push(`${m.unevidenced} without a receipt`);
+            m.mismatches.forEach((x) => reasons.push(`${x.label} out by ${money(Math.abs(x.gap))}`));
 
-        {/* The live one, opened in place. */}
-        {scopes.includes('accounts') && periods.length > 0 && (
-          <div className="lg:col-span-12">
-            <div className="flex items-end justify-between gap-4 mt-2">
-              <div>
-                <p className="ce-eyebrow"><span className="dot">●</span> Month-end spending</p>
-                <h2 className="mgl-h1" style={{ fontSize: 26 }}>{periodLabel(period)}</h2>
-              </div>
-              {periods.length > 1 && (
-                <div className="mgv-periods">
-                  {periods.map((p) => (
-                    <button key={p.period_month} type="button"
-                      className={`mgv-period${p.period_month === period ? ' on' : ''}`}
-                      onClick={() => setPeriod(p.period_month)}>
-                      {periodLabel(p.period_month)}
-                      {p.awaiting > 0 && <span className="mgv-pill">{p.awaiting}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="lg:col-span-12"><p className="ce-status">Loading…</p></div>
-        ) : !periods.length ? null : view.map((m) => {
-          const state = reconciliationState(m.reconciliation);
-          const cur = m.account.currency;
-          const money = (n) => formatMoney(n, cur);
-          const reasons = [];
-          if (m.uncoded) reasons.push(`${m.uncoded} not coded`);
-          if (m.unevidenced) reasons.push(`${m.unevidenced} without a receipt`);
-          m.mismatches.forEach((x) => reasons.push(`${x.label} out by ${money(Math.abs(x.gap))}`));
-
-          return (
-            <div key={m.account.id} className="lg:col-span-6">
-              <section className="ce-card rounded-xl p-5">
-                <div className="mgv-acc-h">
-                  <span className="mgv-acc-n">
-                    <b>{m.account.name}</b>
-                    {m.account.card_last4 && m.account.card_last4 !== '0000' && <em>••{m.account.card_last4}</em>}
-                  </span>
+            return (
+              <section key={m.account.id} className="ce-card rounded-xl p-5">
+                {/* Header in the crew widget's shape: noun, live status, action */}
+                <div className="flex items-start justify-between mb-5">
+                  <div>
+                    <h3 className="ce-title">
+                      {m.account.name}
+                      {m.account.card_last4 && m.account.card_last4 !== '0000' && (
+                        <span className="mgv-last4">••{m.account.card_last4}</span>
+                      )}
+                    </h3>
+                    <p className={`ce-status${canSignOff(m.reconciliation) ? ' is-attention' : ''}`}>
+                      {periodLabel(period)} · {state}
+                    </p>
+                  </div>
                   <span className={`mgv-state s-${state.replace(/\s+/g, '-')}`}>{state}</span>
+                </div>
+
+                {/* The number, the bar, then what the bar means. */}
+                <div className="flex items-start justify-between">
+                  <p className="text-xs" style={{ color: 'var(--d-muted)' }}>Money out this month</p>
+                  <p className="mgv-big">{money(Math.abs(m.moneyOut))}</p>
+                </div>
+
+                <div className="mgv-bar" title={`${rd.ready} of ${rd.total} lines coded and evidenced`}>
+                  <div className={`fill${rd.pct === 100 ? ' full' : ''}`} style={{ width: `${rd.pct ?? 0}%` }} />
+                </div>
+
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-sm">
+                    <b style={{ color: 'var(--d-navy-deep)' }}>{rd.pct == null ? '—' : `${rd.pct}%`}</b>
+                    <span className="text-xs ml-1.5" style={{ color: 'var(--d-muted)' }}>
+                      {rd.pct === 100 ? 'ready to sign' : `ready · ${rd.blocked} to chase`}
+                    </span>
+                  </span>
+                  <span className="text-right">
+                    <b className="text-sm" style={{ color: 'var(--d-navy-deep)' }}>{money(m.reconciliation?.closing_balance)}</b>
+                    <span className="block text-xs" style={{ color: 'var(--d-muted)' }}>Closing balance</span>
+                  </span>
                 </div>
 
                 <div className="mgv-eq">
                   <div className="r"><span>Opening</span><b>{money(m.reconciliation?.opening_balance)}</b></div>
                   <div className="r"><span>Money in</span><b>{money(m.moneyIn)}</b></div>
-                  <div className="r"><span>Money out</span><b>{money(Math.abs(m.moneyOut))}</b></div>
-                  <div className="r is-tot"><span>Closing</span><b>{money(m.reconciliation?.closing_balance)}</b></div>
+                  <div className="r"><span>Lines</span><b>{m.count}</b></div>
                 </div>
-                <p className="mgv-sub">{m.count} {m.count === 1 ? 'line' : 'lines'} in this month</p>
 
                 {reasons.length > 0 ? (
                   <p className="mgv-reasons"><Icon name="AlertCircle" size={14} />{reasons.join(' · ')}</p>
@@ -267,9 +258,74 @@ export default function ManagementVessel() {
                   </p>
                 )}
               </section>
+            );
+          })}
+        </div>
+
+        {/* ── RIGHT: at a glance ───────────────────────────────────────── */}
+        <div className="lg:col-span-4 flex flex-col gap-6">
+          {periods.length > 1 && (
+            <div className="ce-card rounded-xl p-5">
+              <h3 className="ce-title">Months</h3>
+              <p className="ce-status mb-3">Closed by {vesselName}</p>
+              <div className="mgv-months">
+                {periods.map((p) => (
+                  <button key={p.period_month} type="button"
+                    className={`mgv-month${p.period_month === period ? ' on' : ''}`}
+                    onClick={() => setPeriod(p.period_month)}>
+                    <span>{periodLabel(p.period_month)}</span>
+                    {p.awaiting > 0
+                      ? <em className="due">{p.awaiting} to sign</em>
+                      : <em>{p.signed_off > 0 ? 'Signed off' : 'With the vessel'}</em>}
+                  </button>
+                ))}
+              </div>
             </div>
-          );
-        })}
+          )}
+
+          {/* Everything the vessel shares, in one strip rather than a card each —
+              six near-empty cards is what made this page read as unfinished. */}
+          <div className="ce-card rounded-xl p-5">
+            <h3 className="ce-title">What {vesselName} shares</h3>
+            <p className="ce-status mb-3">Only their command can change this</p>
+            <div className="mgv-areas">
+              {VESSEL_AREAS.map((a) => {
+                const st = areaState(a, scopes);
+                return (
+                  <div key={a.key} className={`mgv-area s-${st.replace(/\s+/g, '-')}`}>
+                    <span className="ic"><Icon name={a.icon} size={15} /></span>
+                    <span className="t">{a.label}</span>
+                    <span className="s">
+                      {st === 'live' ? 'Shared' : st === 'not shared' ? 'Not shared' : 'Planned'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {activity.length > 0 && (
+            <div className="ce-card rounded-xl p-5">
+              <h3 className="ce-title">Recent</h3>
+              <p className="ce-status mb-3">On {periodLabel(period)}</p>
+              <div className="mgv-acts">
+                {activity.slice(0, 6).map((a) => (
+                  <div key={a.key} className={`mgv-act-row k-${a.kind}`}>
+                    <span className="dot" />
+                    <span className="t">
+                      <b>{a.name}</b>
+                      <em>
+                        {a.kind === 'signed' ? 'signed off' : a.kind === 'queried' ? 'sent back' : 'closed by the vessel'}
+                        {a.note ? ` — ${a.note}` : ''}
+                      </em>
+                    </span>
+                    <span className="d">{dmy(a.at)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Naming the vessel and month back before either action happens. */}
