@@ -324,6 +324,10 @@
    garment-viewer height. */
 .ow-case { grid-template-columns: none !important; display: flex !important; flex-direction: column; max-width: 560px; height: auto; max-height: min(88vh, 720px); }
 .ow-case > .ow-case-body { flex: 0 1 auto; }
+/* The garment viewer got its footer inset from a padded wrapper; the case /
+   luggage modal has none, so pad the action bar itself — otherwise buttons sit
+   flush against the modal edges. */
+.ow-case > .ow-full-actions { padding: 14px 18px 16px; }
 .ow-case-head { flex: none; padding: 22px 22px 14px; border-bottom: 1px solid #EEF0F4; }
 .ow-case-head .ow-full-nm { display: flex; align-items: center; gap: 9px; }
 .ow-case-head .ow-full-nm svg { color: #C65A1A; flex: none; }
@@ -354,6 +358,10 @@
 .ow-lug { max-width: 560px; height: auto; max-height: min(88vh, 720px); }
 .ow-lug .ow-case-body { flex: 0 1 auto; }
 .ow-lug-empty { margin: 0 auto; padding: 34px 4px; }
+/* Compact empty-state CTA inside the luggage modal (page tiles are too tall). */
+.ow-lug .ow-emptybig { padding: 20px 8px 26px; gap: 12px; }
+.ow-lug .ow-addtile-big { min-height: 148px; width: 220px; }
+.ow-lug-emptyic { width: 46px; height: 46px; border-radius: 999px; background: #FBEFE9; color: #C65A1A; display: grid; place-items: center; }
 .ow-lug .ow-eyebrow { display: block; margin-bottom: 4px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .ow-lug-detail-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .ow-lug-back { display: inline-flex; align-items: center; gap: 5px; padding: 0; background: none; border: none; cursor: pointer; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
