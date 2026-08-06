@@ -14,6 +14,12 @@
 .ow-dialog { width: 100%; max-width: 440px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32); display: flex; flex-direction: column; overflow: hidden; }
 .ow-dialog-body { padding: 16px 26px 6px; font: 500 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #4B5563; line-height: 1.5; }
 .ow-dialog-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 18px 26px 22px; }
+/* Field body for dialogs built from the ow-l / ow-input field system (they
+   have no inset of their own, unlike ow-field). Matches the 26px head/foot. */
+.ow-dialog-fields { padding: 18px 26px 6px; display: flex; flex-direction: column; gap: 14px; }
+.ow-fieldcol { display: flex; flex-direction: column; gap: 6px; }
+.ow-fieldcol .ow-l { margin-top: 0; }
+.ow-dialog-hint { margin: 2px 0 0; font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; line-height: 1.5; }
 .ow-field-l { padding: 16px 26px 0; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.9px; text-transform: uppercase; color: #8B8478; }
 .ow-field { margin: 8px 26px 0; padding: 10px 12px; border: 1px solid #E5E7EB; border-radius: 10px; background: #FAFAF8; font: 500 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
 .ow-field:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }
