@@ -320,8 +320,10 @@
 .ow-case-new { display: flex; flex-direction: column; gap: 8px; padding: 10px 6px; }
 .ow-case-new-acts { display: flex; justify-content: flex-end; gap: 8px; }
 
-/* Case movement modal */
-.ow-case { grid-template-columns: none !important; display: flex !important; flex-direction: column; max-width: 560px; }
+/* Case movement modal — size to content (cap + scroll), not the tall fixed
+   garment-viewer height. */
+.ow-case { grid-template-columns: none !important; display: flex !important; flex-direction: column; max-width: 560px; height: auto; max-height: min(88vh, 720px); }
+.ow-case > .ow-case-body { flex: 0 1 auto; }
 .ow-case-head { flex: none; padding: 22px 22px 14px; border-bottom: 1px solid #EEF0F4; }
 .ow-case-head .ow-full-nm { display: flex; align-items: center; gap: 9px; }
 .ow-case-head .ow-full-nm svg { color: #C65A1A; flex: none; }
@@ -347,7 +349,11 @@
 
 /* Per-person luggage hub */
 .ow-person-acts { margin-left: auto; display: flex; gap: 8px; flex: none; }
-.ow-lug { max-width: 640px; }
+/* Size to content (cap + scroll) rather than the tall fixed garment-viewer
+   height — a short bag list shouldn't leave a big empty void. */
+.ow-lug { max-width: 560px; height: auto; max-height: min(88vh, 720px); }
+.ow-lug .ow-case-body { flex: 0 1 auto; }
+.ow-lug-empty { margin: 0 auto; padding: 34px 4px; }
 .ow-lug .ow-eyebrow { display: block; margin-bottom: 4px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .ow-lug-back { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 8px; padding: 0; background: none; border: none; cursor: pointer; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
 .ow-lug-back:hover { color: #C65A1A; }
