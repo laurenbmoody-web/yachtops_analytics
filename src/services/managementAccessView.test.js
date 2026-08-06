@@ -5,6 +5,7 @@ import {
   cleanScopes, describeScopes, scopeLabel,
   tierLabel, canRunTeam, canSignOffAs,
   TEAM_TIERS, TIER_POWERS, tierCan, engagementNote,
+  VESSEL_AREAS, areaState, SCOPES,
 } from './managementView.js';
 
 const eng = (over = {}) => ({
@@ -116,4 +117,31 @@ test('the engagement note says who is in charge of it', () => {
   assert.match(engagementNote([{ active: true }]), /^1 vessel has engaged you\./);
   assert.match(engagementNote([{ active: true }, { active: true }, { active: false }]),
     /^2 vessels have engaged you\./);
+});
+
+test('a vessel area says which of the three things it is', () => {
+  const accounts = VESSEL_AREAS.find((a) => a.key === 'accounts');
+  const hor = VESSEL_AREAS.find((a) => a.key === 'hor');
+
+  // Shared and served.
+  assert.equal(areaState(accounts, ['accounts']), 'live');
+  // Shared, but Cargo doesn't serve it to management yet.
+  assert.equal(areaState(hor, ['hor']), 'planned');
+  // The vessel left it out of the engagement — not a gap in Cargo.
+  assert.equal(areaState(accounts, ['hor']), 'not shared');
+  assert.equal(areaState(accounts, []), 'not shared');
+});
+
+test('only areas Cargo actually serves are marked live', () => {
+  // A widget that looks live and isn't is worse than an honest gap, so the
+  // live flag has to stay in step with what a reader function exists for.
+  const live = VESSEL_AREAS.filter((a) => a.live).map((a) => a.key);
+  assert.deepEqual(live, ['accounts']);
+});
+
+test('every area is gated on a real scope', () => {
+  const known = SCOPES.map((s) => s.key);
+  VESSEL_AREAS.forEach((a) => {
+    if (a.scope) assert.ok(known.includes(a.scope), `${a.key} gated on unknown scope ${a.scope}`);
+  });
 });

@@ -97,3 +97,24 @@
 }
 .mg-banner.bad { background: var(--d-danger-soft); color: var(--d-danger); }
 .mg-banner.good { background: var(--d-success-soft); color: var(--d-success); }
+
+/* ── vessel area widgets ──────────────────────────────────────────────────── */
+.mg-area { display: flex; flex-direction: column; min-height: 168px; }
+.mg-area .ce-title { line-height: 1.15; }
+.mg-area:not(.is-live) { opacity: 0.78; }
+
+.mg-area-ic {
+  width: 38px; height: 38px; border-radius: 11px;
+  display: grid; place-items: center;
+  background: var(--d-border-soft); color: var(--d-muted);
+}
+.mg-area-ic.on { background: var(--d-cream-warm); color: var(--d-orange); }
+
+.mg-area-tag {
+  padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+  background: var(--d-border-soft); color: var(--d-muted);
+  font-size: 11px; font-weight: 600;
+}
+/* "Not shared" is the vessel's decision, not a gap in Cargo — worth reading
+   differently from "Planned". */
+.mg-area-tag.off { background: var(--d-warn-soft); color: var(--d-warn); }
