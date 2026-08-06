@@ -37,6 +37,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
   const [editMeta, setEditMeta] = useState(false);
   const [mCabin, setMCabin] = useState('');
   const [mDest, setMDest] = useState('');
+  const [hubMode, setHubMode] = useState(initialMode === 'unpack' ? 'unpack' : 'pack'); // which door we came in by
 
   const isPersons = (c) => (person.id === 'owner' ? !c.ownerGuestId : c.ownerGuestId === person.id);
   const refresh = async () => {
@@ -50,12 +51,12 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
     }
   };
   useEffect(() => { refresh(); /* eslint-disable-next-line */ }, []);
-  // If opened to unpack and a returning bag exists, jump straight into it.
+  // Opened to unpack and exactly one bag is out → jump straight into it.
   useEffect(() => {
     if (loading || activeId) return;
-    if (initialMode === 'unpack') {
-      const back = bags.find((b) => b.status === 'sent' || b.status === 'received');
-      if (back) setActiveId(back.id);
+    if (hubMode === 'unpack') {
+      const out = bags.filter((b) => b.status === 'sent' || b.status === 'received');
+      if (out.length === 1) setActiveId(out[0].id);
     }
     // eslint-disable-next-line
   }, [loading]);
@@ -190,53 +191,70 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
   };
 
   // ---- The person's bag list ----
+  const outBags = bags.filter((b) => b.status === 'sent' || b.status === 'received');
+  const listBags = hubMode === 'unpack' ? outBags : bags;
+  const startCreate = () => { setCreating(true); setNCabin(person?.cabin || ''); };
+  const bagRow = (c) => {
+    const n = personItems.filter((i) => i.caseId === c.id).length;
+    const s = STATE[c.status] || STATE.open;
+    const cover = (c.exteriorPhotos || [])[0];
+    return (
+      <button type="button" className="ow-wm-row ow-case-open" key={c.id} onClick={() => openBag(c.id)}>
+        <span className="ow-lug-cover">{cover && photoUrl(cover) ? <img src={photoUrl(cover)} alt="" /> : <Icon name="Luggage" size={16} />}</span>
+        <div className="ow-wm-main">
+          <span className="ow-wm-nm">{c.name}</span>
+          <span className="ow-wm-sub">{[c.cabin || null, c.destination ? `→ ${c.destination}` : null, `${n} garment${n === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}</span>
+        </div>
+        <span className={`ow-status sm ${s.cls}`}>{s.label}</span>
+        <Icon name="ChevronRight" size={16} className="ow-chooser-chev" />
+      </button>
+    );
+  };
+  const createForm = (
+    <div className="ow-case-new">
+      <input className="ow-input" autoFocus placeholder="Bag name (e.g. Large Rimowa, Ski bag)" value={nName} onChange={(e) => setNName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') createBag(); }} />
+      <div className="ow-row2">
+        <input className="ow-input" placeholder="Cabin" value={nCabin} onChange={(e) => setNCabin(e.target.value)} />
+        <input className="ow-input" placeholder="Destination (optional)" value={nDest} onChange={(e) => setNDest(e.target.value)} />
+      </div>
+      <div className="ow-case-new-acts">
+        <button type="button" className="ow-btn ghost" onClick={() => setCreating(false)}>Cancel</button>
+        <button type="button" className="ow-btn primary" disabled={!nName.trim() || busy} onClick={createBag}>{busy ? 'Creating…' : 'Create bag'}</button>
+      </div>
+    </div>
+  );
+  const whose = person.name === 'Owner' ? 'the owner’s' : `${person.name}’s`;
   const listScreen = (
     <>
       <div className="ow-case-head">
-        <span className="ow-eyebrow">Luggage</span>
+        <span className="ow-eyebrow">Luggage · {hubMode === 'unpack' ? 'Unpack' : 'Pack'}</span>
         <h2 className="ow-full-nm"><Icon name="Luggage" size={20} /> {person.name}</h2>
-        <p className="ow-full-brand">{person.cabin ? `${person.cabin} · ` : ''}{bags.length} bag{bags.length === 1 ? '' : 's'}</p>
+        <p className="ow-full-brand">{person.cabin ? `${person.cabin} · ` : ''}{listBags.length} bag{listBags.length === 1 ? '' : 's'}{hubMode === 'unpack' ? ' out' : ''}</p>
       </div>
       <div className="ow-case-body">
-        {loading ? <p className="ow-hist-empty">Loading…</p> : (
-          <div className="ow-wm-list">
-            {bags.length === 0 && !creating && <p className="ow-empty-note ow-lug-empty">No bags yet. Create one to pack {person.name === 'Owner' ? 'the owner’s' : `${person.name}’s`} things for travel.</p>}
-            {bags.map((c) => {
-              const n = personItems.filter((i) => i.caseId === c.id).length;
-              const s = STATE[c.status] || STATE.open;
-              const cover = (c.exteriorPhotos || [])[0];
-              return (
-                <button type="button" className="ow-wm-row ow-case-open" key={c.id} onClick={() => openBag(c.id)}>
-                  <span className="ow-lug-cover">{cover && photoUrl(cover) ? <img src={photoUrl(cover)} alt="" /> : <Icon name="Luggage" size={16} />}</span>
-                  <div className="ow-wm-main">
-                    <span className="ow-wm-nm">{c.name}</span>
-                    <span className="ow-wm-sub">{[c.cabin || null, c.destination ? `→ ${c.destination}` : null, `${n} garment${n === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}</span>
-                  </div>
-                  <span className={`ow-status sm ${s.cls}`}>{s.label}</span>
-                  <Icon name="ChevronRight" size={16} className="ow-chooser-chev" />
-                </button>
-              );
-            })}
-            {creating && (
-              <div className="ow-case-new">
-                <input className="ow-input" autoFocus placeholder="Bag name (e.g. Large Rimowa, Ski bag)" value={nName} onChange={(e) => setNName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') createBag(); }} />
-                <div className="ow-row2">
-                  <input className="ow-input" placeholder="Cabin" value={nCabin} onChange={(e) => setNCabin(e.target.value)} />
-                  <input className="ow-input" placeholder="Destination (optional)" value={nDest} onChange={(e) => setNDest(e.target.value)} />
+        {loading ? <p className="ow-hist-empty">Loading…</p>
+          : creating ? createForm
+            : listBags.length === 0 ? (
+              hubMode === 'unpack' ? (
+                <div className="ow-emptybig">
+                  <span className="ow-lug-emptyic"><Icon name="PackageOpen" size={26} /></span>
+                  <p className="ow-empty-note">Nothing to unpack — none of {whose} bags are out right now.</p>
+                  {bags.length > 0 && <button type="button" className="ow-btn ghost" onClick={() => setHubMode('pack')}>View all bags</button>}
                 </div>
-                <div className="ow-case-new-acts">
-                  <button type="button" className="ow-btn ghost" onClick={() => setCreating(false)}>Cancel</button>
-                  <button type="button" className="ow-btn primary" disabled={!nName.trim() || busy} onClick={createBag}>{busy ? 'Creating…' : 'Create bag'}</button>
+              ) : (
+                <div className="ow-emptybig">
+                  <button type="button" className="ow-addtile ow-addtile-big" onClick={startCreate}><Icon name="Plus" size={28} /><span>Create the first bag</span></button>
+                  <p className="ow-empty-note">Photograph the luggage inside and out, then pack {whose} garments for travel.</p>
                 </div>
-              </div>
+              )
+            ) : (
+              <div className="ow-wm-list">{listBags.map(bagRow)}</div>
             )}
-          </div>
-        )}
       </div>
-      {!creating && (
+      {!creating && hubMode === 'pack' && listBags.length > 0 && (
         <div className="ow-full-actions">
           <span style={{ flex: 1 }} />
-          <button type="button" className="ow-btn primary" onClick={() => { setCreating(true); setNCabin(person?.cabin || ''); }}><Icon name="Plus" size={15} /> New bag</button>
+          <button type="button" className="ow-btn primary" onClick={startCreate}><Icon name="Plus" size={15} /> New bag</button>
         </div>
       )}
     </>
