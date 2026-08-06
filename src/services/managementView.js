@@ -237,3 +237,55 @@ export const engagementNote = (engagements = []) => {
   if (!live.length) return 'No vessel has engaged you yet.';
   return `${live.length} ${live.length === 1 ? 'vessel has' : 'vessels have'} engaged you. Each decides what you can see — only their command can change or end it.`;
 };
+
+// ── the areas of a vessel, as the office sees them ───────────────────────────
+// A vessel dashboard is a grid of these. Each says one of three things, and the
+// difference matters more than the styling:
+//
+//   live        the vessel shared it AND Cargo serves it to management
+//   not shared  the area exists, but this vessel left it out of the engagement.
+//               Only their command can change that — so the widget says so
+//               rather than offering a control that isn't the office's to use
+//   planned     Cargo doesn't serve this to management yet. Named plainly, the
+//               same way /month-end marks its own unbuilt packs, because a
+//               widget that looks live and isn't is worse than an honest gap
+//
+// `scope` is the engagement scope that unlocks it (null = not scope-gated).
+export const VESSEL_AREAS = [
+  {
+    key: 'accounts', scope: 'accounts', icon: 'Wallet', live: true,
+    label: 'Month-end spending',
+    note: 'Closed months, the lines under them, and signing them off',
+  },
+  {
+    key: 'hor', scope: 'hor', icon: 'Clock', live: false,
+    label: 'Hours of Rest',
+    note: 'The signed monthly rest-hours pack. Not served to management yet.',
+  },
+  {
+    key: 'month_end', scope: 'month_end', icon: 'CalendarCheck', live: false,
+    label: 'Monthly checks',
+    note: 'Sea time, drills and the rest of the close-off. Not served yet.',
+  },
+  {
+    key: 'documents', scope: 'month_end', icon: 'FileText', live: false,
+    label: 'Documents',
+    note: 'Certificates, registrations and their expiries. Not served yet.',
+  },
+  {
+    key: 'suppliers', scope: 'accounts', icon: 'ClipboardCheck', live: false,
+    label: 'Quotes & supplier sign-offs',
+    note: 'Orders awaiting an office approval. Not served yet.',
+  },
+  {
+    key: 'safety', scope: 'month_end', icon: 'LifeBuoy', live: false,
+    label: 'Safety',
+    note: 'Drills, defects and the safety log. Not served yet.',
+  },
+];
+
+// What a widget should say about itself, given what this vessel shared.
+export const areaState = (area, scopes = []) => {
+  if (area?.scope && !(scopes || []).includes(area.scope)) return 'not shared';
+  return area?.live ? 'live' : 'planned';
+};
