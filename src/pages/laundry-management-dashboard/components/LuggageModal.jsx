@@ -16,7 +16,7 @@ import './ownerWardrobe.css';
 // — a photographed record (exterior to identify it, interior as the repack
 // reference). Garments physically inside a bag carry its case_id; unpacking
 // moves them into a wardrobe, packing moves them back in.
-const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], showValue = true, initialMode = 'pack', onChanged, onClose }) => {
+const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], showValue = true, initialMode = 'pack', packIds = [], onChanged, onClose }) => {
   const [bags, setBags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState(null); // null = the bag list
@@ -35,6 +35,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
   const [mCabin, setMCabin] = useState('');
   const [mDest, setMDest] = useState('');
   const [hubMode, setHubMode] = useState(initialMode === 'unpack' ? 'unpack' : 'pack');
+  const [pending, setPending] = useState(packIds); // garments awaiting a bag (from a Pack selection)
   const unpacking = hubMode === 'unpack';
 
   const isPersons = (c) => (person.id === 'owner' ? !c.ownerGuestId : c.ownerGuestId === person.id);
@@ -69,9 +70,18 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
       ownerGuestId: person.id === 'owner' ? null : person.id,
     });
     setBusy(false);
-    if (c) { setCreating(false); setNName(''); setNDest(''); await refresh(); onChanged?.(); openBag(c.id); }
+    if (c) {
+      setCreating(false); setNName(''); setNDest(''); await refresh(); onChanged?.();
+      if (pending.length) packInto(c.id); else openBag(c.id);
+    }
   };
   const startCreate = () => { setCreating(true); setNCabin(person?.cabin || ''); };
+  // Drop the pending (Pack-selected) garments into the chosen bag, then open it.
+  const packInto = async (bagId) => {
+    setBusy(true);
+    if (pending.length) await setLaundryItemsCase(pending, bagId);
+    setPending([]); setBusy(false); onChanged?.(); await refresh(); openBag(bagId);
+  };
 
   const saveMeta = async () => {
     if (!bag) return;
@@ -157,7 +167,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
     const n = personItems.filter((i) => i.caseId === c.id).length;
     const cover = (c.exteriorPhotos || [])[0];
     return (
-      <button type="button" className="ow-wm-row ow-case-open" key={c.id} onClick={() => openBag(c.id)}>
+      <button type="button" className="ow-wm-row ow-case-open" key={c.id} onClick={() => (pending.length ? packInto(c.id) : openBag(c.id))}>
         <span className="ow-lug-cover">{cover && photoUrl(cover) ? <img src={photoUrl(cover)} alt="" /> : <Icon name="Luggage" size={16} />}</span>
         <div className="ow-wm-main">
           <span className="ow-wm-nm">{c.name}</span>
@@ -189,6 +199,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
         <p className="ow-full-brand">{person.cabin ? `${person.cabin} · ` : ''}{bags.length} bag{bags.length === 1 ? '' : 's'}</p>
       </div>
       <div className="ow-case-body">
+        {pending.length > 0 && !creating && <div className="ow-case-note">Packing {pending.length} garment{pending.length === 1 ? '' : 's'} — choose a bag or create one.</div>}
         {loading ? <p className="ow-hist-empty">Loading…</p>
           : creating ? createForm
             : bags.length === 0 ? (
