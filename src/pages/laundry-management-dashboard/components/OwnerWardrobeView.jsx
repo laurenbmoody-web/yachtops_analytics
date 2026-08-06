@@ -102,9 +102,17 @@ const PromptModal = ({ title, label, placeholder, submitLabel = 'Create', onSubm
   );
 };
 
-// Owner wardrobe catalogue: image-first grid of resident garments, with search
-// + scan, dropdown filter/sort, multi-select bulk actions, and a full view.
-const OwnerWardrobeView = ({ onBack }) => {
+// People wardrobe catalogue: image-first grid of resident garments, with search
+// + scan, dropdown filter/sort, multi-select bulk actions, a full view, and the
+// per-person luggage hub. Scoped to the owner world (the owner + owner guests)
+// or the guest world (charter guests) via `scope`.
+const SCOPE_CFG = {
+  owner: { wardrobeScope: 'owner', title: ['STORED', 'onboard'], subject: 'owner', peopleWord: 'owners', ownerBucket: true, manifest: 'Owner wardrobe' },
+  guest: { wardrobeScope: 'guest', title: ['GUESTS', 'aboard'], subject: 'guest', peopleWord: 'guests', ownerBucket: false, manifest: 'Guest wardrobe' },
+};
+const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
+  const cfg = SCOPE_CFG[scope] || SCOPE_CFG.owner;
+  const isGuest = scope === 'guest';
   const showValue = canViewCost(); // garment value is cost data — Command/Chief/HOD only
   const [wardrobes, setWardrobes] = useState([]);
   const [guests, setGuests] = useState([]);
@@ -147,20 +155,23 @@ const OwnerWardrobeView = ({ onBack }) => {
   const sortOptions = showValue ? SORTS : SORTS.filter((s) => !s.val.startsWith('price'));
 
   const load = async () => {
-    const [ws, gs, all] = await Promise.all([loadWardrobes('owner'), loadGuests().catch(() => []), loadAllLaundryItems()]);
-    const ownerGuests = (gs || []).filter((g) => g.guestType === GuestType.OWNER);
+    const [ws, gs, all] = await Promise.all([loadWardrobes(cfg.wardrobeScope), loadGuests().catch(() => []), loadAllLaundryItems()]);
+    const scopeGuests = (gs || []).filter((g) => (isGuest ? g.guestType !== GuestType.OWNER : g.guestType === GuestType.OWNER));
     const wIds = new Set(ws.map((w) => w.id));
-    const gIds = new Set(ownerGuests.map((g) => g.id));
-    // Owner garments: homed in an owner wardrobe, OR belonging to an owner-type
-    // guest, OR the generic "Owner" (ownerType 'other').
-    const isOwned = (i) => (i.wardrobeId && wIds.has(i.wardrobeId)) || (i.ownerGuestId && gIds.has(i.ownerGuestId)) || (i.ownerType === 'other');
+    const gIds = new Set(scopeGuests.map((g) => g.id));
+    // Owner world: homed in an owner wardrobe, OR an owner-type guest, OR the
+    // generic "Owner" (ownerType 'other'). Guest world: belonging to a charter
+    // guest, OR homed in a guest wardrobe.
+    const isOwned = (i) => (isGuest
+      ? ((i.ownerGuestId && gIds.has(i.ownerGuestId)) || (i.wardrobeId && wIds.has(i.wardrobeId)))
+      : ((i.wardrobeId && wIds.has(i.wardrobeId)) || (i.ownerGuestId && gIds.has(i.ownerGuestId)) || (i.ownerType === 'other')));
     const owned = all.filter((i) => !i.isArchivedFromToday && isOwned(i));
     const arch = all.filter((i) => i.isArchivedFromToday && isOwned(i));
     const [resolved, resolvedArch] = await Promise.all([
       resolveLaundryPhotos(owned).catch(() => owned),
       resolveLaundryPhotos(arch).catch(() => arch),
     ]);
-    setWardrobes(ws); setGuests(ownerGuests); setItems(resolved); setArchived(resolvedArch); setLoading(false);
+    setWardrobes(ws); setGuests(scopeGuests); setItems(resolved); setArchived(resolvedArch); setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
@@ -175,7 +186,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   const people = useMemo(() => {
     const counts = new Map();
     items.forEach((it) => { const k = it.ownerGuestId || 'owner'; counts.set(k, (counts.get(k) || 0) + qtyOf(it)); });
-    const arr = [{ id: 'owner', name: 'Owner', subtitle: 'Unassigned garments', count: counts.get('owner') || 0, countLabel: 'garments' }];
+    const arr = cfg.ownerBucket ? [{ id: 'owner', name: 'Owner', subtitle: 'Unassigned garments', count: counts.get('owner') || 0, countLabel: 'garments' }] : [];
     guests.forEach((g) => arr.push({
       id: g.id, name: guestName(g), subtitle: g.cabinLocationLabel || g.cabinAllocated || '',
       photo: g.photo || g.avatarUrl || '', count: counts.get(g.id) || 0, countLabel: 'garments',
@@ -324,7 +335,7 @@ const OwnerWardrobeView = ({ onBack }) => {
       submitLabel: 'Create',
       onSubmit: async (nm) => {
         if (kind === 'pack') { const c = await createCase({ name: nm }); if (c) await setLaundryItemsCase(ids, c.id); }
-        else { const w = await createWardrobe({ name: nm, scope: 'owner' }); if (w) await setLaundryItemsWardrobe(ids, w.id); }
+        else { const w = await createWardrobe({ name: nm, scope: cfg.wardrobeScope }); if (w) await setLaundryItemsWardrobe(ids, w.id); }
         setChooser(null); clearSel(); load();
       },
     });
@@ -391,8 +402,8 @@ const OwnerWardrobeView = ({ onBack }) => {
   // Shared modal layer — rendered on both the landing and a person's page.
   const modals = (
     <>
-      {showAdd && <AddGarmentModal wardrobes={wardrobes} guests={guests} defaultWardrobeId={fLoc !== 'all' && fLoc !== 'away' ? fLoc : null} showValue={showValue} onClose={() => setShowAdd(false)} onCreated={load} />}
-      {showNewWardrobe && <WardrobeEditorModal scope="owner" onClose={() => setShowNewWardrobe(false)} onCreated={load} />}
+      {showAdd && <AddGarmentModal wardrobes={wardrobes} guests={guests} scope={cfg.wardrobeScope} defaultGuestId={personId && personId !== 'owner' ? personId : ''} defaultWardrobeId={fLoc !== 'all' && fLoc !== 'away' ? fLoc : null} showValue={showValue} onClose={() => setShowAdd(false)} onCreated={load} />}
+      {showNewWardrobe && <WardrobeEditorModal scope={cfg.wardrobeScope} onClose={() => setShowNewWardrobe(false)} onCreated={load} />}
       {showManageWardrobes && <WardrobeManageModal wardrobes={wardrobes} items={[...items, ...archived]} onNew={() => setShowNewWardrobe(true)} onChanged={load} onClose={() => setShowManageWardrobes(false)} />}
       {showCases && <CasesListModal items={items} onOpenCase={(id) => { setShowCases(false); setOpenCaseId(id); }} onClose={() => setShowCases(false)} />}
       {openCaseId && <CaseMovementModal caseId={openCaseId} wardrobes={wardrobes} onChanged={load} onClose={() => setOpenCaseId(null)} />}
@@ -478,7 +489,7 @@ const OwnerWardrobeView = ({ onBack }) => {
           {showValue && totalValue > 0 && <><span className="bar" /><span className="muted">{money(totalValue, valueCur)} total value</span></>}
           {(awayAll + washAll) > 0 && <><span className="bar" /><span className="muted">{awayAll} away · {washAll} at laundry</span></>}
         </p>
-        <h1 className="editorial-greeting">STORED<span className="period">,</span> <em>onboard</em><span className="period">.</span></h1>
+        <h1 className="editorial-greeting">{cfg.title[0]}<span className="period">,</span> <em>{cfg.title[1]}</em><span className="period">.</span></h1>
 
         {toolbar(
           <>
@@ -492,7 +503,7 @@ const OwnerWardrobeView = ({ onBack }) => {
               { node: <Icon name="Package" size={16} />, label: 'Cases & movements', onClick: () => setShowCases(true), show: !showArchived },
               { node: <WardrobeIcon size={16} />, label: 'Manage wardrobes', onClick: () => setShowManageWardrobes(true), show: !showArchived },
               { node: <Icon name="Archive" size={16} />, label: showArchived ? 'Exit archived' : `Archived (${archived.length})`, active: showArchived, onClick: () => { setShowArchived((v) => !v); clearSel(); }, show: archived.length > 0 || showArchived },
-              { node: <Icon name="FileDown" size={16} />, label: exportingManifest ? 'Exporting…' : 'Export', onClick: () => doManifest(items, 'Owner wardrobe'), show: !showArchived && items.length > 0 },
+              { node: <Icon name="FileDown" size={16} />, label: exportingManifest ? 'Exporting…' : 'Export', onClick: () => doManifest(items, cfg.manifest), show: !showArchived && items.length > 0 },
             ]} />
             {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>}
           </>
@@ -503,7 +514,7 @@ const OwnerWardrobeView = ({ onBack }) => {
         {loading ? (
           <div className="ow-empty">Loading the wardrobe…</div>
         ) : landView === 'owner' ? (
-          <PersonTiles people={landingPeople} emptyLabel={anyFilter ? 'No one matches.' : 'No owner garments yet.'} onPick={setPersonId} />
+          <PersonTiles people={landingPeople} emptyLabel={anyFilter ? 'No one matches.' : `No ${cfg.subject} garments yet.`} onPick={setPersonId} />
         ) : shown.length === 0 ? (
           <div className="ow-empty">{anyFilter ? 'Nothing matches.' : 'No garments on board yet.'}</div>
         ) : (
@@ -518,7 +529,7 @@ const OwnerWardrobeView = ({ onBack }) => {
   return (
     <div className="ow-view">
       <div className="ow-topbar">
-        <button type="button" className="lm-back" onClick={() => setPersonId(null)}><Icon name="ArrowLeft" size={16} /> Back to owners</button>
+        <button type="button" className="lm-back" onClick={() => setPersonId(null)}><Icon name="ArrowLeft" size={16} /> Back to {cfg.peopleWord}</button>
       </div>
       {selectedPerson && (
         <div className="ow-person-head">
@@ -570,7 +581,7 @@ const OwnerWardrobeView = ({ onBack }) => {
           <button type="button" className="ow-addtile ow-addtile-big" onClick={() => setShowAdd(true)}>
             <Icon name="Plus" size={30} /><span>Add the first garment</span>
           </button>
-          <p className="ow-empty-note">The owner’s wardrobe is empty. Add garments that live on board — they’ll show here as an image catalogue.</p>
+          <p className="ow-empty-note">This {cfg.subject} wardrobe is empty. Add garments that live on board — they’ll show here as an image catalogue.</p>
         </div>
       ) : shown.length === 0 ? (
         <div className="ow-empty">Nothing matches.</div>

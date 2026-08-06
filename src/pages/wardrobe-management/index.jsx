@@ -21,7 +21,7 @@ const WardrobeManagement = () => {
   const [items, setItems] = useState([]);
   // Deep-link support: ?mode=crew&crew=<userId> opens the Crew world straight on
   // that member (e.g. from a size-swap-request notification).
-  const [mode, setMode] = useState(() => (searchParams.get('mode') === 'crew' ? 'crew' : 'hub')); // hub | owner | crew
+  const [mode, setMode] = useState(() => (searchParams.get('mode') === 'crew' ? 'crew' : 'hub')); // hub | owner | guest | crew
   const initialCrewId = searchParams.get('crew') || null;
   const [showCases, setShowCases] = useState(false);
   const [showScan, setShowScan] = useState(false);
@@ -80,11 +80,11 @@ const WardrobeManagement = () => {
                   <span className="wm-card-go"><Icon name="ArrowRight" size={18} /></span>
                 </button>
 
-                <button type="button" className="wm-card" onClick={() => setShowCases(true)}>
-                  <span className="wm-card-ic"><Icon name="Package" size={26} /></span>
+                <button type="button" className="wm-card" onClick={() => setMode('guest')}>
+                  <span className="wm-card-ic"><Icon name="Luggage" size={26} /></span>
                   <span className="wm-card-body">
                     <span className="wm-card-t">Guest</span>
-                    <span className="wm-card-d">Guests’ cases for travel on and off the vessel. Pack, unpack, share a case with a guest.</span>
+                    <span className="wm-card-d">Charter guests’ garments and the luggage they travel in. Pack, unpack, scan and view — per guest.</span>
                   </span>
                   <span className="wm-card-go"><Icon name="ArrowRight" size={18} /></span>
                 </button>
@@ -101,6 +101,8 @@ const WardrobeManagement = () => {
             </>
           ) : mode === 'crew' ? (
             <CrewFolder initialCrewId={initialCrewId} onBack={() => { setMode('hub'); setSearchParams({}); reload(); }} />
+          ) : mode === 'guest' ? (
+            <OwnerWardrobeView scope="guest" onBack={() => { setMode('hub'); reload(); }} />
           ) : (
             <OwnerWardrobeView onBack={() => { setMode('hub'); reload(); }} />
           )}

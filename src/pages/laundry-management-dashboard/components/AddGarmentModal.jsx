@@ -62,7 +62,7 @@ export const compressImage = (file, maxDim = 1600, quality = 0.82) => new Promis
 // Add a resident garment straight into a wardrobe — a rich, catalogue-grade
 // record (multiple photos first, then the full descriptive detail a high-value
 // wardrobe warrants). Created "Stored" so it doesn't hit the active laundry list.
-const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null, defaultGuestId = '', showValue = true, onClose, onCreated }) => {
+const AddGarmentModal = ({ wardrobes = [], guests = [], scope = 'owner', defaultWardrobeId = null, defaultGuestId = '', showValue = true, onClose, onCreated }) => {
   const [photos, setPhotos] = useState([]);
   const [name, setName] = useState('');
   const [brand, setBrand] = useState('');
@@ -137,7 +137,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
     const existing = wlist.find((w) => w.locationId === locId);
     if (existing) { setWardrobeId(existing.id); return; }
     const nm = res?.name || 'Wardrobe';
-    const w = await createWardrobe({ name: nm, locationId: locId, scope: 'owner' });
+    const w = await createWardrobe({ name: nm, locationId: locId, scope });
     if (w) { setWlist((p) => [w, ...p]); setWardrobeId(w.id); }
   };
 
@@ -181,7 +181,7 @@ const AddGarmentModal = ({ wardrobes = [], guests = [], defaultWardrobeId = null
     <div className="ow-overlay" role="dialog" aria-modal="true" aria-label="Add garment" onClick={onClose}>
       <div className="ow-modal ow-modal-wide" onClick={(e) => e.stopPropagation()}>
         <div className="ow-modal-head">
-          <div><span className="ow-eyebrow">Owner wardrobe</span><h2 className="ow-modal-title">Add a garment</h2></div>
+          <div><span className="ow-eyebrow">{scope === 'guest' ? 'Guest wardrobe' : 'Owner wardrobe'}</span><h2 className="ow-modal-title">Add a garment</h2></div>
           <button type="button" className="ow-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
         </div>
 
