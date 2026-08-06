@@ -289,3 +289,35 @@ export const areaState = (area, scopes = []) => {
   if (area?.scope && !(scopes || []).includes(area.scope)) return 'not shared';
   return area?.live ? 'live' : 'planned';
 };
+
+// ── how ready a month is, as one number ──────────────────────────────────────
+// The crew's accounts widget leads on a proportion with a bar under it, because
+// that is what a glance can carry. The office's equivalent question is "how much
+// of this month is actually ready to sign" — a line is ready when it is coded
+// AND evidenced, which are the same two things accountMonth already counts.
+//
+// A month with no lines is not 0% ready; it is nothing to do. The caller needs
+// to tell those apart, so `pct` is null rather than zero.
+export const monthReadiness = (m) => {
+  const total = m?.count || 0;
+  if (!total) return { total: 0, ready: 0, pct: null, blocked: 0 };
+  // A line can be both uncoded and unevidenced, so the two counts overlap and
+  // must not simply be added — the worst of the two bounds what is ready.
+  const blocked = Math.max(m.uncoded || 0, m.unevidenced || 0);
+  const ready = Math.max(0, total - blocked);
+  return { total, ready, blocked, pct: Math.round((ready / total) * 100) };
+};
+
+// The office's own history on a vessel: who signed what, and what they sent
+// back. Built from the reconciliation stamps rather than a separate log, so it
+// cannot drift from what actually happened.
+export const monthActivity = (reconciliations = [], accountsById = {}) => {
+  const out = [];
+  (reconciliations || []).forEach((r) => {
+    const name = accountsById[r.account_id]?.name || 'An account';
+    if (r.approved_at) out.push({ key: `${r.id}-a`, at: r.approved_at, kind: 'signed', name, note: r.signoff_note });
+    if (r.queried_at) out.push({ key: `${r.id}-q`, at: r.queried_at, kind: 'queried', name, note: r.query_note });
+    if (r.submitted_at) out.push({ key: `${r.id}-s`, at: r.submitted_at, kind: 'closed', name, note: null });
+  });
+  return out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+};

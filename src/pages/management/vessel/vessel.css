@@ -1,42 +1,8 @@
 /* One vessel's month, as the office reads it. Same tile language as the fleet. */
 
-
 /* ── which month: a segmented control, not a row of loose pills ───────────── */
-.mgv-periods {
-  display: inline-flex; gap: 4px; margin: 22px 0 28px; padding: 4px;
-  background: var(--d-border-soft); border-radius: 999px; max-width: 100%; overflow-x: auto;
-}
-.mgv-period {
-  display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;
-  background: none; border: 0; border-radius: 999px;
-  padding: 9px 18px; cursor: pointer;
-  font: inherit; font-size: 13px; font-weight: 600; color: var(--d-muted);
-  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
-}
-.mgv-period:hover { color: var(--d-navy-deep); }
-.mgv-period.on {
-  background: var(--d-card); color: var(--d-navy-deep);
-  box-shadow: 0 1px 2px rgba(28, 27, 58, 0.08), 0 4px 12px -6px rgba(28, 27, 58, 0.24);
-}
-.mgv-pill {
-  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 6px;
-  border-radius: 999px; background: var(--d-orange); color: var(--d-card); font-size: 10.5px; font-weight: 700;
-}
 
 /* ── one account ──────────────────────────────────────────────────────────── */
-
-.mgv-acc-h {
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  margin-bottom: 18px;
-}
-.mgv-acc-n b {
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 22px; font-weight: 400; color: var(--d-navy-deep); letter-spacing: -0.3px;
-}
-.mgv-acc-n em {
-  margin-left: 10px; font-style: normal; font-size: 12px; color: var(--d-muted-soft);
-  font-variant-numeric: tabular-nums;
-}
 
 .mgv-state {
   flex: 0 0 auto; padding: 6px 13px; border-radius: 999px;
@@ -50,7 +16,8 @@
 /* The figures as a strip of tiles — the closing balance is what the office is
    actually here for, so it gets the accent rather than a row in a ladder. */
 .mgv-eq {
-  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+  margin-top: 16px;
 }
 .mgv-eq .r {
   background: var(--d-bg); border: 1px solid var(--d-border-soft); border-radius: 14px;
@@ -68,8 +35,6 @@
 }
 .mgv-eq .r.is-tot { background: var(--d-cream-warm); border-color: var(--d-cream-warm); }
 .mgv-eq .r.is-tot b { color: var(--d-orange); }
-
-.mgv-sub { margin: 12px 0 0; font-size: 12px; color: var(--d-muted-soft); }
 
 .mgv-reasons, .mgv-clean {
   display: flex; align-items: flex-start; gap: 9px; margin: 16px 0 0;
@@ -90,21 +55,6 @@
 
 .mgv-act { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
 .mgv-readonly { margin: 16px 0 0; font-size: 12px; color: var(--d-muted-soft); line-height: 1.5; }
-
-.mgv-btn {
-  border-radius: 12px; padding: 11px 20px; font-size: 13.5px; font-weight: 600;
-  cursor: pointer; border: 1px solid transparent; font-family: inherit;
-  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
-}
-.mgv-btn.ghost { background: var(--d-card); border-color: var(--d-border); color: var(--d-muted); }
-.mgv-btn.ghost:hover:not(:disabled) { border-color: var(--d-orange); color: var(--d-orange); }
-.mgv-btn.primary {
-  background: var(--d-orange); border-color: var(--d-orange); color: var(--d-card);
-  box-shadow: 0 1px 2px rgba(198, 90, 26, 0.2), 0 8px 20px -10px rgba(198, 90, 26, 0.55);
-}
-.mgv-btn.primary:hover:not(:disabled) { background: var(--d-navy-deep); }
-.mgv-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.mgv-btn.primary:disabled { background: var(--d-border); border-color: var(--d-border); color: var(--d-muted-soft); box-shadow: none; }
 
 /* ── naming it back before it happens ─────────────────────────────────────── */
 .mgv-ask {
@@ -140,7 +90,98 @@
   .mgv-eq { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 620px) {
-    .mgv-acc-h { flex-direction: column; align-items: flex-start; gap: 9px; }
   .mgv-act { flex-direction: column-reverse; }
-  .mgv-act .mgv-btn { width: 100%; }
+  .mgv-act .ce-action, .mgv-act .ce-btn-navy { width: 100%; }
 }
+
+/* ── the account widget's own furniture ───────────────────────────────────── */
+.mgv-last4 {
+  margin-left: 9px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px; font-weight: 500; color: var(--d-muted-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.mgv-big {
+  margin: 0;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 30px; font-weight: 500; line-height: 1;
+  letter-spacing: -0.7px; color: var(--d-navy-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The proportion the crew accounts widget leads on: how much of the month is
+   coded and evidenced, and so actually signable. */
+.mgv-bar {
+  height: 8px; border-radius: 999px; margin-top: 12px;
+  background: var(--d-border-soft); overflow: hidden;
+}
+.mgv-bar .fill {
+  height: 100%; border-radius: 999px; background: var(--d-orange);
+  transition: width 0.5s ease;
+}
+.mgv-bar .fill.full { background: var(--d-success); }
+
+/* ── right-hand strips ────────────────────────────────────────────────────── */
+.mgv-months { display: flex; flex-direction: column; }
+.mgv-month {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  width: 100%; text-align: left; font: inherit; cursor: pointer;
+  background: none; border: 0; border-radius: 9px;
+  padding: 10px 11px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13.5px; font-weight: 600; color: var(--d-navy);
+}
+.mgv-month:hover { background: var(--d-border-soft); }
+.mgv-month.on { background: var(--d-cream-warm); color: var(--d-orange); }
+.mgv-month em {
+  font-style: normal; font-size: 11.5px; font-weight: 500; color: var(--d-muted);
+}
+.mgv-month em.due { color: var(--d-orange); font-weight: 600; }
+.mgv-month.on em { color: var(--d-orange); }
+
+.mgv-areas { display: flex; flex-direction: column; }
+.mgv-area {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center; gap: 10px;
+  padding: 9px 0; border-bottom: 1px solid var(--d-border-soft);
+}
+.mgv-area:last-child { border-bottom: 0; }
+.mgv-area .ic {
+  width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--d-border-soft); color: var(--d-muted-soft);
+}
+.mgv-area.s-live .ic { background: var(--d-cream-warm); color: var(--d-orange); }
+.mgv-area .t {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px; font-weight: 600; color: var(--d-navy-deep);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mgv-area.s-not-shared .t, .mgv-area.s-planned .t { color: var(--d-muted); font-weight: 500; }
+.mgv-area .s { font-size: 11px; font-weight: 600; color: var(--d-muted-soft); white-space: nowrap; }
+.mgv-area.s-live .s { color: var(--d-success); }
+.mgv-area.s-not-shared .s { color: var(--d-warn); }
+
+.mgv-acts { display: flex; flex-direction: column; }
+.mgv-act-row {
+  display: grid; grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: start; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--d-border-soft);
+}
+.mgv-act-row:last-child { border-bottom: 0; }
+.mgv-act-row .dot {
+  width: 8px; height: 8px; border-radius: 999px; margin-top: 5px;
+  background: var(--d-muted-soft);
+}
+.mgv-act-row.k-signed .dot { background: var(--d-success); }
+.mgv-act-row.k-queried .dot { background: var(--d-warn); }
+.mgv-act-row.k-closed .dot { background: var(--d-orange); }
+.mgv-act-row .t { min-width: 0; }
+.mgv-act-row .t b {
+  display: block; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12.5px; font-weight: 700; color: var(--d-navy-deep);
+}
+.mgv-act-row .t em {
+  display: block; margin-top: 1px; font-style: normal; font-size: 11.5px;
+  line-height: 1.45; color: var(--d-muted);
+}
+.mgv-act-row .d { font-size: 11px; color: var(--d-muted-soft); white-space: nowrap; }
