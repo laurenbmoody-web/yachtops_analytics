@@ -246,8 +246,10 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
   const detailScreen = bag && (
     <>
       <div className="ow-case-head">
-        <button type="button" className="ow-lug-back" onClick={() => setActiveId(null)}><Icon name="ArrowLeft" size={14} /> All bags</button>
-        <span className={`ow-full-state ${st.cls}`}>{st.label}</span>
+        <div className="ow-lug-detail-top">
+          <button type="button" className="ow-lug-back" onClick={() => setActiveId(null)}><Icon name="ArrowLeft" size={14} /> All bags</button>
+          <span className={`ow-lug-state ${st.cls}`}>{st.label}</span>
+        </div>
         <h2 className="ow-full-nm"><Icon name="Luggage" size={20} /> {bag.name}</h2>
         {!editMeta ? (
           <p className="ow-full-brand">
@@ -312,13 +314,19 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
 
       <div className="ow-full-actions">
         {mode === 'view' ? (
-          <>
-            {packing && contents.length === 0 && <button type="button" className="ow-btn ghost danger" onClick={deleteBag}><Icon name="Trash2" size={14} /> Delete bag</button>}
-            <span style={{ flex: 1 }} />
-            {packing && contents.length > 0 && <button type="button" className="ow-btn primary" onClick={startSend}><Icon name="Send" size={15} /> Send off</button>}
-            {bag.status === 'sent' && <button type="button" className="ow-btn primary" onClick={startReceive}><Icon name="ClipboardCheck" size={15} /> Receive</button>}
-            {(bag.status === 'received' || bag.status === 'sent') && contents.length > 0 && <button type="button" className="ow-btn ghost" onClick={startUnpack}><Icon name="PackageOpen" size={15} /> Unpack</button>}
-          </>
+          packing ? (
+            <>
+              {contents.length === 0 && <button type="button" className="ow-btn ghost danger" onClick={deleteBag}><Icon name="Trash2" size={14} /> Delete bag</button>}
+              <span style={{ flex: 1 }} />
+              <button type="button" className="ow-btn primary" disabled={contents.length === 0} title={contents.length === 0 ? 'Add garments first' : undefined} onClick={startSend}><Icon name="Send" size={15} /> Send off</button>
+            </>
+          ) : (
+            <>
+              <span style={{ flex: 1 }} />
+              {bag.status === 'sent' && <button type="button" className="ow-btn primary" onClick={startReceive}><Icon name="ClipboardCheck" size={15} /> Receive</button>}
+              {(bag.status === 'received' || bag.status === 'sent') && contents.length > 0 && <button type="button" className="ow-btn ghost" onClick={startUnpack}><Icon name="PackageOpen" size={15} /> Unpack</button>}
+            </>
+          )
         ) : mode === 'send' ? (
           <>
             <button type="button" className="ow-btn ghost" onClick={() => setMode('view')}>Cancel</button>
