@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { FilterMenu, SortMenu } from './LaundryFilters';
 import LaundryScanModal from './LaundryScanModal';
@@ -11,6 +11,7 @@ import ToolMenu from './ToolMenu';
 import CasesListModal from './CasesListModal';
 import CaseMovementModal from './CaseMovementModal';
 import LuggageModal from './LuggageModal';
+import AddGuestModal from './AddGuestModal';
 import PersonTiles from './PersonTiles';
 import { canViewCost } from '../../../utils/costPermissions';
 import { loadWardrobes, createWardrobe } from '../utils/laundryWardrobes';
@@ -143,7 +144,9 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
   const [exportingManifest, setExportingManifest] = useState(false);
   const [showCases, setShowCases] = useState(false);
   const [openCaseId, setOpenCaseId] = useState(null);
-  const [luggage, setLuggage] = useState(null); // { mode: 'pack' | 'unpack' } — per-person luggage hub
+  const [luggage, setLuggage] = useState(null); // { mode: 'pack' | 'unpack', packIds? } — per-person luggage hub
+  const [showAddGuest, setShowAddGuest] = useState(false);
+  const [addMenuOpen, setAddMenuOpen] = useState(false); // person-page "+ Add" dropdown
 
   const doManifest = async (scopeItems, subject) => {
     if (exportingManifest || !scopeItems.length) return;
@@ -174,6 +177,14 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
     setWardrobes(ws); setGuests(scopeGuests); setItems(resolved); setArchived(resolvedArch); setLoading(false);
   };
   useEffect(() => { load(); }, []);
+
+  const addMenuRef = useRef(null);
+  useEffect(() => {
+    if (!addMenuOpen) return undefined;
+    const onDoc = (e) => { if (addMenuRef.current && !addMenuRef.current.contains(e.target)) setAddMenuOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [addMenuOpen]);
 
   const wardrobesById = useMemo(() => Object.fromEntries(wardrobes.map((w) => [w.id, w])), [wardrobes]);
   const guestsById = useMemo(() => Object.fromEntries(guests.map((g) => [g.id, g])), [guests]);
@@ -304,7 +315,11 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
       });
       return;
     }
-    openChooser(kind, selIds); // pack | move
+    if (kind === 'pack') { // pack the selected garments — pick/create the bag next
+      if (personId) { setLuggage({ mode: 'pack', packIds: selIds }); clearSel(); }
+      return;
+    }
+    openChooser(kind, selIds); // move
   };
   const singleAction = async (kind, item) => {
     if (kind === 'restore') { await restoreLaundryItems([item.id]); setFullItem(null); load(); return; }
@@ -317,7 +332,9 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
       });
       return;
     }
-    setFullItem(null); openChooser(kind, [item.id]);
+    setFullItem(null);
+    if (kind === 'pack') { if (personId) setLuggage({ mode: 'pack', packIds: [item.id] }); return; }
+    openChooser(kind, [item.id]);
   };
 
   const chooseTarget = async (target) => {
@@ -390,7 +407,7 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
         <button type="button" className="ow-selbtn" onClick={() => runBulk('restore')}><Icon name="Undo2" size={14} /> Restore</button>
       ) : (
         <>
-          <button type="button" className="ow-selbtn" onClick={() => runBulk('pack')}><Icon name="Package" size={14} /> Pack</button>
+          {personId && <button type="button" className="ow-selbtn" onClick={() => runBulk('pack')}><Icon name="Luggage" size={14} /> Pack</button>}
           <button type="button" className="ow-selbtn" onClick={() => runBulk('launder')}><Icon name="Waves" size={14} /> Launder</button>
           <button type="button" className="ow-selbtn" onClick={() => runBulk('move')}><Icon name="FolderInput" size={14} /> Move</button>
           <button type="button" className="ow-selbtn danger" onClick={() => runBulk('archive')}><Icon name="Trash2" size={14} /> Archive</button>
@@ -407,7 +424,8 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
       {showManageWardrobes && <WardrobeManageModal wardrobes={wardrobes} items={[...items, ...archived]} onNew={() => setShowNewWardrobe(true)} onChanged={load} onClose={() => setShowManageWardrobes(false)} />}
       {showCases && <CasesListModal items={items} onOpenCase={(id) => { setShowCases(false); setOpenCaseId(id); }} onClose={() => setShowCases(false)} />}
       {openCaseId && <CaseMovementModal caseId={openCaseId} wardrobes={wardrobes} onChanged={load} onClose={() => setOpenCaseId(null)} />}
-      {luggage && luggagePerson && <LuggageModal person={luggagePerson} personItems={personActiveItems} wardrobes={wardrobes} guests={guests} showValue={showValue} initialMode={luggage.mode} onChanged={load} onClose={() => setLuggage(null)} />}
+      {luggage && luggagePerson && <LuggageModal person={luggagePerson} personItems={personActiveItems} wardrobes={wardrobes} guests={guests} showValue={showValue} initialMode={luggage.mode} packIds={luggage.packIds || []} onChanged={load} onClose={() => setLuggage(null)} />}
+      {showAddGuest && <AddGuestModal scope={cfg.wardrobeScope} onClose={() => setShowAddGuest(false)} onCreated={(g) => { setShowAddGuest(false); if (g?.id) setPersonId(g.id); load(); }} />}
       {fullItem && <GarmentFullView item={fullItem} wardrobes={wardrobes} guests={guests} showValue={showValue} caseName={fullItem.caseId ? caseName(fullItem.caseId) : null} onClose={() => setFullItem(null)} onChanged={() => { load(); setFullItem(null); }} onAction={singleAction} />}
       {showScan && <LaundryScanModal onClose={() => setShowScan(false)} onDetect={onScan} />}
       {chooser && (
@@ -505,7 +523,7 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
               { node: <Icon name="Archive" size={16} />, label: showArchived ? 'Exit archived' : `Archived (${archived.length})`, active: showArchived, onClick: () => { setShowArchived((v) => !v); clearSel(); }, show: archived.length > 0 || showArchived },
               { node: <Icon name="FileDown" size={16} />, label: exportingManifest ? 'Exporting…' : 'Export', onClick: () => doManifest(items, cfg.manifest), show: !showArchived && items.length > 0 },
             ]} />
-            {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>}
+            {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAddGuest(true)}><Icon name="UserPlus" size={15} /> {isGuest ? 'Add guest' : 'Add person'}</button>}
           </>
         )}
 
@@ -542,12 +560,6 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
             </p>
             <h2 className="ow-person-nm">{selectedPerson.name}</h2>
           </div>
-          {!showArchived && (
-            <div className="ow-person-acts">
-              <button type="button" className="ow-btn ghost" onClick={() => setLuggage({ mode: 'pack' })}><Icon name="Luggage" size={15} /> Pack</button>
-              <button type="button" className="ow-btn ghost" onClick={() => setLuggage({ mode: 'unpack' })}><Icon name="PackageOpen" size={15} /> Unpack</button>
-            </div>
-          )}
         </div>
       )}
 
@@ -568,7 +580,17 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
             { node: <Icon name="Archive" size={16} />, label: showArchived ? 'Exit archived' : `Archived (${archived.length})`, active: showArchived, onClick: () => { setShowArchived((v) => !v); clearSel(); }, show: archived.length > 0 || showArchived },
             { node: <Icon name="FileDown" size={16} />, label: exportingManifest ? 'Exporting…' : 'Export', onClick: () => doManifest(personItems, selectedPerson?.name || 'Wardrobe'), show: !showArchived && personItems.length > 0 },
           ]} />
-          {!showArchived && <button type="button" className="ow-btn primary" onClick={() => setShowAdd(true)}><Icon name="Plus" size={15} /> Add</button>}
+          {!showArchived && (
+            <div className="ow-addmenu" ref={addMenuRef}>
+              <button type="button" className="ow-btn primary" onClick={() => setAddMenuOpen((o) => !o)}><Icon name="Plus" size={15} /> Add <Icon name="ChevronDown" size={14} /></button>
+              {addMenuOpen && (
+                <div className="ow-addmenu-pop">
+                  <button type="button" onClick={() => { setAddMenuOpen(false); setLuggage({ mode: 'unpack' }); }}><Icon name="PackageOpen" size={16} /> Unpack a bag</button>
+                  <button type="button" onClick={() => { setAddMenuOpen(false); setShowAdd(true); }}><Icon name="Shirt" size={16} /> Add a garment</button>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
