@@ -1,18 +1,174 @@
 /* Shore-office pages. Layout comes from Tailwind and the card frame from
-   .ce-card (dashboard-widgets.css); this file only adds what those don't have.
+   .ce-card (dashboard-widgets.css); this file adds what those don't have.
    Every colour resolves from the shared --d-* tokens — no private palette. */
 
-/* ── monogram: how you tell two yachts apart at a glance ──────────────────── */
-.mg-mono {
-  width: 42px; height: 42px; border-radius: 12px; flex: 0 0 auto;
+/* ── filter bar (all-vessels index) ───────────────────────────────────────── */
+.mg-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+}
+
+.mg-filters {
+  display: inline-flex; gap: 3px; padding: 4px;
+  background: var(--d-border-soft); border-radius: 999px;
+}
+.mg-filter {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: none; border: 0; border-radius: 999px;
+  padding: 8px 15px; cursor: pointer; font: inherit;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px; font-weight: 600; color: var(--d-muted);
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+.mg-filter:hover:not(:disabled) { color: var(--d-navy-deep); }
+.mg-filter:disabled { opacity: 0.45; cursor: not-allowed; }
+.mg-filter em {
+  font-style: normal; font-size: 11px; font-weight: 700;
+  color: var(--d-muted-soft);
+}
+.mg-filter.on {
+  background: var(--d-card); color: var(--d-navy-deep);
+  box-shadow: 0 1px 2px rgba(38, 42, 83, 0.1), 0 4px 12px -6px rgba(38, 42, 83, 0.24);
+}
+.mg-filter.on em { color: var(--d-orange); }
+
+.mg-find {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--d-card); border: 1px solid var(--d-border); border-radius: 999px;
+  padding: 8px 14px; min-width: 230px;
+}
+.mg-find svg { color: var(--d-muted-soft); flex: 0 0 auto; }
+.mg-find input {
+  flex: 1; min-width: 0; border: 0; outline: none; background: none;
+  font: inherit; font-size: 13px; color: var(--d-navy-deep);
+}
+.mg-find input::placeholder { color: var(--d-muted-soft); }
+.mg-find button {
+  border: 0; background: none; cursor: pointer; color: var(--d-muted-soft);
+  display: grid; place-items: center;
+}
+.mg-find button:hover { color: var(--d-orange); }
+
+/* ── the vessel gallery ───────────────────────────────────────────────────── */
+.mg-gallery {
+  display: grid; gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+}
+
+.mg-card {
+  position: relative; display: flex; flex-direction: column;
+  text-align: left; font: inherit; cursor: pointer; overflow: hidden;
+  background: var(--d-card); border: 1px solid var(--d-border); border-radius: 16px;
+  box-shadow: var(--d-shadow);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.mg-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--d-card-edge);
+  box-shadow: 0 10px 26px rgba(38, 42, 83, 0.12);
+}
+.mg-card:active { transform: translateY(-1px); }
+
+/* A tinted band, the way a profile card carries a cover. Navy by default;
+   terracotta when the boat is waiting on a signature, so a scan of the gallery
+   picks out the work before any text is read. */
+.mg-cover {
+  display: block; height: 74px; position: relative;
+  background: linear-gradient(135deg, var(--d-navy) 0%, var(--d-navy-deep) 100%);
+}
+.mg-card.need .mg-cover { background: linear-gradient(135deg, #C65A1A 0%, #9E4413 100%); }
+.mg-card.query .mg-cover { background: linear-gradient(135deg, #B98A2E 0%, #8A6414 100%); }
+/* A faint horizon line — enough to stop the band reading as a flat slab. */
+.mg-cover::after {
+  content: ''; position: absolute; inset: auto 0 0 0; height: 34px;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.09));
+}
+.mg-cover-t {
+  position: absolute; top: 14px; right: 16px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+/* The monogram sits over the cover's edge, like a profile picture. */
+.mg-card .mg-mono {
+  position: absolute; top: 46px; left: 18px;
+  width: 54px; height: 54px; border-radius: 16px;
   display: grid; place-items: center;
   background: var(--d-navy); color: #fff;
-  font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; letter-spacing: 0.02em;
+  border: 3px solid var(--d-card);
+  font-family: 'DM Serif Display', Georgia, serif; font-size: 19px; letter-spacing: 0.02em;
 }
-.mg-mono.sm { width: 32px; height: 32px; border-radius: 9px; font-size: 12.5px; }
-.mg-mono.need { background: var(--d-orange); }
-.mg-mono.query { background: var(--d-warn); }
+.mg-card.need .mg-mono { background: var(--d-orange); }
+.mg-card.query .mg-mono { background: #8A6414; }
 
+.mg-card-b { padding: 34px 18px 0; }
+.mg-card-n {
+  display: block;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 23px; font-weight: 500; letter-spacing: -0.5px; line-height: 1.15;
+  color: var(--d-navy-deep);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mg-card-s {
+  display: block; margin-top: 4px; font-style: normal;
+  font-size: 11.5px; line-height: 1.45; color: var(--d-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* The three figures that decide whether you open this boat. */
+.mg-figs {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px; margin-top: 16px;
+}
+.mg-figs .f {
+  background: var(--d-bg); border: 1px solid var(--d-border-soft); border-radius: 11px;
+  padding: 10px 11px; min-width: 0;
+}
+.mg-figs .f b {
+  display: block;
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 21px; font-weight: 500; line-height: 1; letter-spacing: -0.4px;
+  color: var(--d-navy-deep); font-variant-numeric: tabular-nums;
+}
+.mg-figs .f b.hot { color: var(--d-orange); }
+.mg-figs .f b.sm { font-size: 13.5px; letter-spacing: -0.2px; padding: 3px 0 4px; }
+.mg-figs .f em {
+  display: block; margin-top: 5px; font-style: normal;
+  font-size: 9px; font-weight: 600; letter-spacing: 1.1px;
+  text-transform: uppercase; color: var(--d-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.mg-card-f {
+  margin-top: auto; padding: 14px 18px 16px;
+  display: flex; align-items: center; justify-content: flex-end;
+}
+.mg-open {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12.5px; font-weight: 600; color: var(--d-orange);
+}
+.mg-open svg { transition: transform 0.18s ease; }
+.mg-card:hover .mg-open svg { transform: translateX(3px); }
+
+/* Loading placeholders, so the gallery has its shape before the data lands. */
+.mg-ghost {
+  min-height: 268px; pointer-events: none; border-color: var(--d-border-soft);
+  box-shadow: none;
+  background: linear-gradient(100deg,
+    var(--d-card) 30%, var(--d-border-soft) 50%, var(--d-card) 70%);
+  background-size: 220% 100%;
+  animation: mg-shimmer 1.5s linear infinite;
+}
+@keyframes mg-shimmer { to { background-position: -220% 0; } }
+
+.mg-empty-ic {
+  width: 54px; height: 54px; border-radius: 16px; margin: 0 auto;
+  background: var(--d-cream-warm); color: var(--d-orange);
+  display: grid; place-items: center;
+}
+
+/* ── shared bits used by the vessel / team / company pages ────────────────── */
 .mg-av {
   width: 32px; height: 32px; border-radius: 999px; flex: 0 0 auto;
   display: grid; place-items: center;
@@ -29,136 +185,8 @@
 .mg-tag.need { background: var(--d-cream-warm); color: var(--d-orange); }
 .mg-tag.query { background: var(--d-warn-soft); color: var(--d-warn); }
 
-/* A widget's own headline count, sitting opposite its title. */
-.mg-count {
-  font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 30px; font-weight: 500; line-height: 1;
-  letter-spacing: -0.6px; color: var(--d-navy-deep);
-  font-variant-numeric: tabular-nums;
-}
-
 .mg-quiet { margin: 0; font-size: 12px; line-height: 1.6; color: var(--d-muted-soft); }
 
-/* ── the work queue ───────────────────────────────────────────────────────── */
-.mg-queue { display: flex; flex-direction: column; }
-.mg-queue-row {
-  display: grid; grid-template-columns: 32px minmax(0, 1fr) 15px;
-  align-items: center; gap: 10px;
-  width: 100%; text-align: left; font: inherit; cursor: pointer;
-  background: none; border: 0; border-radius: 9px; padding: 8px 6px;
-  transition: background 0.12s ease;
-}
-.mg-queue-row:hover { background: var(--d-border-soft); }
-.mg-queue-row > svg { color: var(--d-muted-soft); }
-.mg-queue-row .t { min-width: 0; }
-.mg-queue-row .t b {
-  display: block; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 13px; font-weight: 700; color: var(--d-navy-deep);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mg-queue-row .t em {
-  display: block; margin-top: 1px; font-style: normal; font-size: 11.5px; color: var(--d-muted);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* ── the fleet list ───────────────────────────────────────────────────────── */
-.mg-fleet { display: flex; flex-direction: column; }
-.mg-fleet-row {
-  display: grid; grid-template-columns: 42px minmax(0, 1fr) auto 17px;
-  align-items: center; gap: 14px;
-  width: 100%; text-align: left; font: inherit; cursor: pointer;
-  background: none; border: 0; border-radius: 11px; padding: 11px 8px;
-  border-bottom: 1px solid var(--d-border-soft);
-  transition: background 0.12s ease;
-}
-.mg-fleet-row:last-child { border-bottom: 0; }
-.mg-fleet-row:hover { background: var(--d-bg); }
-.mg-fleet-row > svg { color: var(--d-muted-soft); transition: transform 0.16s ease, color 0.16s ease; }
-.mg-fleet-row:hover > svg { color: var(--d-orange); transform: translateX(2px); }
-
-.mg-fleet-row .t { min-width: 0; }
-.mg-fleet-row .t b {
-  display: block;
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 20px; font-weight: 500; letter-spacing: -0.4px; line-height: 1.15;
-  color: var(--d-navy-deep);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mg-fleet-row .t em {
-  display: block; margin-top: 3px; font-style: normal; font-size: 11.5px; color: var(--d-muted);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mg-fleet-row .m { text-align: right; white-space: nowrap; }
-.mg-fleet-row .m em {
-  display: block; margin-top: 4px; font-style: normal;
-  font-size: 11px; color: var(--d-muted-soft);
-}
-
-/* ── the totals strip ─────────────────────────────────────────────────────── */
-.mg-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.mg-tile {
-  background: var(--d-bg); border: 1px solid var(--d-border-soft); border-radius: 12px;
-  padding: 13px 14px;
-}
-.mg-tile-n {
-  display: block;
-  font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 26px; font-weight: 500; line-height: 1;
-  letter-spacing: -0.6px; color: var(--d-navy-deep);
-  font-variant-numeric: tabular-nums;
-}
-.mg-tile-l {
-  display: block; margin-top: 7px;
-  font-size: 9px; font-weight: 600; letter-spacing: 1.4px;
-  text-transform: uppercase; color: var(--d-muted);
-}
-
-/* ── the office ───────────────────────────────────────────────────────────── */
-.mg-team { display: flex; flex-direction: column; }
-.mg-team-row {
-  display: grid; grid-template-columns: 32px minmax(0, 1fr);
-  align-items: center; gap: 10px; padding: 7px 0;
-}
-.mg-team-row .t { min-width: 0; }
-.mg-team-row .t b {
-  display: block; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 12.5px; font-weight: 700; color: var(--d-navy-deep);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mg-team-row .t em {
-  display: block; font-style: normal; font-size: 11px; color: var(--d-muted);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-.mg-meta { display: flex; flex-direction: column; }
-.mg-meta .r {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  padding: 7px 0; border-bottom: 1px solid var(--d-border-soft);
-}
-.mg-meta .r:last-child { border-bottom: 0; }
-.mg-meta .r span { font-size: 11.5px; color: var(--d-muted); flex: 0 0 auto; }
-.mg-meta .r b {
-  font-size: 12.5px; font-weight: 600; color: var(--d-navy-deep);
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* Loading placeholder, so a widget has its shape before the data lands. */
-.mg-ghost {
-  pointer-events: none;
-  background: linear-gradient(100deg,
-    var(--d-card) 30%, var(--d-border-soft) 50%, var(--d-card) 70%);
-  background-size: 220% 100%;
-  animation: mg-shimmer 1.5s linear infinite;
-}
-@keyframes mg-shimmer { to { background-position: -220% 0; } }
-
-.mg-empty-ic {
-  width: 50px; height: 50px; border-radius: 15px; margin: 0 auto;
-  background: var(--d-cream-warm); color: var(--d-orange);
-  display: grid; place-items: center;
-}
-
-/* ── shared bits used by team / company / vessel pages ────────────────────── */
 .mg-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 .mg-field > span {
   font-size: 9px; font-weight: 600; letter-spacing: 1.8px;
@@ -185,8 +213,9 @@
 .mg-banner.bad { background: var(--d-danger-soft); color: var(--d-danger); }
 .mg-banner.good { background: var(--d-success-soft); color: var(--d-success); }
 
-@media (max-width: 640px) {
-  .mg-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .mg-fleet-row { grid-template-columns: 42px minmax(0, 1fr) 17px; row-gap: 8px; }
-  .mg-fleet-row .m { grid-column: 2 / -1; text-align: left; }
+@media (max-width: 620px) {
+  .mg-bar { flex-direction: column; align-items: stretch; }
+  .mg-filters { overflow-x: auto; }
+  .mg-find { min-width: 0; }
+  .mg-gallery { grid-template-columns: minmax(0, 1fr); }
 }

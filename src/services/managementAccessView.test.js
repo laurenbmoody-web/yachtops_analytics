@@ -6,6 +6,7 @@ import {
   tierLabel, canRunTeam, canSignOffAs,
   TEAM_TIERS, TIER_POWERS, tierCan, engagementNote,
   VESSEL_AREAS, areaState, SCOPES, monthReadiness, monthActivity,
+  FLEET_FILTERS, vesselBucket, fleetCounts, filterFleet,
 } from './managementView.js';
 
 const eng = (over = {}) => ({
@@ -169,4 +170,36 @@ test('activity is built from the stamps, newest first', () => {
   assert.deepEqual(acts.map((x) => x.kind), ['signed', 'queried', 'closed']);
   assert.equal(acts[0].name, 'Deck card');
   assert.equal(acts[1].note, 'Fuel receipt');
+});
+
+test('a vessel falls in exactly one bucket, worst first', () => {
+  // A boat with both a month to sign and one sent back is a boat that needs a
+  // signature — that is the more urgent of the two, so it must not be filed
+  // under "sent back" and quietly missed.
+  assert.equal(vesselBucket({ awaiting_signoff: 1, queried: 2 }), 'waiting');
+  assert.equal(vesselBucket({ awaiting_signoff: 0, queried: 2 }), 'back');
+  assert.equal(vesselBucket({ awaiting_signoff: 0, queried: 0 }), 'clear');
+  assert.equal(vesselBucket({}), 'clear');
+});
+
+test('the counts add up to the fleet', () => {
+  const fleet = [
+    { awaiting_signoff: 2 }, { queried: 1 }, {}, {}, { awaiting_signoff: 1, queried: 1 },
+  ];
+  const c = fleetCounts(fleet);
+  assert.equal(c.all, 5);
+  assert.equal(c.waiting + c.back + c.clear, c.all);
+  assert.deepEqual([c.waiting, c.back, c.clear], [2, 1, 2]);
+});
+
+test('filtering combines the bucket and the search', () => {
+  const fleet = [
+    { vessel_name: 'Serenity', awaiting_signoff: 2 },
+    { vessel_name: 'Meridian', awaiting_signoff: 1 },
+    { vessel_name: 'Halcyon' },
+  ];
+  assert.deepEqual(filterFleet(fleet, 'waiting').map((v) => v.vessel_name), ['Serenity', 'Meridian']);
+  assert.deepEqual(filterFleet(fleet, 'waiting', 'mer').map((v) => v.vessel_name), ['Meridian']);
+  assert.deepEqual(filterFleet(fleet, 'all', 'HAL').map((v) => v.vessel_name), ['Halcyon']);
+  assert.equal(filterFleet(fleet, 'back').length, 0);
 });
