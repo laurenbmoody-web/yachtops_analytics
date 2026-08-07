@@ -147,15 +147,16 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
     const photo = (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
     const ticked = checks.has(it.id);
     const qty = Math.max(1, Number(it.details?.quantity) || 1);
-    const sub = [it.details?.brand, it.garmentType, it.colour].filter(Boolean).join(' · ');
+    const sub = [it.details?.brand, it.garmentType, it.details?.size, it.colour].filter(Boolean).join(' · ');
     return (
       <li className={`ow-case-row${opts.pick ? ' pick' : ''}${opts.pick && ticked ? ' on' : ''}`} key={it.id} onClick={opts.pick ? () => toggle(it.id) : undefined}>
         {opts.pick && <span className="ow-case-check"><Icon name={ticked ? 'CheckSquare' : 'Square'} size={18} /></span>}
         <span className="ow-case-thumb sm">{photo ? <img src={photo} alt="" /> : <Icon name="Shirt" size={15} />}</span>
         <div className="ow-case-main">
-          <span className="ow-card-nm">{it.description || 'Garment'}{qty > 1 && <span className="ow-qty-inline">×{qty}</span>}</span>
-          {sub && <span className="ow-card-sub">{sub}</span>}
+          <span className="ow-card-nm">{it.description || 'Garment'}</span>
+          <span className="ow-card-sub">{sub || 'No details yet'}</span>
         </div>
+        <span className="ow-lug-qty">×{qty}</span>
         {opts.removable && <button type="button" className="ow-case-x" title="Take out of bag" onClick={() => removeItem(it.id)}><Icon name="X" size={15} /></button>}
       </li>
     );
@@ -250,7 +251,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
       <div className="ow-case-body">
         {task === 'packpick' ? (
           <>
-            <div className="ow-case-note">Tick garments to pack into this bag</div>
+            <p className="ow-lug-pickhint">Tick garments to pack into this bag</p>
             {inWardrobe.length === 0
               ? <p className="ow-hist-empty">Nothing in {whose} wardrobe to pack. Add a new garment instead.</p>
               : <ul className="ow-case-list">{inWardrobe.map((it) => itemRow(it, { pick: true }))}</ul>}
