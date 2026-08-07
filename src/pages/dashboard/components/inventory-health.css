@@ -22,16 +22,17 @@
 .ih-af{font-size:11.5px;color:var(--ih-muted);margin-top:12px;padding-top:11px;border-top:1px solid #E7E9F0;}
 .ih-af b{color:var(--ih-ink);font-weight:600;}
 
-/* Worst-culprit strip — the single most-pressing item, a real button. */
-.ih-culprit{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;
+/* Worst-culprit line — the single most-pressing item, a real button.
+   One row, no pill: a small-caps lead, the item name (truncates), and a
+   compact status. Every part guards against overflow so nothing clips. */
+.ih-worst{display:flex;align-items:baseline;gap:9px;width:100%;text-align:left;background:none;border:0;
   margin-top:14px;padding:13px 2px 2px;border-top:1px solid var(--ih-hair);cursor:pointer;font-family:inherit;}
-.ih-culprit:focus-visible{outline:none;box-shadow:0 0 0 2px #FAECE7 inset;border-radius:8px;}
-.ih-cul-tag{flex:none;font-size:8.5px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ih-terra);
-  background:var(--ih-tint);padding:4px 8px;border-radius:999px;white-space:nowrap;}
-.ih-cul-main{min-width:0;flex:1;}
-.ih-cul-nm{font-size:13px;font-weight:600;color:var(--ih-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ih-cul-mt{font-size:11px;color:var(--ih-faint);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.ih-culprit:hover .ih-cul-nm{color:var(--ih-terra-hi);}
+.ih-worst:focus-visible{outline:none;box-shadow:0 0 0 2px #FAECE7 inset;border-radius:8px;}
+.ih-worst-lead{flex:none;font-size:9px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ih-terra);}
+.ih-worst-name{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--ih-ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ih-worst-meta{flex:none;font-size:11px;font-weight:600;color:var(--ih-faint);font-variant-numeric:tabular-nums;white-space:nowrap;}
+.ih-worst:hover .ih-worst-name{color:var(--ih-terra-hi);}
 
 /* Calm / empty states. */
 .ih-calm{margin-top:14px;padding:13px 2px 2px;border-top:1px solid var(--ih-hair);font-size:12.5px;color:var(--ih-muted);}

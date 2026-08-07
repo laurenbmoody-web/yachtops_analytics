@@ -88,12 +88,10 @@ const InventoryHealthWidget = () => {
           </div>
 
           {worst ? (
-            <button type="button" className="ih-culprit" onClick={openBoard} title={worst.name}>
-              <span className="ih-cul-tag">{worst.tag}</span>
-              <span className="ih-cul-main">
-                <span className="ih-cul-nm">{worst.name}</span>
-                <span className="ih-cul-mt">{(worst.place || 'Location not set')} · {worst.detail}</span>
-              </span>
+            <button type="button" className="ih-worst" onClick={openBoard} title={`${worst.name}${worst.place ? ` · ${worst.place}` : ''} · ${worst.detail}`}>
+              <span className="ih-worst-lead">{worst.tag}</span>
+              <span className="ih-worst-name">{worst.name}</span>
+              <span className="ih-worst-meta">{worst.label}</span>
             </button>
           ) : (
             <div className="ih-calm">All {stats.total} items in date and at par.</div>
