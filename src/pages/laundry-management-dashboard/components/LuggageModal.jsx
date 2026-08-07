@@ -16,7 +16,7 @@ import './ownerWardrobe.css';
 // — a photographed record (exterior to identify it, interior as the repack
 // reference). Garments physically inside a bag carry its case_id; unpacking
 // moves them into a wardrobe, packing moves them back in.
-const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], showValue = true, initialMode = 'pack', packIds = [], openBagId = null, onChanged, onClose }) => {
+const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], showValue = true, packIds = [], openBagId = null, onChanged, onClose }) => {
   const [bags, setBags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState(null); // null = the bag list
@@ -34,10 +34,8 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
   const [editMeta, setEditMeta] = useState(false);
   const [mCabin, setMCabin] = useState('');
   const [mDest, setMDest] = useState('');
-  const [hubMode, setHubMode] = useState(initialMode === 'unpack' ? 'unpack' : 'pack');
   const [pending, setPending] = useState(packIds); // garments awaiting a bag (from a Pack selection)
   const [photoRO, setPhotoRO] = useState(false); // View bag = read-only photos (add only, no delete)
-  const unpacking = hubMode === 'unpack';
 
   const isPersons = (c) => (person.id === 'owner' ? !c.ownerGuestId : c.ownerGuestId === person.id);
   const refresh = async () => {
@@ -198,7 +196,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
   const listScreen = (
     <>
       <div className="ow-case-head">
-        <span className="ow-eyebrow">Luggage · {unpacking ? 'Unpack' : 'Pack'}</span>
+        <span className="ow-eyebrow">Luggage</span>
         <h2 className="ow-full-nm"><Icon name="Luggage" size={20} /> {person.name}</h2>
         <p className="ow-full-brand">{person.cabin ? `${person.cabin} · ` : ''}{bags.length} bag{bags.length === 1 ? '' : 's'}</p>
       </div>
@@ -208,10 +206,8 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
           : creating ? createForm
             : bags.length === 0 ? (
               <div className="ow-emptybig">
-                <button type="button" className="ow-addtile ow-addtile-big" onClick={startCreate}><Icon name={unpacking ? 'PackageOpen' : 'Plus'} size={28} /><span>{unpacking ? 'Unpack an arriving bag' : 'Pack a bag'}</span></button>
-                <p className="ow-empty-note">{unpacking
-                  ? `Log a bag ${whose} guest arrived with — photograph it, then catalogue the garments into their cabin.`
-                  : `Photograph the luggage inside and out, then pack ${whose} garments for travel.`}</p>
+                <button type="button" className="ow-addtile ow-addtile-big" onClick={startCreate}><Icon name="Plus" size={28} /><span>Add a bag</span></button>
+                <p className="ow-empty-note">Log the luggage {whose} keeps aboard — photograph it inside and out, then pack and unpack its contents anytime.</p>
               </div>
             ) : (
               <div className="ow-wm-list">{bags.map(bagRow)}</div>
@@ -284,7 +280,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
               <span>{contents.length} in this bag</span>
             </div>
             {contents.length === 0
-              ? <p className="ow-hist-empty">{unpacking ? 'Empty — add each garment to the cabin as you unpack it.' : 'Empty — pack garments in from the wardrobe.'}</p>
+              ? <p className="ow-hist-empty">Empty — pack garments in from the wardrobe, or add a new one to the cabin.</p>
               : <ul className="ow-case-list">{contents.map((it) => itemRow(it, { removable: true }))}</ul>}
           </>
         )}
@@ -308,11 +304,8 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
             {contents.length === 0 && <button type="button" className="ow-btn ghost danger" onClick={deleteBag}><Icon name="Trash2" size={14} /> Delete bag</button>}
             <span style={{ flex: 1 }} />
             <button type="button" className="ow-btn ghost" onClick={() => setShowAddNew(true)}><Icon name="Camera" size={14} /> Add new</button>
-            {unpacking
-              ? (contents.length > 0
-                ? <button type="button" className="ow-btn primary" onClick={startUnpackDest}><Icon name="PackageOpen" size={15} /> Unpack into cabin</button>
-                : <button type="button" className="ow-btn primary" onClick={startPackPick}><Icon name="Plus" size={15} /> From wardrobe</button>)
-              : <button type="button" className="ow-btn primary" onClick={startPackPick}><Icon name="Plus" size={15} /> Pack from wardrobe</button>}
+            {contents.length > 0 && <button type="button" className="ow-btn ghost" onClick={startUnpackDest}><Icon name="PackageOpen" size={15} /> Unpack</button>}
+            <button type="button" className="ow-btn primary" onClick={startPackPick}><Icon name="Plus" size={15} /> Pack from wardrobe</button>
           </>
         )}
       </div>
@@ -335,12 +328,10 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
           defaultGuestId={person.id === 'owner' ? '' : person.id}
           showValue={showValue}
           onClose={() => setShowAddNew(false)}
-          onCreated={async (created) => {
-            setShowAddNew(false);
-            // Departure: the new garment goes straight into the bag. Arrival:
-            // it's catalogued into the wardrobe (that IS the unpacking).
-            if (created?.id && bag && !unpacking) await setLaundryItemsCase([created.id], bag.id);
-            onChanged?.(); refresh();
+          onCreated={() => {
+            // A new garment is catalogued into the person's wardrobe/cabin; pack
+            // it into a bag afterwards via "Pack from wardrobe" if needed.
+            setShowAddNew(false); onChanged?.(); refresh();
           }}
         />
       )}
