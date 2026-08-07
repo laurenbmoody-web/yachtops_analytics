@@ -49,7 +49,7 @@ const inWash = (i) => i.status === LaundryStatus.IN_PROGRESS || i.status === Lau
 // state when a garment is temporarily elsewhere: away in a case, or at the
 // laundry. On board in its wardrobe = the default, no pill.
 const garmentState = (it) => {
-  if (it.caseId) return { label: 'Away', cls: 'away' };
+  if (it.caseId) return { label: 'Packed', cls: 'away' };
   if (inWash(it)) return { label: 'In laundry', cls: 'prog' };
   return null;
 };
@@ -158,7 +158,8 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
   const sortOptions = showValue ? SORTS : SORTS.filter((s) => !s.val.startsWith('price'));
 
   const load = async () => {
-    const [ws, gs, all] = await Promise.all([loadWardrobes(cfg.wardrobeScope), loadGuests().catch(() => []), loadAllLaundryItems()]);
+    const [ws, gs, all, cs] = await Promise.all([loadWardrobes(cfg.wardrobeScope), loadGuests().catch(() => []), loadAllLaundryItems(), loadCases().catch(() => [])]);
+    setCases(cs);
     const scopeGuests = (gs || []).filter((g) => (isGuest ? g.guestType !== GuestType.OWNER : g.guestType === GuestType.OWNER));
     const wIds = new Set(ws.map((w) => w.id));
     const gIds = new Set(scopeGuests.map((g) => g.id));
@@ -187,6 +188,7 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
   }, [addMenuOpen]);
 
   const wardrobesById = useMemo(() => Object.fromEntries(wardrobes.map((w) => [w.id, w])), [wardrobes]);
+  const casesById = useMemo(() => Object.fromEntries(cases.map((c) => [c.id, c])), [cases]);
   const guestsById = useMemo(() => Object.fromEntries(guests.map((g) => [g.id, g])), [guests]);
   const wardrobeName = (id) => wardrobes.find((w) => w.id === id)?.name || '';
   const caseName = (id) => cases.find((c) => c.id === id)?.name || 'a case';
@@ -260,23 +262,29 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
   // Group the shown items by wardrobe/room (location) or by the person (guest).
   const groups = useMemo(() => {
     const map = new Map();
-    const push = (key, title, subtitle, it) => { if (!map.has(key)) map.set(key, { key, title, subtitle, items: [] }); map.get(key).items.push(it); };
+    const push = (key, title, subtitle, it, kind, caseId) => { if (!map.has(key)) map.set(key, { key, title, subtitle, items: [], kind, caseId }); map.get(key).items.push(it); };
     shown.forEach((it) => {
       if (groupBy === 'guest') {
         const g = guestsById[it.ownerGuestId];
-        push(it.ownerGuestId || 'none', g ? guestName(g) : (it.ownerName && it.ownerName !== 'Owner' ? it.ownerName : 'Owner'), g?.cabinLocationLabel || g?.cabinAllocated || '', it);
+        push(it.ownerGuestId || 'none', g ? guestName(g) : (it.ownerName && it.ownerName !== 'Owner' ? it.ownerName : 'Owner'), g?.cabinLocationLabel || g?.cabinAllocated || '', it, 'guest');
+      } else if (it.caseId) {
+        // Packed garments live in a bag, not a wardrobe — group them by the bag
+        // so you can see each bag and what's in it.
+        const c = casesById[it.caseId];
+        push(`case:${it.caseId}`, c?.name || 'Bag', 'Packed', it, 'bag', it.caseId);
       } else {
         const w = wardrobesById[it.wardrobeId];
-        push(it.wardrobeId || 'none', w?.name || 'No wardrobe', w?.locationName || w?.location || '', it);
+        push(it.wardrobeId || 'none', w?.name || 'No wardrobe', w?.locationName || w?.location || '', it, 'loc');
       }
     });
-    return [...map.values()];
-  }, [shown, groupBy, guestsById, wardrobesById]);
+    // Bags first, then wardrobes.
+    return [...map.values()].sort((a, b) => (a.kind === 'bag' ? -1 : 0) - (b.kind === 'bag' ? -1 : 0));
+  }, [shown, groupBy, guestsById, wardrobesById, casesById]);
 
   const filterGroups = [
-    { key: 'loc', label: 'Location', value: fLoc, neutral: 'all', onChange: setFLoc, options: [{ value: 'all', label: 'Everywhere' }, ...wardrobes.map((w) => ({ value: w.id, label: w.name })), { value: 'away', label: 'Away (in a case)' }] },
+    { key: 'loc', label: 'Location', value: fLoc, neutral: 'all', onChange: setFLoc, options: [{ value: 'all', label: 'Everywhere' }, ...wardrobes.map((w) => ({ value: w.id, label: w.name })), { value: 'away', label: 'Packed (in a bag)' }] },
     { key: 'type', label: 'Type of clothing', value: fType, neutral: 'all', onChange: setFType, options: [{ value: 'all', label: 'All types' }, ...types.map((t) => ({ value: t, label: t }))] },
-    { key: 'status', label: 'Where', value: fStatus, neutral: 'all', onChange: setFStatus, options: [{ value: 'all', label: 'Anywhere' }, { value: 'onboard', label: 'On board' }, { value: 'away', label: 'Away (in a case)' }, { value: 'laundry', label: 'In laundry' }] },
+    { key: 'status', label: 'Where', value: fStatus, neutral: 'all', onChange: setFStatus, options: [{ value: 'all', label: 'Anywhere' }, { value: 'onboard', label: 'On board' }, { value: 'away', label: 'Packed (in a bag)' }, { value: 'laundry', label: 'In laundry' }] },
     { key: 'age', label: 'Time on board', value: fAge, neutral: 'all', onChange: setFAge, options: AGES },
   ];
 
@@ -367,7 +375,7 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
         <button type="button" className="ow-check" onClick={() => toggle(it.id)} aria-label="Select"><Icon name={sel.has(it.id) ? 'CheckSquare' : 'Square'} size={18} /></button>
         <button type="button" className="ow-card-media" onClick={() => setFullItem(it)}>
           {photo ? <img src={photo} alt={it.description || 'Garment'} loading="lazy" /> : <span className="ow-card-ph"><Icon name="Shirt" size={30} /></span>}
-          {it.caseId && <span className="ow-away">Away</span>}
+          {it.caseId && <span className="ow-away">Packed</span>}
           {qtyOf(it) > 1 && <span className="ow-qty">×{qtyOf(it)}</span>}
           {it.staysOnboard && <span className="ow-stays" title="Usually stays on board"><Icon name="Anchor" size={11} /></span>}
         </button>
@@ -424,7 +432,7 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
       {showManageWardrobes && <WardrobeManageModal wardrobes={wardrobes} items={[...items, ...archived]} onNew={() => setShowNewWardrobe(true)} onChanged={load} onClose={() => setShowManageWardrobes(false)} />}
       {showCases && <CasesListModal items={items} onOpenCase={(id) => { setShowCases(false); setOpenCaseId(id); }} onClose={() => setShowCases(false)} />}
       {openCaseId && <CaseMovementModal caseId={openCaseId} wardrobes={wardrobes} onChanged={load} onClose={() => setOpenCaseId(null)} />}
-      {luggage && luggagePerson && <LuggageModal person={luggagePerson} personItems={personActiveItems} wardrobes={wardrobes} guests={guests} showValue={showValue} initialMode={luggage.mode} packIds={luggage.packIds || []} onChanged={load} onClose={() => setLuggage(null)} />}
+      {luggage && luggagePerson && <LuggageModal person={luggagePerson} personItems={personActiveItems} wardrobes={wardrobes} guests={guests} showValue={showValue} initialMode={luggage.mode} packIds={luggage.packIds || []} openBagId={luggage.openBagId || null} onChanged={load} onClose={() => setLuggage(null)} />}
       {showAddGuest && <AddGuestModal scope={cfg.wardrobeScope} onClose={() => setShowAddGuest(false)} onCreated={(g) => { setShowAddGuest(false); if (g?.id) setPersonId(g.id); load(); }} />}
       {fullItem && <GarmentFullView item={fullItem} wardrobes={wardrobes} guests={guests} showValue={showValue} caseName={fullItem.caseId ? caseName(fullItem.caseId) : null} onClose={() => setFullItem(null)} onChanged={() => { load(); setFullItem(null); }} onAction={singleAction} />}
       {showScan && <LaundryScanModal onClose={() => setShowScan(false)} onDetect={onScan} />}
@@ -505,7 +513,7 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
           <span className="muted">{peopleOnboard} {peopleOnboard === 1 ? 'person' : 'people'} on board</span>
           <span className="bar" /><span className="muted">{onboardPieces} stored on board</span>
           {showValue && totalValue > 0 && <><span className="bar" /><span className="muted">{money(totalValue, valueCur)} total value</span></>}
-          {(awayAll + washAll) > 0 && <><span className="bar" /><span className="muted">{awayAll} away · {washAll} at laundry</span></>}
+          {(awayAll + washAll) > 0 && <><span className="bar" /><span className="muted">{awayAll} packed · {washAll} at laundry</span></>}
         </p>
         <h1 className="editorial-greeting">{cfg.title[0]}<span className="period">,</span> <em>{cfg.title[1]}</em><span className="period">.</span></h1>
 
@@ -611,15 +619,17 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
         <div className="ow-groups">
           {groups.map((grp) => (
             <section className="ow-group" key={grp.key}>
-              <div className="ow-group-head">
+              <div className={`ow-group-head${grp.kind === 'bag' ? ' bag' : ''}`}>
                 <div className="ow-group-id">
-                  <Icon name={groupBy === 'guest' ? 'User' : 'Shirt'} size={14} />
+                  <Icon name={grp.kind === 'bag' ? 'Luggage' : groupBy === 'guest' ? 'User' : 'Shirt'} size={14} />
                   <span className="ow-group-t">{grp.title}</span>
                   {grp.subtitle && <span className="ow-group-sub">{grp.subtitle}</span>}
                 </div>
                 <div className="ow-group-r">
                   <span className="ow-group-ct">{grp.items.length}</span>
-                  <button type="button" className="ow-group-sel" onClick={() => selectGroup(grp.items)}>Select all</button>
+                  {grp.kind === 'bag'
+                    ? <button type="button" className="ow-group-sel" onClick={() => setLuggage({ mode: 'pack', openBagId: grp.caseId })}>View bag</button>
+                    : <button type="button" className="ow-group-sel" onClick={() => selectGroup(grp.items)}>Select all</button>}
                 </div>
               </div>
               {view === 'image'
