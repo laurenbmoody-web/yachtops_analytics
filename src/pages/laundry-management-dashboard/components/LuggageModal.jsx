@@ -36,6 +36,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
   const [mDest, setMDest] = useState('');
   const [hubMode, setHubMode] = useState(initialMode === 'unpack' ? 'unpack' : 'pack');
   const [pending, setPending] = useState(packIds); // garments awaiting a bag (from a Pack selection)
+  const [photoRO, setPhotoRO] = useState(false); // View bag = read-only photos (add only, no delete)
   const unpacking = hubMode === 'unpack';
 
   const isPersons = (c) => (person.id === 'owner' ? !c.ownerGuestId : c.ownerGuestId === person.id);
@@ -50,8 +51,9 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
     }
   };
   useEffect(() => { refresh(); /* eslint-disable-next-line */ }, []);
-  // Opened straight to a specific bag (e.g. "View bag" from a bag group).
-  useEffect(() => { if (!loading && openBagId && !activeId) setActiveId(openBagId); /* eslint-disable-next-line */ }, [loading]);
+  // Opened straight to a specific bag (e.g. "View bag" from a bag group) — that
+  // entry is a look, so photos are add-only there.
+  useEffect(() => { if (!loading && openBagId && !activeId) { setActiveId(openBagId); setPhotoRO(true); } /* eslint-disable-next-line */ }, [loading]);
 
   const bag = useMemo(() => bags.find((b) => b.id === activeId) || null, [bags, activeId]);
   const contents = useMemo(() => personItems.filter((i) => i.caseId === activeId), [personItems, activeId]);
@@ -60,7 +62,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
 
   const toggle = (id) => setChecks((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const photoUrl = (p) => urls[p] || (typeof p === 'string' && p.startsWith('data:') ? p : '');
-  const openBag = (id) => { setActiveId(id); setTask('view'); setChecks(new Set()); setEditMeta(false); };
+  const openBag = (id) => { setActiveId(id); setTask('view'); setChecks(new Set()); setEditMeta(false); setPhotoRO(false); };
   const whose = person.name === 'Owner' ? 'the owner’s' : `${person.name}’s`;
 
   const createBag = async () => {
@@ -135,7 +137,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
           {list.map((p) => (
             <div className="ow-photo-thumb" key={p}>
               {photoUrl(p) ? <img src={photoUrl(p)} alt="" /> : <span className="ow-card-ph"><Icon name="Image" size={20} /></span>}
-              <button type="button" className="ow-photo-del" onClick={() => delPhoto(kind, p)} aria-label="Remove"><Icon name="X" size={12} /></button>
+              {!photoRO && <button type="button" className="ow-photo-del" onClick={() => delPhoto(kind, p)} aria-label="Remove"><Icon name="X" size={12} /></button>}
             </div>
           ))}
           <label className="ow-photo-add">
