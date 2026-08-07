@@ -3,8 +3,7 @@ import Icon from '../../../components/AppIcon';
 import OwSelect from './OwSelect';
 import AddGarmentModal, { compressImage } from './AddGarmentModal';
 import {
-  loadCases, createCase, updateCase, archiveCase,
-  addCasePhotos, removeCasePhoto,
+  loadCases, createCase, updateCase, archiveCase, addCasePhotos,
 } from '../utils/laundryCases';
 import { setLaundryItemsCase, setLaundryItemsWardrobe } from '../utils/laundryStorage';
 import { signLaundryValues } from '../utils/laundryPhotos';
@@ -35,7 +34,6 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
   const [mCabin, setMCabin] = useState('');
   const [mDest, setMDest] = useState('');
   const [pending, setPending] = useState(packIds); // garments awaiting a bag (from a Pack selection)
-  const [photoRO, setPhotoRO] = useState(false); // View bag = read-only photos (add only, no delete)
 
   const isPersons = (c) => (person.id === 'owner' ? !c.ownerGuestId : c.ownerGuestId === person.id);
   const refresh = async () => {
@@ -49,9 +47,8 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
     }
   };
   useEffect(() => { refresh(); /* eslint-disable-next-line */ }, []);
-  // Opened straight to a specific bag (e.g. "View bag" from a bag group) — that
-  // entry is a look, so photos are add-only there.
-  useEffect(() => { if (!loading && openBagId && !activeId) { setActiveId(openBagId); setPhotoRO(true); } /* eslint-disable-next-line */ }, [loading]);
+  // Opened straight to a specific bag (e.g. "View bag" from a bag group).
+  useEffect(() => { if (!loading && openBagId && !activeId) setActiveId(openBagId); /* eslint-disable-next-line */ }, [loading]);
 
   const bag = useMemo(() => bags.find((b) => b.id === activeId) || null, [bags, activeId]);
   const contents = useMemo(() => personItems.filter((i) => i.caseId === activeId), [personItems, activeId]);
@@ -60,7 +57,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
 
   const toggle = (id) => setChecks((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const photoUrl = (p) => urls[p] || (typeof p === 'string' && p.startsWith('data:') ? p : '');
-  const openBag = (id) => { setActiveId(id); setTask('view'); setChecks(new Set()); setEditMeta(false); setPhotoRO(false); };
+  const openBag = (id) => { setActiveId(id); setTask('view'); setChecks(new Set()); setEditMeta(false); };
   const whose = person.name === 'Owner' ? 'the owner’s' : `${person.name}’s`;
 
   const createBag = async () => {
@@ -102,7 +99,6 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
     await refresh();
     setPhotoBusy('');
   };
-  const delPhoto = async (kind, path) => { if (!bag) return; await removeCasePhoto(bag.id, kind, path, bag.details); refresh(); };
 
   // Pack garments from the wardrobe INTO the bag (departure).
   const startPackPick = () => { setChecks(new Set()); setTask('packpick'); };
@@ -135,7 +131,6 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
           {list.map((p) => (
             <div className="ow-photo-thumb" key={p}>
               {photoUrl(p) ? <img src={photoUrl(p)} alt="" /> : <span className="ow-card-ph"><Icon name="Image" size={20} /></span>}
-              {!photoRO && <button type="button" className="ow-photo-del" onClick={() => delPhoto(kind, p)} aria-label="Remove"><Icon name="X" size={12} /></button>}
             </div>
           ))}
           <label className="ow-photo-add">
@@ -151,13 +146,15 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
   const itemRow = (it, opts = {}) => {
     const photo = (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
     const ticked = checks.has(it.id);
+    const qty = Math.max(1, Number(it.details?.quantity) || 1);
+    const sub = [it.details?.brand, it.garmentType, it.colour].filter(Boolean).join(' · ');
     return (
       <li className={`ow-case-row${opts.pick ? ' pick' : ''}${opts.pick && ticked ? ' on' : ''}`} key={it.id} onClick={opts.pick ? () => toggle(it.id) : undefined}>
         {opts.pick && <span className="ow-case-check"><Icon name={ticked ? 'CheckSquare' : 'Square'} size={18} /></span>}
-        <span className="ow-case-thumb">{photo ? <img src={photo} alt="" /> : <Icon name="Shirt" size={16} />}</span>
+        <span className="ow-case-thumb sm">{photo ? <img src={photo} alt="" /> : <Icon name="Shirt" size={15} />}</span>
         <div className="ow-case-main">
-          <span className="ow-card-nm">{it.description || 'Garment'}</span>
-          <span className="ow-card-sub">{[it.garmentType, it.colour].filter(Boolean).join(' · ') || '—'}</span>
+          <span className="ow-card-nm">{it.description || 'Garment'}{qty > 1 && <span className="ow-qty-inline">×{qty}</span>}</span>
+          {sub && <span className="ow-card-sub">{sub}</span>}
         </div>
         {opts.removable && <button type="button" className="ow-case-x" title="Take out of bag" onClick={() => removeItem(it.id)}><Icon name="X" size={15} /></button>}
       </li>
@@ -280,7 +277,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
               <span>{contents.length} in this bag</span>
             </div>
             {contents.length === 0
-              ? <p className="ow-hist-empty">Empty — pack garments in from the wardrobe, or add a new one to the cabin.</p>
+              ? <p className="ow-hist-empty">Empty — add each item as you take it out of the bag, or pack in from the wardrobe.</p>
               : <ul className="ow-case-list">{contents.map((it) => itemRow(it, { removable: true }))}</ul>}
           </>
         )}
@@ -303,9 +300,10 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
           <>
             {contents.length === 0 && <button type="button" className="ow-btn ghost danger" onClick={deleteBag}><Icon name="Trash2" size={14} /> Delete bag</button>}
             <span style={{ flex: 1 }} />
-            <button type="button" className="ow-btn ghost" onClick={() => setShowAddNew(true)}><Icon name="Camera" size={14} /> Add new</button>
             {contents.length > 0 && <button type="button" className="ow-btn ghost" onClick={startUnpackDest}><Icon name="PackageOpen" size={15} /> Unpack</button>}
-            <button type="button" className="ow-btn primary" onClick={startPackPick}><Icon name="Plus" size={15} /> Pack from wardrobe</button>
+            {inWardrobe.length > 0 && <button type="button" className="ow-btn ghost" onClick={startPackPick}><Icon name="Plus" size={14} /> Pack from wardrobe</button>}
+            <button type="button" className="ow-btn ghost" onClick={() => setShowAddNew(true)}><Icon name="Camera" size={14} /> Add item</button>
+            <button type="button" className="ow-btn primary" onClick={() => { window.showToast?.('Luggage saved', 'success'); onClose?.(); }}><Icon name="Check" size={15} /> Done</button>
           </>
         )}
       </div>
@@ -328,10 +326,12 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
           defaultGuestId={person.id === 'owner' ? '' : person.id}
           showValue={showValue}
           onClose={() => setShowAddNew(false)}
-          onCreated={() => {
-            // A new garment is catalogued into the person's wardrobe/cabin; pack
-            // it into a bag afterwards via "Pack from wardrobe" if needed.
-            setShowAddNew(false); onChanged?.(); refresh();
+          onCreated={async (created) => {
+            // A new item logged from inside a bag belongs to that bag — it shows
+            // in "in this bag" and is unpacked into the cabin later.
+            setShowAddNew(false);
+            if (created?.id && bag) await setLaundryItemsCase([created.id], bag.id);
+            onChanged?.(); refresh();
           }}
         />
       )}
