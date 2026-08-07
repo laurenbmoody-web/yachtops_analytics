@@ -59,6 +59,8 @@
 .ow-group-id svg { stroke: #C65A1A; align-self: center; flex: none; }
 .ow-group-t { font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; color: #1C1B3A; }
 .ow-group-sub { font-size: 12px; color: #8B93A0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A bag group reads as luggage: its subtitle is a small "Packed" pill. */
+.ow-group-head.bag .ow-group-sub { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #4A4863; background: #EEF0F4; border-radius: 999px; padding: 3px 8px; }
 .ow-group-r { display: flex; align-items: center; gap: 12px; flex: none; }
 .ow-group-ct { font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; }
 .ow-group-sel { background: none; border: none; cursor: pointer; font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; }
@@ -376,7 +378,9 @@
 .ow-lug .ow-addtile-big { min-height: 148px; width: 220px; }
 .ow-lug-emptyic { width: 46px; height: 46px; border-radius: 999px; background: #FBEFE9; color: #C65A1A; display: grid; place-items: center; }
 .ow-lug .ow-eyebrow { display: block; margin-bottom: 4px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
-.ow-lug-detail-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+/* Right padding clears the absolutely-positioned close button so the state
+   pill isn't clipped underneath it. */
+.ow-lug-detail-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; padding-right: 38px; }
 .ow-lug-back { display: inline-flex; align-items: center; gap: 5px; padding: 0; background: none; border: none; cursor: pointer; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
 .ow-lug-back:hover { color: #C65A1A; }
 .ow-lug-state { flex: none; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; background: #EEF0F4; color: #4A4863; }

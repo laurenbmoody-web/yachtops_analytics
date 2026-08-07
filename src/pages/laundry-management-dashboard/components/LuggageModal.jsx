@@ -16,7 +16,7 @@ import './ownerWardrobe.css';
 // — a photographed record (exterior to identify it, interior as the repack
 // reference). Garments physically inside a bag carry its case_id; unpacking
 // moves them into a wardrobe, packing moves them back in.
-const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], showValue = true, initialMode = 'pack', packIds = [], onChanged, onClose }) => {
+const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], showValue = true, initialMode = 'pack', packIds = [], openBagId = null, onChanged, onClose }) => {
   const [bags, setBags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeId, setActiveId] = useState(null); // null = the bag list
@@ -50,6 +50,8 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
     }
   };
   useEffect(() => { refresh(); /* eslint-disable-next-line */ }, []);
+  // Opened straight to a specific bag (e.g. "View bag" from a bag group).
+  useEffect(() => { if (!loading && openBagId && !activeId) setActiveId(openBagId); /* eslint-disable-next-line */ }, [loading]);
 
   const bag = useMemo(() => bags.find((b) => b.id === activeId) || null, [bags, activeId]);
   const contents = useMemo(() => personItems.filter((i) => i.caseId === activeId), [personItems, activeId]);
