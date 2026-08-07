@@ -926,34 +926,58 @@ export const updatePartialBottle = async (itemId, fraction) => {
 //   healthy / lowStock / outOfStock — stock levels
 //   expiringSoon (≤30 days) / expired — freshness
 export const getInventoryHealthStats = async (tenantId = getActiveTenantId()) => {
-  const empty = { healthy: 0, lowStock: 0, outOfStock: 0, total: 0, expiringSoon: 0, expired: 0 };
+  const empty = { healthy: 0, lowStock: 0, outOfStock: 0, total: 0, expiringSoon: 0, expired: 0, mostUrgent: null };
   if (!tenantId) return empty;
   const { data, error } = await supabase
     .from('inventory_items')
-    .select('quantity, total_qty, stock_locations, restock_enabled, restock_level, expiry_date')
+    .select('id, name, location, sub_location, quantity, total_qty, stock_locations, restock_enabled, restock_level, expiry_date')
     .eq('tenant_id', tenantId);
   if (error || !data) { if (error) console.error('[inventoryStorage] health stats failed', error); return empty; }
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const soon = new Date(today); soon.setDate(soon.getDate() + 30);
+  const DAY = 86400000;
 
   let healthy = 0; let lowStock = 0; let outOfStock = 0; let expiringSoon = 0; let expired = 0;
+  // Collect the most pressing items for the widget's attention list. Priority
+  // (lower rank first): out of stock → most-overdue expired → below par →
+  // soonest expiring; `score` (higher first) breaks ties within a rank.
+  const attention = [];
+  const placeOf = (row) => row.sub_location || row.location || null;
+
   for (const row of data) {
     const qty = Array.isArray(row.stock_locations) && row.stock_locations.length
       ? row.stock_locations.reduce((s, l) => s + (Number(l?.qty ?? l?.quantity) || 0), 0)
       : (Number(row.total_qty ?? row.quantity) || 0);
+    let stockState = 'ok';
     if (!row.restock_enabled || row.restock_level == null) healthy += 1;
-    else if (qty === 0) outOfStock += 1;
-    else if (qty <= row.restock_level) lowStock += 1;
+    else if (qty === 0) { outOfStock += 1; stockState = 'out'; }
+    else if (qty <= row.restock_level) { lowStock += 1; stockState = 'low'; }
     else healthy += 1;
 
+    let expState = null; let days = 0;
     if (row.expiry_date) {
       const exp = new Date(row.expiry_date); exp.setHours(0, 0, 0, 0);
-      if (exp < today) expired += 1;
-      else if (exp <= soon) expiringSoon += 1;
+      if (exp < today) { expired += 1; expState = 'expired'; days = Math.round((today - exp) / DAY); }
+      else if (exp <= soon) { expiringSoon += 1; expState = 'expiring'; days = Math.round((exp - today) / DAY); }
+    }
+
+    const base = { id: row.id, name: row.name || 'Untitled item', place: placeOf(row) };
+    if (stockState === 'out') {
+      attention.push({ ...base, rank: 0, score: 0, kind: 'out', tag: 'Out of stock', label: 'None left', detail: 'none in stock' });
+    } else if (expState === 'expired') {
+      attention.push({ ...base, rank: 1, score: days, kind: 'expired', tag: 'Most overdue', label: `${days}d over`, detail: `${days} days past date` });
+    } else if (stockState === 'low') {
+      attention.push({ ...base, rank: 2, score: (row.restock_level || 0) - qty, kind: 'low', tag: 'Below par', label: `${qty} / ${row.restock_level}`, detail: `${qty} of ${row.restock_level} in stock` });
+    } else if (expState === 'expiring') {
+      attention.push({ ...base, rank: 3, score: -days, kind: 'expiring', tag: 'Expiring soon', label: `${days}d left`, detail: `${days} days left` });
     }
   }
-  return { healthy, lowStock, outOfStock, total: data.length, expiringSoon, expired };
+  attention.sort((a, b) => (a.rank - b.rank) || (b.score - a.score));
+  return {
+    healthy, lowStock, outOfStock, total: data.length, expiringSoon, expired,
+    attention: attention.slice(0, 6),
+  };
 };
 
 // ============================================
