@@ -148,8 +148,51 @@ export default function ManagementVessel() {
       {err && <div className="mg-banner bad mb-4"><Icon name="AlertCircle" size={15} /> {err}</div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* ── LEFT: the substance ───────────────────────────────────────── */}
-        <div className="lg:col-span-8 flex flex-col gap-6">
+        {/* ── LEFT rail: which month, and what this boat shares ─────────── */}
+        <div className="lg:col-span-3 flex flex-col gap-6 order-2 lg:order-1">
+          {periods.length > 1 && (
+            <div className="ce-card rounded-xl p-5">
+              <h3 className="ce-title">Months</h3>
+              <p className="ce-status mb-3">Closed by {vesselName}</p>
+              <div className="mgv-months">
+                {periods.map((p) => (
+                  <button key={p.period_month} type="button"
+                    className={`mgv-month${p.period_month === period ? ' on' : ''}`}
+                    onClick={() => setPeriod(p.period_month)}>
+                    <span>{periodLabel(p.period_month)}</span>
+                    {p.awaiting > 0
+                      ? <em className="due">{p.awaiting} to sign</em>
+                      : <em>{p.signed_off > 0 ? 'Signed off' : 'With the vessel'}</em>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* What this boat shares, as a strip — the areas it has not shared
+              do not deserve a card each. */}
+          <div className="ce-card rounded-xl p-5">
+            <h3 className="ce-title">Shared with you</h3>
+            <p className="ce-status mb-3">Only their command can change this</p>
+            <div className="mgv-areas">
+              {VESSEL_AREAS.map((a) => {
+                const st = areaState(a, scopes);
+                return (
+                  <div key={a.key} className={`mgv-area s-${st.replace(/\s+/g, '-')}`}>
+                    <span className="ic"><Icon name={a.icon} size={15} /></span>
+                    <span className="t">{a.label}</span>
+                    <span className="s">
+                      {st === 'live' ? 'Shared' : st === 'not shared' ? 'Not shared' : 'Planned'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* ── CENTRE: the month itself ──────────────────────────────────── */}
+        <div className="lg:col-span-6 flex flex-col gap-6 order-1 lg:order-2">
           {!periods.length ? (
             <div className="ce-card rounded-xl p-5">
               <h3 className="ce-title">Month-end spending</h3>
@@ -262,48 +305,8 @@ export default function ManagementVessel() {
           })}
         </div>
 
-        {/* ── RIGHT: at a glance ───────────────────────────────────────── */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-          {periods.length > 1 && (
-            <div className="ce-card rounded-xl p-5">
-              <h3 className="ce-title">Months</h3>
-              <p className="ce-status mb-3">Closed by {vesselName}</p>
-              <div className="mgv-months">
-                {periods.map((p) => (
-                  <button key={p.period_month} type="button"
-                    className={`mgv-month${p.period_month === period ? ' on' : ''}`}
-                    onClick={() => setPeriod(p.period_month)}>
-                    <span>{periodLabel(p.period_month)}</span>
-                    {p.awaiting > 0
-                      ? <em className="due">{p.awaiting} to sign</em>
-                      : <em>{p.signed_off > 0 ? 'Signed off' : 'With the vessel'}</em>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Everything the vessel shares, in one strip rather than a card each —
-              six near-empty cards is what made this page read as unfinished. */}
-          <div className="ce-card rounded-xl p-5">
-            <h3 className="ce-title">What {vesselName} shares</h3>
-            <p className="ce-status mb-3">Only their command can change this</p>
-            <div className="mgv-areas">
-              {VESSEL_AREAS.map((a) => {
-                const st = areaState(a, scopes);
-                return (
-                  <div key={a.key} className={`mgv-area s-${st.replace(/\s+/g, '-')}`}>
-                    <span className="ic"><Icon name={a.icon} size={15} /></span>
-                    <span className="t">{a.label}</span>
-                    <span className="s">
-                      {st === 'live' ? 'Shared' : st === 'not shared' ? 'Not shared' : 'Planned'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
+        {/* ── RIGHT rail: the office's own trail ────────────────────────── */}
+        <div className="lg:col-span-3 flex flex-col gap-6 order-3">
           {activity.length > 0 && (
             <div className="ce-card rounded-xl p-5">
               <h3 className="ce-title">Recent</h3>

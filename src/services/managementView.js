@@ -321,3 +321,36 @@ export const monthActivity = (reconciliations = [], accountsById = {}) => {
   });
   return out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
 };
+
+// ── the fleet index ──────────────────────────────────────────────────────────
+// The all-vessels page is a way to FIND a boat, not a dashboard. With a dozen
+// yachts the office arrives with one of three questions in mind, so those are
+// the filters — and each carries its count, because a filter that turns out to
+// be empty after you click it has wasted the click.
+export const FLEET_FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'waiting', label: 'Waiting on you' },
+  { key: 'back', label: 'Sent back' },
+  { key: 'clear', label: 'Up to date' },
+];
+
+export const vesselBucket = (v) => {
+  if ((v?.awaiting_signoff || 0) > 0) return 'waiting';
+  if ((v?.queried || 0) > 0) return 'back';
+  return 'clear';
+};
+
+export const fleetCounts = (fleet = []) => {
+  const out = { all: (fleet || []).length, waiting: 0, back: 0, clear: 0 };
+  (fleet || []).forEach((v) => { out[vesselBucket(v)] += 1; });
+  return out;
+};
+
+export const filterFleet = (fleet = [], key = 'all', q = '') => {
+  const term = String(q || '').trim().toLowerCase();
+  return (fleet || []).filter((v) => {
+    if (key !== 'all' && vesselBucket(v) !== key) return false;
+    if (term && !String(v.vessel_name || '').toLowerCase().includes(term)) return false;
+    return true;
+  });
+};
