@@ -559,6 +559,53 @@ export const createLaundryItem = async (itemData) => {
   return mapRow(data);
 };
 
+// Split part of a quantity off a garment record. If `qty` covers the whole
+// record it just moves it (applies overrides); otherwise it clones `qty` pieces
+// as a new record with the overrides and decrements the source. Used to unpack
+// some-but-not-all of a multi-quantity item. Overrides: { wardrobeId, caseId }.
+export const splitLaundryItem = async (sourceId, qty, overrides = {}) => {
+  const { data: src, error: e0 } = await supabase.from('laundry_items').select('*').eq('id', sourceId).single();
+  if (e0 || !src) { showToast('Could not split item', 'error'); return null; }
+  const srcQty = Math.max(1, Number(src.details?.quantity) || 1);
+  const take = Math.max(1, Math.min(Number(qty) || 1, srcQty));
+  const setOverrides = (row) => {
+    if ('wardrobeId' in overrides) row.wardrobe_id = overrides.wardrobeId || null;
+    if ('caseId' in overrides) row.case_id = overrides.caseId || null;
+    return row;
+  };
+
+  if (take >= srcQty) {
+    const patch = setOverrides({ updated_at: new Date().toISOString() });
+    const { data, error } = await supabase.from('laundry_items').update(patch).eq('id', sourceId).select('*').single();
+    if (error) { console.error('[laundry] move failed', error); showToast('Could not move item', 'error'); return null; }
+    return mapRow(data);
+  }
+
+  const newDetails = { ...(src.details || {}) };
+  if (take > 1) newDetails.quantity = take; else delete newDetails.quantity;
+  const clone = setOverrides({
+    tenant_id: src.tenant_id,
+    owner_type: src.owner_type, owner_name: src.owner_name, owner_display_name: src.owner_display_name,
+    owner_guest_id: src.owner_guest_id, owner_crew_user_id: src.owner_crew_user_id,
+    area: src.area, area_location_id: src.area_location_id, colour: src.colour,
+    laundry_number: src.laundry_number, photos: src.photos, photo: src.photo,
+    description: src.description, priority: src.priority, status: LaundryStatus.STORED,
+    tags: src.tags, notes: src.notes, trip_id: src.trip_id, needed_by: src.needed_by,
+    wardrobe_id: src.wardrobe_id, case_id: src.case_id,
+    garment_type: src.garment_type, garment_value: src.garment_value, garment_value_currency: src.garment_value_currency,
+    stays_onboard: src.stays_onboard, details: newDetails, flag: src.flag, flag_note: src.flag_note,
+    created_by: src.created_by, created_by_name: src.created_by_name,
+  });
+  const { data: ins, error: e1 } = await supabase.from('laundry_items').insert(clone).select('*').single();
+  if (e1) { console.error('[laundry] split failed', e1); showToast('Could not split item', 'error'); return null; }
+
+  const remain = srcQty - take;
+  const srcDetails = { ...(src.details || {}) };
+  if (remain > 1) srcDetails.quantity = remain; else delete srcDetails.quantity;
+  await supabase.from('laundry_items').update({ details: srcDetails, updated_at: new Date().toISOString() }).eq('id', sourceId);
+  return mapRow(ins);
+};
+
 export const updateLaundryStatus = async (itemId, newStatus) => {
   const patch = { status: newStatus, updated_at: new Date().toISOString() };
   if (newStatus === LaundryStatus.DELIVERED) patch.delivered_at = new Date().toISOString();

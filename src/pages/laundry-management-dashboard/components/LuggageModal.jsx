@@ -5,9 +5,11 @@ import AddGarmentModal, { compressImage } from './AddGarmentModal';
 import {
   loadCases, createCase, updateCase, archiveCase, addCasePhotos,
 } from '../utils/laundryCases';
-import { setLaundryItemsCase, setLaundryItemsWardrobe } from '../utils/laundryStorage';
+import { setLaundryItemsCase, splitLaundryItem } from '../utils/laundryStorage';
 import { signLaundryValues } from '../utils/laundryPhotos';
 import './ownerWardrobe.css';
+
+const qtyOf = (i) => Math.max(1, Number(i?.details?.quantity) || 1);
 
 // Per-person luggage hub, modelled on how a vessel actually works: a guest
 // joins for a trip and ARRIVES with luggage to UNPACK into their cabin; when
@@ -25,7 +27,8 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
   const [nCabin, setNCabin] = useState(person?.cabin || '');
   const [task, setTask] = useState('view'); // view | packpick | unpackdest
   const [checks, setChecks] = useState(() => new Set());
-  const [dest, setDest] = useState('');
+  const [defaultDest, setDefaultDest] = useState(''); // unpack: default wardrobe
+  const [unpackRows, setUnpackRows] = useState([]); // unpack: [{ id, on, qty, dest }]
   const [urls, setUrls] = useState({}); // luggage photo path -> signed URL
   const [showAddNew, setShowAddNew] = useState(false);
   const [photoBusy, setPhotoBusy] = useState('');
@@ -107,16 +110,28 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
     if (ids.length && bag) { setBusy(true); await setLaundryItemsCase(ids, bag.id); setBusy(false); }
     setTask('view'); setChecks(new Set()); onChanged?.(); refresh();
   };
-  // Unpack the bag's garments OUT into a wardrobe / the cabin (arrival return).
+  // Unpack the bag's garments OUT into a wardrobe / the cabin. Per item: tick to
+  // include, choose how many of its quantity, and where each goes.
   const startUnpackDest = () => {
     const guess = personItems.find((i) => i.wardrobeId)?.wardrobeId || wardrobes[0]?.id || '';
-    setDest(guess); setTask('unpackdest');
+    setDefaultDest(guess);
+    setUnpackRows(contents.map((it) => ({ id: it.id, on: true, qty: qtyOf(it), dest: guess })));
+    setTask('unpackdest');
   };
+  const rowOf = (id) => unpackRows.find((r) => r.id === id) || { on: false, qty: 1, dest: defaultDest };
+  const toggleRow = (id) => setUnpackRows((rows) => rows.map((r) => (r.id === id ? { ...r, on: !r.on } : r)));
+  const setRowQty = (id, q) => setUnpackRows((rows) => rows.map((r) => (r.id === id ? { ...r, qty: Math.max(1, q) } : r)));
+  const setRowDest = (id, d) => setUnpackRows((rows) => rows.map((r) => (r.id === id ? { ...r, dest: d } : r)));
+  const setAllDest = (d) => { setDefaultDest(d); setUnpackRows((rows) => rows.map((r) => ({ ...r, dest: d }))); };
+  const unpackSel = unpackRows.filter((r) => r.on && r.qty > 0);
+  const unpackPieces = unpackSel.reduce((a, r) => a + r.qty, 0);
   const confirmUnpack = async () => {
-    const ids = contents.map((i) => i.id);
+    if (!unpackSel.length) { setTask('view'); return; }
     setBusy(true);
-    if (dest && ids.length) await setLaundryItemsWardrobe(ids, dest);
-    if (ids.length) await setLaundryItemsCase(ids, null);
+    for (const r of unpackSel) {
+      // eslint-disable-next-line no-await-in-loop
+      await splitLaundryItem(r.id, r.qty, { wardrobeId: r.dest || null, caseId: null });
+    }
     setBusy(false); setTask('view'); onChanged?.(); refresh();
   };
   const removeItem = async (id) => { setBusy(true); await setLaundryItemsCase([id], null); setBusy(false); onChanged?.(); refresh(); };
@@ -258,9 +273,39 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
           </>
         ) : task === 'unpackdest' ? (
           <div className="ow-case-unpack">
-            <label className="ow-l">Unpack into</label>
-            <OwSelect value={dest} onChange={setDest} placeholder={wardrobes.length ? 'Choose a wardrobe' : 'No wardrobes yet'} options={wardrobes.map((w) => ({ value: w.id, label: [w.name, w.locationName].filter(Boolean).join(' · ') }))} />
-            <p className="ow-case-unpack-note">{contents.length} garment{contents.length === 1 ? '' : 's'} will be placed here and taken out of the bag.</p>
+            <label className="ow-l">Unpack into <span className="ow-lug-defnote">applies to all — override per item below</span></label>
+            <OwSelect value={defaultDest} onChange={setAllDest} placeholder={wardrobes.length ? 'Choose a wardrobe' : 'No wardrobe — into the cabin'} options={wardrobes.map((w) => ({ value: w.id, label: [w.name, w.locationName].filter(Boolean).join(' · ') }))} />
+            <ul className="ow-case-list ow-unpack-list">
+              {contents.map((it) => {
+                const total = qtyOf(it);
+                const row = rowOf(it.id);
+                const photo = (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
+                const sub = [it.details?.brand, it.garmentType, it.details?.size, it.colour].filter(Boolean).join(' · ');
+                return (
+                  <li className={`ow-case-row ow-unpack-row${row.on ? '' : ' off'}`} key={it.id}>
+                    <button type="button" className="ow-case-check" onClick={() => toggleRow(it.id)} aria-label="Include"><Icon name={row.on ? 'CheckSquare' : 'Square'} size={18} /></button>
+                    <span className="ow-case-thumb sm">{photo ? <img src={photo} alt="" /> : <Icon name="Shirt" size={15} />}</span>
+                    <div className="ow-case-main">
+                      <span className="ow-card-nm">{it.description || 'Garment'}</span>
+                      <span className="ow-card-sub">{sub || 'No details yet'}</span>
+                    </div>
+                    <div className="ow-unpack-ctrls">
+                      {total > 1 && (
+                        <div className="ow-qtystep" aria-label="Quantity to unpack">
+                          <button type="button" onClick={() => setRowQty(it.id, row.qty - 1)} disabled={!row.on || row.qty <= 1}>−</button>
+                          <span>{row.qty}/{total}</span>
+                          <button type="button" onClick={() => setRowQty(it.id, row.qty + 1)} disabled={!row.on || row.qty >= total}>+</button>
+                        </div>
+                      )}
+                      <div className="ow-unpack-dest">
+                        <OwSelect value={row.dest} onChange={(v) => setRowDest(it.id, v)} placeholder="Cabin" options={wardrobes.map((w) => ({ value: w.id, label: w.name }))} />
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="ow-case-unpack-note">Unpacking {unpackSel.length} item{unpackSel.length === 1 ? '' : 's'} · {unpackPieces} piece{unpackPieces === 1 ? '' : 's'} out of the bag.</p>
             {(bag.interiorPhotos || []).length > 0 && (
               <div className="ow-lug-ref">
                 <div className="ow-lug-plabel">Packing reference<span>how it was packed</span></div>
@@ -295,7 +340,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
           <>
             <button type="button" className="ow-btn ghost" onClick={() => setTask('view')}>Cancel</button>
             <span style={{ flex: 1 }} />
-            <button type="button" className="ow-btn primary" disabled={busy || !dest} onClick={confirmUnpack}>{busy ? 'Unpacking…' : 'Unpack here'}</button>
+            <button type="button" className="ow-btn primary" disabled={busy || unpackSel.length === 0} onClick={confirmUnpack}>{busy ? 'Unpacking…' : `Unpack ${unpackPieces} piece${unpackPieces === 1 ? '' : 's'}`}</button>
           </>
         ) : (
           <>

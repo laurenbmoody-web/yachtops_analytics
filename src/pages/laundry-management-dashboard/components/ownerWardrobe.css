@@ -358,6 +358,18 @@
 .ow-case-list .ow-card-sub { font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
 .ow-lug-qty { flex: none; font: 700 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; margin-left: 4px; }
 .ow-lug-pickhint { margin: 2px 2px 8px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #8B8478; }
+/* Per-item unpack: tick, split a quantity, choose a destination each. */
+.ow-lug-defnote { margin-left: 6px; font: 500 10px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: #AEB4C2; }
+.ow-unpack-list { margin-top: 8px; }
+.ow-unpack-row { flex-wrap: wrap; row-gap: 8px; }
+.ow-unpack-row.off { opacity: 0.5; }
+.ow-unpack-ctrls { display: flex; align-items: center; gap: 8px; margin-left: auto; flex: none; }
+.ow-unpack-dest { width: 138px; }
+.ow-qtystep { display: flex; align-items: center; border: 1px solid #E5E7EB; border-radius: 8px; overflow: hidden; background: #FFFFFF; }
+.ow-qtystep button { width: 26px; height: 28px; border: none; background: #FFFFFF; color: #1C1B3A; font-size: 15px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+.ow-qtystep button:hover:not(:disabled) { background: #F4F6FA; color: #C65A1A; }
+.ow-qtystep button:disabled { color: #D3D7DE; cursor: default; }
+.ow-qtystep span { min-width: 36px; text-align: center; font: 700 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
 .ow-case-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .ow-case-miss { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: #C24632; background: #FBECEA; border-radius: 999px; padding: 3px 8px; flex: none; }
 .ow-case-x { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border: none; background: none; border-radius: 7px; color: #9AA1AE; cursor: pointer; }
