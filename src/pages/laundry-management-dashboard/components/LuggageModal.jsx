@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import ReactDOM from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import OwSelect from './OwSelect';
 import AddGarmentModal, { compressImage } from './AddGarmentModal';
@@ -388,11 +389,12 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
           {activeId ? detailScreen : listScreen}
         </div>
       </div>
-      {lightbox && (
+      {lightbox && ReactDOM.createPortal(
         <div className="ow-lightbox" role="dialog" aria-modal="true" onClick={() => setLightbox('')}>
           <button type="button" className="ow-lightbox-x" onClick={() => setLightbox('')} aria-label="Close"><Icon name="X" size={22} /></button>
           <img src={lightbox} alt="" onClick={(e) => e.stopPropagation()} />
-        </div>
+        </div>,
+        document.body,
       )}
       {showAddNew && (
         <AddGarmentModal
