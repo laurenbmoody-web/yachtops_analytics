@@ -354,3 +354,30 @@ export const filterFleet = (fleet = [], key = 'all', q = '') => {
     return true;
   });
 };
+
+// Sort orders for the fleet index. The default keeps sortFleet's priority —
+// what needs the office today — because that is why they opened the page; the
+// rest are for finding a boat rather than triaging.
+export const FLEET_SORTS = [
+  { key: 'attention', label: 'Needs you first' },
+  { key: 'name', label: 'Name (A–Z)' },
+  { key: 'waiting', label: 'Most to sign off' },
+  { key: 'recent', label: 'Recently closed' },
+];
+
+export const sortFleetBy = (fleet = [], key = 'attention') => {
+  const rows = (fleet || []).slice();
+  const byName = (a, b) => String(a?.vessel_name || '')
+    .localeCompare(String(b?.vessel_name || ''), undefined, { sensitivity: 'base' });
+
+  if (key === 'name') return rows.sort(byName);
+  if (key === 'waiting') {
+    return rows.sort((a, b) => (b?.awaiting_signoff || 0) - (a?.awaiting_signoff || 0) || byName(a, b));
+  }
+  if (key === 'recent') {
+    // A vessel that has never closed a month has no date to sort by; it sorts
+    // last rather than first, which an empty string would do.
+    return rows.sort((a, b) => String(b?.latest_period || '').localeCompare(String(a?.latest_period || '')) || byName(a, b));
+  }
+  return sortFleet(rows);
+};

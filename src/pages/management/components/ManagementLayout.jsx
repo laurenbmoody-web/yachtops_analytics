@@ -197,14 +197,20 @@ export default function ManagementLayout({ eyebrow, title, lede, actions, childr
       <div className="h-16" aria-hidden="true" />
 
       <div className="max-w-[1600px] mx-auto p-6">
-        <div className="flex items-end justify-between gap-6 mb-6">
-          <div className="min-w-0">
-            {eyebrow && <p className="ce-eyebrow"><span className="dot">●</span> {eyebrow}</p>}
-            <h1 className="mgl-h1">{title}</h1>
-            {lede && <p className="mgl-lede">{lede}</p>}
+        {/* A page that is purely a list — the all-vessels index — passes no
+            title at all: the bar above already says whose workspace this is,
+            and a greeting between the nav and the toolbar only pushes the
+            content down. So the hero is drawn only when there is one. */}
+        {(title || eyebrow || lede || actions) && (
+          <div className="flex items-end justify-between gap-6 mb-6">
+            <div className="min-w-0">
+              {eyebrow && <p className="ce-eyebrow"><span className="dot">●</span> {eyebrow}</p>}
+              {title && <h1 className="mgl-h1">{title}</h1>}
+              {lede && <p className="mgl-lede">{lede}</p>}
+            </div>
+            {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
           </div>
-          {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
-        </div>
+        )}
 
         <div className="cargo-editorial">{children}</div>
       </div>

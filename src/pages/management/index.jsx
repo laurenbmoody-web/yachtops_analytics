@@ -1,25 +1,25 @@
 // All vessels — the office's index, not a dashboard.
 //
-// This page answers one question: which boat do I open. So it is a way to FIND
-// a vessel, laid out as a gallery of cards you can scan, with the three filters
-// an office actually arrives with. The dashboards live INSIDE a vessel; putting
-// one here as well meant two dashboards and no index.
+// This page answers one question: which boat do I open. So it is a way to FIND a
+// vessel — a toolbar and a gallery, nothing above them. It carries no page
+// heading on purpose: the header bar already says whose workspace this is, and
+// a greeting between the nav and the toolbar was pushing the vessels down the
+// page for no information.
 //
-// Each card is a vessel's calling card: a tinted cover carrying its type, the
-// monogram sitting over the cover edge the way a profile picture does, the name
-// in serif, then the three figures that decide whether you open it — months to
-// sign, months signed off, and how far it has closed.
-//
-// Ordered by what needs the office today rather than alphabetically
-// (managementView.sortFleet).
+// The cards stay on-palette: white on the cool ground, navy ink, terracotta as
+// an ACCENT and nothing more — a status pill, a figure, the open link. Earlier
+// versions filled the card head with saturated colour, which CLAUDE.md rules
+// out and which turned a fleet into a wall of orange slabs.
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
+import MenuSelect from '../../components/MenuSelect';
 import ManagementLayout from './components/ManagementLayout';
 import useManagementCompany from '../../hooks/useManagementCompany';
 import { listManagedVessels } from '../../services/managementService';
 import {
-  sortFleet, describeScopes, FLEET_FILTERS, fleetCounts, filterFleet, vesselBucket,
+  sortFleet, sortFleetBy, describeScopes, FLEET_FILTERS, FLEET_SORTS,
+  fleetCounts, filterFleet, vesselBucket,
 } from '../../services/managementView';
 import './management.css';
 
@@ -46,6 +46,7 @@ export default function ManagementFleet() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [sort, setSort] = useState('attention');
   const [q, setQ] = useState('');
 
   useEffect(() => {
@@ -61,39 +62,42 @@ export default function ManagementFleet() {
   }, []);
 
   const counts = useMemo(() => fleetCounts(fleet), [fleet]);
-  const shown = useMemo(() => filterFleet(fleet, filter, q), [fleet, filter, q]);
-  const waiting = fleet.reduce((n, v) => n + (v.awaiting_signoff || 0), 0);
+  const shown = useMemo(
+    () => sortFleetBy(filterFleet(fleet, filter, q), sort),
+    [fleet, filter, q, sort],
+  );
+
+  // The filter list carries its counts, so a choice can't turn out to be empty
+  // after it's made.
+  const filterOptions = FLEET_FILTERS.map((f) => ({
+    key: f.key, label: f.label, count: counts[f.key],
+    disabled: f.key !== 'all' && counts[f.key] === 0,
+  }));
 
   return (
-    <ManagementLayout
-      eyebrow={`Management · ${company?.company_name || ''}`}
-      title={<>Fleet<span className="accent">, {waiting ? 'waiting on you' : 'in order'}</span>.</>}
-      lede={waiting
-        ? `${waiting} ${waiting === 1 ? 'month' : 'months'} closed and waiting on your signature across ${counts.waiting} ${counts.waiting === 1 ? 'vessel' : 'vessels'}.`
-        : 'Nothing waiting on you. Months appear here as vessels close them.'}
-    >
+    <ManagementLayout>
       {err && <div className="mg-banner bad mb-4"><Icon name="AlertCircle" size={15} /> {err}</div>}
 
-      {/* The three questions an office arrives with, each carrying its count so
-          a filter can't turn out to be empty after you've clicked it. */}
       <div className="mg-bar">
-        <div className="mg-filters">
-          {FLEET_FILTERS.map((f) => (
-            <button key={f.key} type="button"
-              className={`mg-filter${filter === f.key ? ' on' : ''}`}
-              disabled={counts[f.key] === 0 && f.key !== 'all'}
-              onClick={() => setFilter(f.key)}>
-              {f.label}<em>{counts[f.key]}</em>
+        <div className="mg-find">
+          <Icon name="Search" size={14} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search vessels…" />
+          {q && (
+            <button type="button" onClick={() => setQ('')} aria-label="Clear search">
+              <Icon name="X" size={13} />
             </button>
-          ))}
+          )}
         </div>
-        {fleet.length > 4 && (
-          <div className="mg-find">
-            <Icon name="Search" size={15} />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a vessel" />
-            {q && <button type="button" onClick={() => setQ('')} aria-label="Clear"><Icon name="X" size={13} /></button>}
-          </div>
-        )}
+
+        <div className="mg-tools">
+          <span className="mg-shown">
+            {shown.length} of {fleet.length} {fleet.length === 1 ? 'vessel' : 'vessels'}
+          </span>
+          <MenuSelect label="Filter" icon="SlidersHorizontal"
+            value={filter} options={filterOptions} onChange={setFilter} />
+          <MenuSelect label="Sort" icon="ArrowUpDown"
+            value={sort} options={FLEET_SORTS} onChange={setSort} />
+        </div>
       </div>
 
       {loading ? (
@@ -130,31 +134,32 @@ export default function ManagementFleet() {
               <button key={`${v.tenant_id}-${v.company_id}`} type="button"
                 className={`mg-card ${tone}`}
                 onClick={() => navigate(`/management/vessel/${v.tenant_id}`)}>
-                <span className="mg-cover">
-                  <span className="mg-cover-t">
-                    {n > 0 ? `${n} to sign off` : bucket === 'back' ? `${v.queried} sent back` : 'Up to date'}
+                <span className="mg-card-h">
+                  <span className={`mg-mono ${tone}`}>{monogram(v.vessel_name)}</span>
+                  <span className="mg-card-t">
+                    <b>{v.vessel_name}</b>
+                    <em>{describeScopes(v.scopes)}</em>
                   </span>
                 </span>
 
-                <span className={`mg-mono ${tone}`}>{monogram(v.vessel_name)}</span>
+                <span className={`mg-state ${tone}`}>
+                  {n > 0 ? `${n} ${n === 1 ? 'month' : 'months'} to sign off`
+                    : bucket === 'back' ? `${v.queried} sent back`
+                      : 'Up to date'}
+                </span>
 
-                <span className="mg-card-b">
-                  <b className="mg-card-n">{v.vessel_name}</b>
-                  <em className="mg-card-s">{describeScopes(v.scopes)}</em>
-
-                  <span className="mg-figs">
-                    <span className="f">
-                      <b className={n ? 'hot' : ''}>{n}</b>
-                      <em>To sign</em>
-                    </span>
-                    <span className="f">
-                      <b>{v.signed_off || 0}</b>
-                      <em>Signed off</em>
-                    </span>
-                    <span className="f">
-                      <b className="sm">{periodLabel(v.latest_period)}</b>
-                      <em>Through</em>
-                    </span>
+                <span className="mg-figs">
+                  <span className="f">
+                    <b className={n ? 'hot' : ''}>{n}</b>
+                    <em>To sign</em>
+                  </span>
+                  <span className="f">
+                    <b>{v.signed_off || 0}</b>
+                    <em>Signed off</em>
+                  </span>
+                  <span className="f">
+                    <b className="sm">{periodLabel(v.latest_period)}</b>
+                    <em>Through</em>
                   </span>
                 </span>
 
