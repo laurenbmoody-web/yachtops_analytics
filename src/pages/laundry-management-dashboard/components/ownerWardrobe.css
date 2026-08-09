@@ -370,6 +370,13 @@
 .ow-qtystep button:hover:not(:disabled) { background: #F4F6FA; color: #C65A1A; }
 .ow-qtystep button:disabled { color: #D3D7DE; cursor: default; }
 .ow-qtystep span { min-width: 36px; text-align: center; font: 700 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+/* Clickable photo → enlarge */
+.ow-photo-view { padding: 0; cursor: zoom-in; display: block; }
+.ow-photo-view:hover { border-color: #C65A1A; }
+.ow-lightbox { position: fixed; inset: 0; z-index: 100; background: rgba(20, 19, 34, 0.82); display: grid; place-items: center; padding: 5vh 5vw; cursor: zoom-out; }
+.ow-lightbox img { max-width: 100%; max-height: 90vh; border-radius: 10px; box-shadow: 0 24px 70px -20px rgba(0,0,0,0.6); cursor: default; }
+.ow-lightbox-x { position: fixed; top: 18px; right: 20px; width: 40px; height: 40px; display: grid; place-items: center; border: none; border-radius: 10px; background: rgba(255,255,255,0.14); color: #FFFFFF; cursor: pointer; }
+.ow-lightbox-x:hover { background: rgba(255,255,255,0.26); }
 .ow-case-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .ow-case-miss { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; color: #C24632; background: #FBECEA; border-radius: 999px; padding: 3px 8px; flex: none; }
 .ow-case-x { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border: none; background: none; border-radius: 7px; color: #9AA1AE; cursor: pointer; }

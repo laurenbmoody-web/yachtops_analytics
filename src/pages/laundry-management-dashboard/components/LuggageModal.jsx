@@ -26,9 +26,10 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
   const [nDest, setNDest] = useState('');
   const [nCabin, setNCabin] = useState(person?.cabin || '');
   const [task, setTask] = useState('view'); // view | packpick | unpackdest
-  const [checks, setChecks] = useState(() => new Set());
+  const [packRows, setPackRows] = useState([]); // pack: [{ id, on, qty }]
   const [defaultDest, setDefaultDest] = useState(''); // unpack: default wardrobe
   const [unpackRows, setUnpackRows] = useState([]); // unpack: [{ id, on, qty, dest }]
+  const [lightbox, setLightbox] = useState(''); // enlarged photo URL
   const [urls, setUrls] = useState({}); // luggage photo path -> signed URL
   const [showAddNew, setShowAddNew] = useState(false);
   const [photoBusy, setPhotoBusy] = useState('');
@@ -58,9 +59,16 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
   const inWardrobe = useMemo(() => personItems.filter((i) => !i.caseId), [personItems]);
   const packed = contents.length > 0;
 
-  const toggle = (id) => setChecks((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const photoUrl = (p) => urls[p] || (typeof p === 'string' && p.startsWith('data:') ? p : '');
-  const openBag = (id) => { setActiveId(id); setTask('view'); setChecks(new Set()); setEditMeta(false); };
+  const openBag = (id) => { setActiveId(id); setTask('view'); setEditMeta(false); };
+  // Shared ± quantity stepper (only meaningful when total > 1).
+  const stepper = (id, qty, total, on, setQ) => (total > 1 ? (
+    <div className="ow-qtystep" aria-label="Quantity">
+      <button type="button" onClick={() => setQ(id, qty - 1)} disabled={!on || qty <= 1}>−</button>
+      <span>{qty}/{total}</span>
+      <button type="button" onClick={() => setQ(id, qty + 1)} disabled={!on || qty >= total}>+</button>
+    </div>
+  ) : <span className="ow-lug-qty">×{total}</span>);
   const whose = person.name === 'Owner' ? 'the owner’s' : `${person.name}’s`;
 
   const createBag = async () => {
@@ -103,12 +111,22 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
     setPhotoBusy('');
   };
 
-  // Pack garments from the wardrobe INTO the bag (departure).
-  const startPackPick = () => { setChecks(new Set()); setTask('packpick'); };
+  // Pack garments from the wardrobe INTO the bag (departure). Per item: tick to
+  // include, and choose how many of its quantity to pack.
+  const startPackPick = () => { setPackRows(inWardrobe.map((it) => ({ id: it.id, on: false, qty: qtyOf(it) }))); setTask('packpick'); };
+  const packRowOf = (id) => packRows.find((r) => r.id === id) || { on: false, qty: 1 };
+  const togglePackRow = (id) => setPackRows((rows) => rows.map((r) => (r.id === id ? { ...r, on: !r.on } : r)));
+  const setPackRowQty = (id, q) => setPackRows((rows) => rows.map((r) => (r.id === id ? { ...r, qty: Math.max(1, q) } : r)));
+  const packSel = packRows.filter((r) => r.on && r.qty > 0);
+  const packPieces = packSel.reduce((a, r) => a + r.qty, 0);
   const confirmPackPick = async () => {
-    const ids = [...checks];
-    if (ids.length && bag) { setBusy(true); await setLaundryItemsCase(ids, bag.id); setBusy(false); }
-    setTask('view'); setChecks(new Set()); onChanged?.(); refresh();
+    if (!packSel.length || !bag) { setTask('view'); return; }
+    setBusy(true);
+    for (const r of packSel) {
+      // eslint-disable-next-line no-await-in-loop
+      await splitLaundryItem(r.id, r.qty, { caseId: bag.id });
+    }
+    setBusy(false); setTask('view'); onChanged?.(); refresh();
   };
   // Unpack the bag's garments OUT into a wardrobe / the cabin. Per item: tick to
   // include, choose how many of its quantity, and where each goes.
@@ -144,9 +162,9 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
         <div className="ow-lug-plabel">{label}{hint && <span>{hint}</span>}</div>
         <div className="ow-photos">
           {list.map((p) => (
-            <div className="ow-photo-thumb" key={p}>
+            <button type="button" className="ow-photo-thumb ow-photo-view" key={p} onClick={() => photoUrl(p) && setLightbox(photoUrl(p))} title="View larger">
               {photoUrl(p) ? <img src={photoUrl(p)} alt="" /> : <span className="ow-card-ph"><Icon name="Image" size={20} /></span>}
-            </div>
+            </button>
           ))}
           <label className="ow-photo-add">
             <Icon name={photoBusy === kind ? 'Loader' : 'Camera'} size={20} className={photoBusy === kind ? 'ow-ai-spin' : ''} />
@@ -158,21 +176,33 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
     );
   };
 
-  const itemRow = (it, opts = {}) => {
-    const photo = (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
-    const ticked = checks.has(it.id);
-    const qty = Math.max(1, Number(it.details?.quantity) || 1);
-    const sub = [it.details?.brand, it.garmentType, it.details?.size, it.colour].filter(Boolean).join(' · ');
+  const subOf = (it) => [it.details?.brand, it.garmentType, it.details?.size, it.colour].filter(Boolean).join(' · ');
+  const thumbOf = (it) => (Array.isArray(it.photos) && it.photos[0]) || it.photo || '';
+  // A garment row in the bag's contents (with a remove control).
+  const itemRow = (it) => (
+    <li className="ow-case-row" key={it.id}>
+      <span className="ow-case-thumb sm">{thumbOf(it) ? <img src={thumbOf(it)} alt="" /> : <Icon name="Shirt" size={15} />}</span>
+      <div className="ow-case-main">
+        <span className="ow-card-nm">{it.description || 'Garment'}</span>
+        <span className="ow-card-sub">{subOf(it) || 'No details yet'}</span>
+      </div>
+      <span className="ow-lug-qty">×{qtyOf(it)}</span>
+      <button type="button" className="ow-case-x" title="Take out of bag" onClick={() => removeItem(it.id)}><Icon name="X" size={15} /></button>
+    </li>
+  );
+  // A pick row (pack picker): tick + optional quantity stepper.
+  const pickRow = (it) => {
+    const total = qtyOf(it);
+    const row = packRowOf(it.id);
     return (
-      <li className={`ow-case-row${opts.pick ? ' pick' : ''}${opts.pick && ticked ? ' on' : ''}`} key={it.id} onClick={opts.pick ? () => toggle(it.id) : undefined}>
-        {opts.pick && <span className="ow-case-check"><Icon name={ticked ? 'CheckSquare' : 'Square'} size={18} /></span>}
-        <span className="ow-case-thumb sm">{photo ? <img src={photo} alt="" /> : <Icon name="Shirt" size={15} />}</span>
+      <li className={`ow-case-row ow-unpack-row${row.on ? '' : ' off'}`} key={it.id}>
+        <button type="button" className="ow-case-check" onClick={() => togglePackRow(it.id)} aria-label="Include"><Icon name={row.on ? 'CheckSquare' : 'Square'} size={18} /></button>
+        <span className="ow-case-thumb sm">{thumbOf(it) ? <img src={thumbOf(it)} alt="" /> : <Icon name="Shirt" size={15} />}</span>
         <div className="ow-case-main">
           <span className="ow-card-nm">{it.description || 'Garment'}</span>
-          <span className="ow-card-sub">{sub || 'No details yet'}</span>
+          <span className="ow-card-sub">{subOf(it) || 'No details yet'}</span>
         </div>
-        <span className="ow-lug-qty">×{qty}</span>
-        {opts.removable && <button type="button" className="ow-case-x" title="Take out of bag" onClick={() => removeItem(it.id)}><Icon name="X" size={15} /></button>}
+        <div className="ow-unpack-ctrls">{stepper(it.id, row.qty, total, row.on, setPackRowQty)}</div>
       </li>
     );
   };
@@ -269,7 +299,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
             <p className="ow-lug-pickhint">Tick garments to pack into this bag</p>
             {inWardrobe.length === 0
               ? <p className="ow-hist-empty">Nothing in {whose} wardrobe to pack. Add a new garment instead.</p>
-              : <ul className="ow-case-list">{inWardrobe.map((it) => itemRow(it, { pick: true }))}</ul>}
+              : <ul className="ow-case-list">{inWardrobe.map(pickRow)}</ul>}
           </>
         ) : task === 'unpackdest' ? (
           <div className="ow-case-unpack">
@@ -290,13 +320,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
                       <span className="ow-card-sub">{sub || 'No details yet'}</span>
                     </div>
                     <div className="ow-unpack-ctrls">
-                      {total > 1 && (
-                        <div className="ow-qtystep" aria-label="Quantity to unpack">
-                          <button type="button" onClick={() => setRowQty(it.id, row.qty - 1)} disabled={!row.on || row.qty <= 1}>−</button>
-                          <span>{row.qty}/{total}</span>
-                          <button type="button" onClick={() => setRowQty(it.id, row.qty + 1)} disabled={!row.on || row.qty >= total}>+</button>
-                        </div>
-                      )}
+                      {stepper(it.id, row.qty, total, row.on, setRowQty)}
                       <div className="ow-unpack-dest">
                         <OwSelect value={row.dest} onChange={(v) => setRowDest(it.id, v)} placeholder="Cabin" options={wardrobes.map((w) => ({ value: w.id, label: w.name }))} />
                       </div>
@@ -309,7 +333,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
             {(bag.interiorPhotos || []).length > 0 && (
               <div className="ow-lug-ref">
                 <div className="ow-lug-plabel">Packing reference<span>how it was packed</span></div>
-                <div className="ow-photos">{bag.interiorPhotos.map((p) => photoUrl(p) && <div className="ow-photo-thumb" key={p}><img src={photoUrl(p)} alt="" /></div>)}</div>
+                <div className="ow-photos">{bag.interiorPhotos.map((p) => photoUrl(p) && <button type="button" className="ow-photo-thumb ow-photo-view" key={p} onClick={() => setLightbox(photoUrl(p))} title="View larger"><img src={photoUrl(p)} alt="" /></button>)}</div>
               </div>
             )}
           </div>
@@ -324,7 +348,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
             </div>
             {contents.length === 0
               ? <p className="ow-hist-empty">Empty — add each item as you take it out of the bag, or pack in from the wardrobe.</p>
-              : <ul className="ow-case-list">{contents.map((it) => itemRow(it, { removable: true }))}</ul>}
+              : <ul className="ow-case-list">{contents.map(itemRow)}</ul>}
           </>
         )}
       </div>
@@ -334,7 +358,7 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
           <>
             <button type="button" className="ow-btn ghost" onClick={() => setTask('view')}>Cancel</button>
             <span style={{ flex: 1 }} />
-            <button type="button" className="ow-btn primary" disabled={busy || checks.size === 0} onClick={confirmPackPick}>{busy ? 'Packing…' : `Pack ${checks.size} in`}</button>
+            <button type="button" className="ow-btn primary" disabled={busy || packSel.length === 0} onClick={confirmPackPick}>{busy ? 'Packing…' : `Pack ${packPieces} in`}</button>
           </>
         ) : task === 'unpackdest' ? (
           <>
@@ -364,6 +388,12 @@ const LuggageModal = ({ person, personItems = [], wardrobes = [], guests = [], s
           {activeId ? detailScreen : listScreen}
         </div>
       </div>
+      {lightbox && (
+        <div className="ow-lightbox" role="dialog" aria-modal="true" onClick={() => setLightbox('')}>
+          <button type="button" className="ow-lightbox-x" onClick={() => setLightbox('')} aria-label="Close"><Icon name="X" size={22} /></button>
+          <img src={lightbox} alt="" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
       {showAddNew && (
         <AddGarmentModal
           wardrobes={wardrobes}
