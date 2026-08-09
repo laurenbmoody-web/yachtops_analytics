@@ -100,15 +100,15 @@
 /* grid / image view */
 .ow-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 14px; }
 /* Per-section carousel: garments scroll horizontally (side-swipe on touch). */
-.ow-carousel { display: flex; flex-wrap: nowrap; gap: 0; overflow-x: auto; overflow-y: hidden; padding: 8px 16px 14px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #D3D7DE transparent; }
-/* Cards fan out with a slight overlap; hover lifts one clear of its neighbours. */
-.ow-carousel > .ow-card { flex: 0 0 auto; width: 182px; margin-left: -18px; scroll-snap-align: start; box-shadow: -9px 0 20px -12px rgba(28,27,58,0.22); transition: transform 0.14s, box-shadow 0.14s; }
+/* Snap carousel: steps item-by-item, no scrollbar. Cards fan with a slight
+   overlap; hover/selected lifts one clear of its neighbours. */
+.ow-carousel { display: flex; flex-wrap: nowrap; gap: 0; overflow-x: auto; overflow-y: hidden; padding: 8px 16px 14px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; cursor: grab; scroll-behavior: smooth; }
+.ow-carousel:active { cursor: grabbing; }
+.ow-carousel::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.ow-carousel > .ow-card { flex: 0 0 auto; width: 182px; margin-left: -18px; scroll-snap-align: center; box-shadow: -9px 0 20px -12px rgba(28,27,58,0.22); transition: transform 0.14s, box-shadow 0.14s; }
 .ow-carousel > .ow-card:first-child { margin-left: 0; }
 .ow-carousel > .ow-card:hover, .ow-carousel > .ow-card.sel { position: relative; z-index: 3; transform: translateY(-3px); box-shadow: -6px 10px 26px -12px rgba(28,27,58,0.3); }
-.ow-carousel::-webkit-scrollbar { height: 8px; }
-.ow-carousel::-webkit-scrollbar-thumb { background: #D3D7DE; border-radius: 999px; }
-.ow-carousel::-webkit-scrollbar-thumb:hover { background: #B9BEC9; }
-.ow-carousel::-webkit-scrollbar-track { background: transparent; }
+.ow-carousel > .ow-card img, .ow-carousel > .ow-card { user-select: none; }
 .ow-addtile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 210px; border: 1.5px dashed #C7CBD6; border-radius: 14px; background: #FFFFFF; color: #8B93A0; cursor: pointer; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; transition: 0.14s; }
 .ow-addtile:hover { border-color: #C65A1A; color: #C65A1A; background: #FFF8F4; }
 .ow-addtile-big { min-height: 260px; }
