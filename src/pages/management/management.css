@@ -2,41 +2,19 @@
    .ce-card (dashboard-widgets.css); this file adds what those don't have.
    Every colour resolves from the shared --d-* tokens — no private palette. */
 
-/* ── filter bar (all-vessels index) ───────────────────────────────────────── */
+/* ── toolbar (all-vessels index) ──────────────────────────────────────────── */
 .mg-bar {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+  gap: 14px; flex-wrap: wrap; margin-bottom: 20px;
 }
-
-.mg-filters {
-  display: inline-flex; gap: 3px; padding: 4px;
-  background: var(--d-border-soft); border-radius: 999px;
-}
-.mg-filter {
-  display: inline-flex; align-items: center; gap: 7px;
-  background: none; border: 0; border-radius: 999px;
-  padding: 8px 15px; cursor: pointer; font: inherit;
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 13px; font-weight: 600; color: var(--d-muted);
-  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
-}
-.mg-filter:hover:not(:disabled) { color: var(--d-navy-deep); }
-.mg-filter:disabled { opacity: 0.45; cursor: not-allowed; }
-.mg-filter em {
-  font-style: normal; font-size: 11px; font-weight: 700;
-  color: var(--d-muted-soft);
-}
-.mg-filter.on {
-  background: var(--d-card); color: var(--d-navy-deep);
-  box-shadow: 0 1px 2px rgba(38, 42, 83, 0.1), 0 4px 12px -6px rgba(38, 42, 83, 0.24);
-}
-.mg-filter.on em { color: var(--d-orange); }
 
 .mg-find {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: var(--d-card); border: 1px solid var(--d-border); border-radius: 999px;
-  padding: 8px 14px; min-width: 230px;
+  display: inline-flex; align-items: center; gap: 9px;
+  flex: 1 1 260px; min-width: 200px; max-width: 380px;
+  background: var(--d-card); border: 1px solid var(--d-border); border-radius: 8px;
+  padding: 8px 12px;
 }
+.mg-find:focus-within { border-color: var(--d-orange); box-shadow: 0 0 0 3px var(--d-cream-warm); }
 .mg-find svg { color: var(--d-muted-soft); flex: 0 0 auto; }
 .mg-find input {
   flex: 1; min-width: 0; border: 0; outline: none; background: none;
@@ -45,93 +23,93 @@
 .mg-find input::placeholder { color: var(--d-muted-soft); }
 .mg-find button {
   border: 0; background: none; cursor: pointer; color: var(--d-muted-soft);
-  display: grid; place-items: center;
+  display: grid; place-items: center; padding: 0;
 }
 .mg-find button:hover { color: var(--d-orange); }
 
+.mg-tools { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mg-shown {
+  font-size: 12px; color: var(--d-muted-soft); margin-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── the vessel gallery ───────────────────────────────────────────────────── */
 .mg-gallery {
-  display: grid; gap: 18px;
-  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 }
 
+/* White on the cool ground, navy ink, terracotta only as an accent. */
 .mg-card {
   position: relative; display: flex; flex-direction: column;
-  text-align: left; font: inherit; cursor: pointer; overflow: hidden;
-  background: var(--d-card); border: 1px solid var(--d-border); border-radius: 16px;
+  text-align: left; font: inherit; cursor: pointer;
+  background: var(--d-card); border: 1px solid var(--d-border); border-radius: 14px;
+  padding: 18px 18px 14px;
   box-shadow: var(--d-shadow);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
 .mg-card:hover {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   border-color: var(--d-card-edge);
-  box-shadow: 0 10px 26px rgba(38, 42, 83, 0.12);
+  box-shadow: 0 8px 20px rgba(38, 42, 83, 0.1);
 }
-.mg-card:active { transform: translateY(-1px); }
+.mg-card:active { transform: translateY(0); }
 
-/* A tinted band, the way a profile card carries a cover. Navy by default;
-   terracotta when the boat is waiting on a signature, so a scan of the gallery
-   picks out the work before any text is read. */
-.mg-cover {
-  display: block; height: 74px; position: relative;
-  background: linear-gradient(135deg, var(--d-navy) 0%, var(--d-navy-deep) 100%);
+/* A hairline of accent down the edge is enough to pick the boat out of a
+   gallery — it does not need the whole card head coloured in. */
+.mg-card.need::before, .mg-card.query::before {
+  content: ''; position: absolute; left: 0; top: 14px; bottom: 14px;
+  width: 3px; border-radius: 0 3px 3px 0; background: var(--d-orange);
 }
-.mg-card.need .mg-cover { background: linear-gradient(135deg, #C65A1A 0%, #9E4413 100%); }
-.mg-card.query .mg-cover { background: linear-gradient(135deg, #B98A2E 0%, #8A6414 100%); }
-/* A faint horizon line — enough to stop the band reading as a flat slab. */
-.mg-cover::after {
-  content: ''; position: absolute; inset: auto 0 0 0; height: 34px;
-  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.09));
-}
-.mg-cover-t {
-  position: absolute; top: 14px; right: 16px;
-  font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.86);
-}
+.mg-card.query::before { background: var(--d-warn); }
 
-/* The monogram sits over the cover's edge, like a profile picture. */
+.mg-card-h { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .mg-card .mg-mono {
-  position: absolute; top: 46px; left: 18px;
-  width: 54px; height: 54px; border-radius: 16px;
+  width: 44px; height: 44px; border-radius: 13px; flex: 0 0 auto;
   display: grid; place-items: center;
   background: var(--d-navy); color: #fff;
-  border: 3px solid var(--d-card);
-  font-family: 'DM Serif Display', Georgia, serif; font-size: 19px; letter-spacing: 0.02em;
+  font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; letter-spacing: 0.02em;
 }
-.mg-card.need .mg-mono { background: var(--d-orange); }
-.mg-card.query .mg-mono { background: #8A6414; }
-
-.mg-card-b { padding: 34px 18px 0; }
-.mg-card-n {
+.mg-card-t { min-width: 0; }
+.mg-card-t b {
   display: block;
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 23px; font-weight: 500; letter-spacing: -0.5px; line-height: 1.15;
+  font-size: 21px; font-weight: 500; letter-spacing: -0.4px; line-height: 1.15;
   color: var(--d-navy-deep);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.mg-card-s {
-  display: block; margin-top: 4px; font-style: normal;
-  font-size: 11.5px; line-height: 1.45; color: var(--d-muted);
+.mg-card-t em {
+  display: block; margin-top: 3px; font-style: normal;
+  font-size: 11.5px; line-height: 1.4; color: var(--d-muted);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+.mg-state {
+  display: inline-flex; align-self: flex-start; margin-top: 14px;
+  padding: 5px 11px; border-radius: 999px; white-space: nowrap;
+  background: var(--d-border-soft); color: var(--d-muted);
+  font-size: 11.5px; font-weight: 600;
+}
+.mg-state.need { background: var(--d-cream-warm); color: var(--d-orange); }
+.mg-state.query { background: var(--d-warn-soft); color: var(--d-warn); }
 
 /* The three figures that decide whether you open this boat. */
 .mg-figs {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px; margin-top: 16px;
+  gap: 8px; margin-top: 14px;
 }
 .mg-figs .f {
-  background: var(--d-bg); border: 1px solid var(--d-border-soft); border-radius: 11px;
+  background: var(--d-bg); border: 1px solid var(--d-border-soft); border-radius: 10px;
   padding: 10px 11px; min-width: 0;
 }
 .mg-figs .f b {
   display: block;
   font-family: 'DM Serif Display', Georgia, serif;
-  font-size: 21px; font-weight: 500; line-height: 1; letter-spacing: -0.4px;
+  font-size: 20px; font-weight: 500; line-height: 1; letter-spacing: -0.4px;
   color: var(--d-navy-deep); font-variant-numeric: tabular-nums;
 }
 .mg-figs .f b.hot { color: var(--d-orange); }
-.mg-figs .f b.sm { font-size: 13.5px; letter-spacing: -0.2px; padding: 3px 0 4px; }
+.mg-figs .f b.sm { font-size: 13px; letter-spacing: -0.2px; padding: 3px 0 4px; }
 .mg-figs .f em {
   display: block; margin-top: 5px; font-style: normal;
   font-size: 9px; font-weight: 600; letter-spacing: 1.1px;
@@ -140,7 +118,7 @@
 }
 
 .mg-card-f {
-  margin-top: auto; padding: 14px 18px 16px;
+  margin-top: auto; padding-top: 14px;
   display: flex; align-items: center; justify-content: flex-end;
 }
 .mg-open {
@@ -148,12 +126,12 @@
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   font-size: 12.5px; font-weight: 600; color: var(--d-orange);
 }
-.mg-open svg { transition: transform 0.18s ease; }
+.mg-open svg { transition: transform 0.16s ease; }
 .mg-card:hover .mg-open svg { transform: translateX(3px); }
 
 /* Loading placeholders, so the gallery has its shape before the data lands. */
 .mg-ghost {
-  min-height: 268px; pointer-events: none; border-color: var(--d-border-soft);
+  min-height: 236px; pointer-events: none; border-color: var(--d-border-soft);
   box-shadow: none;
   background: linear-gradient(100deg,
     var(--d-card) 30%, var(--d-border-soft) 50%, var(--d-card) 70%);
@@ -215,7 +193,7 @@
 
 @media (max-width: 620px) {
   .mg-bar { flex-direction: column; align-items: stretch; }
-  .mg-filters { overflow-x: auto; }
-  .mg-find { min-width: 0; }
+  .mg-find { max-width: none; }
+  .mg-tools { justify-content: space-between; }
   .mg-gallery { grid-template-columns: minmax(0, 1fr); }
 }

@@ -6,7 +6,7 @@ import {
   tierLabel, canRunTeam, canSignOffAs,
   TEAM_TIERS, TIER_POWERS, tierCan, engagementNote,
   VESSEL_AREAS, areaState, SCOPES, monthReadiness, monthActivity,
-  FLEET_FILTERS, vesselBucket, fleetCounts, filterFleet,
+  FLEET_FILTERS, vesselBucket, fleetCounts, filterFleet, FLEET_SORTS, sortFleetBy,
 } from './managementView.js';
 
 const eng = (over = {}) => ({
@@ -202,4 +202,27 @@ test('filtering combines the bucket and the search', () => {
   assert.deepEqual(filterFleet(fleet, 'waiting', 'mer').map((v) => v.vessel_name), ['Meridian']);
   assert.deepEqual(filterFleet(fleet, 'all', 'HAL').map((v) => v.vessel_name), ['Halcyon']);
   assert.equal(filterFleet(fleet, 'back').length, 0);
+});
+
+test('the fleet sorts are each what they say', () => {
+  const fleet = [
+    { vessel_name: 'Zephyr', awaiting_signoff: 1, latest_period: '2026-05-01' },
+    { vessel_name: 'Aurora', awaiting_signoff: 3, latest_period: '2026-07-01' },
+    { vessel_name: 'Halcyon' },
+  ];
+  assert.deepEqual(sortFleetBy(fleet, 'name').map((v) => v.vessel_name),
+    ['Aurora', 'Halcyon', 'Zephyr']);
+  assert.deepEqual(sortFleetBy(fleet, 'waiting').map((v) => v.vessel_name),
+    ['Aurora', 'Zephyr', 'Halcyon']);
+  // A boat that has never closed a month sorts last, not first.
+  assert.deepEqual(sortFleetBy(fleet, 'recent').map((v) => v.vessel_name),
+    ['Aurora', 'Zephyr', 'Halcyon']);
+  assert.deepEqual(sortFleetBy(fleet, 'attention').map((v) => v.vessel_name),
+    ['Aurora', 'Zephyr', 'Halcyon']);
+});
+
+test('sorting never mutates the array it was given', () => {
+  const fleet = [{ vessel_name: 'Zephyr' }, { vessel_name: 'Aurora' }];
+  sortFleetBy(fleet, 'name');
+  assert.equal(fleet[0].vessel_name, 'Zephyr');
 });
