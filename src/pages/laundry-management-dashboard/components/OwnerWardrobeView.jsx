@@ -607,7 +607,7 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
                 </div>
               </div>
               {view === 'image'
-                ? <div className="ow-grid">{grp.items.map(renderCard)}</div>
+                ? <div className="ow-carousel">{grp.items.map(renderCard)}</div>
                 : <div className="ow-list">{grp.items.map(renderRow)}</div>}
             </section>
           ))}
