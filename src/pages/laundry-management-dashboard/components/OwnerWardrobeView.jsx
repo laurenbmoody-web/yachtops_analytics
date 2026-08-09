@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { FilterMenu, SortMenu } from './LaundryFilters';
 import LaundryScanModal from './LaundryScanModal';
@@ -25,6 +25,43 @@ import { loadGuests, GuestType } from '../../guest-management-dashboard/utils/gu
 import './ownerWardrobe.css';
 
 const guestName = (g) => (g ? ([g.firstName, g.lastName].filter(Boolean).join(' ') || g.name || 'Guest') : '');
+
+// A snap carousel that steps item-by-item (no scrollbar). Vertical wheel scrolls
+// it horizontally, and click-drag pans it — so it works with mouse, trackpad and
+// touch alike, like the deck-plan carousel.
+const Carousel = ({ children }) => {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const onWheel = (e) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // already a horizontal gesture
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+  // Click-drag to pan (ignored on interactive targets so checkboxes still work).
+  const drag = useRef({ down: false, x: 0, left: 0, moved: false });
+  const onDown = (e) => {
+    if (e.button !== 0 || e.target.closest('button, a, input')) return;
+    drag.current = { down: true, x: e.clientX, left: ref.current.scrollLeft, moved: false };
+  };
+  const onMove = (e) => {
+    if (!drag.current.down) return;
+    const dx = e.clientX - drag.current.x;
+    if (Math.abs(dx) > 4) drag.current.moved = true;
+    ref.current.scrollLeft = drag.current.left - dx;
+  };
+  const end = () => { drag.current.down = false; };
+  const onClickCapture = (e) => { if (drag.current.moved) { e.preventDefault(); e.stopPropagation(); } };
+  return (
+    <div className="ow-carousel" ref={ref} onMouseDown={onDown} onMouseMove={onMove} onMouseUp={end} onMouseLeave={end} onClickCapture={onClickCapture}>
+      {children}
+    </div>
+  );
+};
 
 const SORTS = [
   { val: 'name', label: 'Name (A–Z)' },
@@ -483,6 +520,9 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
       const e = byPerson.get(p.id) || { count: 0, thumbs: [], value: 0, cur: null, away: 0, wash: 0 };
       return { ...p, count: e.count, thumbs: e.thumbs, away: e.away, wash: e.wash, value: showValue && e.value > 0 ? money(e.value, e.cur || 'EUR') : '' };
     })
+    // The "Owner (unassigned)" bucket only earns a tile once it actually holds
+    // garments — otherwise it reads as a broken empty card.
+    .filter((p) => !(p.id === 'owner' && p.count === 0))
     .filter((p) => (anyFilter ? p.count > 0 : true));
 
   // Landing — everyone with garments on board. Toggle person tiles (By owner)
@@ -607,7 +647,7 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
                 </div>
               </div>
               {view === 'image'
-                ? <div className="ow-carousel">{grp.items.map(renderCard)}</div>
+                ? <Carousel>{grp.items.map(renderCard)}</Carousel>
                 : <div className="ow-list">{grp.items.map(renderRow)}</div>}
             </section>
           ))}
