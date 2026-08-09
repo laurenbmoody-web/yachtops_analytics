@@ -99,6 +99,13 @@
 
 /* grid / image view */
 .ow-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 14px; }
+/* Per-section carousel: garments scroll horizontally (side-swipe on touch). */
+.ow-carousel { display: flex; flex-wrap: nowrap; gap: 14px; overflow-x: auto; overflow-y: hidden; padding: 4px 2px 10px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: thin; scrollbar-color: #D3D7DE transparent; }
+.ow-carousel > .ow-card { flex: 0 0 auto; width: 182px; scroll-snap-align: start; }
+.ow-carousel::-webkit-scrollbar { height: 8px; }
+.ow-carousel::-webkit-scrollbar-thumb { background: #D3D7DE; border-radius: 999px; }
+.ow-carousel::-webkit-scrollbar-thumb:hover { background: #B9BEC9; }
+.ow-carousel::-webkit-scrollbar-track { background: transparent; }
 .ow-addtile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 210px; border: 1.5px dashed #C7CBD6; border-radius: 14px; background: #FFFFFF; color: #8B93A0; cursor: pointer; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; transition: 0.14s; }
 .ow-addtile:hover { border-color: #C65A1A; color: #C65A1A; background: #FFF8F4; }
 .ow-addtile-big { min-height: 260px; }
