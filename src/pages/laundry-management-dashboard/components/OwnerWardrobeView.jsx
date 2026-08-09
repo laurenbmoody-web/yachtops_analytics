@@ -26,22 +26,11 @@ import './ownerWardrobe.css';
 
 const guestName = (g) => (g ? ([g.firstName, g.lastName].filter(Boolean).join(' ') || g.name || 'Guest') : '');
 
-// A snap carousel that steps item-by-item (no scrollbar). Vertical wheel scrolls
-// it horizontally, and click-drag pans it — so it works with mouse, trackpad and
-// touch alike, like the deck-plan carousel.
+// A snap carousel that steps item-by-item (no scrollbar). Click-drag pans it on
+// desktop; trackpad and touch swipe it natively. Vertical wheel is left alone so
+// the page scrolls normally.
 const Carousel = ({ children }) => {
   const ref = useRef(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    const onWheel = (e) => {
-      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // already a horizontal gesture
-      el.scrollLeft += e.deltaY;
-      e.preventDefault();
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, []);
   // Click-drag to pan (ignored on interactive targets so checkboxes still work).
   const drag = useRef({ down: false, x: 0, left: 0, moved: false });
   const onDown = (e) => {
