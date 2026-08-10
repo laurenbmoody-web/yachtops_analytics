@@ -938,7 +938,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                   <RoomPicker scans={scans} selectedScanId={selectedScanId} onSelect={setSelectedScanId} />
                 )}
                 <div className="vm-topbar-filters">{layersControl('')}</div>
-                {canPlaceHotspots && (
+                {canPlaceHotspots && !embedded && (
                   <button
                     className="vm-btn-ghost vm-topbar-manage"
                     onClick={() => navigate('/settings/vessel?section=location-management')}
@@ -949,7 +949,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
               </div>
 
               <div className="vm-toolbar">
-                {canPlaceHotspots && (
+                {canPlaceHotspots && !embedded && (
                   <button className="vm-btn-ghost vm-toolbar-manage" onClick={() => navigate('/settings/vessel?section=location-management')}>
                     Manage scans
                   </button>
