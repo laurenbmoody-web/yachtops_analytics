@@ -34,6 +34,8 @@ const DeckPlanPicker = ({ selectedId = null, onSelect, onClose }) => {
   const [gaDims, setGaDims] = useState(null);
   const [activeId, setActiveId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState('plan'); // plan | list
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     let live = true;
@@ -43,6 +45,7 @@ const DeckPlanPicker = ({ selectedId = null, onSelect, onClose }) => {
       const ds = gal?.decks || [];
       setLayout(lay); setDecks(ds);
       setActiveId((ds.find((d) => d.planCrop) || ds[0])?.id || null);
+      setMode(ds.some((d) => d.planCrop) ? 'plan' : 'list'); // no traced plan → straight to the list
       setLoading(false);
       if (lay?.gaImageUrl) { const img = new Image(); img.onload = () => { if (live) setGaDims({ w: img.naturalWidth, h: img.naturalHeight }); }; img.src = lay.gaImageUrl; }
     })();
@@ -53,17 +56,31 @@ const DeckPlanPicker = ({ selectedId = null, onSelect, onClose }) => {
   const crop = deck?.planCrop;
   const spaces = deck ? spacesOf(deck) : [];
   const ready = layout?.gaImageUrl && crop && gaDims;
+  const plansExist = decks.some((d) => d.planCrop);
   const pick = (s) => onSelect?.(s);
+
+  // Every room across every deck, grouped and searchable — the reliable path when
+  // the GA isn't (fully) traced.
+  const q = query.trim().toLowerCase();
+  const listGroups = decks
+    .map((d) => ({ deck: d, spaces: spacesOf(d).filter((s) => s.id && (!q || (s.name || '').toLowerCase().includes(q) || (d.name || '').toLowerCase().includes(q))) }))
+    .filter((g) => g.spaces.length);
 
   return (
     <div className="dpp-overlay" role="dialog" aria-modal="true" aria-label="Pick on the deck plan" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose?.(); }}>
       <div className="dpp-panel">
         <div className="dpp-head">
-          <div><span className="dpp-eyebrow">Deck plan</span><h2 className="dpp-title">Tap a room</h2></div>
+          <div><span className="dpp-eyebrow">Deck plan</span><h2 className="dpp-title">{mode === 'list' ? 'Pick a room' : 'Tap a room'}</h2></div>
+          {plansExist && (
+            <div className="dpp-toggle" role="tablist" aria-label="View">
+              <button type="button" className={mode === 'plan' ? 'on' : ''} onClick={() => setMode('plan')}>Plan</button>
+              <button type="button" className={mode === 'list' ? 'on' : ''} onClick={() => setMode('list')}>List</button>
+            </div>
+          )}
           <button type="button" className="dpp-x" onClick={onClose} aria-label="Close"><Icon name="X" size={18} /></button>
         </div>
 
-        {decks.length > 1 && (
+        {mode === 'plan' && decks.length > 1 && (
           <div className="dpp-decks">
             {decks.map((d) => (
               <button type="button" key={d.id} className={`dpp-deck${d.id === activeId ? ' on' : ''}`} onClick={() => setActiveId(d.id)}>{d.name}</button>
@@ -71,6 +88,26 @@ const DeckPlanPicker = ({ selectedId = null, onSelect, onClose }) => {
           </div>
         )}
 
+        {mode === 'list' ? (
+          <div className="dpp-liststage">
+            <div className="dpp-search"><Icon name="Search" size={15} /><input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search rooms across all decks…" /></div>
+            <div className="dpp-list">
+              {loading ? <div className="dpp-empty">Loading rooms…</div>
+                : listGroups.length === 0 ? <div className="dpp-empty">{decks.length ? 'No rooms match.' : 'No locations set up yet — add them under Locations settings.'}</div>
+                  : listGroups.map((g) => (
+                    <div className="dpp-list-grp" key={g.deck.id}>
+                      <div className="dpp-list-deck">{g.deck.name}</div>
+                      {g.spaces.map((s) => (
+                        <button type="button" key={s.id} className={`dpp-list-row${s.id === selectedId ? ' on' : ''}`} onClick={() => pick(s)}>
+                          <Icon name="MapPin" size={15} /><span>{s.name}</span>
+                          {s.id === selectedId && <Icon name="Check" size={15} className="dpp-list-check" />}
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+            </div>
+          </div>
+        ) : (
         <div className="dpp-stage">
           {loading ? (
             <div className="dpp-empty">Loading the plan…</div>
@@ -100,10 +137,11 @@ const DeckPlanPicker = ({ selectedId = null, onSelect, onClose }) => {
             </div>
           ) : (
             <div className="dpp-empty">
-              No deck plan set up for this vessel yet. Add one under <b>Locations</b> settings, or use the search to pick a location.
+              This deck isn’t traced on the plan yet. Switch to <b>List</b> above to pick a room by name, or set up the plan under <b>Locations</b> settings.
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   );
