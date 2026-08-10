@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import WardrobeIcon from './WardrobeIcon';
+import DeckPlanPicker from './DeckPlanPicker';
+import MapPickerModal from '../../vessel-map/components/MapPickerModal';
 import { updateWardrobe, archiveWardrobe } from '../utils/laundryWardrobes';
 import { setLaundryItemsWardrobe } from '../utils/laundryStorage';
 import './ownerWardrobe.css';
@@ -12,6 +14,15 @@ const WardrobeManageModal = ({ wardrobes = [], items = [], onNew, onChanged, onC
   const [name, setName] = useState('');
   const [confirm, setConfirm] = useState(null);  // { id, count }
   const [busy, setBusy] = useState(false);
+  const [planFor, setPlanFor] = useState(null);  // wardrobe id being pinned on the deck plan
+  const [scanPlace, setScanPlace] = useState(null); // { scanId, wid }
+
+  // Pin a wardrobe to a deck-plan location (its "where on the vessel").
+  const applyLocation = async (wid, locationId, locationName) => {
+    if (!wid || !locationId) return;
+    await updateWardrobe(wid, { locationId, location: locationName || '' });
+    onChanged?.();
+  };
 
   // Everything homed in this wardrobe (all people), counted in pieces.
   const countFor = (id) => items.filter((i) => i.wardrobeId === id).reduce((a, i) => a + Math.max(1, Number(i?.details?.quantity) || 1), 0);
@@ -56,7 +67,7 @@ const WardrobeManageModal = ({ wardrobes = [], items = [], onNew, onChanged, onC
                 ) : (
                   <div className="ow-wm-main">
                     <span className="ow-wm-nm">{w.name}</span>
-                    <span className="ow-wm-sub">{[w.locationName, `${n} garment${n === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}</span>
+                    <span className="ow-wm-sub">{[w.locationName || 'Not on the plan', `${n} garment${n === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}</span>
                   </div>
                 )}
                 <div className="ow-wm-acts">
@@ -67,6 +78,7 @@ const WardrobeManageModal = ({ wardrobes = [], items = [], onNew, onChanged, onC
                     </>
                   ) : (
                     <>
+                      <button type="button" className={`ow-wm-icon${w.locationId ? ' on' : ''}`} title={w.locationId ? 'Change deck-plan location' : 'Pin on deck plan'} onClick={() => setPlanFor(w.id)}><Icon name="MapPin" size={15} /></button>
                       <button type="button" className="ow-wm-icon" title="Rename" onClick={() => startEdit(w)}><Icon name="Pencil" size={15} /></button>
                       <button type="button" className="ow-wm-icon danger" title="Delete" onClick={() => setConfirm({ id: w.id, count: n })}><Icon name="Trash2" size={15} /></button>
                     </>
@@ -81,6 +93,24 @@ const WardrobeManageModal = ({ wardrobes = [], items = [], onNew, onChanged, onC
           <button type="button" className="ow-btn primary" onClick={() => { onClose?.(); onNew?.(); }}><Icon name="Plus" size={15} /> New wardrobe</button>
         </div>
       </div>
+
+      {planFor && (
+        <DeckPlanPicker
+          onSelect={(space) => {
+            if (space?.scan?.id) { setScanPlace({ scanId: space.scan.id, wid: planFor }); setPlanFor(null); return; }
+            applyLocation(planFor, space?.id, space?.name); setPlanFor(null);
+          }}
+          onClose={() => setPlanFor(null)}
+        />
+      )}
+      {scanPlace && (
+        <MapPickerModal
+          initialScanId={scanPlace.scanId}
+          placingStorage={{ name: 'Wardrobe' }}
+          onPlaced={(res) => { applyLocation(scanPlace.wid, res?.locationId, res?.name); setScanPlace(null); }}
+          onClose={() => setScanPlace(null)}
+        />
+      )}
 
       {confirm && (
         <div className="ow-overlay" onClick={() => setConfirm(null)}>

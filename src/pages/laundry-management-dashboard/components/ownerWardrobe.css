@@ -329,6 +329,7 @@
 .ow-wm-acts { display: flex; align-items: center; gap: 6px; flex: none; }
 .ow-wm-icon { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid #E5E7EB; background: #FFFFFF; border-radius: 8px; color: #6B7280; cursor: pointer; }
 .ow-wm-icon:hover { border-color: #C65A1A; color: #C65A1A; }
+.ow-wm-icon.on { border-color: #C65A1A; color: #C65A1A; background: #FBEFE9; }
 .ow-wm-icon.danger:hover { border-color: #C24632; color: #C24632; background: #FBECEA; }
 .ow-wm-btn { border: none; background: #C65A1A; color: #FFFFFF; border-radius: 8px; padding: 8px 13px; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; }
 .ow-wm-btn.quiet { background: #FFFFFF; color: #6B7280; border: 1px solid #E5E7EB; }
