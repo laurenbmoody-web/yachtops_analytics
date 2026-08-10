@@ -1094,8 +1094,7 @@ export default function VesselMapPage({ embedded = false, placingItem: placingIt
                       </>
                     ) : (
                       <>
-                        <span className="vm-placing-text">Pin dropped — <strong>name it</strong> in the panel. Got drawers inside? <strong>Add drawers</strong>. Then <strong>Done</strong>.</span>
-                        <button className="vm-placing-drop" onClick={() => { if (storagePin) { setContainer(storagePin.id, true); setSelectedHotspot({ ...storagePin, is_container: true }); } }}>Add drawers</button>
+                        <span className="vm-placing-text">Pin dropped — <strong>name it</strong> in the panel.</span>
                         <button className="vm-placing-done" onClick={finishPlacingStorage}>Done</button>
                       </>
                     )}
