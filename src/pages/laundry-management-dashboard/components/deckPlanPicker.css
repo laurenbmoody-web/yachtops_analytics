@@ -6,6 +6,24 @@
 .dpp-x { background: none; border: none; cursor: pointer; color: #8B93A0; padding: 4px; border-radius: 8px; display: grid; place-items: center; flex: none; }
 .dpp-x:hover { background: #F4F6FA; color: #1C1B3A; }
 
+.dpp-toggle { display: inline-flex; gap: 2px; background: #F1F2F6; border-radius: 999px; padding: 3px; margin-left: auto; flex: none; }
+.dpp-toggle button { border: none; background: none; cursor: pointer; padding: 5px 13px; border-radius: 999px; font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; }
+.dpp-toggle button.on { background: #FFFFFF; color: #1C1B3A; box-shadow: 0 1px 3px rgba(28,27,58,0.14); }
+
+.dpp-liststage { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.dpp-search { display: flex; align-items: center; gap: 8px; margin: 14px 24px 6px; padding: 0 12px; border: 1px solid #E5E7EB; border-radius: 10px; background: #FAFAF8; color: #8B93A0; }
+.dpp-search input { flex: 1; border: none; background: none; outline: none; padding: 11px 0; font: 400 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.dpp-list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 16px 18px; }
+.dpp-list-grp { margin-top: 8px; }
+.dpp-list-deck { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; padding: 8px 8px 4px; }
+.dpp-list-row { width: 100%; display: flex; align-items: center; gap: 10px; padding: 11px 8px; border: none; background: none; border-bottom: 1px solid #F0F1F5; cursor: pointer; text-align: left; font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.dpp-list-row svg { color: #AEB4C2; flex: none; }
+.dpp-list-row span { flex: 1; }
+.dpp-list-row:hover { color: #C65A1A; }
+.dpp-list-row:hover svg { color: #C65A1A; }
+.dpp-list-row.on { color: #C65A1A; }
+.dpp-list-row.on .dpp-list-check { color: #C65A1A; }
+
 .dpp-decks { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 24px 0; }
 .dpp-deck { font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px; padding: 6px 13px; cursor: pointer; }
 .dpp-deck.on { background: #1C1B3A; color: #FFFFFF; border-color: #1C1B3A; }
