@@ -47,6 +47,7 @@ const WardrobeManageModal = ({ wardrobes = [], items = [], onNew, onChanged, onC
   };
 
   return (
+    <>
     <div className="ow-overlay" role="dialog" aria-modal="true" aria-label="Manage wardrobes" onClick={onClose}>
       <div className="ow-chooser" onClick={(e) => e.stopPropagation()}>
         <div className="ow-modal-head">
@@ -94,24 +95,6 @@ const WardrobeManageModal = ({ wardrobes = [], items = [], onNew, onChanged, onC
         </div>
       </div>
 
-      {planFor && (
-        <DeckPlanPicker
-          onSelect={(space) => {
-            if (space?.scan?.id) { setScanPlace({ scanId: space.scan.id, wid: planFor }); setPlanFor(null); return; }
-            applyLocation(planFor, space?.id, space?.name); setPlanFor(null);
-          }}
-          onClose={() => setPlanFor(null)}
-        />
-      )}
-      {scanPlace && (
-        <MapPickerModal
-          initialScanId={scanPlace.scanId}
-          placingStorage={{ name: 'Wardrobe' }}
-          onPlaced={(res) => { applyLocation(scanPlace.wid, res?.locationId, res?.name); setScanPlace(null); }}
-          onClose={() => setScanPlace(null)}
-        />
-      )}
-
       {confirm && (
         <div className="ow-overlay" onClick={() => setConfirm(null)}>
           <div className="ow-dialog" onClick={(e) => e.stopPropagation()}>
@@ -127,6 +110,25 @@ const WardrobeManageModal = ({ wardrobes = [], items = [], onNew, onChanged, onC
         </div>
       )}
     </div>
+
+    {planFor && (
+      <DeckPlanPicker
+        onSelect={(space) => {
+          if (space?.scan?.id) { setScanPlace({ scanId: space.scan.id, wid: planFor }); setPlanFor(null); return; }
+          applyLocation(planFor, space?.id, space?.name); setPlanFor(null);
+        }}
+        onClose={() => setPlanFor(null)}
+      />
+    )}
+    {scanPlace && (
+      <MapPickerModal
+        initialScanId={scanPlace.scanId}
+        placingStorage={{ name: 'Wardrobe' }}
+        onPlaced={(res) => { applyLocation(scanPlace.wid, res?.locationId, res?.name); setScanPlace(null); }}
+        onClose={() => setScanPlace(null)}
+      />
+    )}
+    </>
   );
 };
 
