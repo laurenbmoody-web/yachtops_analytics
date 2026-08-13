@@ -302,6 +302,20 @@ a.cm-cal-name:hover { color: #C65A1A; }
 .cm-gstat b { font-family: 'DM Serif Display', serif; font-size: 16px; display: block; line-height: 1; color: #1C1B3A; }
 .cm-gstat.warn b { color: #C65A1A; }
 .cm-gstat span { font-size: 8px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #AEB4C2; margin-top: 5px; display: block; }
+/* Crew who are on the roster but haven't been invited — no account yet. */
+.cm-nologin {
+  display: inline-flex; align-items: center; gap: 4px; font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase;
+  color: #8B8478; background: #F4F5F7; border-radius: 999px; padding: 3px 8px; vertical-align: middle;
+}
+.cm-dname .cm-nologin { margin-left: 10px; position: relative; top: -4px; }
+.cm-gnolog { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 11px; }
+.cm-gnolog-act {
+  border: 1px solid #E5E7EB; background: #fff; border-radius: 999px; padding: 3px 10px;
+  font: inherit; font-size: 10px; font-weight: 600; color: #C65A1A; cursor: pointer;
+}
+.cm-gnolog-act:hover { border-color: #C65A1A; background: #FBEFE9; }
+
 .cm-gribbon { position: absolute; top: 14px; right: 14px; font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; }
 .cm-gribbon.warn { background: #FBF1E2; color: #B07A1B; } .cm-gribbon.exp { background: #FBEAE6; color: #C65A1A; }
 

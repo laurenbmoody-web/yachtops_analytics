@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
 import EditorialDatePicker from '../../components/editorial/EditorialDatePicker';
 import { NATIONALITIES } from '../../data/nationalities';
+import { activateRosterCrewMember } from '../../utils/crewInvites';
 // This IS the vessel-onboarding "Wrapped" shell (full-bleed per-screen
 // theme, giant numeral, marquee ticker, circular glyph badge, confetti
 // finale) — see src/pages/onboarding/index.jsx / onboarding.css, the
@@ -125,6 +126,10 @@ const InviteAcceptPage = ({ previewMode = false }) => {
   const [departmentCount, setDepartmentCount] = useState(previewMode ? PREVIEW_INVITE.department_count : null);
   const [departmentName, setDepartmentName] = useState(previewMode ? PREVIEW_INVITE.department : '');
   const [inviteDetailsLoading, setInviteDetailsLoading] = useState(!previewMode);
+  // True when this invite hands a login to someone already on the crew list
+  // (added without an email). Their record exists — we attach credentials to
+  // it rather than signing up a second account.
+  const [rosterActivation, setRosterActivation] = useState(false);
 
   // Form fields
   const [firstName, setFirstName] = useState('');
@@ -293,6 +298,7 @@ const InviteAcceptPage = ({ previewMode = false }) => {
       setDepartmentCount(inviteData?.department_count ?? null);
       setInviteRoleName(inviteData?.job_title_label || 'Not set');
       setDepartmentName(inviteData?.department || 'Not set');
+      setRosterActivation(!!inviteData?.roster_activation);
 
       setInviteDetailsLoading(false);
       setStatus('ready');
@@ -501,6 +507,72 @@ const InviteAcceptPage = ({ previewMode = false }) => {
       if (existingSession?.user && existingSession.user.email?.toLowerCase() !== inviteEmail?.toLowerCase()) {
         console.log('INVITE_ACCEPT: signing out mismatched session before signUp', existingSession.user.email);
         await supabase.auth.signOut();
+      }
+
+      // Roster crew member being given their login: the account already
+      // exists (created when they were added to the crew list without an
+      // email), so credentials get attached to that record instead of a new
+      // signUp — otherwise everything logged against them so far would be
+      // stranded on the old record.
+      if (rosterActivation) {
+        console.log('INVITE_ACCEPT: roster activation start', { email: inviteEmail });
+
+        const { data: activated, error: activateError } = await activateRosterCrewMember({
+          token,
+          password,
+          fullName,
+        });
+        if (activateError) throw new Error(activateError?.message || 'Failed to set up your login');
+
+        const { data: signInData, error: signInError } = await supabase?.auth?.signInWithPassword({
+          email: activated?.email || inviteEmail,
+          password,
+        });
+        if (signInError || !signInData?.session) {
+          throw new Error(signInError?.message || 'Your account is ready, but signing you in failed. Try logging in.');
+        }
+
+        const activatedUserId = signInData?.user?.id;
+
+        const { error: rosterProfileError } = await supabase
+          ?.from('profiles')
+          ?.update({
+            first_name: firstName?.trim(),
+            last_name: surname?.trim(),
+            updated_at: new Date()?.toISOString(),
+          })
+          ?.eq('id', activatedUserId);
+        if (rosterProfileError) console.warn('INVITE_ACCEPT: roster profile update failed (non-fatal)', rosterProfileError);
+
+        const { error: rosterDetailsError } = await supabase
+          ?.from('crew_personal_details')
+          ?.upsert({
+            user_id: activatedUserId,
+            prefix,
+            sex,
+            date_of_birth: dateOfBirth,
+            nationality,
+            updated_at: new Date()?.toISOString(),
+          }, { onConflict: 'user_id' });
+        if (rosterDetailsError) {
+          setError(rosterDetailsError?.message || 'Failed to save your details');
+          setIsSubmitting(false);
+          return;
+        }
+
+        // The membership already existed — this only waits for the session to
+        // be able to see it.
+        const rosterPoll = await pollTenantMembership(activated?.tenantId, 10, 1000);
+        if (!rosterPoll?.success) {
+          setError('Account created but access not ready—refresh or contact admin');
+          setIsSubmitting(false);
+          return;
+        }
+
+        showToast(`Welcome to ${vesselName}!`, 'success');
+        setIsSubmitting(false);
+        setFlowComplete(true);
+        return;
       }
 
       console.log('INVITE_ACCEPT: signUp start', { email: inviteEmail, fullName });

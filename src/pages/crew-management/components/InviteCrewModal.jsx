@@ -5,7 +5,7 @@ import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import { showToast } from '../../../utils/toast';
-import { createCrewInvite, sendCrewInvite } from '../../../utils/crewInvites';
+import { createCrewInvite, sendCrewInvite, createRosterCrewMember } from '../../../utils/crewInvites';
 import ModalShell from '../../../components/ui/ModalShell';
 import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
 import './invite-crew-modal.css';
@@ -13,6 +13,9 @@ import './invite-crew-modal.css';
 const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
   const { session } = useAuth();
   const { activeTenantId } = useTenant();
+  // 'invite' emails them a link now; 'roster' puts them on the crew list with
+  // no login at all — they can be invited later without losing anything.
+  const [mode, setMode] = useState('invite');
   const [inviteeName, setInviteeName] = useState('');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -74,10 +77,11 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
     e?.preventDefault();
     setError('');
     setLoading(true);
+    const rosterMode = mode === 'roster';
     try {
-      if (!inviteeName || !email || !formData?.department_id || !formData?.role_id) throw new Error('Please fill in all required fields.');
+      if (!inviteeName || (!rosterMode && !email) || !formData?.department_id || !formData?.role_id) throw new Error('Please fill in all required fields.');
       if (formData?.role_id === '__other__' && !customRoleName.trim()) throw new Error('Please enter a role name.');
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Please enter a valid email address.');
+      if (!rosterMode && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Please enter a valid email address.');
 
       const user = session?.user;
       if (!user) throw new Error('Not authenticated.');
@@ -100,6 +104,25 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
         if (!sel) throw new Error('Selected role not found.');
         resolvedRoleLabel = sel?.name;
         if (sel?.source === 'custom') resolvedCustomRoleId = sel.id; else resolvedRoleId = sel.id;
+      }
+
+      // Roster mode stops here — a crew record with no login, no email sent.
+      if (rosterMode) {
+        const { error: rosterError } = await createRosterCrewMember({
+          tenantId: activeTenantId,
+          fullName: inviteeName.trim(),
+          departmentId: formData.department_id,
+          roleId: resolvedRoleId,
+          customRoleId: resolvedCustomRoleId,
+          permissionTier: resolvedTier,
+          startDate: startDate || null,
+        });
+        if (rosterError) throw new Error(rosterError?.message || 'Failed to add crew member.');
+
+        showToast(`${inviteeName.trim().split(/\s+/)[0]} added to the crew`, 'success');
+        setShowSuccess(true);
+        if (onSuccess) onSuccess();
+        return;
       }
 
       const { data: inviteData, inviteLink: link, error: inviteError } = await createCrewInvite({
@@ -144,6 +167,7 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   const reset = () => {
+    setMode('invite');
     setInviteeName(''); setEmail(''); setCustomRoleName(''); setStartDate('');
     setFormData({ department_id: '', role_id: '', permission_tier: '' });
     setError(''); setInviteLink(''); setShowSuccess(false); setEmailStatus('sent'); setCopied(false);
@@ -152,11 +176,32 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
     onClose();
   };
 
+  const rosterMode = mode === 'roster';
   const firstName = (inviteeName || '').trim().split(/\s+/)[0] || 'them';
   const isDirty = !showSuccess && (inviteeName.trim() || email.trim() || startDate || customRoleName.trim() || formData.department_id || formData.role_id);
-  const canSubmit = inviteeName && email && formData.department_id && formData.role_id && !(formData.role_id === '__other__' && !customRoleName.trim());
+  const canSubmit = inviteeName && (rosterMode || email) && formData.department_id && formData.role_id && !(formData.role_id === '__other__' && !customRoleName.trim());
 
   // ---- success / result ----
+  if (showSuccess && rosterMode) {
+    return (
+      <ModalShell onClose={reset} panelClassName="ic-panel">
+        <div className="ic-success">
+          <div className="ic-tick ok"><Icon name="UserCheck" size={24} /></div>
+          <h2>Added to the crew</h2>
+          <p className="lead">
+            <b>{inviteeName.trim()}</b> is on the crew list — rota, jobs, hours of rest and
+            documents all work for {firstName}. No email was sent and {firstName} can’t log in yet.
+            Send an invite from their crew card whenever you’re ready, and everything recorded
+            against {firstName} in the meantime carries over.
+          </p>
+          <div className="ic-success-acts">
+            <button type="button" className="ic-btn primary" onClick={reset}>Done</button>
+          </div>
+        </div>
+      </ModalShell>
+    );
+  }
+
   if (showSuccess) {
     const ok = emailStatus === 'sent';
     return (
@@ -198,12 +243,29 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
       <div className="ic-head">
         <div>
           <div className="ic-eyebrow">Crew</div>
-          <h2>Invite a crew member</h2>
+          <h2>{rosterMode ? 'Add a crew member' : 'Invite a crew member'}</h2>
         </div>
         <button type="button" className="ic-x" onClick={reset} aria-label="Close"><Icon name="X" size={16} /></button>
       </div>
 
       <form onSubmit={handleSubmit} className="ic-body">
+        <div className="ic-modes" role="group" aria-label="How to add this crew member">
+          <button
+            type="button"
+            className={`ic-mode${rosterMode ? '' : ' is-on'}`}
+            onClick={() => { setMode('invite'); setError(''); }}
+          >
+            <Icon name="Send" size={13} /> Invite by email
+          </button>
+          <button
+            type="button"
+            className={`ic-mode${rosterMode ? ' is-on' : ''}`}
+            onClick={() => { setMode('roster'); setError(''); }}
+          >
+            <Icon name="UserPlus" size={13} /> Add without login
+          </button>
+        </div>
+
         {error && (
           <div className="ic-err"><Icon name="AlertCircle" size={16} /> <span>{error}</span></div>
         )}
@@ -213,10 +275,21 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
           <input className="ic-input" type="text" value={inviteeName} onChange={(e) => setInviteeName(e.target.value)} placeholder="e.g. Jane Smith" />
         </label>
 
-        <label className="ic-field">
-          <span className="ic-label">Email <span className="req">*</span></span>
-          <input className="ic-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="crew@example.com" />
-        </label>
+        {rosterMode ? (
+          <div className="ic-note">
+            <Icon name="Info" size={14} />
+            <span>
+              They’ll appear on the crew list straight away — rota, jobs, hours of rest, laundry and
+              documents all work. No email is sent and they can’t log in. Invite them from their crew
+              card later and their record follows them.
+            </span>
+          </div>
+        ) : (
+          <label className="ic-field">
+            <span className="ic-label">Email <span className="req">*</span></span>
+            <input className="ic-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="crew@example.com" />
+          </label>
+        )}
 
         <label className="ic-field">
           <span className="ic-label">Department <span className="req">*</span></span>
@@ -263,7 +336,9 @@ const InviteCrewModal = ({ isOpen, onClose, onSuccess }) => {
         <div className="ic-foot">
           <button type="button" className="ic-btn ghost" onClick={reset}>Cancel</button>
           <button type="submit" className="ic-btn primary" disabled={loading || !canSubmit}>
-            {loading ? <><LogoSpinner size={15} /> Sending…</> : <><Icon name="Send" size={15} /> Send invite</>}
+            {loading
+              ? <><LogoSpinner size={15} /> {rosterMode ? 'Adding…' : 'Sending…'}</>
+              : <><Icon name={rosterMode ? 'UserPlus' : 'Send'} size={15} /> {rosterMode ? 'Add to crew' : 'Send invite'}</>}
           </button>
         </div>
       </form>
