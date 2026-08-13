@@ -36,7 +36,7 @@
   background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 18px; overflow: hidden;
   box-shadow: 0 30px 80px -20px rgba(28, 27, 58, 0.5); display: flex; flex-direction: column; }
 .vm-picker-close { position: absolute; top: 12px; right: 12px; z-index: 40; width: 30px; height: 30px; border-radius: 999px;
-  border: 0; background: rgba(28, 27, 58, 0.06); color: #1C1B3A; font-size: 18px; line-height: 1; cursor: pointer; }
+  border: 0; background: rgba(28, 27, 58, 0.06); color: #1C1B3A; font-size: 18px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .vm-picker-close:hover { background: rgba(28, 27, 58, 0.12); }
 .vm-picker-loading { flex: 1; display: flex; align-items: center; justify-content: center; color: #8B8478; font-size: 13px; }
 
@@ -860,15 +860,20 @@
 .vm-side-close {
   position: absolute;
   top: 10px;
-  right: 12px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
   background: none;
   border: 0;
+  border-radius: 8px;
   font-size: 20px;
-  color: #AEB4C2;
+  color: #6B7280;
   cursor: pointer;
   line-height: 1;
 }
-.vm-side-close:hover { color: #1C1B3A; }
+.vm-side-close:hover { color: #1C1B3A; background: #F4F6FA; }
 .vm-side-title {
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
   font-size: 21px;
