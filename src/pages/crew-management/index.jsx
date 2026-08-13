@@ -10,6 +10,7 @@ import { getStatusLabel, CREW_STATUSES } from '../../utils/crewStatus';
 import InviteCrewModal from './components/InviteCrewModal';
 import PendingInvitesSection from './components/PendingInvitesSection';
 import StatusChangeModal from './components/StatusChangeModal';
+import SendRosterInviteModal from './components/SendRosterInviteModal';
 import CrewMovements from './components/CrewMovements';
 import GuestBookExportModal from './components/GuestBookExportModal';
 import CreateCrewListModal from './components/CreateCrewListModal';
@@ -182,6 +183,7 @@ const CrewManagement = () => {
   const hierPendRef = useRef(null); // { id, x, y, started } — pending pointer press, promoted to a drag only past a move threshold
   const [orgLines, setOrgLines] = useState([]); // connector lines between a card and its nearest-above neighbour
   const [statusChangeTarget, setStatusChangeTarget] = useState(null); // { userId, currentStatus, name }
+  const [rosterInviteTarget, setRosterInviteTarget] = useState(null); // crew row being given a login
   const [statusChangeSaving, setStatusChangeSaving] = useState(false);
   const [calendarRefresh, setCalendarRefresh] = useState(0);
   const [myProfile, setMyProfile] = useState(null);
@@ -337,7 +339,7 @@ const CrewManagement = () => {
           role:roles!role_id(name, default_permission_tier),
           custom_role:tenant_custom_roles!custom_role_id(name, default_permission_tier),
           departments(name),
-          profiles!tenant_members_user_id_fkey(email, full_name, avatar_url)
+          profiles!tenant_members_user_id_fkey(email, full_name, avatar_url, roster_only)
         `)?.eq('tenant_id', activeTenantId)?.eq('active', !archived)?.order('joined_at', { ascending: false });
       
       if (fetchError) {
@@ -377,6 +379,7 @@ const CrewManagement = () => {
           user_id: tm?.user_id,
           departmentId: tm?.department_id || '',
           roleId: tm?.role_id || '',
+          customRoleId: tm?.custom_role_id || '',
           rotaRequiresAcceptance: tm?.rota_requires_acceptance ?? null,
           tier: tm?.role?.default_permission_tier || tm?.custom_role?.default_permission_tier || tm?.permission_tier_override || tm?.permission_tier || null,
           effectiveTier: tm?.role?.default_permission_tier || tm?.custom_role?.default_permission_tier || tm?.permission_tier_override || tm?.permission_tier || null,
@@ -388,6 +391,8 @@ const CrewManagement = () => {
           orgRow: tm?.org_row ?? null,
           reportsTo: tm?.reports_to ?? null,
           email: tm?.profiles?.email || null,
+          // On the roster but never invited — a full crew record with no login.
+          rosterOnly: !!tm?.profiles?.roster_only,
           fullName: tm?.profiles?.full_name || null,
           full_name: tm?.profiles?.full_name || null,
           photo: tm?.profiles?.avatar_url || null,
@@ -997,6 +1002,20 @@ const CrewManagement = () => {
           <span className="cm-dot" style={{ background: statusColor(user?.status) }} />
           {getStatusLabel(user?.status)}{isAway && ret ? ` · ${fmtDate(ret.date)}` : ''}
         </button>
+        {user?.rosterOnly && (
+          <div className="cm-gnolog">
+            <span className="cm-nologin"><Icon name="KeyRound" size={10} /> No login</span>
+            {canInvite && (
+              <button
+                type="button"
+                className="cm-gnolog-act"
+                onClick={(e) => { e.stopPropagation(); setRosterInviteTarget(user); }}
+              >
+                Send invite
+              </button>
+            )}
+          </div>
+        )}
         <div className="cm-gmeta">
           <div className="cm-gstat"><b>{ten || '—'}</b><span>Aboard</span></div>
           <div className={`cm-gstat${comp ? ' warn' : ''}`}><b>{comp ? (comp.expired || comp.warning) : '✓'}</b><span>{comp ? (comp.expired ? 'Expired' : 'Expiring') : 'Docs'}</span></div>
@@ -1067,7 +1086,10 @@ const CrewManagement = () => {
               <div className="cm-dhead">
                 <Avatar user={sel} className="cm-dph" />
                 <div className="cm-dident">
-                  <div className="cm-dname">{sel.fullName}</div>
+                  <div className="cm-dname">
+                    {sel.fullName}
+                    {sel.rosterOnly && <span className="cm-nologin"><Icon name="KeyRound" size={10} /> No login</span>}
+                  </div>
                   <div className="cm-drole">{sel.roleTitle} · {sel.department === '—' ? 'Unassigned' : sel.department} · {getEffectiveTierDisplay(sel)}</div>
                   <button
                     className="cm-pill cm-pill-status cm-dstatus"
@@ -1080,6 +1102,11 @@ const CrewManagement = () => {
                   </button>
                 </div>
                 <div className="cm-dactions">
+                  {sel.rosterOnly && canInvite && (
+                    <button className="cm-btn cm-btn-ghost" onClick={() => setRosterInviteTarget(sel)}>
+                      <Icon name="Send" size={14} /> Send invite
+                    </button>
+                  )}
                   {bdaySoon && (
                     <span className="cm-bday" title={`Birthday ${bdayIn === 0 ? 'today' : `in ${bdayIn} day${bdayIn === 1 ? '' : 's'}`}`}>
                       <Icon name="Cake" size={16} />
@@ -1129,7 +1156,16 @@ const CrewManagement = () => {
               {/* Contact */}
               <div className="cm-dsec"><span>Contact</span><span className="cm-dsec-rule" /></div>
               <div className="cm-dgrid">
-                {canSeeEmails && <div className="cm-drow"><span className="k">Email</span><span className="v">{sel.email ? <a href={`mailto:${sel.email}`} className="cm-dlink">{sel.email}</a> : '—'}</span></div>}
+                {canSeeEmails && (
+                  <div className="cm-drow">
+                    <span className="k">Email</span>
+                    <span className="v">
+                      {sel.email
+                        ? <a href={`mailto:${sel.email}`} className="cm-dlink">{sel.email}</a>
+                        : (sel.rosterOnly ? 'Not invited yet' : '—')}
+                    </span>
+                  </div>
+                )}
                 <div className="cm-drow"><span className="k">Phone</span><span className="v">{phone ? <a href={`tel:${phone}`} className="cm-dlink">{phone}</a> : '—'}</span></div>
               </div>
 
@@ -2225,6 +2261,14 @@ const CrewManagement = () => {
           onClose={() => setShowCrewList(false)}
           tenantId={activeTenantId}
           crew={users.filter((u) => u.status !== 'invited' && u.fullName)}
+        />
+      )}
+      {/* Give a roster crew member (added without an email) their login */}
+      {rosterInviteTarget && (
+        <SendRosterInviteModal
+          member={rosterInviteTarget}
+          onClose={() => setRosterInviteTarget(null)}
+          onSent={() => { handleInviteSuccess(); }}
         />
       )}
       {/* Status Change Modal */}

@@ -458,7 +458,7 @@ const CrewProfile = () => {
         setProfileError(null);
 
         // Fetch profile from public.profiles using crewId as USER ID
-        const { data: profileData, error: profileError } = await supabase?.from('profiles')?.select('id, full_name, last_active_tenant_id, avatar_url')?.eq('id', crewId)?.single();
+        const { data: profileData, error: profileError } = await supabase?.from('profiles')?.select('id, full_name, last_active_tenant_id, avatar_url, roster_only')?.eq('id', crewId)?.single();
 
         if (profileError) {
           console.error('PROFILE Supabase error:', profileError);
@@ -532,6 +532,9 @@ const CrewProfile = () => {
           id: profileData?.id,
           fullName: profileData?.full_name || 'Unknown',
           email: crewEmail,
+          // On the crew list without a login — added without an email and not
+          // yet invited.
+          rosterOnly: !!profileData?.roster_only,
           firstName: profileData?.full_name?.split(' ')?.[0] || '',
           lastName: profileData?.full_name?.split(' ')?.slice(1)?.join(' ') || '',
           avatarUrl: profileData?.avatar_url || null,
@@ -1537,6 +1540,12 @@ const canEdit = (() => {
                   <>
                     <span className="bar" />
                     <span className="muted">Since {sinceLabel}</span>
+                  </>
+                )}
+                {crewMember?.rosterOnly && (
+                  <>
+                    <span className="bar" />
+                    <span className="muted">No login yet</span>
                   </>
                 )}
               </div>
