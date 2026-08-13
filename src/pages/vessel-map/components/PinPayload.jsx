@@ -470,7 +470,7 @@ export default function PinPayload({
                   )}
                 </button>
                 <span className="vm-check-text">{c.text}</span>
-                {c.done && c.done_by && <span className="vm-check-by">{nameOf(c.done_by).split(/\s+/)[0]}</span>}
+                {c.done && (c.done_by || c.done_at) && <span className="vm-check-by">{[c.done_by ? nameOf(c.done_by).split(/\s+/)[0] : null, c.done_at ? relDate(c.done_at) : null].filter(Boolean).join(' · ')}</span>}
                 {canManage && !c.done && (
                   <span className="vm-check-move">
                     <button className="vm-check-arrow" onClick={() => moveCheck(c.id, -1)} aria-label={`Move ${c.text} up`}>↑</button>
