@@ -1045,6 +1045,10 @@ const canEdit = (() => {
   // Permissions are admin-only: COMMAND / vessel admin may set them. Everyone
   // else — including crew viewing their OWN profile — sees them read-only.
   const canEditPermissions = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
+  // Salary (crew_compensation) is genuinely COMMAND-only in the DB (RLS), which
+  // vessel-admin status does NOT satisfy. Gate the salary block on real COMMAND
+  // so a CHIEF admin isn't shown a field the DB will reject on save.
+  const canEditCompensation = currentUserPermissionTier === 'COMMAND';
 
   // Persist one or more per-user capability flags on tenant_members. RLS allows
   // only COMMAND to update tenant_members, matching canEditPermissions. `patch`
@@ -1224,7 +1228,7 @@ const canEdit = (() => {
       });
       // null when the viewer can't read compensation (RLS) AND there's no row;
       // COMMAND always gets an object so the block renders for them.
-      setCompForm(canEditPermissions ? (comp || {}) : (comp || null));
+      setCompForm(canEditCompensation ? (comp || {}) : (comp || null));
       setVesselCompliance({ ...(vessel || {}), captain_name: cap?.profiles?.full_name || '' });
       setTemplates(templates);
       setLastGenerated(lastDoc || null);
