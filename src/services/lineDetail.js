@@ -26,6 +26,7 @@ const BUCKET_DEPARTMENT = {
   Deck: 'Deck',
   Engineer: 'Engineering',
   Interior: 'Interior',
+  Galley: 'Galley',
 };
 
 const CODE_DEPARTMENT = {

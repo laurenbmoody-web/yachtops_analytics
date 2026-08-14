@@ -22,6 +22,7 @@ const L = {
   ICN: { bucket: 'Interior', category: 'Interior Consumables', code: 'ICN' },
   DCN: { bucket: 'Deck', category: 'Deck Consumables', code: 'DCN' },
   ECN: { bucket: 'Engineer', category: 'Engineer Consumables', code: 'ECN' },
+  GLC: { bucket: 'Galley', category: 'Galley Consumables', code: 'GLC' },
 };
 
 // Word-boundaried so short tokens don't match inside unrelated words — e.g. a bare
@@ -48,7 +49,10 @@ const deptConsumable = (department) => {
   const d = lc(department);
   if (/deck/.test(d)) return L.DCN;
   if (/engine|engineer|eng\b/.test(d)) return L.ECN;
-  if (/interior|stew|galley/.test(d)) return L.ICN;
+  // Galley is checked before interior: it is its own department in Cargo and now has
+  // its own chart section, so the chef's cling film stops being filed as Interior.
+  if (/galley|chef|cook/.test(d)) return L.GLC;
+  if (/interior|stew/.test(d)) return L.ICN;
   return null;
 };
 

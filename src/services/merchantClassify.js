@@ -134,6 +134,13 @@ const MERCHANT_SEED = [
   // Yards, dry dock and hull work.
   { re: /\b(shipyard|chantier\s*naval|astillero|cantiere|dry\s*dock|drydock|travelift|haul\s*out|slipway)\b/, code: 'DDK', confidence: 'high', reason: 'shipyard / dry dock' },
 
+  // Galley — the chef's own running cost, not the provisions. Catering-equipment
+  // houses, the coffee machine, the hygiene regime.
+  { re: /\b(rational|hobart|winterhalter|electrolux\s*profession\w*|kitchen\s*equip\w*|catering\s*equip\w*|restaurant\s*(?:supply|depot)|de\s*buyer|wusthof|global\s*knives)\b/, code: 'GLE', confidence: 'high', reason: 'catering / galley equipment' },
+  { re: /\b(la\s*marzocco|jura\s*(?:coffee|elektro)|coffee\s*machine|espresso\s*machine|barista\s*(?:supply|equip))\b/, code: 'GLB', confidence: 'high', reason: 'coffee / beverage equipment' },
+  { re: /\b(pest\s*control|d[ée]ratisation|d[ée]sinsect\w*|fumigation|exterminator)\b/, code: 'GLP', confidence: 'high', reason: 'pest control' },
+  { re: /\b(haccp|food\s*safety|hygiene\s*audit|allergen\s*test|food\s*analysis)\b/, code: 'GLH', confidence: 'high', reason: 'food safety / HACCP' },
+
   // Laundry & dry cleaning houses.
   { re: /\b(blanchisserie|pressing|laundr(?:y|ette)|dry\s*clean\w*|lavander|wash\s*(?:house|club))\b/, code: 'ILA', confidence: 'high', reason: 'laundry / dry cleaning' },
 
