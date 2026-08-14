@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   STANDARD_CHART_OF_ACCOUNTS, STANDARD_BUCKET_ORDER,
 } from '../pages/accounts/budgets/data/mybaChartOfAccounts.js';
-import { missingTemplateLines, TOP_UP_SORT_BASE } from './chartTemplate.js';
+import { missingTemplateLines, templateSortOrder } from './chartTemplate.js';
 
 // ── The template's own invariants ────────────────────────────────────────────
 
@@ -75,9 +75,8 @@ test('no line that money may already be filed against has moved or been renamed'
 });
 
 test('the shipped lines still lead their bucket, in their original order', () => {
-  // A topped-up chart appends new lines after the ones a vessel already has. If a
-  // new line were slipped in ABOVE a shipped one here, a freshly seeded chart and a
-  // topped-up chart would read in different orders for the same vessel.
+  // Detail is added BENEATH the summary line it belongs to, so a chart still opens
+  // on the lines a reader already knows.
   const shippedOrder = SHIPPED.map(([, code]) => code);
   const inTemplate = STANDARD_CHART_OF_ACCOUNTS
     .map((l) => l.code).filter((c) => shippedOrder.includes(c));
@@ -94,6 +93,27 @@ test('the shipped lines still lead their bucket, in their original order', () =>
     assert.ok(firstNew === undefined || i < firstNew,
       `${l.code} sits below a new line in ${l.bucket}`);
   });
+});
+
+test('every department Cargo has, the chart has a section for', () => {
+  // Deck, Engineer, Interior and Galley are departments elsewhere in the app
+  // (authStorage.DEPARTMENTS, the department scope picker, lineDetail's code →
+  // department map). A department with no section has nowhere to file its own
+  // running cost, which is how Galley ended up scattered across Interior.
+  const buckets = new Set(STANDARD_CHART_OF_ACCOUNTS.map((l) => l.bucket));
+  ['Deck', 'Engineer', 'Interior', 'Galley'].forEach((d) => {
+    assert.ok(buckets.has(d), `no section for the ${d} department`);
+  });
+});
+
+test('the galley section is the galley’s running cost, not the food', () => {
+  // Provisions stay on the MYBA lines they have always been on — moving them would
+  // orphan live transactions, and lineDetail already books them to the galley.
+  const byCode = new Map(STANDARD_CHART_OF_ACCOUNTS.map((l) => [l.code, l]));
+  assert.equal(byCode.get('GFE').bucket, 'Guest Costs');
+  assert.equal(byCode.get('GWS').bucket, 'Guest Costs');
+  assert.equal(byCode.get('CFC').bucket, 'Crew Cost');
+  assert.equal(byCode.get('GLE').bucket, 'Galley');
 });
 
 test('the chart actually got more extensive', () => {
@@ -192,12 +212,50 @@ test('a vessel with no chart at all is offered the whole template', () => {
   assert.equal(missingTemplateLines(null).length, STANDARD_CHART_OF_ACCOUNTS.length);
 });
 
-test('added lines sort after whatever the vessel already had', () => {
+test('added lines take the position the template gives them', () => {
   const added = missingTemplateLines([{ bucket: 'Fuel', code: 'FLE', category: 'Fuel & Lube Oil' }]);
-  added.forEach((l) => assert.ok(l.sort_order >= TOP_UP_SORT_BASE, l.code));
-  // …and among themselves, in template order.
-  const orders = added.map((l) => l.sort_order);
-  assert.deepEqual(orders, [...orders].sort((a, b) => a - b));
+  added.forEach((l) => {
+    assert.equal(l.sort_order, STANDARD_CHART_OF_ACCOUNTS.findIndex((t) => t.code === l.code), l.code);
+  });
+});
+
+test('an old chart is renumbered so a whole new section lands in the right place', () => {
+  // The case this exists for: Interior was numbered 15–17 and Fuel 18–19 when the
+  // template was 48 lines long. There is no integer between them, so a Galley
+  // section could only be appended — stranding it at the bottom of the picker.
+  const old = SHIPPED.map(([bucket, code, category], i) => ({
+    id: `id-${i}`, bucket, code, category, sort_order: i,
+  }));
+  const moves = new Map(templateSortOrder(old).map((m) => [m.id, m.sort_order]));
+  const at = (code) => {
+    const i = SHIPPED.findIndex(([, c]) => c === code);
+    return moves.has(`id-${i}`) ? moves.get(`id-${i}`) : i;
+  };
+  const galley = STANDARD_CHART_OF_ACCOUNTS.findIndex((l) => l.bucket === 'Galley');
+  assert.ok(at('IRM') < galley, 'Galley must fall after Interior');
+  assert.ok(galley < at('FLE'), 'Galley must fall before Fuel');
+});
+
+test('renumbering leaves alone what is already in the right place', () => {
+  const right = STANDARD_CHART_OF_ACCOUNTS.map((l, i) => ({ ...l, id: `id-${i}`, sort_order: i }));
+  assert.deepEqual(templateSortOrder(right), []);
+});
+
+test('renumbering never touches a line the vessel added itself', () => {
+  const mine = [
+    { id: 'a', bucket: 'Owner', code: 'ZZZ', category: 'Owner Personal', sort_order: 3 },
+    { id: 'b', bucket: 'Fuel', code: 'FLE', category: 'Fuel & Lube Oil', sort_order: 18 },
+  ];
+  assert.deepEqual(templateSortOrder(mine).map((m) => m.id), ['b']);
+});
+
+test('renumbering follows a line the vessel re-coded or renamed', () => {
+  // Matched on either key, same as the missing-line check.
+  const recoded = [{ id: 'a', bucket: 'Fuel', code: 'MY1', category: 'Fuel & Lube Oil', sort_order: 0 }];
+  const renamed = [{ id: 'b', bucket: 'Fuel', code: 'FLE', category: 'Diesel & Oils', sort_order: 0 }];
+  const want = STANDARD_CHART_OF_ACCOUNTS.findIndex((l) => l.code === 'FLE');
+  assert.deepEqual(templateSortOrder(recoded), [{ id: 'a', sort_order: want }]);
+  assert.deepEqual(templateSortOrder(renamed), [{ id: 'b', sort_order: want }]);
 });
 
 test('added lines carry a kind the column will accept', () => {

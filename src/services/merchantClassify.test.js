@@ -48,6 +48,18 @@ test('seed: the detail lines are reachable from a real payee', () => {
   assert.equal(code('STCW Training Centre'), 'CTR');
   assert.equal(code('Seabob Cayago'), 'TJS');
   assert.equal(code('Antibes Scuba Dive Centre'), 'TDV');
+  assert.equal(code('Hobart Catering Equipment'), 'GLE');
+  assert.equal(code('La Marzocco Espresso'), 'GLB');
+  assert.equal(code('Deratisation Cote d Azur'), 'GLP');
+  assert.equal(code('HACCP Food Safety Audits'), 'GLH');
+});
+
+test('galley equipment does not swallow the provisions', () => {
+  // The galley section is the chef's running cost. Food is still a guest-vs-crew
+  // question on the MYBA lines it has always been on.
+  const market = suggest({ payee: 'Transgourmet Nice' });
+  assert.equal(market.kind, 'choice');
+  assert.deepEqual(market.options.map((o) => o.code), ['GFE', 'CFC']);
 });
 
 test('seed: a rule never fires only to be shadowed by an earlier one', () => {

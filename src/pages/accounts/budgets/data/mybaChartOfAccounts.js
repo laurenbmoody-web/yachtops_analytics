@@ -90,10 +90,26 @@ export const STANDARD_CHART_OF_ACCOUNTS = [
   { bucket: 'Interior', kind: 'expense', code: 'ILA', category: 'Laundry & Dry Cleaning' },
   { bucket: 'Interior', kind: 'expense', code: 'ICH', category: 'Cleaning Chemicals & Materials' },
   { bucket: 'Interior', kind: 'expense', code: 'IGL', category: 'Glassware, China & Cutlery' },
-  { bucket: 'Interior', kind: 'expense', code: 'IGE', category: 'Galley Equipment & Small Wares' },
   { bucket: 'Interior', kind: 'expense', code: 'IUP', category: 'Soft Furnishings & Upholstery' },
   { bucket: 'Interior', kind: 'expense', code: 'IDC', category: 'Interior Decor & Accessories' },
   { bucket: 'Interior', kind: 'expense', code: 'IAM', category: 'Amenities & Toiletries' },
+
+  // ── Galley ───────────────────────────────────────────────────────────────
+  // Galley is a department in its own right everywhere else in Cargo (see
+  // authStorage.DEPARTMENTS and the department scope picker), so it gets a section
+  // like Deck, Engineer and Interior rather than being folded into Interior.
+  //
+  // This is the galley's RUNNING cost, not the food: provisions stay on the MYBA
+  // lines they have always been on — Guest Food Stock (GFE), Guest Wine Stock (GWS)
+  // and Crew Food & Consumables (CFC) — which lineDetail already attributes to the
+  // Galley department. Splitting food out of those would orphan live transactions.
+  { bucket: 'Galley', kind: 'expense', code: 'GLC', category: 'Galley Consumables' },
+  { bucket: 'Galley', kind: 'expense', code: 'GLE', category: 'Galley Equipment & Small Wares' },
+  { bucket: 'Galley', kind: 'expense', code: 'GLS', category: 'Galley Spares & Renewals' },
+  { bucket: 'Galley', kind: 'expense', code: 'GLR', category: 'Galley Repair & Maintenance' },
+  { bucket: 'Galley', kind: 'expense', code: 'GLB', category: 'Coffee & Beverage Equipment' },
+  { bucket: 'Galley', kind: 'expense', code: 'GLH', category: 'Food Safety & HACCP' },
+  { bucket: 'Galley', kind: 'expense', code: 'GLP', category: 'Galley Hygiene & Pest Control' },
 
   // ── Fuel ─────────────────────────────────────────────────────────────────
   { bucket: 'Fuel', kind: 'expense', code: 'FLE', category: 'Fuel & Lube Oil' },
@@ -207,13 +223,13 @@ export const STANDARD_CHART_OF_ACCOUNTS = [
   { bucket: 'Tenders & Toys', kind: 'expense', code: 'TRI', category: 'Tender Registration & Insurance' },
 ];
 
-// Bucket display order for the standard template (revenue first, then the
-// expenditure groups in the report's order). The two sections that are not on the
-// original report — Charter Costs, Tenders & Toys — sort after it, so a chart that
-// was seeded before they existed and has since been topped up reads in the same
-// order as one seeded fresh today.
+// Bucket display order: revenue first, then the departments, then the expenditure
+// groups in the report's order, with the two sections the report never had at the
+// end. This is the order the array above is written in, so sort_order = array index
+// puts a chart on screen in it — see chartTemplate.templateSortOrder, which holds a
+// chart seeded on an older, shorter template to the same order.
 export const STANDARD_BUCKET_ORDER = [
-  'Revenue', 'Crew Cost', 'Deck', 'Engineer', 'Interior', 'Fuel',
+  'Revenue', 'Crew Cost', 'Deck', 'Engineer', 'Interior', 'Galley', 'Fuel',
   'Financial', 'Guest Costs', 'Shipyard', 'General',
   'Charter Costs', 'Tenders & Toys',
 ];
