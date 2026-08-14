@@ -70,14 +70,32 @@ const MERCHANT_SEED = [
   // Yacht transport / freight / logistics.
   { re: /\b(peters\s*(?:&|and)?\s*may|sevenstar|dockwise|dyt|yacht\s*transport|kuehne|dhl|fedex|ups\b|freight|schenker)\b/, code: 'FRG', confidence: 'high', reason: 'freight / yacht transport' },
 
-  // Satellite comms & navigation electronics (marine-specific).
-  { re: /\b(kvh|inmarsat|starlink|iridium|thuraya|raymarine|furuno|garmin|navionics|simrad|b\s*&\s*g)\b/, code: 'NAV', confidence: 'high', reason: 'navigation / satcom equipment' },
+  // Satellite AIRTIME — a monthly bill for bandwidth, not a box. Sits above the
+  // electronics rule because the airtime houses are matched by name.
+  { re: /\b(kvh|inmarsat|starlink|iridium|thuraya|speedcast|marlink|navarino|satcom)\b/, code: 'SAT', confidence: 'high', reason: 'satellite airtime provider' },
+
+  // Navigation electronics — the hardware itself.
+  { re: /\b(raymarine|furuno|garmin|navionics|simrad|b\s*&\s*g)\b/, code: 'NAV', confidence: 'high', reason: 'navigation equipment' },
+
+  // Charts & nautical publications.
+  { re: /\b(admiralty|ukho|imray|witherby|nautical\s*publi|chart\s*(?:agent|correction))\b/, code: 'CHP', confidence: 'high', reason: 'charts / nautical publications' },
 
   // Life-saving & fire fighting.
   { re: /\b(viking\s*life|survitec|zodiac|liferaft|life\s*raft|fire\s*fighting|extinguisher)\b/, code: 'LSF', confidence: 'high', reason: 'life-saving / fire equipment' },
 
-  // Marinas, ports, harbour dues — berthing.
-  { re: /\b(marina|port\s*vauban|capitainerie|yacht\s*harbou?r|igy|ocean\s*village|puerto|porto\s*(?:mont|cervo)|harbou?r\s*(?:master|dues)|quay|dock\s*dues)\b/, code: 'HAR', confidence: 'high', reason: 'marina / harbour dues' },
+  // Marinas — a berth booked from an operator, which is a contract, not a due.
+  { re: /\b(marina|port\s*vauban|yacht\s*harbou?r|igy|ocean\s*village|puerto|porto\s*(?:mont|cervo)|quay|berth(?:ing|s)?)\b/, code: 'BRT', confidence: 'high', reason: 'marina / berthing' },
+
+  // The port authority itself — dues, not a berth.
+  { re: /\b(capitainerie|harbou?r\s*(?:master|dues|authority)|port\s*(?:authority|dues)|dock\s*dues)\b/, code: 'HAR', confidence: 'high', reason: 'harbour dues' },
+
+  // Pilotage & towage, canal transit, customs — the rest of a port call.
+  { re: /\b(pilotage|pilot\s*station|towage|tug\b|remorqu)\b/, code: 'PIL', confidence: 'high', reason: 'pilotage / towage' },
+  { re: /\b(canal\s*(?:de\s*)?(?:panama|suez|corinth|transit)|panama\s*canal|suez\s*canal|waterway\s*transit)\b/, code: 'CNL', confidence: 'high', reason: 'canal / waterway transit' },
+  { re: /\b(douane|customs|clearance|immigration|aduana|zoll)\b/, code: 'CUS', confidence: 'high', reason: 'customs / clearance' },
+
+  // Waste, sludge and pump-out contractors.
+  { re: /\b(waste|garbage|d[ée]chets|sludge|slops?|pump\s*out|recycling|sanitation\s*service)\b/, code: 'WST', confidence: 'high', reason: 'waste / sludge disposal' },
 
   // Chandlers & deck suppliers.
   { re: /\b(chandler\w*|west\s*marine|marinepool|marlow|ropes?|svb|nautic\w*|deck\s*)\b/, code: 'DCN', confidence: 'high', reason: 'chandlery / deck supplier' },
@@ -103,6 +121,39 @@ const MERCHANT_SEED = [
   // Streaming / AV subscriptions → audiovisual & entertainment.
   { re: /\b(netflix|spotify|disney\s*plus|apple\.com\/bill|itunes|sky\b)\b/, code: 'AUD', confidence: 'high', reason: 'AV / entertainment subscription' },
 
+  // Business software & IT — distinct from the guest-facing AV subscriptions above.
+  { re: /\b(microsoft|office\s*365|adobe|dropbox|google\s*(?:workspace|cloud)|xero|quickbooks|sage\b|slack\s*technolog|zoom\s*video|1password|godaddy|atlassian)\b/, code: 'ITS', confidence: 'high', reason: 'software / IT subscription' },
+
+  // Antifoul & hull coatings — a yard job, above the general paint rule because the
+  // same supplier sells both and the word decides which.
+  { re: /\b(antifoul\w*|anti\s*fouling|hull\s*coating|propspeed|coppercoat)\b/, code: 'AFL', confidence: 'high', reason: 'antifoul / hull coating' },
+
+  // Paint & varnish houses.
+  { re: /\b(awlgrip|awlcraft|international\s*paint|jotun|hempel|boero|akzo\s*nobel|alexseal|varnish|peinture)\b/, code: 'DPT', confidence: 'high', reason: 'paint / varnish supplier' },
+
+  // Yards, dry dock and hull work.
+  { re: /\b(shipyard|chantier\s*naval|astillero|cantiere|dry\s*dock|drydock|travelift|haul\s*out|slipway)\b/, code: 'DDK', confidence: 'high', reason: 'shipyard / dry dock' },
+
+  // Laundry & dry cleaning houses.
+  { re: /\b(blanchisserie|pressing|laundr(?:y|ette)|dry\s*clean\w*|lavander|wash\s*(?:house|club))\b/, code: 'ILA', confidence: 'high', reason: 'laundry / dry cleaning' },
+
+  // Registry, flag state and the corporate side.
+  { re: /\b(ship\s*registr\w*|yacht\s*registr\w*|flag\s*state|red\s*ensign|maritime\s*authority|marshall\s*islands|cayman\s*(?:registry|maritime))\b/, code: 'REG', confidence: 'high', reason: 'registry / flag state' },
+  { re: /\b(avocat|notaire|solicitor\w*|law\s*(?:firm|office)|legal\s*services|abogado|rechtsanwalt)\b/, code: 'LEG', confidence: 'high', reason: 'legal / professional' },
+  { re: /\b(expert\s*comptable|comptab\w*|accountant\w*|accounting|bookkeep\w*)\b/, code: 'ACC', confidence: 'high', reason: 'accountancy / bookkeeping' },
+
+  // Crew agencies & maritime schools — the two ends of a crew hire.
+  { re: /\b(crew\s*(?:agency|agencies|recruit\w*|placement)|recruitment\s*agency|ypi\s*crew|wilsonhalligan|viking\s*crew)\b/, code: 'CRE', confidence: 'high', reason: 'crew agency / recruitment' },
+  { re: /\b(stcw|maritime\s*(?:academy|training|school)|training\s*(?:centre|center)|sea\s*school|deckhand\s*course)\b/, code: 'CTR', confidence: 'high', reason: 'crew training / certification' },
+
+  // Tenders, toys and dive kit.
+  { re: /\b(seabob|jet\s*ski|jetski|waverunner|sea\s*doo|cayago)\b/, code: 'TJS', confidence: 'high', reason: 'jet ski / seabob' },
+  { re: /\b(scuba|dive\s*(?:centre|center|shop|store)|diving\s*(?:centre|center|equipment)|aqualung|bauer\s*komp)\b/, code: 'TDV', confidence: 'high', reason: 'diving equipment' },
+  { re: /\b(paddle\s*board|water\s*toys?|inflatable\w*|funair|nautibuoy|sea\s*pool)\b/, code: 'TOY', confidence: 'high', reason: 'water toys' },
+  // NB: no `zodiac` here — the life-saving rule above claims it, which is the
+  // right call when the two trades share a name and one of them is safety gear.
+  { re: /\b(williams\s*jet|castoldi|novurania|outboard|tender\s*(?:service|refit))\b/, code: 'TRM', confidence: 'high', reason: 'tender builder / servicing' },
+
   // ── Two-sided vendors: real match, but who benefits is genuinely ambiguous ─
   // We do NOT pre-commit a guess for these — the resolver returns both plausible
   // lines as a choice so a human picks the side (guest vs crew). `alts` = the two
@@ -119,6 +170,14 @@ const MERCHANT_SEED = [
 
   // Car hire / taxi / transport: ship transport or guest car hire?
   { re: /\b(uber|taxi|hertz|avis|europcar|sixt|enterprise\s*rent|car\s*hire|rental)\b/, alts: ['CAR', 'GCT'], reason: 'transport — ship or guest?' },
+
+  // A pharmacy run is either topping up the ship's medical locker or one crew
+  // member's prescription — and those are different lines to an owner.
+  { re: /\b(pharmac\w*|apotheke|farmacia|chemist|drugstore|medical\s*suppl\w*)\b/, alts: ['MED', 'CMD'], reason: 'pharmacy — ship stores or crew medical?' },
+
+  // The big brokerage houses both sell charters and manage boats, so their invoice
+  // is either commission on a charter or the monthly management fee.
+  { re: /\b(burgess|edmiston|fraser\s*yacht\w*|camper\s*(?:&|and)?\s*nicholson\w*|ocean\s*independence|northrop\s*(?:&|and)?\s*johnson|yachting\s*partners)\b/, alts: ['CBC', 'MGE'], reason: 'brokerage — charter commission or management fee?' },
 ];
 
 // Returns { kind: 'single', suggestion } for an unambiguous vendor, or

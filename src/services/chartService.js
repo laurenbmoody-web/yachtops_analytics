@@ -13,6 +13,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { STANDARD_CHART_OF_ACCOUNTS } from '../pages/accounts/budgets/data/mybaChartOfAccounts.js';
 import { groupChartLines } from './chartGroup.js';
+import { missingTemplateLines } from './chartTemplate.js';
 
 export { groupChartLines };
 
@@ -86,6 +87,18 @@ export async function applyStandardTemplate(tenantId) {
     sort_order: i,
   }));
   return addLines(tenantId, lines);
+}
+
+// Pull in template lines added since this vessel seeded its chart, without touching
+// a single line it already has — including ones it renamed, re-coded or switched
+// off. Idempotent: run it twice and the second run inserts nothing.
+export async function topUpStandardTemplate(tenantId) {
+  if (!tenantId) return { data: [], error: null };
+  const { data: existing, error } = await getChart(tenantId, { includeInactive: true });
+  if (error) return { data: [], error };
+  const missing = missingTemplateLines(existing);
+  if (!missing.length) return { data: [], error: null };
+  return addLines(tenantId, missing);
 }
 
 export async function addLine(tenantId, line) {
