@@ -20,6 +20,7 @@ const daysBetween = (a, b) => Math.round((b.getTime() - a.getTime()) / 86400000)
 const daysIn = (y, m) => new Date(y, m + 1, 0).getDate();
 const tint = (hex, a) => { const n = parseInt((hex || '#7A6F8C').slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
 const initials = (name) => (name || '?').split(' ').map((x) => x[0]).slice(0, 2).join('');
+const ddmm = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
 
 // Canonical yacht department order (Bridge first), with a role-seniority tiebreak
 // so the captain sits at the very top of the crew list. Mirrors the helpers in
@@ -84,8 +85,10 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const [handover, setHandover] = useState(null); // conflict dialog
   const [flashId, setFlashId] = useState(null);   // bar to pulse after "Move anyway"
   const [focusLabel, setFocusLabel] = useState('');
-  const [dayPick, setDayPick] = useState(null);   // quick per-day status picker {userId, fullName, date, cur, x, y}
+  const [dayPick, setDayPick] = useState(null);   // quick status picker {userId, fullName, startDate, endDate, count, cur, x, y}
+  const [dragSel, setDragSel] = useState(null);   // live drag highlight {userId, a, b} (day indices within the month)
   const [painting, setPainting] = useState(false);
+  const dragRef = useRef(null);                   // {userId, a, b} while a click-drag is in progress
 
   const memberById = useMemo(() => Object.fromEntries(members.map((m) => [m.user_id, m])), [members]);
   const memberIds = useMemo(() => members.map((m) => m.user_id).filter(Boolean), [members]);
@@ -430,70 +433,101 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     };
   }, [dragKind]);
 
-  // ── quick per-day status paint ───────────────────────────────────────────────
-  // Clicking a square in the Presence grid opens a small swatch popover; picking
-  // a status sets JUST that day. We model it on the existing status-history
-  // timeline: write the chosen status at that day and restore the underlying
-  // status the next morning, so nothing after the clicked day is disturbed.
-  // These rows are tagged source:'calendar' so they stay out of the formal audit
-  // trail (StatusHistoryTab / profileActivity exclude that source).
-  const PAINT_HOUR = 12; // noon slot — a day-paint always wins over a same-day boundary
+  // ── quick status paint (single day or a click-dragged range) ─────────────────
+  // Clicking a square — or dragging across a row — opens a small swatch popover;
+  // picking a status sets that day / span. We model it on the existing
+  // status-history timeline: write the chosen status at the start of the span and
+  // restore the underlying status the morning after it, so nothing beyond the
+  // painted span is disturbed. These rows are tagged source:'calendar' so they
+  // stay out of the formal audit trail (StatusHistoryTab / profileActivity
+  // exclude that source).
+  const PAINT_HOUR = 12; // noon slot — a paint always wins over a same-day boundary
   const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-  const paintDay = async (userId, date, newStatus) => {
+  const closePick = () => { setDayPick(null); setDragSel(null); };
+  const paintRange = async (userId, startDate, endDate, newStatus) => {
     if (!canManage || !tenantId || painting) return;
     setPainting(true);
     try {
-      const d0 = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      const next0 = new Date(d0); next0.setDate(next0.getDate() + 1);
+      let d0 = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+      let d1 = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      if (d1 < d0) { const t = d0; d0 = d1; d1 = t; }
+      const afterEnd = new Date(d1); afterEnd.setDate(afterEnd.getDate() + 1);
       const paintAt = new Date(d0); paintAt.setHours(PAINT_HOUR, 0, 0, 0);
+      const d0Mid = new Date(d0); d0Mid.setHours(0, 0, 0, 0);
+      const afterEndMid = new Date(afterEnd); afterEndMid.setHours(0, 0, 0, 0);
 
-      // Replace, don't stack: drop any prior paint already in this day's slot.
+      // Replace, don't stack: drop our own paints/restores inside the span so
+      // re-painting an overlapping range starts clean. Manual/seed history is
+      // left untouched.
       await supabase.from('crew_status_history').delete()
         .eq('tenant_id', tenantId).eq('user_id', userId).eq('source', 'calendar')
-        .eq('changed_at', paintAt.toISOString());
+        .gte('changed_at', d0Mid.toISOString()).lt('changed_at', afterEndMid.toISOString());
 
-      // What this day / the next day show WITHOUT this paint present.
+      // What the span-start / the morning-after show WITHOUT our paint present.
       const { data: hist } = await supabase.from('crew_status_history')
         .select('user_id, new_status, changed_at')
         .eq('tenant_id', tenantId).eq('user_id', userId)
         .order('changed_at', { ascending: true });
       const periods = buildStatusPeriods(hist || []);
-      const baseD = getStatusForDay(periods, d0);
-      const baseNext = getStatusForDay(periods, next0);
+      const baseStart = getStatusForDay(periods, d0);
+      const baseAfter = getStatusForDay(periods, afterEnd);
 
-      if (newStatus !== baseD) {
+      const single = sameDay(d0, d1);
+      if (!(single && newStatus === baseStart)) {
         const rows = [{
-          tenant_id: tenantId, user_id: userId, new_status: newStatus, old_status: baseD || null,
+          tenant_id: tenantId, user_id: userId, new_status: newStatus, old_status: baseStart || null,
           changed_by: currentUserId || null, changed_at: paintAt.toISOString(), source: 'calendar',
         }];
-        // Keep the paint from bleeding forward: unless a change already lands on
-        // the next day, restore the underlying status the next morning.
-        const nextHasBoundary = (hist || []).some((h) => sameDay(new Date(h.changed_at), next0));
-        const restoreTo = baseNext || baseD || 'active';
-        if (restoreTo !== newStatus && !nextHasBoundary) {
-          const restoreAt = new Date(next0); restoreAt.setHours(0, 0, 0, 0);
+        // Keep the paint from bleeding past the span: unless a change already
+        // lands the morning after, restore the underlying status there.
+        const afterHasBoundary = (hist || []).some((h) => sameDay(new Date(h.changed_at), afterEnd));
+        const restoreTo = baseAfter || baseStart || 'active';
+        if (restoreTo !== newStatus && !afterHasBoundary) {
           rows.push({
             tenant_id: tenantId, user_id: userId, new_status: restoreTo, old_status: newStatus,
-            changed_by: currentUserId || null, changed_at: restoreAt.toISOString(), source: 'calendar',
+            changed_by: currentUserId || null, changed_at: afterEndMid.toISOString(), source: 'calendar',
           });
         }
         const { error } = await supabase.from('crew_status_history').insert(rows);
         if (error) { window.showToast?.(error.message || 'Could not update status', 'error'); return; }
       }
 
-      // Keep the live badge in sync when it's today's square being painted.
+      // Keep the live badge in sync when today falls inside the painted span.
       const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
-      if (sameDay(d0, todayMid)) {
+      if (todayMid >= d0Mid && todayMid < afterEndMid) {
         await supabase.from('tenant_members').update({ status: newStatus })
           .eq('tenant_id', tenantId).eq('user_id', userId);
       }
 
-      setDayPick(null);
+      closePick();
       setRefresh((r) => r + 1);
     } finally {
       setPainting(false);
     }
   };
+
+  // Finish a click-drag anywhere: turn the selected span into a status popover.
+  useEffect(() => {
+    const onUp = (e) => {
+      const d = dragRef.current;
+      if (!d) return;
+      dragRef.current = null;
+      const lo = Math.min(d.a, d.b);
+      const hi = Math.max(d.a, d.b);
+      const startDate = new Date(calYear, calMonth, lo + 1);
+      const endDate = new Date(calYear, calMonth, hi + 1);
+      const periods = buildStatusPeriods(historyByUser[d.userId] || []);
+      setDayPick({
+        userId: d.userId,
+        fullName: memberById[d.userId]?.fullName || '',
+        startDate, endDate, count: hi - lo + 1,
+        cur: getStatusForDay(periods, startDate),
+        x: e.clientX, y: e.clientY,
+      });
+    };
+    window.addEventListener('pointerup', onUp);
+    return () => window.removeEventListener('pointerup', onUp);
+  }, [calYear, calMonth, memberById, historyByUser]);
 
   // ── presence rendering (plain single-month grid, unchanged) ─────────────────
   const renderPresence = () => (
@@ -510,13 +544,15 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
             {Array.from({ length: totalDays }, (_, i) => {
               const cellDate = new Date(calYear, calMonth, i + 1);
               const st = getStatusForDay(periods, cellDate);
+              const inSel = dragSel && dragSel.userId === m.user_id && i >= Math.min(dragSel.a, dragSel.b) && i <= Math.max(dragSel.a, dragSel.b);
               return (
                 <div
                   key={i}
-                  className={`mv-cell${canManage ? ' clickable' : ''}`}
-                  title={canManage ? `${m.fullName}: ${st ? getStatusLabel(st) : 'no status'} — click to change` : (st ? `${m.fullName}: ${getStatusLabel(st)}` : '')}
+                  className={`mv-cell${canManage ? ' clickable' : ''}${inSel ? ' sel' : ''}`}
+                  title={canManage ? `${m.fullName}: ${st ? getStatusLabel(st) : 'no status'} — click, or drag across days, to change` : (st ? `${m.fullName}: ${getStatusLabel(st)}` : '')}
                   style={st ? { background: STATUS_COLORS[st] } : undefined}
-                  onClick={canManage ? (e) => { e.stopPropagation(); setDayPick({ userId: m.user_id, fullName: m.fullName, date: cellDate, cur: st, x: e.clientX, y: e.clientY }); } : undefined}
+                  onPointerDown={canManage ? (e) => { if (e.button !== 0) return; e.preventDefault(); dragRef.current = { userId: m.user_id, a: i, b: i }; setDragSel({ userId: m.user_id, a: i, b: i }); } : undefined}
+                  onPointerEnter={canManage ? () => { const d = dragRef.current; if (!d || d.userId !== m.user_id) return; d.b = i; setDragSel({ userId: m.user_id, a: d.a, b: i }); } : undefined}
                 />
               );
             })}
@@ -833,15 +869,17 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       )}
 
       {dayPick && createPortal(
-        <div className="mv-daypick-backdrop" onClick={() => setDayPick(null)}>
+        <div className="mv-daypick-backdrop" onClick={closePick}>
           <div
             className="mv-daypick"
-            style={{ left: Math.min(dayPick.x, window.innerWidth - 232), top: Math.min(dayPick.y + 12, window.innerHeight - 300) }}
+            style={{ left: Math.min(dayPick.x, window.innerWidth - 232), top: Math.min(dayPick.y + 12, window.innerHeight - 320) }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mv-daypick-head">
               <span className="who">{dayPick.fullName || 'Crew'}</span>
-              <span className="dt">{`${String(dayPick.date.getDate()).padStart(2, '0')}/${String(dayPick.date.getMonth() + 1).padStart(2, '0')}/${dayPick.date.getFullYear()}`}</span>
+              <span className="dt">
+                {ddmm(dayPick.startDate)}{dayPick.count > 1 ? `–${ddmm(dayPick.endDate)} · ${dayPick.count} days` : ''}
+              </span>
             </div>
             <div className="mv-daypick-opts">
               {CREW_STATUSES.filter((s) => s.value !== 'invited').map(({ value, label }) => (
@@ -850,7 +888,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                   type="button"
                   className={`mv-daypick-opt${dayPick.cur === value ? ' is-cur' : ''}`}
                   disabled={painting}
-                  onClick={() => paintDay(dayPick.userId, dayPick.date, value)}
+                  onClick={() => paintRange(dayPick.userId, dayPick.startDate, dayPick.endDate, value)}
                 >
                   <i style={{ background: STATUS_COLORS[value] }} />
                   <span>{label}</span>

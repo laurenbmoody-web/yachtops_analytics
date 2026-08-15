@@ -82,9 +82,9 @@
 .mv-dnum { flex: 1 1 0; min-width: 14px; text-align: center; font-size: 9px; font-weight: 600; color: #AEB4C2; }
 .mv-dnum.d5 { color: #8B8478; font-weight: 700; }
 .mv-cell { flex: 1 1 0; min-width: 14px; height: 24px; border-radius: 4px; background: #F0F1F5; }
-.mv-cell.clickable { cursor: pointer; transition: outline-color .12s ease, transform .06s ease; outline: 1.5px solid transparent; outline-offset: -1.5px; }
+.mv-cell.clickable { cursor: pointer; transition: outline-color .12s ease; outline: 1.5px solid transparent; outline-offset: -1.5px; touch-action: none; }
 .mv-cell.clickable:hover { outline-color: #1C1B3A; }
-.mv-cell.clickable:active { transform: scale(0.9); }
+.mv-cell.sel { outline-color: #C65A1A; box-shadow: inset 0 0 0 1px #C65A1A; }
 .mv-empty { font-size: 13px; color: #6B7280; padding: 18px 0; text-align: center; }
 
 /* Quick per-day status picker — a small floating swatch menu, not a modal. */
