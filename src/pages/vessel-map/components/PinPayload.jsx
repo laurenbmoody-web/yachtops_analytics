@@ -44,6 +44,7 @@ export default function PinPayload({
   useEffect(() => { setError(null); }, [hotspot?.id, tab]);
 
   const nameOf = (id) => (id && (names?.[id] || null)) || 'Crew';
+  const initialsOf = (nm) => (nm || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   // Writes are serialized: read-modify-write is only safe when this panel's
   // own operations can't interleave (Enter-Enter-Enter on the list would
   // otherwise read stale rows and drop items).
@@ -470,7 +471,12 @@ export default function PinPayload({
                   )}
                 </button>
                 <span className="vm-check-text">{c.text}</span>
-                {c.done && (c.done_by || c.done_at) && <span className="vm-check-by">{[c.done_by ? nameOf(c.done_by).split(/\s+/)[0] : null, c.done_at ? relDate(c.done_at) : null].filter(Boolean).join(' · ')}</span>}
+                {c.done && (c.done_by || c.done_at) && (
+                  <span className="vm-check-by">
+                    {c.done_by && <span className="vm-check-ava" title={nameOf(c.done_by)}>{initialsOf(nameOf(c.done_by))}</span>}
+                    <span>{[c.done_by ? nameOf(c.done_by).split(/\s+/)[0] : null, c.done_at ? relDate(c.done_at) : null].filter(Boolean).join(' · ')}</span>
+                  </span>
+                )}
                 {canManage && !c.done && (
                   <span className="vm-check-move">
                     <button className="vm-check-arrow" onClick={() => moveCheck(c.id, -1)} aria-label={`Move ${c.text} up`}>↑</button>
