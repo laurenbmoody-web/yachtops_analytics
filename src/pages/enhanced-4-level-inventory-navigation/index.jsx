@@ -2791,6 +2791,10 @@ const LocationFirstInventory = () => {
     setPageLoading(true);
     try {
       if (isRoot) {
+        // Names of every department we ensure a root folder for this load, so the
+        // grid can render the full in-use set on the FIRST visit even if the
+        // inventory_locations inserts haven't propagated to the tree read yet.
+        let ensuredDeptNames = [];
         let tenantId = localStorage.getItem('cargo_active_tenant_id') || ctxActiveTenantId;
         if (!tenantId) {
           for (let attempt = 0; attempt < 5; attempt++) {
@@ -2853,9 +2857,11 @@ const LocationFirstInventory = () => {
             }
 
             await ensureDepartmentFolders(departmentsToEnsure);
+            ensuredDeptNames = departmentsToEnsure?.map(d => d?.name)?.filter(Boolean) || [];
           } else {
             const fallbackDepts = DEPARTMENTS?.map((name, idx) => ({ id: `fallback-${idx}`, name }));
             await ensureDepartmentFolders(fallbackDepts);
+            ensuredDeptNames = fallbackDepts?.map(d => d?.name)?.filter(Boolean) || [];
           }
         }
       }
@@ -2887,6 +2893,20 @@ const LocationFirstInventory = () => {
           rootFolders = DEPARTMENTS?.slice();
           console.warn('[LocationFirstInventory] public.departments also empty — using hardcoded DEPARTMENTS fallback');
         }
+
+        // Always surface every in-use department (plus Medical), even if its
+        // inventory_locations row hasn't landed yet on this first load. Runs
+        // before the role filter so HODs still only see their own department.
+        rootFolders = rootFolders || [];
+        const deptSource = ensuredDeptNames?.length ? ensuredDeptNames : (DEPARTMENTS || []);
+        const alwaysShow = [...deptSource, 'Medical'];
+        const haveLower = new Set(rootFolders?.map(f => f?.toLowerCase()));
+        alwaysShow?.forEach(name => {
+          if (name && !haveLower?.has(name?.toLowerCase())) {
+            rootFolders?.push(name);
+            haveLower?.add(name?.toLowerCase());
+          }
+        });
 
         if (!isCommand) {
           if (isChief) {
