@@ -13,6 +13,7 @@ import './crew-movements.css';
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const STATUS_COLORS = { active: '#7FCBA6', on_leave: '#E6C079', rotational_leave: '#C3AEEA', medical_leave: '#E8A29A', training_leave: '#9DBCF0', travelling: '#7FD3CA', invited: '#D8D6CF' };
 const ABOARD = new Set(['active']); // crew that need a bed
+const AWAY = new Set(['on_leave', 'rotational_leave', 'medical_leave', 'training_leave', 'travelling']); // away, but still worth planning a bed for
 const ymd = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 const dstr = (d) => ymd(d.getFullYear(), d.getMonth(), d.getDate());
 const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
@@ -233,7 +234,15 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   // ── who's aboard but not berthed (unberthed tray) ────────────────────────────
   const unberthed = useMemo(() => {
     const berthed = new Set(assigns.filter((a) => span(a)).map((a) => a.user_id));
-    return members.filter((m) => ABOARD.has(m.status) && !berthed.has(m.user_id));
+    return members.filter((m) => ABOARD.has(m.status) && !berthed.has(m.user_id)).sort(byDeptThenRole);
+  }, [members, assigns, span]);
+
+  // ── crew currently away (leave / travelling) and not berthed ─────────────────
+  // They aren't aboard so they don't need a bed *now*, but they still belong on
+  // the planning board — drag one onto a bed to reserve it for their return.
+  const onLeave = useMemo(() => {
+    const berthed = new Set(assigns.filter((a) => span(a)).map((a) => a.user_id));
+    return members.filter((m) => AWAY.has(m.status) && !berthed.has(m.user_id)).sort(byDeptThenRole);
   }, [members, assigns, span]);
 
   // ── coalesce same-crew same-bed contiguous stays in the DB, then reload ──────
@@ -800,6 +809,29 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                 </span>
               ))}
             </div>
+          )}
+
+          {/* Away crew — on leave / travelling. Not aboard, but kept on the board
+              so you can reserve a bed for their return. */}
+          {onLeave.length > 0 && (
+            <>
+              <div className="mv-unb-head mv-unb-subhead">
+                <span className="mv-unb-eyebrow">On leave · {onLeave.length}</span>
+                <span className="mv-unb-rule" />
+                <span className="mv-unb-hint">Drag onto a bed to plan their return</span>
+              </div>
+              <div className="mv-unb-list">
+                {onLeave.map((m) => (
+                  <span key={m.user_id} className="mv-unb-chip is-away" draggable={canManage} onDragStart={() => setDragKind({ type: 'assign', userId: m.user_id })} title={canManage ? 'Drag up into the chart onto a bed to reserve it' : ''}>
+                    <span className="av" style={{ background: tint(deptOf(m.user_id), 0.34) }}>{initials(m.fullName)}</span>
+                    <span className="mv-unb-who">
+                      <span className="mv-unb-nm">{m.fullName}{sexOf(m.user_id) && <span className="mv-sex">{sexOf(m.user_id)}</span>}</span>
+                      <span className="mv-unb-rl"><i className="mv-unb-dot" style={{ background: STATUS_COLORS[m.status] }} />{getStatusLabel(m.status)}{m.department ? ` · ${m.department}` : ''}</span>
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}

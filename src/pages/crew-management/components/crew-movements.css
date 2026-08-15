@@ -197,7 +197,12 @@
 .mv-unb-chip .av, .mv-occ .av { width: 26px; height: 26px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #1C1B3A; flex: 0 0 auto; }
 .mv-unb-who { display: flex; flex-direction: column; line-height: 1.35; }
 .mv-unb-nm { font-size: 12.5px; font-weight: 600; color: #1C1B3A; }
-.mv-unb-rl { font-size: 10.5px; color: #8B8478; }
+.mv-unb-rl { font-size: 10.5px; color: #8B8478; display: flex; align-items: center; gap: 5px; }
+.mv-unb-subhead { margin-top: 20px; }
+.mv-unb-hint { font-size: 11px; color: #AEB4C2; white-space: nowrap; }
+.mv-unb-dot { width: 7px; height: 7px; border-radius: 999px; flex: 0 0 auto; }
+.mv-unb-chip.is-away .av { opacity: 0.82; }
+.mv-unb-chip.is-away .mv-unb-nm { color: #6B7280; }
 
 /* cabin cards */
 .mv-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin-top: 18px; }
