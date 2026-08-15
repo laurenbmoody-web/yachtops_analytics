@@ -2866,14 +2866,27 @@ const LocationFirstInventory = () => {
         }
       }
 
-      const tree = await getFolderTree();
+      let tree = {};
+      try {
+        tree = (await getFolderTree()) || {};
+      } catch (treeErr) {
+        console.warn('[LocationFirstInventory] getFolderTree failed — continuing with fallbacks:', treeErr?.message);
+      }
       setFolderTree(tree);
 
       if (isRoot) {
-        const [, all] = await Promise.all([
-          getItemCountByLocation(),
-          getAllItems(),
-        ]);
+        // A transient item-fetch failure must NOT blank the department grid.
+        // Render the folders regardless; counts just default to 0 until reload.
+        let all = [];
+        try {
+          const [, allItems] = await Promise.all([
+            getItemCountByLocation(),
+            getAllItems(),
+          ]);
+          all = allItems || [];
+        } catch (itemsErr) {
+          console.warn('[LocationFirstInventory] item load failed — rendering folders without counts:', itemsErr?.message);
+        }
         let rootFolders = getRootLocationsFromTree(tree);
 
         if (rootFolders?.length === 0) {
