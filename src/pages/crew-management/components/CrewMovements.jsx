@@ -91,6 +91,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const [dragSel, setDragSel] = useState(null);   // live drag highlight {userId, a, b} (day indices within the month)
   const [painting, setPainting] = useState(false);
   const dragRef = useRef(null);                   // {userId, a, b} while a click-drag is in progress
+  const [barTip, setBarTip] = useState(null);     // cabin-bar hover tooltip {nm, dt, x, y}
 
   const memberById = useMemo(() => Object.fromEntries(members.map((m) => [m.user_id, m])), [members]);
   const memberIds = useMemo(() => members.map((m) => m.user_id).filter(Boolean), [members]);
@@ -652,9 +653,11 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                       const lbl = nm; const dim = selCrew && selCrew !== a.user_id;
                       return (
                         <div key={a.id} className={`mv-bar${!sp.contBefore ? ' j' : ''}${!sp.contAfter ? ' l' : ''}${selCrew === a.user_id ? ' sel' : ''}${flashId === a.id ? ' flash' : ''}`} id={`bar-${a.id}`}
-                          draggable={canManage} onDragStart={() => canManage && setDragKind({ type: 'bar', assignId: a.id })}
+                          draggable={canManage} onDragStart={() => { canManage && setDragKind({ type: 'bar', assignId: a.id }); setBarTip(null); }}
                           onClick={(e) => { e.stopPropagation(); setSelCrew(a.user_id); if (canManage) openMove(a, e); }}
-                          style={{ left: leftPx(sp.aDay), width: w, background: bg, opacity: dim ? 0.4 : 1 }} title={`${nm} — ${a.start_date}${a.end_date ? ` → ${a.end_date}` : ' (open)'}`}>
+                          onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setBarTip({ nm, dt: `${a.start_date}${a.end_date ? ` → ${a.end_date}` : ' (open)'}`, x: Math.min(Math.max(e.clientX, r.left + 24), r.right - 24), y: r.top - 6 }); }}
+                          onMouseLeave={() => setBarTip(null)}
+                          style={{ left: leftPx(sp.aDay), width: w, background: bg, opacity: dim ? 0.4 : 1 }}>
                           {!sp.contBefore && <span className="edge s" onClick={(ev) => { ev.stopPropagation(); setSelCrew(a.user_id); scrollToFlight(a.user_id); }}>{addDays(rangeStart, sp.aDay).getDate()}</span>}
                           <span className="lbl">{lbl}</span>
                           {!sp.contAfter && <span className="edge e" onClick={(ev) => { ev.stopPropagation(); setSelCrew(a.user_id); scrollToFlight(a.user_id); }}>{addDays(rangeStart, sp.lvDay).getDate()}</span>}
@@ -914,6 +917,14 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
           currentUserId={currentUserId} currentUserName={memberById[currentUserId]?.fullName || ''}
           entry={travelModal.entry} legsForEntry={travelModal.entry ? (legsByEntry[travelModal.entry.id] || []) : []}
           onSaved={() => setRefresh((r) => r + 1)} />
+      )}
+
+      {barTip && createPortal(
+        <div className="mv-bartip" style={{ left: barTip.x, top: barTip.y }}>
+          <div className="nm">{barTip.nm}</div>
+          <div className="dt">{barTip.dt}</div>
+        </div>,
+        document.body,
       )}
 
       {dayPick && createPortal(
