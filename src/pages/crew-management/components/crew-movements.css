@@ -244,4 +244,9 @@
 .mv-dlg .no, .mv-dlg .move { flex: 0 0 auto; background: #fff; border: 1px solid #E8E6DF; border-radius: 10px; padding: 11px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .mv-dlg .move { color: #C65A1A; border-color: #E8B6A6; }
 .mv-dlg .move:hover { background: #FBEFE9; }
+.mv-dlg .yes:disabled { opacity: 0.5; cursor: default; }
+.mv-dlg-date { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 10px 12px; background: #FAFAF8; border: 1px solid #EEF0F4; border-radius: 10px; }
+.mv-dlg-date span { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.mv-dlg-date input { border: 1px solid #E8E6DF; border-radius: 8px; padding: 7px 10px; font-size: 13px; color: #1C1B3A; background: #fff; font-family: inherit; }
+.mv-dlg-date input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 .mv-legdept { display: flex; flex-wrap: wrap; gap: 16px; }

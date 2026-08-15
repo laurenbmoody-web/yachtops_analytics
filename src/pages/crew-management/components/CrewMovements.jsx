@@ -84,6 +84,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const [dragKind, setDragKind] = useState(null); // {type:'assign'|'bar', ...}
   const [pop, setPop] = useState(null);           // move popover
   const [handover, setHandover] = useState(null); // conflict dialog
+  const [hoDate, setHoDate] = useState('');       // chosen handover / changeover date (yyyy-mm-dd)
   const [flashId, setFlashId] = useState(null);   // bar to pulse after "Move anyway"
   const [focusLabel, setFocusLabel] = useState('');
   const [dayPick, setDayPick] = useState(null);   // quick status picker {userId, fullName, startDate, endDate, count, cur, x, y}
@@ -291,10 +292,18 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     if (!other) return false;
     const early = other.start_date <= moved.start_date ? other : moved;
     const late = other.start_date <= moved.start_date ? moved : other;
+    setHoDate(late.start_date); // default the changeover to when the incoming crew currently starts
     setHandover({
-      inName: memberById[moved.user_id]?.fullName, outName: memberById[other.user_id]?.fullName,
-      onDate: late.start_date, earlyId: early.id,
-      accept: async () => { setHandover(null); await updateAssignment(early.id, { end_date: late.start_date }); await reload(); },
+      inName: memberById[late.user_id]?.fullName, outName: memberById[early.user_id]?.fullName,
+      earlyId: early.id, lateId: late.id, minDate: early.start_date,
+      // The changeover date is editable in the dialog; on accept the outgoing
+      // crew's stay ends on it and the incoming crew's stay starts on it.
+      accept: async (date) => {
+        setHandover(null);
+        await updateAssignment(early.id, { end_date: date });
+        await updateAssignment(late.id, { start_date: date });
+        await reload();
+      },
       reject: async () => { setHandover(null); await undo(); },
       moveAnyway: () => { setHandover(null); onMoveAnyway(); },
     });
@@ -881,11 +890,15 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
         <div className="mv-ovl" onMouseDown={handover.reject}>
           <div className="mv-dlg" onMouseDown={(e) => e.stopPropagation()}>
             <h3>Is this a handover?</h3>
-            <p><b>{handover.inName}</b> overlaps <b>{handover.outName}</b> in this bed. If it's a handover, {handover.outName} leaves the bed on the {new Date(`${handover.onDate}T00:00:00`).getDate()}th and {handover.inName} takes over.</p>
+            <p><b>{handover.inName}</b> overlaps <b>{handover.outName}</b> in this bed. If it's a handover, {handover.outName} leaves the bed on the changeover date below and {handover.inName} takes over from then.</p>
+            <label className="mv-dlg-date">
+              <span>Changeover date</span>
+              <input type="date" value={hoDate} min={handover.minDate} onChange={(e) => setHoDate(e.target.value)} />
+            </label>
             <div className="act">
               <button type="button" className="no" onClick={handover.reject}>No — undo</button>
               <button type="button" className="move" onClick={handover.moveAnyway}>Move anyway</button>
-              <button type="button" className="yes" onClick={handover.accept}>Yes, handover</button>
+              <button type="button" className="yes" disabled={!hoDate} onClick={() => handover.accept(hoDate)}>Yes, handover</button>
             </div>
           </div>
         </div>
