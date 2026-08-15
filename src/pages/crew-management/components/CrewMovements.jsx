@@ -362,6 +362,41 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   };
   const scrollToToday = () => { const el = scrollRef.current; if (el) el.scrollTo({ left: Math.max(0, (todayIndex - 7) * DAY_W), behavior: 'smooth' }); };
 
+  // ── auto-scroll the page while dragging a crew chip up into the chart ─────────
+  // The unberthed tray sits at the bottom of a long list of cabins, so the bed
+  // you want to drop onto is often scrolled off the top. Browsers don't
+  // auto-scroll the window during an HTML5 drag, so we do it: while a drag is
+  // live, listen for dragover on the window and, when the pointer nears the top
+  // or bottom edge of the viewport, scroll toward it.
+  useEffect(() => {
+    if (!dragKind) return undefined;
+    const EDGE = 90;      // px band at each edge that triggers scrolling
+    const MAX_STEP = 22;  // px per frame at the very edge
+    let pointerY = null;
+    let raf = null;
+    const step = () => {
+      raf = null;
+      if (pointerY == null) return;
+      const h = window.innerHeight;
+      let dy = 0;
+      if (pointerY < EDGE) dy = -MAX_STEP * (1 - pointerY / EDGE);
+      else if (pointerY > h - EDGE) dy = MAX_STEP * (1 - (h - pointerY) / EDGE);
+      if (dy) {
+        window.scrollBy(0, dy);
+        raf = requestAnimationFrame(step);
+      }
+    };
+    const onDragOver = (e) => {
+      pointerY = e.clientY;
+      if (raf == null) raf = requestAnimationFrame(step);
+    };
+    window.addEventListener('dragover', onDragOver);
+    return () => {
+      window.removeEventListener('dragover', onDragOver);
+      if (raf != null) cancelAnimationFrame(raf);
+    };
+  }, [dragKind]);
+
   // ── presence rendering (plain single-month grid, unchanged) ─────────────────
   const renderPresence = () => (
     <div className="mv-grid">
