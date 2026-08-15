@@ -237,7 +237,7 @@ const CrewManagement = () => {
         // Fetch current user's permission_tier from tenant_members for the active tenant
         const { data, error } = await supabase
           ?.from('tenant_members')
-          ?.select('permission_tier')
+          ?.select('permission_tier, permission_tier_override')
           ?.eq('tenant_id', activeTenantId)
           ?.eq('user_id', session?.user?.id)
           ?.single();
@@ -248,8 +248,10 @@ const CrewManagement = () => {
           return;
         }
 
-        console.log('[CREW] Current user permission tier:', data?.permission_tier);
-        setCurrentUserRole(data?.permission_tier);
+        // Honour a COMMAND override so an elevated CHIEF gets COMMAND access.
+        const effectiveTier = data?.permission_tier_override || data?.permission_tier;
+        console.log('[CREW] Current user permission tier:', effectiveTier);
+        setCurrentUserRole(effectiveTier);
       } catch (err) {
         console.error('[CREW] Failed to fetch current user role:', err);
         setCurrentUserRole(null);
@@ -1932,7 +1934,11 @@ const CrewManagement = () => {
   };
 
   // Check if user can invite (COMMAND or CHIEF)
-  const canInvite = currentUser && (currentUser?.tier === 'COMMAND' || currentUser?.tier === 'CHIEF' || hasCommandAccess(currentUser));
+  // Base this on the authoritative tenant_members tier (which now honours the
+  // COMMAND override) plus vessel-admin — not the possibly-stale cached auth tier.
+  const canInvite = isVesselAdmin
+    || ['COMMAND', 'CHIEF'].includes(currentUserRole)
+    || (currentUser && (currentUser?.tier === 'COMMAND' || currentUser?.tier === 'CHIEF' || hasCommandAccess(currentUser)));
 
   const hasEditPermission = isVesselAdmin || currentUserRole === 'COMMAND';
 

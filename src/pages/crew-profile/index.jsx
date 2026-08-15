@@ -380,7 +380,7 @@ const CrewProfile = () => {
       try {
         const { data, error } = await supabase
           ?.from('tenant_members')
-          ?.select('role, permission_tier')
+          ?.select('role, permission_tier, permission_tier_override')
           ?.eq('user_id', session?.user?.id)
           ?.eq('tenant_id', activeTenantId)
           ?.eq('active', true)
@@ -388,7 +388,8 @@ const CrewProfile = () => {
 
         if (!error && data) {
           setTenantMemberRole(data?.role);
-          setCurrentUserPermissionTier(data?.permission_tier);
+          // Honour a COMMAND override so an elevated member gets COMMAND access.
+          setCurrentUserPermissionTier(data?.permission_tier_override || data?.permission_tier);
         }
       } catch (err) {
         console.error('Error fetching tenant member role:', err);
