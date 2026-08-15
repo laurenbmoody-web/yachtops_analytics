@@ -889,25 +889,9 @@ const isOwnProfile = session?.user?.id === crewId;
 const isCaptainRole = /capt|master/i.test(crewMember?.roleTitle || '');
 const showCaptainCredentials = isOwnProfile && isCaptainRole;
 
-const canEdit = (() => {
-  const currentUserId = session?.user?.id;
-
-  // Command roles (Captain, Purser, Admin, Chief) can edit any profile
-  const role = tenantMemberRole?.toUpperCase();
-  const isCommandRole = role === 'CAPTAIN' || role === 'PURSER' || role === 'ADMIN' || role === 'CHIEF';
-
-  // Console logs for debugging
-  console.log('🔍 EDIT PERMISSION DEBUG:', {
-    crewId,
-    'session.user.id': currentUserId,
-    tenantMemberRole: role,
-    isOwnProfile,
-    isCommandRole,
-    canEdit: isOwnProfile || isCommandRole
-  });
-
-  return isOwnProfile || isCommandRole;
-})();
+// Anyone may edit their own profile; vessel admins and COMMAND (effective tier,
+// so a COMMAND override counts) may edit anyone's.
+const canEdit = isOwnProfile || isVesselAdmin || currentUserPermissionTier === 'COMMAND';
 
   // Handle avatar click - trigger file input
   const handleAvatarClick = () => {
