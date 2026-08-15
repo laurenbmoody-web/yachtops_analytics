@@ -2018,20 +2018,102 @@ export const moveFolderInDB = async (draggedSegments, targetSegments, draggedNam
 export const migrateLocalStorageFolderTree = async () => {
   const MIGRATION_KEY = 'cargo_folder_tree_migrated_v1';
   const TREE_KEY = 'cargo_folder_tree_v2';
+  // Default folder scaffold seeded into a brand-new vessel so its departments
+  // arrive pre-structured. Mirrors the reference vessel's arrangement (minus its
+  // one-off cruft) plus standard Deck / Engineering / Medical / Bridge folders.
+  // Materialized-path model: sub_location joins levels with ' > '; every
+  // intermediate level is its own row so the folder tree renders it.
   const DEFAULT_FOLDERS = [
+    // Galley
     { location: 'Galley', sub_location: null },
     { location: 'Galley', sub_location: 'Dry Store' },
+    { location: 'Galley', sub_location: 'Dry Goods' },
     { location: 'Galley', sub_location: 'Fridge 1' },
     { location: 'Galley', sub_location: 'Fridge 2' },
     { location: 'Galley', sub_location: 'Freezer' },
+    { location: 'Galley', sub_location: 'Frozen Goods' },
+    { location: 'Galley', sub_location: 'Dairy' },
+    { location: 'Galley', sub_location: 'Meat' },
+    { location: 'Galley', sub_location: 'Fish' },
+    { location: 'Galley', sub_location: 'Fruit' },
+    { location: 'Galley', sub_location: 'Vegetables' },
+    // Interior
     { location: 'Interior', sub_location: null },
     { location: 'Interior', sub_location: 'Pantry' },
+    { location: 'Interior', sub_location: 'Cleaning Products' },
+    { location: 'Interior', sub_location: 'Pantries > Bridge Pantry' },
+    { location: 'Interior', sub_location: 'Guest' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Beer' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Wine' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Wine > Champagne' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Wine > Sparkling Wine' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Spirits' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Spirits > Gin' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Spirits > Vodka' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Spirits > Rum' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Spirits > Whisky' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Spirits > Tequila' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Spirits > Cognac' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Spirits > Aperitif' },
+    { location: 'Interior', sub_location: 'Guest > Alcohol > Other' },
+    { location: 'Interior', sub_location: 'Guest > Guest Snacks' },
+    { location: 'Interior', sub_location: 'Guest > Linen' },
+    { location: 'Interior', sub_location: 'Guest > Towels' },
+    { location: 'Interior', sub_location: 'Guest > Toiletries' },
+    // Deck
     { location: 'Deck', sub_location: null },
+    { location: 'Deck', sub_location: 'Lazarette' },
+    { location: 'Deck', sub_location: 'Deck Lockers' },
+    { location: 'Deck', sub_location: 'Lines & Fenders' },
+    { location: 'Deck', sub_location: 'Water Toys' },
+    // Bridge
+    { location: 'Bridge', sub_location: null },
+    { location: 'Bridge', sub_location: 'Charts' },
+    { location: 'Bridge', sub_location: 'Safety' },
+    { location: 'Bridge', sub_location: 'Electronics' },
+    // Engineering
+    { location: 'Engineering', sub_location: null },
+    { location: 'Engineering', sub_location: 'Engine Room' },
+    { location: 'Engineering', sub_location: 'Electrical Equipment' },
+    { location: 'Engineering', sub_location: 'Spares' },
+    { location: 'Engineering', sub_location: 'Oils & Fluids' },
+    { location: 'Engineering', sub_location: 'Tools' },
+    // Medical
     { location: 'Medical', sub_location: null },
+    { location: 'Medical', sub_location: 'Medical Locker' },
+    { location: 'Medical', sub_location: 'Controlled Drugs' },
+    { location: 'Medical', sub_location: 'First-Aid Kits' },
+    { location: 'Medical', sub_location: 'MSOS' },
+    { location: 'Medical', sub_location: 'MSOS > Main Bag' },
+    { location: 'Medical', sub_location: 'MSOS > Grab Bag' },
+    { location: 'Medical', sub_location: 'MSOS > Resuscitation Bag' },
+    { location: 'Medical', sub_location: 'MSOS > IV Bag' },
+    { location: 'Medical', sub_location: 'MSOS > Paediatrics Bag' },
+    { location: 'Medical', sub_location: 'MSOS > Defibrillator' },
+    { location: 'Medical', sub_location: 'MSOS > Extras' },
+    { location: 'Medical', sub_location: 'MSOS > Tender 1' },
+    { location: 'Medical', sub_location: 'MSOS > Tender 2' },
   ];
   try {
     const tenantId = getActiveTenantId();
     if (!tenantId) return; // wait until tenant is available
+
+    // Only ever seed a FRESH vessel. If the tenant already has any sub-folder,
+    // its inventory is in use and arranged — never inject the default scaffold
+    // on top of it. (Expanding DEFAULT_FOLDERS must not back-fill live vessels.)
+    const { data: structureRows } = await supabase
+      ?.from('inventory_locations')
+      ?.select('id')
+      ?.eq('tenant_id', tenantId)
+      ?.eq('is_archived', false)
+      ?.not('sub_location', 'is', null)
+      ?.limit(1);
+    if (structureRows?.length > 0) {
+      localStorage.setItem(MIGRATION_KEY, 'true');
+      localStorage.removeItem(TREE_KEY);
+      return;
+    }
 
     // Check if migration was previously marked done
     const alreadyMigrated = localStorage.getItem(MIGRATION_KEY);
