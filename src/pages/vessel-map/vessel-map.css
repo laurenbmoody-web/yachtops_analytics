@@ -1097,7 +1097,8 @@
 .vm-check-done .vm-check-box { background: #C65A1A; border-color: #C65A1A; }
 .vm-check-text { flex: 1; min-width: 0; font-size: 13px; color: #1C1B3A; transition: color 150ms; }
 .vm-check-done .vm-check-text { color: #AEB4C2; text-decoration: line-through; text-decoration-color: #D9D5CA; }
-.vm-check-by { font-size: 10.5px; color: #AEB4C2; }
+.vm-check-by { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: #8B8478; }
+.vm-check-ava { flex: none; width: 18px; height: 18px; border-radius: 50%; background: #FBEFE9; color: #C65A1A; display: inline-grid; place-items: center; font-size: 8px; font-weight: 800; letter-spacing: 0.02em; }
 .vm-check-del {
   background: none;
   border: 0;
