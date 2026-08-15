@@ -646,7 +646,10 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                     {rowAssigns.map(({ a, sp }) => {
                       const m = memberById[a.user_id]; const w = (sp.lvDay - sp.aDay) * DAY_W;
                       const bg = tint(deptOf(a.user_id), 0.34); const nm = m?.fullName || '—';
-                      const lbl = w > 90 ? nm : initials(nm); const dim = selCrew && selCrew !== a.user_id;
+                      // Always the full name — it ellipsizes to fit and reveals in
+                      // full on hover (a short handover sliver is too narrow to show
+                      // inline), so every bar is identifiable.
+                      const lbl = nm; const dim = selCrew && selCrew !== a.user_id;
                       return (
                         <div key={a.id} className={`mv-bar${!sp.contBefore ? ' j' : ''}${!sp.contAfter ? ' l' : ''}${selCrew === a.user_id ? ' sel' : ''}${flashId === a.id ? ' flash' : ''}`} id={`bar-${a.id}`}
                           draggable={canManage} onDragStart={() => canManage && setDragKind({ type: 'bar', assignId: a.id })}

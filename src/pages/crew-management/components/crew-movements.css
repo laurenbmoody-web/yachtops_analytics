@@ -182,6 +182,11 @@
 .mv-bar .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 12px; }
 .mv-bar .edge { flex: 0 0 auto; background: rgba(255,255,255,0.94); color: #C65A1A; font-size: 9px; font-weight: 700; border-radius: 4px; padding: 1px 5px; line-height: 1.4; box-shadow: 0 1px 1px rgba(28,27,58,0.14); cursor: pointer; }
 .mv-bar .edge.e { margin-left: auto; }
+/* Hovering a bar lets its name spill out in full (over any neighbour) so even a
+   two-day handover sliver stays identifiable — the scroll area clips vertically,
+   so the reveal grows sideways rather than into a tag above/below. */
+.mv-bar:hover { overflow: visible; z-index: 10; box-shadow: 0 0 0 2px #fff, 0 8px 18px -6px rgba(28,27,58,0.3); }
+.mv-bar:hover .lbl { flex: 0 0 auto; overflow: visible; background: inherit; padding: 1px 5px 1px 3px; border-radius: 4px; }
 .mv-conn { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
 
 /* Unberthed — a quiet editorial section (tracked-caps label on a hairline
