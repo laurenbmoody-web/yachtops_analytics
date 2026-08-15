@@ -182,11 +182,17 @@
 .mv-bar .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 12px; }
 .mv-bar .edge { flex: 0 0 auto; background: rgba(255,255,255,0.94); color: #C65A1A; font-size: 9px; font-weight: 700; border-radius: 4px; padding: 1px 5px; line-height: 1.4; box-shadow: 0 1px 1px rgba(28,27,58,0.14); cursor: pointer; }
 .mv-bar .edge.e { margin-left: auto; }
-/* Hovering a bar lets its name spill out in full (over any neighbour) so even a
-   two-day handover sliver stays identifiable — the scroll area clips vertically,
-   so the reveal grows sideways rather than into a tag above/below. */
-.mv-bar:hover { overflow: visible; z-index: 10; box-shadow: 0 0 0 2px #fff, 0 8px 18px -6px rgba(28,27,58,0.3); }
-.mv-bar:hover .lbl { flex: 0 0 auto; overflow: visible; background: inherit; padding: 1px 5px 1px 3px; border-radius: 4px; }
+/* A hovered bar lifts slightly; the full name + dates come from a portalled
+   tooltip (below) so even a two-day handover sliver stays identifiable without
+   its label spilling over — and over garbling — its neighbour. */
+.mv-bar:hover { z-index: 10; box-shadow: 0 0 0 2px #fff, 0 8px 18px -6px rgba(28,27,58,0.3); }
+
+/* Cabin-bar tooltip — portalled to the body so the scroll area (which clips
+   vertically) can't cut it off. */
+.mv-bartip { position: fixed; z-index: 4000; transform: translate(-50%, -100%); pointer-events: none;
+  background: #1C1B3A; color: #fff; border-radius: 8px; padding: 6px 10px; box-shadow: 0 12px 30px -10px rgba(28,27,58,0.5); white-space: nowrap; }
+.mv-bartip .nm { font-size: 12px; font-weight: 600; }
+.mv-bartip .dt { font-size: 10.5px; color: #C7C9D9; margin-top: 1px; }
 .mv-conn { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
 
 /* Unberthed — a quiet editorial section (tracked-caps label on a hairline
