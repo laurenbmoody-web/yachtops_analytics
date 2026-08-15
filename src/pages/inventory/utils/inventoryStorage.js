@@ -2095,6 +2095,33 @@ export const migrateLocalStorageFolderTree = async () => {
     { location: 'Medical', sub_location: 'MSOS > Tender 1' },
     { location: 'Medical', sub_location: 'MSOS > Tender 2' },
   ];
+
+  // Interior › Crew › Uniform — the wardrobe taxonomy. A regular grid
+  // (role × department × charter state × garment), generated rather than
+  // hand-listed. Every intermediate level is emitted so the tree renders it.
+  {
+    const ROLES = ['Mens', 'Womens', 'Unisex'];
+    const DEPTS = ['Chef', 'Engineer', 'General'];
+    const GARMENTS = ['Top', 'Bottom', 'Shoes', 'Accessories'];
+    const push = (sub) => DEFAULT_FOLDERS.push({ location: 'Interior', sub_location: sub });
+    push('Crew');
+    push('Crew > Uniform');
+    for (const role of ROLES) {
+      const roleBase = `Crew > Uniform > ${role}`;
+      push(roleBase);
+      for (const dept of DEPTS) {
+        const deptBase = `${roleBase} > ${dept}`;
+        push(deptBase);
+        push(`${deptBase} > Off Charter`);
+        for (const g of GARMENTS) push(`${deptBase} > Off Charter > ${g}`);
+        push(`${deptBase} > On Charter`);
+        for (const period of ['Day', 'Evening']) {
+          push(`${deptBase} > On Charter > ${period}`);
+          for (const g of GARMENTS) push(`${deptBase} > On Charter > ${period} > ${g}`);
+        }
+      }
+    }
+  }
   try {
     const tenantId = getActiveTenantId();
     if (!tenantId) return; // wait until tenant is available
