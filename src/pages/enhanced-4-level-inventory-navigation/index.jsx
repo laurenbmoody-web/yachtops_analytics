@@ -26,6 +26,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import ExportInventoryModal from './components/ExportInventoryModal';
 import AzurePdfImportModal from './components/AzurePdfImportModal';
+import BulkPhotoScanModal from './components/BulkPhotoScanModal';
 import { exportInventoryToPDF } from './utils/inventoryPdfExport';
 import { exportInventoryToXLSX } from './utils/inventoryXlsxExport';
 
@@ -2581,6 +2582,7 @@ const LocationFirstInventory = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showAzureImportModal, setShowAzureImportModal] = useState(false);
+  const [showBulkScanModal, setShowBulkScanModal] = useState(false);
   const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
@@ -4013,6 +4015,16 @@ const LocationFirstInventory = () => {
               <Icon name="FileText" size={15} />
               <span className="hidden sm:inline">Import inventory</span>
             </button>
+            {!isRoot && canEdit && (
+              <button
+                onClick={() => setShowBulkScanModal(true)}
+                className="inv-btn ghost"
+                title="Add items by photo — AI identifies each and suggests a folder"
+              >
+                <Icon name="Camera" size={15} />
+                <span className="hidden sm:inline">Photo scan</span>
+              </button>
+            )}
             {!isRoot && (
               <AddDropdownButton
                 isRoot={isRoot}
@@ -4395,6 +4407,14 @@ const LocationFirstInventory = () => {
           defaultSubLocation={currentStorageFields?.subLocation}
           onClose={handleModalClose}
           onSaved={handleItemSaved}
+        />
+      )}
+      {showBulkScanModal && (
+        <BulkPhotoScanModal
+          departmentName={currentStorageFields?.location}
+          currentPath={currentStorageFields?.subLocation || ''}
+          onClose={() => setShowBulkScanModal(false)}
+          onDone={() => loadData()}
         />
       )}
       {showAddFolderModal && (
