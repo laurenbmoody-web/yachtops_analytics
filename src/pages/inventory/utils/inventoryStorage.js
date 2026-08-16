@@ -507,6 +507,28 @@ export const resolveOrCreateFolderPath = async (segments) => {
   return segments;
 };
 
+/**
+ * All non-archived sub_location paths under a department (location), deduped.
+ * Used to give the photo-scan AI the list of existing sub-folders to file into.
+ */
+export const getSubfolderPaths = async (location, tenantId = getActiveTenantId()) => {
+  try {
+    if (!tenantId || !location) return [];
+    const { data, error } = await supabase
+      ?.from('inventory_locations')
+      ?.select('sub_location')
+      ?.eq('tenant_id', tenantId)
+      ?.ilike('location', location)
+      ?.eq('is_archived', false)
+      ?.not('sub_location', 'is', null);
+    if (error) { console.error('[inventoryStorage] getSubfolderPaths error:', error?.message); return []; }
+    return [...new Set((data || []).map(r => r?.sub_location).filter(Boolean))];
+  } catch (err) {
+    console.error('[inventoryStorage] getSubfolderPaths exception:', err?.message);
+    return [];
+  }
+};
+
 export const getAllItems = async () => {
   try {
     const tenantId = getActiveTenantId();
