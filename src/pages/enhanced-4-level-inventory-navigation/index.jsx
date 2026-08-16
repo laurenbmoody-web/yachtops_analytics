@@ -2789,12 +2789,15 @@ const LocationFirstInventory = () => {
 
   const loadData = useCallback(async () => {
     setPageLoading(true);
+    // Names of every department we ensure a root folder for this load, so the
+    // grid can render the full in-use set on the FIRST visit even if the
+    // inventory_locations inserts haven't propagated to the tree read yet.
+    // Declared here (not inside the first `if (isRoot)`) so the later root
+    // block that reads it is in scope — a sibling-scope declaration threw
+    // ReferenceError and blanked the grid.
+    let ensuredDeptNames = [];
     try {
       if (isRoot) {
-        // Names of every department we ensure a root folder for this load, so the
-        // grid can render the full in-use set on the FIRST visit even if the
-        // inventory_locations inserts haven't propagated to the tree read yet.
-        let ensuredDeptNames = [];
         let tenantId = localStorage.getItem('cargo_active_tenant_id') || ctxActiveTenantId;
         if (!tenantId) {
           for (let attempt = 0; attempt < 5; attempt++) {
