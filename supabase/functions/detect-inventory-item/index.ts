@@ -39,9 +39,9 @@ const corsHeaders = {
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') || '';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 // Recognition quality matters more than cost here (varied provisions, gear,
-// medical, partially-visible/unlabelled items). Switch to a haiku model to
-// optimise cost.
-const MODEL = 'claude-sonnet-5';
+// medical, partially-visible/unlabelled items), so use the app's Sonnet.
+// Switch to 'claude-haiku-4-5-20251001' to optimise cost.
+const MODEL = 'claude-sonnet-4-6';
 
 interface RequestBody {
   image?: string;
