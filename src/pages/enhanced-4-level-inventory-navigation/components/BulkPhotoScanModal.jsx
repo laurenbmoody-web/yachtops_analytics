@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
 import { supabase } from '../../../lib/supabaseClient';
-import { detectInventoryItem } from '../../inventory/utils/itemVisionAi';
+import { detectInventoryItems } from '../../inventory/utils/itemVisionAi';
 import { getSubfolderPaths, resolveOrCreateFolderPath, saveItem } from '../../inventory/utils/inventoryStorage';
 import './bulk-photo-scan.css';
 
@@ -57,6 +57,7 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
   const [rows, setRows] = useState([]);
   const [folders, setFolders] = useState([]); // existing sub_location paths under the department
   const [analysed, setAnalysed] = useState(0);
+  const [photoTotal, setPhotoTotal] = useState(0); // photos being analysed (rows may expand past this)
   const [saveResult, setSaveResult] = useState(null);
   const fileInputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
@@ -106,15 +107,38 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
   const patchRow = (id, patch) => setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const removeRow = (id) => setRows((prev) => {
     const gone = prev.find((r) => r.id === id);
-    if (gone?.preview) URL.revokeObjectURL(gone.preview);
-    return prev.filter((r) => r.id !== id);
+    const rest = prev.filter((r) => r.id !== id);
+    // A photo can expand into several rows that share one preview URL — only
+    // revoke it once no surviving row still references it.
+    if (gone?.preview && !rest.some((r) => r.preview === gone.preview)) URL.revokeObjectURL(gone.preview);
+    return rest;
+  });
+
+  // Replace a just-analysed photo row with one row per detected item. All rows
+  // from the same photo share its preview + uploaded image. An empty result
+  // leaves a single blank "ready" row so the user can still fill it in manually.
+  const applyDetections = (seedId, detections, imageUrl) => setRows((prev) => {
+    const idx = prev.findIndex((r) => r.id === seedId);
+    if (idx === -1) return prev;
+    const seed = prev[idx];
+    const built = detections.length
+      ? detections.map((det, i) => ({
+          ...seed,
+          id: i === 0 ? seed.id : `r${++ROW_SEQ}`,
+          status: 'ready', imageUrl,
+          name: det.name || '', quantity: det.quantity || 1,
+          folder: det.folder || currentPath || '', confidence: det.confidence || 'medium',
+          description: det.description || '', include: true,
+        }))
+      : [{ ...seed, status: 'ready', imageUrl, confidence: 'low' }];
+    return [...prev.slice(0, idx), ...built, ...prev.slice(idx + 1)];
   });
 
   // Analyse every pending row: compress → upload → vision-detect, capped by CONCURRENCY.
   const analyse = async () => {
     const pending = rows.filter((r) => r.status === 'pending');
     if (!pending.length) return;
-    setPhase('analysing'); setAnalysed(0);
+    setPhase('analysing'); setAnalysed(0); setPhotoTotal(pending.length);
 
     const queue = [...pending];
     const worker = async () => {
@@ -126,15 +150,8 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
             blobToDataUrl(blob),
             uploadImage(blob).catch(() => ''),
           ]);
-          const det = await detectInventoryItem(dataUrl, { departmentName, currentPath, folders });
-          patchRow(row.id, det
-            ? {
-                status: 'ready', imageUrl,
-                name: det.name || '', quantity: det.quantity || 1,
-                folder: det.folder || currentPath || '', confidence: det.confidence || 'medium',
-                description: det.description || '',
-              }
-            : { status: 'ready', imageUrl, confidence: 'low' });
+          const detections = await detectInventoryItems(dataUrl, { departmentName, currentPath, folders });
+          applyDetections(row.id, detections, imageUrl);
         } catch (err) {
           patchRow(row.id, { status: 'error', error: err?.message || 'failed' });
         } finally {
@@ -205,7 +222,7 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
             >
               <div className="bps-drop-icon"><Icon name="Camera" size={26} /></div>
               <div className="bps-drop-title">Drop photos here, or click to choose</div>
-              <div className="bps-drop-sub">One item per photo. We’ll identify each and suggest a folder in {departmentName}.</div>
+              <div className="bps-drop-sub">One or more items per photo — we’ll split multi-product shots into separate rows and suggest a folder in {departmentName} for each.</div>
               <input
                 ref={fileInputRef} type="file" accept="image/*" multiple capture="environment"
                 style={{ display: 'none' }}
@@ -231,7 +248,7 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
             <div className="bps-foot">
               <div className="bps-foot-note">
                 {phase === 'analysing'
-                  ? `Identifying… ${analysed}/${rows.length}`
+                  ? `Identifying… ${analysed}/${photoTotal}`
                   : rows.length ? `${rows.length} photo${rows.length > 1 ? 's' : ''} ready` : ''}
               </div>
               <div className="bps-foot-actions">

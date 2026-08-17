@@ -1,11 +1,13 @@
 // Supabase Edge Function: detect-inventory-item
 //
-// Given ONE photo of a single inventory item somewhere inside a department's
-// store (e.g. a jar in the Galley, a fender in the Deck lazarette), identify
-// what it is and suggest which sub-folder of the current department it belongs
-// in. Uses Claude vision. Fails soft: on any error it returns 200 with a null
-// detection so the bulk-upload flow degrades to manual entry rather than
-// breaking.
+// Given ONE photo taken inside a department's store (e.g. the Galley, a Deck
+// lazarette, an Interior spa cupboard), identify the inventory item(s) in it and
+// suggest which sub-folder of the current department each belongs in. A photo may
+// show a single item OR several distinct products together — each visually
+// distinct product is returned as its own detection, while multiple identical
+// units of the same product collapse into one detection with a quantity. Uses
+// Claude vision. Fails soft: on any error it returns 200 with an empty list so the
+// bulk-upload flow degrades to manual entry rather than breaking.
 //
 // Request body:
 //   {
@@ -16,14 +18,16 @@
 //   }
 //
 // Response:
-//   { detection: {
+//   { detections: Detection[],    // one per distinct product; [] if nothing usable
+//     detection: Detection|null } // detections[0] — kept for backward compatibility
+// where Detection = {
 //       name: string,          // short item title, e.g. "Tinned San Marzano tomatoes"
-//       quantity: number,      // count visible, >= 1
+//       quantity: number,      // count of identical units of THIS item, >= 1
 //       folder: string,        // full sub_location path to file into (from folders[] or a new one)
 //       isNew: boolean,        // true if `folder` is a proposed NEW sub-folder
 //       confidence: 'high' | 'medium' | 'low',
 //       description: string,   // one short distinguishing sentence
-//     } | null }
+//     }
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response>) => void;
@@ -89,20 +93,25 @@ Deno.serve(async (req: Request) => {
     : 'If none fit, propose a concise NEW top-level sub-folder name for this department, e.g. "Sauces".';
 
   const instruction =
-    `This is a photo of ONE inventory item stored in the "${department}" area of a luxury yacht. ` +
-    'Identify the item as a stores/inventory line, reading any visible label or packaging. ' +
-    'Then decide which sub-folder it should be filed in.\n\n' +
+    `This is a photo taken in the "${department}" area of a luxury yacht. It may show a SINGLE inventory item or SEVERAL distinct items together. ` +
+    'Identify EACH visually distinct product as its own stores/inventory line, reading any visible label or packaging. ' +
+    'Rules for splitting vs. grouping:\n' +
+    '- Different products (different name, brand, type, or packaging) are SEPARATE entries — even if they are piled, boxed, or bagged together.\n' +
+    '- Multiple identical units of the SAME product are ONE entry, with `quantity` set to the count.\n' +
+    '- Only list items you can actually see; do not invent or pad the list.\n\n' +
+    'For each item, decide which sub-folder it should be filed in.\n' +
     'Existing sub-folders you should prefer (use the exact path text):\n' +
     folderList + '\n\n' +
     newFolderHint + '\n\n' +
-    'Return ONLY a JSON object (no prose, no code fences) with these keys:\n' +
+    'Return ONLY a JSON array (no prose, no code fences). Each element is an object with these keys:\n' +
     '- name: a short descriptive item title, e.g. "Tinned San Marzano tomatoes"\n' +
-    '- quantity: the number of identical units visible as an integer (at least 1)\n' +
+    '- quantity: the number of identical units of THIS item visible, as an integer (at least 1)\n' +
     '- folder: the full sub-folder path to file it in — either one EXACTLY from the list above, or your proposed new path\n' +
     '- isNew: true only if `folder` is a new sub-folder not in the list, otherwise false\n' +
     "- confidence: your confidence in the identification — one of \"high\", \"medium\", \"low\"\n" +
     '- description: one short sentence of distinguishing detail, else ""\n' +
-    'Do not guess wildly; if you truly cannot tell what it is, use a generic name and confidence "low".';
+    'Do not guess wildly; if you cannot tell what an item is, use a generic name and confidence "low". ' +
+    'If the photo shows nothing usable, return [].';
 
   try {
     const r = await fetch(ANTHROPIC_API_URL, {
@@ -114,7 +123,8 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 500,
+        // Room for many line-items when a single photo shows a whole shelf/box.
+        max_tokens: 4000,
         temperature: 0,
         messages: [{ role: 'user', content: [block, { type: 'text', text: instruction }] }],
       }),
@@ -122,44 +132,67 @@ Deno.serve(async (req: Request) => {
 
     if (!r.ok) {
       console.error('[detect-inventory-item] Anthropic error', r.status, await r.text().catch(() => ''));
-      return json({ detection: null });
+      return json({ detections: [], detection: null });
     }
 
     const data = await r.json();
     let raw = (data?.content?.[0]?.text || '').trim();
     raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-    const start = raw.indexOf('{');
-    const end = raw.lastIndexOf('}');
-    if (start === -1 || end === -1) return json({ detection: null });
 
-    let parsed: Record<string, unknown> = {};
-    try { parsed = JSON.parse(raw.slice(start, end + 1)); } catch { return json({ detection: null }); }
+    // The model is asked for a JSON array, but tolerate a single bare object too.
+    const items = parseItems(raw);
 
     const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
     const knownSet = new Set(folders);
-    let folder = str(parsed.folder);
-    // Trust the model's isNew, but reconcile against the known list so a match
-    // that's actually in the list is never mis-flagged as new.
-    let isNew = parsed.isNew === true;
-    if (folder && knownSet.has(folder)) isNew = false;
-    else if (folder) isNew = true;
 
-    const qtyNum = Number(parsed.quantity);
-    const quantity = Number.isFinite(qtyNum) && qtyNum >= 1 ? Math.round(qtyNum) : 1;
-    const confidence = ['high', 'medium', 'low'].includes(str(parsed.confidence)) ? str(parsed.confidence) : 'medium';
+    const detections = items.map((it) => {
+      let folder = str(it.folder);
+      // Trust the model's isNew, but reconcile against the known list so a match
+      // that's actually in the list is never mis-flagged as new.
+      let isNew = it.isNew === true;
+      if (folder && knownSet.has(folder)) isNew = false;
+      else if (folder) isNew = true;
 
-    const detection = {
-      name: str(parsed.name),
-      quantity,
-      folder,
-      isNew,
-      confidence,
-      description: str(parsed.description),
-    };
-    if (!detection.name) return json({ detection: null });
-    return json({ detection });
+      const qtyNum = Number(it.quantity);
+      const quantity = Number.isFinite(qtyNum) && qtyNum >= 1 ? Math.round(qtyNum) : 1;
+      const confidence = ['high', 'medium', 'low'].includes(str(it.confidence)) ? str(it.confidence) : 'medium';
+
+      return {
+        name: str(it.name),
+        quantity,
+        folder,
+        isNew,
+        confidence,
+        description: str(it.description),
+      };
+    }).filter((d) => d.name);
+
+    return json({ detections, detection: detections[0] || null });
   } catch (err) {
     console.error('[detect-inventory-item] fetch error', err);
-    return json({ detection: null });
+    return json({ detections: [], detection: null });
   }
 });
+
+// Pull an array of item objects out of the model's text. Accepts a JSON array,
+// a single bare object (wrapped into a one-element array), and tolerates leading/
+// trailing prose by slicing to the outermost brackets. Returns [] on any failure.
+function parseItems(raw: string): Array<Record<string, unknown>> {
+  const tryParse = (s: string): unknown => { try { return JSON.parse(s); } catch { return undefined; } };
+
+  const arrStart = raw.indexOf('[');
+  const arrEnd = raw.lastIndexOf(']');
+  if (arrStart !== -1 && arrEnd > arrStart) {
+    const v = tryParse(raw.slice(arrStart, arrEnd + 1));
+    if (Array.isArray(v)) return v.filter((x) => x && typeof x === 'object') as Array<Record<string, unknown>>;
+  }
+
+  const objStart = raw.indexOf('{');
+  const objEnd = raw.lastIndexOf('}');
+  if (objStart !== -1 && objEnd > objStart) {
+    const v = tryParse(raw.slice(objStart, objEnd + 1));
+    if (v && typeof v === 'object') return [v as Record<string, unknown>];
+  }
+
+  return [];
+}
