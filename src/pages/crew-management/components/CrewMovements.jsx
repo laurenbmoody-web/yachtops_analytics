@@ -212,6 +212,44 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     return { aDay, lvDay, contBefore, contAfter };
   }, [rangeStart, rangeEnd, viewDays]);
 
+  // ── away runs, per crew member, across the scroll window ─────────────────────
+  // The presence board's statuses, projected onto the cabins timeline: a run is
+  // a stretch of days the crew member is off the vessel (leave, travelling).
+  // Their bed stays reserved — that's deliberate, someone on rotation comes back
+  // to it — but the bar has to SHOW the absence, otherwise Cabins silently
+  // contradicts Presence. Day indices are 0-based offsets from rangeStart, so
+  // they convert straight to pixels via leftPx(), same as span().
+  const awayRunsByUser = useMemo(() => {
+    const out = {};
+    Object.entries(historyByUser).forEach(([uid, hist]) => {
+      const periods = buildStatusPeriods(hist || []);
+      if (!periods.length) return;
+      const runs = [];
+      let open = null;
+      for (let d = 0; d < viewDays; d += 1) {
+        const st = getStatusForDay(periods, addDays(rangeStart, d));
+        if (st && AWAY.has(st)) {
+          if (open && open.status === st) open.end = d;
+          else { if (open) runs.push(open); open = { start: d, end: d, status: st }; }
+        } else if (open) { runs.push(open); open = null; }
+      }
+      if (open) runs.push(open);
+      out[uid] = runs;
+    });
+    return out;
+  }, [historyByUser, rangeStart, viewDays]);
+
+  // First day of leave falling inside a stay — what "End stay" should offer by
+  // default, since ending a berth on the day someone leaves is the usual reason
+  // to reach for it at all.
+  const leaveDateWithin = useCallback((a) => {
+    const sp = span(a);
+    if (!sp) return '';
+    const run = (awayRunsByUser[a.user_id] || []).find((r) => r.end >= sp.aDay && r.start < sp.lvDay);
+    if (!run) return '';
+    return dstr(addDays(rangeStart, Math.max(run.start, sp.aDay)));
+  }, [awayRunsByUser, span, rangeStart]);
+
   // Cabins where M and F crew overlap on any night → flag for review (couples
   // aside, you usually don't want mixed-sex sharing).
   const cabinMixed = useMemo(() => {
@@ -669,6 +707,12 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                       // full on hover (a short handover sliver is too narrow to show
                       // inline), so every bar is identifiable.
                       const lbl = nm; const dim = selCrew && selCrew !== a.user_id;
+                      // Leave/travel falling inside this stay — hatched over the
+                      // bar so the berth still reads as held while showing the
+                      // crew member is off the vessel (matches Presence).
+                      const away = (awayRunsByUser[a.user_id] || [])
+                        .map((r) => ({ ...r, from: Math.max(r.start, sp.aDay), to: Math.min(r.end + 1, sp.lvDay) }))
+                        .filter((r) => r.to > r.from);
                       return (
                         <div key={a.id} className={`mv-bar${!sp.contBefore ? ' j' : ''}${!sp.contAfter ? ' l' : ''}${selCrew === a.user_id ? ' sel' : ''}${flashId === a.id ? ' flash' : ''}`} id={`bar-${a.id}`}
                           draggable={canManage} onDragStart={() => { canManage && setDragKind({ type: 'bar', assignId: a.id }); setBarTip(null); }}
@@ -676,6 +720,14 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                           onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setBarTip({ nm, dt: `${a.start_date}${a.end_date ? ` → ${a.end_date}` : ' (open)'}`, x: Math.min(Math.max(e.clientX, r.left + 24), r.right - 24), y: r.top - 6 }); }}
                           onMouseLeave={() => setBarTip(null)}
                           style={{ left: leftPx(sp.aDay), width: w, background: bg, opacity: dim ? 0.4 : 1 }}>
+                          {away.map((r) => (
+                            <span
+                              key={`away-${r.from}`}
+                              className="mv-baraway"
+                              style={{ left: (r.from - sp.aDay) * DAY_W, width: (r.to - r.from) * DAY_W }}
+                              title={`${nm}: ${getStatusLabel(r.status)} from ${ddmm(addDays(rangeStart, r.from))}`}
+                            />
+                          ))}
                           {!sp.contBefore && <span className="edge s" onClick={(ev) => { ev.stopPropagation(); setSelCrew(a.user_id); scrollToFlight(a.user_id); }}>{addDays(rangeStart, sp.aDay).getDate()}</span>}
                           <span className="lbl">{lbl}</span>
                           {!sp.contAfter && <span className="edge e" onClick={(ev) => { ev.stopPropagation(); setSelCrew(a.user_id); scrollToFlight(a.user_id); }}>{addDays(rangeStart, sp.lvDay).getDate()}</span>}
@@ -702,7 +754,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     const hostEl = ev.currentTarget.closest('.mv');
     const host = hostEl.getBoundingClientRect();
     const x = Math.min(rect.left - host.left, hostEl.clientWidth - 260);
-    setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '' });
+    setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '', end: a.end_date || leaveDateWithin(a) });
   };
   // Same popover, triggered from the handover dialog's "Move anyway" rather
   // than a direct click on a bar — anchor to the bar's own element if it's
@@ -715,9 +767,9 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       const rect = barEl.getBoundingClientRect();
       const host = hostEl.getBoundingClientRect();
       const x = Math.min(rect.left - host.left, hostEl.clientWidth - 260);
-      setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '' });
+      setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '', end: a.end_date || leaveDateWithin(a) });
     } else {
-      setPop({ a, x: 24, y: 24, bedId: a.bed_id, date: '' });
+      setPop({ a, x: 24, y: 24, bedId: a.bed_id, date: '', end: a.end_date || leaveDateWithin(a) });
     }
   };
 
@@ -905,6 +957,35 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
           <div className="act">
             <button type="button" className="rm" onClick={() => removeStay(pop.a.id)}>Remove</button>
             <button type="button" className="apply" disabled={!pop.date} onClick={() => splitMove(pop.a.id, pop.bedId, pop.date)}>Move</button>
+          </div>
+
+          {/* Close the stay instead of moving it — the bed frees up from this
+              date, which is what you want when someone leaves the vessel
+              rather than changes cabin. Pre-filled with their first day of
+              leave when the stay runs into one. */}
+          <div className="mv-pop-end">
+            <label>End stay — bed free from</label>
+            <input
+              type="date"
+              value={pop.end}
+              min={pop.a.start_date}
+              max={dstr(addDays(rangeEnd, -1))}
+              onChange={(e) => setPop({ ...pop, end: e.target.value })}
+            />
+            {pop.a.end_date && <p className="mv-pop-note">Currently ends {pop.a.end_date}.</p>}
+            <div className="act">
+              {pop.a.end_date && (
+                <button type="button" className="rm" onClick={() => endStay(pop.a.id, null)}>Reopen</button>
+              )}
+              <button
+                type="button"
+                className="apply"
+                disabled={!pop.end || pop.end <= pop.a.start_date}
+                onClick={() => endStay(pop.a.id, pop.end)}
+              >
+                End stay
+              </button>
+            </div>
           </div>
         </div>
       )}
