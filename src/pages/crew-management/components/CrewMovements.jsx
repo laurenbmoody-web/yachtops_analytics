@@ -549,11 +549,23 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   }, [calYear, calMonth, memberById, historyByUser]);
 
   // ── presence rendering (plain single-month grid, unchanged) ─────────────────
+  // Today's column is ringed in terracotta — the single-month grid's answer to
+  // the cabins chart's today line. Null whenever a different month is on show.
+  const presenceToday =
+    calYear === today.getFullYear() && calMonth === today.getMonth() ? today.getDate() : null;
+
   const renderPresence = () => (
     <div className="mv-grid">
       <div className="mv-row">
         <div className="mv-name" />
-        {Array.from({ length: totalDays }, (_, i) => <div key={i} className={`mv-dnum${(i + 1) % 5 === 0 ? ' d5' : ''}`}>{i + 1}</div>)}
+        {Array.from({ length: totalDays }, (_, i) => (
+          <div
+            key={i}
+            className={`mv-dnum${(i + 1) % 5 === 0 ? ' d5' : ''}${presenceToday === i + 1 ? ' is-today' : ''}`}
+          >
+            {i + 1}
+          </div>
+        ))}
       </div>
       {orderedMembers.length === 0 ? <p className="mv-empty">No crew to display.</p> : orderedMembers.map((m) => {
         const periods = buildStatusPeriods(historyByUser[m.user_id] || []);
@@ -563,12 +575,18 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
             {Array.from({ length: totalDays }, (_, i) => {
               const cellDate = new Date(calYear, calMonth, i + 1);
               const st = getStatusForDay(periods, cellDate);
+              const isToday = presenceToday === i + 1;
               const inSel = dragSel && dragSel.userId === m.user_id && i >= Math.min(dragSel.a, dragSel.b) && i <= Math.max(dragSel.a, dragSel.b);
+              const statusLabel = st ? `${m.fullName}: ${getStatusLabel(st)}` : '';
               return (
                 <div
                   key={i}
-                  className={`mv-cell${canManage ? ' clickable' : ''}${inSel ? ' sel' : ''}`}
-                  title={canManage ? `${m.fullName}: ${st ? getStatusLabel(st) : 'no status'} — click, or drag across days, to change` : (st ? `${m.fullName}: ${getStatusLabel(st)}` : '')}
+                  className={`mv-cell${isToday ? ' is-today' : ''}${canManage ? ' clickable' : ''}${inSel ? ' sel' : ''}`}
+                  title={
+                    canManage
+                      ? `${m.fullName}: ${st ? getStatusLabel(st) : 'no status'}${isToday ? ' · today' : ''} — click, or drag across days, to change`
+                      : (isToday ? `${statusLabel || 'Today'}${statusLabel ? ' · today' : ''}` : statusLabel)
+                  }
                   style={st ? { background: STATUS_COLORS[st] } : undefined}
                   onPointerDown={canManage ? (e) => { if (e.button !== 0) return; e.preventDefault(); dragRef.current = { userId: m.user_id, a: i, b: i }; setDragSel({ userId: m.user_id, a: i, b: i }); } : undefined}
                   onPointerEnter={canManage ? () => { const d = dragRef.current; if (!d || d.userId !== m.user_id) return; d.b = i; setDragSel({ userId: m.user_id, a: d.a, b: i }); } : undefined}

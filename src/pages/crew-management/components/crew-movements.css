@@ -82,6 +82,11 @@
 .mv-dnum { flex: 1 1 0; min-width: 14px; text-align: center; font-size: 9px; font-weight: 600; color: #AEB4C2; }
 .mv-dnum.d5 { color: #8B8478; font-weight: 700; }
 .mv-cell { flex: 1 1 0; min-width: 14px; height: 24px; border-radius: 4px; background: #F0F1F5; }
+/* Today's column — inset ring so it reads over an empty cell or a status fill
+   alike, without nudging the grid by a pixel. Declared before .sel so a
+   drag-selected cell's own ring wins while it's being painted. */
+.mv-dnum.is-today { color: #C65A1A; font-weight: 700; }
+.mv-cell.is-today { box-shadow: inset 0 0 0 1.5px #C65A1A; }
 .mv-cell.clickable { cursor: pointer; transition: outline-color .12s ease; outline: 1.5px solid transparent; outline-offset: -1.5px; touch-action: none; }
 .mv-cell.clickable:hover { outline-color: #1C1B3A; }
 .mv-cell.sel { outline-color: #C65A1A; box-shadow: inset 0 0 0 1px #C65A1A; }
