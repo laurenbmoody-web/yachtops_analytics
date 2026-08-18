@@ -587,10 +587,23 @@
 .inv-qtyval { min-width: 38px; text-align: center; font: 700 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
 
 /* ── selection toolbar ──────────────────────────────────────── */
+/* Floats above the grid, pinned to the bottom of the viewport, so the bulk
+   actions stay reachable no matter how far down a long folder you scroll to
+   tick items. Sits below modals (z 1000+) but above page content. */
 .inv-selbar {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 11px 16px; margin-bottom: 16px;
-  background: #FBEFE9; border: 1px solid #F3D9CB; border-radius: 12px;
+  padding: 11px 16px;
+  background: #FBEFE9; border: 1px solid #F3D9CB; border-radius: 999px;
+  position: fixed;
+  left: 50%; transform: translateX(-50%);
+  bottom: 22px; z-index: 60;
+  width: max-content; max-width: calc(100vw - 40px);
+  box-shadow: 0 16px 40px -12px rgba(28, 27, 58, 0.35);
+}
+/* In the floating pill the spacer becomes a thin divider, not a stretch. */
+.inv-selbar .inv-selbar-spacer {
+  flex: none; align-self: stretch; width: 1px; margin: -2px 2px;
+  background: #F3D9CB;
 }
 .inv-selbar-toggle {
   display: inline-flex; align-items: center; gap: 8px; background: none; border: none;
