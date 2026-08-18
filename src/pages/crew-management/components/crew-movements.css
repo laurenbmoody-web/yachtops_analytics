@@ -184,6 +184,13 @@
    scrolling into the middle of a long bar shows a bare colour band and no
    name at all. Constrained to the bar's own box, so it can't escape past
    either end of it. */
+/* Leave / travel inside a held berth — hatched over the bar's own colour so the
+   bed still reads as reserved while the crew member is plainly off the vessel. */
+.mv-baraway {
+  position: absolute; top: 0; bottom: 0; pointer-events: none;
+  background: repeating-linear-gradient(45deg, rgba(255,255,255,0.85) 0 5px, rgba(255,255,255,0.25) 5px 10px);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.6);
+}
 .mv-bar .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 12px; }
 .mv-bar .edge { flex: 0 0 auto; background: rgba(255,255,255,0.94); color: #C65A1A; font-size: 9px; font-weight: 700; border-radius: 4px; padding: 1px 5px; line-height: 1.4; box-shadow: 0 1px 1px rgba(28,27,58,0.14); cursor: pointer; }
 .mv-bar .edge.e { margin-left: auto; }
@@ -249,6 +256,12 @@
 .mv-pop .apply { flex: 1; background: #C65A1A; color: #fff; border: 0; border-radius: 9px; padding: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
 .mv-pop .apply:disabled { opacity: 0.5; }
 .mv-pop .rm { background: #fff; border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 12px; font-size: 12px; font-weight: 600; color: #E4574C; cursor: pointer; }
+/* End stay — a second action below a hairline, so closing a berth reads as a
+   distinct thing from moving one. */
+.mv-pop-end { margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0F1F5; }
+.mv-pop-end label { margin-top: 0; }
+.mv-pop-note { margin: 6px 0 0; font-size: 11px; color: #8B8478; }
+.mv-pop-end .act { margin-top: 10px; }
 
 /* handover dialog */
 .mv-ovl { position: fixed; inset: 0; background: rgba(28,27,58,0.28); z-index: 1000; display: flex; align-items: center; justify-content: center; }
