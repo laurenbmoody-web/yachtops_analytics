@@ -625,7 +625,7 @@ const FolderSettingsModal = ({ folderName, parentSegments, currentVisibility, on
 // unusable with many folders or duplicate names (you couldn't tell two
 // "General" folders apart). `onPick` reports the currently-browsed segments
 // (or null at the root) so the parent can enable/disable "Move here".
-const FolderTreePicker = ({ folderTree, onPick, disablePath, blockPath, isCommand, userDepartment, initialBrowse }) => {
+const FolderTreePicker = ({ folderTree, onPick, disablePath, blockPath, isCommand, userDepartment, currentRoot, initialBrowse }) => {
   // Open where the thing currently lives so its ancestor breadcrumb is right
   // there — moving it UP/OUT is then a click on a parent crumb, not a re-drill
   // from the root.
@@ -635,7 +635,16 @@ const FolderTreePicker = ({ folderTree, onPick, disablePath, blockPath, isComman
   const childrenOf = (segments) => folderTree?.[segments?.join('|||')]?.subFolders || [];
   const metaOf = (segments, name) => folderTree?.[segments?.join('|||')]?.folderMeta?.[name] || {};
 
-  const rootAllowed = (seg0) => isCommand || ((seg0 || '')?.toLowerCase() === (userDepartment || '')?.toLowerCase());
+  // Command can file anywhere; everyone else into their own department — and
+  // always within the location the item/folder already lives in (you can
+  // rearrange a store you're already curating even if it isn't "your" department,
+  // e.g. a custom Spa location managed by the Interior chief).
+  const rootAllowed = (seg0) => {
+    const s = (seg0 || '')?.toLowerCase();
+    return isCommand
+      || s === (userDepartment || '')?.toLowerCase()
+      || (!!currentRoot && s === (currentRoot || '')?.toLowerCase());
+  };
   const isBlocked = (path) => !!blockPath && (path === blockPath || path?.startsWith(blockPath + ' > '));
 
   const allFolders = useMemo(() => {
@@ -781,6 +790,7 @@ const MoveFolderModal = ({ folderName, currentPathSegments, folderTree, onClose,
         blockPath={selfPath}
         isCommand={isCommand}
         userDepartment={userDepartment}
+        currentRoot={currentPathSegments?.[0]}
         initialBrowse={currentPathSegments}
       />
 
@@ -840,6 +850,7 @@ const BulkMoveItemsModal = ({ selectedCount, itemLabel, folderTree, currentPathS
         disablePath={currentPath}
         isCommand={isCommand}
         userDepartment={userDepartment}
+        currentRoot={currentPathSegments?.[0]}
         initialBrowse={currentPathSegments}
       />
 
