@@ -13,6 +13,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { STANDARD_CHART_OF_ACCOUNTS } from '../pages/accounts/budgets/data/mybaChartOfAccounts.js';
 import { groupChartLines } from './chartGroup.js';
+import { missingTemplateLines, templateSortOrder } from './chartTemplate.js';
 
 export { groupChartLines };
 
@@ -86,6 +87,30 @@ export async function applyStandardTemplate(tenantId) {
     sort_order: i,
   }));
   return addLines(tenantId, lines);
+}
+
+// Pull in template lines added since this vessel seeded its chart. No line it
+// already has is renamed, re-bucketed or removed — including ones it re-coded or
+// switched off — and its own lines are left alone entirely. The one thing that IS
+// corrected is sort_order, which is presentation only and has to move for a new
+// section to land in the right place (see templateSortOrder).
+// Idempotent: run it twice and the second run changes nothing.
+export async function topUpStandardTemplate(tenantId) {
+  if (!tenantId) return { data: [], error: null };
+  const { data: existing, error } = await getChart(tenantId, { includeInactive: true });
+  if (error) return { data: [], error };
+
+  const missing = missingTemplateLines(existing);
+  const added = missing.length ? await addLines(tenantId, missing) : { data: [], error: null };
+  if (added.error) return added;
+
+  // Reorder after inserting, so the two sets of rows end up on one scale.
+  const moves = templateSortOrder(existing);
+  for (const m of moves) {
+    const { error: moveErr } = await updateLine(m.id, { sort_order: m.sort_order });
+    if (moveErr) return { data: added.data, error: moveErr };
+  }
+  return added;
 }
 
 export async function addLine(tenantId, line) {

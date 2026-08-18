@@ -83,10 +83,29 @@
 .mv-dnum.d5 { color: #8B8478; font-weight: 700; }
 .mv-cell { flex: 1 1 0; min-width: 14px; height: 24px; border-radius: 4px; background: #F0F1F5; }
 /* Today's column — inset ring so it reads over an empty cell or a status fill
-   alike, without nudging the grid by a pixel. */
+   alike, without nudging the grid by a pixel. Declared before .sel so a
+   drag-selected cell's own ring wins while it's being painted. */
 .mv-dnum.is-today { color: #C65A1A; font-weight: 700; }
 .mv-cell.is-today { box-shadow: inset 0 0 0 1.5px #C65A1A; }
+.mv-cell.clickable { cursor: pointer; transition: outline-color .12s ease; outline: 1.5px solid transparent; outline-offset: -1.5px; touch-action: none; }
+.mv-cell.clickable:hover { outline-color: #1C1B3A; }
+.mv-cell.sel { outline-color: #C65A1A; box-shadow: inset 0 0 0 1px #C65A1A; }
 .mv-empty { font-size: 13px; color: #6B7280; padding: 18px 0; text-align: center; }
+
+/* Quick per-day status picker — a small floating swatch menu, not a modal. */
+.mv-daypick-backdrop { position: fixed; inset: 0; z-index: 4000; }
+.mv-daypick { position: fixed; width: 216px; background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 12px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); padding: 8px; }
+.mv-daypick-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 4px 8px 8px; border-bottom: 1px solid #F0F1F5; margin-bottom: 6px; }
+.mv-daypick-head .who { font-size: 12.5px; font-weight: 600; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mv-daypick-head .dt { font-size: 11px; color: #8B8478; white-space: nowrap; }
+.mv-daypick-opts { display: flex; flex-direction: column; gap: 2px; }
+.mv-daypick-opt { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border: none; background: transparent; border-radius: 8px; cursor: pointer; text-align: left; font-size: 13px; color: #1C1B3A; }
+.mv-daypick-opt:hover:not(:disabled) { background: #F8FAFC; }
+.mv-daypick-opt:disabled { opacity: 0.55; cursor: default; }
+.mv-daypick-opt.is-cur { font-weight: 600; }
+.mv-daypick-opt i { width: 12px; height: 12px; border-radius: 4px; flex: 0 0 auto; }
+.mv-daypick-opt span { flex: 1 1 auto; }
+.mv-daypick-opt svg { color: #C65A1A; flex: 0 0 auto; }
 
 /* Cabins — the continuous, horizontally-scrollable timeline. The bed-name
    column is a genuinely SEPARATE, non-scrolling element sitting beside the
@@ -168,6 +187,17 @@
 .mv-bar .lbl { flex: 1; overflow: hidden; text-overflow: ellipsis; position: sticky; left: 12px; }
 .mv-bar .edge { flex: 0 0 auto; background: rgba(255,255,255,0.94); color: #C65A1A; font-size: 9px; font-weight: 700; border-radius: 4px; padding: 1px 5px; line-height: 1.4; box-shadow: 0 1px 1px rgba(28,27,58,0.14); cursor: pointer; }
 .mv-bar .edge.e { margin-left: auto; }
+/* A hovered bar lifts slightly; the full name + dates come from a portalled
+   tooltip (below) so even a two-day handover sliver stays identifiable without
+   its label spilling over — and over garbling — its neighbour. */
+.mv-bar:hover { z-index: 10; box-shadow: 0 0 0 2px #fff, 0 8px 18px -6px rgba(28,27,58,0.3); }
+
+/* Cabin-bar tooltip — portalled to the body so the scroll area (which clips
+   vertically) can't cut it off. */
+.mv-bartip { position: fixed; z-index: 4000; transform: translate(-50%, -100%); pointer-events: none;
+  background: #1C1B3A; color: #fff; border-radius: 8px; padding: 6px 10px; box-shadow: 0 12px 30px -10px rgba(28,27,58,0.5); white-space: nowrap; }
+.mv-bartip .nm { font-size: 12px; font-weight: 600; }
+.mv-bartip .dt { font-size: 10.5px; color: #C7C9D9; margin-top: 1px; }
 .mv-conn { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
 
 /* Unberthed — a quiet editorial section (tracked-caps label on a hairline
@@ -183,7 +213,12 @@
 .mv-unb-chip .av, .mv-occ .av { width: 26px; height: 26px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #1C1B3A; flex: 0 0 auto; }
 .mv-unb-who { display: flex; flex-direction: column; line-height: 1.35; }
 .mv-unb-nm { font-size: 12.5px; font-weight: 600; color: #1C1B3A; }
-.mv-unb-rl { font-size: 10.5px; color: #8B8478; }
+.mv-unb-rl { font-size: 10.5px; color: #8B8478; display: flex; align-items: center; gap: 5px; }
+.mv-unb-subhead { margin-top: 20px; }
+.mv-unb-hint { font-size: 11px; color: #AEB4C2; white-space: nowrap; }
+.mv-unb-dot { width: 7px; height: 7px; border-radius: 999px; flex: 0 0 auto; }
+.mv-unb-chip.is-away .av { opacity: 0.82; }
+.mv-unb-chip.is-away .mv-unb-nm { color: #6B7280; }
 
 /* cabin cards */
 .mv-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin-top: 18px; }
@@ -225,4 +260,9 @@
 .mv-dlg .no, .mv-dlg .move { flex: 0 0 auto; background: #fff; border: 1px solid #E8E6DF; border-radius: 10px; padding: 11px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .mv-dlg .move { color: #C65A1A; border-color: #E8B6A6; }
 .mv-dlg .move:hover { background: #FBEFE9; }
+.mv-dlg .yes:disabled { opacity: 0.5; cursor: default; }
+.mv-dlg-date { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 10px 12px; background: #FAFAF8; border: 1px solid #EEF0F4; border-radius: 10px; }
+.mv-dlg-date span { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.mv-dlg-date input { border: 1px solid #E8E6DF; border-radius: 8px; padding: 7px 10px; font-size: 13px; color: #1C1B3A; background: #fff; font-family: inherit; }
+.mv-dlg-date input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 .mv-legdept { display: flex; flex-wrap: wrap; gap: 16px; }

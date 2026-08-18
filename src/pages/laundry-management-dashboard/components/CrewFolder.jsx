@@ -579,10 +579,26 @@ const HandoutModal = ({ crewName, folderRels = [], defaultFolder = [], onHandout
 // issued to them. Issuing draws from master inventory; the crew profile shows
 // the same kit read-only for the crew member to sign off.
 const CrewFolder = ({ onBack, initialCrewId = null }) => {
-  const { user, tenantRole } = useAuth();
+  const { user, currentUser, isVesselAdmin } = useAuth();
   const { activeTenantId } = useTenant();
   const showValue = canViewCost();
-  const canManage = (tenantRole || '').toUpperCase() === 'COMMAND' || (user?.department || '').toLowerCase() === 'interior';
+  // Who may issue/return uniform: COMMAND (honouring a permission_tier_override,
+  // which the base auth context doesn't surface), the vessel admin, or anyone in
+  // Interior. Resolved from tenant_members so an override actually counts.
+  const [canManage, setCanManage] = useState(false);
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      if (!activeTenantId || !user?.id) { if (!dead) setCanManage(false); return; }
+      const { data } = await supabase.from('tenant_members')
+        .select('permission_tier, permission_tier_override')
+        .eq('tenant_id', activeTenantId).eq('user_id', user.id).maybeSingle();
+      const tier = (data?.permission_tier_override || data?.permission_tier || '').toUpperCase();
+      const deptName = (currentUser?.department || user?.department || '').toLowerCase();
+      if (!dead) setCanManage(tier === 'COMMAND' || isVesselAdmin || deptName === 'interior');
+    })();
+    return () => { dead = true; };
+  }, [activeTenantId, user?.id, isVesselAdmin, currentUser?.department]);
 
   const [roster, setRoster] = useState([]);
   const [kit, setKit] = useState([]);

@@ -1,0 +1,94 @@
+// Cargo Accounts — pure chart-template helpers (no Supabase import), so they are
+// unit-testable with `node --test`.
+//
+// The standard chart grows: lines get added under the MYBA summary headings, and
+// whole sections get added beside them, as the app learns what a boat actually
+// spends against. A vessel that seeded its chart last season holds the old, shorter
+// list in chart_of_accounts and would never see any of it. These work out what that
+// vessel is missing, and where its lines belong on screen.
+//
+// "Missing" has to be judged two ways, because chart_of_accounts is unique on BOTH
+// (tenant_id, code) and (tenant_id, bucket, lower(category)). A vessel that renamed
+// FLO's code but kept the label, or kept the code and renamed the label, already has
+// that line — inserting it again would hit one index or the other. So a template line
+// counts as present if EITHER key already exists.
+
+import { STANDARD_CHART_OF_ACCOUNTS } from '../pages/accounts/budgets/data/mybaChartOfAccounts.js';
+
+const codeKey = (code) => String(code).trim().toUpperCase();
+const nameKey = (bucket, category) =>
+  `${String(bucket ?? '').trim().toLowerCase()} ${String(category ?? '').trim().toLowerCase()}`;
+
+// The template's own position for each of its lines, reachable by either key.
+const templateIndex = (template) => {
+  const byCode = new Map();
+  const byName = new Map();
+  (template || []).forEach((line, i) => {
+    if (line.code && !byCode.has(codeKey(line.code))) byCode.set(codeKey(line.code), i);
+    const n = nameKey(line.bucket, line.category);
+    if (!byName.has(n)) byName.set(n, i);
+  });
+  return { byCode, byName };
+};
+
+const indexOfRow = ({ byCode, byName }, row) => {
+  if (row?.code && byCode.has(codeKey(row.code))) return byCode.get(codeKey(row.code));
+  const n = nameKey(row?.bucket, row?.category);
+  return byName.has(n) ? byName.get(n) : null;
+};
+
+// Template lines a tenant's existing chart doesn't cover yet, ready for addLines.
+// `existing` must include INACTIVE rows: a line the vessel deliberately switched off
+// is still theirs, still occupies both unique keys, and must not be reinstated.
+export function missingTemplateLines(existing = [], template = STANDARD_CHART_OF_ACCOUNTS) {
+  const codes = new Set();
+  const names = new Set();
+  (existing || []).forEach((row) => {
+    if (!row) return;
+    if (row.code) codes.add(codeKey(row.code));
+    if (row.bucket && row.category) names.add(nameKey(row.bucket, row.category));
+  });
+
+  const out = [];
+  (template || []).forEach((line, i) => {
+    if (line.code && codes.has(codeKey(line.code))) return;
+    if (names.has(nameKey(line.bucket, line.category))) return;
+    // Claim both keys, so a template that ever ends up with a duplicate in it
+    // yields one insert rather than a unique-violation for the whole batch.
+    if (line.code) codes.add(codeKey(line.code));
+    names.add(nameKey(line.bucket, line.category));
+    out.push({
+      bucket: line.bucket,
+      category: line.category,
+      code: line.code || null,
+      kind: line.kind === 'revenue' ? 'revenue' : 'expense',
+      sort_order: i,
+    });
+  });
+  return out;
+}
+
+// Rows whose sort_order no longer matches where the template puts that line, as
+// [{ id, sort_order }] ready for an update.
+//
+// Ordering is presentation only — no money hangs off sort_order — and it has to be
+// corrected, not just extended, because a NEW SECTION cannot otherwise land in the
+// right place. A vessel's Interior lines were numbered 15–17 and its Fuel lines
+// 18–19 when the template was 48 lines long; there is no integer between them for a
+// Galley section to occupy, so appending would strand Galley at the bottom of the
+// picker below Tenders & Toys. Renumbering to the template's own index puts every
+// chart in the same order whenever it was seeded.
+//
+// Lines the vessel added itself match no template line and are left exactly as they
+// are, so a custom chart keeps its own arrangement.
+export function templateSortOrder(existing = [], template = STANDARD_CHART_OF_ACCOUNTS) {
+  const idx = templateIndex(template);
+  const out = [];
+  (existing || []).forEach((row) => {
+    if (!row?.id) return;
+    const want = indexOfRow(idx, row);
+    if (want === null || row.sort_order === want) return;
+    out.push({ id: row.id, sort_order: want });
+  });
+  return out;
+}

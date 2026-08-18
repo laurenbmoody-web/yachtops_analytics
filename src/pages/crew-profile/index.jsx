@@ -380,7 +380,7 @@ const CrewProfile = () => {
       try {
         const { data, error } = await supabase
           ?.from('tenant_members')
-          ?.select('role, permission_tier')
+          ?.select('role, permission_tier, permission_tier_override')
           ?.eq('user_id', session?.user?.id)
           ?.eq('tenant_id', activeTenantId)
           ?.eq('active', true)
@@ -388,7 +388,8 @@ const CrewProfile = () => {
 
         if (!error && data) {
           setTenantMemberRole(data?.role);
-          setCurrentUserPermissionTier(data?.permission_tier);
+          // Honour a COMMAND override so an elevated member gets COMMAND access.
+          setCurrentUserPermissionTier(data?.permission_tier_override || data?.permission_tier);
         }
       } catch (err) {
         console.error('Error fetching tenant member role:', err);
@@ -888,25 +889,9 @@ const isOwnProfile = session?.user?.id === crewId;
 const isCaptainRole = /capt|master/i.test(crewMember?.roleTitle || '');
 const showCaptainCredentials = isOwnProfile && isCaptainRole;
 
-const canEdit = (() => {
-  const currentUserId = session?.user?.id;
-
-  // Command roles (Captain, Purser, Admin, Chief) can edit any profile
-  const role = tenantMemberRole?.toUpperCase();
-  const isCommandRole = role === 'CAPTAIN' || role === 'PURSER' || role === 'ADMIN' || role === 'CHIEF';
-
-  // Console logs for debugging
-  console.log('🔍 EDIT PERMISSION DEBUG:', {
-    crewId,
-    'session.user.id': currentUserId,
-    tenantMemberRole: role,
-    isOwnProfile,
-    isCommandRole,
-    canEdit: isOwnProfile || isCommandRole
-  });
-
-  return isOwnProfile || isCommandRole;
-})();
+// Anyone may edit their own profile; vessel admins and COMMAND (effective tier,
+// so a COMMAND override counts) may edit anyone's.
+const canEdit = isOwnProfile || isVesselAdmin || currentUserPermissionTier === 'COMMAND';
 
   // Handle avatar click - trigger file input
   const handleAvatarClick = () => {
@@ -1045,6 +1030,10 @@ const canEdit = (() => {
   // Permissions are admin-only: COMMAND / vessel admin may set them. Everyone
   // else — including crew viewing their OWN profile — sees them read-only.
   const canEditPermissions = isVesselAdmin || currentUserPermissionTier === 'COMMAND';
+  // Salary (crew_compensation) is genuinely COMMAND-only in the DB (RLS), which
+  // vessel-admin status does NOT satisfy. Gate the salary block on real COMMAND
+  // so a CHIEF admin isn't shown a field the DB will reject on save.
+  const canEditCompensation = currentUserPermissionTier === 'COMMAND';
 
   // Persist one or more per-user capability flags on tenant_members. RLS allows
   // only COMMAND to update tenant_members, matching canEditPermissions. `patch`
@@ -1224,7 +1213,7 @@ const canEdit = (() => {
       });
       // null when the viewer can't read compensation (RLS) AND there's no row;
       // COMMAND always gets an object so the block renders for them.
-      setCompForm(canEditPermissions ? (comp || {}) : (comp || null));
+      setCompForm(canEditCompensation ? (comp || {}) : (comp || null));
       setVesselCompliance({ ...(vessel || {}), captain_name: cap?.profiles?.full_name || '' });
       setTemplates(templates);
       setLastGenerated(lastDoc || null);

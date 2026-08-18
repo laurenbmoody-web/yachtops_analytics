@@ -7,6 +7,23 @@
 
 import { supabase } from '../../../lib/supabaseClient';
 
+// The vessel's decks, from Location Management (vessel_locations, deck tier), so
+// the cabin editor offers the SAME decks the vessel is actually organised by
+// rather than a hardcoded list. Names only, in display order.
+export async function fetchDeckNames(tenantId) {
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    .from('vessel_locations')
+    .select('name, sort_order')
+    .eq('tenant_id', tenantId)
+    .eq('level', 'deck')
+    .eq('is_archived', false)
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true });
+  if (error) { console.error('[cabins] decks fetch error:', error); return []; }
+  return (data || []).map((d) => (d.name || '').trim()).filter(Boolean);
+}
+
 // ── read ─────────────────────────────────────────────────────────────────────
 export async function fetchCabins(tenantId) {
   if (!tenantId) return [];

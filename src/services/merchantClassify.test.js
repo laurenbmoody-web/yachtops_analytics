@@ -23,11 +23,68 @@ test('seed: unambiguous marine vendors are a confident single suggestion', () =>
   assert.equal(suggest({ payee: 'TOTAL MARINE FUELS' }).suggestion.code, 'FLE');
   assert.equal(suggest({ payee: 'Pantaenius Yacht Insurance' }).suggestion.code, 'INS');
   assert.equal(suggest({ payee: 'Bureau Veritas' }).suggestion.code, 'CRT');
-  assert.equal(suggest({ payee: 'Port Vauban Capitainerie' }).suggestion.code, 'HAR');
+  // A marina is a berth booked from an operator; the port authority's own invoice
+  // is a due. The chart now has a line for each, so the two stop being one number.
+  assert.equal(suggest({ payee: 'Port Vauban Capitainerie' }).suggestion.code, 'BRT');
+  assert.equal(suggest({ payee: 'Harbour Master Palma' }).suggestion.code, 'HAR');
   const fuel = suggest({ payee: 'Shell' });
   assert.equal(fuel.kind, 'single');
   assert.equal(fuel.suggestion.confidence, 'high');
   assert.equal(fuel.suggestion.source, 'merchant');
+});
+
+test('seed: the detail lines are reachable from a real payee', () => {
+  // A chart line nothing can ever route to is just a longer dropdown.
+  const code = (payee) => suggest({ payee }).suggestion?.code;
+  assert.equal(code('STARLINK MARITIME'), 'SAT');
+  assert.equal(code('Furuno France'), 'NAV');
+  assert.equal(code('Panama Canal Authority'), 'CNL');
+  assert.equal(code('Sludge & Waste Services Antibes'), 'WST');
+  assert.equal(code('AWLGRIP EUROPE'), 'DPT');
+  assert.equal(code('Chantier Naval La Ciotat'), 'DDK');
+  assert.equal(code('Blanchisserie du Port'), 'ILA');
+  assert.equal(code('Microsoft Ireland'), 'ITS');
+  assert.equal(code('Cayman Maritime Registry'), 'REG');
+  assert.equal(code('STCW Training Centre'), 'CTR');
+  assert.equal(code('Seabob Cayago'), 'TJS');
+  assert.equal(code('Antibes Scuba Dive Centre'), 'TDV');
+  assert.equal(code('Hobart Catering Equipment'), 'GLE');
+  assert.equal(code('La Marzocco Espresso'), 'GLB');
+  assert.equal(code('Deratisation Cote d Azur'), 'GLP');
+  assert.equal(code('HACCP Food Safety Audits'), 'GLH');
+});
+
+test('galley equipment does not swallow the provisions', () => {
+  // The galley section is the chef's running cost. Food is still a guest-vs-crew
+  // question on the MYBA lines it has always been on.
+  const market = suggest({ payee: 'Transgourmet Nice' });
+  assert.equal(market.kind, 'choice');
+  assert.deepEqual(market.options.map((o) => o.code), ['GFE', 'CFC']);
+});
+
+test('seed: a rule never fires only to be shadowed by an earlier one', () => {
+  // Life-saving claims "zodiac" before tenders do, on purpose — the safety trade
+  // wins a shared name. This pins that, so nobody "fixes" it by reordering.
+  assert.equal(suggest({ payee: 'Zodiac Milpro' }).suggestion.code, 'LSF');
+});
+
+test('seed: every code the classifier routes to is a real chart line', () => {
+  // The seed table references lines by code alone; a typo would silently return
+  // null and drop the transaction into the review queue with no explanation.
+  const payees = ['TOTAL MARINE', 'Pantaenius', 'Bureau Veritas', 'Peters & May',
+    'STARLINK', 'Furuno', 'Admiralty Charts', 'Viking Life', 'Marina Ibiza',
+    'Harbour Dues', 'Pilotage Services', 'Suez Canal', 'Douane Francaise',
+    'Garbage Collection', 'Chandlery Co', 'MTU Marine', 'Cave de Vin', 'Interflora',
+    'Musto', 'Yacht Agent SL', 'Vodafone', 'Netflix', 'Adobe', 'Antifouling Ltd',
+    'Jotun Paints', 'Drydock Barcelona', 'Laundrette', 'Ship Registry', 'Avocat Nice',
+    'Accounting Partners', 'Crew Agency Ltd', 'Sea School', 'Jet Ski Hire',
+    'Scuba Store', 'Water Toys Co', 'Castoldi'];
+  payees.forEach((p) => {
+    const s = suggest({ payee: p });
+    assert.notEqual(s.kind, 'none', `${p} matched nothing`);
+    if (s.kind === 'single') assert.ok(s.suggestion.category, `${p} resolved to no line`);
+    else s.options.forEach((o) => assert.ok(o.category, `${p} resolved to no line`));
+  });
 });
 
 test('seed: two-sided vendors return a guest-vs-crew choice, not a guess', () => {

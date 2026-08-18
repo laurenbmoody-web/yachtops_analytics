@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../../lib/supabaseClient';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
@@ -12,6 +13,7 @@ import './crew-movements.css';
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const STATUS_COLORS = { active: '#7FCBA6', on_leave: '#E6C079', rotational_leave: '#C3AEEA', medical_leave: '#E8A29A', training_leave: '#9DBCF0', travelling: '#7FD3CA', invited: '#D8D6CF' };
 const ABOARD = new Set(['active']); // crew that need a bed
+const AWAY = new Set(['on_leave', 'rotational_leave', 'medical_leave', 'training_leave', 'travelling']); // away, but still worth planning a bed for
 const ymd = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 const dstr = (d) => ymd(d.getFullYear(), d.getMonth(), d.getDate());
 const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
@@ -19,6 +21,35 @@ const daysBetween = (a, b) => Math.round((b.getTime() - a.getTime()) / 86400000)
 const daysIn = (y, m) => new Date(y, m + 1, 0).getDate();
 const tint = (hex, a) => { const n = parseInt((hex || '#7A6F8C').slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
 const initials = (name) => (name || '?').split(' ').map((x) => x[0]).slice(0, 2).join('');
+const ddmm = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+// Canonical yacht department order (Bridge first), with a role-seniority tiebreak
+// so the captain sits at the very top of the crew list. Mirrors the helpers in
+// crew-management/index.jsx.
+const DEPT_ORDER = ['Bridge', 'Deck', 'Engineering', 'Interior', 'Galley', 'Spa', 'Security', 'Aviation', 'Shore / Management'];
+const deptRank = (name) => {
+  if (!name || name === '—') return 999;
+  const i = DEPT_ORDER.indexOf(name);
+  return i === -1 ? 500 : i;
+};
+const roleRank = (role) => {
+  const s = String(role || '').toLowerCase();
+  if (/capt|master/.test(s)) return 0;
+  if (/chief officer|first officer|chief mate/.test(s)) return 1;
+  if (/chief eng/.test(s)) return 1;
+  if (/chief stew|head of (service|interior)|purser/.test(s)) return 1;
+  if (/head chef|exec.* chef/.test(s)) return 1;
+  if (/bosun/.test(s)) return 2;
+  if (/2nd|second|first |1st/.test(s)) return 3;
+  if (/3rd|third|sous/.test(s)) return 4;
+  return 6;
+};
+// Sort by department, then seniority within it, then name. Captain (Bridge +
+// role-rank 0) therefore lands at the very top.
+const byDeptThenRole = (a, b) =>
+  deptRank(a.department) - deptRank(b.department)
+  || roleRank(a.roleTitle) - roleRank(b.roleTitle)
+  || String(a.fullName || '').localeCompare(String(b.fullName || ''));
 
 // The chart is a continuous, horizontally-scrollable timeline rather than one
 // calendar month at a time — this fixed (but generous) window is rendered up
@@ -53,13 +84,21 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const [dragKind, setDragKind] = useState(null); // {type:'assign'|'bar', ...}
   const [pop, setPop] = useState(null);           // move popover
   const [handover, setHandover] = useState(null); // conflict dialog
+  const [hoDate, setHoDate] = useState('');       // chosen handover / changeover date (yyyy-mm-dd)
   const [flashId, setFlashId] = useState(null);   // bar to pulse after "Move anyway"
   const [focusLabel, setFocusLabel] = useState('');
+  const [dayPick, setDayPick] = useState(null);   // quick status picker {userId, fullName, startDate, endDate, count, cur, x, y}
+  const [dragSel, setDragSel] = useState(null);   // live drag highlight {userId, a, b} (day indices within the month)
+  const [painting, setPainting] = useState(false);
+  const dragRef = useRef(null);                   // {userId, a, b} while a click-drag is in progress
+  const [barTip, setBarTip] = useState(null);     // cabin-bar hover tooltip {nm, dt, x, y}
 
   const memberById = useMemo(() => Object.fromEntries(members.map((m) => [m.user_id, m])), [members]);
   const memberIds = useMemo(() => members.map((m) => m.user_id).filter(Boolean), [members]);
   const crewAboard = useMemo(() => members.filter((m) => ABOARD.has(m.status)).length, [members]);
   const deptOf = (uid) => deptColors[memberById[uid]?.department] || '#7A6F8C';
+  // Rows grouped by department (Bridge first) with the captain pinned to the top.
+  const orderedMembers = useMemo(() => [...members].sort(byDeptThenRole), [members]);
 
   // ── the continuous scroll window ─────────────────────────────────────────────
   const rangeStart = useMemo(() => new Date(today.getFullYear(), today.getMonth() - WINDOW_BACK_MONTHS, 1), [today]);
@@ -124,7 +163,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       setHistoryByUser(g);
     })();
     return () => { dead = true; };
-  }, [tenantId, memberIds.join(',')]);
+  }, [tenantId, memberIds.join(','), refresh]);
 
   // cabins + assignments + dept colours
   const loadCabins = useCallback(async () => {
@@ -197,7 +236,15 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   // ── who's aboard but not berthed (unberthed tray) ────────────────────────────
   const unberthed = useMemo(() => {
     const berthed = new Set(assigns.filter((a) => span(a)).map((a) => a.user_id));
-    return members.filter((m) => ABOARD.has(m.status) && !berthed.has(m.user_id));
+    return members.filter((m) => ABOARD.has(m.status) && !berthed.has(m.user_id)).sort(byDeptThenRole);
+  }, [members, assigns, span]);
+
+  // ── crew currently away (leave / travelling) and not berthed ─────────────────
+  // They aren't aboard so they don't need a bed *now*, but they still belong on
+  // the planning board — drag one onto a bed to reserve it for their return.
+  const onLeave = useMemo(() => {
+    const berthed = new Set(assigns.filter((a) => span(a)).map((a) => a.user_id));
+    return members.filter((m) => AWAY.has(m.status) && !berthed.has(m.user_id)).sort(byDeptThenRole);
   }, [members, assigns, span]);
 
   // ── coalesce same-crew same-bed contiguous stays in the DB, then reload ──────
@@ -246,10 +293,18 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     if (!other) return false;
     const early = other.start_date <= moved.start_date ? other : moved;
     const late = other.start_date <= moved.start_date ? moved : other;
+    setHoDate(late.start_date); // default the changeover to when the incoming crew currently starts
     setHandover({
-      inName: memberById[moved.user_id]?.fullName, outName: memberById[other.user_id]?.fullName,
-      onDate: late.start_date, earlyId: early.id,
-      accept: async () => { setHandover(null); await updateAssignment(early.id, { end_date: late.start_date }); await reload(); },
+      inName: memberById[late.user_id]?.fullName, outName: memberById[early.user_id]?.fullName,
+      earlyId: early.id, lateId: late.id, minDate: early.start_date,
+      // The changeover date is editable in the dialog; on accept the outgoing
+      // crew's stay ends on it and the incoming crew's stay starts on it.
+      accept: async (date) => {
+        setHandover(null);
+        await updateAssignment(early.id, { end_date: date });
+        await updateAssignment(late.id, { start_date: date });
+        await reload();
+      },
       reject: async () => { setHandover(null); await undo(); },
       moveAnyway: () => { setHandover(null); onMoveAnyway(); },
     });
@@ -362,6 +417,137 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   };
   const scrollToToday = () => { const el = scrollRef.current; if (el) el.scrollTo({ left: Math.max(0, (todayIndex - 7) * DAY_W), behavior: 'smooth' }); };
 
+  // ── auto-scroll the page while dragging a crew chip up into the chart ─────────
+  // The unberthed tray sits at the bottom of a long list of cabins, so the bed
+  // you want to drop onto is often scrolled off the top. Browsers don't
+  // auto-scroll the window during an HTML5 drag, so we do it: while a drag is
+  // live, listen for dragover on the window and, when the pointer nears the top
+  // or bottom edge of the viewport, scroll toward it.
+  useEffect(() => {
+    if (!dragKind) return undefined;
+    const EDGE = 90;      // px band at each edge that triggers scrolling
+    const MAX_STEP = 22;  // px per frame at the very edge
+    let pointerY = null;
+    let raf = null;
+    const step = () => {
+      raf = null;
+      if (pointerY == null) return;
+      const h = window.innerHeight;
+      let dy = 0;
+      if (pointerY < EDGE) dy = -MAX_STEP * (1 - pointerY / EDGE);
+      else if (pointerY > h - EDGE) dy = MAX_STEP * (1 - (h - pointerY) / EDGE);
+      if (dy) {
+        window.scrollBy(0, dy);
+        raf = requestAnimationFrame(step);
+      }
+    };
+    const onDragOver = (e) => {
+      pointerY = e.clientY;
+      if (raf == null) raf = requestAnimationFrame(step);
+    };
+    window.addEventListener('dragover', onDragOver);
+    return () => {
+      window.removeEventListener('dragover', onDragOver);
+      if (raf != null) cancelAnimationFrame(raf);
+    };
+  }, [dragKind]);
+
+  // ── quick status paint (single day or a click-dragged range) ─────────────────
+  // Clicking a square — or dragging across a row — opens a small swatch popover;
+  // picking a status sets that day / span. We model it on the existing
+  // status-history timeline: write the chosen status at the start of the span and
+  // restore the underlying status the morning after it, so nothing beyond the
+  // painted span is disturbed. These rows are tagged source:'calendar' so they
+  // stay out of the formal audit trail (StatusHistoryTab / profileActivity
+  // exclude that source).
+  const PAINT_HOUR = 12; // noon slot — a paint always wins over a same-day boundary
+  const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const closePick = () => { setDayPick(null); setDragSel(null); };
+  const paintRange = async (userId, startDate, endDate, newStatus) => {
+    if (!canManage || !tenantId || painting) return;
+    setPainting(true);
+    try {
+      let d0 = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+      let d1 = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+      if (d1 < d0) { const t = d0; d0 = d1; d1 = t; }
+      const afterEnd = new Date(d1); afterEnd.setDate(afterEnd.getDate() + 1);
+      const paintAt = new Date(d0); paintAt.setHours(PAINT_HOUR, 0, 0, 0);
+      const d0Mid = new Date(d0); d0Mid.setHours(0, 0, 0, 0);
+      const afterEndMid = new Date(afterEnd); afterEndMid.setHours(0, 0, 0, 0);
+
+      // Replace, don't stack: drop our own paints/restores inside the span so
+      // re-painting an overlapping range starts clean. Manual/seed history is
+      // left untouched.
+      await supabase.from('crew_status_history').delete()
+        .eq('tenant_id', tenantId).eq('user_id', userId).eq('source', 'calendar')
+        .gte('changed_at', d0Mid.toISOString()).lt('changed_at', afterEndMid.toISOString());
+
+      // What the span-start / the morning-after show WITHOUT our paint present.
+      const { data: hist } = await supabase.from('crew_status_history')
+        .select('user_id, new_status, changed_at')
+        .eq('tenant_id', tenantId).eq('user_id', userId)
+        .order('changed_at', { ascending: true });
+      const periods = buildStatusPeriods(hist || []);
+      const baseStart = getStatusForDay(periods, d0);
+      const baseAfter = getStatusForDay(periods, afterEnd);
+
+      const single = sameDay(d0, d1);
+      if (!(single && newStatus === baseStart)) {
+        const rows = [{
+          tenant_id: tenantId, user_id: userId, new_status: newStatus, old_status: baseStart || null,
+          changed_by: currentUserId || null, changed_at: paintAt.toISOString(), source: 'calendar',
+        }];
+        // Keep the paint from bleeding past the span: unless a change already
+        // lands the morning after, restore the underlying status there.
+        const afterHasBoundary = (hist || []).some((h) => sameDay(new Date(h.changed_at), afterEnd));
+        const restoreTo = baseAfter || baseStart || 'active';
+        if (restoreTo !== newStatus && !afterHasBoundary) {
+          rows.push({
+            tenant_id: tenantId, user_id: userId, new_status: restoreTo, old_status: newStatus,
+            changed_by: currentUserId || null, changed_at: afterEndMid.toISOString(), source: 'calendar',
+          });
+        }
+        const { error } = await supabase.from('crew_status_history').insert(rows);
+        if (error) { window.showToast?.(error.message || 'Could not update status', 'error'); return; }
+      }
+
+      // Keep the live badge in sync when today falls inside the painted span.
+      const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0);
+      if (todayMid >= d0Mid && todayMid < afterEndMid) {
+        await supabase.from('tenant_members').update({ status: newStatus })
+          .eq('tenant_id', tenantId).eq('user_id', userId);
+      }
+
+      closePick();
+      setRefresh((r) => r + 1);
+    } finally {
+      setPainting(false);
+    }
+  };
+
+  // Finish a click-drag anywhere: turn the selected span into a status popover.
+  useEffect(() => {
+    const onUp = (e) => {
+      const d = dragRef.current;
+      if (!d) return;
+      dragRef.current = null;
+      const lo = Math.min(d.a, d.b);
+      const hi = Math.max(d.a, d.b);
+      const startDate = new Date(calYear, calMonth, lo + 1);
+      const endDate = new Date(calYear, calMonth, hi + 1);
+      const periods = buildStatusPeriods(historyByUser[d.userId] || []);
+      setDayPick({
+        userId: d.userId,
+        fullName: memberById[d.userId]?.fullName || '',
+        startDate, endDate, count: hi - lo + 1,
+        cur: getStatusForDay(periods, startDate),
+        x: e.clientX, y: e.clientY,
+      });
+    };
+    window.addEventListener('pointerup', onUp);
+    return () => window.removeEventListener('pointerup', onUp);
+  }, [calYear, calMonth, memberById, historyByUser]);
+
   // ── presence rendering (plain single-month grid, unchanged) ─────────────────
   // Today's column is ringed in terracotta — the single-month grid's answer to
   // the cabins chart's today line. Null whenever a different month is on show.
@@ -381,20 +567,29 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
           </div>
         ))}
       </div>
-      {members.length === 0 ? <p className="mv-empty">No crew to display.</p> : members.map((m) => {
+      {orderedMembers.length === 0 ? <p className="mv-empty">No crew to display.</p> : orderedMembers.map((m) => {
         const periods = buildStatusPeriods(historyByUser[m.user_id] || []);
         return (
           <div key={m.user_id} className="mv-row">
             <div className="mv-name" title={m.fullName}>{m.fullName || '—'}</div>
             {Array.from({ length: totalDays }, (_, i) => {
-              const st = getStatusForDay(periods, new Date(calYear, calMonth, i + 1));
+              const cellDate = new Date(calYear, calMonth, i + 1);
+              const st = getStatusForDay(periods, cellDate);
               const isToday = presenceToday === i + 1;
+              const inSel = dragSel && dragSel.userId === m.user_id && i >= Math.min(dragSel.a, dragSel.b) && i <= Math.max(dragSel.a, dragSel.b);
+              const statusLabel = st ? `${m.fullName}: ${getStatusLabel(st)}` : '';
               return (
                 <div
                   key={i}
-                  className={`mv-cell${isToday ? ' is-today' : ''}`}
-                  title={st ? `${m.fullName}: ${getStatusLabel(st)}${isToday ? ' · today' : ''}` : (isToday ? 'Today' : '')}
+                  className={`mv-cell${isToday ? ' is-today' : ''}${canManage ? ' clickable' : ''}${inSel ? ' sel' : ''}`}
+                  title={
+                    canManage
+                      ? `${m.fullName}: ${st ? getStatusLabel(st) : 'no status'}${isToday ? ' · today' : ''} — click, or drag across days, to change`
+                      : (isToday ? `${statusLabel || 'Today'}${statusLabel ? ' · today' : ''}` : statusLabel)
+                  }
                   style={st ? { background: STATUS_COLORS[st] } : undefined}
+                  onPointerDown={canManage ? (e) => { if (e.button !== 0) return; e.preventDefault(); dragRef.current = { userId: m.user_id, a: i, b: i }; setDragSel({ userId: m.user_id, a: i, b: i }); } : undefined}
+                  onPointerEnter={canManage ? () => { const d = dragRef.current; if (!d || d.userId !== m.user_id) return; d.b = i; setDragSel({ userId: m.user_id, a: d.a, b: i }); } : undefined}
                 />
               );
             })}
@@ -470,12 +665,17 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                     {rowAssigns.map(({ a, sp }) => {
                       const m = memberById[a.user_id]; const w = (sp.lvDay - sp.aDay) * DAY_W;
                       const bg = tint(deptOf(a.user_id), 0.34); const nm = m?.fullName || '—';
-                      const lbl = w > 90 ? nm : initials(nm); const dim = selCrew && selCrew !== a.user_id;
+                      // Always the full name — it ellipsizes to fit and reveals in
+                      // full on hover (a short handover sliver is too narrow to show
+                      // inline), so every bar is identifiable.
+                      const lbl = nm; const dim = selCrew && selCrew !== a.user_id;
                       return (
                         <div key={a.id} className={`mv-bar${!sp.contBefore ? ' j' : ''}${!sp.contAfter ? ' l' : ''}${selCrew === a.user_id ? ' sel' : ''}${flashId === a.id ? ' flash' : ''}`} id={`bar-${a.id}`}
-                          draggable={canManage} onDragStart={() => canManage && setDragKind({ type: 'bar', assignId: a.id })}
+                          draggable={canManage} onDragStart={() => { canManage && setDragKind({ type: 'bar', assignId: a.id }); setBarTip(null); }}
                           onClick={(e) => { e.stopPropagation(); setSelCrew(a.user_id); if (canManage) openMove(a, e); }}
-                          style={{ left: leftPx(sp.aDay), width: w, background: bg, opacity: dim ? 0.4 : 1 }} title={`${nm} — ${a.start_date}${a.end_date ? ` → ${a.end_date}` : ' (open)'}`}>
+                          onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setBarTip({ nm, dt: `${a.start_date}${a.end_date ? ` → ${a.end_date}` : ' (open)'}`, x: Math.min(Math.max(e.clientX, r.left + 24), r.right - 24), y: r.top - 6 }); }}
+                          onMouseLeave={() => setBarTip(null)}
+                          style={{ left: leftPx(sp.aDay), width: w, background: bg, opacity: dim ? 0.4 : 1 }}>
                           {!sp.contBefore && <span className="edge s" onClick={(ev) => { ev.stopPropagation(); setSelCrew(a.user_id); scrollToFlight(a.user_id); }}>{addDays(rangeStart, sp.aDay).getDate()}</span>}
                           <span className="lbl">{lbl}</span>
                           {!sp.contAfter && <span className="edge e" onClick={(ev) => { ev.stopPropagation(); setSelCrew(a.user_id); scrollToFlight(a.user_id); }}>{addDays(rangeStart, sp.lvDay).getDate()}</span>}
@@ -643,6 +843,29 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
               ))}
             </div>
           )}
+
+          {/* Away crew — on leave / travelling. Not aboard, but kept on the board
+              so you can reserve a bed for their return. */}
+          {onLeave.length > 0 && (
+            <>
+              <div className="mv-unb-head mv-unb-subhead">
+                <span className="mv-unb-eyebrow">On leave · {onLeave.length}</span>
+                <span className="mv-unb-rule" />
+                <span className="mv-unb-hint">Drag onto a bed to plan their return</span>
+              </div>
+              <div className="mv-unb-list">
+                {onLeave.map((m) => (
+                  <span key={m.user_id} className="mv-unb-chip is-away" draggable={canManage} onDragStart={() => setDragKind({ type: 'assign', userId: m.user_id })} title={canManage ? 'Drag up into the chart onto a bed to reserve it' : ''}>
+                    <span className="av" style={{ background: tint(deptOf(m.user_id), 0.34) }}>{initials(m.fullName)}</span>
+                    <span className="mv-unb-who">
+                      <span className="mv-unb-nm">{m.fullName}{sexOf(m.user_id) && <span className="mv-sex">{sexOf(m.user_id)}</span>}</span>
+                      <span className="mv-unb-rl"><i className="mv-unb-dot" style={{ background: STATUS_COLORS[m.status] }} />{getStatusLabel(m.status)}{m.department ? ` · ${m.department}` : ''}</span>
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -691,11 +914,15 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
         <div className="mv-ovl" onMouseDown={handover.reject}>
           <div className="mv-dlg" onMouseDown={(e) => e.stopPropagation()}>
             <h3>Is this a handover?</h3>
-            <p><b>{handover.inName}</b> overlaps <b>{handover.outName}</b> in this bed. If it's a handover, {handover.outName} leaves the bed on the {new Date(`${handover.onDate}T00:00:00`).getDate()}th and {handover.inName} takes over.</p>
+            <p><b>{handover.inName}</b> overlaps <b>{handover.outName}</b> in this bed. If it's a handover, {handover.outName} leaves the bed on the changeover date below and {handover.inName} takes over from then.</p>
+            <label className="mv-dlg-date">
+              <span>Changeover date</span>
+              <input type="date" value={hoDate} min={handover.minDate} onChange={(e) => setHoDate(e.target.value)} />
+            </label>
             <div className="act">
               <button type="button" className="no" onClick={handover.reject}>No — undo</button>
               <button type="button" className="move" onClick={handover.moveAnyway}>Move anyway</button>
-              <button type="button" className="yes" onClick={handover.accept}>Yes, handover</button>
+              <button type="button" className="yes" disabled={!hoDate} onClick={() => handover.accept(hoDate)}>Yes, handover</button>
             </div>
           </div>
         </div>
@@ -708,6 +935,47 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
           currentUserId={currentUserId} currentUserName={memberById[currentUserId]?.fullName || ''}
           entry={travelModal.entry} legsForEntry={travelModal.entry ? (legsByEntry[travelModal.entry.id] || []) : []}
           onSaved={() => setRefresh((r) => r + 1)} />
+      )}
+
+      {barTip && createPortal(
+        <div className="mv-bartip" style={{ left: barTip.x, top: barTip.y }}>
+          <div className="nm">{barTip.nm}</div>
+          <div className="dt">{barTip.dt}</div>
+        </div>,
+        document.body,
+      )}
+
+      {dayPick && createPortal(
+        <div className="mv-daypick-backdrop" onClick={closePick}>
+          <div
+            className="mv-daypick"
+            style={{ left: Math.min(dayPick.x, window.innerWidth - 232), top: Math.min(dayPick.y + 12, window.innerHeight - 320) }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mv-daypick-head">
+              <span className="who">{dayPick.fullName || 'Crew'}</span>
+              <span className="dt">
+                {ddmm(dayPick.startDate)}{dayPick.count > 1 ? `–${ddmm(dayPick.endDate)} · ${dayPick.count} days` : ''}
+              </span>
+            </div>
+            <div className="mv-daypick-opts">
+              {CREW_STATUSES.filter((s) => s.value !== 'invited').map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`mv-daypick-opt${dayPick.cur === value ? ' is-cur' : ''}`}
+                  disabled={painting}
+                  onClick={() => paintRange(dayPick.userId, dayPick.startDate, dayPick.endDate, value)}
+                >
+                  <i style={{ background: STATUS_COLORS[value] }} />
+                  <span>{label}</span>
+                  {dayPick.cur === value && <Icon name="Check" size={14} />}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

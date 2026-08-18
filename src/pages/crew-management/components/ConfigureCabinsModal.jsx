@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import ModalShell from '../../../components/ui/ModalShell';
 import { showToast } from '../../../utils/toast';
-import { fetchCabins, saveCabins } from '../utils/vesselCabins';
+import { fetchCabins, saveCabins, fetchDeckNames } from '../utils/vesselCabins';
 import './configure-cabins.css';
 
-const DECKS = ['Lower deck · fwd', 'Lower deck · aft', 'Main deck', 'Upper deck', 'Bridge deck', 'Tank deck', 'Crew mess'];
+// Fallback only — used when the vessel has no decks configured in Location
+// Management yet. The live list is pulled from there (fetchDeckNames).
+const DEFAULT_DECKS = ['Lower deck · fwd', 'Lower deck · aft', 'Main deck', 'Upper deck', 'Bridge deck', 'Tank deck', 'Crew mess'];
 const LINEN = ['—', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const PRESETS = { single: ['Single'], double: ['Double'], bunk: ['Upper', 'Lower'], twin: ['Bed A', 'Bed B'] };
 let uid = 1;
@@ -12,6 +14,7 @@ const mkBeds = (labels) => labels.map((label) => ({ label, _k: uid++ }));
 
 const ConfigureCabinsModal = ({ isOpen, onClose, tenantId, userId, crewAboard = 0, onSaved }) => {
   const [cabins, setCabins] = useState([]);
+  const [decks, setDecks] = useState(DEFAULT_DECKS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -21,10 +24,12 @@ const ConfigureCabinsModal = ({ isOpen, onClose, tenantId, userId, crewAboard = 
     let cancelled = false;
     setLoading(true); setDirty(false);
     (async () => {
-      const rows = await fetchCabins(tenantId);
+      const [rows, deckNames] = await Promise.all([fetchCabins(tenantId), fetchDeckNames(tenantId)]);
       if (cancelled) return;
+      const list = deckNames.length ? deckNames : DEFAULT_DECKS;
+      setDecks(list);
       setCabins(rows.map((c) => ({
-        id: c.id, name: c.name || '', deck: c.deck || DECKS[0], linen: c.linen_day || '—',
+        id: c.id, name: c.name || '', deck: c.deck || list[0], linen: c.linen_day || '—',
         beds: (c.beds || []).map((b) => ({ id: b.id, label: b.label, _k: uid++ })), _k: uid++,
       })));
       setLoading(false);
@@ -33,6 +38,11 @@ const ConfigureCabinsModal = ({ isOpen, onClose, tenantId, userId, crewAboard = 
   }, [isOpen, tenantId]);
 
   if (!isOpen) return null;
+
+  // The decks offered in the picker = the vessel's decks, plus any deck a cabin
+  // already sits on (so a legacy/custom value still shows and isn't lost).
+  const deckOptions = [...decks, ...cabins.map((c) => c.deck)]
+    .filter((d, i, a) => d && a.indexOf(d) === i);
 
   const totalBeds = cabins.reduce((n, c) => n + c.beds.length, 0);
   const diff = totalBeds - crewAboard;
@@ -48,10 +58,9 @@ const ConfigureCabinsModal = ({ isOpen, onClose, tenantId, userId, crewAboard = 
   const addBed = (i) => mutate((cs) => { cs[i].beds.push({ label: `Bed ${String.fromCharCode(65 + cs[i].beds.length)}`, _k: uid++ }); return cs; });
   const delBed = (i, j) => mutate((cs) => { cs[i].beds.splice(j, 1); return cs; });
   const delCabin = (i) => mutate((cs) => { cs.splice(i, 1); return cs; });
-  const addPreset = (kind) => mutate((cs) => { cs.push({ name: `Cabin ${cs.length + 1}`, deck: DECKS[0], linen: '—', beds: mkBeds(PRESETS[kind]), _k: uid++ }); return cs; });
+  const addPreset = (kind) => mutate((cs) => { cs.push({ name: `Cabin ${cs.length + 1}`, deck: decks[0] || DEFAULT_DECKS[0], linen: '—', beds: mkBeds(PRESETS[kind]), _k: uid++ }); return cs; });
 
-  const decksPresent = DECKS.filter((d) => cabins.some((c) => c.deck === d))
-    .concat([...new Set(cabins.map((c) => c.deck))].filter((d) => !DECKS.includes(d)));
+  const decksPresent = deckOptions.filter((d) => cabins.some((c) => c.deck === d));
 
   const save = async () => {
     setSaving(true);
@@ -116,7 +125,7 @@ const ConfigureCabinsModal = ({ isOpen, onClose, tenantId, userId, crewAboard = 
                       </div>
                       <div className="cc-meta">
                         <span className="cc-field"><span className="fk">Deck</span>
-                          <select value={c.deck} onChange={(e) => setField(i, 'deck', e.target.value)}>{DECKS.map((d) => <option key={d}>{d}</option>)}</select>
+                          <select value={c.deck} onChange={(e) => setField(i, 'deck', e.target.value)}>{deckOptions.map((d) => <option key={d}>{d}</option>)}</select>
                         </span>
                         <span className="cc-field"><span className="fk">Linen</span>
                           <select value={c.linen} onChange={(e) => setField(i, 'linen', e.target.value)}>{LINEN.map((d) => <option key={d}>{d}</option>)}</select>

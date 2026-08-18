@@ -26,6 +26,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import ExportInventoryModal from './components/ExportInventoryModal';
 import AzurePdfImportModal from './components/AzurePdfImportModal';
+import BulkPhotoScanModal from './components/BulkPhotoScanModal';
 import { exportInventoryToPDF } from './utils/inventoryPdfExport';
 import { exportInventoryToXLSX } from './utils/inventoryXlsxExport';
 
@@ -2581,6 +2582,7 @@ const LocationFirstInventory = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [showAzureImportModal, setShowAzureImportModal] = useState(false);
+  const [showBulkScanModal, setShowBulkScanModal] = useState(false);
   const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
@@ -2789,6 +2791,13 @@ const LocationFirstInventory = () => {
 
   const loadData = useCallback(async () => {
     setPageLoading(true);
+    // Names of every department we ensure a root folder for this load, so the
+    // grid can render the full in-use set on the FIRST visit even if the
+    // inventory_locations inserts haven't propagated to the tree read yet.
+    // Declared here (not inside the first `if (isRoot)`) so the later root
+    // block that reads it is in scope — a sibling-scope declaration threw
+    // ReferenceError and blanked the grid.
+    let ensuredDeptNames = [];
     try {
       if (isRoot) {
         let tenantId = localStorage.getItem('cargo_active_tenant_id') || ctxActiveTenantId;
@@ -2853,21 +2862,36 @@ const LocationFirstInventory = () => {
             }
 
             await ensureDepartmentFolders(departmentsToEnsure);
+            ensuredDeptNames = departmentsToEnsure?.map(d => d?.name)?.filter(Boolean) || [];
           } else {
             const fallbackDepts = DEPARTMENTS?.map((name, idx) => ({ id: `fallback-${idx}`, name }));
             await ensureDepartmentFolders(fallbackDepts);
+            ensuredDeptNames = fallbackDepts?.map(d => d?.name)?.filter(Boolean) || [];
           }
         }
       }
 
-      const tree = await getFolderTree();
+      let tree = {};
+      try {
+        tree = (await getFolderTree()) || {};
+      } catch (treeErr) {
+        console.warn('[LocationFirstInventory] getFolderTree failed — continuing with fallbacks:', treeErr?.message);
+      }
       setFolderTree(tree);
 
       if (isRoot) {
-        const [, all] = await Promise.all([
-          getItemCountByLocation(),
-          getAllItems(),
-        ]);
+        // A transient item-fetch failure must NOT blank the department grid.
+        // Render the folders regardless; counts just default to 0 until reload.
+        let all = [];
+        try {
+          const [, allItems] = await Promise.all([
+            getItemCountByLocation(),
+            getAllItems(),
+          ]);
+          all = allItems || [];
+        } catch (itemsErr) {
+          console.warn('[LocationFirstInventory] item load failed — rendering folders without counts:', itemsErr?.message);
+        }
         let rootFolders = getRootLocationsFromTree(tree);
 
         if (rootFolders?.length === 0) {
@@ -2887,6 +2911,20 @@ const LocationFirstInventory = () => {
           rootFolders = DEPARTMENTS?.slice();
           console.warn('[LocationFirstInventory] public.departments also empty — using hardcoded DEPARTMENTS fallback');
         }
+
+        // Always surface every in-use department (plus Medical), even if its
+        // inventory_locations row hasn't landed yet on this first load. Runs
+        // before the role filter so HODs still only see their own department.
+        rootFolders = rootFolders || [];
+        const deptSource = ensuredDeptNames?.length ? ensuredDeptNames : (DEPARTMENTS || []);
+        const alwaysShow = [...deptSource, 'Medical'];
+        const haveLower = new Set(rootFolders?.map(f => f?.toLowerCase()));
+        alwaysShow?.forEach(name => {
+          if (name && !haveLower?.has(name?.toLowerCase())) {
+            rootFolders?.push(name);
+            haveLower?.add(name?.toLowerCase());
+          }
+        });
 
         if (!isCommand) {
           if (isChief) {
@@ -3977,6 +4015,16 @@ const LocationFirstInventory = () => {
               <Icon name="FileText" size={15} />
               <span className="hidden sm:inline">Import inventory</span>
             </button>
+            {!isRoot && canEdit && (
+              <button
+                onClick={() => setShowBulkScanModal(true)}
+                className="inv-btn ghost"
+                title="Add items by photo — AI identifies each and suggests a folder"
+              >
+                <Icon name="Camera" size={15} />
+                <span className="hidden sm:inline">Photo scan</span>
+              </button>
+            )}
             {!isRoot && (
               <AddDropdownButton
                 isRoot={isRoot}
@@ -4359,6 +4407,14 @@ const LocationFirstInventory = () => {
           defaultSubLocation={currentStorageFields?.subLocation}
           onClose={handleModalClose}
           onSaved={handleItemSaved}
+        />
+      )}
+      {showBulkScanModal && (
+        <BulkPhotoScanModal
+          departmentName={currentStorageFields?.location}
+          currentPath={currentStorageFields?.subLocation || ''}
+          onClose={() => setShowBulkScanModal(false)}
+          onDone={() => loadData()}
         />
       )}
       {showAddFolderModal && (
