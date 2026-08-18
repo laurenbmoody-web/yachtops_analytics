@@ -89,8 +89,8 @@ Deno.serve(async (req: Request) => {
     ? folders.map((f) => `  - ${f}`).join('\n')
     : '  (none yet)';
   const newFolderHint = currentPath
-    ? `If none fit, propose a concise NEW sub-folder as a path nested under "${currentPath}", e.g. "${currentPath} > Sauces".`
-    : 'If none fit, propose a concise NEW top-level sub-folder name for this department, e.g. "Sauces".';
+    ? `Only if NONE of the existing folders is a reasonable home, propose ONE concise new sub-folder nested under "${currentPath}", e.g. "${currentPath} > Sauces".`
+    : 'Only if NONE of the existing folders is a reasonable home, propose ONE concise new top-level sub-folder for this department, e.g. "Sauces".';
 
   const instruction =
     `This is a photo taken in the "${department}" area of a luxury yacht. It may show a SINGLE inventory item or SEVERAL distinct items together. ` +
@@ -100,9 +100,14 @@ Deno.serve(async (req: Request) => {
     '- Multiple identical units of the SAME product are ONE entry, with `quantity` set to the count.\n' +
     '- Only list items you can actually see; do not invent or pad the list.\n\n' +
     'For each item, decide which sub-folder it should be filed in.\n' +
-    'Existing sub-folders you should prefer (use the exact path text):\n' +
+    'STRONGLY prefer an existing sub-folder from the list below — reuse the exact path text. ' +
+    'Creating new folders fragments the store, so only do it when no existing folder fits.\n' +
+    'Existing sub-folders (use the exact path text):\n' +
     folderList + '\n\n' +
-    newFolderHint + '\n\n' +
+    newFolderHint + ' When you do name a new folder: use Title Case, no slashes ("/"), ' +
+    'keep it a broad category many items can share (e.g. "Body Care", not "EarthLite Eye Pillows"), ' +
+    'match the naming style of the existing folders, and never create a near-duplicate of one that already ' +
+    'exists (if "Spa Linens" exists, file linens there rather than inventing "Spa Linens & Towels").\n\n' +
     'Return ONLY a JSON array (no prose, no code fences). Each element is an object with these keys:\n' +
     '- name: a short descriptive item title, e.g. "Tinned San Marzano tomatoes"\n' +
     '- quantity: the number of identical units of THIS item visible, as an integer (at least 1)\n' +
@@ -144,14 +149,27 @@ Deno.serve(async (req: Request) => {
 
     const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
     const knownSet = new Set(folders);
+    // Map a normalised key (case/punctuation-insensitive) back to the exact
+    // existing path, so a proposal that differs only cosmetically snaps onto the
+    // real folder instead of spawning a near-duplicate ("Spa / Body Care" ->
+    // "Spa Body Care", "spa toiletries" -> "Spa Toiletries").
+    const normKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    const knownByNorm = new Map<string, string>();
+    for (const f of folders) { const k = normKey(f); if (k && !knownByNorm.has(k)) knownByNorm.set(k, f); }
 
     const detections = items.map((it) => {
       let folder = str(it.folder);
-      // Trust the model's isNew, but reconcile against the known list so a match
-      // that's actually in the list is never mis-flagged as new.
-      let isNew = it.isNew === true;
-      if (folder && knownSet.has(folder)) isNew = false;
-      else if (folder) isNew = true;
+      // Reconcile against the known list so a folder that already exists (exactly
+      // or up to case/punctuation) is reused rather than mis-flagged as new.
+      let isNew: boolean;
+      if (folder && knownSet.has(folder)) {
+        isNew = false;
+      } else if (folder && knownByNorm.has(normKey(folder))) {
+        folder = knownByNorm.get(normKey(folder))!;
+        isNew = false;
+      } else {
+        isNew = !!folder;
+      }
 
       const qtyNum = Number(it.quantity);
       const quantity = Number.isFinite(qtyNum) && qtyNum >= 1 ? Math.round(qtyNum) : 1;
