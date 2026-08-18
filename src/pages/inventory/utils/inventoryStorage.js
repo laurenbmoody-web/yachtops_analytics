@@ -582,6 +582,9 @@ export const duplicateItem = async (itemId) => {
     const zeroSizes = (sizes) => (Array.isArray(sizes) ? sizes.map((s) => ({ ...s, qty: 0 })) : sizes);
     const seed = { ...row };
     delete seed.id; delete seed.created_at; delete seed.updated_at;
+    // cargo_item_id has a per-tenant UNIQUE index and is minted by a DB trigger
+    // on insert — copying the original's code collides and fails the insert.
+    delete seed.cargo_item_id;
     seed.name = `${row.name || 'Item'} (copy)`;
     seed.barcode = null; // minted CGO- codes are unique per tenant — never copy
     if ('code' in seed) seed.code = null;
