@@ -169,6 +169,10 @@
 .mv-bar.j { border-left: 2.5px solid #C65A1A; }
 .mv-bar.l { border-right: 2.5px solid #C65A1A; }
 .mv-bar.sel { box-shadow: 0 0 0 2px #1C1B3A; }
+/* Two crew holding the same bed at once — each keeps its own lane (see
+   lanesByBed) so both stay clickable; this just makes the clash obvious. */
+.mv-bar.clash { box-shadow: inset 0 0 0 1.5px #E4574C; }
+.mv-bar.clash.sel { box-shadow: inset 0 0 0 1.5px #E4574C, 0 0 0 2px #1C1B3A; }
 /* "Move anyway" leaves the overlap in place on purpose — this pulses the
    bar that landed there so it's obvious which one still needs moving. Keeps
    looping (JS only removes the class once the overlap is actually gone),
@@ -260,6 +264,7 @@
    distinct thing from moving one. */
 .mv-pop-end { margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0F1F5; }
 .mv-pop-end label { margin-top: 0; }
+.mv-pop-end label + input + .act + label { margin-top: 12px; }
 .mv-pop-note { margin: 6px 0 0; font-size: 11px; color: #8B8478; }
 .mv-pop-end .act { margin-top: 10px; }
 

@@ -194,6 +194,16 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     return rows;
   }, [cabins]);
 
+  // Bar geometry. A bed row is one lane tall until two stays overlap in it —
+  // then it grows a lane per collision so nothing is drawn on top of anything
+  // else. Before this, a short stay sitting inside a longer one was painted
+  // over and became invisible AND unclickable, so a double-booking was
+  // impossible to even find, let alone fix.
+  const LANE_H = 20;   // bar height
+  const LANE_GAP = 3;  // between stacked bars
+  const TRACK_PAD = 3; // .mv-track top/bottom padding around a single lane
+  const trackHeight = (lanes) => TRACK_PAD * 2 + lanes * LANE_H + (lanes - 1) * LANE_GAP;
+
   // ── map an assignment onto the scroll window → {aDay, lvDay, contBefore, contAfter}
   // (day indices are 0-based offsets from rangeStart, so they convert straight
   // to pixels via leftPx() — contBefore/contAfter mark a stay that's truncated
@@ -211,6 +221,30 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     if (lvDay <= aDay) return null;
     return { aDay, lvDay, contBefore, contAfter };
   }, [rangeStart, rangeEnd, viewDays]);
+
+  // Lane per stay, per bed — classic interval packing: each stay takes the
+  // first lane whose previous occupant has already left. One lane is the norm;
+  // a second only appears where two people genuinely hold the same bed at once.
+  const lanesByBed = useMemo(() => {
+    const out = {};
+    bedRows.forEach(({ bedId }) => {
+      const list = assigns
+        .filter((a) => a.bed_id === bedId)
+        .map((a) => ({ a, sp: span(a) }))
+        .filter((x) => x.sp)
+        .sort((x, y) => x.sp.aDay - y.sp.aDay || x.sp.lvDay - y.sp.lvDay);
+      const laneEnds = [];   // lvDay of the last stay placed in each lane
+      const laneOf = {};
+      list.forEach(({ a, sp }) => {
+        let lane = laneEnds.findIndex((end) => end <= sp.aDay);
+        if (lane === -1) { laneEnds.push(sp.lvDay); lane = laneEnds.length - 1; }
+        else laneEnds[lane] = sp.lvDay;
+        laneOf[a.id] = lane;
+      });
+      out[bedId] = { lanes: Math.max(1, laneEnds.length), laneOf };
+    });
+    return out;
+  }, [bedRows, assigns, span]);
 
   // ── away runs, per crew member, across the scroll window ─────────────────────
   // The presence board's statuses, projected onto the cabins timeline: a run is
@@ -411,6 +445,25 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     if (!handled) await reload();
   };
   const endStay = async (assignId, dateStr) => { await updateAssignment(assignId, { end_date: dateStr }); setPop(null); await reload(); };
+  // Change when a stay begins. Distinct from splitMove: that ends the stay and
+  // starts a fresh one from the date (a cabin change mid-tour), which for the
+  // SAME bed reconcile() immediately merges back — so "they actually arrive on
+  // the 17th" had no way to be recorded at all. If the new date collides with
+  // whoever else holds the bed, the usual handover prompt runs.
+  const startStay = async (assignId, dateStr) => {
+    const a = assigns.find((x) => x.id === assignId); if (!a) return;
+    const origStart = a.start_date;
+    if (dateStr === origStart) { setPop(null); return; }
+    await updateAssignment(assignId, { start_date: dateStr });
+    setPop(null); setSelCrew(a.user_id);
+    const fresh = await fetchAssignments(tenantId);
+    const moved = fresh.find((x) => x.id === assignId);
+    const handled = promptHandover(moved, fresh, {
+      undo: async () => { await updateAssignment(assignId, { start_date: origStart }); await reload(); },
+      onMoveAnyway: () => flashThenMove(moved),
+    });
+    if (!handled) await reload();
+  };
   const removeStay = async (assignId) => { await deleteAssignment(assignId); setPop(null); await reload(); };
 
   // Flight → cabins: switch to the Cabins view, select the person, scroll to
@@ -668,7 +721,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                     {cabinMixed[bd.cabinId] && <span className="mv-mixed sm" title="Male and female crew share this cabin">⚠</span>}
                   </div>
                 )}
-                <div className="mv-namerow">{bd.label}</div>
+                <div className="mv-namerow" style={{ height: trackHeight(lanesByBed[bd.bedId]?.lanes || 1) }}>{bd.label}</div>
               </React.Fragment>
             ))}
           </div>
@@ -690,7 +743,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
               return (
                 <React.Fragment key={bd.bedId}>
                   {bd.isNewGroup && <div className="mv-groupline" />}
-                  <div className="mv-track" style={{ width: viewDays * DAY_W }} onDragOver={(e) => { if (!canManage) return; e.preventDefault(); e.currentTarget.classList.add('drop'); }} onDragLeave={(e) => e.currentTarget.classList.remove('drop')}
+                  <div className="mv-track" style={{ width: viewDays * DAY_W, height: trackHeight(lanesByBed[bd.bedId]?.lanes || 1) }} onDragOver={(e) => { if (!canManage) return; e.preventDefault(); e.currentTarget.classList.add('drop'); }} onDragLeave={(e) => e.currentTarget.classList.remove('drop')}
                     onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove('drop'); if (!canManage) return; const dk = dragKind; setDragKind(null); if (!dk) return; if (dk.type === 'assign') assignToBed(bd.bedId, dk.userId); else moveWholeBar(dk.assignId, bd.bedId); }}>
                     {/* Guide lines rendered INSIDE the track (not a full-height
                         overlay behind it) — the track has its own opaque
@@ -713,13 +766,17 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                       const away = (awayRunsByUser[a.user_id] || [])
                         .map((r) => ({ ...r, from: Math.max(r.start, sp.aDay), to: Math.min(r.end + 1, sp.lvDay) }))
                         .filter((r) => r.to > r.from);
+                      // Someone else holding this same bed at the same time.
+                      // Both bars stay visible (own lane) and get flagged.
+                      const clash = overlapsOnBed(assigns, a);
+                      const lane = lanesByBed[bd.bedId]?.laneOf?.[a.id] || 0;
                       return (
-                        <div key={a.id} className={`mv-bar${!sp.contBefore ? ' j' : ''}${!sp.contAfter ? ' l' : ''}${selCrew === a.user_id ? ' sel' : ''}${flashId === a.id ? ' flash' : ''}`} id={`bar-${a.id}`}
+                        <div key={a.id} className={`mv-bar${!sp.contBefore ? ' j' : ''}${!sp.contAfter ? ' l' : ''}${selCrew === a.user_id ? ' sel' : ''}${flashId === a.id ? ' flash' : ''}${clash ? ' clash' : ''}`} id={`bar-${a.id}`}
                           draggable={canManage} onDragStart={() => { canManage && setDragKind({ type: 'bar', assignId: a.id }); setBarTip(null); }}
                           onClick={(e) => { e.stopPropagation(); setSelCrew(a.user_id); if (canManage) openMove(a, e); }}
-                          onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setBarTip({ nm, dt: `${a.start_date}${a.end_date ? ` → ${a.end_date}` : ' (open)'}`, x: Math.min(Math.max(e.clientX, r.left + 24), r.right - 24), y: r.top - 6 }); }}
+                          onMouseEnter={(e) => { const r = e.currentTarget.getBoundingClientRect(); setBarTip({ nm, dt: `${a.start_date}${a.end_date ? ` → ${a.end_date}` : ' (open)'}${clash ? ` · double-booked with ${memberById[clash.user_id]?.fullName || 'another crew member'}` : ''}`, x: Math.min(Math.max(e.clientX, r.left + 24), r.right - 24), y: r.top - 6 }); }}
                           onMouseLeave={() => setBarTip(null)}
-                          style={{ left: leftPx(sp.aDay), width: w, background: bg, opacity: dim ? 0.4 : 1 }}>
+                          style={{ left: leftPx(sp.aDay), width: w, background: bg, opacity: dim ? 0.4 : 1, top: TRACK_PAD + lane * (LANE_H + LANE_GAP), height: LANE_H }}>
                           {away.map((r) => (
                             <span
                               key={`away-${r.from}`}
@@ -754,7 +811,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     const hostEl = ev.currentTarget.closest('.mv');
     const host = hostEl.getBoundingClientRect();
     const x = Math.min(rect.left - host.left, hostEl.clientWidth - 260);
-    setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '', end: a.end_date || leaveDateWithin(a) });
+    setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '', start: a.start_date || '', end: a.end_date || leaveDateWithin(a) });
   };
   // Same popover, triggered from the handover dialog's "Move anyway" rather
   // than a direct click on a bar — anchor to the bar's own element if it's
@@ -767,9 +824,9 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
       const rect = barEl.getBoundingClientRect();
       const host = hostEl.getBoundingClientRect();
       const x = Math.min(rect.left - host.left, hostEl.clientWidth - 260);
-      setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '', end: a.end_date || leaveDateWithin(a) });
+      setPop({ a, x: Math.max(0, x), y: rect.bottom - host.top + 8, bedId: a.bed_id, date: '', start: a.start_date || '', end: a.end_date || leaveDateWithin(a) });
     } else {
-      setPop({ a, x: 24, y: 24, bedId: a.bed_id, date: '', end: a.end_date || leaveDateWithin(a) });
+      setPop({ a, x: 24, y: 24, bedId: a.bed_id, date: '', start: a.start_date || '', end: a.end_date || leaveDateWithin(a) });
     }
   };
 
@@ -954,17 +1011,39 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
           </select>
           <label>From date</label>
           <input type="date" value={pop.date} min={dstr(rangeStart)} max={dstr(addDays(rangeEnd, -1))} onChange={(e) => setPop({ ...pop, date: e.target.value })} />
+          {pop.bedId === pop.a.bed_id && (
+            <p className="mv-pop-note">Moving needs a different bed — to change this stay’s dates, use the fields below.</p>
+          )}
           <div className="act">
             <button type="button" className="rm" onClick={() => removeStay(pop.a.id)}>Remove</button>
-            <button type="button" className="apply" disabled={!pop.date} onClick={() => splitMove(pop.a.id, pop.bedId, pop.date)}>Move</button>
+            <button type="button" className="apply" disabled={!pop.date || pop.bedId === pop.a.bed_id} onClick={() => splitMove(pop.a.id, pop.bedId, pop.date)}>Move</button>
           </div>
 
-          {/* Close the stay instead of moving it — the bed frees up from this
-              date, which is what you want when someone leaves the vessel
-              rather than changes cabin. Pre-filled with their first day of
-              leave when the stay runs into one. */}
+          {/* The stay's own dates — when they take the bed, and when it frees
+              up again. Separate from Move, which is about changing cabin
+              mid-tour; these two are what you reach for when someone arrives
+              later than planned or leaves the vessel. */}
           <div className="mv-pop-end">
-            <label>End stay — bed free from</label>
+            <label>Arrives — takes the bed on</label>
+            <input
+              type="date"
+              value={pop.start}
+              min={dstr(rangeStart)}
+              max={pop.a.end_date || dstr(addDays(rangeEnd, -1))}
+              onChange={(e) => setPop({ ...pop, start: e.target.value })}
+            />
+            <div className="act">
+              <button
+                type="button"
+                className="apply"
+                disabled={!pop.start || pop.start === pop.a.start_date || (pop.a.end_date && pop.start >= pop.a.end_date)}
+                onClick={() => startStay(pop.a.id, pop.start)}
+              >
+                Set arrival
+              </button>
+            </div>
+
+            <label>Leaves — bed free from</label>
             <input
               type="date"
               value={pop.end}
