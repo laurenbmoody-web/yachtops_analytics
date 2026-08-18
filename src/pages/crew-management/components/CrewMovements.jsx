@@ -363,11 +363,23 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
   const scrollToToday = () => { const el = scrollRef.current; if (el) el.scrollTo({ left: Math.max(0, (todayIndex - 7) * DAY_W), behavior: 'smooth' }); };
 
   // ── presence rendering (plain single-month grid, unchanged) ─────────────────
+  // Today's column is ringed in terracotta — the single-month grid's answer to
+  // the cabins chart's today line. Null whenever a different month is on show.
+  const presenceToday =
+    calYear === today.getFullYear() && calMonth === today.getMonth() ? today.getDate() : null;
+
   const renderPresence = () => (
     <div className="mv-grid">
       <div className="mv-row">
         <div className="mv-name" />
-        {Array.from({ length: totalDays }, (_, i) => <div key={i} className={`mv-dnum${(i + 1) % 5 === 0 ? ' d5' : ''}`}>{i + 1}</div>)}
+        {Array.from({ length: totalDays }, (_, i) => (
+          <div
+            key={i}
+            className={`mv-dnum${(i + 1) % 5 === 0 ? ' d5' : ''}${presenceToday === i + 1 ? ' is-today' : ''}`}
+          >
+            {i + 1}
+          </div>
+        ))}
       </div>
       {members.length === 0 ? <p className="mv-empty">No crew to display.</p> : members.map((m) => {
         const periods = buildStatusPeriods(historyByUser[m.user_id] || []);
@@ -376,7 +388,15 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
             <div className="mv-name" title={m.fullName}>{m.fullName || '—'}</div>
             {Array.from({ length: totalDays }, (_, i) => {
               const st = getStatusForDay(periods, new Date(calYear, calMonth, i + 1));
-              return <div key={i} className="mv-cell" title={st ? `${m.fullName}: ${getStatusLabel(st)}` : ''} style={st ? { background: STATUS_COLORS[st] } : undefined} />;
+              const isToday = presenceToday === i + 1;
+              return (
+                <div
+                  key={i}
+                  className={`mv-cell${isToday ? ' is-today' : ''}`}
+                  title={st ? `${m.fullName}: ${getStatusLabel(st)}${isToday ? ' · today' : ''}` : (isToday ? 'Today' : '')}
+                  style={st ? { background: STATUS_COLORS[st] } : undefined}
+                />
+              );
             })}
           </div>
         );
