@@ -22,7 +22,7 @@ import './vessel-hub.css';
 
 const VesselSettings = () => {
   const navigate = useNavigate();
-  const { session, loading: authLoading, hasCommandAccess } = useAuth();
+  const { session, loading: authLoading, hasCommandAccess, isVesselAdmin } = useAuth();
 
   // Hub navigation state
   const [searchParams] = useSearchParams();
@@ -44,6 +44,9 @@ const VesselSettings = () => {
   const [vesselData, setVesselData] = useState(null);
   const [tenantId, setTenantId] = useState(null);
   const [userRole, setUserRole] = useState(null);
+  // The caller's tier read straight from their tenant_members row — the only
+  // source that can't be stale (see canEdit below).
+  const [memberTier, setMemberTier] = useState(null);
   
   const isSavingRef = useRef(false);
   
@@ -116,13 +119,20 @@ const VesselSettings = () => {
   // be keyed by id (not name). Source from the shared departments table.
   const [departmentOptions, setDepartmentOptions] = useState([]);
 
-  // Edit access = COMMAND. Source from the app's authoritative permission_tier
-  // (useAuth/hasCommandAccess) rather than get_my_context's `role`: that RPC
-  // additionally filters on tenant_members.status = 'ACTIVE', so a COMMAND user
-  // whose status isn't exactly 'ACTIVE' would otherwise be locked to view-only.
-  // Keep the RPC role as a fallback.
+  // Edit access = the vessel's admin, or anyone Command — the same rule crew
+  // management uses, and the same set the vessels table's RLS policies accept.
+  //
+  // Decided from the membership row itself (memberTier), because neither of the
+  // older sources can be trusted alone: hasCommandAccess() reads the cached
+  // currentUser, which is empty on a browser that hasn't populated it yet, and
+  // get_my_context's role was NULL for everyone until its status filter was
+  // fixed (see 20260818213000). Between them they locked a vessel's own Command
+  // out of their own vessel record. Both stay as fallbacks.
   const role = userRole?.toUpperCase();
-  const canEdit = (typeof hasCommandAccess === 'function' && hasCommandAccess()) || role === 'COMMAND';
+  const canEdit = isVesselAdmin
+    || memberTier === 'COMMAND'
+    || (typeof hasCommandAccess === 'function' && hasCommandAccess())
+    || role === 'COMMAND';
 
   useEffect(() => {
     loadVesselSettings();
@@ -277,6 +287,26 @@ const VesselSettings = () => {
       const role = contextData?.role || 'CREW';
       setUserRole(role);
       setTenantId(contextTenantId);
+
+      // The caller's own membership — the authoritative tier for this vessel,
+      // independent of any cached profile or RPC quirk.
+      try {
+        const { data: myMembership } = await supabase
+          ?.from('tenant_members')
+          ?.select('permission_tier, permission_tier_override, role')
+          ?.eq('tenant_id', contextTenantId)
+          ?.eq('user_id', session?.user?.id)
+          ?.maybeSingle();
+        const tier = (
+          myMembership?.permission_tier_override
+          || myMembership?.permission_tier
+          || myMembership?.role
+          || ''
+        ).toUpperCase().trim();
+        setMemberTier(tier || null);
+      } catch (membershipErr) {
+        console.warn('[VESSEL SETTINGS] membership tier lookup failed (non-fatal)', membershipErr);
+      }
 
       // Step 3: Fetch vessel row from public.vessels by tenant_id
       const { data: vesselRow, error: vesselFetchError } = await supabase
