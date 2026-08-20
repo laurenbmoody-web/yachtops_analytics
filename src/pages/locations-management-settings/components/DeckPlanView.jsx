@@ -935,24 +935,33 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       // already defined — never a free AI guess — so a mis-read can't invent a
       // room, and the region still comes from where the seed fell. A region with
       // no confident match stays an unnamed draft the crew can name/keep/drop.
-      const availByName = new Map(); // normName → unclaimed deck space
-      spaces.forEach((s) => { const k = normName(s.name); if (k && !used.has(s.id) && !availByName.has(k)) availByName.set(k, s); });
+      // Crew names and GA labels diverge (chip "Main Salon" vs GA "SALON & FORMAL
+      // DINING", "Dayhead" vs "DAY HEAD", "VIP" vs "VIP SUITE"), so match loosely:
+      // exact, space-squashed, or a shared distinctive word — skipping generic
+      // position/room words so "Port Aft" can't grab "Stbd Aft".
+      const STOP = new Set(['aft', 'fwd', 'fore', 'forward', 'port', 'stbd', 'starboard', 'deck', 'suite', 'room', 'area', 'cabin', 'the', 'and', 'of', 'no', 'main', 'lower', 'upper']);
+      const squash = (s) => normName(s).replace(/ /g, '');
+      const words = (s) => normName(s).split(' ').filter((w) => w && !STOP.has(w));
+      const avail = spaces.filter((s) => !used.has(s.id)).map((s) => ({ s, n: normName(s.name), sq: squash(s.name), w: words(s.name) }));
       const matchSpace = (raw) => {
-        const k = normName(raw);
-        if (!k) return null;
-        if (availByName.has(k)) return availByName.get(k);
-        for (const [nk, sp] of availByName) {
-          if (nk.length >= 4 && k.length >= 4 && (nk.includes(k) || k.includes(nk))) return sp;
-        }
-        return null;
+        const n = normName(raw); if (!n) return null;
+        const sq = squash(raw); const w = words(raw);
+        // 1. exact or space-insensitive exact ("Dayhead" == "DAY HEAD")
+        let hit = avail.find((a) => a.n === n || a.sq === sq);
+        // 2. one squashed name contains the other (min 4, avoids tiny coincidences)
+        if (!hit) hit = avail.find((a) => a.sq.length >= 4 && sq.length >= 4 && (a.sq.includes(sq) || sq.includes(a.sq)));
+        // 3. share a distinctive word ("salon", "vip", "pantry", "linen"…)
+        if (!hit) hit = avail.find((a) => a.w.some((x) => x.length >= 3 && w.includes(x)));
+        if (!hit) return null;
+        avail.splice(avail.indexOf(hit), 1); // each room links at most once
+        return hit.s;
       };
       rooms.forEach((r, idx) => {
         const nodes = nodesByIdx[idx];
         if (!nodes) return;
         const sp = matchSpace(r.name);
-        if (sp && !used.has(sp.id)) {
+        if (sp) {
           used.add(sp.id);
-          availByName.delete(normName(sp.name));
           items.push({ name: sp.name, origName: sp.name, matchedSpaceId: sp.id, create: false, nodes, traced: true });
         } else {
           items.push({ name: null, matchedSpaceId: null, create: true, nodes, traced: true });
