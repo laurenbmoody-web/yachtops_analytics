@@ -275,7 +275,9 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
   padding:3px 8px;border-radius:6px;background:var(--lg-ink,#1C1B3A);color:#fff;
   font-family:var(--lg-sans);font-size:11px;font-weight:600;line-height:1;white-space:nowrap;
   opacity:0;pointer-events:none;transition:opacity .12s;box-shadow:0 6px 16px -4px rgba(28,27,58,.4);}
-.dp-pin:hover .dp-pin-label{opacity:1;}
+.dp-pin:hover .dp-pin-label{opacity:1;pointer-events:auto;}
+.dp-pin-edit{margin-left:6px;border:0;background:none;cursor:pointer;color:#fff;opacity:.7;font-size:11px;line-height:1;padding:0 1px;pointer-events:auto;}
+.dp-pin-edit:hover{opacity:1;}
 .dp-pin .dp-pin-label::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
   border:4px solid transparent;border-top-color:var(--lg-ink,#1C1B3A);}
 
@@ -512,6 +514,9 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-swatch.is-empty{background:#6B7280;}
 /* Category picker in the adjust bar — labelled colour chips. */
 .dp-adjhdr{white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
+.dp-adj-name{font-family:var(--lg-sans);font-size:13px;font-weight:600;color:var(--lg-ink);
+  background:#fff;border:1px solid var(--lg-hair);border-radius:8px;padding:5px 9px;outline:none;min-width:150px;}
+.dp-adj-name:focus{border-color:var(--lg-terra);box-shadow:0 0 0 3px #FAECE7;}
 .dp-hint-faint{color:var(--lg-faint,#AEB4C2);font-size:11px;margin-left:6px;}
 /* Info dot in the Adjust header — carries the how-to in its tooltip. */
 .dp-adj-info{display:inline-flex;align-items:center;color:var(--lg-faint,#AEB4C2);cursor:help;}

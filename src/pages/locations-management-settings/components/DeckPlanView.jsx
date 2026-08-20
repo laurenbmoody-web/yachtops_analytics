@@ -68,6 +68,11 @@ function cropBg(crop, url) {
 const spacesOf = (deck) => (deck.zones || []).flatMap((z) => z.spaces || []);
 const isScanned = (space) => space?.scan?.status === 'ready';
 
+// Detected / auto-traced outlines come back dense (a point every few pixels),
+// which is painful to edit. Thin them to the corners that matter so a proposal
+// arrives with a handful of handles, not dozens (Simplify can go further).
+const thinContour = (nodes) => (Array.isArray(nodes) && nodes.length > 6 ? simplifyClosed(nodes, 0.006) : nodes);
+
 // Overlay filters — roll pins inside each room's scan up to the deck plan, so
 // you can see "N defects / items here" across the whole vessel without opening
 // a room. `key` matches scan_hotspots.layer; defects use their own live list.
@@ -545,7 +550,8 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
     // nothing hits the database until Apply.
     if (editing.propIdx != null) {
       const { propIdx, nodes } = editing;
-      setProposals((p) => (p ? { ...p, items: p.items.map((x, k) => (k === propIdx ? { ...x, nodes } : x)) } : p));
+      const nm = (editing.name || '').trim();
+      setProposals((p) => (p ? { ...p, items: p.items.map((x, k) => (k === propIdx ? { ...x, nodes, name: nm || null } : x)) } : p));
       setEditing(null); setEditSel(null);
       return;
     }
@@ -716,7 +722,7 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       try {
         const seg = await getSeg(deck);
         const region = regionAtPoint(seg, x, y);
-        const nodes = region ? regionContour(seg, region) : null;
+        const nodes = region ? thinContour(regionContour(seg, region)) : null;
         if (nodes) {
           saveShape(tracing.spaceId, { closed: true, nodes });
           captureSample(deck, tracing.spaceId, nodes, 'tap');
@@ -878,19 +884,19 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
         claimed.set(regionId, true); // this region is the crew's, off-limits to the model pass
         if (entries.length === 1) {
           const { space } = entries[0];
-          const nodes = regionContour(seg, region);
+          const nodes = thinContour(regionContour(seg, region));
           if (!nodes) return;
           used.add(space.id);
-          items.push({ name: space.name, matchedSpaceId: space.id, create: false, nodes, traced: true, anchored: true });
+          items.push({ name: space.name, origName: space.name, matchedSpaceId: space.id, create: false, nodes, traced: true, anchored: true });
         } else {
           // Two+ pins in one region → the crew marked rooms the AI merged. Split
           // by watershed (nearest-pin) so each pin gets its own share of the area.
           const parts = splitRegionBySeeds(seg, region, entries.map((e) => e.pin));
           entries.forEach((e, k) => {
-            const nodes = parts[k];
+            const nodes = thinContour(parts[k]);
             if (!nodes) return;
             used.add(e.space.id);
-            items.push({ name: e.space.name, matchedSpaceId: e.space.id, create: false, nodes, traced: true, anchored: true });
+            items.push({ name: e.space.name, origName: e.space.name, matchedSpaceId: e.space.id, create: false, nodes, traced: true, anchored: true });
           });
         }
       });
@@ -917,10 +923,10 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       byRegion.forEach((idxs, regionId) => {
         const region = seg.regionById.get(regionId);
         if (idxs.length === 1) {
-          nodesByIdx[idxs[0]] = regionContour(seg, region);
+          nodesByIdx[idxs[0]] = thinContour(regionContour(seg, region));
         } else {
           const parts = splitRegionBySeeds(seg, region, idxs.map((i) => rooms[i].seed));
-          idxs.forEach((i, k) => { nodesByIdx[i] = parts[k] || null; });
+          idxs.forEach((i, k) => { nodesByIdx[i] = thinContour(parts[k]) || null; });
         }
       });
       // The model is used ONLY to find regions to trace — never to name or match
@@ -1001,6 +1007,12 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           catch (err) { console.error('[deck-plan] create room failed:', name, err); continue; }
         }
         if (!spaceId) continue;
+        // Renamed a matched room in the reshape bar → push the rename through too.
+        const nm = (it.name || '').trim();
+        if (it.matchedSpaceId && nm && nm !== (it.origName || '')) {
+          setLocalNames((p) => ({ ...p, [it.matchedSpaceId]: nm }));
+          await updateSpace(it.matchedSpaceId, nm).catch((e) => console.error('[deck-plan] rename on apply', e));
+        }
         await setSpaceShape(spaceId, { closed: true, nodes: it.nodes }).catch((e) => console.error('[deck-plan] shape save', e));
         captureSample(deck, spaceId, it.nodes, 'detect_apply');
         const c = centroidOf(it.nodes);
@@ -1352,7 +1364,15 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
               // the post-apply Adjust tool; Done writes the corners back to the
               // proposal only.
               <div className="dp-tracehint dp-ai-review">
-                <span className="dp-adjhdr">Reshaping <em>{editing.name || 'outline'}</em> · <b>{editing.nodes.length}</b> pts <span className="dp-hint-faint" title="Drag a corner to move (goes exactly where you drop it) · hold Shift to keep a wall straight · click a + midpoint to add · double-click a corner to delete">drag · + add · double-click to delete</span></span>
+                <span className="dp-adjhdr">
+                  <input
+                    className="dp-adj-name"
+                    value={editing.name || ''}
+                    placeholder="Name this room"
+                    onChange={(e) => setEditing((ed) => (ed ? { ...ed, name: e.target.value } : ed))}
+                  />
+                  · <b>{editing.nodes.length}</b> pts <span className="dp-hint-faint" title="Drag a corner to move (goes exactly where you drop it) · hold Shift to keep a wall straight · click a + midpoint to add · double-click a corner to delete">drag · + add · double-click to delete</span>
+                </span>
                 <span className="dp-spring" />
                 <button className="lg-btn sm" disabled={editing.nodes.length <= 4} onClick={simplifyEdit} title="Reduce the number of corners">Simplify</button>
                 <button className="lg-btn sm" disabled={editSel == null || editing.nodes.length <= 3} onClick={() => deleteNodeAt(editSel)}>Delete point</button>
@@ -1529,7 +1549,18 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
                         onPointerDown={(e) => onDotDown(e, s, deck, true)}
                         title={linkMode ? nameOf(s) : scanned ? `${nameOf(s)} — open on map` : `${nameOf(s)} — add a scan`}
                       >
-                        <span className="dp-pin-label">{nameOf(s)}</span>
+                        <span className="dp-pin-label">
+                          {nameOf(s)}
+                          {!linkMode && (
+                            <button
+                              type="button"
+                              className="dp-pin-edit"
+                              title={`Rename ${nameOf(s)}`}
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onClick={(e) => { e.stopPropagation(); e.preventDefault(); renameRoom(s); }}
+                            >✎</button>
+                          )}
+                        </span>
                         {overlay && ovCount > 0 && (
                           <button
                             type="button"
