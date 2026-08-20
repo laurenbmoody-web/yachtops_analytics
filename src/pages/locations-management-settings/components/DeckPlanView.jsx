@@ -929,15 +929,34 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
           idxs.forEach((i, k) => { nodesByIdx[i] = thinContour(parts[k]) || null; });
         }
       });
-      // The model is used ONLY to find regions to trace — never to name or match
-      // rooms. Its name guesses were landing on the wrong rooms, so assignment to
-      // an existing room happens purely by pin geometry (the pass above). Every
-      // remaining region is an unnamed draft outline: the crew keeps the shapes
-      // that are real rooms and drops the rest. Nothing carries an AI label.
+      // Link each traced region to one of the deck's OWN unplaced rooms by the
+      // label the AI read off the GA at that spot (e.g. read "CAPTAINS OFFICE" →
+      // the crew's "Captains Office" chip). We only ever match to a room the crew
+      // already defined — never a free AI guess — so a mis-read can't invent a
+      // room, and the region still comes from where the seed fell. A region with
+      // no confident match stays an unnamed draft the crew can name/keep/drop.
+      const availByName = new Map(); // normName → unclaimed deck space
+      spaces.forEach((s) => { const k = normName(s.name); if (k && !used.has(s.id) && !availByName.has(k)) availByName.set(k, s); });
+      const matchSpace = (raw) => {
+        const k = normName(raw);
+        if (!k) return null;
+        if (availByName.has(k)) return availByName.get(k);
+        for (const [nk, sp] of availByName) {
+          if (nk.length >= 4 && k.length >= 4 && (nk.includes(k) || k.includes(nk))) return sp;
+        }
+        return null;
+      };
       rooms.forEach((r, idx) => {
         const nodes = nodesByIdx[idx];
         if (!nodes) return;
-        items.push({ name: null, matchedSpaceId: null, create: true, nodes, traced: true });
+        const sp = matchSpace(r.name);
+        if (sp && !used.has(sp.id)) {
+          used.add(sp.id);
+          availByName.delete(normName(sp.name));
+          items.push({ name: sp.name, origName: sp.name, matchedSpaceId: sp.id, create: false, nodes, traced: true });
+        } else {
+          items.push({ name: null, matchedSpaceId: null, create: true, nodes, traced: true });
+        }
       });
       if (!items.length) { setDetectError({ deckId: deck.id, message: extSkipped ? 'This deck read as mostly open exterior deck — no interior rooms to outline. Drop a pin in any space you want traced, then Detect again.' : 'Rooms were read but none sat on the plan. Try reframing the deck tighter around the drawing.' }); return; }
       setProposals({ deckId: deck.id, items, extSkipped });
