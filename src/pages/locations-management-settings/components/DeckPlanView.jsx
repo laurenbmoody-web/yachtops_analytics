@@ -909,24 +909,50 @@ export default function DeckPlanView({ decks = [], onAddScan, onReload }) {
       // this: a pinned region is claimed above and always traced, so an exterior
       // area the crew genuinely wants still comes through.)
       let extSkipped = 0;
-      const byRegion = new Map();
+      const DECK_PX = seg.W * seg.H;
+      // A clean 4-corner outline from the AI's bounding box (0..1 crop space),
+      // slightly inset. This is the reliable fallback where the flood-fill region
+      // is noisy or leaked — dense GAs (dashed construction lines, hatching) break
+      // the wall mask, so a tidy AI box beats a fragmented blob.
+      const bboxRect = (bb) => {
+        if (!bb) return null;
+        const x0 = clamp01(bb.x + 0.004); const y0 = clamp01(bb.y + 0.004);
+        const x1 = clamp01(bb.x + bb.w - 0.004); const y1 = clamp01(bb.y + bb.h - 0.004);
+        if (x1 - x0 < 0.012 || y1 - y0 < 0.012) return null;
+        return [{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }];
+      };
+      // Trust the flood-fill region only when it's a plausible room: not noise,
+      // not leaked to half the deck, and roughly the size the AI's box expects.
+      const regionTrusted = (region, bb) => {
+        const f = region.area / DECK_PX;
+        if (f < 0.0018 || f > 0.42) return false;
+        const bf = bb ? Math.max(0, bb.w) * Math.max(0, bb.h) : 0;
+        if (bf > 0.003 && (f > bf * 3.2 || f < bf * 0.28)) return false;
+        return true;
+      };
+      // One outline per AI room: its trusted flood-fill region (real wall shape),
+      // else its clean AI box. Seeds sharing ONE trusted region are split by
+      // watershed so genuinely-merged cabins each get their part.
+      const nodesByIdx = new Array(rooms.length).fill(null);
+      const shared = new Map(); // regionId → [idx] (trusted regions only)
       rooms.forEach((r, idx) => {
         const region = regionAtPoint(seg, r.seed.x, r.seed.y);
-        if (!region || claimed.has(region.id)) return;
-        if (region.exterior) { extSkipped += 1; return; }
-        if (!byRegion.has(region.id)) byRegion.set(region.id, []);
-        byRegion.get(region.id).push(idx);
+        if (region && claimed.has(region.id)) return;              // a pin already owns this room
+        if (region && region.exterior) { extSkipped += 1; return; } // open teak deck, not a room
+        if (region && regionTrusted(region, r.bbox)) {
+          if (!shared.has(region.id)) shared.set(region.id, []);
+          shared.get(region.id).push(idx);
+        } else {
+          nodesByIdx[idx] = bboxRect(r.bbox);                       // no/poor region → AI box
+        }
       });
-      // A region with ONE seed → its outline. SEVERAL seeds → rooms that flooded
-      // together (thin/undrawn wall); split by watershed so each gets its part.
-      const nodesByIdx = new Array(rooms.length).fill(null);
-      byRegion.forEach((idxs, regionId) => {
+      shared.forEach((idxs, regionId) => {
         const region = seg.regionById.get(regionId);
         if (idxs.length === 1) {
           nodesByIdx[idxs[0]] = thinContour(regionContour(seg, region));
         } else {
           const parts = splitRegionBySeeds(seg, region, idxs.map((i) => rooms[i].seed));
-          idxs.forEach((i, k) => { nodesByIdx[i] = thinContour(parts[k]) || null; });
+          idxs.forEach((i, k) => { nodesByIdx[i] = thinContour(parts[k]) || bboxRect(rooms[i].bbox); });
         }
       });
       // Link each traced region to one of the deck's OWN unplaced rooms by the
