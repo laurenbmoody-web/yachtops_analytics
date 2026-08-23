@@ -630,6 +630,61 @@
 .inv-minicheck svg { color: #FFFFFF; }
 
 /* ── active filter chips ────────────────────────────────────── */
+/* ── Filter panel (editorial) ───────────────────────────────── */
+.invf-panel {
+  position: absolute; top: 100%; left: 0; margin-top: 8px;
+  width: 320px; max-height: 80vh; overflow-y: auto; z-index: 40;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 14px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32); padding: 16px;
+}
+.invf-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.invf-title { font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.invf-x { border: none; background: none; color: #8B8478; cursor: pointer; padding: 4px; border-radius: 8px; display: inline-flex; }
+.invf-x:hover { background: #F0F1F5; color: #1C1B3A; }
+.invf-sec { margin-bottom: 16px; }
+.invf-sec:last-of-type { margin-bottom: 8px; }
+.invf-label { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0 0 8px; }
+.invf-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.invf-chip {
+  padding: 5px 10px; border-radius: 7px; border: 1px solid #E5E7EB; background: #FAFAF8; color: #1C1B3A;
+  font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; transition: all .14s;
+}
+.invf-chip:hover { border-color: #C65A1A; }
+.invf-chip.on { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+.invf-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 8px;
+  font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
+.invf-crumb { border: none; background: none; color: #C65A1A; cursor: pointer; padding: 0; font: inherit; }
+.invf-crumb.muted { color: #8B8478; cursor: default; }
+.invf-loclist { display: flex; flex-direction: column; gap: 3px; }
+.invf-locrow {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+  padding: 9px 10px; border: 1px solid #EEF0F4; border-radius: 9px; background: #FFFFFF; cursor: pointer;
+  font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; transition: all .14s;
+}
+.invf-locrow:hover { border-color: #C65A1A; }
+.invf-locrow.on { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.invf-locrow .meta { display: flex; align-items: center; gap: 6px; color: #AEB4C2; }
+.invf-locempty { font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; padding: 6px 2px; }
+.invf-qf {
+  display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 6px;
+  padding: 9px 12px; border: 1px solid #E5E7EB; border-radius: 10px; background: #FFFFFF; color: #1C1B3A; cursor: pointer;
+  font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; transition: all .14s;
+}
+.invf-qf .l { display: flex; align-items: center; gap: 8px; color: inherit; }
+.invf-qf:hover { border-color: #C9CED6; }
+.invf-qf.on { border-color: #C65A1A; background: #FBEFE9; color: #C65A1A; }
+.invf-days { display: flex; gap: 8px; }
+.invf-day { flex: 1; padding: 7px; border: 1px solid #E5E7EB; border-radius: 9px; background: #FAFAF8; color: #8B8478;
+  font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; transition: all .14s; }
+.invf-day:hover { border-color: #C65A1A; color: #C65A1A; }
+.invf-day.on { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+.invf-input { width: 100%; padding: 9px 11px; border: 1px solid #E5E7EB; border-radius: 9px; background: #FAFAF8;
+  font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; box-sizing: border-box; }
+.invf-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.invf-clear { width: 100%; padding: 9px; border: none; background: none; color: #8B8478; cursor: pointer;
+  font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; }
+.invf-clear:hover { color: #1C1B3A; }
+
 .inv-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
 .inv-chip {
   display: inline-flex; align-items: center; gap: 6px;

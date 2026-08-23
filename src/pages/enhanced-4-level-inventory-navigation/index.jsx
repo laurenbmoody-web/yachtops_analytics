@@ -2375,172 +2375,136 @@ const segmentsToStorageFields = (segments) => ({
 const isItemDragId = (id) => typeof id === 'string' && id?.startsWith('item:');
 
 // ─── Filter Panel ─────────────────────────────────────────────────────────────
-const FilterPanel = ({ items, filters, onChange, onClose }) => {
+const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], activeLocationId, onPickLocation }) => {
   const availableTags = [...new Set(items?.flatMap(i => i?.tags || []))];
   const availableBrands = [...new Set(items?.map(i => i?.brand)?.filter(Boolean))];
   const availableSuppliers = [...new Set(items?.map(i => i?.supplier)?.filter(Boolean))];
-  const availableLocations = [...new Set(items?.map(i => i?.vessel_location || i?.location_detail)?.filter(Boolean))];
 
-  const toggle = (key, value) => {
-    onChange({ ...filters, [key]: value });
-  };
-
+  const toggle = (key, value) => onChange({ ...filters, [key]: value });
   const toggleTag = (tag) => {
     const current = filters?.tags || [];
     const next = current?.includes(tag) ? current?.filter(t => t !== tag) : [...current, tag];
     onChange({ ...filters, tags: next });
   };
 
+  // ── Location drill-down over the vessel_locations tree ──────────────────
+  const [locBrowse, setLocBrowse] = useState([]); // array of node ids from root
+  const byId = React.useMemo(() => Object.fromEntries((vesselLocations || []).map(l => [l.id, l])), [vesselLocations]);
+  const childrenOf = (pid) => (vesselLocations || [])
+    .filter(l => (l.parent_id || null) === (pid || null))
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.name).localeCompare(String(b.name)));
+  const currentParent = locBrowse.length ? locBrowse[locBrowse.length - 1] : null;
+  const locRows = childrenOf(currentParent);
+
+  const Chip = ({ on, label, onClick }) => (
+    <button type="button" className={`invf-chip${on ? ' on' : ''}`} onClick={onClick}>{label}</button>
+  );
+
   return (
-    <div className="absolute top-full left-0 mt-2 w-80 bg-card border border-border rounded-2xl shadow-xl z-40 p-4 space-y-4 max-h-[80vh] overflow-y-auto">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">Filters</h3>
-        <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
-          <Icon name="X" size={16} />
-        </button>
+    <div className="invf-panel">
+      <div className="invf-head">
+        <span className="invf-title">Filters</span>
+        <button className="invf-x" onClick={onClose} aria-label="Close"><Icon name="X" size={16} /></button>
       </div>
 
-      {availableTags?.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Tags</p>
-          <div className="flex flex-wrap gap-1.5">
-            {availableTags?.map(tag => (
-              <button
-                key={tag}
-                onClick={() => toggleTag(tag)}
-                className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
-                  filters?.tags?.includes(tag)
-                    ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
-                }`}
-              >
-                {tag}
-              </button>
+      {/* Locations — physical drill-down (Deck › Zone › Room › Box) */}
+      {vesselLocations?.length > 0 && (
+        <div className="invf-sec">
+          <p className="invf-label">Location</p>
+          <div className="invf-crumbs">
+            <button className="invf-crumb" onClick={() => setLocBrowse([])}>All</button>
+            {locBrowse.map((id, i) => (
+              <React.Fragment key={id}>
+                <span>›</span>
+                <button className={`invf-crumb${i === locBrowse.length - 1 ? ' muted' : ''}`}
+                  onClick={() => setLocBrowse(locBrowse.slice(0, i + 1))}>{byId[id]?.name || '…'}</button>
+              </React.Fragment>
             ))}
+          </div>
+          <div className="invf-loclist">
+            {locRows.length === 0 && <p className="invf-locempty">No sub-locations here.</p>}
+            {locRows.map(node => {
+              const kids = childrenOf(node.id).length;
+              const on = activeLocationId === node.id;
+              return (
+                <div key={node.id} className={`invf-locrow${on ? ' on' : ''}`}
+                  role="button" tabIndex={0}
+                  onClick={() => (kids ? setLocBrowse([...locBrowse, node.id]) : onPickLocation?.(node.id, node.name))}>
+                  <span>{node.name}</span>
+                  <span className="meta">
+                    {/* Any node can be selected to view items filed directly there. */}
+                    <button type="button" title="View items here"
+                      onClick={(e) => { e.stopPropagation(); onPickLocation?.(node.id, node.name); }}
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: on ? '#C65A1A' : '#AEB4C2', padding: 2, display: 'inline-flex' }}>
+                      <Icon name="Eye" size={14} />
+                    </button>
+                    {kids > 0 && <><span style={{ fontSize: 11 }}>{kids}</span><Icon name="ChevronRight" size={15} /></>}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {availableTags?.length > 0 && (
+        <div className="invf-sec">
+          <p className="invf-label">Tags</p>
+          <div className="invf-chips">
+            {availableTags.map(tag => <Chip key={tag} on={filters?.tags?.includes(tag)} label={tag} onClick={() => toggleTag(tag)} />)}
           </div>
         </div>
       )}
 
       {availableBrands?.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Brand</p>
-          <div className="flex flex-wrap gap-1.5">
-            {availableBrands?.map(brand => (
-              <button
-                key={brand}
-                onClick={() => toggle('brand', filters?.brand === brand ? null : brand)}
-                className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
-                  filters?.brand === brand
-                    ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
-                }`}
-              >
-                {brand}
-              </button>
-            ))}
+        <div className="invf-sec">
+          <p className="invf-label">Brand</p>
+          <div className="invf-chips">
+            {availableBrands.map(b => <Chip key={b} on={filters?.brand === b} label={b} onClick={() => toggle('brand', filters?.brand === b ? null : b)} />)}
           </div>
         </div>
       )}
 
       {availableSuppliers?.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Supplier</p>
-          <div className="flex flex-wrap gap-1.5">
-            {availableSuppliers?.map(supplier => (
-              <button
-                key={supplier}
-                onClick={() => toggle('supplier', filters?.supplier === supplier ? null : supplier)}
-                className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
-                  filters?.supplier === supplier
-                    ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
-                }`}
-              >
-                {supplier}
-              </button>
-            ))}
+        <div className="invf-sec">
+          <p className="invf-label">Supplier</p>
+          <div className="invf-chips">
+            {availableSuppliers.map(s => <Chip key={s} on={filters?.supplier === s} label={s} onClick={() => toggle('supplier', filters?.supplier === s ? null : s)} />)}
           </div>
         </div>
       )}
 
-      {availableLocations?.length > 0 && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Location</p>
-          <div className="flex flex-wrap gap-1.5">
-            {availableLocations?.map(loc => (
-              <button
-                key={loc}
-                onClick={() => toggle('location', filters?.location === loc ? null : loc)}
-                className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
-                  filters?.location === loc
-                    ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground'
-                }`}
-              >
-                {loc}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quick Filters</p>
+      <div className="invf-sec">
+        <p className="invf-label">Quick filters</p>
         {[
           { key: 'belowPar', label: 'Below Par', icon: 'TrendingDown' },
           { key: 'hasExpiry', label: 'Has Expiry Date', icon: 'Calendar' },
           { key: 'hasImage', label: 'Has Image', icon: 'Image' },
-        ]?.map(({ key, label, icon }) => (
-          <button
-            key={key}
-            onClick={() => toggle(key, !filters?.[key])}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl border text-sm transition-all ${
-              filters?.[key]
-                ? 'bg-primary/10 border-primary/40 text-primary' :'bg-background border-border text-foreground hover:border-primary/30'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Icon name={icon} size={14} className={filters?.[key] ? 'text-primary' : 'text-muted-foreground'} />
-              {label}
-            </div>
-            {filters?.[key] && <Icon name="Check" size={14} className="text-primary" />}
+        ].map(({ key, label, icon }) => (
+          <button key={key} className={`invf-qf${filters?.[key] ? ' on' : ''}`} onClick={() => toggle(key, !filters?.[key])}>
+            <span className="l"><Icon name={icon} size={14} /> {label}</span>
+            {filters?.[key] && <Icon name="Check" size={14} />}
           </button>
         ))}
       </div>
 
-      <div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Expiring Soon</p>
-        <div className="flex gap-2">
-          {[7, 14, 30]?.map(days => (
-            <button
-              key={days}
-              onClick={() => toggle('expiringSoon', filters?.expiringSoon === days ? null : days)}
-              className={`flex-1 py-1.5 text-xs rounded-xl border transition-all ${
-                filters?.expiringSoon === days
-                  ? 'bg-amber-500 text-white border-amber-500' :'bg-background text-muted-foreground border-border hover:border-amber-400 hover:text-amber-600'
-              }`}
-            >
-              {days}d
-            </button>
+      <div className="invf-sec">
+        <p className="invf-label">Expiring soon</p>
+        <div className="invf-days">
+          {[7, 14, 30].map(days => (
+            <button key={days} className={`invf-day${filters?.expiringSoon === days ? ' on' : ''}`}
+              onClick={() => toggle('expiringSoon', filters?.expiringSoon === days ? null : days)}>{days}d</button>
           ))}
         </div>
       </div>
 
-      <div>
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Year (Wine)</p>
-        <input
-          type="number"
-          placeholder="e.g. 2019"
-          value={filters?.year || ''}
-          onChange={(e) => toggle('year', e?.target?.value || null)}
-          className="w-full px-3 py-2 text-sm bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30"
-          min="1900"
-          max="2099"
-        />
+      <div className="invf-sec">
+        <p className="invf-label">Year (Wine)</p>
+        <input className="invf-input" type="number" placeholder="e.g. 2019" min="1900" max="2099"
+          value={filters?.year || ''} onChange={(e) => toggle('year', e?.target?.value || null)} />
       </div>
 
-      <button
-        onClick={() => onChange({ tags: [] })}
-        className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-      >
-        Clear all filters
-      </button>
+      <button className="invf-clear" onClick={() => onChange({ tags: [] })}>Clear all filters</button>
     </div>
   );
 };
@@ -2571,6 +2535,7 @@ const LocationFirstInventory = () => {
   // location QR or picking a location, and consumed from the ?loc deep-link.
   const [activeLocationId, setActiveLocationId] = useState(null);
   const [activeLocationName, setActiveLocationName] = useState('');
+  const [vesselLocations, setVesselLocations] = useState([]); // physical location tree for the filter drill-down
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showAddFolderModal, setShowAddFolderModal] = useState(false);
@@ -2629,6 +2594,23 @@ const LocationFirstInventory = () => {
     next.delete('brand'); next.delete('supplier'); next.delete('loc'); next.delete('ln');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
+
+  // Physical location tree (vessel_locations) for the Filter panel's drill-down.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const tenantId = localStorage.getItem('cargo_active_tenant_id') || ctxActiveTenantId;
+      if (!tenantId) return;
+      const { data, error } = await supabase
+        ?.from('vessel_locations')
+        ?.select('id, name, parent_id, level, is_archived, sort_order')
+        ?.eq('tenant_id', tenantId)
+        ?.eq('is_archived', false);
+      if (!alive || error || !data) return;
+      setVesselLocations(data);
+    })();
+    return () => { alive = false; };
+  }, [ctxActiveTenantId]);
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem('cargo_inventory_view_mode') || 'list'; } catch { return 'list'; }
   });
@@ -4112,6 +4094,9 @@ const LocationFirstInventory = () => {
                     filters={activeFilters}
                     onChange={setActiveFilters}
                     onClose={() => setShowFilterPanel(false)}
+                    vesselLocations={vesselLocations}
+                    activeLocationId={activeLocationId}
+                    onPickLocation={(id, name) => { setActiveLocationId(id); setActiveLocationName(name || ''); setShowFilterPanel(false); }}
                   />
                 )}
               </div>
