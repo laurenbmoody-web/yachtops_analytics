@@ -639,6 +639,9 @@
   transition: background 0.14s;
 }
 .inv-chip:hover { background: #F8E1D3; }
+/* Box-QR action sits in the chip row but reads as a filled action, not a filter. */
+.inv-chip.qr { background: #C65A1A; color: #FFFFFF; border-color: #C65A1A; }
+.inv-chip.qr:hover { background: #B14E16; }
 
 /* ── back link as a "move up one level" drop target (while dragging) ── */
 /* Armed: dashed terracotta pill inviting a drop. Over: filled + haloed. */
