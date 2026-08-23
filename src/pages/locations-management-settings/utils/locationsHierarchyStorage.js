@@ -385,6 +385,41 @@ export const createSpace = async (zoneId, name) => {
   return { id: data?.id, zoneId: data?.parent_id, name: data?.name, sortOrder: data?.sort_order, isArchived: data?.is_archived, createdAt: data?.created_at, updatedAt: data?.updated_at };
 };
 
+// Create a location nested under ANY node (a box under a room, a shelf under a
+// box, …). vessel_locations is an infinite-depth tree; `level` is a free-form
+// label, so sub-room containers get 'container'. Reuse updateSpace/archiveSpace
+// (both operate by id) to rename/archive these.
+export const createSublocation = async (parentId, name) => {
+  const tenantId = await getTenantId();
+  if (!tenantId) throw new Error('No tenant context');
+  if (!parentId) throw new Error('A parent location is required');
+
+  const { data: session } = await supabase?.auth?.getSession();
+  const userId = session?.session?.user?.id;
+
+  const { data, error } = await supabase?.from('vessel_locations')?.insert({
+      tenant_id: tenantId,
+      level: 'container',
+      name: name?.trim(),
+      parent_id: parentId,
+      sort_order: 0,
+      is_archived: false,
+      created_by: userId || null,
+    })?.select()?.single();
+
+  if (error) throw error;
+
+  logAudit({
+    entityType: EntityType?.LOCATION,
+    entityId: data?.id,
+    entityName: `Sub-location: ${data?.name}`,
+    action: AuditAction?.CREATED,
+    changes: [],
+  });
+
+  return { id: data?.id, parentId: data?.parent_id, name: data?.name };
+};
+
 export const updateSpace = async (spaceId, name) => {
   const { data, error } = await supabase?.from('vessel_locations')?.update({ name: name?.trim(), updated_at: new Date()?.toISOString() })?.eq('id', spaceId)?.select()?.single();
 

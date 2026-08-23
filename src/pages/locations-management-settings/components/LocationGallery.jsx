@@ -15,6 +15,7 @@ import {
 } from '../utils/locationsHierarchyStorage';
 import AddScanModal from './AddScanModal';
 import ConfigureDecksModal from './ConfigureDecksModal';
+import SublocationManager from './SublocationManager';
 import ScanMotif from './ScanMotif';
 import DeckPlanView from './DeckPlanView';
 import '../location-gallery.css';
@@ -91,6 +92,7 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [dragId, setDragId] = useState(null);
   const [addScanSpace, setAddScanSpace] = useState(null);
+  const [sublocSpace, setSublocSpace] = useState(null); // room whose sub-locations we're managing
   const [showDecks, setShowDecks] = useState(false);
   const rootRef = useRef(null);
   const dataRef = useRef(null);
@@ -310,16 +312,18 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
         onClick={() => openSpace(space)}
       >
         <span className="cf-grip" onMouseDown={grab} title="Drag to reorder"><GripIcon /></span>
-        {scanned && (
-          <div className="cf-menu">
-            <Kebab id={`space:${space.id}`} items={[
+        <div className="cf-menu">
+          <Kebab id={`space:${space.id}`} items={[
+            { label: 'Sub-locations', on: () => setSublocSpace(space) },
+            ...(scanned ? [
+              { sep: true },
               { label: 'View on map', on: () => viewOnMap(space) },
               { label: 'Replace scan', on: () => replaceScan(space) },
               { sep: true },
               { label: 'Remove scan', danger: true, on: () => removeScan(space) },
-            ]} />
-          </div>
-        )}
+            ] : []),
+          ]} />
+        </div>
         <div className="card">
           {scanned && scan.thumbUrl ? (
             <div className="img" style={{ backgroundImage: `url("${scan.thumbUrl}")` }} />
@@ -494,6 +498,15 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
           decks={data?.decks || []}
           onChanged={load}
           onClose={() => setShowDecks(false)}
+        />
+      )}
+
+      {sublocSpace && (
+        <SublocationManager
+          rootId={sublocSpace.id}
+          rootName={sublocSpace.name}
+          onClose={() => setSublocSpace(null)}
+          onChanged={load}
         />
       )}
     </div>
