@@ -50,7 +50,9 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
 
   // Render the item's saved code as a QR preview so view mode shows the actual
   // code, not just the text — click it (or Print) to reopen the label window.
-  const itemCode = String(item?.barcode || item?.code || '').trim();
+  // Prefer a physical barcode, but every item has a minted Cargo ID — fall back
+  // to it so the QR/label is always available, even before a barcode is added.
+  const itemCode = String(item?.barcode || item?.code || item?.cargoItemId || '').trim();
   useEffect(() => {
     let alive = true;
     if (!itemCode) { setQrUrl(''); return undefined; }
