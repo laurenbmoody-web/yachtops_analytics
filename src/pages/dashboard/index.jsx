@@ -29,6 +29,7 @@ import LaundryLogWidget from './components/LaundryLogWidget';
 import QuickAddDefectModal from '../defects/components/QuickAddDefectModal';
 import ComprehensiveJobModal from '../team-jobs-management/components/ComprehensiveJobModal';
 import ItemFormModal from '../inventory/components/ItemFormModal';
+import BarcodeScanModal from '../inventory/components/BarcodeScanModal';
 import SortableWidget from './components/SortableWidget';
 import DashboardEditBar from './components/DashboardEditBar';
 import ProvisioningWidget from './components/ProvisioningWidget';
@@ -398,6 +399,26 @@ const Dashboard = () => {
   const [activeTenantId, setActiveTenantId] = useState(null);
   const [showReportDefectModal, setShowReportDefectModal] = useState(false);
   const [showCreateJobModal, setShowCreateJobModal] = useState(false);
+  const [showScanModal, setShowScanModal] = useState(false);
+
+  // A scanned box/location QR encodes /inventory?loc=<id>&ln=<name>. Parse the id
+  // out (from a full URL, a relative one, or a bare uuid) and jump straight to
+  // that box's contents — no leaving the app to the phone camera.
+  const handleScanDetect = (raw) => {
+    setShowScanModal(false);
+    const val = String(raw || '').trim();
+    let loc = null, ln = '';
+    try {
+      if (/loc=/.test(val)) {
+        const u = new URL(val, window.location.origin);
+        loc = u.searchParams.get('loc'); ln = u.searchParams.get('ln') || '';
+      } else if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+        loc = val;
+      }
+    } catch { /* not a URL */ }
+    if (loc) navigate(`/inventory?loc=${encodeURIComponent(loc)}${ln ? `&ln=${encodeURIComponent(ln)}` : ''}`);
+    else window.showToast?.('Unrecognised QR — expected a box or location label', 'error');
+  };
   const [showAddInventoryModal, setShowAddInventoryModal] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -654,6 +675,7 @@ const Dashboard = () => {
       case 'quickActions':
         return (
           <QuickActionsCenter
+            onScan={() => setShowScanModal(true)}
             onAddInventory={() => setShowAddInventoryModal(true)}
             onLogDelivery={() => navigate('/provisioning?receive=true')}
             onReportDefect={() => setShowReportDefectModal(true)}
@@ -901,6 +923,9 @@ const Dashboard = () => {
         {/* Modals */}
         {showAddInventoryModal && (
           <ItemFormModal quick onClose={() => setShowAddInventoryModal(false)} onSaved={() => setShowAddInventoryModal(false)} />
+        )}
+        {showScanModal && (
+          <BarcodeScanModal onClose={() => setShowScanModal(false)} onDetect={handleScanDetect} />
         )}
         {showReportDefectModal && (
           <QuickAddDefectModal

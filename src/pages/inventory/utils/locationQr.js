@@ -11,11 +11,14 @@ const esc = (s) => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-// Build the scannable URL for a box/location tag: the inventory root with the
-// tag pre-applied, which renders the flat cross-folder "what's in this box" view.
-export function boxQrUrl(tag) {
+// Build the scannable URL for a box / physical location: the inventory root with
+// the location pre-applied, which renders the flat cross-folder "what's in this
+// box" view. `id` is the vessel_locations node id; `name` is carried so the
+// landing view can label the chip without a lookup.
+export function boxQrUrl(id, name) {
   const origin = (typeof window !== 'undefined' && window.location?.origin) || '';
-  return `${origin}/inventory?tag=${encodeURIComponent(String(tag || '').trim())}`;
+  const base = `${origin}/inventory?loc=${encodeURIComponent(String(id || '').trim())}`;
+  return name ? `${base}&ln=${encodeURIComponent(String(name).trim())}` : base;
 }
 
 const makeQr = async (text) => {
@@ -59,15 +62,15 @@ const LABEL_CSS = `
   }
 `;
 
-// Open a print window with one QR label for a box/location. `tag` is the box's
-// unique location tag (e.g. "Crew Deck > Narnia > Box 1"); `title` is what shows
-// big on the label (defaults to the tag's last segment). `count` is the item
-// count shown as a subtitle. Pass `win` when the caller opened the window
-// synchronously (popup-safe across the async QR build).
-export async function printBoxQr({ tag, title, count, win }) {
-  const value = boxQrUrl(tag);
-  const heading = String(title || String(tag || '').split('>').pop() || 'Box').trim();
-  const sub = [String(tag || '').trim(), Number.isFinite(count) ? `${count} item${count === 1 ? '' : 's'}` : '']
+// Open a print window with one QR label for a box / physical location.
+// `locationId` is the vessel_locations node id the QR resolves to; `title` is the
+// box/location name shown big on the label; `path` is the optional full location
+// breadcrumb shown small; `count` is the item count. Pass `win` when the caller
+// opened the window synchronously (popup-safe across the async QR build).
+export async function printBoxQr({ locationId, title, path, count, win }) {
+  const heading = String(title || 'Location').trim();
+  const value = boxQrUrl(locationId, heading);
+  const sub = [String(path || '').trim(), Number.isFinite(count) ? `${count} item${count === 1 ? '' : 's'}` : '']
     .filter(Boolean).join(' · ');
 
   let w = win || null;

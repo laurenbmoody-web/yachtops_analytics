@@ -2567,6 +2567,10 @@ const LocationFirstInventory = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTagFilter, setActiveTagFilter] = useState(null);
+  // Physical-location filter (a box / vessel_locations node) — set by scanning a
+  // location QR or picking a location, and consumed from the ?loc deep-link.
+  const [activeLocationId, setActiveLocationId] = useState(null);
+  const [activeLocationName, setActiveLocationName] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showAddFolderModal, setShowAddFolderModal] = useState(false);
@@ -2608,18 +2612,21 @@ const LocationFirstInventory = () => {
   useEffect(() => {
     const brand = searchParams.get('brand');
     const supplier = searchParams.get('supplier');
-    // ?tag=<tag> — scanning a box/location QR lands here; seed the tag filter so
-    // the flat cross-folder view shows exactly what's in that box.
-    const tag = searchParams.get('tag');
-    if (!brand && !supplier && !tag) return;
-    setActiveFilters(prev => ({
-      ...prev,
-      ...(brand ? { brand } : {}),
-      ...(supplier ? { supplier } : {}),
-      ...(tag ? { tags: Array.from(new Set([...(prev?.tags || []), tag])) } : {}),
-    }));
+    // ?loc=<vesselLocationId>&ln=<name> — scanning a box/location QR lands here;
+    // seed the physical-location filter so the flat view shows what's in that box.
+    const loc = searchParams.get('loc');
+    const ln = searchParams.get('ln');
+    if (!brand && !supplier && !loc) return;
+    if (brand || supplier) {
+      setActiveFilters(prev => ({
+        ...prev,
+        ...(brand ? { brand } : {}),
+        ...(supplier ? { supplier } : {}),
+      }));
+    }
+    if (loc) { setActiveLocationId(loc); setActiveLocationName(ln || ''); }
     const next = new URLSearchParams(searchParams);
-    next.delete('brand'); next.delete('supplier'); next.delete('tag');
+    next.delete('brand'); next.delete('supplier'); next.delete('loc'); next.delete('ln');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
   const [viewMode, setViewMode] = useState(() => {
@@ -3396,11 +3403,18 @@ const LocationFirstInventory = () => {
     // On the root page there is no folder's item list; instead, search / filter
     // look across ALL inventory (a "find anything" launchpad). Only surface
     // results once a search or filter is active — otherwise root shows folders only.
-    const anyRootFilter = !!searchQuery || !!activeTagFilter || (activeFilters && (
+    const anyRootFilter = !!searchQuery || !!activeTagFilter || !!activeLocationId || (activeFilters && (
       (activeFilters?.tags?.length > 0) || activeFilters?.brand || activeFilters?.supplier ||
       activeFilters?.belowPar || activeFilters?.hasExpiry || activeFilters?.hasImage || activeFilters?.location));
     const baseList = isRoot ? (anyRootFilter ? (allItems || []) : []) : items;
     let result = baseList?.filter(item => {
+      // Physical-location filter (a box): match the item's stock locations or its
+      // default location against the selected vessel_locations node id.
+      if (activeLocationId) {
+        const atLoc = (item?.stockLocations || []).some(l => (l?.vesselLocationId || l?.locationId) === activeLocationId)
+          || item?.defaultLocationId === activeLocationId;
+        if (!atLoc) return false;
+      }
       if (searchQuery) {
         const q = searchQuery?.toLowerCase();
         const matchesName = item?.name?.toLowerCase()?.includes(q);
@@ -3506,6 +3520,7 @@ const LocationFirstInventory = () => {
     : subFolders;
 
   const activeFilterChips = [];
+  if (activeLocationId) activeFilterChips?.push({ key: 'loc', value: activeLocationId, label: activeLocationName ? `📍 ${activeLocationName}` : '📍 Location' });
   if (activeFilters?.tags?.length > 0) activeFilters?.tags?.forEach(t => activeFilterChips?.push({ key: 'tag', value: t, label: `Tag: ${t}` }));
   if (activeFilters?.brand) activeFilterChips?.push({ key: 'brand', value: activeFilters?.brand, label: `Brand: ${activeFilters?.brand}` });
   if (activeFilters?.supplier) activeFilterChips?.push({ key: 'supplier', value: activeFilters?.supplier, label: `Supplier: ${activeFilters?.supplier}` });
@@ -3514,7 +3529,9 @@ const LocationFirstInventory = () => {
   if (activeFilters?.year) activeFilterChips?.push({ key: 'year', value: activeFilters?.year, label: `Year: ${activeFilters?.year}` });
 
   const removeFilterChip = (chip) => {
-    if (chip?.key === 'tag') {
+    if (chip?.key === 'loc') {
+      setActiveLocationId(null); setActiveLocationName('');
+    } else if (chip?.key === 'tag') {
       setActiveFilters(prev => ({ ...prev, tags: prev?.tags?.filter(t => t !== chip?.value) }));
     } else {
       setActiveFilters(prev => ({ ...prev, [chip?.key]: chip?.key === 'tags' ? [] : null }));
@@ -4223,11 +4240,11 @@ const LocationFirstInventory = () => {
                 <Icon name="X" size={11} />
               </button>
             ))}
-            {/* Viewing a single tag = a box/location view — offer its scannable QR. */}
-            {activeFilters?.tags?.length === 1 && (
+            {/* Viewing a physical location = a box view — offer its scannable QR. */}
+            {activeLocationId && (
               <button
                 className="inv-chip qr"
-                onClick={() => printBoxQr({ tag: activeFilters.tags[0], count: filteredItems?.length })}
+                onClick={() => printBoxQr({ locationId: activeLocationId, title: activeLocationName || 'Location', count: filteredItems?.length })}
                 title="Print a QR label for this box — scan it to see what's inside"
               >
                 <Icon name="QrCode" size={12} />
