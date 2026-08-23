@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, Truck, ClipboardCheck } from 'lucide-react';
+import { Package, Truck, ClipboardCheck, ScanLine } from 'lucide-react';
 import './QuickActionsCenter.css';
 
 // Defect icon — a navy triangle with a terracotta "!" so the one attention
@@ -13,9 +13,10 @@ const DefectIcon = () => (
   </svg>
 );
 
-const QuickActionsCenter = ({ onAddInventory, onLogDelivery, onReportDefect, onCreateJob }) => {
+const QuickActionsCenter = ({ onAddInventory, onLogDelivery, onReportDefect, onCreateJob, onScan }) => {
   // Uniform navy circles; a caption always shown beneath each.
   const actions = [
+    ...(onScan ? [{ icon: ScanLine, cap: 'Scan', label: 'Scan a box or item QR', onClick: onScan }] : []),
     { icon: Package,        cap: 'Inventory', label: 'Add inventory item', onClick: onAddInventory },
     { icon: Truck,          cap: 'Delivery',  label: 'Log delivery',       onClick: onLogDelivery },
     { icon: DefectIcon,     cap: 'Defect',    label: 'Report defect',      onClick: onReportDefect },
