@@ -14,6 +14,7 @@ import ItemFormModal from '../inventory/components/ItemFormModal';
 import UniformItemView from '../inventory/components/UniformItemView';
 import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
 import PartialBottleModal from '../inventory/components/PartialBottleModal';
+import { printBoxQr } from '../inventory/utils/locationQr';
 import { supabase } from '../../lib/supabaseClient';
 import { markTutorialStep } from '../../utils/tutorialState';
 import { DndContext, closestCenter, MouseSensor, TouchSensor, useSensor, useSensors, useDroppable, DragOverlay } from '@dnd-kit/core';
@@ -2607,10 +2608,18 @@ const LocationFirstInventory = () => {
   useEffect(() => {
     const brand = searchParams.get('brand');
     const supplier = searchParams.get('supplier');
-    if (!brand && !supplier) return;
-    setActiveFilters(prev => ({ ...prev, ...(brand ? { brand } : {}), ...(supplier ? { supplier } : {}) }));
+    // ?tag=<tag> — scanning a box/location QR lands here; seed the tag filter so
+    // the flat cross-folder view shows exactly what's in that box.
+    const tag = searchParams.get('tag');
+    if (!brand && !supplier && !tag) return;
+    setActiveFilters(prev => ({
+      ...prev,
+      ...(brand ? { brand } : {}),
+      ...(supplier ? { supplier } : {}),
+      ...(tag ? { tags: Array.from(new Set([...(prev?.tags || []), tag])) } : {}),
+    }));
     const next = new URLSearchParams(searchParams);
-    next.delete('brand'); next.delete('supplier');
+    next.delete('brand'); next.delete('supplier'); next.delete('tag');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
   const [viewMode, setViewMode] = useState(() => {
@@ -4214,6 +4223,17 @@ const LocationFirstInventory = () => {
                 <Icon name="X" size={11} />
               </button>
             ))}
+            {/* Viewing a single tag = a box/location view — offer its scannable QR. */}
+            {activeFilters?.tags?.length === 1 && (
+              <button
+                className="inv-chip qr"
+                onClick={() => printBoxQr({ tag: activeFilters.tags[0], count: filteredItems?.length })}
+                title="Print a QR label for this box — scan it to see what's inside"
+              >
+                <Icon name="QrCode" size={12} />
+                Box QR
+              </button>
+            )}
           </div>
         )}
 
