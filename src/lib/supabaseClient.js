@@ -50,6 +50,19 @@ const serialAuthLock = async (_name, _acquireTimeout, fn) => {
   return result;
 };
 
+// Bounded fetch — supabase-js has no request timeout, so a hung auth/data call
+// (unreachable endpoint, stalled connection) would wait forever, holding the
+// serialAuthLock chain and wedging every later auth op until the tab reloads.
+// Abort after 20s so a hang fails fast, the lock settles, and a retry can work.
+// If the caller already passed a signal, defer to it (don't double-abort).
+const FETCH_TIMEOUT_MS = 20000;
+const timeoutFetch = (input, init = {}) => {
+  if (init?.signal) return fetch(input, init);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
+};
+
 // Singleton Supabase client with enhanced lock handling
 // CRITICAL: This client is created ONCE and reused everywhere
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -71,6 +84,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   // Add global options for better error handling
   global: {
+    fetch: timeoutFetch,
     headers: {
       'X-Client-Info': 'supabase-js-web'
     }
