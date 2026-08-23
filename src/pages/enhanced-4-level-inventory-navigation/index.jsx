@@ -3540,6 +3540,11 @@ const LocationFirstInventory = () => {
   // launchpad or while a search/filter is active, skip the split and show one
   // flat result list instead.
   const flatItemsView = isRoot || !!searchQuery || hasActiveFilters;
+  // When a search or filter (a box, a tag, a brand…) is active, drop the folder
+  // cards entirely and show a flat list of just the matching items — you asked
+  // for the box, not the whole department tree.
+  const filteringActive = !!searchQuery || hasActiveFilters;
+  const visibleSubFolders = filteringActive ? [] : (filteredSubFolders || []);
   const currentSubLower = (currentStorageFields?.subLocation || '')?.trim()?.toLowerCase();
   const directItems = flatItemsView
     ? filteredItems
@@ -4253,12 +4258,12 @@ const LocationFirstInventory = () => {
               hold it over another folder to move inside; drag an item onto a
               folder to move it there. */}
           <SortableContext items={unifiedSortableIds} strategy={rectSortingStrategy}>
-            {(filteredSubFolders?.length > 0 || directItems?.length > 0) && (
+            {(visibleSubFolders?.length > 0 || directItems?.length > 0) && (
               <div
                 className={viewMode === 'list' ? 'inv-grid list' : 'inv-grid'}
                 style={viewMode === 'grid' ? { gridTemplateColumns: `repeat(auto-fill, minmax(${tileZoom}px, 1fr))` } : undefined}
               >
-                {filteredSubFolders?.map(folderName => {
+                {visibleSubFolders?.map(folderName => {
                   const folderSegments = [...pathSegments, folderName];
                   const isReadOnly = isFolderReadOnly(folderName);
                   const showCog = shouldShowCog(folderName);
