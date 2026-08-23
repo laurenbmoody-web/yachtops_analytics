@@ -82,7 +82,7 @@ export async function printBoxQr({ locationId, title, path, count, win }) {
   const options = LABEL_SIZES.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
   const data = JSON.stringify({
     sizes: LABEL_SIZES, qr, heading: esc(heading), sub: esc(sub),
-    filename: (String(tag || 'box')).replace(/[^\w.\-]+/g, '_'),
+    filename: (String(heading || locationId || 'box')).replace(/[^\w.\-]+/g, '_'),
   }).replace(/</g, '\\u003c');
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Box QR — ${esc(heading)}</title>
