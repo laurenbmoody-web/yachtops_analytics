@@ -2432,6 +2432,14 @@ const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], 
                   onClick={() => (kids ? setLocBrowse([...locBrowse, node.id]) : onPickLocation?.(node.id, node.name))}>
                   <span>{node.name}</span>
                   <span className="meta">
+                    {/* Leaf locations (a box / room) are scannable — print their QR straight from here. */}
+                    {kids === 0 && (
+                      <button type="button" title="Print this location's QR label"
+                        onClick={(e) => { e.stopPropagation(); printBoxQr({ locationId: node.id, title: node.name }); }}
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#C65A1A', padding: 2, display: 'inline-flex' }}>
+                        <Icon name="QrCode" size={14} />
+                      </button>
+                    )}
                     {/* Any node can be selected to view items filed directly there. */}
                     <button type="button" title="View items here"
                       onClick={(e) => { e.stopPropagation(); onPickLocation?.(node.id, node.name); }}

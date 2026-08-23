@@ -177,14 +177,25 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
   const renderLoc = (l, qty, key, fallback) => {
     const pid = locId(l);
     const place = pid ? placeByNode.get(pid) : null;
+    // Prefer the vessel-map view when the location is placed; otherwise jump to
+    // the box's contents view (filter the inventory to this physical location).
+    const openLocation = () => {
+      onClose?.();
+      navigate(`/inventory?loc=${encodeURIComponent(pid)}&ln=${encodeURIComponent(locLabel(l) || '')}`);
+    };
     const linkProps = place ? {
       role: 'button', tabIndex: 0,
       onClick: () => openOnMap(place),
       onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openOnMap(place); } },
       title: `Show on the vessel map${place.scanName ? ` · ${place.scanName}` : ''}`,
-    } : {};
+    } : (pid ? {
+      role: 'button', tabIndex: 0,
+      onClick: openLocation,
+      onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLocation(); } },
+      title: `See everything in ${locLabel(l) || 'this location'}`,
+    } : {});
     return (
-      <div className={`uv-loc${place ? ' uv-loc-link' : ''}`} key={key} {...linkProps}>
+      <div className={`uv-loc${(place || pid) ? ' uv-loc-link' : ''}`} key={key} {...linkProps}>
         <span className="uv-loc-k"><Icon name="MapPin" size={13} /> <LocPath label={nameFor(l)} fallback={fallback} /></span>
         <span className="uv-loc-v">{qty}</span>
       </div>
