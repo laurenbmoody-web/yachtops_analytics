@@ -536,18 +536,24 @@ const Header = () => {
   };
 
   const handleLogout = async () => {
+    console.log('[NAV] Logging out');
+    // Clear the local user up front so nothing depends on the network call.
+    clearCurrentUser();
     try {
-      console.log('[NAV] Logging out');
-      await supabase?.auth?.signOut();
-      clearCurrentUser();
-      // Navigate to login page after logout
-      navigate('/login-authentication');
+      // scope:'local' signs out THIS device only (leaves other devices — e.g. a
+      // phone — logged in) and skips the server-side revoke that can hang and
+      // block logout. Race a timeout so a slow/failed call never stalls the UI.
+      await Promise.race([
+        supabase?.auth?.signOut({ scope: 'local' }),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+      ]);
     } catch (err) {
       console.error('Header: Logout error', err);
-      clearCurrentUser();
-      // Navigate on error as fallback
-      navigate('/login-authentication');
     }
+    // Hard redirect so all in-memory auth/tenant state is torn down and the app
+    // re-initialises against the cleared session (a React-Router navigate alone
+    // can be bounced back by a still-warm auth context).
+    window.location.assign('/login-authentication');
   };
 
   // Clean navigation handler with debug logging
