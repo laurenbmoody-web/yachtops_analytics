@@ -111,12 +111,13 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         const label = row.locationName || row.location_name || '';
         const id = row.vesselLocationId || row.vessel_location_id || '';
         locs.push({ label, id });
-        (row.sizes || []).forEach((v) => { if (v?.size != null) { on[v.size] = true; note(v.size); mx[`${label}||${v.size}`] = v.qty || 0; } });
+        const k = id || label;
+        (row.sizes || []).forEach((v) => { if (v?.size != null) { on[v.size] = true; note(v.size); mx[`${k}||${v.size}`] = v.qty || 0; } });
       });
       if (!Object.keys(mx).length && item?.variants?.length) {
         if (!locs.length) locs.push({ label: '', id: '' });
-        const label = locs[0].label;
-        item.variants.forEach((v) => { if (v?.size != null) { on[v.size] = true; note(v.size); mx[`${label}||${v.size}`] = v.qty || 0; } });
+        const k0 = locs[0].id || locs[0].label;
+        item.variants.forEach((v) => { if (v?.size != null) { on[v.size] = true; note(v.size); mx[`${k0}||${v.size}`] = v.qty || 0; } });
       }
       if (!locs.length) locs.push({ label: '', id: '' });
       const formats = item?.variants?.length ? item.variants.map((v) => String(v.size)) : order;
@@ -130,7 +131,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       const label = row.locationName || row.location_name || '';
       const id = row.vesselLocationId || row.vessel_location_id || '';
       locs.push({ label, id });
-      mx[`${label}||`] = row.qty ?? row.quantity ?? 0;
+      mx[`${id || label}||`] = row.qty ?? row.quantity ?? 0;
     });
     if (item && item.reorderPoint != null) reord[''] = item.reorderPoint;
     else if (item && item.parLevel != null) reord[''] = item.parLevel;
@@ -282,10 +283,28 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const variantMode = profile === 'uniform' || multiSize;
   const cell = (loc, s) => Number(matrix[`${loc}||${s}`]) || 0;
   const setCell = (loc, s, v) => setMatrix((m) => ({ ...m, [`${loc}||${s}`]: v }));
+  // Matrix rows are keyed by the location's stable id when it has one — two rooms
+  // can share a name (e.g. "Dayhead" on different decks), so the name is NOT a
+  // safe key — falling back to the label for blank/free-text rows.
+  const keyOf = (l) => (l && (l.id || l.label)) || '';
   const rowTot = (loc) => cols.reduce((a, c) => a + cell(loc, c), 0);
   const locTotal = (loc) => activeSizes.reduce((a, s) => a + cell(loc, s), 0);
-  const colHave = (c) => uniLocs.reduce((a, l) => a + (l.label ? cell(l.label, c) : 0), 0);
-  const grandTotal = uniLocs.reduce((a, l) => a + (l.label ? rowTot(l.label) : 0), 0);
+  const colHave = (c) => uniLocs.reduce((a, l) => a + (l.label ? cell(keyOf(l), c) : 0), 0);
+  const grandTotal = uniLocs.reduce((a, l) => a + (l.label ? rowTot(keyOf(l)) : 0), 0);
+
+  // Disambiguate same-named rooms in the grid by appending their deck.
+  const locById = useMemo(() => Object.fromEntries((vesselLocations || []).map((n) => [n.id, n])), [vesselLocations]);
+  const dupNames = useMemo(() => {
+    const c = {};
+    uniLocs.forEach((l) => { if (l.label) c[l.label] = (c[l.label] || 0) + 1; });
+    return c;
+  }, [uniLocs]);
+  const deckOf = (id) => {
+    let cur = locById[id]; let top = null; const seen = new Set();
+    while (cur && !seen.has(cur.id)) { top = cur; seen.add(cur.id); cur = cur.parent_id ? locById[cur.parent_id] : null; }
+    return top?.name;
+  };
+  const dispLabel = (l) => (l?.label && dupNames[l.label] > 1 && l.id) ? `${l.label} · ${deckOf(l.id) || '…'}` : (l?.label || '');
   const setVarBuy2 = (f, patch) => setVarBuy((b) => ({ ...b, [f]: { ...(b[f] || {}), ...patch } }));
   // consumable pack-sizes as editable column headers (no chips)
   const addFormat = () => setFormats((fs) => (fs.some((f) => !String(f).trim()) ? fs : [...fs, '']));
@@ -293,14 +312,14 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     const old = formats[j];
     setFormats((fs) => fs.map((f, k) => (k === j ? val : f)));
     if (old === val) return;
-    setMatrix((m) => { const n = { ...m }; uniLocs.forEach((l) => { const ok = `${l.label}||${old}`; if (n[ok] != null) { n[`${l.label}||${val}`] = n[ok]; delete n[ok]; } }); return n; });
+    setMatrix((m) => { const n = { ...m }; uniLocs.forEach((l) => { const k = keyOf(l); const ok = `${k}||${old}`; if (n[ok] != null) { n[`${k}||${val}`] = n[ok]; delete n[ok]; } }); return n; });
     setReorderSizes((p) => { if (p[old] == null) return p; const n = { ...p }; n[val] = n[old]; delete n[old]; return n; });
     setVarBuy((b) => { if (!b[old]) return b; const n = { ...b }; n[val] = b[old]; delete n[old]; return n; });
   };
   const removeFormatAt = (j) => {
     const old = formats[j];
     setFormats((fs) => fs.filter((_, k) => k !== j));
-    setMatrix((m) => { const n = { ...m }; uniLocs.forEach((l) => delete n[`${l.label}||${old}`]); return n; });
+    setMatrix((m) => { const n = { ...m }; uniLocs.forEach((l) => delete n[`${keyOf(l)}||${old}`]); return n; });
     setReorderSizes((p) => { if (p[old] == null) return p; const n = { ...p }; delete n[old]; return n; });
     setVarBuy((b) => { if (!b[old]) return b; const n = { ...b }; delete n[old]; return n; });
   };
@@ -504,7 +523,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         // variants = per-size totals aggregated across every stowage location; the
         // consumable case also carries its own supplier + price per pack-size.
         variants = activeSizes.map((s) => {
-          const v = { size: s, qty: uniLocs.reduce((a, l) => a + (l.label ? cell(l.label, s) : 0), 0) };
+          const v = { size: s, qty: uniLocs.reduce((a, l) => a + (l.label ? cell(keyOf(l), s) : 0), 0) };
           if (profile !== 'uniform') {
             if (varBuy[s]?.supplier) v.supplier = varBuy[s].supplier;
             if (varBuy[s]?.sku) v.sku = varBuy[s].sku;
@@ -515,11 +534,11 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         totalQty = variants.reduce((a, v) => a + (v.qty || 0), 0);
         stock_locations = uniLocs
           .filter((l) => l.label)
-          .map((l) => ({ locationName: l.label, vesselLocationId: l.id || undefined, qty: locTotal(l.label), sizes: activeSizes.map((s) => ({ size: s, qty: cell(l.label, s) })) }));
+          .map((l) => ({ locationName: l.label, vesselLocationId: l.id || undefined, qty: locTotal(keyOf(l)), sizes: activeSizes.map((s) => ({ size: s, qty: cell(keyOf(l), s) })) }));
       } else {
         // plain single item — the one blank-labelled column
-        stock_locations = uniLocs.filter((l) => l.label).map((l) => ({ locationName: l.label, vesselLocationId: l.id || undefined, qty: cell(l.label, '') }));
-        const placedQty = uniLocs.reduce((a, l) => a + (l.label ? cell(l.label, '') : 0), 0);
+        stock_locations = uniLocs.filter((l) => l.label).map((l) => ({ locationName: l.label, vesselLocationId: l.id || undefined, qty: cell(keyOf(l), '') }));
+        const placedQty = uniLocs.reduce((a, l) => a + (l.label ? cell(keyOf(l), '') : 0), 0);
         // Quick-add may record a count before a location is chosen — keep it in
         // the item total (unplaced) rather than dropping it.
         totalQty = placedQty + cell('', '');
@@ -632,21 +651,25 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     if (locTarget?.kind === 'uni') {
       const idx = locTarget.idx;
       const old = uniLocs[idx]?.label;
+      const oldKey = keyOf(uniLocs[idx]);
+      const newKey = id || label;
       setUniLocs((ls) => {
         const next = ls.map((l, i) => (i === idx ? { label, id } : l));
         // filled the trailing empty row → add a fresh one so more can be added
         if (idx === ls.length - 1 && !old) next.push({ label: '', id: '' });
         return next;
       });
-      if ((old || '') !== label) {
+      if (oldKey !== newKey) {
         // Carry any quantities already typed to the new location — including the
         // blank '' size of a plain item, and the empty→named case (qty entered in
-        // the quick lane before a location was chosen).
+        // the quick lane before a location was chosen). Keyed by location id so
+        // two same-named rooms never share a cell.
         setMatrix((m) => {
           const next = { ...m };
           [...activeSizes, ''].forEach((s) => {
-            const ok = `${old || ''}||${s}`;
-            if (next[ok] != null && ok !== `${label}||${s}`) { next[`${label}||${s}`] = next[ok]; delete next[ok]; }
+            const ok = `${oldKey}||${s}`;
+            const nk = `${newKey}||${s}`;
+            if (next[ok] != null && ok !== nk) { next[nk] = next[ok]; delete next[ok]; }
           });
           return next;
         });
@@ -695,7 +718,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
           </div>
           <div className="itf-f" style={{ margin: 0 }}>
             <label className="itf-lab">Qty</label>
-            <input className="itf-in" value={matrix[`${uniLocs[0]?.label || ''}||`] ?? ''} onChange={(e) => setCell(uniLocs[0]?.label || '', '', Number(e.target.value) || 0)} placeholder="0" inputMode="numeric" aria-label="Quantity" />
+            <input className="itf-in" value={matrix[`${keyOf(uniLocs[0])}||`] ?? ''} onChange={(e) => setCell(keyOf(uniLocs[0]), '', Number(e.target.value) || 0)} placeholder="0" inputMode="numeric" aria-label="Quantity" />
           </div>
         </div>
         <button type="button" className="itf-quickmore" onClick={() => setShowFull(true)}>
@@ -847,12 +870,12 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                   <React.Fragment key={i}>
                     <button type="button" className="itf-mloc" onClick={() => setLocTarget({ kind: 'uni', idx: i })}>
                       <Icon name="MapPin" size={13} style={{ color: '#C65A1A', flexShrink: 0 }} />
-                      <span className={loc.label ? 'nm' : 'nm ph'}>{loc.label || 'Select location…'}</span>
+                      <span className={loc.label ? 'nm' : 'nm ph'}>{dispLabel(loc) || 'Select location…'}</span>
                       {loc.label && <span className="rm" onClick={(e) => { e.stopPropagation(); setUniLocs((ls) => ls.filter((_, k) => k !== i)); }}>✕</span>}
                     </button>
-                    {cols.map((c, j) => <div className="itf-mq" key={j}><input value={matrix[`${loc.label}||${c}`] ?? ''} onChange={(e) => setCell(loc.label, c, Number(e.target.value) || 0)} placeholder="0" inputMode="numeric" aria-label={`${loc.label || 'location'} ${c || 'qty'}`} /></div>)}
+                    {cols.map((c, j) => <div className="itf-mq" key={j}><input value={matrix[`${keyOf(loc)}||${c}`] ?? ''} onChange={(e) => setCell(keyOf(loc), c, Number(e.target.value) || 0)} placeholder="0" inputMode="numeric" aria-label={`${loc.label || 'location'} ${c || 'qty'}`} /></div>)}
                     {profile !== 'uniform' && <div className="itf-mgap" />}
-                    <div className="itf-mrtot">{rowTot(loc.label)}</div>
+                    <div className="itf-mrtot">{rowTot(keyOf(loc))}</div>
                   </React.Fragment>
                 ))}
 
