@@ -1160,3 +1160,9 @@
   margin: -4px 0 0;
   line-height: 1.5;
 }
+
+/* ── Mobile (≤640px): stack fixed-width panels ── */
+@media (max-width: 640px) {
+  .pv-wizard { width: 100%; min-width: 0; height: auto; }
+  .add-items-modal-body { grid-template-columns: 1fr; }
+}

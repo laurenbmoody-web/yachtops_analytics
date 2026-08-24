@@ -520,3 +520,10 @@
   font-size: 13px;
   color: var(--di-faint);
 }
+
+/* ── Mobile (≤640px): shrink the numeric columns so the row fits (header + rows
+   share this template, so alignment is preserved). ── */
+@media (max-width: 640px) {
+  .dh-items-header,
+  .dh-item-row { grid-template-columns: 1fr 38px 52px 52px 58px; gap: 6px; }
+}

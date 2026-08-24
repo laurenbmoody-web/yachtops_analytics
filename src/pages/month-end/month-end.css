@@ -182,3 +182,8 @@
   .mp-sum { flex-wrap: wrap; gap: 20px; }
   .mp-detail { padding-left: 8px; }
 }
+
+/* ── Mobile (≤640px): trim page gutters ── */
+@media (max-width: 640px) {
+  .mp-page { padding: 20px 16px 48px; }
+}
