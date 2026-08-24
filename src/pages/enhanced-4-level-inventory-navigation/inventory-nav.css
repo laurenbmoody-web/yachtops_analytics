@@ -78,6 +78,19 @@
 }
 .inv-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
+/* ── Mobile (≤640px): tighten the oversized top ───────────────────────────
+   Phone-only — desktop keeps the full editorial scale. Trims the 40px page
+   gutters, shrinks the 46px headline so it stops eating the screen, and packs
+   the icon-only action buttons. */
+@media (max-width: 640px) {
+  .inv-page { padding: 16px 16px 64px; }
+  .inv-headline { font-size: 30px; line-height: 1.03; letter-spacing: -0.5px; }
+  .inv-title { font-size: 26px; }
+  .inv-header { align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+  .inv-actions { gap: 8px; width: 100%; }
+  .inv-subtitle { margin-top: 5px; }
+}
+
 /* ── buttons ────────────────────────────────────────────────── */
 .inv-btn {
   display: inline-flex; align-items: center; gap: 7px;

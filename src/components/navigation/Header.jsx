@@ -633,10 +633,13 @@ const Header = () => {
             </>
           )}
         </div>
-        {/* CENTRE ZONE: Search Bar — vessel-scoped, so hidden between vessels */}
-        <div className="flex-1 flex justify-center px-8">
+        {/* CENTRE ZONE: Search Bar — vessel-scoped, so hidden between vessels.
+            The wrapper stays a flex-1 spacer (keeps the right-zone controls
+            pushed right); `nav-search` hides just the input on phones so the
+            bell/avatar don't get shoved off-screen. */}
+        <div className="flex-1 flex justify-center px-8 nav-search-wrap">
           {!unberthed && (
-          <div className="relative w-full max-w-md" ref={searchRef}>
+          <div className="relative w-full max-w-md nav-search" ref={searchRef}>
             <Icon
               name="Search"
               size={18}
