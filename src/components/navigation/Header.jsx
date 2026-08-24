@@ -812,7 +812,7 @@ const Header = () => {
                   getInitials(displayFullName) || 'U'
                 )}
               </div>
-              <Icon name="ChevronDown" size={16} color="var(--color-foreground)" />
+              <Icon name="ChevronDown" size={16} color="var(--color-foreground)" className="hidden sm:block" />
             </button>
             
             {/* Debug label - only in dev mode */}
