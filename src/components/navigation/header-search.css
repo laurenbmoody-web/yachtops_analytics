@@ -196,4 +196,13 @@
 @media (max-width: 640px) {
   .nav-search { display: none; }
   .nav-search-wrap { padding-left: 4px; padding-right: 4px; }
+  /* Tapping the mobile search icon expands the search as a full-width bar
+     dropping down under the header. */
+  .nav-search-wrap.open {
+    position: fixed; top: 64px; left: 0; right: 0; z-index: var(--z-nav);
+    display: block; padding: 10px 12px; background: #FFFFFF;
+    box-shadow: 0 10px 24px -14px rgba(28, 27, 58, 0.30);
+    border-bottom: 1px solid #EEF0F4;
+  }
+  .nav-search-wrap.open .nav-search { display: block; max-width: none; width: 100%; }
 }
