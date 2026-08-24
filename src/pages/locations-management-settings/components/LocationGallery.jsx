@@ -94,6 +94,9 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
   const [addScanSpace, setAddScanSpace] = useState(null);
   const [sublocSpace, setSublocSpace] = useState(null); // room whose sub-locations we're managing
   const [moveTarget, setMoveTarget] = useState(null); // { space, zoneId } being moved
+  const [moveDeckId, setMoveDeckId] = useState(null); // deck shown in the move picker
+  const [dropZoneId, setDropZoneId] = useState(null); // zone a dragged space is hovering
+  const movedRef = useRef(false); // a drag reparented a space (skip the reorder in endDrag)
   const [showDecks, setShowDecks] = useState(false);
   const rootRef = useRef(null);
   const dataRef = useRef(null);
@@ -246,9 +249,28 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
     const d = dragRef.current;
     dragRef.current = null;
     setDragId(null);
+    setDropZoneId(null);
+    if (movedRef.current) { movedRef.current = false; return; } // a drag-drop reparent already handled it
     if (!d) return;
     const ids = siblingIds(dataRef.current, d.level, d.parentId);
     try { await reorderLocations(ids); } catch (err) { console.error('[loc-gallery] reorder error:', err); await load(); }
+  };
+  // Drop a dragged space onto another zone (any deck) → reparent it there.
+  const spaceDragOverZone = (zoneId) => (e) => {
+    const d = dragRef.current;
+    if (d && d.level === 'space' && d.parentId !== zoneId) { e.preventDefault(); if (dropZoneId !== zoneId) setDropZoneId(zoneId); }
+    else allowDrop(e);
+  };
+  const spaceDropOnZone = (zoneId) => async (e) => {
+    const d = dragRef.current;
+    if (!d || d.level !== 'space' || d.parentId === zoneId) return;
+    e.preventDefault(); e.stopPropagation();
+    movedRef.current = true;
+    const spaceId = d.id;
+    dragRef.current = null; grabRef.current = false;
+    setDragId(null); setDropZoneId(null);
+    try { await moveSpace(spaceId, zoneId); await load(); }
+    catch (err) { console.error('[loc-gallery] drag-move error:', err); }
   };
 
   // Move a space to another zone/deck (menu-based — reliable across the carousel).
@@ -453,13 +475,15 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
                       const zoneClosed = isClosed(zone.id);
                       return (
                         <div
-                          className={`lg-zone${dragId === zone.id ? ' dragging' : ''}`}
+                          className={`lg-zone${dragId === zone.id ? ' dragging' : ''}${dropZoneId === zone.id ? ' droptarget' : ''}`}
                           key={zone.id}
                           draggable
                           onDragStart={startDrag('zone', zone.id, deck.id)}
                           onDragEnd={endDrag}
                           onDragEnter={enterItem('zone', zone.id, deck.id)}
-                          onDragOver={allowDrop}
+                          onDragOver={spaceDragOverZone(zone.id)}
+                          onDrop={spaceDropOnZone(zone.id)}
+                          onDragLeave={(e) => { if (dropZoneId === zone.id && !e.currentTarget.contains(e.relatedTarget)) setDropZoneId(null); }}
                         >
                           <div className="lg-zhdr">
                             <span className="lg-grip" onMouseDown={grab} title="Drag to reorder"><GripIcon /></span>
@@ -526,35 +550,43 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
         />
       )}
 
-      {moveTarget && (
-        <div className="lg-move-ov" onClick={() => setMoveTarget(null)}>
-          <div className="lg-move" onClick={(e) => e.stopPropagation()}>
-            <div className="lg-move-hd">
-              <span>Move <b>{moveTarget.space.name}</b> to…</span>
-              <button type="button" className="lg-move-x" onClick={() => setMoveTarget(null)} aria-label="Close">×</button>
-            </div>
-            <div className="lg-move-body">
-              {(data?.decks || []).map((deck) => (
-                <div key={deck.id} className="lg-move-deck">
-                  <p className="lg-move-deckname">{deck.name}</p>
-                  {(deck.zones || []).map((zone) => (
-                    <button
-                      key={zone.id}
-                      type="button"
-                      className={`lg-move-zone${zone.id === moveTarget.zoneId ? ' current' : ''}`}
-                      disabled={zone.id === moveTarget.zoneId}
-                      onClick={() => doMove(zone.id)}
-                    >
-                      {zone.name}{zone.id === moveTarget.zoneId ? ' · current' : ''}
-                    </button>
-                  ))}
-                  <button type="button" className="lg-move-newzone" onClick={() => doMoveNewZone(deck)}>＋ New zone here</button>
-                </div>
-              ))}
+      {moveTarget && (() => {
+        const decks = data?.decks || [];
+        const curDeck = decks.find((d) => (d.zones || []).some((z) => z.id === moveTarget.zoneId));
+        const selId = moveDeckId || curDeck?.id || decks[0]?.id;
+        const selDeck = decks.find((d) => d.id === selId) || decks[0];
+        const close = () => { setMoveTarget(null); setMoveDeckId(null); };
+        return (
+          <div className="lg-move-ov" onClick={close}>
+            <div className="lg-move" onClick={(e) => e.stopPropagation()}>
+              <div className="lg-move-hd">
+                <span>Move <b>{moveTarget.space.name}</b> to…</span>
+                <button type="button" className="lg-move-x" onClick={close} aria-label="Close">×</button>
+              </div>
+              <div className="lg-move-pick">
+                <label htmlFor="lg-move-deck">Deck</label>
+                <select id="lg-move-deck" value={selId} onChange={(e) => setMoveDeckId(e.target.value)}>
+                  {decks.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div className="lg-move-body">
+                {(selDeck?.zones || []).map((zone) => (
+                  <button
+                    key={zone.id}
+                    type="button"
+                    className={`lg-move-zone${zone.id === moveTarget.zoneId ? ' current' : ''}`}
+                    disabled={zone.id === moveTarget.zoneId}
+                    onClick={() => { doMove(zone.id); setMoveDeckId(null); }}
+                  >
+                    {zone.name}{zone.id === moveTarget.zoneId ? ' · current' : ''}
+                  </button>
+                ))}
+                {selDeck && <button type="button" className="lg-move-newzone" onClick={() => { doMoveNewZone(selDeck); setMoveDeckId(null); }}>＋ New zone in {selDeck.name}</button>}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

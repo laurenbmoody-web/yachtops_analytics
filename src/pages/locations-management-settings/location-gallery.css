@@ -589,3 +589,13 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .lg-move-newzone{display:block;width:100%;text-align:left;border:0;background:none;cursor:pointer;border-radius:9px;
   padding:8px 12px;font-family:var(--lg-sans);font-size:12.5px;font-weight:600;color:var(--lg-terra,#C65A1A);}
 .lg-move-newzone:hover{background:var(--lg-terra-soft,#FBEEE4);}
+
+/* Move picker: compact deck select + that deck's zones. */
+.lg-move-pick{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--lg-line,#F0F1F5);}
+.lg-move-pick label{font-family:var(--lg-sans);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--lg-muted,#8B8478);}
+.lg-move-pick select{flex:1;font-family:var(--lg-sans);font-size:13.5px;font-weight:600;color:var(--lg-ink,#1C1B3A);
+  background:var(--lg-card,#fff);border:1px solid var(--lg-hair,#E5E7EB);border-radius:9px;padding:8px 10px;outline:none;cursor:pointer;}
+.lg-move-pick select:focus{border-color:var(--lg-terra,#C65A1A);box-shadow:0 0 0 3px #FAECE7;}
+
+/* A zone lit up as a drop target while dragging a space over it. */
+.lg-zone.droptarget{outline:2px dashed var(--lg-terra,#C65A1A);outline-offset:3px;border-radius:12px;background:var(--lg-terra-soft,#FBEEE4);}
