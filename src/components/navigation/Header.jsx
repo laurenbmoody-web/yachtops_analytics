@@ -621,10 +621,19 @@ const Header = () => {
       <header className="nav-header">
         {/* LEFT ZONE: Logo + the vessel you're on */}
         <div className="flex items-center gap-3 flex-shrink-0 nav-brand">
+          {/* Full "cargo" wordmark on desktop. On phones its embedded raster
+              blurs when shrunk (and it crowds out the vessel name), so show the
+              compact square mark instead. */}
           <Image
             src="/centered-logo.svg"
             alt="Cargo"
-            className="h-8 w-auto object-contain cursor-pointer hover:opacity-80 transition-smooth nav-logo"
+            className="h-8 w-auto object-contain cursor-pointer hover:opacity-80 transition-smooth hidden sm:block"
+            onClick={() => navigate('/dashboard')}
+          />
+          <Image
+            src="/favicon.svg"
+            alt="Cargo"
+            className="h-7 w-auto object-contain cursor-pointer hover:opacity-80 transition-smooth sm:hidden nav-logo-mark"
             onClick={() => navigate('/dashboard')}
           />
           {/* The divider has always implied a vessel name after it. A login with

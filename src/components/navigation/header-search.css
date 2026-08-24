@@ -210,13 +210,13 @@
      on-screen. The logo + vessel name were eating the width and pushing the
      avatar off the right edge; shrink the logo and tighten the gaps so
      search · bell · avatar always fit. */
-  .nav-logo { height: 24px !important; }
   /* Left brand block yields width first (name truncates) so the right-zone
-     controls — including the avatar menu — can never be pushed off-screen. */
+     controls — including the avatar menu — can never be pushed off-screen. The
+     compact mark leaves plenty of room, so the vessel name rarely truncates. */
   .nav-brand { gap: 8px !important; flex-shrink: 1 !important; min-width: 0; }
   .nav-brand .vs, .nav-brand .vs-solo { min-width: 0; }
   .vs-solo, .vs-name {
-    display: inline-block; max-width: 34vw;
+    display: inline-block; max-width: 52vw;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;
   }
   .nav-right { gap: 6px !important; flex-shrink: 0; }
