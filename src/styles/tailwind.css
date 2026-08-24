@@ -207,7 +207,8 @@
   }
 
   [data-theme="day"] {
-    --color-background: #F4F1EC;
+    /* Page canvas is always the cool maritime white — never warm beige. */
+    --color-background: #F8FAFC;
     --color-card: #FAF8F4;
     --color-border: #E2DDD4;
     --color-foreground: #1a1a1a;
