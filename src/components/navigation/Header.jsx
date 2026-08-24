@@ -631,7 +631,7 @@ const Header = () => {
             onClick={() => navigate('/dashboard')}
           />
           <Image
-            src="/favicon.svg"
+            src="/cargo-mark.png"
             alt="Cargo"
             className="h-7 w-auto object-contain cursor-pointer hover:opacity-80 transition-smooth sm:hidden nav-logo-mark"
             onClick={() => navigate('/dashboard')}
