@@ -186,3 +186,14 @@
 .dark .hsearch-item:hover { background: #20222E; }
 :root[data-theme="night"] .hsearch-label,
 .dark .hsearch-label { color: #ECEAF4; }
+
+/* ── Mobile (≤640px): reclaim the header for the nav controls ──────────────
+   The centre search input has no min-width:0, so on a phone it refuses to
+   shrink and pushes the bell / settings / avatar off the right edge — leaving
+   the nav (and its Logout menu) unreachable. Hide the inline search below the
+   phone breakpoint; the wrapper stays as a flex spacer so the right-zone
+   controls sit flush right. Desktop is unaffected. */
+@media (max-width: 640px) {
+  .nav-search { display: none; }
+  .nav-search-wrap { padding-left: 4px; padding-right: 4px; }
+}
