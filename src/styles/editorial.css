@@ -77,6 +77,22 @@
   flex-shrink: 0;
 }
 
+/* ── Mobile (≤640px): stop the canonical editorial header overflowing ──────
+   These two classes lead almost every page, so one phone-only block makes them
+   all fit — the big serif headline shrinks and wraps, and the meta stat strip
+   wraps instead of running off the right edge. Desktop scale is untouched. */
+@media (max-width: 640px) {
+  .editorial-greeting {
+    font-size: 30px; line-height: 1.04; letter-spacing: -0.4px;
+    white-space: normal; margin-bottom: 12px;
+  }
+  .editorial-meta {
+    flex-wrap: wrap; white-space: normal; row-gap: 4px;
+    font-size: 9px; letter-spacing: 1.4px;
+  }
+  .editorial-meta .bar { margin: 0 7px; }
+}
+
 /* ── Editorial filter-row placeholders ───────────────────────────────
    Lives here (not in surface-specific CSS) because both
    SupplierOrdersIndex and DeliveryHistory import editorial.css. The
