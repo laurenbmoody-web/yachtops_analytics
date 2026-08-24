@@ -436,6 +436,24 @@ export const updateSpace = async (spaceId, name) => {
   return { id: data?.id, zoneId: data?.parent_id, name: data?.name, sortOrder: data?.sort_order, isArchived: data?.is_archived };
 };
 
+// Move a space into a different zone (which may live on a different deck). Only
+// the parent_id changes — level stays 'space'; it lands at the top of the target
+// zone (sort_order 0).
+export const moveSpace = async (spaceId, zoneId) => {
+  const { data, error } = await supabase?.from('vessel_locations')
+    ?.update({ parent_id: zoneId, sort_order: 0, updated_at: new Date()?.toISOString() })
+    ?.eq('id', spaceId)?.select()?.single();
+  if (error) throw error;
+  logAudit({
+    entityType: EntityType?.LOCATION,
+    entityId: spaceId,
+    entityName: `Space: ${data?.name}`,
+    action: AuditAction?.UPDATED,
+    changes: [{ field: 'zone', to: zoneId }],
+  });
+  return { id: data?.id, zoneId: data?.parent_id, name: data?.name };
+};
+
 export const archiveSpace = async (spaceId) => {
   const { data, error } = await supabase?.from('vessel_locations')?.update({ is_archived: true, updated_at: new Date()?.toISOString() })?.eq('id', spaceId)?.select()?.single();
 

@@ -568,3 +568,24 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-frame-canvas img{display:block;max-width:100%;max-height:70vh;width:auto;height:auto;object-fit:contain;pointer-events:none;}
 .dp-frame-rect{position:absolute;border:2px solid var(--lg-terra);background:rgba(198,90,26,.14);border-radius:2px;pointer-events:none;}
 .dp-modal-actions{display:flex;gap:10px;margin-top:14px;}
+
+/* Move-a-space picker — pick a destination zone (grouped by deck). */
+.lg-move-ov{position:fixed;inset:0;z-index:1000;background:rgba(28,27,58,.32);display:flex;align-items:center;justify-content:center;padding:24px;}
+.lg-move{width:100%;max-width:420px;max-height:80vh;display:flex;flex-direction:column;background:var(--lg-card,#fff);
+  border:1px solid var(--lg-hair,#ECEAE3);border-radius:16px;box-shadow:0 24px 60px -16px rgba(28,27,58,.4);overflow:hidden;}
+.lg-move-hd{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--lg-line,#F0F1F5);
+  font-family:var(--lg-sans);font-size:14px;color:var(--lg-ink,#1C1B3A);}
+.lg-move-hd span{flex:1;}
+.lg-move-x{border:0;background:none;cursor:pointer;font-size:20px;line-height:1;color:var(--lg-muted,#6B7280);padding:0 2px;}
+.lg-move-x:hover{color:var(--lg-ink,#1C1B3A);}
+.lg-move-body{overflow-y:auto;padding:8px;}
+.lg-move-deck{padding:6px 4px 10px;}
+.lg-move-deckname{margin:0 0 6px;padding:0 6px;font-family:var(--lg-sans);font-size:9px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;color:var(--lg-muted,#8B8478);}
+.lg-move-zone{display:block;width:100%;text-align:left;border:0;background:none;cursor:pointer;border-radius:9px;
+  padding:9px 12px;font-family:var(--lg-sans);font-size:13.5px;font-weight:500;color:var(--lg-ink,#1C1B3A);}
+.lg-move-zone:hover{background:var(--lg-wash,#F4F6F9);}
+.lg-move-zone.current{color:var(--lg-muted,#8B8478);cursor:default;}
+.lg-move-newzone{display:block;width:100%;text-align:left;border:0;background:none;cursor:pointer;border-radius:9px;
+  padding:8px 12px;font-family:var(--lg-sans);font-size:12.5px;font-weight:600;color:var(--lg-terra,#C65A1A);}
+.lg-move-newzone:hover{background:var(--lg-terra-soft,#FBEEE4);}
