@@ -93,6 +93,10 @@ const Header = () => {
   const unberthed = noVesselAccess === true;
   const [currentUser, setCurrentUser] = useState(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  // Collapse the mobile search bar whenever the route changes (e.g. after
+  // picking a search result), so it doesn't linger over the new page.
+  useEffect(() => { setMobileSearchOpen(false); }, [location.pathname]);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [alertsTab, setAlertsTab] = useState('notifications');
   const [unreadCount, setUnreadCount] = useState(0);
@@ -637,7 +641,7 @@ const Header = () => {
             The wrapper stays a flex-1 spacer (keeps the right-zone controls
             pushed right); `nav-search` hides just the input on phones so the
             bell/avatar don't get shoved off-screen. */}
-        <div className="flex-1 flex justify-center px-8 nav-search-wrap">
+        <div className={`flex-1 flex justify-center px-8 nav-search-wrap${mobileSearchOpen ? ' open' : ''}`}>
           {!unberthed && (
           <div className="relative w-full max-w-md nav-search" ref={searchRef}>
             <Icon
@@ -732,6 +736,20 @@ const Header = () => {
         </div>
         {/* RIGHT ZONE: Icons + User */}
         <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Mobile-only search toggle — the inline centre search is hidden on
+              phones (it would shove these controls off-screen), so this reveals
+              it as a full-width bar under the header. */}
+          {!unberthed && (
+            <button
+              onClick={() => setMobileSearchOpen((o) => !o)}
+              className="sm:hidden p-2 hover:bg-muted rounded-lg transition-smooth"
+              title="Search"
+              aria-label="Search"
+              aria-expanded={mobileSearchOpen}
+            >
+              <Icon name={mobileSearchOpen ? 'X' : 'Search'} size={20} color="var(--color-foreground)" />
+            </button>
+          )}
           {/* Alerts — a single Bell icon opening the unified Inbox drawer
               (Notifications · Reviews · Activity). The badge sums the pending
               Reviews + Notification counts. */}
@@ -773,14 +791,14 @@ const Header = () => {
               vessel admin sections. */}
           <button
             onClick={() => navigate('/settings')}
-            className="p-2 hover:bg-muted rounded-lg transition-smooth"
+            className="hidden sm:block p-2 hover:bg-muted rounded-lg transition-smooth"
             title="Settings"
             aria-label="Settings"
           >
             <Icon name="Settings" size={20} color="var(--color-foreground)" />
           </button>
 
-          <div className="w-px h-6 bg-border mx-1" />
+          <div className="hidden sm:block w-px h-6 bg-border mx-1" />
 
           <div className="relative" ref={menuRef}>
             <button
