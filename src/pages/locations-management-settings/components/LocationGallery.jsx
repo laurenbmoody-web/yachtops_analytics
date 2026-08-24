@@ -11,7 +11,7 @@ import {
   createDeck, createZone, createSpace,
   updateDeck, updateZone, updateSpace,
   archiveDeck, archiveZone, archiveSpace,
-  reorderLocations,
+  reorderLocations, moveSpace,
 } from '../utils/locationsHierarchyStorage';
 import AddScanModal from './AddScanModal';
 import ConfigureDecksModal from './ConfigureDecksModal';
@@ -93,6 +93,7 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
   const [dragId, setDragId] = useState(null);
   const [addScanSpace, setAddScanSpace] = useState(null);
   const [sublocSpace, setSublocSpace] = useState(null); // room whose sub-locations we're managing
+  const [moveTarget, setMoveTarget] = useState(null); // { space, zoneId } being moved
   const [showDecks, setShowDecks] = useState(false);
   const rootRef = useRef(null);
   const dataRef = useRef(null);
@@ -250,6 +251,21 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
     try { await reorderLocations(ids); } catch (err) { console.error('[loc-gallery] reorder error:', err); await load(); }
   };
 
+  // Move a space to another zone/deck (menu-based — reliable across the carousel).
+  const doMove = async (zoneId) => {
+    const sp = moveTarget?.space;
+    setMoveTarget(null);
+    if (!sp || !zoneId) return;
+    try { await moveSpace(sp.id, zoneId); await load(); }
+    catch (err) { console.error('[loc-gallery] move error:', err); }
+  };
+  const doMoveNewZone = async (deck) => {
+    const sp = moveTarget?.space;
+    if (!sp) return;
+    try { const z = await createZone(deck.id, 'General'); setMoveTarget(null); await moveSpace(sp.id, z.id); await load(); }
+    catch (err) { console.error('[loc-gallery] move-new-zone error:', err); }
+  };
+
   const addScan = (space) => setAddScanSpace(space);
   const viewOnMap = (space) => navigate(`/vessel/map?scan=${space.scan.id}`);
   const openSpace = (space) => {
@@ -314,12 +330,12 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
         <span className="cf-grip" onMouseDown={grab} title="Drag to reorder"><GripIcon /></span>
         <div className="cf-menu">
           <Kebab id={`space:${space.id}`} items={[
+            { label: 'Move to…', on: () => setMoveTarget({ space, zoneId }) },
             { label: 'Sub-locations', on: () => setSublocSpace(space) },
             ...(scanned ? [
               { sep: true },
               { label: 'View on map', on: () => viewOnMap(space) },
               { label: 'Replace scan', on: () => replaceScan(space) },
-              { sep: true },
               { label: 'Remove scan', danger: true, on: () => removeScan(space) },
             ] : []),
           ]} />
@@ -508,6 +524,36 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
           onClose={() => setSublocSpace(null)}
           onChanged={load}
         />
+      )}
+
+      {moveTarget && (
+        <div className="lg-move-ov" onClick={() => setMoveTarget(null)}>
+          <div className="lg-move" onClick={(e) => e.stopPropagation()}>
+            <div className="lg-move-hd">
+              <span>Move <b>{moveTarget.space.name}</b> to…</span>
+              <button type="button" className="lg-move-x" onClick={() => setMoveTarget(null)} aria-label="Close">×</button>
+            </div>
+            <div className="lg-move-body">
+              {(data?.decks || []).map((deck) => (
+                <div key={deck.id} className="lg-move-deck">
+                  <p className="lg-move-deckname">{deck.name}</p>
+                  {(deck.zones || []).map((zone) => (
+                    <button
+                      key={zone.id}
+                      type="button"
+                      className={`lg-move-zone${zone.id === moveTarget.zoneId ? ' current' : ''}`}
+                      disabled={zone.id === moveTarget.zoneId}
+                      onClick={() => doMove(zone.id)}
+                    >
+                      {zone.name}{zone.id === moveTarget.zoneId ? ' · current' : ''}
+                    </button>
+                  ))}
+                  <button type="button" className="lg-move-newzone" onClick={() => doMoveNewZone(deck)}>＋ New zone here</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
