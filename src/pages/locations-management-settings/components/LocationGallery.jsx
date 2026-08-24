@@ -228,7 +228,9 @@ export default function LocationGallery({ onStats, hideStats = false } = {}) {
   // ── drag-to-reorder (initiated from a grip; siblings only) ──
   const grab = () => { grabRef.current = true; };
   const startDrag = (level, id, parentId) => (e) => {
-    if (!grabRef.current) { e.preventDefault(); return; }
+    // Space cards drag directly (grab the whole card); decks/zones still need
+    // their grip so clicking the header/name doesn't start a drag.
+    if (level !== 'space' && !grabRef.current) { e.preventDefault(); return; }
     e.stopPropagation();
     dragRef.current = { level, id, parentId };
     setDragId(id);
