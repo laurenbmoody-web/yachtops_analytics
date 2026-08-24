@@ -205,4 +205,12 @@
     border-bottom: 1px solid #EEF0F4;
   }
   .nav-search-wrap.open .nav-search { display: block; max-width: none; width: 100%; }
+
+  /* Keep the right-zone controls — including the avatar menu (login/out + nav) —
+     on-screen. The logo + vessel name were eating the width and pushing the
+     avatar off the right edge; shrink the logo and tighten the gaps so
+     search · bell · avatar always fit. */
+  .nav-logo { height: 24px !important; }
+  .nav-brand { gap: 8px !important; }
+  .nav-right { gap: 6px !important; }
 }

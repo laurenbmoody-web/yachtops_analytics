@@ -620,11 +620,11 @@ const Header = () => {
       )}
       <header className="nav-header">
         {/* LEFT ZONE: Logo + the vessel you're on */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0 nav-brand">
           <Image
             src="/centered-logo.svg"
             alt="Cargo"
-            className="h-8 w-auto object-contain cursor-pointer hover:opacity-80 transition-smooth"
+            className="h-8 w-auto object-contain cursor-pointer hover:opacity-80 transition-smooth nav-logo"
             onClick={() => navigate('/dashboard')}
           />
           {/* The divider has always implied a vessel name after it. A login with
@@ -735,7 +735,7 @@ const Header = () => {
           )}
         </div>
         {/* RIGHT ZONE: Icons + User */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0 nav-right">
           {/* Mobile-only search toggle — the inline centre search is hidden on
               phones (it would shove these controls off-screen), so this reveals
               it as a full-width bar under the header. */}
