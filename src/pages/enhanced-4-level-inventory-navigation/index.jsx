@@ -200,9 +200,9 @@ const applySortToItems = (items, sortBy) => {
     case 'qty_desc':
       return arr?.sort((a, b) => ((b?.quantity ?? b?.totalQty ?? 0) - (a?.quantity ?? a?.totalQty ?? 0)));
     case 'recently_added':
-      return arr?.sort((a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0));
+      return arr?.sort((a, b) => new Date(b?.createdAt || b?.created_at || 0) - new Date(a?.createdAt || a?.created_at || 0));
     case 'recently_updated':
-      return arr?.sort((a, b) => new Date(b?.updated_at || b?.created_at || 0) - new Date(a?.updated_at || a?.created_at || 0));
+      return arr?.sort((a, b) => new Date(b?.updatedAt || b?.updated_at || b?.createdAt || b?.created_at || 0) - new Date(a?.updatedAt || a?.updated_at || a?.createdAt || a?.created_at || 0));
     case 'expiry_asc': case'expiry_desc': {
       const getExpiryTimestamp = (item) => {
         const raw = item?.expiry_date || item?.expiryDate || null;
@@ -219,13 +219,6 @@ const applySortToItems = (items, sortBy) => {
         if (bTs === null) return -1;
         return sortBy === 'expiry_asc' ? aTs - bTs : bTs - aTs;
       });
-      // Debug log: show sorted order with raw expiry_date and parsed timestamp
-      console.log('[Expiry Sort Debug]', sortBy, sorted?.map((item, idx) => ({
-        order: idx + 1,
-        name: item?.name,
-        raw_expiry_date: item?.expiry_date || item?.expiryDate || null,
-        parsed_timestamp: getExpiryTimestamp(item),
-      })));
       return sorted;
     }
     case 'par_below':
