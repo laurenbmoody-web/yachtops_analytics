@@ -893,7 +893,7 @@ const Header = () => {
                         label: 'Personal',
                         items: [
                           { show: true, icon: 'User', label: 'My Profile', path: '/my-profile', onClick: () => handleNavigation(`/profile/${session?.user?.id}`, 'My Profile') },
-                          { show: true, icon: 'Wallet', label: 'My money', path: '/accounts/my', onClick: () => handleNavigation('/accounts/my', 'My money') },
+                          { show: isCommandRole || isChiefRole || isHODRole, icon: 'Wallet', label: 'My money', path: '/accounts/my', onClick: () => handleNavigation('/accounts/my', 'My money') },
                           { show: true, icon: 'Settings', label: 'Settings', path: '/settings', onClick: () => handleNavigation('/settings', 'Settings') },
                         ],
                       },

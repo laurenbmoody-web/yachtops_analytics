@@ -1348,9 +1348,11 @@ const Routes = () => {
             sent to the report, and any card holder to their own My money. */}
         <Route path="/accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
         <Route path="/accounts/cards" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']} requireAccounts><DepartmentCards /></ProtectedRoute>} />
-        {/* My money is personal — any tenant member reaches it; the page scopes to
-            their own holdings (Command can pin another holder via ?holder=). */}
-        <Route path="/accounts/my" element={<ProtectedRoute><MyReconcile /></ProtectedRoute>} />
+        {/* My money is personal card/petty-cash reconciliation for holders — the
+            page scopes to their own holdings (Command can pin another holder via
+            ?holder=). Crew don't hold accounts, so it's limited to COMMAND/CHIEF/HOD
+            (matches the avatar-menu entry). */}
+        <Route path="/accounts/my" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF', 'HOD']}><MyReconcile /></ProtectedRoute>} />
         {/* Return from the bank's Open Banking consent screen. */}
         <Route path="/accounts/connect/callback" element={<ProtectedRoute requiredRoles={['COMMAND']} requireAccounts><ConnectCallback /></ProtectedRoute>} />
         {/* Command's month-end review queue — approve a submitted card/float or send it back. */}
