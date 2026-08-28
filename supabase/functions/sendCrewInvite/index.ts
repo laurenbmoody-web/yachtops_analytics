@@ -205,7 +205,7 @@ Deno.serve(async (req: Request) => {
 
   // 1. Fetch crew invite (service-role bypasses RLS)
   const inviteRes = await sbFetch(
-    `/crew_invites?id=eq.${crewInviteId}&select=email,first_name,department_label,role_label,token,tenant_id&limit=1`
+    `/crew_invites?id=eq.${crewInviteId}&select=email,invitee_name,department_label,role_label,token,tenant_id&limit=1`
   );
   if (!inviteRes.ok) {
     const errText = await inviteRes.text();
@@ -234,7 +234,8 @@ Deno.serve(async (req: Request) => {
 
   // 3. Build invite URL and resolve first name
   const inviteUrl = `${SITE_URL}/invite-accept?token=${invite.token}`;
-  const firstName: string = invite.first_name?.trim() || 'there';
+  // crew_invites stores the full name in invitee_name; greet by first token.
+  const firstName: string = invite.invitee_name?.trim()?.split(/\s+/)?.[0] || 'there';
   const department: string = invite.department_label || '';
   const role: string = invite.role_label || '';
   const vessel: string = vesselName || 'your vessel';
