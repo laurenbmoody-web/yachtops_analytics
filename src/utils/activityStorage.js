@@ -134,8 +134,11 @@ export const getActivityEvents = async (user = null, filters = {}) => {
         query = query?.ilike('department_scope', dept);
       }
     } else {
-      // Crew: own activity only
-      if (currentUser?.id) {
+      // Crew: their own activity + their own department's activity only.
+      const dept = currentUser?.department;
+      if (currentUser?.id && dept) {
+        query = query?.or(`actor_user_id.eq.${currentUser?.id},department_scope.ilike.${dept}`);
+      } else if (currentUser?.id) {
         query = query?.eq('actor_user_id', currentUser?.id);
       } else {
         return [];

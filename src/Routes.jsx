@@ -1318,7 +1318,8 @@ const Routes = () => {
 
         {/* Provisioning Routes */}
         <Route path="/provisioning" element={<ProtectedRoute><ProvisioningWorkspace /></ProtectedRoute>} />
-        <Route path="/messages" element={<ProtectedRoute><CrewMessages /></ProtectedRoute>} />
+        {/* Supplier messaging — procurement conversations, not for general crew. */}
+        <Route path="/messages" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF', 'HOD']}><CrewMessages /></ProtectedRoute>} />
         {/* Phase 2 — marketplace. Static segment declared before
             /provisioning/:id so 'marketplace' is never read as a board id. */}
         <Route path="/provisioning/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
