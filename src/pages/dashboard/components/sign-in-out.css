@@ -12,7 +12,7 @@
 .sio-state .sio-dot {
   width: 9px; height: 9px; border-radius: 999px; flex-shrink: 0;
 }
-.sio-state.is-aboard .sio-dot { background: #16A34A; box-shadow: 0 0 0 4px rgba(22,163,74,0.14); }
+.sio-state.is-aboard .sio-dot { background: #1C1B3A; box-shadow: 0 0 0 4px rgba(28,27,58,0.10); }
 .sio-state.is-ashore .sio-dot { background: #C65A1A; box-shadow: 0 0 0 4px rgba(198,90,26,0.14); }
 
 /* Segmented control — two equal halves, a highlight slides under the active one.
@@ -28,7 +28,7 @@
   transition: left 0.24s cubic-bezier(0.34, 1.2, 0.5, 1), background 0.2s ease;
   box-shadow: 0 3px 10px -3px rgba(28,27,58,0.30);
 }
-.sio-seg.aboard .sio-seg-hl { left: 4px; background: #16A34A; }
+.sio-seg.aboard .sio-seg-hl { left: 4px; background: #1C1B3A; }
 .sio-seg.ashore .sio-seg-hl { left: 50%; background: #C65A1A; }
 
 .sio-seg-btn {
