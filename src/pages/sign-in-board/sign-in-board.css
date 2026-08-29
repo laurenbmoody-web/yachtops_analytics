@@ -128,6 +128,11 @@
   font-family: 'Inter', system-ui, sans-serif; font-size: 10px; font-weight: 700;
   letter-spacing: 0.12em; text-transform: uppercase; color: #AEB4C2;
 }
+.sib-phone {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 2px;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 12px; font-weight: 600; color: #6B7280;
+}
+.sib-phone svg { color: #C65A1A; }
 
 /* Status toggle — both labels visible, thumb slides left (Aboard, navy) /
    right (Ashore, terracotta). Card tap flips it. */

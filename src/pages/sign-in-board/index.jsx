@@ -50,6 +50,7 @@ const SignInBoard = () => {
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState('');
   const [addCompany, setAddCompany] = useState('');
+  const [addPhone, setAddPhone] = useState('');
   const [addBusy, setAddBusy] = useState(false);
   const pollRef = useRef(null);
 
@@ -118,13 +119,13 @@ const SignInBoard = () => {
   };
 
   const submitContractor = async () => {
-    if (!addName.trim()) return;
+    if (!addName.trim() || !addPhone.trim()) return;
     setAddBusy(true);
     try {
-      await addContractor(activeTenantId, addName, addCompany, meId);
-      setAddOpen(false); setAddName(''); setAddCompany('');
+      await addContractor(activeTenantId, addName, addCompany, addPhone, meId);
+      setAddOpen(false); setAddName(''); setAddCompany(''); setAddPhone('');
       load();
-    } catch (e) { showToast(e.message || 'Could not add contractor', 'error'); }
+    } catch (e) { showToast(e.message || 'Could not add visitor', 'error'); }
     finally { setAddBusy(false); }
   };
 
@@ -134,7 +135,7 @@ const SignInBoard = () => {
   const dateStr = now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
 
   const personCard = (opts) => {
-    const { key, on, name, sub, onClick, disabled, backAt } = opts;
+    const { key, on, name, sub, sub2, onClick, disabled, backAt } = opts;
     return (
       <button key={key} type="button" className={`sib-card ${on ? 'aboard' : 'ashore'}`} onClick={onClick} disabled={disabled} aria-pressed={on}>
         <span className="sib-av">
@@ -142,6 +143,7 @@ const SignInBoard = () => {
         </span>
         <span className="sib-name">{name}</span>
         {sub && <span className="sib-dept">{sub}</span>}
+        {sub2 && <span className="sib-phone"><Icon name="Phone" size={11} /> {sub2}</span>}
         <span className={`sib-toggle ${on ? 'aboard' : 'ashore'}`} aria-hidden="true">
           <span className="sib-toggle-hl" />
           <span className="sib-half l">Aboard</span>
@@ -212,7 +214,7 @@ const SignInBoard = () => {
           {section('Visitors', contractors.length, (
             <>
               {contractors.map((k) => personCard({
-                key: `k:${k.id}`, on: true, name: k.name, sub: k.company || 'Visitor',
+                key: `k:${k.id}`, on: true, name: k.name, sub: k.company || 'Visitor', sub2: k.phone,
                 disabled: !!pending[`k:${k.id}`], onClick: () => signOut(k),
               }))}
               <button type="button" className="sib-add" onClick={() => setAddOpen(true)}>
@@ -237,13 +239,17 @@ const SignInBoard = () => {
               <input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Full name" autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
             </label>
+            <label className="sib-field"><span>Contact number <em>for emergencies</em></span>
+              <input value={addPhone} onChange={(e) => setAddPhone(e.target.value)} placeholder="Mobile number" type="tel" inputMode="tel"
+                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
+            </label>
             <label className="sib-field"><span>Company <em>optional</em></span>
               <input value={addCompany} onChange={(e) => setAddCompany(e.target.value)} placeholder="e.g. AV Marine"
                 onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
             </label>
             <div className="sib-modal-foot">
               <button type="button" className="sib-btn ghost" onClick={() => setAddOpen(false)}>Cancel</button>
-              <button type="button" className="sib-btn primary" onClick={submitContractor} disabled={addBusy || !addName.trim()}>
+              <button type="button" className="sib-btn primary" onClick={submitContractor} disabled={addBusy || !addName.trim() || !addPhone.trim()}>
                 Sign in
               </button>
             </div>
