@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
-import Select from '../../../components/ui/Select';
+import ModalShell from '../../../components/ui/ModalShell';
+import '../../team-jobs-management/job-modals.css';
+import '../duty-sets.css';
 
 const EditTemplateModal = ({ template, existingTemplates = [], onClose, onSave }) => {
   // Derive duty options from existing templates
@@ -69,106 +69,141 @@ const EditTemplateModal = ({ template, existingTemplates = [], onClose, onSave }
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-6" onClick={onClose}>
-      <div
-        className="bg-card rounded-xl border border-border shadow-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e?.stopPropagation()}
-      >
-        <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-foreground">Edit Duty Set Template</h2>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-smooth">
-            <Icon name="X" size={20} className="text-muted-foreground" />
-          </button>
+    <ModalShell onClose={onClose} panelClassName="jm-panel lg">
+      <div className="jm-head">
+        <div>
+          <p className="jm-eyebrow">Rotation</p>
+          <h2 className="jm-title">Edit duty set</h2>
+          <p className="jm-sub">{template?.name}</p>
         </div>
+        <button onClick={onClose} className="jm-x" title="Close">
+          <Icon name="X" size={18} />
+        </button>
+      </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <Input
-            label="Template Name"
-            required
+      <form onSubmit={handleSubmit} className="jm-body" id="dsr-edit-template-form">
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="etpl-name">
+            Template name<span className="req">required</span>
+          </label>
+          <input
+            id="etpl-name"
+            autoFocus
+            type="text"
+            className="jm-titlefield"
+            placeholder="e.g. Crew mess, Captain's cabin"
             value={formData?.name}
             onChange={(e) => setFormData(prev => ({ ...prev, name: e?.target?.value }))}
-            placeholder="e.g., Crew Mess, Captain's Cabin"
           />
+        </div>
 
-          <Select
-            label="Duty"
-            options={dutyOptions}
-            value={formData?.category}
-            onChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-          />
-
-          <Input
-            label="Estimated Duration (minutes)"
-            type="number"
-            value={formData?.estimatedDuration}
-            onChange={(e) => setFormData(prev => ({ ...prev, estimatedDuration: parseInt(e?.target?.value) }))}
-            min={5}
-          />
-
-          {/* Tasks */}
+        <div className="jm-section jm-grid">
           <div>
-            <h3 className="text-sm font-semibold text-foreground mb-3">Tasks</h3>
-            <div className="space-y-3 mb-4">
+            <label className="jm-label" htmlFor="etpl-duty">Duty</label>
+            <select
+              id="etpl-duty"
+              className="jm-select"
+              value={formData?.category || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, category: e?.target?.value }))}
+            >
+              {dutyOptions?.map(o => (
+                <option key={o?.value} value={o?.value}>{o?.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="jm-label" htmlFor="etpl-dur">Estimated duration</label>
+            <div className="dsr-suffixfield">
+              <input
+                id="etpl-dur"
+                type="number"
+                min={5}
+                className="jm-input"
+                value={formData?.estimatedDuration}
+                onChange={(e) => setFormData(prev => ({ ...prev, estimatedDuration: parseInt(e?.target?.value) }))}
+              />
+              <span className="suffix">minutes</span>
+            </div>
+          </div>
+        </div>
+
+        <hr className="jm-rule" />
+
+        {/* Tasks */}
+        <div className="jm-section">
+          <p className="jm-label">Tasks</p>
+          {formData?.tasks?.length === 0 ? (
+            <p className="jm-hint" style={{ marginBottom: 12 }}>
+              No tasks yet — add the steps this duty set runs through.
+            </p>
+          ) : (
+            <div className="jm-list" style={{ marginBottom: 12 }}>
               {formData?.tasks?.map(task => (
-                <div key={task?.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                  <div className="flex-1">
-                    <p className="text-sm text-foreground">{task?.text}</p>
-                    <p className="text-xs text-muted-foreground capitalize">
-                      {task?.frequency?.replace('-', ' — ')}
-                    </p>
+                <div key={task?.id} className="jm-row">
+                  <span className="dsr-task-pip" />
+                  <div className="jm-row-main">
+                    <p className="jm-row-title">{task?.text}</p>
+                    {task?.frequency && (
+                      <p className="jm-row-sub">{String(task?.frequency)?.replace('-', ' — ')}</p>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveTask(task?.id)}
-                    className="p-1 hover:bg-muted rounded transition-smooth"
-                  >
-                    <Icon name="X" size={16} className="text-muted-foreground" />
-                  </button>
+                  <div className="jm-row-actions">
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTask(task?.id)}
+                      className="jm-file-x"
+                      title="Remove task"
+                    >
+                      <Icon name="X" size={14} />
+                    </button>
+                  </div>
                 </div>
               ))}
-              {formData?.tasks?.length === 0 && (
-                <p className="text-sm text-muted-foreground">No tasks added yet</p>
-              )}
             </div>
+          )}
 
-            {/* Add Task Form */}
-            <div className="space-y-3 p-4 bg-muted/20 rounded-lg">
-              <Input
-                placeholder="Task description"
-                value={newTask?.text}
-                onChange={(e) => setNewTask(prev => ({ ...prev, text: e?.target?.value }))}
-              />
-              <div className="flex gap-3">
-                <Select
-                  options={frequencyOptions}
-                  value={newTask?.frequency}
-                  onChange={(value) => setNewTask(prev => ({ ...prev, frequency: value }))}
-                  className="flex-1"
-                />
-                <Button type="button" iconName="Plus" onClick={handleAddTask}>
-                  Add Task
-                </Button>
-              </div>
+          <div className="jm-section">
+            <input
+              type="text"
+              className="jm-input"
+              placeholder="Task description"
+              value={newTask?.text}
+              onChange={(e) => setNewTask(prev => ({ ...prev, text: e?.target?.value }))}
+              onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddTask(); } }}
+            />
+            <div className="dsr-inlineadd">
+              <select
+                className="jm-select"
+                value={newTask?.frequency || ''}
+                onChange={(e) => setNewTask(prev => ({ ...prev, frequency: e?.target?.value }))}
+              >
+                {frequencyOptions?.map(o => (
+                  <option key={o?.value} value={o?.value}>{o?.label}</option>
+                ))}
+              </select>
+              <button type="button" className="jm-btn accent sm" onClick={handleAddTask}>
+                <Icon name="Plus" size={14} />
+                Add task
+              </button>
             </div>
           </div>
+        </div>
+      </form>
 
-          <div className="flex items-center gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} fullWidth>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="default"
-              iconName="Save"
-              fullWidth
-              disabled={!formData?.name?.trim()}
-            >
-              Save Changes
-            </Button>
-          </div>
-        </form>
+      <div className="jm-foot">
+        <button type="button" className="jm-btn ghost" onClick={onClose}>Cancel</button>
+        <div className="spacer" />
+        <button
+          type="submit"
+          form="dsr-edit-template-form"
+          className="jm-btn primary"
+          disabled={!formData?.name?.trim()}
+        >
+          <Icon name="Save" size={15} />
+          Save changes
+        </button>
       </div>
-    </div>
+    </ModalShell>
   );
 };
 

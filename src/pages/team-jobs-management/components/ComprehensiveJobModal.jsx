@@ -1,10 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
-import Select from '../../../components/ui/Select';
-import { Checkbox } from '../../../components/ui/Checkbox';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import { supabase } from '../../../lib/supabaseClient';
@@ -15,6 +11,8 @@ import { logActivity, JobActions } from '../../../utils/activityStorage';
 import { normalizeTier, canAssignTo } from '../utils/tierPermissions';
 
 import ModalShell from '../../../components/ui/ModalShell';
+import '../job-modals.css';
+import '../../duty-sets-rotation-management/duty-sets.css';
 // Helper to normalize department names for comparison
 const normalizeDept = (dept) => {
   return dept?.toUpperCase()?.trim() || '';
@@ -672,234 +670,233 @@ const ComprehensiveJobModal = ({ boards, selectedDate, defaultBoardId, onClose, 
   // non-COMMAND cannot change department
 
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-card rounded-xl border border-border shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b border-border bg-card sticky top-0 z-10">
+    <ModalShell
+      onClose={onClose}
+      isBusy={isSubmitting}
+      isDirty={!!formData?.title?.trim()}
+      panelClassName="jm-panel xl"
+    >
+      <div className="jm-head">
         <div>
-          <h2 className="text-xl font-semibold text-foreground">Create New Job</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Full feature job creation'}
+          <p className="jm-eyebrow">Jobs</p>
+          <h2 className="jm-title">Create a job</h2>
+          <p className="jm-sub">
+            {selectedDate ? format(selectedDate, 'EEEE dd/MM/yyyy') : 'Every field, for a fully specified job.'}
           </p>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-accent rounded-lg transition-smooth">
-          <Icon name="X" size={20} className="text-muted-foreground" />
+        <button onClick={onClose} className="jm-x" title="Close">
+          <Icon name="X" size={18} />
         </button>
       </div>
 
-      {/* Form - Scrollable */}
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Error Display */}
+      <form onSubmit={handleSubmit} className="jm-body" id="tj-comprehensive-form">
         {submitError && (
-          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            <div className="flex items-start gap-2 text-red-700 dark:text-red-400">
-              <Icon name="AlertCircle" size={16} className="flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">Error</p>
-                <p className="text-xs mt-1">{submitError}</p>
-              </div>
+          <div className="jm-section">
+            <div className="jm-notice danger">
+              <Icon name="AlertCircle" size={15} />
+              <span><strong>Couldn’t save.</strong> {submitError}</span>
             </div>
           </div>
         )}
 
-        {/* VIEW_ONLY notice */}
         {isViewOnly && (
-          <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-            <div className="flex items-start gap-2 text-amber-700 dark:text-amber-400">
-              <Icon name="Lock" size={16} className="flex-shrink-0 mt-0.5" />
-              <p className="text-sm">You have view-only access and cannot create jobs.</p>
+          <div className="jm-section">
+            <div className="jm-notice warn">
+              <Icon name="Lock" size={15} />
+              <span>You have view-only access and cannot create jobs.</span>
             </div>
           </div>
         )}
 
-        {/* ========== CORE FIELDS ========== */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-            <Icon name="FileText" size={16} />
-            Core Information
-          </h3>
+        {/* ── Core ── */}
+        <p className="jm-secthead">
+          <Icon name="FileText" size={14} />
+          Core information
+        </p>
 
-          {/* Title */}
-          <Input
-            label="Job Title"
-            required
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="cjm-title">
+            Job title<span className="req">required</span>
+          </label>
+          <input
+            id="cjm-title"
+            autoFocus
+            type="text"
+            className="jm-titlefield"
+            placeholder="What needs doing?"
             value={formData?.title}
             onChange={(e) => setFormData(prev => ({ ...prev, title: e?.target?.value }))}
-            placeholder="Enter job title"
             disabled={isViewOnly}
           />
+        </div>
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Description / Notes</label>
-            <textarea
-              value={formData?.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e?.target?.value }))}
-              placeholder="Add detailed description or notes"
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
-              rows={4}
-              disabled={isViewOnly}
-            />
-          </div>
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="cjm-desc">
+            Description &amp; notes<span className="opt">optional</span>
+          </label>
+          <textarea
+            id="cjm-desc"
+            className="jm-textarea"
+            rows={4}
+            placeholder="Any detail the crew will need"
+            value={formData?.description}
+            onChange={(e) => setFormData(prev => ({ ...prev, description: e?.target?.value }))}
+            disabled={isViewOnly}
+          />
+        </div>
 
-          {/* Department */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Department *
-            </label>
-            {canSelectDept ? (
-              loadingDepts ? (
-                <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">
-                  Loading departments...
-                </div>
-              ) : (
-                <Select
-                  value={selectedDeptId || ''}
-                  onChange={(value) => {
-                    setSelectedDeptId(value);
-                    setFormData(prev => ({ ...prev, assignees: [], boardId: '' }));
-                    setShowCrossDeptPopover(false);
-                  }}
-                  options={supabaseDeptOptions}
-                  placeholder="Select department"
-                />
-              )
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="cjm-dept">
+            Department<span className="req">required</span>
+          </label>
+          {canSelectDept ? (
+            loadingDepts ? (
+              <div className="jm-readonly muted">Loading departments…</div>
             ) : (
-              <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-foreground">
-                {getDeptName(myTenantMember?.department_id) || 'Your Department'}
-                <span className="text-xs text-muted-foreground ml-2">(locked to your department)</span>
+              <select
+                id="cjm-dept"
+                className="jm-select"
+                value={selectedDeptId || ''}
+                onChange={(e) => {
+                  setSelectedDeptId(e?.target?.value);
+                  setFormData(prev => ({ ...prev, assignees: [], boardId: '' }));
+                  setShowCrossDeptPopover(false);
+                }}
+              >
+                <option value="">Select department…</option>
+                {supabaseDeptOptions?.map(o => (
+                  <option key={o?.value} value={o?.value}>{o?.label}</option>
+                ))}
+              </select>
+            )
+          ) : (
+            <div className="jm-readonly">
+              <span>{getDeptName(myTenantMember?.department_id) || 'Your department'}</span>
+              <span className="note">locked to your department</span>
+            </div>
+          )}
+        </div>
+
+        {/* Cross-department send */}
+        {isCrossDeptSelected && (
+          <div className="jm-section">
+            <button
+              type="button"
+              onClick={() => setShowCrossDeptPopover(prev => !prev)}
+              className="cjm-crossdept"
+            >
+              <Icon name="Send" size={16} />
+              <span className="main">
+                <span className="t">
+                  Cross-department job — send to the {getDeptName(selectedDeptId)} chief
+                </span>
+                <span className="s">Add notes and confirm before sending for acceptance</span>
+              </span>
+              <Icon name={showCrossDeptPopover ? 'ChevronUp' : 'ChevronDown'} size={16} />
+            </button>
+
+            {showCrossDeptPopover && (
+              <div className="cjm-crossdept-panel">
+                <div className="jm-notice warn">
+                  <Icon name="AlertTriangle" size={15} />
+                  <span>
+                    This job goes to the <strong>{getDeptName(selectedDeptId)}</strong> chief for
+                    acceptance. They decide who it is assigned to.
+                  </span>
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <label className="jm-label" htmlFor="cjm-pending-notes">
+                    Notes for the receiving chief<span className="opt">optional</span>
+                  </label>
+                  <textarea
+                    id="cjm-pending-notes"
+                    className="jm-textarea"
+                    rows={3}
+                    placeholder={`Context or instructions for the ${getDeptName(selectedDeptId)} chief`}
+                    value={formData?.pendingReasonNotes}
+                    onChange={(e) => setFormData(prev => ({ ...prev, pendingReasonNotes: e?.target?.value }))}
+                  />
+                </div>
+                <p className="jm-hint">
+                  The job is created with status <strong>Pending acceptance</strong>.
+                </p>
               </div>
             )}
           </div>
+        )}
 
-          {/* Cross-department popover trigger + popover */}
-          {isCrossDeptSelected && (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowCrossDeptPopover(prev => !prev)}
-                className="w-full flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg hover:bg-amber-500/15 transition-colors text-left"
-              >
-                <Icon name="Send" size={16} className="text-amber-500 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                    Cross-Department Job — Send to <strong>{getDeptName(selectedDeptId)}</strong> Chief
-                  </p>
-                  <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
-                    Click to add notes and confirm sending for acceptance
-                  </p>
-                </div>
-                <Icon name={showCrossDeptPopover ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-amber-500 shrink-0" />
-              </button>
-
-              {showCrossDeptPopover && (
-                <div className="mt-2 p-4 bg-card border border-amber-500/40 rounded-lg shadow-lg space-y-3">
-                  <div className="flex items-start gap-2">
-                    <Icon name="AlertTriangle" size={16} className="text-amber-500 mt-0.5 shrink-0" />
-                    <p className="text-sm text-amber-700 dark:text-amber-400">
-                      This job will be sent to the <strong>{getDeptName(selectedDeptId)}</strong> Chief for acceptance. The receiving Chief will decide who it is assigned to.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">
-                      Notes for Receiving Chief <span className="text-xs text-muted-foreground">(Optional)</span>
-                    </label>
-                    <textarea
-                      value={formData?.pendingReasonNotes}
-                      onChange={(e) => setFormData(prev => ({ ...prev, pendingReasonNotes: e?.target?.value }))}
-                      placeholder={`Add context or instructions for the ${getDeptName(selectedDeptId)} Chief`}
-                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
-                      rows={3}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between pt-1">
-                    <p className="text-xs text-muted-foreground">
-                      Job will be created with status: <span className="font-medium text-amber-600">Pending Acceptance</span>
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setShowCrossDeptPopover(false)}
-                      className="text-xs text-muted-foreground hover:text-foreground underline"
-                    >
-                      Collapse
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Board Selection */}
-{!isCrossDeptSelected && (
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Board *</label>
-            <Select
-              value={formData?.boardId}
-              onChange={(value) => setFormData(prev => ({ ...prev, boardId: value }))}
-              options={filteredBoards?.map(b => {
-                // Use department-scoped board name if available
+        {!isCrossDeptSelected && (
+          <div className="jm-section">
+            <label className="jm-label" htmlFor="cjm-board">
+              Board<span className="req">required</span>
+            </label>
+            <select
+              id="cjm-board"
+              className="jm-select"
+              value={formData?.boardId || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, boardId: e?.target?.value }))}
+            >
+              <option value="">Select board…</option>
+              {filteredBoards?.map(b => {
                 const deptId = effectiveDepartmentId;
                 const displayName = (deptId && b?.names?.[deptId]) ? b?.names?.[deptId] : (b?.name || 'Board');
-                return { value: b?.id, label: displayName };
+                return <option key={b?.id} value={b?.id}>{displayName}</option>;
               })}
-            />
+            </select>
           </div>
-)}
+        )}
 
-          {/* Assign To — COMMAND and CHIEF/HOD only, hidden for cross-dept */}
-          {canShowAssignee && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Assign To {effectiveDepartmentId && `(${getDeptName(effectiveDepartmentId)})`}
-              </label>
-              {isPrivate ? (
-                <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">
-                  Private job — assigned to you automatically
-                </div>
-              ) : loadingAssignees ? (
-                <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">
-                  Loading team members...
-                </div>
-              ) : assigneeOptions?.length === 0 ? (
-                <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">
-                  {effectiveDepartmentId
-                    ? 'No eligible crew in this department' : 'Select a department first to load assignees'}
-                </div>
-              ) : (
-                <SearchableAssigneeDropdown
-                  crewMembers={assigneeOptions}
-                  selectedAssignees={formData?.assignees}
-                  onChange={(assignees) => {
-                    setFormData(prev => ({ ...prev, assignees }));
-                  }}
-                  department={effectiveDepartmentId}
-                />
-              )}
-            </div>
-          )}
-
-          {/* CREW: cannot assign, show helper text */}
-          {isCrew && (
-            <div className="px-3 py-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-              <div className="flex items-start gap-2">
-                <Icon name="Info" size={15} className="text-amber-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-amber-700 dark:text-amber-400">
-                  Crew can't assign jobs — create a private job for yourself.
-                </p>
+        {canShowAssignee && (
+          <div className="jm-section">
+            <label className="jm-label">
+              Assign to
+              {effectiveDepartmentId && <span className="opt">{getDeptName(effectiveDepartmentId)}</span>}
+            </label>
+            {isPrivate ? (
+              <div className="jm-readonly muted">Private job — assigned to you automatically</div>
+            ) : loadingAssignees ? (
+              <div className="jm-readonly muted">Loading team members…</div>
+            ) : assigneeOptions?.length === 0 ? (
+              <div className="jm-readonly muted">
+                {effectiveDepartmentId
+                  ? 'No eligible crew in this department'
+                  : 'Select a department first to load assignees'}
               </div>
-            </div>
-          )}
+            ) : (
+              <SearchableAssigneeDropdown
+                crewMembers={assigneeOptions}
+                selectedAssignees={formData?.assignees}
+                onChange={(assignees) => setFormData(prev => ({ ...prev, assignees }))}
+                department={effectiveDepartmentId}
+              />
+            )}
+          </div>
+        )}
 
-          {/* Private Toggle — available to all tiers (in core section for visibility) */}
-          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border">
+        {isCrew && (
+          <div className="jm-section">
+            <div className="jm-notice info">
+              <Icon name="Info" size={15} />
+              <span>Crew can’t assign jobs — create a private job for yourself.</span>
+            </div>
+          </div>
+        )}
+
+        {/* Private toggle */}
+        <div className="jm-section">
+          <div className="jm-toggle-row">
             <div>
-              <label className="text-sm font-medium text-foreground">Private Job</label>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="jm-toggle-t">Private job</p>
+              <p className="jm-toggle-s">
                 {isPrivate
-                  ? 'Only you will see this job — assigned to you automatically' :'Toggle to make this job private and self-assigned'}
+                  ? 'Only you will see this job — assigned to you automatically.'
+                  : 'Make this job private and self-assigned.'}
               </p>
             </div>
             <button
               type="button"
+              role="switch"
+              aria-checked={isPrivate}
               onClick={() => {
                 const next = !isPrivate;
                 setIsPrivate(next);
@@ -908,230 +905,285 @@ const ComprehensiveJobModal = ({ boards, selectedDate, defaultBoardId, onClose, 
                   setFormData(prev => ({ ...prev, assignees: myUserId ? [myUserId] : [] }));
                 }
               }}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                isPrivate ? 'bg-primary' : 'bg-gray-300'
-              }`}
+              className={`jm-switch${isPrivate ? ' on' : ''}`}
             >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  isPrivate ? 'translate-x-6' : 'translate-x-1'
-                }`}
-              />
+              <span className="knob" />
             </button>
           </div>
+        </div>
 
-          {/* Due Date & Time */}
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Due Date"
+        <div className="jm-section jm-grid">
+          <div>
+            <label className="jm-label" htmlFor="cjm-due">
+              Due date<span className="req">required</span>
+            </label>
+            <input
+              id="cjm-due"
               type="date"
-              required
+              className="jm-input"
               value={formData?.dueDate}
               onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e?.target?.value }))}
             />
-            <Input
-              label="Time (Optional)"
+          </div>
+          <div>
+            <label className="jm-label" htmlFor="cjm-time">
+              Time<span className="opt">optional</span>
+            </label>
+            <input
+              id="cjm-time"
               type="time"
+              className="jm-input"
               value={formData?.dueTime}
               onChange={(e) => setFormData(prev => ({ ...prev, dueTime: e?.target?.value }))}
             />
           </div>
+        </div>
 
-          {/* Priority */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Priority / Importance *</label>
-            <Select
-              value={formData?.priority}
-              onChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}
-              options={priorityOptions}
-            />
+        <div className="jm-section">
+          <p className="jm-label">
+            Priority<span className="req">required</span>
+          </p>
+          <div className="jm-pills">
+            {priorityOptions?.map(o => (
+              <button
+                key={o?.value}
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, priority: o?.value }))}
+                className={`jm-pill${formData?.priority === o?.value ? ' on' : ''}`}
+              >
+                {o?.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* ========== CHECKLISTS ========== */}
-        <div className="space-y-4 border-t border-border pt-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-              <Icon name="CheckSquare" size={16} />
-              Checklists
-            </h3>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              iconName="Plus"
-              onClick={() => {
-                const name = prompt('Checklist name:');
-                if (name?.trim()) {
-                  setFormData(prev => ({
-                    ...prev,
-                    checklists: [...prev?.checklists, {
-                      id: crypto.randomUUID(),
-                      name: name?.trim(),
-                      items: []
-                    }]
-                  }));
-                  setActiveChecklistIndex(formData?.checklists?.length);
-                }
-              }}
-            >
-              Add Checklist
-            </Button>
-          </div>
+        <hr className="jm-rule" />
 
-          {formData?.checklists?.map((checklist, checklistIndex) => (
-            <div key={checklist?.id} className="bg-background rounded-lg border border-border p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-foreground">{checklist?.name}</h4>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveChecklist(checklistIndex)}
-                  className="p-1 hover:bg-red-500/10 rounded transition-smooth"
-                >
-                  <Icon name="Trash2" size={14} className="text-red-500" />
-                </button>
-              </div>
-              <div className="space-y-2">
+        {/* ── Checklists ── */}
+        <div className="jm-secthead-row">
+          <p className="jm-secthead">
+            <Icon name="CheckSquare" size={14} />
+            Checklists
+          </p>
+          <button
+            type="button"
+            className="jm-btn ghost sm"
+            onClick={() => {
+              const name = prompt('Checklist name:');
+              if (name?.trim()) {
+                setFormData(prev => ({
+                  ...prev,
+                  checklists: [...prev?.checklists, { id: crypto.randomUUID(), name: name?.trim(), items: [] }],
+                }));
+                setActiveChecklistIndex(formData?.checklists?.length);
+              }
+            }}
+          >
+            <Icon name="Plus" size={14} />
+            Add checklist
+          </button>
+        </div>
+
+        {formData?.checklists?.map((checklist, checklistIndex) => (
+          <div key={checklist?.id} className="jm-subcard">
+            <div className="jm-subcard-head">
+              <h4>{checklist?.name}</h4>
+              <button
+                type="button"
+                onClick={() => handleRemoveChecklist(checklistIndex)}
+                className="jm-file-x"
+                title="Remove checklist"
+              >
+                <Icon name="Trash2" size={14} />
+              </button>
+            </div>
+            {checklist?.items?.length > 0 && (
+              <div className="jm-checkitems">
                 {checklist?.items?.map((item, itemIndex) => (
-                  <div key={item?.id} className="flex items-center gap-2 bg-card p-2 rounded-lg">
-                    <Checkbox checked={item?.completed} disabled />
-                    <span className="flex-1 text-sm text-foreground">{item?.text}</span>
-                    <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'up')} disabled={itemIndex === 0} className="p-1 hover:bg-muted rounded disabled:opacity-30">
-                        <Icon name="ChevronUp" size={14} />
-                      </button>
-                      <button type="button" onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'down')} disabled={itemIndex === checklist?.items?.length - 1} className="p-1 hover:bg-muted rounded disabled:opacity-30">
-                        <Icon name="ChevronDown" size={14} />
-                      </button>
-                      <button type="button" onClick={() => handleRemoveChecklistItem(checklistIndex, item?.id)} className="p-1 hover:bg-red-500/10 rounded">
-                        <Icon name="X" size={14} className="text-red-500" />
-                      </button>
-                    </div>
+                  <div key={item?.id} className="jm-checkitem">
+                    <span className="box" />
+                    <span className="t">{item?.text}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'up')}
+                      disabled={itemIndex === 0}
+                      title="Move up"
+                    >
+                      <Icon name="ChevronUp" size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'down')}
+                      disabled={itemIndex === checklist?.items?.length - 1}
+                      title="Move down"
+                    >
+                      <Icon name="ChevronDown" size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveChecklistItem(checklistIndex, item?.id)}
+                      className="danger"
+                      title="Remove item"
+                    >
+                      <Icon name="X" size={13} />
+                    </button>
                   </div>
                 ))}
               </div>
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Add checklist item"
-                  value={activeChecklistIndex === checklistIndex ? newChecklistItem : ''}
-                  onChange={(e) => { setNewChecklistItem(e?.target?.value); setActiveChecklistIndex(checklistIndex); }}
-                  onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddChecklistItem(checklistIndex); } }}
-                />
-                <Button type="button" size="sm" onClick={() => handleAddChecklistItem(checklistIndex)} disabled={!newChecklistItem?.trim() || activeChecklistIndex !== checklistIndex}>
-                  Add
-                </Button>
-              </div>
+            )}
+            <div className="dsr-inlineadd">
+              <input
+                type="text"
+                className="jm-input"
+                placeholder="Add checklist item"
+                value={activeChecklistIndex === checklistIndex ? newChecklistItem : ''}
+                onChange={(e) => { setNewChecklistItem(e?.target?.value); setActiveChecklistIndex(checklistIndex); }}
+                onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddChecklistItem(checklistIndex); } }}
+              />
+              <button
+                type="button"
+                className="jm-btn accent sm"
+                onClick={() => handleAddChecklistItem(checklistIndex)}
+                disabled={!newChecklistItem?.trim() || activeChecklistIndex !== checklistIndex}
+              >
+                Add
+              </button>
             </div>
-          ))}
+          </div>
+        ))}
 
-          {formData?.checklists?.length > 0 && (
-            <Checkbox
-              label="Auto-complete card when all checklist items are complete"
+        {formData?.checklists?.length > 0 && (
+          <label className="jm-check" style={{ marginTop: 12 }}>
+            <input
+              type="checkbox"
               checked={formData?.autoCompleteOnChecklist}
               onChange={(e) => setFormData(prev => ({ ...prev, autoCompleteOnChecklist: e?.target?.checked }))}
             />
-          )}
-        </div>
+            <span className="box"><Icon name="Check" size={11} /></span>
+            Complete the job automatically when every checklist item is done
+          </label>
+        )}
 
-        {/* ========== RECURRENCE ========== */}
-        <div className="space-y-4 border-t border-border pt-6">
-          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-            <Icon name="Repeat" size={16} />
-            Recurrence
-          </h3>
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Repeat</label>
-            <Select
-              value={formData?.recurrence}
-              onChange={(value) => setFormData(prev => ({ ...prev, recurrence: value }))}
-              options={[
-                { value: 'none', label: 'None (One-time job)' },
-                { value: 'daily', label: 'Daily' },
-                { value: 'weekly', label: 'Weekly' },
-                { value: 'monthly', label: 'Monthly' }
-              ]}
-            />
-          </div>
-          {formData?.recurrence === 'weekly' && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Select Day(s) of Week</label>
-              <div className="grid grid-cols-4 gap-2">
-                {weekDays?.map(day => (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => toggleWeekDay(day?.toLowerCase())}
-                    className={`px-3 py-2 rounded-lg border text-sm font-medium transition-smooth ${
-                      formData?.recurrenceWeekDays?.includes(day?.toLowerCase())
-                        ? 'border-primary bg-primary/10 text-primary' :'border-border text-foreground hover:border-primary/50'
-                    }`}
-                  >
-                    {day?.substring(0, 3)}
-                  </button>
-                ))}
-              </div>
+        <hr className="jm-rule" />
+
+        {/* ── Recurrence ── */}
+        <p className="jm-secthead">
+          <Icon name="Repeat" size={14} />
+          Recurrence
+        </p>
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="cjm-recur">Repeat</label>
+          <select
+            id="cjm-recur"
+            className="jm-select"
+            value={formData?.recurrence || 'none'}
+            onChange={(e) => setFormData(prev => ({ ...prev, recurrence: e?.target?.value }))}
+          >
+            <option value="none">None (one-time job)</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+        {formData?.recurrence === 'weekly' && (
+          <div className="jm-section">
+            <p className="jm-label">Days of the week</p>
+            <div className="jm-pills">
+              {weekDays?.map(day => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => toggleWeekDay(day?.toLowerCase())}
+                  className={`jm-pill${formData?.recurrenceWeekDays?.includes(day?.toLowerCase()) ? ' on' : ''}`}
+                >
+                  {day?.substring(0, 3)}
+                </button>
+              ))}
             </div>
-          )}
-          {formData?.recurrence === 'monthly' && (
-            <Input
-              label="Day of Month"
+          </div>
+        )}
+        {formData?.recurrence === 'monthly' && (
+          <div className="jm-section">
+            <label className="jm-label" htmlFor="cjm-monthday">Day of the month</label>
+            <input
+              id="cjm-monthday"
               type="number"
               min="1"
               max="31"
+              className="jm-input"
+              style={{ width: 110 }}
               value={formData?.recurrenceMonthDay}
               onChange={(e) => setFormData(prev => ({ ...prev, recurrenceMonthDay: parseInt(e?.target?.value) || 1 }))}
             />
-          )}
-        </div>
-
-        {/* ========== DUTY SET ========== */}
-        {!isCrossDeptSelected && (
-        <div className="space-y-4 border-t border-border pt-6">
-          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-            <Icon name="Briefcase" size={16} />
-            Duty Set (Optional)
-          </h3>
-          <Input
-            label="Duty Set Name"
-            placeholder="e.g., Morning Duties"
-            value={formData?.dutySetName}
-            onChange={(e) => setFormData(prev => ({ ...prev, dutySetName: e?.target?.value }))}
-            description="Link this job to a grouped operational duty"
-          />
-        </div>
+          </div>
         )}
 
-        {/* ========== ATTACHMENTS ========== */}
-        <div className="space-y-4 border-t border-border pt-6">
-          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-            <Icon name="Paperclip" size={16} />
-            Attachments
-          </h3>
-          <div>
-            <input type="file" id="file-upload" multiple accept="image/*,.pdf,.doc,.docx,.txt" onChange={handleFileUpload} className="hidden" />
-            <label htmlFor="file-upload">
-              <Button type="button" variant="outline" iconName="Upload" onClick={() => document.getElementById('file-upload')?.click()} loading={uploadingFile}>
-                Upload Files
-              </Button>
-            </label>
-          </div>
+        {/* ── Duty set ── */}
+        {!isCrossDeptSelected && (
+          <>
+            <hr className="jm-rule" />
+            <p className="jm-secthead">
+              <Icon name="Briefcase" size={14} />
+              Duty set
+            </p>
+            <div className="jm-section">
+              <label className="jm-label" htmlFor="cjm-dutyset">
+                Duty set name<span className="opt">optional</span>
+              </label>
+              <input
+                id="cjm-dutyset"
+                type="text"
+                className="jm-input"
+                placeholder="e.g. Morning duties"
+                value={formData?.dutySetName}
+                onChange={(e) => setFormData(prev => ({ ...prev, dutySetName: e?.target?.value }))}
+              />
+              <p className="jm-hint">Links this job to a grouped operational duty.</p>
+            </div>
+          </>
+        )}
+
+        <hr className="jm-rule" />
+
+        {/* ── Attachments ── */}
+        <p className="jm-secthead">
+          <Icon name="Paperclip" size={14} />
+          Attachments
+        </p>
+        <div className="jm-section">
+          <input
+            type="file"
+            id="file-upload"
+            multiple
+            accept="image/*,.pdf,.doc,.docx,.txt"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
+          <label htmlFor="file-upload" className="jm-drop">
+            <span className="jm-drop-ico">
+              {uploadingFile ? <span className="jm-spin sm" /> : <Icon name="Upload" size={18} />}
+            </span>
+            <span className="jm-drop-t">{uploadingFile ? 'Uploading…' : 'Click to upload files'}</span>
+            <span className="jm-drop-s">Images, PDFs or documents</span>
+          </label>
           {formData?.attachments?.length > 0 && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="jm-filelist">
               {formData?.attachments?.map(attachment => (
-                <div key={attachment?.id} className="relative bg-background rounded-lg border border-border p-3 flex items-center gap-3">
+                <div key={attachment?.id} className="jm-file">
                   {attachment?.type?.startsWith('image/') ? (
-                    <img src={attachment?.url} alt={attachment?.name} className="w-12 h-12 rounded object-cover" />
+                    <img src={attachment?.url} alt={attachment?.name} className="jm-file-thumb" />
                   ) : (
-                    <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
-                      <Icon name="File" size={20} className="text-muted-foreground" />
-                    </div>
+                    <Icon name="File" size={14} />
                   )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{attachment?.name}</p>
-                    <p className="text-xs text-muted-foreground">{(attachment?.size / 1024)?.toFixed(1)} KB</p>
-                  </div>
-                  <button type="button" onClick={() => handleRemoveAttachment(attachment?.id)} className="p-1 hover:bg-red-500/10 rounded transition-smooth">
-                    <Icon name="X" size={14} className="text-red-500" />
+                  <span className="name">{attachment?.name}</span>
+                  <span className="size">{(attachment?.size / 1024)?.toFixed(1)} KB</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAttachment(attachment?.id)}
+                    className="jm-file-x"
+                    title="Remove attachment"
+                  >
+                    <Icon name="X" size={13} />
                   </button>
                 </div>
               ))}
@@ -1139,111 +1191,125 @@ const ComprehensiveJobModal = ({ boards, selectedDate, defaultBoardId, onClose, 
           )}
         </div>
 
-        {/* ========== COMMENTS ========== */}
-        <div className="space-y-4 border-t border-border pt-6">
-          <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-            <Icon name="MessageSquare" size={16} />
-            Initial Comment (Optional)
-          </h3>
+        <hr className="jm-rule" />
+
+        {/* ── Initial comment ── */}
+        <p className="jm-secthead">
+          <Icon name="MessageSquare" size={14} />
+          Initial comment
+        </p>
+        <div className="jm-section">
           <textarea
+            className="jm-textarea"
+            rows={3}
+            placeholder="Add an opening comment or handover note"
             value={formData?.initialComment}
             onChange={(e) => setFormData(prev => ({ ...prev, initialComment: e?.target?.value }))}
-            placeholder="Add an initial comment or handover note"
-            className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
-            rows={3}
           />
         </div>
 
-        {/* ========== ADVANCED OPTIONS ========== */}
-        <div className="space-y-4 border-t border-border pt-6">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center justify-between w-full text-left"
-          >
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-              <Icon name="Settings" size={16} />
-              Advanced Options
-            </h3>
-            <Icon name={showAdvanced ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-muted-foreground" />
-          </button>
+        <hr className="jm-rule" />
 
-          {showAdvanced && (
-            <div className="space-y-4 pl-6">
-              {/* Labels */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Labels / Tags</label>
-                <div className="flex items-center gap-2 mb-2">
-                  <Input
-                    placeholder="Add label"
-                    value={newLabel}
-                    onChange={(e) => setNewLabel(e?.target?.value)}
-                    onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddLabel(); } }}
-                  />
-                  <Button type="button" size="sm" onClick={handleAddLabel}>Add</Button>
-                </div>
-                {formData?.labels?.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {formData?.labels?.map(label => (
-                      <span key={label} className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
-                        {label}
-                        <button type="button" onClick={() => handleRemoveLabel(label)} className="hover:bg-primary/20 rounded-full p-0.5">
-                          <Icon name="X" size={12} />
-                        </button>
+        {/* ── Advanced ── */}
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="jm-disclosure"
+        >
+          <span className="jm-secthead">
+            <Icon name="Settings" size={14} />
+            Advanced options
+          </span>
+          <Icon name={showAdvanced ? 'ChevronUp' : 'ChevronDown'} size={15} />
+        </button>
+
+        {showAdvanced && (
+          <div className="jm-disclosure-body">
+            <div className="jm-section">
+              <label className="jm-label" htmlFor="cjm-label">
+                Labels &amp; tags<span className="opt">optional</span>
+              </label>
+              <div className="dsr-inlineadd" style={{ marginTop: 0 }}>
+                <input
+                  id="cjm-label"
+                  type="text"
+                  className="jm-input"
+                  placeholder="Add a label"
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e?.target?.value)}
+                  onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddLabel(); } }}
+                />
+                <button type="button" className="jm-btn accent sm" onClick={handleAddLabel}>Add</button>
+              </div>
+              {formData?.labels?.length > 0 && (
+                <div className="jm-pills" style={{ marginTop: 10 }}>
+                  {formData?.labels?.map(label => (
+                    <span key={label} className="jm-tag accent">
+                      {label}
+                      <span
+                        role="button"
+                        tabIndex={-1}
+                        title="Remove label"
+                        onClick={() => handleRemoveLabel(label)}
+                        style={{ display: 'flex', cursor: 'pointer' }}
+                      >
+                        <Icon name="X" size={10} />
                       </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Internal Notes */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Internal Reference / Notes
-                  <span className="text-xs text-muted-foreground ml-2">(Command/Chief only)</span>
-                </label>
-                <textarea
-                  value={formData?.internalNotes}
-                  onChange={(e) => setFormData(prev => ({ ...prev, internalNotes: e?.target?.value }))}
-                  placeholder="Private notes visible only to Command/Chief"
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
-                  rows={2}
-                />
-              </div>
-
-              {/* Visibility Toggle */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Visibility</label>
-                <Select
-                  value={formData?.visibility}
-                  onChange={(value) => setFormData(prev => ({ ...prev, visibility: value }))}
-                  options={[
-                    { value: 'crew-visible', label: 'Crew Visible' },
-                    { value: 'internal', label: 'Internal Only (Command/Chief)' }
-                  ]}
-                />
-              </div>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+
+            <div className="jm-section">
+              <label className="jm-label" htmlFor="cjm-internal">
+                Internal reference<span className="opt">command &amp; chief only</span>
+              </label>
+              <textarea
+                id="cjm-internal"
+                className="jm-textarea"
+                rows={2}
+                placeholder="Private notes, visible only to Command and Chief"
+                value={formData?.internalNotes}
+                onChange={(e) => setFormData(prev => ({ ...prev, internalNotes: e?.target?.value }))}
+              />
+            </div>
+
+            <div className="jm-section">
+              <label className="jm-label" htmlFor="cjm-visibility">Visibility</label>
+              <select
+                id="cjm-visibility"
+                className="jm-select"
+                value={formData?.visibility || 'crew-visible'}
+                onChange={(e) => setFormData(prev => ({ ...prev, visibility: e?.target?.value }))}
+              >
+                <option value="crew-visible">Crew visible</option>
+                <option value="internal">Internal only (Command &amp; Chief)</option>
+              </select>
+            </div>
+          </div>
+        )}
       </form>
 
-      {/* Footer Actions */}
-      <div className="flex items-center justify-end gap-3 p-6 border-t border-border bg-card sticky bottom-0">
-        <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+      <div className="jm-foot">
+        <button type="button" className="jm-btn ghost" onClick={onClose} disabled={isSubmitting}>
           Cancel
-        </Button>
-        <Button
+        </button>
+        <div className="spacer" />
+        <button
           type="submit"
+          form="tj-comprehensive-form"
+          className="jm-btn primary"
           onClick={handleSubmit}
           disabled={!formData?.title?.trim() || isSubmitting || isViewOnly}
-          loading={isSubmitting}
         >
-          {isSubmitting ? 'Saving...' : getButtonLabel()}
-        </Button>
+          {isSubmitting ? <span className="jm-spin sm" /> : <Icon name="Plus" size={15} />}
+          {isSubmitting ? 'Saving…' : getButtonLabel()}
+        </button>
       </div>
     </ModalShell>
   );
 };
+
 
 export default ComprehensiveJobModal;

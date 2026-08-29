@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
+import '../job-modals.css';
 
 /**
  * Trello-style inline Quick Add Job input.
@@ -64,21 +65,16 @@ const QuickAddJobInput = ({ boardId, board, onAdd, currentUserId, isPersonalBoar
 
   if (!isOpen) {
     return (
-      <button
-        onClick={handleOpen}
-        className="w-full flex items-center gap-2 py-2 px-1 text-sm text-muted-foreground hover:text-foreground transition-colors group"
-      >
-        <div className="w-5 h-5 rounded-full flex items-center justify-center group-hover:bg-muted transition-colors flex-shrink-0">
-          <Icon name="Plus" size={13} />
-        </div>
-        <span>Add a job…</span>
+      <button onClick={handleOpen} className="tj-addjob">
+        <Icon name="Plus" size={14} />
+        Add a job…
       </button>
     );
   }
 
   return (
-    <div className="mt-1">
-      <div className="relative">
+    <div className="tj-quickadd">
+      <div className="tj-quickadd-field">
         <input
           ref={inputRef}
           type="text"
@@ -86,36 +82,24 @@ const QuickAddJobInput = ({ boardId, board, onAdd, currentUserId, isPersonalBoar
           onChange={(e) => setValue(e?.target?.value)}
           onKeyDown={handleKeyDown}
           disabled={saving}
-          placeholder="Job title… (Enter to save, Esc to cancel)"
-          className={`w-full px-3 py-2 pr-8 rounded-lg border text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
-            error
-              ? 'border-red-400 focus:ring-red-300' :'border-border'
-          } ${
-            saving ? 'opacity-60 cursor-not-allowed' : ''
-          }`}
+          placeholder="Job title…"
+          className={`jm-input${error ? ' err' : ''}`}
         />
-        {saving && (
-          <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
-            <div className="w-3.5 h-3.5 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
-          </div>
-        )}
-        {!saving && (
-          <button
-            onClick={handleClose}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            tabIndex={-1}
-          >
+        {saving ? (
+          <span className="tj-quickadd-end"><span className="jm-spin sm" /></span>
+        ) : (
+          <button onClick={handleClose} className="tj-quickadd-end clear" tabIndex={-1} title="Cancel">
             <Icon name="X" size={13} />
           </button>
         )}
       </div>
       {error && (
-        <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+        <p className="jm-err">
           <Icon name="AlertCircle" size={11} />
           {error}
         </p>
       )}
-      <p className="mt-1 text-xs text-muted-foreground/60">Enter to save · Esc to cancel</p>
+      <p className="jm-hint">Enter to save · Esc to cancel</p>
     </div>
   );
 };

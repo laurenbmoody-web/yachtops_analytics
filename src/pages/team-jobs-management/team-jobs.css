@@ -455,3 +455,15 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
   .tj-col, .tj-newboard { width: 84vw; max-width: 320px; }
   .tj-filterpanel { width: min(290px, calc(100vw - 40px)); }
 }
+
+/* ── inline quick-add (Trello-style) inside a board column ───── */
+.tj-quickadd { margin-top: 2px; }
+.tj-quickadd-field { position: relative; }
+.tj-quickadd-field .jm-input { padding-right: 34px; }
+.tj-quickadd-end {
+  position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; background: none; border: none; padding: 0;
+  color: #AEB4C2;
+}
+.tj-quickadd-end.clear { cursor: pointer; }
+.tj-quickadd-end.clear:hover { color: #6B7280; }

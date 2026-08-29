@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Icon from '../../../components/AppIcon';
-import { Department } from '../../../utils/authStorage';
+import '../job-modals.css';
 
 
 const SearchableAssigneeDropdown = ({ crewMembers, selectedAssignees, onChange, department }) => {
@@ -144,112 +144,79 @@ const SearchableAssigneeDropdown = ({ crewMembers, selectedAssignees, onChange, 
   const selectedCrew = getSelectedCrewMembers();
 
   return (
-    <div ref={containerRef} className="relative">
-      {/* Input field with chips */}
+    <div ref={containerRef} className="jm-combo">
+      {/* Control: selected people as chips + a type-ahead input */}
       <div
-        className="min-h-[44px] w-full rounded-lg border border-border bg-background px-3 py-2 cursor-text flex flex-wrap gap-2 items-center transition-smooth focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
-        onClick={() => {
-          setIsOpen(true);
-          inputRef?.current?.focus();
-        }}
+        className={`jm-combo-control multi${isOpen ? ' open' : ''}`}
+        onClick={() => { setIsOpen(true); inputRef?.current?.focus(); }}
       >
-        {/* Selected assignees as chips */}
-        {selectedCrew?.map(crew => (
-          <div
-            key={crew?.id}
-            className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-2.5 py-1 rounded-md text-sm font-medium"
-          >
-            <span>{crew?.name || crew?.fullName}</span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e?.stopPropagation();
-                if (crew?.isSpecial) {
-                  onChange([]);
-                } else {
-                  removeAssignee(crew?.id);
-                }
-              }}
-              className="hover:bg-primary/20 rounded-full p-0.5 transition-smooth"
-            >
-              <Icon name="X" size={12} className="text-primary" />
-            </button>
-          </div>
-        ))}
-
-        {/* Search input */}
-        <input
-          ref={inputRef}
-          type="text"
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e?.target?.value);
-            setIsOpen(true);
-            setFocusedIndex(0);
-          }}
-          onKeyDown={handleKeyDown}
-          onFocus={() => setIsOpen(true)}
-          placeholder={selectedCrew?.length === 0 ? "Assign to…" : ""}
-          className="flex-1 min-w-[120px] outline-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground"
-        />
-
-        {/* Dropdown indicator */}
-        <Icon 
-          name={isOpen ? "ChevronUp" : "ChevronDown"} 
-          size={16} 
-          className="text-muted-foreground flex-shrink-0" 
-        />
+        <span className="jm-combo-chips">
+          {selectedCrew?.map(crew => (
+            <span key={crew?.id} className="jm-tag accent">
+              {crew?.name || crew?.fullName}
+              <span
+                role="button"
+                tabIndex={-1}
+                title="Remove"
+                onClick={(e) => {
+                  e?.stopPropagation();
+                  if (crew?.isSpecial) onChange([]);
+                  else removeAssignee(crew?.id);
+                }}
+                style={{ display: 'flex', cursor: 'pointer' }}
+              >
+                <Icon name="X" size={10} />
+              </span>
+            </span>
+          ))}
+          <input
+            ref={inputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e?.target?.value); setIsOpen(true); setFocusedIndex(0); }}
+            onKeyDown={handleKeyDown}
+            onFocus={() => setIsOpen(true)}
+            placeholder={selectedCrew?.length === 0 ? 'Assign to…' : ''}
+            className="jm-combo-input"
+          />
+        </span>
+        <Icon name={isOpen ? 'ChevronUp' : 'ChevronDown'} size={14} />
       </div>
 
-      {/* Dropdown list */}
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-background border border-border rounded-lg shadow-lg max-h-64 overflow-y-auto">
-          <div ref={dropdownRef}>
-            {dropdownOptions?.length === 0 ? (
-              <div className="px-4 py-3 text-sm text-muted-foreground text-center">
-                No users found
-              </div>
-            ) : (
-              dropdownOptions?.map((option, idx) => {
-                const isSelected = option?.isSpecial
-                  ? crewMembers?.every(c => selectedAssignees?.includes(c?.id))
-                  : selectedAssignees?.includes(option?.id);
-                const isFocused = focusedIndex === idx;
-
-                return (
-                  <div
-                    key={option?.id}
-                    className={`px-3 py-2.5 cursor-pointer transition-smooth flex items-center justify-between gap-2 ${
-                      isFocused ? 'bg-accent' : 'hover:bg-accent'
-                    } ${
-                      option?.isSpecial ? 'font-semibold border-b border-border' : ''
-                    }`}
-                    onClick={() => handleSelect(option)}
-                    onMouseEnter={() => setFocusedIndex(idx)}
-                  >
-                    <div className="flex items-center gap-2 flex-1">
-                      {!option?.isSpecial && (
-                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-semibold">
-                          {(option?.name || option?.fullName)?.split(' ')?.map(n => n?.[0])?.join('')?.toUpperCase()}
-                        </div>
-                      )}
-                      <div>
-                        <div className="text-sm font-medium text-foreground">
-                          {option?.name || option?.fullName}
-                        </div>
-                        {!option?.isSpecial && option?.role && (
-                          <div className="text-xs text-muted-foreground capitalize">{option?.role}</div>
-                        )}
-                      </div>
-                    </div>
-                    {isSelected && (
-                      <Icon name="Check" size={16} className="text-primary flex-shrink-0" />
+        <div className="jm-combo-menu" ref={dropdownRef}>
+          {dropdownOptions?.length === 0 ? (
+            <p className="jm-combo-empty">No crew match that search</p>
+          ) : (
+            dropdownOptions?.map((option, idx) => {
+              const isSelected = option?.isSpecial
+                ? crewMembers?.every(c => selectedAssignees?.includes(c?.id))
+                : selectedAssignees?.includes(option?.id);
+              const isFocused = focusedIndex === idx;
+              return (
+                <button
+                  type="button"
+                  key={option?.id}
+                  className={`jm-option${isSelected ? ' on' : ''}${isFocused ? ' focused' : ''}${option?.isSpecial ? ' special' : ''}`}
+                  onClick={() => handleSelect(option)}
+                  onMouseEnter={() => setFocusedIndex(idx)}
+                >
+                  {!option?.isSpecial && (
+                    <span className="jm-avatar">
+                      {(option?.name || option?.fullName)?.split(' ')?.map(n => n?.[0])?.join('')?.toUpperCase()}
+                    </span>
+                  )}
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    {option?.name || option?.fullName}
+                    {!option?.isSpecial && option?.role && (
+                      <span className="jm-combo-desc">{option?.role}</span>
                     )}
-                  </div>
-                );
-              })
-            )}
-          </div>
+                  </span>
+                  {isSelected && <Icon name="Check" size={14} />}
+                </button>
+              );
+            })
+          )}
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { isoToUK } from '../../utils/dateFormat';
 import '../../styles/editorial.css';
 import './team-jobs.css';
+import './job-modals.css';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
@@ -2750,6 +2751,76 @@ const TeamJobsManagement = () => {
             </>)
           )}
         </div>
+
+        {/* Create Board Modal */}
+        {showCreateBoard && (
+          <ModalShell
+            onClose={() => { setShowCreateBoard(false); setNewBoardName(''); setNewBoardDescription(''); }}
+            isDirty={!!newBoardName?.trim() || !!newBoardDescription?.trim()}
+            panelClassName="jm-panel sm"
+          >
+            <div className="jm-head">
+              <div>
+                <p className="jm-eyebrow">Jobs</p>
+                <h2 className="jm-title">New board</h2>
+                <p className="jm-sub">
+                  Boards group jobs for {departmentFilter?.id && departmentFilter?.id !== 'ALL'
+                    ? departmentFilter?.label
+                    : 'your team'}.
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowCreateBoard(false); setNewBoardName(''); setNewBoardDescription(''); }}
+                className="jm-x"
+                title="Close"
+              >
+                <Icon name="X" size={18} />
+              </button>
+            </div>
+            <div className="jm-body">
+              <div className="jm-section">
+                <label className="jm-label" htmlFor="tj-board-name">
+                  Board name<span className="req">required</span>
+                </label>
+                <input
+                  id="tj-board-name"
+                  autoFocus
+                  type="text"
+                  className="jm-input"
+                  placeholder="e.g. Guest turnaround"
+                  value={newBoardName}
+                  onChange={(e) => setNewBoardName(e?.target?.value)}
+                  onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleCreateBoard(); } }}
+                />
+              </div>
+              <div className="jm-section">
+                <label className="jm-label" htmlFor="tj-board-desc">
+                  Description<span className="opt">optional</span>
+                </label>
+                <textarea
+                  id="tj-board-desc"
+                  className="jm-textarea"
+                  placeholder="What belongs on this board?"
+                  value={newBoardDescription}
+                  onChange={(e) => setNewBoardDescription(e?.target?.value)}
+                />
+              </div>
+            </div>
+            <div className="jm-foot">
+              <button
+                className="jm-btn ghost"
+                onClick={() => { setShowCreateBoard(false); setNewBoardName(''); setNewBoardDescription(''); }}
+              >
+                Cancel
+              </button>
+              <div className="spacer" />
+              <button className="jm-btn primary" onClick={handleCreateBoard} disabled={!newBoardName?.trim()}>
+                <Icon name="Plus" size={15} />
+                Create board
+              </button>
+            </div>
+          </ModalShell>
+        )}
 
         {/* Create Task Modal */}
         {showCreateCard === 'task' && (

@@ -1,0 +1,419 @@
+/* ============================================================
+   Duty Sets & Rotation — editorial (Cargo) refresh
+   Prefix: dsr-*  ·  Same standard as Jobs / Inventory: cool
+   #F8FAFC full-width canvas, DM Serif headline, Inter
+   tracked-caps labels, navy ink + terracotta accent, hairline
+   rules and whitespace. Hardcoded palette — no theme tokens, so
+   the warm `day` theme can't tint the page.
+   ============================================================ */
+
+.dsr-page {
+  min-height: calc(100vh - 64px);
+  background: #F8FAFC;
+  padding: 26px 40px 80px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+  box-sizing: border-box;
+}
+.dsr-wrap { max-width: none; width: 100%; }
+
+/* ── header ─────────────────────────────────────────────────── */
+.dsr-metastrip { margin: 2px 0 4px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+@media (max-width: 700px) { .dsr-metastrip { white-space: normal; row-gap: 6px; } }
+.dsr-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 20px 28px; flex-wrap: wrap; margin-bottom: 22px;
+}
+.dsr-headline {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 500; font-size: 46px; line-height: 0.98; letter-spacing: -1px;
+  color: #1C1B3A; text-transform: uppercase; margin: 0;
+}
+.dsr-headline em { font-style: italic; font-weight: 400; color: #C65A1A; text-transform: none; }
+.dsr-headline .punc { color: #1C1B3A; }
+.dsr-subtitle { font-size: 13px; color: #8B8478; margin: 7px 0 0; }
+.dsr-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.dsr-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  border-radius: 10px; padding: 10px 15px;
+  font: 600 13.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  cursor: pointer; border: 1px solid transparent; white-space: nowrap;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+}
+.dsr-btn.ghost { background: #FFFFFF; color: #1C1B3A; border-color: #E5E7EB; }
+.dsr-btn.ghost:hover { border-color: #C9CED6; }
+.dsr-btn.ghost svg { color: #6B7280; }
+.dsr-btn.primary { background: #C65A1A; color: #FFFFFF; }
+.dsr-btn.primary:hover { background: #B14E16; }
+.dsr-btn.primary svg { color: #FFFFFF; }
+.dsr-btn:disabled { opacity: 0.55; cursor: default; }
+
+/* department chip shown to CHIEF/HOD, who are locked to their own */
+.dsr-deptchip {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 15px; border-radius: 999px;
+  background: #FBEFE9; border: 1px solid #F3D9CB; color: #C65A1A;
+  font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.dsr-deptchip svg { color: #C65A1A; }
+
+/* ── view toggle ────────────────────────────────────────────── */
+.dsr-tabs {
+  display: inline-flex; gap: 3px; padding: 3px; margin-bottom: 20px;
+  background: #F0F1F5; border-radius: 999px;
+}
+.dsr-tab {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: 999px; border: none; background: none;
+  font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #8B8478; cursor: pointer; transition: background 0.14s, color 0.14s;
+}
+.dsr-tab:hover { color: #1C1B3A; }
+.dsr-tab.on { background: #FFFFFF; color: #C65A1A; box-shadow: 0 1px 3px rgba(28,27,58,0.10); }
+.dsr-tab.on svg { color: #C65A1A; }
+
+/* ── toolbar ────────────────────────────────────────────────── */
+.dsr-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+.dsr-search { position: relative; flex: 1; min-width: 220px; max-width: 520px; }
+.dsr-search > svg {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  color: #AEB4C2; pointer-events: none;
+}
+.dsr-search input {
+  width: 100%; box-sizing: border-box;
+  padding: 11px 38px 11px 40px;
+  font: 400 13.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A; background: #FFFFFF;
+  border: 1px solid #E5E7EB; border-radius: 999px;
+  transition: border-color 0.14s, box-shadow 0.14s;
+}
+.dsr-search input::placeholder { color: #AEB4C2; }
+.dsr-search input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.dsr-search-clear {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; color: #AEB4C2; display: flex;
+}
+.dsr-search-clear:hover { color: #6B7280; }
+
+.dsr-tool {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 15px; border-radius: 999px;
+  font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif;
+  background: #FFFFFF; color: #1C1B3A; border: 1px solid #E5E7EB;
+  cursor: pointer; white-space: nowrap;
+  transition: border-color 0.14s, background 0.14s, color 0.14s;
+}
+.dsr-tool svg { color: #6B7280; }
+.dsr-tool:hover { border-color: #C9CED6; }
+.dsr-tool.on { background: #C65A1A; color: #FFFFFF; border-color: #C65A1A; }
+.dsr-tool.on svg { color: #FFFFFF; }
+.dsr-menuwrap { position: relative; }
+.dsr-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); min-width: 210px;
+  background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 12px;
+  box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32);
+  z-index: 40; padding: 5px; max-height: 300px; overflow-y: auto;
+}
+.dsr-menu.left { right: auto; left: 0; }
+.dsr-menuitem {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 12px; border-radius: 8px; border: none; background: none;
+  font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A; cursor: pointer; text-align: left; transition: background 0.12s;
+}
+.dsr-menuitem:hover { background: #F5F6F8; }
+.dsr-menuitem.on { color: #C65A1A; font-weight: 600; background: #FBEFE9; }
+
+/* ── category sections ──────────────────────────────────────── */
+.dsr-cat + .dsr-cat { margin-top: 34px; }
+.dsr-cat-head {
+  display: flex; align-items: center; gap: 9px; margin-bottom: 14px;
+  padding-bottom: 10px; border-bottom: 1px solid #F0F1F5;
+}
+.dsr-cat-name {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: none; border: none; padding: 0; cursor: pointer; text-align: left;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 23px; color: #1C1B3A;
+  transition: color 0.14s;
+}
+.dsr-cat-name:hover { color: #C65A1A; }
+.dsr-cat-name svg { color: #C9CED6; opacity: 0; transition: opacity 0.14s, color 0.14s; }
+.dsr-cat-name:hover svg { opacity: 1; color: #C65A1A; }
+.dsr-cat-count {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; margin-left: auto; font-variant-numeric: tabular-nums;
+}
+.dsr-cat-input {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 23px; color: #1C1B3A; background: transparent;
+  border: none; border-bottom: 1px solid #C65A1A; padding: 0 0 2px; min-width: 180px;
+}
+.dsr-cat-input:focus { outline: none; }
+.dsr-cat-ok, .dsr-cat-cancel {
+  width: 28px; height: 28px; border-radius: 8px; border: none; background: none;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background 0.12s;
+}
+.dsr-cat-ok { color: #C65A1A; }
+.dsr-cat-ok:hover { background: #FBEFE9; }
+.dsr-cat-cancel { color: #8B8478; }
+.dsr-cat-cancel:hover { background: #F5F6F8; }
+
+/* ── template grid ──────────────────────────────────────────── */
+.dsr-grid {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
+}
+
+/* ── empty + loading ────────────────────────────────────────── */
+.dsr-empty {
+  text-align: center; padding: 64px 24px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 14px;
+}
+.dsr-empty-ico {
+  width: 52px; height: 52px; border-radius: 999px; margin: 0 auto 16px;
+  background: #FBEFE9; display: flex; align-items: center; justify-content: center;
+}
+.dsr-empty-ico svg { color: #C65A1A; }
+.dsr-empty-t {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 24px; color: #1C1B3A; margin: 0 0 6px;
+}
+.dsr-empty-s { font: 400 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; margin: 0; }
+
+/* ── mobile ─────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .dsr-page { padding: 16px 16px 64px; }
+  .dsr-headline { font-size: 30px; line-height: 1.03; letter-spacing: -0.5px; }
+  .dsr-header { align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+  .dsr-actions { gap: 8px; width: 100%; }
+  .dsr-grid { grid-template-columns: 1fr; }
+  .dsr-cat-name, .dsr-cat-input { font-size: 20px; }
+}
+
+/* ── template card ──────────────────────────────────────────── */
+.dsr-card {
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 14px;
+  padding: 18px; box-sizing: border-box;
+  transition: border-color 0.14s, box-shadow 0.14s;
+}
+.dsr-card:hover { border-color: #DCDFE6; box-shadow: 0 8px 22px -14px rgba(28,27,58,0.30); }
+.dsr-card-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+}
+.dsr-card-title {
+  flex: 1; min-width: 0; margin: 0;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 19px; line-height: 1.2; color: #1C1B3A;
+}
+.dsr-card-menubtn {
+  width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: #8B8478;
+  transition: background 0.12s, color 0.12s;
+}
+.dsr-card-menubtn:hover { background: #F5F6F8; color: #1C1B3A; }
+.dsr-menuitem.danger { color: #B4443B; }
+.dsr-menuitem.danger:hover { background: #FCF1F0; }
+.dsr-menuitem svg { color: inherit; }
+.dsr-card-meta {
+  display: flex; align-items: center; gap: 16px; margin-top: 11px;
+  font: 500 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  font-variant-numeric: tabular-nums;
+}
+.dsr-card-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.dsr-card-meta svg { color: #AEB4C2; }
+.dsr-card-toggle {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 13px;
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A;
+}
+.dsr-card-toggle:hover { color: #B14E16; }
+.dsr-tasklist {
+  margin-top: 13px; padding-top: 13px; border-top: 1px solid #F0F1F5;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.dsr-task { display: flex; align-items: flex-start; gap: 9px; }
+.dsr-task .pip {
+  width: 5px; height: 5px; border-radius: 999px; background: #C65A1A;
+  flex-shrink: 0; margin-top: 6px;
+}
+.dsr-task .t { margin: 0; font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; line-height: 1.45; }
+.dsr-task .f {
+  margin: 3px 0 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+
+/* ── template-modal field helpers ───────────────────────────── */
+.dsr-inlineadd { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.dsr-inlineadd .jm-input { flex: 1; min-width: 0; }
+.dsr-inlineadd .jm-btn { flex-shrink: 0; }
+.dsr-suffixfield { position: relative; }
+.dsr-suffixfield .jm-input { padding-right: 76px; }
+.dsr-suffixfield .suffix {
+  position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
+  font: 500 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  pointer-events: none;
+}
+.dsr-inlinerow {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 14px;
+  font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+}
+.dsr-inlinerow .jm-input.narrow { width: 78px; flex: none; }
+.dsr-inlinerow .jm-select.auto { width: auto; min-width: 120px; }
+.dsr-task-pip {
+  width: 5px; height: 5px; border-radius: 999px; background: #C65A1A;
+  flex-shrink: 0; margin-top: 8px;
+}
+
+/* ============================================================
+   Rotation calendar (prefix rc-*) — the second tab of the page
+   ============================================================ */
+.rc-weeknav {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.rc-weeklabel {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 23px; color: #1C1B3A; margin: 0;
+  text-align: center; flex: 1; min-width: 200px;
+}
+.rc-weekactions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* legend */
+.rc-legend { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }
+.rc-legend-label {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478; margin-right: 3px;
+}
+.rc-legend-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 11px; border-radius: 999px; border: 1px solid;
+  font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.rc-legend-item .swatch { width: 7px; height: 7px; border-radius: 999px; flex-shrink: 0; }
+
+/* grid */
+.rc-grid {
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 14px;
+  overflow-x: auto; overflow-y: visible;
+}
+.rc-row {
+  display: grid; grid-template-columns: 220px repeat(7, minmax(96px, 1fr));
+  border-bottom: 1px solid #F0F1F5; min-width: 892px;
+}
+.rc-row:last-child { border-bottom: none; }
+.rc-row-head { background: #FAFAF8; }
+.rc-cell {
+  border-right: 1px solid #F0F1F5; box-sizing: border-box;
+  display: flex; align-items: center;
+}
+.rc-cell:last-child { border-right: none; }
+.rc-headcell { padding: 13px 14px; }
+.rc-namecell { gap: 10px; padding: 12px 14px; position: relative; min-width: 0; }
+.rc-headlabel {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478; flex: 1;
+}
+.rc-membername {
+  font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.rc-daycol { flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.rc-dayname {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.rc-daynum {
+  font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  font-variant-numeric: tabular-nums;
+}
+.rc-daycell {
+  min-height: 58px; justify-content: center; text-align: center; cursor: pointer;
+  padding: 8px 9px; transition: background 0.12s;
+}
+.rc-daycell:hover { background: #FAFAF8; }
+.rc-dutyname { font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; line-height: 1.3; }
+.rc-addhint { color: #D3D7DF; opacity: 0; transition: opacity 0.14s; }
+.rc-daycell:hover .rc-addhint { opacity: 1; color: #C65A1A; }
+
+/* member selector button + menu */
+.rc-editbtn {
+  width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: #8B8478;
+  transition: background 0.12s, color 0.12s;
+}
+.rc-editbtn:hover { background: #F0F1F5; color: #1C1B3A; }
+.rc-editbtn.on { background: #C65A1A; color: #FFFFFF; }
+.rc-membermenu {
+  position: absolute; top: calc(100% + 4px); left: 10px; z-index: 50; width: 262px;
+  background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 12px;
+  box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); overflow: hidden;
+}
+.rc-membermenu-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-bottom: 1px solid #F0F1F5;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.rc-membermenu-head button {
+  background: none; border: none; cursor: pointer; color: #8B8478; display: flex; padding: 2px;
+}
+.rc-membermenu-head button:hover { color: #1C1B3A; }
+.rc-membermenu-list { max-height: 232px; overflow-y: auto; padding: 5px; }
+.rc-membermenu-empty {
+  font: 400 12px 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #8B8478; text-align: center; padding: 16px 10px; margin: 0;
+}
+.rc-memberrow {
+  display: flex; align-items: center; gap: 9px; cursor: pointer;
+  padding: 7px 8px; border-radius: 9px; transition: background 0.12s;
+}
+.rc-memberrow:hover { background: #F5F6F8; }
+.rc-memberrow input { position: absolute; opacity: 0; width: 0; height: 0; }
+.rc-memberrow .box {
+  width: 16px; height: 16px; border-radius: 5px; flex-shrink: 0;
+  border: 1.5px solid #D3D7DF; background: #FFFFFF; color: #FFFFFF;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.14s, border-color 0.14s;
+}
+.rc-memberrow input:checked + .box { background: #C65A1A; border-color: #C65A1A; }
+.rc-memberrow .jm-avatar { width: 24px; height: 24px; font-size: 10px; }
+.rc-memberrow .name {
+  font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.rc-membermenu-foot {
+  padding: 9px 12px; border-top: 1px solid #F0F1F5;
+  font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  font-variant-numeric: tabular-nums;
+}
+
+/* assign-modal template picker */
+.rc-picklist { display: flex; flex-direction: column; gap: 7px; }
+.rc-pick {
+  width: 100%; display: flex; align-items: center; gap: 11px; text-align: left;
+  padding: 12px 14px; border-radius: 11px; cursor: pointer;
+  background: #FFFFFF; border: 1px solid #E5E7EB;
+  transition: border-color 0.12s, background 0.12s;
+}
+.rc-pick:hover:not(:disabled) { border-color: #C9CED6; }
+.rc-pick:disabled { opacity: 0.6; cursor: not-allowed; }
+.rc-pick .swatch { width: 12px; height: 12px; border-radius: 999px; flex-shrink: 0; }
+.rc-pick .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rc-pick .t { font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.rc-pick .s { font: 400 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
+.rc-saving {
+  display: inline-flex; align-items: center; gap: 9px; margin: 0 auto;
+  font: 500 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+}

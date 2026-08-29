@@ -2,9 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
-import Button from '../../components/ui/Button';
-import Input from '../../components/ui/Input';
-import Select from '../../components/ui/Select';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
@@ -13,6 +10,8 @@ import DutySetTemplateCard from './components/DutySetTemplateCard';
 import RotationCalendar from './components/RotationCalendar';
 import CreateTemplateModal from './components/CreateTemplateModal';
 import EditTemplateModal from './components/EditTemplateModal';
+import '../../styles/editorial.css';
+import './duty-sets.css';
 
 const DutySetsRotationManagement = () => {
   const { currentUser, tenantRole, session, bootstrapComplete } = useAuth();
@@ -22,6 +21,8 @@ const DutySetsRotationManagement = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBoard, setFilterBoard] = useState('all');
   const [editingTemplate, setEditingTemplate] = useState(null);
+  const [showDeptMenu, setShowDeptMenu] = useState(false);
+  const [showBoardMenu, setShowBoardMenu] = useState(false);
 
   // Department state
   const [departments, setDepartments] = useState([]);
@@ -303,17 +304,23 @@ const DutySetsRotationManagement = () => {
     normalizedTenantRole === 'CHIEF'
   );
 
+  // Templates shown per category, plus the meta-strip figures
+  const templateCount = filteredTemplates?.length || 0;
+  const categoryCount = Object.keys(groupedTemplates || {})?.length || 0;
+  const activeDeptName =
+    departments?.find(d => d?.id === (effectiveDepartmentId || userDepartmentId))?.name || 'All departments';
+
   // Show loading while auth is bootstrapping
   if (!bootstrapComplete) {
     return (
-      <div className="min-h-screen bg-background transition-colors duration-300">
+      <div className="dsr-page">
         <Header />
-        <main className="p-6 max-w-[1800px] mx-auto">
-          <div className="bg-card rounded-xl border border-border shadow-sm p-12 text-center">
+        <div className="dsr-wrap">
+          <div className="dsr-empty">
             <LogoSpinner size={32} className="mx-auto mb-4" />
-            <p className="text-sm text-muted-foreground">Loading...</p>
+            <p className="dsr-empty-s">Loading…</p>
           </div>
-        </main>
+        </div>
       </div>
     );
   }
@@ -321,143 +328,198 @@ const DutySetsRotationManagement = () => {
   // Redirect if not Command or Chief
   if (!hasRotationAccess) {
     return (
-      <div className="min-h-screen bg-background transition-colors duration-300">
+      <div className="dsr-page">
         <Header />
-        <main className="p-6 max-w-[1800px] mx-auto">
-          <div className="bg-card rounded-xl border border-border shadow-sm p-12 text-center">
-            <Icon name="Lock" size={48} className="mx-auto mb-4 text-muted-foreground opacity-30" />
-            <h2 className="text-xl font-semibold text-foreground mb-2">Access Restricted</h2>
-            <p className="text-sm text-muted-foreground">Only Command and Chief tier users can access duty set and rotation management.</p>
+        <div className="dsr-wrap">
+          <div className="dsr-empty">
+            <div className="dsr-empty-ico"><Icon name="Lock" size={22} /></div>
+            <h2 className="dsr-empty-t">Access restricted</h2>
+            <p className="dsr-empty-s">
+              Only Command and Chief tier users can manage duty sets and rotation.
+            </p>
           </div>
-        </main>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background transition-colors duration-300">
+    <div className="dsr-page" onClick={() => { setShowDeptMenu(false); setShowBoardMenu(false); }}>
       <Header />
-      <main className="p-6 max-w-[1800px] mx-auto">
-        {/* Page Header */}
-        <div className="flex items-center justify-between mb-6">
+      <div className="dsr-wrap">
+        {/* Meta strip — canonical editorial inline data */}
+        <p className="editorial-meta dsr-metastrip">
+          <span className="dot">●</span>
+          <span>Rotation</span>
+          <span className="bar" />
+          <span className="muted">{activeDeptName}</span>
+          <span className="bar" />
+          <span>{templateCount} {templateCount === 1 ? 'Template' : 'Templates'}</span>
+          <span className="bar" />
+          <span className="muted">{categoryCount} {categoryCount === 1 ? 'Category' : 'Categories'}</span>
+        </p>
+
+        {/* Header Row */}
+        <div className="dsr-header">
           <div>
-            <h1 className="text-3xl font-semibold text-foreground mb-2">Duty Sets & Rotation</h1>
-            <p className="text-sm text-muted-foreground">Manage recurring task templates and crew rotation schedules</p>
+            <h1 className="dsr-headline">
+              ROTATION<span className="punc">,</span> <em>on schedule</em><span className="punc">.</span>
+            </h1>
+            <p className="dsr-subtitle">Recurring duty templates and the crew rotation calendar.</p>
           </div>
-          <div className="flex items-center gap-3">
-            {/* Department selector: COMMAND only — CHIEF/HOD are locked to their own dept */}
+          <div className="dsr-actions">
+            {/* Department — COMMAND only; CHIEF/HOD are locked to their own */}
             {isCommandUser && departments?.length > 0 && (
-              <Select
-                options={departments?.map(d => ({ value: d?.id, label: d?.name }))}
-                value={selectedDepartmentId || ''}
-                onChange={(val) => setSelectedDepartmentId(val)}
-                className="w-48"
-                placeholder="Select department"
-              />
+              <div className="dsr-menuwrap" onClick={e => e?.stopPropagation()}>
+                <button className="dsr-tool" onClick={() => setShowDeptMenu(v => !v)}>
+                  <Icon name="Building2" size={15} />
+                  <span>
+                    {departments?.find(d => d?.id === selectedDepartmentId)?.name || 'Select department'}
+                  </span>
+                  <Icon name="ChevronDown" size={13} className={showDeptMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                </button>
+                {showDeptMenu && (
+                  <div className="dsr-menu left">
+                    {departments?.map(d => (
+                      <button
+                        key={d?.id}
+                        className={`dsr-menuitem${selectedDepartmentId === d?.id ? ' on' : ''}`}
+                        onClick={() => { setSelectedDepartmentId(d?.id); setShowDeptMenu(false); }}
+                      >
+                        {d?.name}
+                        {selectedDepartmentId === d?.id && <Icon name="Check" size={14} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             {isChiefOrHod && userDepartmentId && departments?.length > 0 && (
-              <span className="text-sm text-muted-foreground px-3 py-2 bg-muted rounded-lg">
-                {departments?.find(d => d?.id === userDepartmentId)?.name || 'My Department'}
+              <span className="dsr-deptchip">
+                <Icon name="Building2" size={14} />
+                {departments?.find(d => d?.id === userDepartmentId)?.name || 'My department'}
               </span>
             )}
-            <Button variant="outline" iconName="Download">
-              Export Schedule
-            </Button>
-            <Button variant="default" iconName="Plus" onClick={() => setShowCreateTemplate(true)}>
-              New Template
-            </Button>
+            <button className="dsr-btn ghost">
+              <Icon name="Download" size={15} />
+              <span className="hidden sm:inline">Export schedule</span>
+            </button>
+            <button className="dsr-btn primary" onClick={() => setShowCreateTemplate(true)}>
+              <Icon name="Plus" size={15} />
+              New template
+            </button>
           </div>
         </div>
 
-        {/* View Toggle */}
-        <div className="flex items-center gap-2 bg-muted rounded-lg p-1 mb-6 w-fit">
+        {/* View toggle */}
+        <div className="dsr-tabs">
           <button
             onClick={() => setView('templates')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-smooth ${
-              view === 'templates' ?'bg-card text-foreground shadow-sm' :'text-muted-foreground hover:text-foreground'
-            }`}
+            className={`dsr-tab${view === 'templates' ? ' on' : ''}`}
           >
-            <Icon name="FileText" size={16} className="inline mr-2" />
+            <Icon name="FileText" size={15} />
             Templates
           </button>
           <button
             onClick={() => setView('rotation')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-smooth ${
-              view === 'rotation' ?'bg-card text-foreground shadow-sm' :'text-muted-foreground hover:text-foreground'
-            }`}
+            className={`dsr-tab${view === 'rotation' ? ' on' : ''}`}
           >
-            <Icon name="Calendar" size={16} className="inline mr-2" />
-            Rotation Calendar
+            <Icon name="CalendarDays" size={15} />
+            Rotation calendar
           </button>
         </div>
 
         {/* Templates View */}
         {view === 'templates' && (
           <div>
-            {/* Filters */}
-            <div className="flex items-center gap-4 mb-6">
-              <div className="flex-1 max-w-md">
-                <Input
-                  placeholder="Search templates..."
+            {/* Toolbar — search + category filter */}
+            <div className="dsr-toolbar">
+              <div className="dsr-search">
+                <Icon name="Search" size={15} />
+                <input
+                  type="text"
+                  placeholder="Search templates — name, category…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e?.target?.value)}
                 />
+                {searchQuery && (
+                  <button className="dsr-search-clear" onClick={() => setSearchQuery('')} title="Clear search">
+                    <Icon name="X" size={14} />
+                  </button>
+                )}
               </div>
-              <Select
-                options={boardOptions}
-                value={filterBoard}
-                onChange={setFilterBoard}
-                className="w-48"
-              />
+              <div className="dsr-menuwrap" onClick={e => e?.stopPropagation()}>
+                <button
+                  className={`dsr-tool${filterBoard !== 'all' ? ' on' : ''}`}
+                  onClick={() => setShowBoardMenu(v => !v)}
+                >
+                  <Icon name="SlidersHorizontal" size={15} />
+                  <span>{boardOptions?.find(o => o?.value === filterBoard)?.label || 'All duties'}</span>
+                  <Icon name="ChevronDown" size={13} className={showBoardMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                </button>
+                {showBoardMenu && (
+                  <div className="dsr-menu">
+                    {boardOptions?.map(o => (
+                      <button
+                        key={o?.value}
+                        className={`dsr-menuitem${filterBoard === o?.value ? ' on' : ''}`}
+                        onClick={() => { setFilterBoard(o?.value); setShowBoardMenu(false); }}
+                      >
+                        {o?.label}
+                        {filterBoard === o?.value && <Icon name="Check" size={14} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Template Library */}
+            {/* Template library */}
             {loadingTemplates ? (
-              <div className="bg-card rounded-xl border border-border shadow-sm p-12 text-center">
+              <div className="dsr-empty">
                 <LogoSpinner size={32} className="mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground">Loading templates...</p>
+                <p className="dsr-empty-s">Loading templates…</p>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div>
                 {Object.entries(groupedTemplates)?.map(([category, categoryTemplates]) => (
-                  <div key={category}>
-                    {renamingCategory?.old === category ? (
-                      <div className="flex items-center gap-2 mb-4">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={renamingCategory?.value}
-                          onChange={(e) => setRenamingCategory(prev => ({ ...prev, value: e?.target?.value }))}
-                          onKeyDown={handleRenameCategoryKeyDown}
-                          onBlur={handleSaveRenameCategory}
-                          className="text-lg font-semibold text-foreground bg-transparent border-b-2 border-primary focus:outline-none px-1 py-0.5 min-w-[120px]"
-                        />
-                        <button
-                          onClick={handleSaveRenameCategory}
-                          className="p-1 hover:bg-muted rounded transition-smooth"
-                          title="Save"
-                        >
-                          <Icon name="Check" size={16} className="text-primary" />
-                        </button>
-                        <button
-                          onClick={() => setRenamingCategory(null)}
-                          className="p-1 hover:bg-muted rounded transition-smooth"
-                          title="Cancel"
-                        >
-                          <Icon name="X" size={16} className="text-muted-foreground" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleStartRenameCategory(category)}
-                        className="group flex items-center gap-2 mb-4 text-left"
-                        title="Click to rename"
-                      >
-                        <h2 className="text-lg font-semibold text-foreground group-hover:text-primary transition-smooth">{category}</h2>
-                        <Icon name="Pencil" size={14} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-smooth" />
-                      </button>
-                    )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div key={category} className="dsr-cat">
+                    <div className="dsr-cat-head">
+                      {renamingCategory?.old === category ? (
+                        <>
+                          <input
+                            autoFocus
+                            type="text"
+                            className="dsr-cat-input"
+                            value={renamingCategory?.value}
+                            onChange={(e) => setRenamingCategory(prev => ({ ...prev, value: e?.target?.value }))}
+                            onKeyDown={handleRenameCategoryKeyDown}
+                            onBlur={handleSaveRenameCategory}
+                          />
+                          <button className="dsr-cat-ok" onClick={handleSaveRenameCategory} title="Save">
+                            <Icon name="Check" size={15} />
+                          </button>
+                          <button className="dsr-cat-cancel" onClick={() => setRenamingCategory(null)} title="Cancel">
+                            <Icon name="X" size={15} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            className="dsr-cat-name"
+                            onClick={() => handleStartRenameCategory(category)}
+                            title="Rename category"
+                          >
+                            {category}
+                            <Icon name="Pencil" size={13} />
+                          </button>
+                          <span className="dsr-cat-count">
+                            {categoryTemplates?.length} {categoryTemplates?.length === 1 ? 'template' : 'templates'}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <div className="dsr-grid">
                       {categoryTemplates?.map(template => (
                         <DutySetTemplateCard
                           key={template?.id}
@@ -472,13 +534,17 @@ const DutySetsRotationManagement = () => {
                 ))}
 
                 {filteredTemplates?.length === 0 && (
-                  <div className="bg-card rounded-xl border border-border shadow-sm p-12 text-center">
-                    <Icon name="FileText" size={48} className="mx-auto mb-4 text-muted-foreground opacity-30" />
-                    <h3 className="text-lg font-semibold text-foreground mb-2">
-                      {searchQuery || filterBoard !== 'all' ?'No templates found' :'No templates yet for this department'}
+                  <div className="dsr-empty">
+                    <div className="dsr-empty-ico"><Icon name="FileText" size={22} /></div>
+                    <h3 className="dsr-empty-t">
+                      {searchQuery || filterBoard !== 'all'
+                        ? 'No templates found'
+                        : 'No templates yet for this department'}
                     </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {searchQuery || filterBoard !== 'all' ?'Try adjusting your search or filters' :'Create your first template using the \u201c+ New Template\u201d button above.'}
+                    <p className="dsr-empty-s">
+                      {searchQuery || filterBoard !== 'all'
+                        ? 'Try adjusting your search or filter.'
+                        : 'Create your first one with the “New template” button above.'}
                     </p>
                   </div>
                 )}
@@ -496,7 +562,8 @@ const DutySetsRotationManagement = () => {
             currentUserId={currentUser?.id || null}
           />
         )}
-      </main>
+      </div>
+
       {/* Create Template Modal */}
       {showCreateTemplate && (
         <CreateTemplateModal

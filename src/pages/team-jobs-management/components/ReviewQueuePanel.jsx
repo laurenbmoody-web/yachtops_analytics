@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {formatTime, dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
+import '../job-modals.css';
 
 import { useAuth } from '../../../contexts/AuthContext';
 
@@ -121,341 +121,246 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
 
   return (
     <>
-    <ModalShell onClose={onClose} panelClassName="bg-white rounded-lg shadow-xl max-w-6xl w-full h-[90vh] flex flex-col">
+      <ModalShell onClose={onClose} panelClassName="jm-panel rq-panel">
         {/* Header */}
-        <div className="border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">Pending Acceptance</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                {pendingAcceptanceJobs?.length} item{pendingAcceptanceJobs?.length !== 1 ? 's' : ''} awaiting review
-                {isChief(tier) && memberDeptId ? ' for your department' : ''}
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <Icon name="X" size={24} />
-            </button>
+        <div className="jm-head">
+          <div>
+            <p className="jm-eyebrow">Jobs</p>
+            <h2 className="jm-title">Pending acceptance</h2>
+            <p className="jm-sub">
+              {pendingAcceptanceJobs?.length} item{pendingAcceptanceJobs?.length !== 1 ? 's' : ''} awaiting review
+              {isChief(tier) && memberDeptId ? ' for your department' : ''}
+            </p>
           </div>
-          
-          {/* Tabs */}
-          <div className="flex gap-2">
+          <button onClick={onClose} className="jm-x" title="Close">
+            <Icon name="X" size={18} />
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="rq-tabbar">
+          <div className="jm-tabs">
             <button
-              onClick={() => {
-                setActiveTab('pending-acceptance');
-                setSelectedCard(null);
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'pending-acceptance' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              onClick={() => { setActiveTab('pending-acceptance'); setSelectedCard(null); }}
+              className={`jm-tab${activeTab === 'pending-acceptance' ? ' on' : ''}`}
             >
-              All Pending ({pendingAcceptanceJobs?.length})
+              All pending ({pendingAcceptanceJobs?.length})
             </button>
             <button
-              onClick={() => {
-                setActiveTab('self-reported');
-                setSelectedCard(null);
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'self-reported' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              onClick={() => { setActiveTab('self-reported'); setSelectedCard(null); }}
+              className={`jm-tab${activeTab === 'self-reported' ? ' on' : ''}`}
             >
-              Self-Reported ({pendingReviewJobs?.length})
+              Self-reported ({pendingReviewJobs?.length})
             </button>
             <button
-              onClick={() => {
-                setActiveTab('handoff');
-                setSelectedCard(null);
-              }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'handoff'
-                  ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
-              }`}
+              onClick={() => { setActiveTab('handoff'); setSelectedCard(null); }}
+              className={`jm-tab${activeTab === 'handoff' ? ' on' : ''}`}
             >
-              Cross-Dept ({pendingHandoffJobs?.length})
+              Cross-dept ({pendingHandoffJobs?.length})
             </button>
           </div>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Left: Job List */}
-          <div className="w-1/3 border-r border-gray-200 overflow-y-auto">
+        {/* Body: queue list + detail */}
+        <div className="rq-body">
+          <div className="rq-list">
             {displayedJobs?.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                <Icon name="CheckCircle" size={48} className="text-gray-300 mb-3" />
-                <p className="text-gray-500 font-medium">All caught up!</p>
-                <p className="text-sm text-gray-400 mt-1">
-                  No pending {activeTab === 'self-reported' ? 'reviews' : 'handoffs'} at the moment
+              <div className="jm-empty">
+                <div className="jm-empty-ico"><Icon name="Check" size={20} /></div>
+                <p className="jm-empty-t">All caught up</p>
+                <p className="jm-empty-s">
+                  Nothing {activeTab === 'self-reported' ? 'reported' : activeTab === 'handoff' ? 'handed over' : 'pending'} right now.
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-200">
-                {displayedJobs?.map(card => (
-                  <div
-                    key={card?.id}
-                    onClick={() => handleSelectCard(card)}
-                    className={`p-4 cursor-pointer transition-colors ${
-                      selectedCard?.id === card?.id
-                        ? 'bg-blue-50 border-l-4 border-blue-500' :'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-gray-900 truncate">{card?.title}</h3>
-                        <p className="text-sm text-gray-500 mt-1">
-                          {card?.jobType === 'handoff' 
-                            ? `From ${card?.handoffMetadata?.sourceDepartment} → ${card?.handoffMetadata?.targetDepartment}`
-                            : `By ${getCrewMemberName(card?.createdBy)}`
-                          }
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className="text-xs text-gray-400">{formatDate(card?.createdAt)}</span>
-                          <span className="text-xs text-gray-400">{formatTime(card?.createdAt)}</span>
-                        </div>
-                      </div>
-                      <div className="flex-shrink-0">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          card?.jobType === 'handoff'
-                            ? 'bg-purple-100 text-purple-800' :'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {card?.jobType === 'handoff' ? 'Handoff' : 'Pending'}
-                        </span>
-                      </div>
-                    </div>
+              displayedJobs?.map(card => (
+                <button
+                  key={card?.id}
+                  onClick={() => handleSelectCard(card)}
+                  className={`rq-item${selectedCard?.id === card?.id ? ' on' : ''}`}
+                >
+                  <span className="rq-item-top">
+                    <span className="rq-item-title">{card?.title}</span>
+                    <span className={`jm-tag ${card?.jobType === 'handoff' ? 'navy' : 'warn'}`}>
+                      {card?.jobType === 'handoff' ? 'Handoff' : 'Pending'}
+                    </span>
+                  </span>
+                  <span className="rq-item-sub">
+                    {card?.jobType === 'handoff'
+                      ? `${card?.handoffMetadata?.sourceDepartment} → ${card?.handoffMetadata?.targetDepartment}`
+                      : `By ${getCrewMemberName(card?.createdBy)}`}
+                  </span>
+                  <span className="rq-item-meta">
+                    <span>{formatDate(card?.createdAt)}</span>
+                    <span>{formatTime(card?.createdAt)}</span>
                     {card?.attachments?.length > 0 && (
-                      <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
-                        <Icon name="Paperclip" size={12} />
-                        <span>{card?.attachments?.length} attachment{card?.attachments?.length > 1 ? 's' : ''}</span>
-                      </div>
+                      <span className="att">
+                        <Icon name="Paperclip" size={10} />
+                        {card?.attachments?.length}
+                      </span>
                     )}
-                  </div>
-                ))}
-              </div>
+                  </span>
+                </button>
+              ))
             )}
           </div>
 
-          {/* Right: Job Detail */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="rq-detail">
             {!selectedCard ? (
-              <div className="flex flex-col items-center justify-center h-full text-center px-6">
-                <Icon name="ArrowLeft" size={48} className="text-gray-300 mb-3" />
-                <p className="text-gray-500 font-medium">Select a task to review</p>
-                <p className="text-sm text-gray-400 mt-1">Choose from the list on the left</p>
+              <div className="jm-empty">
+                <div className="jm-empty-ico"><Icon name="MousePointerClick" size={20} /></div>
+                <p className="jm-empty-t">Select a job to review</p>
+                <p className="jm-empty-s">Choose one from the queue on the left.</p>
               </div>
             ) : (
-              <div className="p-6 space-y-6">
-                {/* Title */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-2">
-                    Task Title
-                  </label>
-                  <h2 className="text-2xl font-semibold text-gray-900">{selectedCard?.title}</h2>
+              <div className="rq-detail-inner">
+                <div className="jm-section">
+                  <p className="jm-label">Job</p>
+                  <h2 className="rq-detail-title">{selectedCard?.title}</h2>
                 </div>
 
-                {/* Handoff Metadata */}
+                {/* Handoff metadata */}
                 {selectedCard?.jobType === 'handoff' && selectedCard?.handoffMetadata && (
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-2">
-                    <div className="flex items-center gap-2 text-purple-700">
-                      <Icon name="ArrowRightLeft" size={16} />
-                      <h4 className="font-medium text-sm">Cross-Department Handoff</h4>
+                  <div className="jm-section">
+                    <div className="jm-notice info">
+                      <Icon name="ArrowRightLeft" size={15} />
+                      <span>
+                        <strong>Cross-department handoff</strong>
+                        <span className="rq-handoff-grid">
+                          <span><em>From</em>{selectedCard?.handoffMetadata?.sourceDepartment}</span>
+                          <span><em>To</em>{selectedCard?.handoffMetadata?.targetDepartment}</span>
+                          <span><em>Requested by</em>{selectedCard?.handoffMetadata?.handoffByName}</span>
+                          <span><em>Date</em>{formatDate(selectedCard?.handoffMetadata?.handoffAt)}</span>
+                        </span>
+                        {selectedCard?.handoffMetadata?.handoffNote && (
+                          <span className="rq-handoff-note">{selectedCard?.handoffMetadata?.handoffNote}</span>
+                        )}
+                      </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <span className="text-gray-600">From:</span>
-                        <span className="ml-2 font-medium text-gray-900">{selectedCard?.handoffMetadata?.sourceDepartment}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">To:</span>
-                        <span className="ml-2 font-medium text-gray-900">{selectedCard?.handoffMetadata?.targetDepartment}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Requested by:</span>
-                        <span className="ml-2 font-medium text-gray-900">{selectedCard?.handoffMetadata?.handoffByName}</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Date:</span>
-                        <span className="ml-2 font-medium text-gray-900">{formatDate(selectedCard?.handoffMetadata?.handoffAt)}</span>
-                      </div>
-                    </div>
-                    {selectedCard?.handoffMetadata?.handoffNote && (
-                      <div className="mt-2 pt-2 border-t border-purple-200">
-                        <span className="text-xs text-gray-600 uppercase">Handoff Note:</span>
-                        <p className="text-sm text-gray-900 mt-1">{selectedCard?.handoffMetadata?.handoffNote}</p>
-                      </div>
-                    )}
                   </div>
                 )}
 
-                {/* Metadata */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="jm-section jm-grid">
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      {selectedCard?.jobType === 'handoff' ? 'Requested By' : 'Reported By'}
-                    </label>
-                    <p className="text-sm text-gray-900">{getCrewMemberName(selectedCard?.createdBy)}</p>
+                    <p className="jm-label">
+                      {selectedCard?.jobType === 'handoff' ? 'Requested by' : 'Reported by'}
+                    </p>
+                    <p className="rq-value">{getCrewMemberName(selectedCard?.createdBy)}</p>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                      Department
-                    </label>
-                    <p className="text-sm text-gray-900">{selectedCard?.department}</p>
+                    <p className="jm-label">Department</p>
+                    <p className="rq-value">{selectedCard?.department || '—'}</p>
                   </div>
                   {selectedCard?.jobType !== 'handoff' && selectedCard?.completedAt && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-500 uppercase mb-1">
-                        Completed At
-                      </label>
-                      <p className="text-sm text-gray-900">
+                      <p className="jm-label">Completed</p>
+                      <p className="rq-value">
                         {formatDate(selectedCard?.completedAt)} at {formatTime(selectedCard?.completedAt)}
                       </p>
                     </div>
                   )}
                 </div>
 
-                {/* Description */}
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 uppercase mb-2">
-                    Description
-                  </label>
-                  <p className="text-gray-700 whitespace-pre-wrap">
-                    {selectedCard?.description || 'No description provided'}
+                <div className="jm-section">
+                  <p className="jm-label">Description</p>
+                  <p className="rq-body-text">
+                    {selectedCard?.description || 'No description provided.'}
                   </p>
                 </div>
 
-                {/* Time Spent */}
                 {selectedCard?.notes?.length > 0 && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-2">
-                      Time Spent
-                    </label>
+                  <div className="jm-section">
+                    <p className="jm-label">Time spent</p>
                     {selectedCard?.notes?.map(note => (
-                      <p key={note?.id} className="text-sm text-gray-700">{note?.text}</p>
+                      <p key={note?.id} className="rq-value">{note?.text}</p>
                     ))}
                   </div>
                 )}
 
-                {/* Attachments */}
                 {selectedCard?.attachments?.length > 0 && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 uppercase mb-2">
-                      Attachments
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
+                  <div className="jm-section">
+                    <p className="jm-label">Attachments</p>
+                    <div className="rq-attachments">
                       {selectedCard?.attachments?.map(attachment => (
-                        <div
-                          key={attachment?.id}
-                          className="border border-gray-200 rounded-lg p-3 hover:border-blue-500 transition-colors cursor-pointer"
-                        >
+                        <div key={attachment?.id} className="rq-attachment">
                           {attachment?.type?.startsWith('image/') ? (
-                            <img
-                              src={attachment?.url}
-                              alt={attachment?.name}
-                              className="w-full h-32 object-cover rounded mb-2"
-                            />
+                            <img src={attachment?.url} alt={attachment?.name} />
                           ) : (
-                            <div className="w-full h-32 bg-gray-100 rounded mb-2 flex items-center justify-center">
-                              <Icon name="file" size={32} className="text-gray-400" />
-                            </div>
+                            <span className="ph"><Icon name="File" size={22} /></span>
                           )}
-                          <p className="text-xs text-gray-700 truncate">{attachment?.name}</p>
-                          <p className="text-xs text-gray-400">
-                            {(attachment?.size / 1024)?.toFixed(1)} KB
-                          </p>
+                          <span className="n">{attachment?.name}</span>
+                          <span className="s">{(attachment?.size / 1024)?.toFixed(1)} KB</span>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Inline Reject Notes */}
+                {/* Inline reject notes */}
                 {showInlineReject && (
-                  <div className="border border-red-200 bg-red-50 rounded-lg p-4 space-y-3">
-                    <div className="flex items-center gap-2 text-red-700">
-                      <Icon name="XCircle" size={16} />
-                      <h4 className="font-medium text-sm">Rejection Notes</h4>
-                    </div>
-                    <p className="text-xs text-red-600">
-                      These notes will be sent back to the job creator as a notification.
-                    </p>
-                    <textarea
-                      value={inlineRejectNotes}
-                      onChange={(e) => setInlineRejectNotes(e?.target?.value)}
-                      placeholder="Explain why this job is being rejected..."
-                      rows={3}
-                      className="w-full px-3 py-2 border border-red-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-400 text-sm text-gray-900"
-                    />
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => { setShowInlineReject(false); setInlineRejectNotes(''); }}
-                        className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleInlineRejectConfirm}
-                        disabled={!inlineRejectNotes?.trim()}
-                        className="flex-1 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50 transition-colors"
-                      >
-                        Confirm Rejection
-                      </button>
+                  <div className="jm-section">
+                    <div className="rq-reject">
+                      <p className="jm-label" style={{ color: '#C0453C' }}>Rejection notes</p>
+                      <p className="jm-hint">
+                        These notes are sent back to whoever raised the job.
+                      </p>
+                      <textarea
+                        className="jm-textarea"
+                        rows={3}
+                        value={inlineRejectNotes}
+                        onChange={(e) => setInlineRejectNotes(e?.target?.value)}
+                        placeholder="Explain why this job is being rejected…"
+                      />
+                      <div className="rq-reject-actions">
+                        <button
+                          className="jm-btn ghost"
+                          onClick={() => { setShowInlineReject(false); setInlineRejectNotes(''); }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="jm-btn danger-solid"
+                          onClick={handleInlineRejectConfirm}
+                          disabled={!inlineRejectNotes?.trim()}
+                        >
+                          Confirm rejection
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* Action Buttons */}
+                {/* Actions */}
                 {!showInlineReject && (
-                  <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                  <div className="rq-actions">
                     {selectedCard?.jobType === 'handoff' ? (
                       <>
-                        <Button
-                          variant="default"
-                          iconName="Check"
-                          onClick={handleAcceptWithEdit}
-                          fullWidth
-                        >
-                          Accept Handoff
-                        </Button>
-                        <Button
-                          variant="outline"
-                          iconName="CornerUpLeft"
-                          onClick={() => setShowReturnModal(selectedCard)}
-                          fullWidth
-                        >
+                        <button className="jm-btn primary" onClick={handleAcceptWithEdit}>
+                          <Icon name="Check" size={15} />
+                          Accept handoff
+                        </button>
+                        <button className="jm-btn ghost" onClick={() => setShowReturnModal(selectedCard)}>
+                          <Icon name="CornerUpLeft" size={15} />
                           Return
-                        </Button>
-                        <Button
-                          variant="outline"
-                          iconName="X"
-                          onClick={() => setShowRejectModal(selectedCard)}
-                          fullWidth
-                        >
+                        </button>
+                        <button className="jm-btn danger" onClick={() => setShowRejectModal(selectedCard)}>
+                          <Icon name="X" size={15} />
                           Reject
-                        </Button>
+                        </button>
                       </>
                     ) : (
                       <>
-                        <Button
-                          variant="default"
-                          iconName="CheckCircle"
-                          onClick={handleAcceptWithEdit}
-                          fullWidth
-                        >
+                        <button className="jm-btn primary" onClick={handleAcceptWithEdit}>
+                          <Icon name="Check" size={15} />
                           Accept
-                        </Button>
-                        <Button
-                          variant="outline"
-                          iconName="XCircle"
-                          onClick={() => {
-                            setShowInlineReject(true);
-                            setInlineRejectNotes('');
-                          }}
-                          fullWidth
+                        </button>
+                        <button
+                          className="jm-btn danger"
+                          onClick={() => { setShowInlineReject(true); setInlineRejectNotes(''); }}
                         >
+                          <Icon name="X" size={15} />
                           Reject
-                        </Button>
+                        </button>
                       </>
                     )}
                   </div>
@@ -464,82 +369,99 @@ const ReviewQueuePanel = ({ cards, onAccept, onReject, onEdit, onConvertToPlanne
             )}
           </div>
         </div>
-    </ModalShell>
+      </ModalShell>
 
       {/* Reject Modal (for handoff) */}
       {showRejectModal && (
-        <ModalShell onClose={() => setShowRejectModal(null)} panelClassName="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            {showRejectModal?.jobType === 'handoff' ? 'Reject Handoff' : 'Reject Task'}
-          </h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Please provide a reason for rejection:
-          </p>
-          <textarea
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e?.target?.value)}
-            placeholder="Enter rejection reason..."
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 mb-4"
-          />
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowRejectModal(null);
-                setRejectReason('');
-              }}
-              fullWidth
+        <ModalShell
+          onClose={() => setShowRejectModal(null)}
+          isDirty={!!rejectReason?.trim()}
+          panelClassName="jm-panel sm"
+        >
+          <div className="jm-head">
+            <div>
+              <p className="jm-eyebrow">Jobs</p>
+              <h3 className="jm-title">
+                {showRejectModal?.jobType === 'handoff' ? 'Reject handoff' : 'Reject job'}
+              </h3>
+              <p className="jm-sub">This is sent back to whoever raised it.</p>
+            </div>
+            <button onClick={() => setShowRejectModal(null)} className="jm-x" title="Close">
+              <Icon name="X" size={18} />
+            </button>
+          </div>
+          <div className="jm-body">
+            <label className="jm-label" htmlFor="rq-reject-reason">
+              Reason<span className="req">required</span>
+            </label>
+            <textarea
+              id="rq-reject-reason"
+              autoFocus
+              className="jm-textarea"
+              rows={4}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e?.target?.value)}
+              placeholder="Why is this being rejected?"
+            />
+          </div>
+          <div className="jm-foot">
+            <button
+              className="jm-btn ghost"
+              onClick={() => { setShowRejectModal(null); setRejectReason(''); }}
             >
               Cancel
-            </Button>
-            <Button
-              variant="default"
-              onClick={handleReject}
-              disabled={!rejectReason?.trim()}
-              fullWidth
-            >
-              Confirm Rejection
-            </Button>
+            </button>
+            <div className="spacer" />
+            <button className="jm-btn danger-solid" onClick={handleReject} disabled={!rejectReason?.trim()}>
+              Confirm rejection
+            </button>
           </div>
         </ModalShell>
       )}
 
       {/* Return Modal */}
       {showReturnModal && (
-        <ModalShell onClose={() => setShowReturnModal(null)} panelClassName="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Return Handoff for More Info
-          </h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Provide feedback on what additional information is needed:
-          </p>
-          <textarea
-            value={returnComment}
-            onChange={(e) => setReturnComment(e?.target?.value)}
-            placeholder="Enter feedback or questions..."
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-          />
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowReturnModal(null);
-                setReturnComment('');
-              }}
-              fullWidth
+        <ModalShell
+          onClose={() => setShowReturnModal(null)}
+          isDirty={!!returnComment?.trim()}
+          panelClassName="jm-panel sm"
+        >
+          <div className="jm-head">
+            <div>
+              <p className="jm-eyebrow">Jobs</p>
+              <h3 className="jm-title">Return for more info</h3>
+              <p className="jm-sub">Tell the sender what else you need.</p>
+            </div>
+            <button onClick={() => setShowReturnModal(null)} className="jm-x" title="Close">
+              <Icon name="X" size={18} />
+            </button>
+          </div>
+          <div className="jm-body">
+            <label className="jm-label" htmlFor="rq-return-note">
+              Feedback<span className="req">required</span>
+            </label>
+            <textarea
+              id="rq-return-note"
+              autoFocus
+              className="jm-textarea"
+              rows={4}
+              value={returnComment}
+              onChange={(e) => setReturnComment(e?.target?.value)}
+              placeholder="What questions or detail are outstanding?"
+            />
+          </div>
+          <div className="jm-foot">
+            <button
+              className="jm-btn ghost"
+              onClick={() => { setShowReturnModal(null); setReturnComment(''); }}
             >
               Cancel
-            </Button>
-            <Button
-              variant="default"
-              onClick={handleReturn}
-              disabled={!returnComment?.trim()}
-              fullWidth
-            >
-              Return to Sender
-            </Button>
+            </button>
+            <div className="spacer" />
+            <button className="jm-btn primary" onClick={handleReturn} disabled={!returnComment?.trim()}>
+              <Icon name="CornerUpLeft" size={15} />
+              Return to sender
+            </button>
           </div>
         </ModalShell>
       )}

@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
 import DateInput from '../../../components/ui/DateInput';
-import Select from '../../../components/ui/Select';
-import { Checkbox } from '../../../components/ui/Checkbox';
+import ModalShell from '../../../components/ui/ModalShell';
 import { supabase } from '../../../lib/supabaseClient';
 import { TIER_RANK, normalizeTier, canAssignTo } from '../utils/tierPermissions';
 import SearchableAssigneeDropdown from './SearchableAssigneeDropdown';
+import '../job-modals.css';
+import '../../duty-sets-rotation-management/duty-sets.css';
 
 /**
  * Determine if the current user can FULLY edit this job.
@@ -525,222 +524,341 @@ const JobEditModal = ({
   // ─────────────────────────────────────────────────────────────────────────
   if (acceptanceMode) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[300] p-4" onClick={onClose}>
-        <div
-          className="bg-card rounded-xl border border-border shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-          onClick={(e) => e?.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-border bg-card sticky top-0 z-10">
-            <div>
-              <div className="flex items-center gap-2">
-                <Icon name="CheckCircle" size={20} className="text-green-500" />
-                <h2 className="text-xl font-semibold text-foreground">Accept Job</h2>
+      <ModalShell onClose={onClose} isBusy={saving} panelClassName="jm-panel xl">
+        <div className="jm-head">
+          <div>
+            <p className="jm-eyebrow">Jobs</p>
+            <h2 className="jm-title">Accept job</h2>
+            <p className="jm-sub">Review and configure this job before it lands in your department.</p>
+          </div>
+          <button onClick={onClose} className="jm-x" title="Close">
+            <Icon name="X" size={18} />
+          </button>
+        </div>
+
+        <div className="jm-body">
+          {error && (
+            <div className="jm-section">
+              <div className="jm-notice danger">
+                <Icon name="AlertCircle" size={15} />
+                <span>{error}</span>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Review and configure this job before accepting it into your department
-              </p>
             </div>
-            <button onClick={onClose} className="p-2 hover:bg-accent rounded-lg transition-colors">
-              <Icon name="X" size={20} className="text-muted-foreground" />
+          )}
+
+          <p className="jm-secthead">
+            <Icon name="FileText" size={14} />
+            Core information
+          </p>
+
+          <div className="jm-section">
+            <label className="jm-label" htmlFor="jam-title">
+              Job title<span className="req">required</span>
+            </label>
+            <input
+              id="jam-title"
+              autoFocus
+              type="text"
+              className="jm-titlefield"
+              placeholder="What needs doing?"
+              value={title}
+              onChange={(e) => setTitle(e?.target?.value)}
+            />
+          </div>
+
+          <div className="jm-section">
+            <label className="jm-label" htmlFor="jam-desc">
+              Description &amp; notes<span className="opt">optional</span>
+            </label>
+            <textarea
+              id="jam-desc"
+              className="jm-textarea"
+              rows={4}
+              placeholder="Any detail the crew will need"
+              value={description}
+              onChange={(e) => setDescription(e?.target?.value)}
+            />
+          </div>
+
+          <div className="jm-section">
+            <label className="jm-label" htmlFor="jam-board">
+              Board<span className="req">required</span>
+            </label>
+            <select
+              id="jam-board"
+              className="jm-select"
+              value={selectedBoardId || ''}
+              onChange={(e) => setSelectedBoardId(e?.target?.value)}
+            >
+              <option value="">— No board —</option>
+              {filteredBoards?.map(b => {
+                const displayName = (userDeptId && b?.names?.[userDeptId]) ? b?.names?.[userDeptId] : (b?.name || 'Board');
+                return <option key={b?.id} value={b?.id}>{displayName}</option>;
+              })}
+            </select>
+          </div>
+
+          <div className="jm-section">
+            <label className="jm-label">
+              Assign to
+              {userDeptName && <span className="opt">{userDeptName}</span>}
+            </label>
+            {loadingAssignees ? (
+              <div className="jm-readonly muted">Loading team members…</div>
+            ) : assigneeOptions?.length === 0 ? (
+              <div className="jm-readonly muted">No eligible crew in this department</div>
+            ) : (
+              <SearchableAssigneeDropdown
+                crewMembers={assigneeOptions}
+                selectedAssignees={assignees}
+                onChange={(newAssignees) => setAssignees(newAssignees)}
+                department={userDeptId}
+              />
+            )}
+          </div>
+
+          <div className="jm-section jm-grid">
+            <div>
+              <label className="jm-label" htmlFor="jam-due">
+                Due date<span className="req">required</span>
+              </label>
+              <DateInput id="jam-due" value={dueDate} onChange={(e) => setDueDate(e?.target?.value)} className="jm-input" />
+            </div>
+            <div>
+              <label className="jm-label" htmlFor="jam-time">
+                Time<span className="opt">optional</span>
+              </label>
+              <input
+                id="jam-time"
+                type="time"
+                className="jm-input"
+                value={dueTime}
+                onChange={(e) => setDueTime(e?.target?.value)}
+              />
+            </div>
+          </div>
+
+          <div className="jm-section">
+            <p className="jm-label">
+              Priority<span className="req">required</span>
+            </p>
+            <div className="jm-pills">
+              {PRIORITY_OPTIONS?.map(p => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPriority(p)}
+                  className={`jm-pill${priority === p ? ' on' : ''}`}
+                >
+                  {p?.charAt(0)?.toUpperCase() + p?.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <hr className="jm-rule" />
+
+          {/* Checklists */}
+          <div className="jm-secthead-row">
+            <p className="jm-secthead">
+              <Icon name="CheckSquare" size={14} />
+              Checklists
+            </p>
+            <button
+              type="button"
+              className="jm-btn ghost sm"
+              onClick={() => {
+                const name = prompt('Checklist name:');
+                if (name?.trim()) {
+                  setChecklists(prev => [...prev, { id: crypto.randomUUID(), name: name?.trim(), items: [] }]);
+                  setActiveChecklistIndex(checklists?.length);
+                }
+              }}
+            >
+              <Icon name="Plus" size={14} />
+              Add checklist
             </button>
           </div>
 
-          {/* Scrollable form body */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {error && (
-              <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <Icon name="AlertCircle" size={14} className="text-red-500" />
-                <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-                <Icon name="FileText" size={16} />
-                Core Information
-              </h3>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Job Title</label>
-                <input type="text" value={title} onChange={(e) => setTitle(e?.target?.value)} placeholder="Enter job title"
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Description / Notes</label>
-                <textarea value={description} onChange={(e) => setDescription(e?.target?.value)} placeholder="Add detailed description or notes"
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20" rows={4} />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Board *</label>
-                <select value={selectedBoardId} onChange={(e) => setSelectedBoardId(e?.target?.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20">
-                  <option value="">— No Board —</option>
-                  {filteredBoards?.map(b => {
-                    const displayName = (userDeptId && b?.names?.[userDeptId]) ? b?.names?.[userDeptId] : (b?.name || 'Board');
-                    return <option key={b?.id} value={b?.id}>{displayName}</option>;
-                  })}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Assign To {userDeptName ? `(${userDeptName})` : ''}</label>
-                {loadingAssignees ? (
-                  <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">Loading team members...</div>
-                ) : assigneeOptions?.length === 0 ? (
-                  <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">No eligible crew in this department</div>
-                ) : (
-                  <SearchableAssigneeDropdown crewMembers={assigneeOptions} selectedAssignees={assignees} onChange={(newAssignees) => setAssignees(newAssignees)} department={userDeptId} />
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Due Date *</label>
-                  <DateInput value={dueDate} onChange={(e) => setDueDate(e?.target?.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Time (Optional)</label>
-                  <input type="time" value={dueTime} onChange={(e) => setDueTime(e?.target?.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Priority / Importance *</label>
-                <select
-                  value={priority}
-                  onChange={(e) => setPriority(e?.target?.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+          {checklists?.map((checklist, checklistIndex) => (
+            <div key={checklist?.id} className="jm-subcard">
+              <div className="jm-subcard-head">
+                <h4>{checklist?.name}</h4>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveChecklist(checklistIndex)}
+                  className="jm-file-x"
+                  title="Remove checklist"
                 >
-                  {PRIORITY_OPTIONS?.map(p => (
-                    <option key={p} value={p}>{p?.charAt(0)?.toUpperCase() + p?.slice(1)}</option>
-                  ))}
-                </select>
+                  <Icon name="Trash2" size={14} />
+                </button>
               </div>
-            </div>
-
-            {/* Checklists */}
-            <div className="space-y-4 border-t border-border pt-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-                  <Icon name="CheckSquare" size={16} />Checklists
-                </h3>
-                <Button type="button" variant="outline" size="sm" iconName="Plus" onClick={() => {
-                  const name = prompt('Checklist name:');
-                  if (name?.trim()) { setChecklists(prev => [...prev, { id: crypto.randomUUID(), name: name?.trim(), items: [] }]); setActiveChecklistIndex(checklists?.length); }
-                }}>Add Checklist</Button>
-              </div>
-              {checklists?.map((checklist, checklistIndex) => (
-                <div key={checklist?.id} className="bg-background rounded-lg border border-border p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-foreground">{checklist?.name}</h4>
-                    <button type="button" onClick={() => handleRemoveChecklist(checklistIndex)} className="p-1 hover:bg-red-500/10 rounded transition-smooth">
-                      <Icon name="Trash2" size={14} className="text-red-500" />
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {checklist?.items?.map((item, itemIndex) => (
-                      <div key={item?.id} className="flex items-center gap-2 bg-card p-2 rounded-lg">
-                        <Checkbox checked={item?.completed} disabled />
-                        <span className="flex-1 text-sm text-foreground">{item?.text}</span>
-                        <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'up')} disabled={itemIndex === 0} className="p-1 hover:bg-muted rounded disabled:opacity-30"><Icon name="ChevronUp" size={14} /></button>
-                          <button type="button" onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'down')} disabled={itemIndex === checklist?.items?.length - 1} className="p-1 hover:bg-muted rounded disabled:opacity-30"><Icon name="ChevronDown" size={14} /></button>
-                          <button type="button" onClick={() => handleRemoveChecklistItem(checklistIndex, item?.id)} className="p-1 hover:bg-red-500/10 rounded"><Icon name="X" size={14} className="text-red-500" /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input type="text" placeholder="Add checklist item"
-                      value={activeChecklistIndex === checklistIndex ? newChecklistItem : ''}
-                      onChange={(e) => { setNewChecklistItem(e?.target?.value); setActiveChecklistIndex(checklistIndex); }}
-                      onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddChecklistItem(checklistIndex); } }}
-                      className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                    <Button type="button" size="sm" onClick={() => handleAddChecklistItem(checklistIndex)} disabled={!newChecklistItem?.trim() || activeChecklistIndex !== checklistIndex}>Add</Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Attachments */}
-            <div className="space-y-4 border-t border-border pt-6">
-              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-                <Icon name="Paperclip" size={16} />Attachments
-              </h3>
-              <div>
-                <input type="file" id="accept-file-upload" multiple accept="image/*,.pdf,.doc,.docx,.txt" onChange={handleFileUpload} className="hidden" />
-                <Button type="button" variant="outline" iconName="Upload" onClick={() => document.getElementById('accept-file-upload')?.click()} loading={uploadingFile}>Upload Files</Button>
-              </div>
-              {attachments?.length > 0 && (
-                <div className="grid grid-cols-2 gap-3">
-                  {attachments?.map(attachment => (
-                    <div key={attachment?.id} className="relative bg-background rounded-lg border border-border p-3 flex items-center gap-3">
-                      {attachment?.type?.startsWith('image/') ? (
-                        <img src={attachment?.url} alt={attachment?.name} className="w-12 h-12 rounded object-cover" />
-                      ) : (
-                        <div className="w-12 h-12 rounded bg-muted flex items-center justify-center"><Icon name="File" size={20} className="text-muted-foreground" /></div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{attachment?.name}</p>
-                        <p className="text-xs text-muted-foreground">{(attachment?.size / 1024)?.toFixed(1)} KB</p>
-                      </div>
-                      <button type="button" onClick={() => handleRemoveAttachment(attachment?.id)} className="p-1 hover:bg-red-500/10 rounded transition-smooth"><Icon name="X" size={14} className="text-red-500" /></button>
+              {checklist?.items?.length > 0 && (
+                <div className="jm-checkitems">
+                  {checklist?.items?.map((item, itemIndex) => (
+                    <div key={item?.id} className="jm-checkitem">
+                      <span className="box" />
+                      <span className="t">{item?.text}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'up')}
+                        disabled={itemIndex === 0}
+                        title="Move up"
+                      >
+                        <Icon name="ChevronUp" size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'down')}
+                        disabled={itemIndex === checklist?.items?.length - 1}
+                        title="Move down"
+                      >
+                        <Icon name="ChevronDown" size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveChecklistItem(checklistIndex, item?.id)}
+                        className="danger"
+                        title="Remove item"
+                      >
+                        <Icon name="X" size={13} />
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
+              <div className="dsr-inlineadd">
+                <input
+                  type="text"
+                  className="jm-input"
+                  placeholder="Add checklist item"
+                  value={activeChecklistIndex === checklistIndex ? newChecklistItem : ''}
+                  onChange={(e) => { setNewChecklistItem(e?.target?.value); setActiveChecklistIndex(checklistIndex); }}
+                  onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddChecklistItem(checklistIndex); } }}
+                />
+                <button
+                  type="button"
+                  className="jm-btn accent sm"
+                  onClick={() => handleAddChecklistItem(checklistIndex)}
+                  disabled={!newChecklistItem?.trim() || activeChecklistIndex !== checklistIndex}
+                >
+                  Add
+                </button>
+              </div>
             </div>
+          ))}
 
-            {/* Comment */}
-            <div className="space-y-4 border-t border-border pt-6">
-              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-                <Icon name="MessageSquare" size={16} />Initial Comment (Optional)
-              </h3>
-              <textarea value={newComment} onChange={(e) => setNewComment(e?.target?.value)} placeholder="Add an initial comment or handover note"
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20" rows={3} />
-            </div>
+          <hr className="jm-rule" />
 
-            {/* Change History */}
-            {showMeta && existingMeta?.length > 0 && (
-              <div className="space-y-2 border-t border-border pt-6">
-                <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1.5">
-                  <Icon name="History" size={12} />Change History
-                  <span className="ml-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">COMMAND / CHIEF</span>
-                </label>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {[...existingMeta]?.reverse()?.map((entry, idx) => (
-                    <div key={idx} className="p-2.5 rounded-lg bg-muted/30 border border-border text-xs">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-foreground">{entry?.user_name}</span>
-                        <span className="text-muted-foreground">{formatMeta(entry?.timestamp)}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <span className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">{entry?.user_tier}</span>
-                        {entry?.field === 'comment' ? (
-                          <span className="text-foreground">commented: <em>{entry?.new_value}</em></span>
-                        ) : (
-                          <span>changed <strong className="text-foreground">{entry?.field}</strong>
-                            {entry?.old_value != null && <> from <span className="line-through">{String(entry?.old_value)}</span></>}
-                            {entry?.new_value != null && <> to <strong className="text-foreground">{String(entry?.new_value)}</strong></>}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+          {/* Attachments */}
+          <p className="jm-secthead">
+            <Icon name="Paperclip" size={14} />
+            Attachments
+          </p>
+          <div className="jm-section">
+            <input
+              type="file"
+              id="accept-file-upload"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.txt"
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+            />
+            <label htmlFor="accept-file-upload" className="jm-drop">
+              <span className="jm-drop-ico">
+                {uploadingFile ? <span className="jm-spin sm" /> : <Icon name="Upload" size={18} />}
+              </span>
+              <span className="jm-drop-t">{uploadingFile ? 'Uploading…' : 'Click to upload files'}</span>
+              <span className="jm-drop-s">Images, PDFs or documents</span>
+            </label>
+            {attachments?.length > 0 && (
+              <div className="jm-filelist">
+                {attachments?.map(attachment => (
+                  <div key={attachment?.id} className="jm-file">
+                    {attachment?.type?.startsWith('image/') ? (
+                      <img src={attachment?.url} alt={attachment?.name} className="jm-file-thumb" />
+                    ) : (
+                      <Icon name="File" size={14} />
+                    )}
+                    <span className="name">{attachment?.name}</span>
+                    <span className="size">{(attachment?.size / 1024)?.toFixed(1)} KB</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAttachment(attachment?.id)}
+                      className="jm-file-x"
+                      title="Remove attachment"
+                    >
+                      <Icon name="X" size={13} />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-border bg-card sticky bottom-0">
-            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-            <button onClick={handleAcceptJob} disabled={saving || !title?.trim()}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors">
-              {saving ? (<><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Accepting...</>) : (<><Icon name="CheckCircle" size={16} />Accept Job</>)}
-            </button>
+          <hr className="jm-rule" />
+
+          {/* Comment */}
+          <p className="jm-secthead">
+            <Icon name="MessageSquare" size={14} />
+            Initial comment
+          </p>
+          <div className="jm-section">
+            <textarea
+              className="jm-textarea"
+              rows={3}
+              placeholder="Add an opening comment or handover note"
+              value={newComment}
+              onChange={(e) => setNewComment(e?.target?.value)}
+            />
           </div>
+
+          {/* Change history */}
+          {showMeta && existingMeta?.length > 0 && (
+            <>
+              <hr className="jm-rule" />
+              <div className="jm-secthead-row">
+                <p className="jm-secthead">
+                  <Icon name="History" size={14} />
+                  Change history
+                </p>
+                <span className="jm-tag accent">Command &amp; chief</span>
+              </div>
+              <div className="ar-history" style={{ maxHeight: 220, overflowY: 'auto' }}>
+                {[...existingMeta]?.reverse()?.map((entry, idx) => (
+                  <div key={idx} className="ar-hist">
+                    <div className="ar-hist-top">
+                      <span className="who">{entry?.user_name}</span>
+                      <span className="when">{formatMeta(entry?.timestamp)}</span>
+                    </div>
+                    <p className="what">
+                      {entry?.field === 'comment' ? (
+                        <>commented: <em>{entry?.new_value}</em></>
+                      ) : (
+                        <>
+                          Changed <strong>{entry?.field}</strong>
+                          {entry?.old_value != null && <> from “{String(entry?.old_value)}”</>}
+                          {entry?.new_value != null && <> to “{String(entry?.new_value)}”</>}
+                        </>
+                      )}
+                    </p>
+                    {entry?.user_tier && <span className="tier">{entry?.user_tier}</span>}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
-      </div>
+
+        <div className="jm-foot">
+          <button type="button" className="jm-btn ghost" onClick={onClose} disabled={saving}>Cancel</button>
+          <div className="spacer" />
+          <button className="jm-btn success" onClick={handleAcceptJob} disabled={saving || !title?.trim()}>
+            {saving ? <span className="jm-spin sm" /> : <Icon name="Check" size={15} />}
+            {saving ? 'Accepting…' : 'Accept job'}
+          </button>
+        </div>
+      </ModalShell>
     );
   }
 
@@ -748,371 +866,472 @@ const JobEditModal = ({
   // FULL EDIT MODE — ComprehensiveJobModal-style layout
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[300] p-4" onClick={onClose}>
-      <div
-        className="bg-card rounded-xl border border-border shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
-        onClick={(e) => e?.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border bg-card sticky top-0 z-10">
-          <div>
-            <div className="flex items-center gap-2">
-              <Icon name="Pencil" size={20} className="text-primary" />
-              <h2 className="text-xl font-semibold text-foreground">Edit Job</h2>
+    <ModalShell
+      onClose={onClose}
+      isBusy={saving}
+      panelClassName="jm-panel xl"
+    >
+      <div className="jm-head">
+        <div>
+          <p className="jm-eyebrow">Jobs</p>
+          <h2 className="jm-title">Edit job</h2>
+          <p className="jm-sub">Update the details and save your changes.</p>
+        </div>
+        <button onClick={onClose} className="jm-x" title="Close">
+          <Icon name="X" size={18} />
+        </button>
+      </div>
+
+      <div className="jm-body">
+        {error && (
+          <div className="jm-section">
+            <div className="jm-notice danger">
+              <Icon name="AlertCircle" size={15} />
+              <span>{error}</span>
             </div>
-            <p className="text-sm text-muted-foreground mt-1">Update job details and save changes</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-accent rounded-lg transition-colors">
-            <Icon name="X" size={20} className="text-muted-foreground" />
+        )}
+
+        {/* ── Core ── */}
+        <p className="jm-secthead">
+          <Icon name="FileText" size={14} />
+          Core information
+        </p>
+
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="jem-title">
+            Job title<span className="req">required</span>
+          </label>
+          <input
+            id="jem-title"
+            autoFocus
+            type="text"
+            className="jm-titlefield"
+            placeholder="What needs doing?"
+            value={title}
+            onChange={(e) => setTitle(e?.target?.value)}
+          />
+        </div>
+
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="jem-desc">
+            Description &amp; notes<span className="opt">optional</span>
+          </label>
+          <textarea
+            id="jem-desc"
+            className="jm-textarea"
+            rows={4}
+            placeholder="Any detail the crew will need"
+            value={description}
+            onChange={(e) => setDescription(e?.target?.value)}
+          />
+        </div>
+
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="jem-dept">
+            Department<span className="req">required</span>
+          </label>
+          {canSelectDept ? (
+            loadingDepts ? (
+              <div className="jm-readonly muted">Loading departments…</div>
+            ) : (
+              <select
+                id="jem-dept"
+                className="jm-select"
+                value={selectedDeptId || ''}
+                onChange={(e) => { setSelectedDeptId(e?.target?.value); setAssignees([]); setSelectedBoardId(''); }}
+              >
+                <option value="">Select department…</option>
+                {supabaseDeptOptions?.map(o => (
+                  <option key={o?.value} value={o?.value}>{o?.label}</option>
+                ))}
+              </select>
+            )
+          ) : (
+            <div className="jm-readonly">
+              <span>{getDeptName(selectedDeptId) || 'Your department'}</span>
+              <span className="note">locked to your department</span>
+            </div>
+          )}
+        </div>
+
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="jem-board">Board</label>
+          <select
+            id="jem-board"
+            className="jm-select"
+            value={selectedBoardId || ''}
+            onChange={(e) => setSelectedBoardId(e?.target?.value)}
+          >
+            <option value="">— No board —</option>
+            {filteredBoards?.map(b => {
+              const displayName = (selectedDeptId && b?.names?.[selectedDeptId])
+                ? b?.names?.[selectedDeptId]
+                : (b?.name || 'Board');
+              return <option key={b?.id} value={b?.id}>{displayName}</option>;
+            })}
+          </select>
+        </div>
+
+        {canShowAssignee && (
+          <div className="jm-section">
+            <label className="jm-label">
+              Assign to
+              {selectedDeptId && <span className="opt">{getDeptName(selectedDeptId)}</span>}
+            </label>
+            {loadingAssignees ? (
+              <div className="jm-readonly muted">Loading team members…</div>
+            ) : assigneeOptions?.length === 0 ? (
+              <div className="jm-readonly muted">No eligible crew in this department</div>
+            ) : (
+              <SearchableAssigneeDropdown
+                crewMembers={assigneeOptions}
+                selectedAssignees={assignees}
+                onChange={(newAssignees) => setAssignees(newAssignees)}
+                department={selectedDeptId}
+              />
+            )}
+          </div>
+        )}
+
+        <div className="jm-section jm-grid">
+          <div>
+            <label className="jm-label" htmlFor="jem-due">Due date</label>
+            <input
+              id="jem-due"
+              type="date"
+              className="jm-input"
+              value={dueDate}
+              onChange={(e) => setDueDate(e?.target?.value)}
+            />
+          </div>
+          <div>
+            <label className="jm-label" htmlFor="jem-time">
+              Time<span className="opt">optional</span>
+            </label>
+            <input
+              id="jem-time"
+              type="time"
+              className="jm-input"
+              value={dueTime}
+              onChange={(e) => setDueTime(e?.target?.value)}
+            />
+          </div>
+        </div>
+
+        <div className="jm-section">
+          <p className="jm-label">
+            Priority<span className="req">required</span>
+          </p>
+          <div className="jm-pills">
+            {PRIORITY_OPTIONS?.map(p => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPriority(p)}
+                className={`jm-pill${priority === p ? ' on' : ''}`}
+              >
+                {p?.charAt(0)?.toUpperCase() + p?.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="jm-section">
+          <p className="jm-label">Status</p>
+          <div className="jm-pills">
+            {STATUS_OPTIONS?.map(s => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatus(s)}
+                className={`jm-pill${status === s ? ' on' : ''}`}
+              >
+                {s?.charAt(0)?.toUpperCase() + s?.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <hr className="jm-rule" />
+
+        {/* ── Checklists ── */}
+        <div className="jm-secthead-row">
+          <p className="jm-secthead">
+            <Icon name="CheckSquare" size={14} />
+            Checklists
+          </p>
+          <button
+            type="button"
+            className="jm-btn ghost sm"
+            onClick={() => {
+              const name = prompt('Checklist name:');
+              if (name?.trim()) {
+                setChecklists(prev => [...prev, { id: crypto.randomUUID(), name: name?.trim(), items: [] }]);
+                setActiveChecklistIndex(checklists?.length);
+              }
+            }}
+          >
+            <Icon name="Plus" size={14} />
+            Add checklist
           </button>
         </div>
 
-        {/* Scrollable form body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Error */}
-          {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <Icon name="AlertCircle" size={14} className="text-red-500" />
-              <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+        {checklists?.map((checklist, checklistIndex) => (
+          <div key={checklist?.id} className="jm-subcard">
+            <div className="jm-subcard-head">
+              <h4>{checklist?.name}</h4>
+              <button
+                type="button"
+                onClick={() => handleRemoveChecklist(checklistIndex)}
+                className="jm-file-x"
+                title="Remove checklist"
+              >
+                <Icon name="Trash2" size={14} />
+              </button>
             </div>
-          )}
-
-          {/* ========== CORE FIELDS ========== */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-              <Icon name="FileText" size={16} />Core Information
-            </h3>
-
-            {/* Title */}
-            <Input
-              label="Job Title"
-              required
-              value={title}
-              onChange={(e) => setTitle(e?.target?.value)}
-              placeholder="Enter job title"
-            />
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Description / Notes</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e?.target?.value)}
-                placeholder="Add detailed description or notes"
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-smooth"
-                rows={4}
-              />
-            </div>
-
-            {/* Department */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Department *</label>
-              {canSelectDept ? (
-                loadingDepts ? (
-                  <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">Loading departments...</div>
-                ) : (
-                  <Select
-                    value={selectedDeptId || ''}
-                    onChange={(value) => {
-                      setSelectedDeptId(value);
-                      setAssignees([]);
-                      setSelectedBoardId('');
-                    }}
-                    options={supabaseDeptOptions}
-                    placeholder="Select department"
-                  />
-                )
-              ) : (
-                <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-foreground">
-                  {getDeptName(selectedDeptId) || 'Your Department'}
-                  <span className="text-xs text-muted-foreground ml-2">(locked to your department)</span>
-                </div>
-              )}
-            </div>
-
-            {/* Board */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Board</label>
-              <Select
-                value={selectedBoardId}
-                onChange={(value) => setSelectedBoardId(value)}
-                options={[
-                  { value: '', label: '— No Board —' },
-                  ...filteredBoards?.map(b => {
-                    const displayName = (selectedDeptId && b?.names?.[selectedDeptId]) ? b?.names?.[selectedDeptId] : (b?.name || 'Board');
-                    return { value: b?.id, label: displayName };
-                  })
-                ]}
-              />
-            </div>
-
-            {/* Assign To */}
-            {canShowAssignee && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Assign To {selectedDeptId ? `(${getDeptName(selectedDeptId)})` : ''}
-                </label>
-                {loadingAssignees ? (
-                  <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">Loading team members...</div>
-                ) : assigneeOptions?.length === 0 ? (
-                  <div className="px-3 py-2 bg-muted rounded-lg border border-border text-sm text-muted-foreground">No eligible crew in this department</div>
-                ) : (
-                  <SearchableAssigneeDropdown
-                    crewMembers={assigneeOptions}
-                    selectedAssignees={assignees}
-                    onChange={(newAssignees) => setAssignees(newAssignees)}
-                    department={selectedDeptId}
-                  />
-                )}
+            {checklist?.items?.length > 0 && (
+              <div className="jm-checkitems">
+                {checklist?.items?.map((item, itemIndex) => (
+                  <div key={item?.id} className="jm-checkitem">
+                    <span className="box" />
+                    <span className="t">{item?.text}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'up')}
+                      disabled={itemIndex === 0}
+                      title="Move up"
+                    >
+                      <Icon name="ChevronUp" size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'down')}
+                      disabled={itemIndex === checklist?.items?.length - 1}
+                      title="Move down"
+                    >
+                      <Icon name="ChevronDown" size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveChecklistItem(checklistIndex, item?.id)}
+                      className="danger"
+                      title="Remove item"
+                    >
+                      <Icon name="X" size={13} />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
-
-            {/* Due Date & Time */}
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Due Date"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e?.target?.value)}
+            <div className="dsr-inlineadd">
+              <input
+                type="text"
+                className="jm-input"
+                placeholder="Add checklist item"
+                value={activeChecklistIndex === checklistIndex ? newChecklistItem : ''}
+                onChange={(e) => { setNewChecklistItem(e?.target?.value); setActiveChecklistIndex(checklistIndex); }}
+                onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddChecklistItem(checklistIndex); } }}
               />
-              <Input
-                label="Time (Optional)"
-                type="time"
-                value={dueTime}
-                onChange={(e) => setDueTime(e?.target?.value)}
-              />
-            </div>
-
-            {/* Priority */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Priority / Importance *</label>
-              <Select
-                value={priority}
-                onChange={(value) => setPriority(value)}
-                options={PRIORITY_OPTIONS?.map(p => ({ value: p, label: p?.charAt(0)?.toUpperCase() + p?.slice(1) }))}
-              />
-            </div>
-
-            {/* Status */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Status</label>
-              <Select
-                value={status}
-                onChange={(value) => setStatus(value)}
-                options={STATUS_OPTIONS?.map(s => ({ value: s, label: s?.charAt(0)?.toUpperCase() + s?.slice(1) }))}
-              />
+              <button
+                type="button"
+                className="jm-btn accent sm"
+                onClick={() => handleAddChecklistItem(checklistIndex)}
+                disabled={!newChecklistItem?.trim() || activeChecklistIndex !== checklistIndex}
+              >
+                Add
+              </button>
             </div>
           </div>
+        ))}
 
-          {/* ========== CHECKLISTS ========== */}
-          <div className="space-y-4 border-t border-border pt-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-                <Icon name="CheckSquare" size={16} />Checklists
-              </h3>
-              <Button type="button" variant="outline" size="sm" iconName="Plus" onClick={() => {
-                const name = prompt('Checklist name:');
-                if (name?.trim()) { setChecklists(prev => [...prev, { id: crypto.randomUUID(), name: name?.trim(), items: [] }]); setActiveChecklistIndex(checklists?.length); }
-              }}>Add Checklist</Button>
+        <hr className="jm-rule" />
+
+        {/* ── Recurrence ── */}
+        <p className="jm-secthead">
+          <Icon name="Repeat" size={14} />
+          Recurrence
+        </p>
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="jem-recur">Repeat</label>
+          <select
+            id="jem-recur"
+            className="jm-select"
+            value={recurrence || 'none'}
+            onChange={(e) => setRecurrence(e?.target?.value)}
+          >
+            <option value="none">None (one-time job)</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </div>
+        {recurrence === 'weekly' && (
+          <div className="jm-section">
+            <p className="jm-label">Days of the week</p>
+            <div className="jm-pills">
+              {weekDays?.map(day => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => toggleWeekDay(day?.toLowerCase())}
+                  className={`jm-pill${recurrenceWeekDays?.includes(day?.toLowerCase()) ? ' on' : ''}`}
+                >
+                  {day?.substring(0, 3)}
+                </button>
+              ))}
             </div>
-            {checklists?.map((checklist, checklistIndex) => (
-              <div key={checklist?.id} className="bg-background rounded-lg border border-border p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-foreground">{checklist?.name}</h4>
-                  <button type="button" onClick={() => handleRemoveChecklist(checklistIndex)} className="p-1 hover:bg-red-500/10 rounded transition-smooth">
-                    <Icon name="Trash2" size={14} className="text-red-500" />
+          </div>
+        )}
+        {recurrence === 'monthly' && (
+          <div className="jm-section">
+            <label className="jm-label" htmlFor="jem-monthday">Day of the month</label>
+            <input
+              id="jem-monthday"
+              type="number"
+              min="1"
+              max="31"
+              className="jm-input"
+              style={{ width: 110 }}
+              value={recurrenceMonthDay}
+              onChange={(e) => setRecurrenceMonthDay(parseInt(e?.target?.value) || 1)}
+            />
+          </div>
+        )}
+
+        <hr className="jm-rule" />
+
+        {/* ── Duty set ── */}
+        <p className="jm-secthead">
+          <Icon name="Briefcase" size={14} />
+          Duty set
+        </p>
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="jem-dutyset">
+            Duty set name<span className="opt">optional</span>
+          </label>
+          <input
+            id="jem-dutyset"
+            type="text"
+            className="jm-input"
+            placeholder="e.g. Morning duties"
+            value={dutySetName}
+            onChange={(e) => setDutySetName(e?.target?.value)}
+          />
+          <p className="jm-hint">Links this job to a grouped operational duty.</p>
+        </div>
+
+        <hr className="jm-rule" />
+
+        {/* ── Attachments ── */}
+        <p className="jm-secthead">
+          <Icon name="Paperclip" size={14} />
+          Attachments
+        </p>
+        <div className="jm-section">
+          <input
+            type="file"
+            id="edit-file-upload"
+            multiple
+            accept="image/*,.pdf,.doc,.docx,.txt"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
+          <label htmlFor="edit-file-upload" className="jm-drop">
+            <span className="jm-drop-ico">
+              {uploadingFile ? <span className="jm-spin sm" /> : <Icon name="Upload" size={18} />}
+            </span>
+            <span className="jm-drop-t">{uploadingFile ? 'Uploading…' : 'Click to upload files'}</span>
+            <span className="jm-drop-s">Images, PDFs or documents</span>
+          </label>
+          {attachments?.length > 0 && (
+            <div className="jm-filelist">
+              {attachments?.map(attachment => (
+                <div key={attachment?.id} className="jm-file">
+                  {attachment?.type?.startsWith('image/') ? (
+                    <img src={attachment?.url} alt={attachment?.name} className="jm-file-thumb" />
+                  ) : (
+                    <Icon name="File" size={14} />
+                  )}
+                  <span className="name">{attachment?.name}</span>
+                  <span className="size">{(attachment?.size / 1024)?.toFixed(1)} KB</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAttachment(attachment?.id)}
+                    className="jm-file-x"
+                    title="Remove attachment"
+                  >
+                    <Icon name="X" size={13} />
                   </button>
                 </div>
-                <div className="space-y-2">
-                  {checklist?.items?.map((item, itemIndex) => (
-                    <div key={item?.id} className="flex items-center gap-2 bg-card p-2 rounded-lg">
-                      <Checkbox checked={item?.completed} disabled />
-                      <span className="flex-1 text-sm text-foreground">{item?.text}</span>
-                      <div className="flex items-center gap-1">
-                        <button type="button" onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'up')} disabled={itemIndex === 0} className="p-1 hover:bg-muted rounded disabled:opacity-30"><Icon name="ChevronUp" size={14} /></button>
-                        <button type="button" onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'down')} disabled={itemIndex === checklist?.items?.length - 1} className="p-1 hover:bg-muted rounded disabled:opacity-30"><Icon name="ChevronDown" size={14} /></button>
-                        <button type="button" onClick={() => handleRemoveChecklistItem(checklistIndex, item?.id)} className="p-1 hover:bg-red-500/10 rounded"><Icon name="X" size={14} className="text-red-500" /></button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="text" placeholder="Add checklist item"
-                    value={activeChecklistIndex === checklistIndex ? newChecklistItem : ''}
-                    onChange={(e) => { setNewChecklistItem(e?.target?.value); setActiveChecklistIndex(checklistIndex); }}
-                    onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddChecklistItem(checklistIndex); } }}
-                    className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                  <Button type="button" size="sm" onClick={() => handleAddChecklistItem(checklistIndex)} disabled={!newChecklistItem?.trim() || activeChecklistIndex !== checklistIndex}>Add</Button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* ========== RECURRENCE ========== */}
-          <div className="space-y-4 border-t border-border pt-6">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-              <Icon name="Repeat" size={16} />Recurrence
-            </h3>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Repeat</label>
-              <Select
-                value={recurrence}
-                onChange={(value) => setRecurrence(value)}
-                options={[
-                  { value: 'none', label: 'None (One-time job)' },
-                  { value: 'daily', label: 'Daily' },
-                  { value: 'weekly', label: 'Weekly' },
-                  { value: 'monthly', label: 'Monthly' }
-                ]}
-              />
-            </div>
-            {recurrence === 'weekly' && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Select Day(s) of Week</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {weekDays?.map(day => (
-                    <button key={day} type="button" onClick={() => toggleWeekDay(day?.toLowerCase())}
-                      className={`px-3 py-2 rounded-lg border text-sm font-medium transition-smooth ${
-                        recurrenceWeekDays?.includes(day?.toLowerCase())
-                          ? 'border-primary bg-primary/10 text-primary' : 'border-border text-foreground hover:border-primary/50'
-                      }`}>
-                      {day?.substring(0, 3)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {recurrence === 'monthly' && (
-              <Input label="Day of Month" type="number" min="1" max="31" value={recurrenceMonthDay}
-                onChange={(e) => setRecurrenceMonthDay(parseInt(e?.target?.value) || 1)} />
-            )}
-          </div>
-
-          {/* ========== DUTY SET ========== */}
-          <div className="space-y-4 border-t border-border pt-6">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-              <Icon name="Briefcase" size={16} />Duty Set (Optional)
-            </h3>
-            <Input
-              label="Duty Set Name"
-              placeholder="e.g., Morning Duties"
-              value={dutySetName}
-              onChange={(e) => setDutySetName(e?.target?.value)}
-              description="Link this job to a grouped operational duty"
-            />
-          </div>
-
-          {/* ========== ATTACHMENTS ========== */}
-          <div className="space-y-4 border-t border-border pt-6">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-              <Icon name="Paperclip" size={16} />Attachments
-            </h3>
-            <div>
-              <input type="file" id="edit-file-upload" multiple accept="image/*,.pdf,.doc,.docx,.txt" onChange={handleFileUpload} className="hidden" />
-              <Button type="button" variant="outline" iconName="Upload" onClick={() => document.getElementById('edit-file-upload')?.click()} loading={uploadingFile}>Upload Files</Button>
-            </div>
-            {attachments?.length > 0 && (
-              <div className="grid grid-cols-2 gap-3">
-                {attachments?.map(attachment => (
-                  <div key={attachment?.id} className="relative bg-background rounded-lg border border-border p-3 flex items-center gap-3">
-                    {attachment?.type?.startsWith('image/') ? (
-                      <img src={attachment?.url} alt={attachment?.name} className="w-12 h-12 rounded object-cover" />
-                    ) : (
-                      <div className="w-12 h-12 rounded bg-muted flex items-center justify-center"><Icon name="File" size={20} className="text-muted-foreground" /></div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{attachment?.name}</p>
-                      <p className="text-xs text-muted-foreground">{(attachment?.size / 1024)?.toFixed(1)} KB</p>
-                    </div>
-                    <button type="button" onClick={() => handleRemoveAttachment(attachment?.id)} className="p-1 hover:bg-red-500/10 rounded transition-smooth"><Icon name="X" size={14} className="text-red-500" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* ========== ADD COMMENT ========== */}
-          <div className="space-y-4 border-t border-border pt-6">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-              <Icon name="MessageSquare" size={16} />Add Comment (Optional)
-            </h3>
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e?.target?.value)}
-              placeholder="Add a comment or note to this job"
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
-              rows={3}
-            />
-          </div>
-
-          {/* ========== ADVANCED OPTIONS ========== */}
-          <div className="space-y-4 border-t border-border pt-6">
-            <button type="button" onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center justify-between w-full text-left">
-              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
-                <Icon name="Settings" size={16} />Advanced Options
-              </h3>
-              <Icon name={showAdvanced ? 'ChevronUp' : 'ChevronDown'} size={16} className="text-muted-foreground" />
-            </button>
-            {showAdvanced && (
-              <div className="space-y-4 pl-6">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">Status</label>
-                  <Select
-                    value={status}
-                    onChange={(value) => setStatus(value)}
-                    options={STATUS_OPTIONS?.map(s => ({ value: s, label: s?.charAt(0)?.toUpperCase() + s?.slice(1) }))}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ========== CHANGE HISTORY ========== */}
-          {showMeta && existingMeta?.length > 0 && (
-            <div className="space-y-2 border-t border-border pt-6">
-              <label className="block text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1.5">
-                <Icon name="History" size={12} />Change History
-                <span className="ml-1 px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-semibold">COMMAND / CHIEF</span>
-              </label>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {[...existingMeta]?.reverse()?.map((entry, idx) => (
-                  <div key={idx} className="p-2.5 rounded-lg bg-muted/30 border border-border text-xs">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-foreground">{entry?.user_name}</span>
-                      <span className="text-muted-foreground">{formatMeta(entry?.timestamp)}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <span className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono">{entry?.user_tier}</span>
-                      {entry?.field === 'comment' ? (
-                        <span className="text-foreground">commented: <em>{entry?.new_value}</em></span>
-                      ) : (
-                        <span>changed <strong className="text-foreground">{entry?.field}</strong>
-                          {entry?.old_value != null && <> from <span className="line-through">{String(entry?.old_value)}</span></>}
-                          {entry?.new_value != null && <> to <strong className="text-foreground">{String(entry?.new_value)}</strong></>}
-                          </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
           )}
-
-          {/* Footer */}
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-border bg-card sticky bottom-0">
-            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>Cancel</Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving || !title?.trim()}
-              loading={saving}
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
         </div>
+
+        <hr className="jm-rule" />
+
+        {/* ── Comment ── */}
+        <p className="jm-secthead">
+          <Icon name="MessageSquare" size={14} />
+          Add a comment
+        </p>
+        <div className="jm-section">
+          <textarea
+            className="jm-textarea"
+            rows={3}
+            placeholder="Add a comment or note to this job"
+            value={newComment}
+            onChange={(e) => setNewComment(e?.target?.value)}
+          />
+        </div>
+
+        {/* ── Change history ── */}
+        {showMeta && existingMeta?.length > 0 && (
+          <>
+            <hr className="jm-rule" />
+            <div className="jm-secthead-row">
+              <p className="jm-secthead">
+                <Icon name="History" size={14} />
+                Change history
+              </p>
+              <span className="jm-tag accent">Command &amp; chief</span>
+            </div>
+            <div className="ar-history" style={{ maxHeight: 220, overflowY: 'auto' }}>
+              {[...existingMeta]?.reverse()?.map((entry, idx) => (
+                <div key={idx} className="ar-hist">
+                  <div className="ar-hist-top">
+                    <span className="who">{entry?.user_name}</span>
+                    <span className="when">{formatMeta(entry?.timestamp)}</span>
+                  </div>
+                  <p className="what">
+                    {entry?.field === 'comment' ? (
+                      <>commented: <em>{entry?.new_value}</em></>
+                    ) : (
+                      <>
+                        Changed <strong>{entry?.field}</strong>
+                        {entry?.old_value != null && <> from “{String(entry?.old_value)}”</>}
+                        {entry?.new_value != null && <> to “{String(entry?.new_value)}”</>}
+                      </>
+                    )}
+                  </p>
+                  {entry?.user_tier && <span className="tier">{entry?.user_tier}</span>}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
-    </div>
+
+      <div className="jm-foot">
+        <button type="button" className="jm-btn ghost" onClick={onClose} disabled={saving}>Cancel</button>
+        <div className="spacer" />
+        <button className="jm-btn primary" onClick={handleSave} disabled={saving || !title?.trim()}>
+          {saving ? <span className="jm-spin sm" /> : <Icon name="Save" size={15} />}
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
+    </ModalShell>
   );
 };
 

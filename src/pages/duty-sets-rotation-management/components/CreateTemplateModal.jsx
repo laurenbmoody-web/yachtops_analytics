@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
-import Select from '../../../components/ui/Select';
+import ModalShell from '../../../components/ui/ModalShell';
+import '../../team-jobs-management/job-modals.css';
+import '../duty-sets.css';
 
 const DAYS = [
   { key: 'Mon', label: 'Mon' },
@@ -131,280 +131,279 @@ const CreateTemplateModal = ({ onClose, onCreate, existingTemplates = [] }) => {
   const rec = formData?.recurrence;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-6" onClick={onClose}>
-      <div
-        className="bg-card rounded-xl border border-border shadow-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e?.stopPropagation()}
-      >
-        <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-foreground">Create Duty Set Template</h2>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-smooth">
-            <Icon name="X" size={20} className="text-muted-foreground" />
-          </button>
+    <ModalShell
+      onClose={onClose}
+      isDirty={!!formData?.name?.trim() || formData?.tasks?.length > 0}
+      panelClassName="jm-panel xl"
+    >
+      <div className="jm-head">
+        <div>
+          <p className="jm-eyebrow">Rotation</p>
+          <h2 className="jm-title">New duty set</h2>
+          <p className="jm-sub">A reusable template the rotation calendar schedules for you.</p>
         </div>
+        <button onClick={onClose} className="jm-x" title="Close">
+          <Icon name="X" size={18} />
+        </button>
+      </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <Input
-            label="Template Name"
-            required
+      <form onSubmit={handleSubmit} className="jm-body" id="dsr-create-template-form">
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="ctpl-name">
+            Template name<span className="req">required</span>
+          </label>
+          <input
+            id="ctpl-name"
+            autoFocus
+            type="text"
+            className="jm-titlefield"
+            placeholder="e.g. Crew mess, Captain's cabin"
             value={formData?.name}
             onChange={(e) => setFormData(prev => ({ ...prev, name: e?.target?.value }))}
-            placeholder="e.g., Crew Mess, Captain's Cabin"
           />
+        </div>
 
-          {/* Duty (formerly Category) */}
-          <div className="space-y-2">
-            <Select
-              label="Duty"
-              options={dutyOptions}
-              value={formData?.category}
-              onChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
-            />
-            <div className="flex gap-2">
+        <div className="jm-section jm-grid">
+          <div>
+            <label className="jm-label" htmlFor="ctpl-duty">Duty</label>
+            <select
+              id="ctpl-duty"
+              className="jm-select"
+              value={formData?.category || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, category: e?.target?.value }))}
+            >
+              {dutyOptions?.map(o => (
+                <option key={o?.value} value={o?.value}>{o?.label}</option>
+              ))}
+            </select>
+            <div className="dsr-inlineadd">
               <input
                 type="text"
+                className="jm-input"
                 value={newDutyInput}
                 onChange={(e) => setNewDutyInput(e?.target?.value)}
                 onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddDuty(); } }}
-                placeholder="Add new duty…"
-                className="flex-1 text-sm px-3 py-1.5 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                placeholder="Add a new duty…"
               />
               <button
                 type="button"
+                className="jm-btn ghost sm"
                 onClick={handleAddDuty}
                 disabled={!newDutyInput?.trim()}
-                className="px-3 py-1.5 text-sm rounded-lg bg-primary text-primary-foreground disabled:opacity-40 hover:opacity-90 transition-smooth"
               >
                 Add
               </button>
             </div>
           </div>
-
-          <Input
-            label="Estimated Duration (minutes)"
-            type="number"
-            value={formData?.estimatedDuration}
-            onChange={(e) => setFormData(prev => ({ ...prev, estimatedDuration: parseInt(e?.target?.value) }))}
-            min={5}
-          />
-
-          {/* Recurrence */}
-          <div className="space-y-3">
-            <Select
-              label="Repeats"
-              options={repeatsOptions}
-              value={rec?.type}
-              onChange={(value) => updateRecurrence('type', value)}
-            />
-
-            {/* Weekly: day-of-week multi-selector */}
-            {rec?.type === 'weekly' && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">Select days</p>
-                <div className="flex flex-wrap gap-2">
-                  {DAYS?.map(d => (
-                    <button
-                      key={d?.key}
-                      type="button"
-                      onClick={() => toggleWeekDay(d?.key)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-smooth ${
-                        rec?.weekDays?.includes(d?.key)
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background text-foreground border-border hover:bg-muted'
-                      }`}
-                    >
-                      {d?.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Fortnightly: day-of-week + Week A/B */}
-            {rec?.type === 'fortnightly' && (
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Select days</p>
-                  <div className="flex flex-wrap gap-2">
-                    {DAYS?.map(d => (
-                      <button
-                        key={d?.key}
-                        type="button"
-                        onClick={() => toggleWeekDay(d?.key)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-smooth ${
-                          rec?.weekDays?.includes(d?.key)
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background text-foreground border-border hover:bg-muted'
-                        }`}
-                      >
-                        {d?.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">Week</p>
-                  <div className="flex gap-2">
-                    {['A', 'B']?.map(w => (
-                      <button
-                        key={w}
-                        type="button"
-                        onClick={() => updateRecurrence('fortnightWeek', w)}
-                        className={`px-5 py-1.5 rounded-lg text-sm font-medium border transition-smooth ${
-                          rec?.fortnightWeek === w
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background text-foreground border-border hover:bg-muted'
-                        }`}
-                      >
-                        Week {w}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Monthly */}
-            {rec?.type === 'monthly' && (
-              <div className="space-y-3">
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="monthlyMode"
-                      value="day"
-                      checked={rec?.monthlyMode === 'day'}
-                      onChange={() => updateRecurrence('monthlyMode', 'day')}
-                      className="accent-primary"
-                    />
-                    <span className="text-sm text-foreground">Day of month</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="monthlyMode"
-                      value="nth"
-                      checked={rec?.monthlyMode === 'nth'}
-                      onChange={() => updateRecurrence('monthlyMode', 'nth')}
-                      className="accent-primary"
-                    />
-                    <span className="text-sm text-foreground">Nth weekday</span>
-                  </label>
-                </div>
-
-                {rec?.monthlyMode === 'day' && (
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-muted-foreground">Day</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={31}
-                      value={rec?.monthDay}
-                      onChange={(e) => updateRecurrence('monthDay', parseInt(e?.target?.value) || 1)}
-                      className="w-20 text-sm px-3 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
-                    <span className="text-sm text-muted-foreground">of the month</span>
-                  </div>
-                )}
-
-                {rec?.monthlyMode === 'nth' && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm text-muted-foreground">The</span>
-                    <select
-                      value={rec?.nthOrdinal}
-                      onChange={(e) => updateRecurrence('nthOrdinal', e?.target?.value)}
-                      className="text-sm px-3 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    >
-                      {ORDINALS?.map(o => (
-                        <option key={o?.value} value={o?.value}>{o?.label}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={rec?.nthWeekday}
-                      onChange={(e) => updateRecurrence('nthWeekday', e?.target?.value)}
-                      className="text-sm px-3 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    >
-                      {WEEKDAYS?.map(w => (
-                        <option key={w?.value} value={w?.value}>{w?.label}</option>
-                      ))}
-                    </select>
-                    <span className="text-sm text-muted-foreground">of the month</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Custom: every X days */}
-            {rec?.type === 'custom' && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">Every</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={rec?.everyXDays}
-                  onChange={(e) => updateRecurrence('everyXDays', parseInt(e?.target?.value) || 1)}
-                  className="w-20 text-sm px-3 py-1.5 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-                <span className="text-sm text-muted-foreground">days</span>
-              </div>
-            )}
-          </div>
-
-          {/* Tasks */}
           <div>
-            <h3 className="text-sm font-semibold text-foreground mb-3">Tasks</h3>
-            <div className="space-y-3 mb-4">
-              {formData?.tasks?.map(task => (
-                <div key={task?.id} className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
-                  <div className="flex-1">
-                    <p className="text-sm text-foreground">{task?.text}</p>
-                  </div>
+            <label className="jm-label" htmlFor="ctpl-dur">Estimated duration</label>
+            <div className="dsr-suffixfield">
+              <input
+                id="ctpl-dur"
+                type="number"
+                min={5}
+                className="jm-input"
+                value={formData?.estimatedDuration}
+                onChange={(e) => setFormData(prev => ({ ...prev, estimatedDuration: parseInt(e?.target?.value) }))}
+              />
+              <span className="suffix">minutes</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Recurrence */}
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="ctpl-repeats">Repeats</label>
+          <select
+            id="ctpl-repeats"
+            className="jm-select"
+            value={rec?.type || ''}
+            onChange={(e) => updateRecurrence('type', e?.target?.value)}
+          >
+            {repeatsOptions?.map(o => (
+              <option key={o?.value} value={o?.value}>{o?.label}</option>
+            ))}
+          </select>
+
+          {/* Weekly / fortnightly: day-of-week picker */}
+          {(rec?.type === 'weekly' || rec?.type === 'fortnightly') && (
+            <div style={{ marginTop: 16 }}>
+              <p className="jm-label">Days</p>
+              <div className="jm-pills">
+                {DAYS?.map(d => (
                   <button
+                    key={d?.key}
                     type="button"
-                    onClick={() => handleRemoveTask(task?.id)}
-                    className="p-1 hover:bg-muted rounded transition-smooth"
+                    onClick={() => toggleWeekDay(d?.key)}
+                    className={`jm-pill${rec?.weekDays?.includes(d?.key) ? ' on' : ''}`}
                   >
-                    <Icon name="X" size={16} className="text-muted-foreground" />
+                    {d?.label}
                   </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {rec?.type === 'fortnightly' && (
+            <div style={{ marginTop: 16 }}>
+              <p className="jm-label">Which week</p>
+              <div className="jm-pills">
+                {['A', 'B']?.map(w => (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => updateRecurrence('fortnightWeek', w)}
+                    className={`jm-pill${rec?.fortnightWeek === w ? ' on' : ''}`}
+                  >
+                    Week {w}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {rec?.type === 'monthly' && (
+            <div style={{ marginTop: 16 }}>
+              <p className="jm-label">Monthly pattern</p>
+              <div className="jm-pills">
+                <button
+                  type="button"
+                  onClick={() => updateRecurrence('monthlyMode', 'day')}
+                  className={`jm-pill${rec?.monthlyMode === 'day' ? ' on' : ''}`}
+                >
+                  Day of month
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateRecurrence('monthlyMode', 'nth')}
+                  className={`jm-pill${rec?.monthlyMode === 'nth' ? ' on' : ''}`}
+                >
+                  Nth weekday
+                </button>
+              </div>
+
+              {rec?.monthlyMode === 'day' && (
+                <div className="dsr-inlinerow">
+                  <span>Day</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    className="jm-input narrow"
+                    value={rec?.monthDay}
+                    onChange={(e) => updateRecurrence('monthDay', parseInt(e?.target?.value) || 1)}
+                  />
+                  <span>of the month</span>
                 </div>
-              ))}
-              {formData?.tasks?.length === 0 && (
-                <p className="text-sm text-muted-foreground">No tasks added yet</p>
+              )}
+
+              {rec?.monthlyMode === 'nth' && (
+                <div className="dsr-inlinerow">
+                  <span>The</span>
+                  <select
+                    className="jm-select auto"
+                    value={rec?.nthOrdinal}
+                    onChange={(e) => updateRecurrence('nthOrdinal', e?.target?.value)}
+                  >
+                    {ORDINALS?.map(o => (
+                      <option key={o?.value} value={o?.value}>{o?.label}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="jm-select auto"
+                    value={rec?.nthWeekday}
+                    onChange={(e) => updateRecurrence('nthWeekday', e?.target?.value)}
+                  >
+                    {WEEKDAYS?.map(w => (
+                      <option key={w?.value} value={w?.value}>{w?.label}</option>
+                    ))}
+                  </select>
+                  <span>of the month</span>
+                </div>
               )}
             </div>
+          )}
 
-            {/* Add Task Form */}
-            <div className="space-y-3 p-4 bg-muted/20 rounded-lg">
-              <div className="flex gap-3">
-                <Input
-                  placeholder="Task description"
-                  value={newTask?.text}
-                  onChange={(e) => setNewTask(prev => ({ ...prev, text: e?.target?.value }))}
-                />
-                <Button type="button" iconName="Plus" onClick={handleAddTask}>
-                  Add Task
-                </Button>
-              </div>
+          {rec?.type === 'custom' && (
+            <div className="dsr-inlinerow">
+              <span>Every</span>
+              <input
+                type="number"
+                min={1}
+                className="jm-input narrow"
+                value={rec?.everyXDays}
+                onChange={(e) => updateRecurrence('everyXDays', parseInt(e?.target?.value) || 1)}
+              />
+              <span>days</span>
             </div>
-          </div>
+          )}
+        </div>
 
-          <div className="flex items-center gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} fullWidth>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="default"
-              iconName="Plus"
-              fullWidth
-              disabled={!formData?.name?.trim() || formData?.tasks?.length === 0}
-            >
-              Create Template
-            </Button>
+        <hr className="jm-rule" />
+
+        {/* Tasks */}
+        <div className="jm-section">
+          <p className="jm-label">
+            Tasks<span className="req">at least one</span>
+          </p>
+          {formData?.tasks?.length === 0 ? (
+            <p className="jm-hint" style={{ marginBottom: 12 }}>
+              No tasks yet — add the steps this duty set runs through.
+            </p>
+          ) : (
+            <div className="jm-list" style={{ marginBottom: 12 }}>
+              {formData?.tasks?.map(task => (
+                <div key={task?.id} className="jm-row">
+                  <span className="dsr-task-pip" />
+                  <div className="jm-row-main">
+                    <p className="jm-row-title">{task?.text}</p>
+                  </div>
+                  <div className="jm-row-actions">
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTask(task?.id)}
+                      className="jm-file-x"
+                      title="Remove task"
+                    >
+                      <Icon name="X" size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="dsr-inlineadd">
+            <input
+              type="text"
+              className="jm-input"
+              placeholder="Task description"
+              value={newTask?.text}
+              onChange={(e) => setNewTask(prev => ({ ...prev, text: e?.target?.value }))}
+              onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddTask(); } }}
+            />
+            <button type="button" className="jm-btn accent sm" onClick={handleAddTask}>
+              <Icon name="Plus" size={14} />
+              Add task
+            </button>
           </div>
-        </form>
+        </div>
+      </form>
+
+      <div className="jm-foot">
+        <button type="button" className="jm-btn ghost" onClick={onClose}>Cancel</button>
+        <div className="spacer" />
+        <button
+          type="submit"
+          form="dsr-create-template-form"
+          className="jm-btn primary"
+          disabled={!formData?.name?.trim() || formData?.tasks?.length === 0}
+        >
+          <Icon name="Plus" size={15} />
+          Create template
+        </button>
       </div>
-    </div>
+    </ModalShell>
   );
 };
 
