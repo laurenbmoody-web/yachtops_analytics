@@ -25,30 +25,28 @@
   line-height: 1.15; text-align: center; margin-bottom: 2px;
 }
 
-/* The switch — navy when aboard, terracotta when ashore. iOS proportions + spring. */
-.sio-switch {
-  position: relative; width: 66px; height: 37px; border-radius: 999px; flex-shrink: 0;
-  border: none; padding: 0; cursor: pointer;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04);
-  transition: background 0.28s ease;
+/* Toggle — both labels visible; thumb slides left (Aboard, navy) / right
+   (Ashore, terracotta). Tap either side. */
+.sio-toggle {
+  position: relative; display: grid; grid-template-columns: 1fr 1fr; align-items: center;
+  width: 200px; max-width: 100%; height: 44px; padding: 5px; border-radius: 999px; margin-top: 4px;
+  background: #F0F1F5; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04);
 }
-.sio-switch.on  { background: #1C1B3A; }
-.sio-switch.off { background: #C65A1A; }
-.sio-switch:disabled { opacity: 0.7; cursor: default; }
-.sio-switch-knob {
-  position: absolute; top: 3px; left: 3px; width: 31px; height: 31px; border-radius: 50%;
-  background: linear-gradient(180deg, #ffffff, #fdfdfd);
-  box-shadow: 0 3px 8px rgba(0,0,0,0.18), 0 1px 1px rgba(0,0,0,0.16), 0 0 0 0.5px rgba(0,0,0,0.02);
-  transition: transform 0.3s cubic-bezier(0.32, 1.45, 0.5, 1);
+.sio-toggle-hl {
+  position: absolute; top: 5px; bottom: 5px; left: 5px; width: calc(50% - 5px); border-radius: 999px; z-index: 0;
+  box-shadow: 0 2px 6px -1px rgba(28,27,58,0.22);
+  transition: left 0.26s cubic-bezier(0.34, 1.3, 0.5, 1), background 0.24s ease;
 }
-.sio-switch.on .sio-switch-knob { transform: translateX(29px); }
-
-.sio-state {
-  font-family: 'Inter', system-ui, sans-serif; font-size: 12px; font-weight: 700;
-  letter-spacing: 0.04em; text-transform: uppercase;
+.sio-toggle.aboard .sio-toggle-hl { left: 5px; background: #1C1B3A; }
+.sio-toggle.ashore .sio-toggle-hl { left: 50%; background: #C65A1A; }
+.sio-half {
+  position: relative; z-index: 1; border: none; background: none; cursor: pointer; padding: 0;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.02em;
+  color: #8B8478; transition: color 0.18s ease;
 }
-.sio-state.on  { color: #1C1B3A; }
-.sio-state.off { color: #C65A1A; }
+.sio-half:disabled { cursor: default; }
+.sio-toggle.aboard .sio-half.l { color: #FFFFFF; }
+.sio-toggle.ashore .sio-half.r { color: #FFFFFF; }
 
 .sio-skel { height: 150px; border-radius: 14px; background: #F1F1EF; animation: sioPulse 1.4s ease-in-out infinite; margin-top: 12px; }
 @keyframes sioPulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }

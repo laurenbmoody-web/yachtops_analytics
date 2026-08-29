@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { supabase } from '../../../lib/supabaseClient';
 import { showToast } from '../../../utils/toast';
-import { fetchMyPresence, setPresence, ABOARD, flip } from '../../../services/crewPresence';
+import { fetchMyPresence, setPresence, ABOARD, ASHORE } from '../../../services/crewPresence';
 import './sign-in-out.css';
 
 const initials = (name) => {
@@ -42,13 +42,13 @@ const SignInOutWidget = () => {
     return () => window.removeEventListener('focus', load);
   }, [load]);
 
-  const toggle = async () => {
-    if (busy || !activeTenantId || !userId) return;
-    const next = flip(status);
+  const choose = async (next) => {
+    if (busy || next === status || !activeTenantId || !userId) return;
+    const prev = status;
     setStatus(next);
     setBusy(true);
     try { await setPresence(activeTenantId, userId, next, userId); }
-    catch (e) { setStatus(flip(next)); showToast(e.message || 'Could not update — try again', 'error'); }
+    catch (e) { setStatus(prev); showToast(e.message || 'Could not update — try again', 'error'); }
     finally { setBusy(false); }
   };
 
@@ -72,18 +72,11 @@ const SignInOutWidget = () => {
           </span>
           {me.name && <span className="sio-name">{me.name}</span>}
 
-          <button
-            type="button"
-            className={`sio-switch ${aboard ? 'on' : 'off'}`}
-            onClick={toggle}
-            disabled={busy}
-            role="switch"
-            aria-checked={aboard}
-            aria-label={aboard ? 'Aboard — tap to sign ashore' : 'Ashore — tap to sign aboard'}
-          >
-            <span className="sio-switch-knob" />
-          </button>
-          <span className={`sio-state ${aboard ? 'on' : 'off'}`}>{aboard ? 'Aboard' : 'Ashore'}</span>
+          <div className={`sio-toggle ${aboard ? 'aboard' : 'ashore'}`} role="group" aria-label="Sign in or out">
+            <span className="sio-toggle-hl" aria-hidden="true" />
+            <button type="button" className="sio-half l" onClick={() => choose(ABOARD)} disabled={busy} aria-pressed={aboard}>Aboard</button>
+            <button type="button" className="sio-half r" onClick={() => choose(ASHORE)} disabled={busy} aria-pressed={!aboard}>Ashore</button>
+          </div>
         </div>
       )}
     </div>

@@ -142,10 +142,12 @@ const SignInBoard = () => {
         </span>
         <span className="sib-name">{name}</span>
         {sub && <span className="sib-dept">{sub}</span>}
-        <span className={`sib-switch ${on ? 'on' : 'off'}`} aria-hidden="true"><span className="sib-switch-knob" /></span>
-        <span className={`sib-state ${on ? 'on' : 'off'}`}>
-          {on ? 'Aboard' : (backAt ? `Back ${hhmm(backAt)}` : 'Ashore')}
+        <span className={`sib-toggle ${on ? 'aboard' : 'ashore'}`} aria-hidden="true">
+          <span className="sib-toggle-hl" />
+          <span className="sib-half l">Aboard</span>
+          <span className="sib-half r">Ashore</span>
         </span>
+        {!on && backAt && <span className="sib-backcap">Back {hhmm(backAt)}</span>}
       </button>
     );
   };
@@ -164,27 +166,31 @@ const SignInBoard = () => {
   return (
     <div className="sib">
       <header className="sib-top">
-        <div className="sib-brand">
-          <p className="editorial-meta">
-            <span className="dot">●</span>
-            <span>On board</span>
-            <span className="bar" />
-            <span className="muted">{pob} aboard</span>
-            <span className="bar" />
-            <span className="muted">{crewAboard} crew · {guestsOn} guests · {contractors.length} contractors</span>
-          </p>
-          <h1 className="sib-title">{vesselName || 'On board'}<span className="period">.</span></h1>
+        <div className="sib-utilrow">
+          <button type="button" className="sib-back" onClick={() => navigate('/dashboard')}>
+            <Icon name="ArrowLeft" size={16} /> Back to dashboard
+          </button>
+          <button type="button" className="sib-add-btn" onClick={() => setAddOpen(true)} aria-label="Add visitor">
+            <Icon name="Plus" size={18} /><span className="lbl">Visitor</span>
+          </button>
         </div>
-        <div className="sib-clock">
-          <span className="sib-time">{now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
-          <span className="sib-date">{dateStr}</span>
+        <div className="sib-titlerow">
+          <div className="sib-brand">
+            <p className="editorial-meta">
+              <span className="dot">●</span>
+              <span>On board</span>
+              <span className="bar" />
+              <span className="muted">{pob} aboard</span>
+              <span className="bar" />
+              <span className="muted">{crewAboard} crew · {guestsOn} guests · {contractors.length} visitors</span>
+            </p>
+            <h1 className="sib-title">{vesselName || 'On board'}<span className="period">.</span></h1>
+          </div>
+          <div className="sib-clock">
+            <span className="sib-time">{now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="sib-date">{dateStr}</span>
+          </div>
         </div>
-        <button type="button" className="sib-visitor-btn" onClick={() => setAddOpen(true)}>
-          <Icon name="Plus" size={17} /> Visitor
-        </button>
-        <button type="button" className="sib-exit" onClick={() => navigate('/dashboard')} title="Exit board">
-          <Icon name="X" size={20} />
-        </button>
       </header>
 
       {loading ? (
