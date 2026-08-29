@@ -421,3 +421,214 @@
   color: #AEB4C2; cursor: pointer; display: flex; transition: color 0.12s, background 0.12s;
 }
 .jm-file-x:hover { color: #C0453C; background: #FCF1F0; }
+
+/* ============================================================
+   Review queue (Pending acceptance) — prefix rq-*
+   Two-pane panel: the queue on the left, the selected job right.
+   ============================================================ */
+.rq-panel { max-width: 1040px; height: calc(100vh - 140px); }
+.rq-tabbar { padding: 14px 24px; border-bottom: 1px solid #F0F1F5; flex-shrink: 0; }
+.rq-body { flex: 1; min-height: 0; display: flex; }
+
+.rq-list {
+  width: 320px; flex-shrink: 0; overflow-y: auto;
+  border-right: 1px solid #F0F1F5; padding: 8px;
+}
+.rq-item {
+  width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: left;
+  padding: 13px; border-radius: 11px; border: 1px solid transparent; background: none;
+  cursor: pointer; transition: background 0.12s, border-color 0.12s;
+}
+.rq-item:hover { background: #FAFAF8; }
+.rq-item.on { background: #FBEFE9; border-color: #F3D9CB; }
+.rq-item-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 9px; }
+.rq-item-title {
+  flex: 1; min-width: 0;
+  font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.rq-item-sub { font: 400 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
+.rq-item-meta {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font: 500 10.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #AEB4C2;
+  font-variant-numeric: tabular-nums;
+}
+.rq-item-meta .att { display: inline-flex; align-items: center; gap: 4px; }
+
+.rq-detail { flex: 1; min-width: 0; overflow-y: auto; }
+.rq-detail-inner { padding: 22px 24px 24px; }
+.rq-detail-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 27px; line-height: 1.14; color: #1C1B3A; margin: 0;
+}
+.rq-value { font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; margin: 0; }
+.rq-body-text {
+  font: 400 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #4A5568;
+  line-height: 1.65; margin: 0; white-space: pre-wrap;
+}
+.rq-handoff-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-top: 9px;
+}
+.rq-handoff-grid > span { display: flex; flex-direction: column; gap: 2px; }
+.rq-handoff-grid em {
+  font-style: normal;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.rq-handoff-note {
+  display: block; margin-top: 10px; padding-top: 9px;
+  border-top: 1px solid #E5EAF2; font-style: italic;
+}
+
+.rq-attachments { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.rq-attachment {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px; border-radius: 11px;
+  border: 1px solid #EEF0F4; background: #FFFFFF;
+  transition: border-color 0.12s;
+}
+.rq-attachment:hover { border-color: #C9CED6; }
+.rq-attachment img, .rq-attachment .ph {
+  width: 100%; height: 116px; border-radius: 8px; object-fit: cover;
+  background: #F5F6F8; display: flex; align-items: center; justify-content: center;
+  margin-bottom: 4px;
+}
+.rq-attachment .ph svg { color: #AEB4C2; }
+.rq-attachment .n {
+  font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rq-attachment .s { font: 400 10.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #AEB4C2; }
+
+.rq-reject {
+  padding: 15px; border-radius: 12px;
+  background: #FCF1F0; border: 1px solid #F3D5D2;
+}
+.rq-reject .jm-textarea { background: #FFFFFF; border-color: #F0D6D3; margin-top: 10px; }
+.rq-reject .jm-textarea:focus { border-color: #C0453C; box-shadow: 0 0 0 3px #FBEBEA; }
+.rq-reject-actions { display: flex; gap: 9px; margin-top: 11px; }
+.rq-reject-actions .jm-btn { flex: 1; }
+
+.rq-actions {
+  display: flex; gap: 9px; flex-wrap: wrap;
+  margin-top: 22px; padding-top: 18px; border-top: 1px solid #F0F1F5;
+}
+.rq-actions .jm-btn { flex: 1; min-width: 128px; }
+
+@media (max-width: 820px) {
+  .rq-body { flex-direction: column; }
+  .rq-list { width: auto; max-height: 240px; border-right: none; border-bottom: 1px solid #F0F1F5; }
+  .rq-attachments, .rq-handoff-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   Job history archive — prefix ar-*
+   Calendar on the left, the picked day (or one job) on the right.
+   ============================================================ */
+.ar-panel { max-width: 940px; height: calc(100vh - 140px); }
+.ar-body { flex: 1; min-height: 0; display: flex; }
+.ar-cal { flex: 1; min-width: 0; padding: 20px 24px; overflow-y: auto; }
+.ar-side {
+  width: 320px; flex-shrink: 0; border-left: 1px solid #F0F1F5;
+  display: flex; flex-direction: column; min-height: 0;
+}
+.ar-side-head { padding: 16px 18px 13px; border-bottom: 1px solid #F0F1F5; flex-shrink: 0; }
+.ar-side-head h4 {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 18px; color: #1C1B3A; margin: 0;
+}
+.ar-side-head p {
+  font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  margin: 4px 0 0; font-variant-numeric: tabular-nums;
+}
+.ar-side-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 7px; }
+
+.ar-job {
+  width: 100%; display: flex; align-items: flex-start; gap: 9px; text-align: left;
+  padding: 11px 12px; border-radius: 11px; cursor: pointer;
+  background: #FFFFFF; border: 1px solid #EEF0F4;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.ar-job:hover { border-color: #DCDFE6; box-shadow: 0 6px 16px -10px rgba(28,27,58,0.28); }
+.ar-job > svg { color: #D3D7DF; flex-shrink: 0; margin-top: 3px; }
+.ar-job:hover > svg { color: #C65A1A; }
+.ar-job .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ar-job .t {
+  font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.ar-job .s { font: 400 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478; }
+.ar-job .b { font: 600 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; }
+.ar-job .w {
+  display: inline-flex; align-items: center; gap: 4px; margin-top: 2px;
+  font: 500 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  font-variant-numeric: tabular-nums;
+}
+.ar-job .w svg { color: #4F8A5B; }
+
+/* single-job detail pane */
+.ar-detail { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.ar-detail-back { padding: 11px 18px; border-bottom: 1px solid #F0F1F5; flex-shrink: 0; }
+.ar-backbtn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  transition: color 0.14s;
+}
+.ar-backbtn:hover { color: #C65A1A; }
+.ar-detail-body { flex: 1; overflow-y: auto; padding: 16px 18px 20px; }
+.ar-detail-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400; font-size: 20px; line-height: 1.2; color: #1C1B3A; margin: 0;
+}
+.ar-detail-desc {
+  font: 400 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280;
+  line-height: 1.6; margin: 8px 0 0; white-space: pre-wrap;
+}
+.ar-facts { display: flex; flex-direction: column; gap: 7px; }
+.ar-facts span {
+  display: inline-flex; align-items: center; gap: 7px;
+  font: 500 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+}
+.ar-facts svg { color: #AEB4C2; flex-shrink: 0; }
+.ar-done {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 12px 14px; border-radius: 11px;
+  background: #EFF6F1; border: 1px solid #D9E9DE;
+}
+.ar-done .t {
+  display: inline-flex; align-items: center; gap: 7px;
+  font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #427A4D;
+}
+.ar-done .w {
+  font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280;
+  padding-left: 20px; font-variant-numeric: tabular-nums;
+}
+.ar-history { display: flex; flex-direction: column; gap: 7px; }
+.ar-hist {
+  padding: 10px 12px; border-radius: 10px;
+  background: #FAFAF8; border: 1px solid #EEF0F4;
+}
+.ar-hist-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ar-hist .who { font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.ar-hist .when {
+  font: 500 10.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #AEB4C2;
+  font-variant-numeric: tabular-nums;
+}
+.ar-hist .what {
+  font: 400 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280;
+  margin: 5px 0 0; line-height: 1.5;
+}
+.ar-hist .what strong { color: #1C1B3A; font-weight: 600; }
+.ar-hist .tier {
+  display: inline-block; margin-top: 5px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #AEB4C2;
+}
+
+@media (max-width: 820px) {
+  .ar-body { flex-direction: column; }
+  .ar-side { width: auto; border-left: none; border-top: 1px solid #F0F1F5; max-height: 300px; }
+}
