@@ -22,6 +22,7 @@ import TodayWidget from './components/TodayWidget';
 import RecentActivityWidget from './components/RecentActivityWidget';
 import VesselStatusWidget from './components/VesselStatusWidget';
 import AccountsWidget from './components/AccountsWidget';
+import SignInOutWidget from './components/SignInOutWidget';
 import InventoryHealthWidget from './components/InventoryHealthWidget';
 import VesselDocRenewalsWidget from './components/VesselDocRenewalsWidget';
 import QuickActionsCenter from './components/QuickActionsCenter';
@@ -646,6 +647,8 @@ const Dashboard = () => {
 
   const renderWidget = (id) => {
     switch (id) {
+      case 'signInOut':
+        return <SignInOutWidget />;
       case 'teamJobs':
         return <TeamJobListWidget />;
       case 'rota':

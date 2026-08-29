@@ -6,6 +6,12 @@ export const WIDGET_PERMISSIONS = {
 
 // Master widget catalogue
 export const WIDGET_META = {
+  signInOut: {
+    id: 'signInOut',
+    title: 'On board',
+    allowedTiers: WIDGET_PERMISSIONS.ALL,
+    defaultColumn: 'left',
+  },
   teamJobs: {
     id: 'teamJobs',
     title: 'Team Jobs',
@@ -99,7 +105,7 @@ export const WIDGET_META = {
 };
 
 export const DEFAULT_LAYOUT = {
-  left:   ['teamJobs', 'rota', 'hoursOfRest', 'todaySnapshot', 'recentActivity'],
+  left:   ['signInOut', 'teamJobs', 'rota', 'hoursOfRest', 'todaySnapshot', 'recentActivity'],
   center: ['vesselStatus', 'vesselView', 'laundry', 'quickActions', 'pantry'],
   right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth', 'vesselDocRenewals', 'provisioning'],
 };

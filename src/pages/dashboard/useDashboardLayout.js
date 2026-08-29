@@ -16,6 +16,8 @@ const COLUMNS = ['left', 'center', 'right'];
 // run from PRE_AUTOINJECT + the user's currently-visible widgets, so a widget
 // the user had previously REMOVED isn't wrongly treated as new.
 const KNOWN_KEY = 'cargo_dashboard_known_v1_';
+// Note: 'signInOut' is intentionally NOT listed here, so it auto-injects once
+// into every existing user's saved layout (see the injection loop below).
 const PRE_AUTOINJECT = [
   'teamJobs', 'rota', 'todaySnapshot', 'recentActivity', 'vesselStatus',
   'vesselView', 'laundry', 'quickActions', 'charterAccounts', 'ownerAccounts',
