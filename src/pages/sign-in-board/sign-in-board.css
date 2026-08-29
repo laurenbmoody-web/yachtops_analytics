@@ -1,13 +1,11 @@
-/* Full-screen crew sign-in/out board (iPad kiosk) — premium navy "standby"
-   look. Deep ink ground, glassy crew tiles, a clear on/off switch per crew. */
+/* Full-screen crew sign-in/out board (iPad kiosk) — Cargo editorial system:
+   clean maritime-white canvas, navy ink, terracotta used sparingly to flag who's
+   ASHORE (the exception worth noticing). Aboard reads calm and neutral. */
 .sib {
   position: fixed; inset: 0; z-index: 50;
   display: flex; flex-direction: column;
-  background:
-    radial-gradient(1200px 600px at 80% -10%, rgba(224,118,60,0.10), transparent 60%),
-    linear-gradient(165deg, #1b1a3c 0%, #14132e 55%, #0e0d22 100%);
-  color: #EDEBF6;
-  padding: clamp(18px, 3vw, 44px);
+  background: #F8FAFC; color: #1C1B3A;
+  padding: clamp(20px, 3vw, 48px);
   overflow-y: auto;
   -webkit-user-select: none; user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -18,119 +16,100 @@
 .sib-top {
   display: flex; align-items: flex-start; gap: 20px;
   padding-bottom: clamp(16px, 2vw, 26px);
-  border-bottom: 1px solid rgba(255,255,255,0.10);
+  border-bottom: 1px solid #E5E7EB;
 }
 .sib-brand { flex: 1; min-width: 0; }
-.sib .editorial-meta { color: #C9C5E6; }
-.sib .editorial-meta .dot { color: #E0763C; }
-.sib .editorial-meta .muted { color: #8E8AB4; }
-.sib .editorial-meta .bar { background: rgba(255,255,255,0.20); }
-
 .sib-title {
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-weight: 500; font-size: clamp(34px, 5.4vw, 62px); line-height: 0.96;
-  letter-spacing: -1.2px; color: #FFFFFF; text-transform: uppercase; margin: 6px 0 0;
+  font-weight: 500; font-size: clamp(34px, 5.4vw, 60px); line-height: 0.96;
+  letter-spacing: -1.2px; color: #1C1B3A; text-transform: uppercase; margin: 6px 0 0;
 }
-.sib-title .period { color: #E0763C; }
+.sib-title .period { color: #C65A1A; }
 .sib-clock { text-align: right; line-height: 1; }
 .sib-time {
   display: block; font-family: 'DM Serif Display', Georgia, serif;
-  font-size: clamp(30px, 4vw, 50px); color: #FFFFFF; letter-spacing: -1px;
+  font-size: clamp(30px, 4vw, 48px); color: #1C1B3A; letter-spacing: -1px;
   font-variant-numeric: tabular-nums;
 }
 .sib-date {
   display: block; margin-top: 8px;
   font-family: 'Inter', system-ui, sans-serif; font-size: 11px; font-weight: 700;
-  letter-spacing: 0.14em; text-transform: uppercase; color: #8E8AB4;
+  letter-spacing: 0.12em; text-transform: uppercase; color: #8B8478;
 }
 .sib-exit {
   flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.05); color: #C9C5E6;
+  border: 1px solid #E5E7EB; background: #FFFFFF; color: #8B8478;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
-.sib-exit:hover { background: rgba(255,255,255,0.12); color: #FFFFFF; }
+.sib-exit:hover { color: #1C1B3A; border-color: #AEB4C2; }
 
 /* ── Crew grid ──────────────────────────────────────────────────────────── */
 .sib-grid {
   flex: 1; display: grid; gap: clamp(12px, 1.4vw, 20px);
-  grid-template-columns: repeat(auto-fill, minmax(clamp(158px, 22vw, 224px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(clamp(160px, 22vw, 224px), 1fr));
   align-content: start;
-  padding: clamp(18px, 2.4vw, 32px) 0;
+  padding: clamp(20px, 2.4vw, 34px) 0;
 }
 
 .sib-card {
-  display: flex; flex-direction: column; align-items: center; gap: 9px;
-  padding: clamp(18px, 2vw, 26px) 14px; border-radius: 20px; cursor: pointer;
-  background: rgba(255,255,255,0.045);
-  border: 1px solid rgba(255,255,255,0.09);
-  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-  transition: transform 0.12s ease, box-shadow 0.25s ease, border-color 0.25s ease, background 0.25s ease, opacity 0.25s ease;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: clamp(18px, 2vw, 28px) 14px; border-radius: 16px; cursor: pointer;
+  background: #FFFFFF; border: 1px solid #E5E7EB;
+  box-shadow: 0 1px 2px rgba(28,27,58,0.04);
+  transition: transform 0.12s ease, box-shadow 0.22s ease, border-color 0.22s ease, opacity 0.22s ease;
   text-align: center;
 }
-.sib-card:active { transform: scale(0.97); }
-.sib-card.aboard {
-  border-color: rgba(52,211,153,0.38);
-  background: linear-gradient(180deg, rgba(52,211,153,0.10), rgba(255,255,255,0.03));
-  box-shadow: 0 10px 30px -18px rgba(52,211,153,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
-}
-.sib-card.ashore { opacity: 0.62; }
-.sib-card.ashore:hover { opacity: 0.85; }
+.sib-card:hover { box-shadow: 0 10px 26px -16px rgba(28,27,58,0.28); }
+.sib-card:active { transform: scale(0.98); }
+/* Ashore crew are de-emphasised so a glance shows who's off the boat. */
+.sib-card.ashore { background: #FCFBFA; opacity: 0.72; }
+.sib-card.ashore:hover { opacity: 1; }
 .sib-card:disabled { cursor: default; }
 
 /* Avatar */
 .sib-av {
-  width: clamp(60px, 7vw, 86px); height: clamp(60px, 7vw, 86px);
+  width: clamp(62px, 7vw, 84px); height: clamp(62px, 7vw, 84px);
   border-radius: 999px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.06);
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.12);
+  background: #F0F1F5; box-shadow: inset 0 0 0 1px #E5E7EB;
 }
-.sib-card.aboard .sib-av { box-shadow: inset 0 0 0 2px rgba(52,211,153,0.6); }
-.sib-card.ashore .sib-av { box-shadow: inset 0 0 0 2px rgba(224,118,60,0.5); }
+.sib-card.ashore .sib-av { box-shadow: inset 0 0 0 1.5px rgba(198,90,26,0.45); background: #FBEFE9; }
 .sib-av img { width: 100%; height: 100%; border-radius: 999px; object-fit: cover; }
 .sib-ini {
-  font-family: 'DM Serif Display', Georgia, serif; color: #FFFFFF;
-  font-size: clamp(21px, 2.6vw, 30px); letter-spacing: 0.5px;
+  font-family: 'DM Serif Display', Georgia, serif; color: #1C1B3A;
+  font-size: clamp(22px, 2.6vw, 30px); letter-spacing: 0.5px;
 }
 
 .sib-name {
   font-family: 'Inter', system-ui, sans-serif; font-weight: 700;
-  font-size: clamp(15px, 1.55vw, 19px); color: #FFFFFF; line-height: 1.15;
+  font-size: clamp(15px, 1.55vw, 18px); color: #1C1B3A; line-height: 1.15;
   max-width: 100%; overflow-wrap: anywhere;
 }
 .sib-dept {
   font-family: 'Inter', system-ui, sans-serif; font-size: 10px; font-weight: 700;
-  letter-spacing: 0.12em; text-transform: uppercase; color: #8783AC;
+  letter-spacing: 0.12em; text-transform: uppercase; color: #AEB4C2;
 }
 
-/* Status: a switch + word */
-.sib-foot-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
-.sib-switch {
-  position: relative; width: 46px; height: 26px; border-radius: 999px; flex-shrink: 0;
-  background: rgba(255,255,255,0.16); transition: background 0.22s ease;
+/* Status pill — neutral when aboard, terracotta when ashore. */
+.sib-pill {
+  margin-top: 2px; display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 16px 6px 12px; border-radius: 999px;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.02em;
 }
-.sib-switch.on  { background: #22C55E; }
-.sib-switch.off { background: rgba(224,118,60,0.35); }
-.sib-switch-knob {
-  position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 999px;
-  background: #FFFFFF; box-shadow: 0 2px 5px rgba(0,0,0,0.35);
-  transition: left 0.22s cubic-bezier(0.34, 1.3, 0.5, 1);
-}
-.sib-switch.on .sib-switch-knob { left: 23px; }
-.sib-status {
-  font-family: 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 700;
-  letter-spacing: 0.02em; min-width: 52px; text-align: left;
-}
-.sib-card.aboard .sib-status { color: #6EE7B0; }
-.sib-card.ashore .sib-status { color: #E9A277; }
+.sib-pill-dot { width: 7px; height: 7px; border-radius: 999px; }
+.sib-pill.on  { background: #F0F1F5; color: #1C1B3A; }
+.sib-pill.on  .sib-pill-dot { background: #1C1B3A; }
+.sib-pill.off { background: #FBEFE9; color: #B14E16; }
+.sib-pill.off .sib-pill-dot { background: #C65A1A; }
 
 /* States */
 .sib-loading, .sib-empty {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-  color: #8E8AB4;
+  color: #8B8478;
 }
 .sib-foot {
-  text-align: center; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.10);
-  font-family: 'Inter', system-ui, sans-serif; font-size: 12px; letter-spacing: 0.02em; color: #7E7AA2;
+  text-align: center; padding-top: 12px; border-top: 1px solid #E5E7EB;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 12px; letter-spacing: 0.02em; color: #AEB4C2;
 }

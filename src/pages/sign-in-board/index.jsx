@@ -129,11 +129,9 @@ const SignInBoard = () => {
                 </span>
                 <span className="sib-name">{m.name}</span>
                 {m.department && <span className="sib-dept">{m.department}</span>}
-                <span className="sib-foot-row">
-                  <span className={`sib-switch ${aboard ? 'on' : 'off'}`} aria-hidden="true">
-                    <span className="sib-switch-knob" />
-                  </span>
-                  <span className="sib-status">{aboard ? 'Aboard' : 'Ashore'}</span>
+                <span className={`sib-pill ${aboard ? 'on' : 'off'}`}>
+                  <span className="sib-pill-dot" />
+                  {aboard ? 'Aboard' : 'Ashore'}
                 </span>
               </button>
             );
