@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
-import Select from '../../../components/ui/Select';
+import ModalShell from '../../../components/ui/ModalShell';
+import AssigneePicker from './AssigneePicker';
+import '../job-modals.css';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import { supabase } from '../../../lib/supabaseClient';
@@ -224,159 +224,184 @@ const CreateTaskModal = ({ boards, defaultBoardId, onClose, onCreate, selectedDe
   const deptOptions = departments?.map(d => ({ value: d?.id, label: d?.name })) || [];
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-6" onClick={onClose}>
-      <div
-        className="bg-card rounded-xl border border-border shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e?.stopPropagation()}
-      >
-        <div className="sticky top-0 bg-card border-b border-border p-6 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-foreground">Create New Job</h2>
-          <button onClick={onClose} className="p-2 hover:bg-muted rounded-lg transition-smooth">
-            <Icon name="X" size={20} className="text-muted-foreground" />
-          </button>
+    <ModalShell onClose={onClose} panelClassName="jm-panel lg">
+      <div className="jm-head">
+        <div>
+          <p className="jm-eyebrow">Jobs</p>
+          <h2 className="jm-title">Create a job</h2>
         </div>
+        <button onClick={onClose} className="jm-x" title="Close">
+          <Icon name="X" size={18} />
+        </button>
+      </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          <Input
-            label="Task Title"
-            required
+      <form onSubmit={handleSubmit} className="jm-body" id="tj-create-task-form">
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="ctm-title">
+            Job title<span className="req">required</span>
+          </label>
+          <input
+            id="ctm-title"
+            autoFocus
+            type="text"
+            className="jm-titlefield"
+            placeholder="What needs doing?"
             value={formData?.title}
             onChange={(e) => setFormData(prev => ({ ...prev, title: e?.target?.value }))}
-            placeholder="Enter task title"
           />
+        </div>
 
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">Description</label>
-            <textarea
-              value={formData?.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e?.target?.value }))}
-              placeholder="Enter task description"
-              rows={4}
-              className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="ctm-desc">
+            Description<span className="opt">optional</span>
+          </label>
+          <textarea
+            id="ctm-desc"
+            className="jm-textarea"
+            rows={4}
+            placeholder="Any detail the crew will need"
+            value={formData?.description}
+            onChange={(e) => setFormData(prev => ({ ...prev, description: e?.target?.value }))}
+          />
+        </div>
 
-          {/* Department field */}
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Department <span className="text-red-500">*</span>
-            </label>
-            {canSelectDept ? (
-              loadingDepts ? (
-                <div className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-muted-foreground">
-                  Loading departments...
-                </div>
-              ) : (
-                <>
-                  <Select
-                    options={deptOptions}
-                    value={selectedTargetDeptId}
-                    onChange={(val) => setSelectedTargetDeptId(val)}
-                    placeholder="Select department..."
-                  />
-                </>
-              )
+        {/* Department */}
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="ctm-dept">
+            Department<span className="req">required</span>
+          </label>
+          {canSelectDept ? (
+            loadingDepts ? (
+              <div className="jm-readonly muted">Loading departments…</div>
             ) : (
-              <div className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-foreground flex items-center justify-between">
-                <span>{loadingDepts ? 'Loading...' : getDeptName(myDepartmentId)}</span>
-                <span className="text-xs text-muted-foreground">(locked to your department)</span>
+              <select
+                id="ctm-dept"
+                className="jm-select"
+                value={selectedTargetDeptId || ''}
+                onChange={(e) => setSelectedTargetDeptId(e?.target?.value)}
+              >
+                <option value="">Select department…</option>
+                {deptOptions?.map(o => (
+                  <option key={o?.value} value={o?.value}>{o?.label}</option>
+                ))}
+              </select>
+            )
+          ) : (
+            <div className="jm-readonly">
+              <span>{loadingDepts ? 'Loading…' : getDeptName(myDepartmentId)}</span>
+              <span className="note">locked to your department</span>
+            </div>
+          )}
+        </div>
+
+        {/* Cross-department warning */}
+        {canSelectDept && isCrossDeptSelected && (
+          <div className="jm-section">
+            <div className="jm-notice warn">
+              <Icon name="AlertTriangle" size={15} />
+              <span>
+                This job will be sent to the <strong>{getDeptName(selectedTargetDeptId)}</strong> chief
+                for acceptance before it lands on their board.
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Board */}
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="ctm-board">
+            Board<span className="req">required</span>
+          </label>
+          <select
+            id="ctm-board"
+            className="jm-select"
+            value={formData?.board || ''}
+            onChange={(e) => setFormData(prev => ({ ...prev, board: e?.target?.value }))}
+          >
+            <option value="">Select board…</option>
+            {boardOptions?.map(o => (
+              <option key={o?.value} value={o?.value}>{o?.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Assign to — cross-dept locks to the receiving chief */}
+        {showAssignTo && (
+          <div className="jm-section">
+            <label className="jm-label">
+              Assign to<span className="opt">optional</span>
+            </label>
+            {isCrossDeptSelected ? (
+              <div className="jm-readonly">
+                <span>Department chief</span>
+                <span className="note">goes to all chiefs in {getDeptName(selectedTargetDeptId)}</span>
               </div>
+            ) : loadingAssignees ? (
+              <div className="jm-readonly muted">Loading crew members…</div>
+            ) : assigneesEmpty ? (
+              <div className="jm-readonly muted">No eligible crew in this department</div>
+            ) : (
+              <AssigneePicker
+                options={assigneeOptions}
+                value={formData?.assignees}
+                onChange={(next) => setFormData(prev => ({ ...prev, assignees: next }))}
+                placeholder="Select crew members…"
+              />
             )}
           </div>
+        )}
 
-          {/* Cross-department warning box */}
-          {canSelectDept && isCrossDeptSelected && (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-2">
-              <Icon name="AlertTriangle" size={16} className="text-amber-500 mt-0.5 shrink-0" />
-              <p className="text-sm text-amber-600 dark:text-amber-400">
-                Confirm job to be sent to <strong>'{getDeptName(selectedTargetDeptId)}'</strong> chief for acceptance
-              </p>
+        {crewCannotAssign && (
+          <div className="jm-section">
+            <div className="jm-notice info">
+              <Icon name="Info" size={15} />
+              <span>
+                {currentUserTier === 'CREW'
+                  ? "Crew can't assign jobs — this one will be created for you."
+                  : 'Assignment is not available for your role.'}
+              </span>
             </div>
-          )}
+          </div>
+        )}
 
-          <Select
-            label="Board"
-            required
-            options={boardOptions}
-            value={formData?.board}
-            onChange={(value) => setFormData(prev => ({ ...prev, board: value }))}
-          />
-
-          {/* Assign to — cross-dept shows locked "Department Chief", same-dept shows crew picker */}
-          {showAssignTo && (
-            <div>
-              {isCrossDeptSelected ? (
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-2 block">Assign to</label>
-                  <div className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-foreground flex items-center justify-between">
-                    <span className="font-medium">Department Chief</span>
-                    <span className="text-xs text-muted-foreground">(goes to all chiefs in {getDeptName(selectedTargetDeptId)})</span>
-                  </div>
-                </div>
-              ) : loadingAssignees ? (
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-2 block">Assign to</label>
-                  <div className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-muted-foreground">
-                    Loading crew members...
-                  </div>
-                </div>
-              ) : assigneesEmpty ? (
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-2 block">Assign to</label>
-                  <div className="w-full px-3 py-2 text-sm bg-background border border-border rounded-lg text-muted-foreground italic">
-                    No eligible crew in this department
-                  </div>
-                </div>
-              ) : (
-                <Select
-                  label="Assign to"
-                  options={assigneeOptions}
-                  value={formData?.assignees}
-                  onChange={(value) => setFormData(prev => ({ ...prev, assignees: value }))}
-                  multiple
-                  searchable
-                  placeholder="Select crew members"
-                />
-              )}
-            </div>
-          )}
-
-          {crewCannotAssign && (
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-              <p className="text-sm text-amber-600 dark:text-amber-400">
-                {currentUserTier === 'CREW' ? "Crew can't assign jobs — this task will be created for yourself." : "Assignment is not available for your role."}
-              </p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Due Date"
+        <div className="jm-section jm-grid">
+          <div>
+            <label className="jm-label" htmlFor="ctm-due">
+              Due date<span className="req">required</span>
+            </label>
+            <input
+              id="ctm-due"
               type="date"
-              required
+              className="jm-input"
               value={formData?.dueDate}
               onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e?.target?.value }))}
             />
-
-            <Select
-              label="Priority"
-              options={priorityOptions}
-              value={formData?.priority}
-              onChange={(value) => setFormData(prev => ({ ...prev, priority: value }))}
-            />
           </div>
-
-          <div className="flex items-center gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={onClose} fullWidth>
-              Cancel
-            </Button>
-            <Button type="submit" variant="default" iconName={isCrossDeptSelected ? 'Send' : 'Plus'} fullWidth>
-              {isCrossDeptSelected ? 'Send for Acceptance' : 'Create Job'}
-            </Button>
+          <div>
+            <label className="jm-label" htmlFor="ctm-priority">Priority</label>
+            <select
+              id="ctm-priority"
+              className="jm-select"
+              value={formData?.priority || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, priority: e?.target?.value }))}
+            >
+              {priorityOptions?.map(o => (
+                <option key={o?.value} value={o?.value}>{o?.label}</option>
+              ))}
+            </select>
           </div>
-        </form>
+        </div>
+      </form>
+
+      <div className="jm-foot">
+        <button type="button" className="jm-btn ghost" onClick={onClose}>Cancel</button>
+        <div className="spacer" />
+        <button type="submit" form="tj-create-task-form" className="jm-btn primary">
+          <Icon name={isCrossDeptSelected ? 'Send' : 'Plus'} size={15} />
+          {isCrossDeptSelected ? 'Send for acceptance' : 'Create job'}
+        </button>
       </div>
-    </div>
+    </ModalShell>
   );
 };
 

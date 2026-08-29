@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
+import '../job-modals.css';
 import { useAuth } from '../../../contexts/AuthContext';
 import { createCard } from '../utils/cardStorage';
 
@@ -87,107 +86,97 @@ const SelfReportedJobModal = ({ onClose, onSuccess }) => {
   };
 
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-      {/* Header */}
-      <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+    <ModalShell
+      onClose={onClose}
+      isDirty={!!formData?.title?.trim() || !!formData?.description?.trim()}
+      panelClassName="jm-panel lg"
+    >
+      <div className="jm-head">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Report Task Completed</h2>
-          <p className="text-sm text-gray-500 mt-1">Record work you've completed for review</p>
+          <p className="jm-eyebrow">Jobs</p>
+          <h2 className="jm-title">Report work done</h2>
+          <p className="jm-sub">Record work you have completed so it can be reviewed.</p>
         </div>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <Icon name="x" size={24} />
+        <button onClick={onClose} className="jm-x" title="Close">
+          <Icon name="X" size={18} />
         </button>
       </div>
 
-      {/* Body */}
-      <div className="px-6 py-4 space-y-4">
-        {/* Title */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Task Title <span className="text-red-500">*</span>
+      <div className="jm-body">
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="srj-title">
+            What did you complete<span className="req">required</span>
           </label>
-          <Input
+          <input
+            id="srj-title"
+            autoFocus
+            type="text"
+            className="jm-titlefield"
+            placeholder="e.g. Deep cleaned the main saloon"
             value={formData?.title}
             onChange={(e) => setFormData(prev => ({ ...prev, title: e?.target?.value }))}
-            placeholder="What did you complete?"
-            className="w-full"
           />
         </div>
 
-        {/* Description */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="srj-desc">
+            Description<span className="opt">optional</span>
           </label>
           <textarea
+            id="srj-desc"
+            className="jm-textarea"
+            rows={4}
+            placeholder="Detail about the work completed…"
             value={formData?.description}
             onChange={(e) => setFormData(prev => ({ ...prev, description: e?.target?.value }))}
-            placeholder="Provide details about the work completed..."
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 
-        {/* Time Spent */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Time Spent
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="srj-time">
+            Time spent<span className="opt">optional</span>
           </label>
-          <Input
+          <input
+            id="srj-time"
+            type="text"
+            className="jm-input"
+            placeholder="e.g. 2 hours, 30 minutes"
             value={formData?.timeSpent}
             onChange={(e) => setFormData(prev => ({ ...prev, timeSpent: e?.target?.value }))}
-            placeholder="e.g., 2 hours, 30 minutes"
-            className="w-full"
           />
         </div>
 
-        {/* Photos/Attachments */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Photos / Attachments
+        <div className="jm-section">
+          <label className="jm-label">
+            Photos &amp; attachments<span className="opt">optional</span>
           </label>
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-            <input
-              type="file"
-              id="file-upload"
-              multiple
-              accept="image/*,.pdf,.doc,.docx"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <label
-              htmlFor="file-upload"
-              className="flex flex-col items-center justify-center cursor-pointer"
-            >
-              <Icon name="upload" size={32} className="text-gray-400 mb-2" />
-              <span className="text-sm text-gray-600">Click to upload files</span>
-              <span className="text-xs text-gray-400 mt-1">Images, PDFs, or documents</span>
-            </label>
-          </div>
+          <input
+            type="file"
+            id="file-upload"
+            multiple
+            accept="image/*,.pdf,.doc,.docx"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
+          <label htmlFor="file-upload" className="jm-drop">
+            <span className="jm-drop-ico"><Icon name="Upload" size={18} /></span>
+            <span className="jm-drop-t">Click to upload files</span>
+            <span className="jm-drop-s">Images, PDFs or documents</span>
+          </label>
 
-          {/* Attachment List */}
           {formData?.attachments?.length > 0 && (
-            <div className="mt-3 space-y-2">
+            <div className="jm-filelist">
               {formData?.attachments?.map(attachment => (
-                <div
-                  key={attachment?.id}
-                  className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-md"
-                >
-                  <div className="flex items-center gap-2">
-                    <Icon name="paperclip" size={16} className="text-gray-400" />
-                    <span className="text-sm text-gray-700">{attachment?.name}</span>
-                    <span className="text-xs text-gray-400">
-                      ({(attachment?.size / 1024)?.toFixed(1)} KB)
-                    </span>
-                  </div>
+                <div key={attachment?.id} className="jm-file">
+                  <Icon name="Paperclip" size={14} />
+                  <span className="name">{attachment?.name}</span>
+                  <span className="size">{(attachment?.size / 1024)?.toFixed(1)} KB</span>
                   <button
                     onClick={() => handleRemoveAttachment(attachment?.id)}
-                    className="text-red-500 hover:text-red-700"
+                    className="jm-file-x"
+                    title="Remove attachment"
                   >
-                    <Icon name="x" size={16} />
+                    <Icon name="X" size={13} />
                   </button>
                 </div>
               ))}
@@ -195,36 +184,28 @@ const SelfReportedJobModal = ({ onClose, onSuccess }) => {
           )}
         </div>
 
-        {/* Info Box */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex gap-3">
-            <Icon name="info" size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-800">
-              <p className="font-medium mb-1">What happens next?</p>
-              <ul className="list-disc list-inside space-y-1 text-blue-700">
-                <li>Your HOD and Chief will review this task</li>
-                <li>They can accept, edit, or convert it to a planned job</li>
-                <li>You'll be notified of their decision</li>
-              </ul>
-            </div>
+        <div className="jm-section">
+          <div className="jm-notice info">
+            <Icon name="Info" size={15} />
+            <span>
+              <strong>What happens next?</strong> Your HOD and chief review this report — they can
+              accept it, edit it, or turn it into a planned job. You will be notified either way.
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
-        <Button
-          onClick={onClose}
-          variant="outline"
-        >
-          Cancel
-        </Button>
-        <Button
+      <div className="jm-foot">
+        <button className="jm-btn ghost" onClick={onClose}>Cancel</button>
+        <div className="spacer" />
+        <button
+          className="jm-btn primary"
           onClick={handleSubmit}
           disabled={!formData?.title?.trim() || uploadingFile}
         >
-          {uploadingFile ? 'Uploading...' : 'Submit for Review'}
-        </Button>
+          {uploadingFile ? <span className="jm-spin sm" /> : <Icon name="Send" size={15} />}
+          {uploadingFile ? 'Uploading…' : 'Submit for review'}
+        </button>
       </div>
     </ModalShell>
   );
