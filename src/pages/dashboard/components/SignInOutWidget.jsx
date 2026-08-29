@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
-import { fetchMyPresence, setPresence, ABOARD, flip } from '../../../services/crewPresence';
+import { fetchMyPresence, setPresence, ABOARD, ASHORE } from '../../../services/crewPresence';
 import './sign-in-out.css';
 
 // Personal quick sign-in/out — a single aboard/ashore toggle for the logged-in
@@ -32,15 +32,15 @@ const SignInOutWidget = () => {
     return () => window.removeEventListener('focus', load);
   }, [load]);
 
-  const toggle = async () => {
-    if (busy || !activeTenantId || !userId) return;
-    const next = flip(status);
+  const choose = async (next) => {
+    if (busy || next === status || !activeTenantId || !userId) return;
+    const prev = status;
     setStatus(next); // optimistic
     setBusy(true);
     try {
       await setPresence(activeTenantId, userId, next, userId);
     } catch (e) {
-      setStatus(flip(next)); // revert
+      setStatus(prev); // revert
       showToast(e.message || 'Could not update — try again', 'error');
     } finally { setBusy(false); }
   };
@@ -67,27 +67,27 @@ const SignInOutWidget = () => {
             {aboard ? "You're aboard" : "You're ashore"}
           </p>
 
-          <button
-            type="button"
-            className={`sio-toggle ${aboard ? 'on' : 'off'}`}
-            onClick={toggle}
-            disabled={busy}
-            role="switch"
-            aria-checked={aboard}
-            aria-label={aboard ? 'Sign out — go ashore' : 'Sign in — come aboard'}
-          >
-            <span className="sio-track">
-              <span className="sio-labels">
-                <span className="l on">Aboard</span>
-                <span className="l off">Ashore</span>
-              </span>
-              <span className="sio-knob">
-                <Icon name={aboard ? 'Anchor' : 'LogOut'} size={16} />
-              </span>
-            </span>
-          </button>
-
-          <p className="sio-hint">{aboard ? 'Tap to sign ashore' : 'Tap to sign back aboard'}</p>
+          <div className={`sio-seg ${aboard ? 'aboard' : 'ashore'}`} role="group" aria-label="Sign in or out">
+            <span className="sio-seg-hl" aria-hidden="true" />
+            <button
+              type="button"
+              className="sio-seg-btn"
+              onClick={() => choose(ABOARD)}
+              disabled={busy}
+              aria-pressed={aboard}
+            >
+              <Icon name="Anchor" size={15} /> Aboard
+            </button>
+            <button
+              type="button"
+              className="sio-seg-btn"
+              onClick={() => choose(ASHORE)}
+              disabled={busy}
+              aria-pressed={!aboard}
+            >
+              <Icon name="LogOut" size={15} /> Ashore
+            </button>
+          </div>
         </>
       )}
     </div>
