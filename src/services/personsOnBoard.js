@@ -61,7 +61,7 @@ export async function fetchContractorsOnBoard(tenantId) {
   if (!tenantId) return [];
   const { data, error } = await supabase
     ?.from('contractor_visits')
-    ?.select('id, name, company, signed_in_at')
+    ?.select('id, name, company, phone, signed_in_at')
     ?.eq('tenant_id', tenantId)
     ?.eq('status', 'onboard')
     ?.order('signed_in_at', { ascending: true });
@@ -69,7 +69,7 @@ export async function fetchContractorsOnBoard(tenantId) {
   return data || [];
 }
 
-export async function addContractor(tenantId, name, company, createdBy) {
+export async function addContractor(tenantId, name, company, phone, createdBy) {
   if (!tenantId || !name?.trim()) throw new Error('Name is required');
   const { data, error } = await supabase
     ?.from('contractor_visits')
@@ -77,6 +77,7 @@ export async function addContractor(tenantId, name, company, createdBy) {
       tenant_id: tenantId,
       name: name.trim(),
       company: company?.trim() || null,
+      phone: phone?.trim() || null,
       status: 'onboard',
       signed_in_at: new Date().toISOString(),
       created_by: createdBy || null,
