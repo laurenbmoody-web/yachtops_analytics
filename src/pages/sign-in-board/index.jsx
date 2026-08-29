@@ -142,8 +142,8 @@ const SignInBoard = () => {
         </span>
         <span className="sib-name">{name}</span>
         {sub && <span className="sib-dept">{sub}</span>}
-        <span className={`sib-pill ${on ? 'on' : 'off'}`}>
-          <span className="sib-pill-dot" />
+        <span className={`sib-switch ${on ? 'on' : 'off'}`} aria-hidden="true"><span className="sib-switch-knob" /></span>
+        <span className={`sib-state ${on ? 'on' : 'off'}`}>
           {on ? 'Aboard' : (backAt ? `Back ${hhmm(backAt)}` : 'Ashore')}
         </span>
       </button>
@@ -179,6 +179,9 @@ const SignInBoard = () => {
           <span className="sib-time">{now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
           <span className="sib-date">{dateStr}</span>
         </div>
+        <button type="button" className="sib-visitor-btn" onClick={() => setAddOpen(true)}>
+          <Icon name="Plus" size={17} /> Visitor
+        </button>
         <button type="button" className="sib-exit" onClick={() => navigate('/dashboard')} title="Exit board">
           <Icon name="X" size={20} />
         </button>
@@ -200,28 +203,28 @@ const SignInBoard = () => {
             backAt: g.returningAt, disabled: !!pending[`g:${g.id}`], onClick: () => toggleGuest(g),
           })))}
 
-          {section('Contractors', contractors.length, (
+          {section('Visitors', contractors.length, (
             <>
               {contractors.map((k) => personCard({
-                key: `k:${k.id}`, on: true, name: k.name, sub: k.company || 'Contractor',
+                key: `k:${k.id}`, on: true, name: k.name, sub: k.company || 'Visitor',
                 disabled: !!pending[`k:${k.id}`], onClick: () => signOut(k),
               }))}
               <button type="button" className="sib-add" onClick={() => setAddOpen(true)}>
                 <span className="sib-add-plus"><Icon name="Plus" size={22} /></span>
-                <span className="sib-add-label">Add contractor</span>
+                <span className="sib-add-label">Add visitor</span>
               </button>
             </>
           ))}
         </div>
       )}
 
-      <footer className="sib-foot">Tap crew or guests to sign in/out · tap a contractor to sign them off</footer>
+      <footer className="sib-foot">Tap crew or guests to sign in/out · tap a visitor to sign them off</footer>
 
       {addOpen && (
         <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setAddOpen(false); }}>
           <div className="sib-modal">
             <div className="sib-modal-head">
-              <h4>Sign in a contractor</h4>
+              <h4>Sign in a visitor</h4>
               <button type="button" className="sib-exit sm" onClick={() => setAddOpen(false)} title="Close"><Icon name="X" size={16} /></button>
             </div>
             <label className="sib-field"><span>Name</span>

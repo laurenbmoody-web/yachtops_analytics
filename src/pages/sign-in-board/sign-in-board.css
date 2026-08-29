@@ -106,18 +106,35 @@
   letter-spacing: 0.12em; text-transform: uppercase; color: #AEB4C2;
 }
 
-/* Status pill — neutral when aboard, terracotta when ashore. */
-.sib-pill {
-  margin-top: 2px; display: inline-flex; align-items: center; gap: 7px;
-  padding: 6px 16px 6px 12px; border-radius: 999px;
-  font-family: 'Inter', system-ui, sans-serif; font-size: 12px; font-weight: 700;
-  letter-spacing: 0.02em;
+/* Status switch — navy when aboard, terracotta when ashore (matches the widget). */
+.sib-switch {
+  position: relative; width: 56px; height: 32px; border-radius: 999px; margin-top: 4px; flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.04); transition: background 0.28s ease;
 }
-.sib-pill-dot { width: 7px; height: 7px; border-radius: 999px; }
-.sib-pill.on  { background: #F0F1F5; color: #1C1B3A; }
-.sib-pill.on  .sib-pill-dot { background: #1C1B3A; }
-.sib-pill.off { background: #FBEFE9; color: #B14E16; }
-.sib-pill.off .sib-pill-dot { background: #C65A1A; }
+.sib-switch.on  { background: #1C1B3A; }
+.sib-switch.off { background: #C65A1A; }
+.sib-switch-knob {
+  position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(180deg, #ffffff, #fdfdfd);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.18), 0 1px 1px rgba(0,0,0,0.16), 0 0 0 0.5px rgba(0,0,0,0.02);
+  transition: transform 0.3s cubic-bezier(0.32, 1.45, 0.5, 1);
+}
+.sib-switch.on .sib-switch-knob { transform: translateX(24px); }
+.sib-state {
+  font-family: 'Inter', system-ui, sans-serif; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.sib-state.on  { color: #1C1B3A; }
+.sib-state.off { color: #C65A1A; }
+
+/* Header "+ Visitor" button */
+.sib-visitor-btn {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 18px 0 14px;
+  border-radius: 12px; border: none; cursor: pointer; background: #C65A1A; color: #FFFFFF;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.01em;
+  box-shadow: 0 2px 6px -1px rgba(198,90,26,0.35); transition: background 0.15s ease;
+}
+.sib-visitor-btn:hover { background: #B14E16; }
 
 /* States */
 .sib-loading, .sib-empty {
