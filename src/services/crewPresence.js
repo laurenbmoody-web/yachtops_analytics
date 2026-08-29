@@ -10,13 +10,18 @@ export const flip = (s) => (s === ASHORE ? ABOARD : ASHORE);
 // Full board — every active crew member and their current presence.
 export async function fetchPresenceBoard(tenantId) {
   if (!tenantId) return [];
+  // Duty status 'active' — currently-serving crew. This includes roster-only crew
+  // who haven't signed up to Cargo yet (they still have status 'active'), and
+  // excludes anyone on leave/rotation and pending invites. Being on the boat is
+  // about duty status, not whether they have a login.
   const { data: members, error } = await supabase
     ?.from('tenant_members')
-    ?.select('user_id, display_name, department_id, status')
+    ?.select('user_id, display_name, department_id')
     ?.eq('tenant_id', tenantId)
-    ?.eq('active', true);
+    ?.eq('active', true)
+    ?.eq('status', 'active');
   if (error) { console.error('[presence] members fetch failed', error); return []; }
-  const roster = (members || []).filter((m) => m.status !== 'invited');
+  const roster = members || [];
   const ids = roster.map((m) => m.user_id).filter(Boolean);
   if (!ids.length) return [];
 
