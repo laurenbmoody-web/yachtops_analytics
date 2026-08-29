@@ -67,22 +67,23 @@
 }
 .sib-exit:hover { color: #1C1B3A; border-color: #AEB4C2; }
 
-/* ── Sections (Crew · Guests · Contractors) ─────────────────────────────── */
+/* ── Tabs (Crew · Guests · Visitors) ────────────────────────────────────── */
 .sib-scroll { flex: 1; padding-top: clamp(16px, 2vw, 26px); }
-.sib-section + .sib-section { margin-top: clamp(20px, 2.4vw, 34px); }
-.sib-section-head {
-  display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+.sib-tabs { display: flex; gap: 10px; margin-bottom: clamp(18px, 2.2vw, 28px); flex-wrap: wrap; }
+.sib-tab {
+  display: inline-flex; align-items: center; gap: 9px; cursor: pointer;
+  padding: 11px 20px; border-radius: 999px; border: 1px solid #E5E7EB; background: #FFFFFF; color: #8B8478;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase; transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
-.sib-section-label {
-  font-family: 'Inter', system-ui, sans-serif; font-size: 11px; font-weight: 700;
-  letter-spacing: 0.14em; text-transform: uppercase; color: #1C1B3A;
+.sib-tab:hover { color: #1C1B3A; border-color: #AEB4C2; }
+.sib-tab.active { background: #1C1B3A; border-color: #1C1B3A; color: #FFFFFF; }
+.sib-tab-n {
+  font-size: 11px; font-weight: 700; letter-spacing: 0; padding: 1px 8px; border-radius: 999px; min-width: 22px; text-align: center;
+  background: #F0F1F5; color: #1C1B3A;
 }
-.sib-section-count {
-  font-family: 'Inter', system-ui, sans-serif; font-size: 11px; font-weight: 700;
-  color: #FFFFFF; background: #C65A1A; border-radius: 999px; padding: 2px 9px; min-width: 22px; text-align: center;
-}
-.sib-section-rule { flex: 1; height: 1px; background: #E5E7EB; }
-.sib-none { color: #8B8478; font-family: 'Inter', system-ui, sans-serif; font-size: 13px; padding: 8px 2px; }
+.sib-tab.active .sib-tab-n { background: rgba(255,255,255,0.22); color: #FFFFFF; }
+.sib-none { color: #8B8478; font-family: 'Inter', system-ui, sans-serif; font-size: 14px; padding: 20px 2px; }
 
 .sib-grid {
   display: grid; gap: clamp(12px, 1.4vw, 20px);

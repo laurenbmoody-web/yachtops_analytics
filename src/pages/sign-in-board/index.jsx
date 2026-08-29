@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,6 +37,11 @@ const useClock = () => {
 
 const SignInBoard = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Kiosk mode = the locked door iPad (home-screen / Guided Access). It has no
+  // personal dashboard to go back to, so hide the back link there. A crew member
+  // who opens the board from their dashboard (plain /sign-in-board) keeps it.
+  const kiosk = searchParams.get('kiosk') === '1' || searchParams.get('mode') === 'kiosk';
   const { session, activeTenantId } = useAuth();
   const meId = session?.user?.id;
   const now = useClock();
@@ -47,6 +52,7 @@ const SignInBoard = () => {
   const [contractors, setContractors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState({});
+  const [tab, setTab] = useState('crew'); // crew | guests | visitors
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState('');
   const [addCompany, setAddCompany] = useState('');
@@ -154,24 +160,21 @@ const SignInBoard = () => {
     );
   };
 
-  const section = (label, count, children) => (
-    <section className="sib-section">
-      <div className="sib-section-head">
-        <span className="sib-section-label">{label}</span>
-        <span className="sib-section-count">{count}</span>
-        <span className="sib-section-rule" />
-      </div>
-      <div className="sib-grid">{children}</div>
-    </section>
-  );
+  const tabs = [
+    { id: 'crew', label: 'Crew', n: crew.length },
+    { id: 'guests', label: 'Guests', n: guests.length },
+    { id: 'visitors', label: 'Visitors', n: contractors.length },
+  ];
 
   return (
     <div className="sib">
       <header className="sib-top">
         <div className="sib-utilrow">
-          <button type="button" className="sib-back" onClick={() => navigate('/dashboard')}>
-            <Icon name="ArrowLeft" size={16} /> Back to dashboard
-          </button>
+          {kiosk ? <span /> : (
+            <button type="button" className="sib-back" onClick={() => navigate('/dashboard')}>
+              <Icon name="ArrowLeft" size={16} /> Back to dashboard
+            </button>
+          )}
           <button type="button" className="sib-add-btn" onClick={() => setAddOpen(true)} aria-label="Add visitor">
             <Icon name="Plus" size={18} /><span className="lbl">Visitor</span>
           </button>
@@ -199,20 +202,31 @@ const SignInBoard = () => {
         <div className="sib-loading"><LogoSpinner size={44} /></div>
       ) : (
         <div className="sib-scroll">
-          {section('Crew', crewAboard, crew.length === 0
+          <div className="sib-tabs" role="tablist">
+            {tabs.map((t) => (
+              <button key={t.id} type="button" role="tab" aria-selected={tab === t.id}
+                className={`sib-tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
+                {t.label} <span className="sib-tab-n">{t.n}</span>
+              </button>
+            ))}
+          </div>
+
+          {tab === 'crew' && (crew.length === 0
             ? <p className="sib-none">No crew on duty.</p>
-            : crew.map((m) => personCard({
+            : <div className="sib-grid">{crew.map((m) => personCard({
                 key: `c:${m.userId}`, on: m.status === ABOARD, name: m.name, sub: m.department,
                 img: m.avatarUrl, disabled: !!pending[`c:${m.userId}`], onClick: () => toggleCrew(m),
-              })))}
+              }))}</div>)}
 
-          {guests.length > 0 && section('Guests', guestsOn, guests.map((g) => personCard({
-            key: `g:${g.id}`, on: g.onboard, name: g.name, sub: g.cabin || 'Guest',
-            backAt: g.returningAt, disabled: !!pending[`g:${g.id}`], onClick: () => toggleGuest(g),
-          })))}
+          {tab === 'guests' && (guests.length === 0
+            ? <p className="sib-none">No guests on this trip.</p>
+            : <div className="sib-grid">{guests.map((g) => personCard({
+                key: `g:${g.id}`, on: g.onboard, name: g.name, sub: g.cabin || 'Guest',
+                backAt: g.returningAt, disabled: !!pending[`g:${g.id}`], onClick: () => toggleGuest(g),
+              }))}</div>)}
 
-          {section('Visitors', contractors.length, (
-            <>
+          {tab === 'visitors' && (
+            <div className="sib-grid">
               {contractors.map((k) => personCard({
                 key: `k:${k.id}`, on: true, name: k.name, sub: k.company || 'Visitor', sub2: k.phone,
                 disabled: !!pending[`k:${k.id}`], onClick: () => signOut(k),
@@ -221,8 +235,8 @@ const SignInBoard = () => {
                 <span className="sib-add-plus"><Icon name="Plus" size={22} /></span>
                 <span className="sib-add-label">Add visitor</span>
               </button>
-            </>
-          ))}
+            </div>
+          )}
         </div>
       )}
 
