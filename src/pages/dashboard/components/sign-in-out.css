@@ -1,47 +1,41 @@
-/* Personal aboard/ashore toggle widget — editorial (Cargo) system. */
+/* Personal aboard/ashore toggle widget — editorial (Cargo) system.
+   Self-explanatory: just the toggle. A small eyebrow names the card. */
 .sio-head {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 18px;
+  margin-bottom: 14px; min-height: 18px;
+}
+.sio-eyebrow {
+  font-family: 'Inter', system-ui, sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
 }
 
-.sio-state {
-  display: flex; align-items: center; gap: 9px;
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 22px; line-height: 1; color: #1C1B3A; margin: 0 0 18px;
-}
-.sio-state .sio-dot {
-  width: 9px; height: 9px; border-radius: 999px; flex-shrink: 0;
-}
-.sio-state.is-aboard .sio-dot { background: #1C1B3A; box-shadow: 0 0 0 4px rgba(28,27,58,0.10); }
-.sio-state.is-ashore .sio-dot { background: #C65A1A; box-shadow: 0 0 0 4px rgba(198,90,26,0.14); }
-
-/* Segmented control — two equal halves, a highlight slides under the active one.
-   Both labels stay fully visible; the active label turns white on the fill. */
+/* iOS-style segmented control: soft track, a white thumb slides under the active
+   side, the active label carries the accent (navy aboard / terracotta ashore). */
 .sio-seg {
   position: relative; display: grid; grid-template-columns: 1fr 1fr;
-  height: 52px; padding: 4px; border-radius: 999px;
-  background: #FAFAF8; border: 1px solid #E5E7EB;
+  height: 56px; padding: 5px; border-radius: 14px;
+  background: #F0F1F5; border: 1px solid #E5E7EB;
 }
 .sio-seg-hl {
-  position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px);
-  border-radius: 999px; z-index: 0;
-  transition: left 0.24s cubic-bezier(0.34, 1.2, 0.5, 1), background 0.2s ease;
-  box-shadow: 0 3px 10px -3px rgba(28,27,58,0.30);
+  position: absolute; top: 5px; bottom: 5px; left: 5px; width: calc(50% - 5px);
+  border-radius: 10px; z-index: 0; background: #FFFFFF;
+  box-shadow: 0 2px 6px -1px rgba(28,27,58,0.16), 0 0 0 1px rgba(28,27,58,0.03);
+  transition: left 0.24s cubic-bezier(0.34, 1.2, 0.5, 1);
 }
-.sio-seg.aboard .sio-seg-hl { left: 4px; background: #1C1B3A; }
-.sio-seg.ashore .sio-seg-hl { left: 50%; background: #C65A1A; }
+.sio-seg.aboard .sio-seg-hl { left: 5px; }
+.sio-seg.ashore .sio-seg-hl { left: 50%; }
 
 .sio-seg-btn {
   position: relative; z-index: 1; border: none; background: none; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 7px;
-  border-radius: 999px; color: #6B7280;
-  font-family: 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 700;
-  letter-spacing: 0.03em; transition: color 0.18s ease;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border-radius: 10px; color: #8B8478;
+  font-family: 'Inter', system-ui, sans-serif; font-size: 14px; font-weight: 700;
+  letter-spacing: 0.02em; transition: color 0.18s ease;
 }
 .sio-seg-btn:disabled { cursor: default; }
-/* Active half → white text on the coloured fill; the resting half stays muted. */
-.sio-seg.aboard .sio-seg-btn:first-child,
-.sio-seg.ashore .sio-seg-btn:last-child { color: #FFFFFF; }
+/* Active side sits on the white thumb, in its accent colour; the other stays muted. */
+.sio-seg.aboard .sio-seg-btn:first-child { color: #1C1B3A; }
+.sio-seg.ashore .sio-seg-btn:last-child  { color: #C65A1A; }
 
-.sio-skel { height: 90px; border-radius: 14px; background: #F1F1EF; animation: sioPulse 1.4s ease-in-out infinite; }
+.sio-skel { height: 56px; border-radius: 14px; background: #F1F1EF; animation: sioPulse 1.4s ease-in-out infinite; }
 @keyframes sioPulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }

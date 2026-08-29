@@ -50,7 +50,7 @@ const SignInOutWidget = () => {
   return (
     <div className="ce-card sio rounded-xl p-5">
       <div className="sio-head">
-        <h3 className="ce-title">On board</h3>
+        <span className="sio-eyebrow">On board</span>
         {canOpenBoard && (
           <button type="button" className="ce-link" onClick={() => navigate('/sign-in-board')}>
             Crew board
@@ -61,34 +61,27 @@ const SignInOutWidget = () => {
       {loading ? (
         <div className="sio-skel" aria-hidden="true" />
       ) : (
-        <>
-          <p className={`sio-state ${aboard ? 'is-aboard' : 'is-ashore'}`}>
-            <span className="sio-dot" />
-            {aboard ? "You're aboard" : "You're ashore"}
-          </p>
-
-          <div className={`sio-seg ${aboard ? 'aboard' : 'ashore'}`} role="group" aria-label="Sign in or out">
-            <span className="sio-seg-hl" aria-hidden="true" />
-            <button
-              type="button"
-              className="sio-seg-btn"
-              onClick={() => choose(ABOARD)}
-              disabled={busy}
-              aria-pressed={aboard}
-            >
-              <Icon name="Anchor" size={15} /> Aboard
-            </button>
-            <button
-              type="button"
-              className="sio-seg-btn"
-              onClick={() => choose(ASHORE)}
-              disabled={busy}
-              aria-pressed={!aboard}
-            >
-              <Icon name="LogOut" size={15} /> Ashore
-            </button>
-          </div>
-        </>
+        <div className={`sio-seg ${aboard ? 'aboard' : 'ashore'}`} role="group" aria-label="Sign in or out">
+          <span className="sio-seg-hl" aria-hidden="true" />
+          <button
+            type="button"
+            className="sio-seg-btn"
+            onClick={() => choose(ABOARD)}
+            disabled={busy}
+            aria-pressed={aboard}
+          >
+            <Icon name="Anchor" size={16} /> Aboard
+          </button>
+          <button
+            type="button"
+            className="sio-seg-btn"
+            onClick={() => choose(ASHORE)}
+            disabled={busy}
+            aria-pressed={!aboard}
+          >
+            <Icon name="LogOut" size={16} /> Ashore
+          </button>
+        </div>
       )}
     </div>
   );
