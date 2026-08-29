@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
-import Button from '../../../components/ui/Button';
+import ModalShell from '../../../components/ui/ModalShell';
+import '../../team-jobs-management/job-modals.css';
+import '../duty-sets.css';
 import { supabase } from '../../../lib/supabaseClient';
 
 // ── Color palette for duty templates ──
@@ -532,193 +534,142 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
   };
 
   return (
-    <div>
-      {/* Week Navigation */}
-      <div className="flex items-center justify-between mb-6">
-        <Button
-          variant="outline"
-          iconName="ChevronLeft"
-          onClick={() => setSelectedWeek(prev => prev - 1)}
-        >
-          Previous Week
-        </Button>
-        <h3 className="text-lg font-semibold text-foreground">
+    <div className="rc">
+      {/* Week navigation */}
+      <div className="rc-weeknav">
+        <button className="dsr-btn ghost" onClick={() => setSelectedWeek(prev => prev - 1)}>
+          <Icon name="ChevronLeft" size={15} />
+          <span className="hidden sm:inline">Previous</span>
+        </button>
+        <h3 className="rc-weeklabel">
           {weekDates?.[0]?.toLocaleDateString(dateLocale(), { month: 'long', day: 'numeric' })} –{' '}
           {weekDates?.[6]?.toLocaleDateString(dateLocale(), { month: 'long', day: 'numeric', year: 'numeric' })}
         </h3>
-        <div className="flex items-center gap-2">
+        <div className="rc-weekactions">
           <button
             onClick={handleClearWeek}
             disabled={clearingWeek || autoRotating}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-foreground text-sm font-medium hover:bg-muted transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+            className="dsr-btn ghost"
             title="Remove all duty assignments for this week"
           >
-            {clearingWeek ? (
-              <>
-                <LogoSpinner size={16} />
-                <span>Clearing...</span>
-              </>
-            ) : (
-              <>
-                <Icon name="Trash2" size={15} />
-                <span>Clear Week</span>
-              </>
-            )}
+            {clearingWeek ? <LogoSpinner size={15} /> : <Icon name="Trash2" size={15} />}
+            <span className="hidden sm:inline">{clearingWeek ? 'Clearing…' : 'Clear week'}</span>
           </button>
           <button
             onClick={handleAutoRotate}
             disabled={autoRotating || clearingWeek || !templates?.length || !displayedMembers?.length}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
+            className="dsr-btn primary"
             title="Auto-fill empty slots for this week with rotated duty assignments"
           >
-            {autoRotating ? (
-              <>
-                <LogoSpinner size={16} />
-                <span>Rotating...</span>
-              </>
-            ) : (
-              <>
-                <Icon name="RefreshCw" size={15} />
-                <span>Auto Rotate</span>
-              </>
-            )}
+            {autoRotating ? <LogoSpinner size={15} /> : <Icon name="RefreshCw" size={15} />}
+            <span>{autoRotating ? 'Rotating…' : 'Auto rotate'}</span>
           </button>
-          <Button
-            variant="outline"
-            iconName="ChevronRight"
-            iconPosition="right"
-            onClick={() => setSelectedWeek(prev => prev + 1)}
-          >
-            Next Week
-          </Button>
+          <button className="dsr-btn ghost" onClick={() => setSelectedWeek(prev => prev + 1)}>
+            <span className="hidden sm:inline">Next</span>
+            <Icon name="ChevronRight" size={15} />
+          </button>
         </div>
       </div>
-      {/* Color Legend */}
+
+      {/* Colour legend */}
       {templates?.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2 items-center">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mr-1">Legend:</span>
+        <div className="rc-legend">
+          <span className="rc-legend-label">Legend</span>
           {templates?.map((template, idx) => {
             const color = TEMPLATE_COLORS?.[idx % TEMPLATE_COLORS?.length];
             return (
               <span
                 key={template?.id}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border"
+                className="rc-legend-item"
                 style={{ backgroundColor: color?.bg, color: color?.text, borderColor: color?.border }}
               >
-                <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: color?.border }}
-                />
+                <span className="swatch" style={{ backgroundColor: color?.border }} />
                 {template?.name}
               </span>
             );
           })}
         </div>
       )}
-      {/* Calendar Grid */}
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-x-auto">
-        {/* Header Row */}
-        <div className="grid border-b border-border" style={{ gridTemplateColumns: '220px repeat(7, 1fr)' }}>
-          {/* Left column header with dropdown toggle */}
-          <div className="p-4 bg-muted/30 font-semibold text-sm text-foreground flex items-center justify-between border-r border-border relative">
-            <span>Team Member</span>
+
+      {/* Calendar grid */}
+      <div className="rc-grid">
+        {/* Header row */}
+        <div className="rc-row rc-row-head">
+          <div className="rc-cell rc-namecell rc-headcell">
+            <span className="rc-headlabel">Team member</span>
             <button
               onClick={() => setDropdownOpen(prev => !prev)}
-              className={`p-1.5 rounded transition-smooth ${
-                dropdownOpen ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'
-              }`}
+              className={`rc-editbtn${dropdownOpen ? ' on' : ''}`}
               title={dropdownOpen ? 'Close member selector' : 'Select members'}
             >
-              <Icon name={dropdownOpen ? 'Check' : 'Edit2'} size={14} />
+              <Icon name={dropdownOpen ? 'Check' : 'Users'} size={14} />
             </button>
-            {/* Dropdown */}
             {dropdownOpen && (
-              <div
-                className="absolute top-full left-0 z-50 mt-1 w-64 bg-card border border-border rounded-xl shadow-lg"
-                onClick={e => e?.stopPropagation()}
-              >
-                <div className="px-3 py-2 border-b border-border flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Team Members</span>
-                  <button
-                    onClick={() => setDropdownOpen(false)}
-                    className="p-0.5 hover:bg-muted rounded transition-smooth"
-                  >
-                    <Icon name="X" size={12} className="text-muted-foreground" />
+              <div className="rc-membermenu" onClick={e => e?.stopPropagation()}>
+                <div className="rc-membermenu-head">
+                  <span>Team members</span>
+                  <button onClick={() => setDropdownOpen(false)} title="Close">
+                    <Icon name="X" size={13} />
                   </button>
                 </div>
-                <div className="max-h-56 overflow-y-auto py-1">
+                <div className="rc-membermenu-list">
                   {loadingMembers ? (
-                    <div className="flex items-center justify-center py-4 gap-2">
-                      <LogoSpinner size={16} />
-                      <span className="text-xs text-muted-foreground">Loading...</span>
+                    <div className="jm-loading" style={{ padding: '20px 10px' }}>
+                      <LogoSpinner size={18} className="mx-auto mb-2" />
+                      <p>Loading…</p>
                     </div>
                   ) : members?.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-4 px-3">No members found in this department.</p>
+                    <p className="rc-membermenu-empty">No members found in this department.</p>
                   ) : (
                     members?.map(member => (
-                      <label
-                        key={member?.id}
-                        className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-smooth"
-                      >
+                      <label key={member?.id} className="rc-memberrow">
                         <input
                           type="checkbox"
                           checked={includedMemberIds?.includes(member?.id)}
                           onChange={() => toggleMember(member?.id)}
-                          className="w-4 h-4 accent-primary flex-shrink-0 rounded"
                         />
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                            <span className="text-[10px] font-semibold text-primary">
-                              {member?.name?.split(' ')?.map(n => n?.[0])?.slice(0, 2)?.join('')}
-                            </span>
-                          </div>
-                          <span className="text-sm text-foreground truncate">{member?.name}</span>
-                        </div>
+                        <span className="box">
+                          {includedMemberIds?.includes(member?.id) && <Icon name="Check" size={11} />}
+                        </span>
+                        <span className="jm-avatar">
+                          {member?.name?.split(' ')?.map(n => n?.[0])?.slice(0, 2)?.join('')}
+                        </span>
+                        <span className="name">{member?.name}</span>
                       </label>
                     ))
                   )}
                 </div>
-                <div className="px-3 py-2 border-t border-border">
-                  <span className="text-xs text-muted-foreground">
-                    {includedMemberIds?.length} of {members?.length} selected
-                  </span>
+                <div className="rc-membermenu-foot">
+                  {includedMemberIds?.length} of {members?.length} selected
                 </div>
               </div>
             )}
           </div>
           {dayNames?.map((day, idx) => (
-            <div key={day} className="p-4 bg-muted/30 text-center border-r border-border last:border-r-0">
-              <div className="font-semibold text-sm text-foreground">{day}</div>
-              <div className="text-xs text-muted-foreground">{weekDates?.[idx]?.getDate()}</div>
+            <div key={day} className="rc-cell rc-headcell rc-daycol">
+              <span className="rc-dayname">{day}</span>
+              <span className="rc-daynum">{weekDates?.[idx]?.getDate()}</span>
             </div>
           ))}
         </div>
 
         {/* Loading state */}
         {loadingMembers && (
-          <div className="p-8 text-center">
+          <div className="jm-loading">
             <LogoSpinner size={24} className="mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">Loading members...</p>
+            <p>Loading members…</p>
           </div>
         )}
 
         {/* Member rows */}
         {!loadingMembers && displayedMembers?.map(member => (
-          <div
-            key={member?.id}
-            className="grid border-b border-border hover:bg-muted/5 transition-smooth"
-            style={{ gridTemplateColumns: '220px repeat(7, 1fr)' }}
-          >
-            {/* Member name cell */}
-            <div className="p-4 flex items-center gap-2 border-r border-border">
-              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-semibold text-primary">
-                  {member?.name?.split(' ')?.map(n => n?.[0])?.slice(0, 2)?.join('')}
-                </span>
-              </div>
-              <span className="text-sm font-medium text-foreground truncate">{member?.name}</span>
+          <div key={member?.id} className="rc-row">
+            <div className="rc-cell rc-namecell">
+              <span className="jm-avatar lg">
+                {member?.name?.split(' ')?.map(n => n?.[0])?.slice(0, 2)?.join('')}
+              </span>
+              <span className="rc-membername">{member?.name}</span>
             </div>
-            {/* Day cells */}
             {weekDates?.map((date, idx) => {
               const assignment = getAssignmentForCell(member?.id, date);
               const templateId = assignment?.duty_set_template_id;
@@ -728,24 +679,19 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
                 <div
                   key={idx}
                   onClick={() => handleDayClick(member?.id, date)}
-                  className="border-r border-border last:border-r-0 min-h-[56px] flex items-center justify-center cursor-pointer transition-smooth group relative"
+                  className="rc-cell rc-daycell"
                   style={color ? {
                     backgroundColor: color?.bg,
                     borderLeft: `3px solid ${color?.border}`,
-                  } : {}}
-                  title={templateName ? `${templateName} — click to change` : `Assign duty to ${member?.name} on ${date?.toLocaleDateString(dateLocale())}`}
+                  } : undefined}
+                  title={templateName
+                    ? `${templateName} — click to change`
+                    : `Assign duty to ${member?.name} on ${date?.toLocaleDateString(dateLocale())}`}
                 >
                   {templateName && color ? (
-                    <div className="w-full h-full flex items-center justify-center px-2 py-1.5">
-                      <span
-                        className="text-xs font-semibold text-center leading-tight w-full"
-                        style={{ color: color?.text }}
-                      >
-                        {templateName}
-                      </span>
-                    </div>
+                    <span className="rc-dutyname" style={{ color: color?.text }}>{templateName}</span>
                   ) : (
-                    <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-60 transition-smooth">+</span>
+                    <span className="rc-addhint"><Icon name="Plus" size={13} /></span>
                   )}
                 </div>
               );
@@ -755,16 +701,18 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
 
         {/* Empty state */}
         {!loadingMembers && displayedMembers?.length === 0 && (
-          <div className="p-12 text-center">
-            <Icon name="Users" size={40} className="mx-auto mb-3 text-muted-foreground opacity-30" />
-            <p className="text-sm font-medium text-foreground mb-1">No members to display</p>
-            <p className="text-xs text-muted-foreground">
+          <div className="jm-empty">
+            <div className="jm-empty-ico"><Icon name="Users" size={20} /></div>
+            <p className="jm-empty-t">No members to display</p>
+            <p className="jm-empty-s">
               {members?.length === 0
-                ? 'No active members found in this department.' : 'Use the edit button above to select members to include.'}
+                ? 'No active members found in this department.'
+                : 'Use the members button above to choose who appears here.'}
             </p>
           </div>
         )}
       </div>
+
       {/* Duty Set Assignment Modal */}
       {assignModal && (
         <DutySetAssignModal
@@ -786,83 +734,71 @@ const DutySetAssignModal = ({ member, date, templates, currentAssignment, saving
   const dateLabel = date?.toLocaleDateString(dateLocale(), { weekday: 'long', month: 'long', day: 'numeric' });
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-6"
-      onClick={onClose}
-    >
-      <div
-        className="bg-card rounded-xl border border-border shadow-lg max-w-md w-full"
-        onClick={e => e?.stopPropagation()}
-      >
-        <div className="p-5 border-b border-border flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-foreground">Assign Duty Set</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {member?.name} · {dateLabel}
-            </p>
-          </div>
-          <button onClick={onClose} className="p-1 hover:bg-muted rounded transition-smooth">
-            <Icon name="X" size={18} className="text-muted-foreground" />
-          </button>
+    <ModalShell onClose={onClose} isBusy={saving} panelClassName="jm-panel sm">
+      <div className="jm-head">
+        <div>
+          <p className="jm-eyebrow">Rotation</p>
+          <h3 className="jm-title">Assign a duty set</h3>
+          <p className="jm-sub">{member?.name} · {dateLabel}</p>
         </div>
+        <button onClick={onClose} className="jm-x" title="Close">
+          <Icon name="X" size={18} />
+        </button>
+      </div>
 
-        <div className="p-5 space-y-2 max-h-80 overflow-y-auto">
-          {templates?.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">No templates available for this department.</p>
-          )}
-          {templates?.map((template, idx) => {
-            const isSelected = currentAssignment?.duty_set_template_id === template?.id;
-            const color = TEMPLATE_COLORS?.[idx % TEMPLATE_COLORS?.length];
-            return (
-              <button
-                key={template?.id}
-                onClick={() => onSelect(template?.id)}
-                disabled={saving}
-                className="w-full text-left px-4 py-3 rounded-lg border-2 transition-smooth"
-                style={{
-                  backgroundColor: isSelected ? color?.bg : 'transparent',
-                  borderColor: isSelected ? color?.border : '#e5e7eb',
-                }}
-              >
-                <div className="flex items-center gap-3">
-                  {/* Color swatch */}
-                  <span
-                    className="w-4 h-4 rounded-full flex-shrink-0 border"
-                    style={{ backgroundColor: color?.border, borderColor: color?.border }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold" style={{ color: isSelected ? color?.text : undefined }}>
+      <div className="jm-body">
+        {templates?.length === 0 ? (
+          <div className="jm-empty">
+            <div className="jm-empty-ico"><Icon name="FileText" size={20} /></div>
+            <p className="jm-empty-t">No templates yet</p>
+            <p className="jm-empty-s">Create a duty set template for this department first.</p>
+          </div>
+        ) : (
+          <div className="rc-picklist">
+            {templates?.map((template, idx) => {
+              const isSelected = currentAssignment?.duty_set_template_id === template?.id;
+              const color = TEMPLATE_COLORS?.[idx % TEMPLATE_COLORS?.length];
+              return (
+                <button
+                  key={template?.id}
+                  onClick={() => onSelect(template?.id)}
+                  disabled={saving}
+                  className={`rc-pick${isSelected ? ' on' : ''}`}
+                  style={isSelected ? { backgroundColor: color?.bg, borderColor: color?.border } : undefined}
+                >
+                  <span className="swatch" style={{ backgroundColor: color?.border }} />
+                  <span className="main">
+                    <span className="t" style={isSelected ? { color: color?.text } : undefined}>
                       {template?.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{template?.category} · {template?.taskCount} tasks</p>
-                  </div>
-                  {isSelected && <Icon name="Check" size={16} style={{ color: color?.text }} className="flex-shrink-0" />}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {currentAssignment && (
-          <div className="px-5 pb-5">
-            <button
-              onClick={() => onSelect(null)}
-              disabled={saving}
-              className="w-full px-4 py-2 rounded-lg border border-destructive/40 text-destructive text-sm hover:bg-destructive/10 transition-smooth"
-            >
-              Remove Assignment
-            </button>
-          </div>
-        )}
-
-        {saving && (
-          <div className="px-5 pb-5 flex items-center justify-center gap-2">
-            <LogoSpinner size={16} />
-            <span className="text-xs text-muted-foreground">Saving...</span>
+                    </span>
+                    <span className="s">
+                      {template?.category} · {template?.taskCount ?? template?.tasks?.length ?? 0} tasks
+                    </span>
+                  </span>
+                  {isSelected && <Icon name="Check" size={15} style={{ color: color?.text }} />}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
-    </div>
+
+      {(currentAssignment || saving) && (
+        <div className="jm-foot">
+          {saving ? (
+            <span className="rc-saving">
+              <span className="jm-spin sm" />
+              Saving…
+            </span>
+          ) : (
+            <button className="jm-btn danger wide" onClick={() => onSelect(null)} disabled={saving}>
+              <Icon name="Trash2" size={15} />
+              Remove assignment
+            </button>
+          )}
+        </div>
+      )}
+    </ModalShell>
   );
 };
 
