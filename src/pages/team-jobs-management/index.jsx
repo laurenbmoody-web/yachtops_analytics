@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { dateLocale } from '../../utils/dateFormat';
+import { isoToUK } from '../../utils/dateFormat';
+import '../../styles/editorial.css';
+import './team-jobs.css';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
-import Button from '../../components/ui/Button';
 
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
@@ -1076,7 +1077,7 @@ const TeamJobsManagement = () => {
   // Compute per-board shift offset during drag for visual push effect
   const getBoardShiftStyle = (boardIdx, totalBoards) => {
     if (!dragMode || !draggingBoardId || !dragOverBoardId) return {};
-    const SHIFT = 308; // 288px (w-72) + 20px gap
+    const SHIFT = 316; // 296px column (.tj-col) + 20px gap (.tj-boards)
     const fromIdx = orderedBoards?.findIndex(b => b?.id === draggingBoardId);
     const toIdx = orderedBoards?.findIndex(b => b?.id === dragOverBoardId);
     if (fromIdx === -1 || toIdx === -1) return {};
@@ -1131,6 +1132,91 @@ const TeamJobsManagement = () => {
 
   // ── Move Board state ──
   const [moveBoardId, setMoveBoardId] = useState(null);
+
+  // ── Toolbar: search / filter / sort (editorial toolbar, mirrors Inventory) ──
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilters, setActiveFilters] = useState({ priority: [], state: [], assignment: [], source: [] });
+  const [sortBy, setSortBy] = useState('due-asc');
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const filterPanelRef = useRef(null);
+  const sortMenuRef = useRef(null);
+
+  const SORT_OPTIONS = [
+    { value: 'due-asc', label: 'Due date (soonest)' },
+    { value: 'due-desc', label: 'Due date (latest)' },
+    { value: 'priority', label: 'Priority (high first)' },
+    { value: 'title-asc', label: 'Title (A \u2192 Z)' },
+    { value: 'created-desc', label: 'Recently added' },
+  ];
+  const currentSortLabel = SORT_OPTIONS?.find(o => o?.value === sortBy)?.label || 'Sort';
+
+  const PRIORITY_OPTIONS = [
+    { value: 'high', label: 'High', swatch: '#C0453C' },
+    { value: 'medium', label: 'Medium', swatch: '#C08A2E' },
+    { value: 'low', label: 'Low', swatch: '#4F8A5B' },
+    { value: 'none', label: 'None', swatch: '#C9CED6' },
+  ];
+  const STATE_OPTIONS = [
+    { value: 'open', label: 'Open' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'overdue', label: 'Overdue' },
+    { value: 'today', label: 'Due today' },
+    { value: 'nodate', label: 'No due date' },
+  ];
+  const ASSIGNMENT_OPTIONS = [
+    { value: 'mine', label: 'Assigned to me' },
+    { value: 'others', label: 'Assigned to others' },
+    { value: 'unassigned', label: 'Unassigned' },
+  ];
+  const SOURCE_OPTIONS = [
+    { value: 'rotation', label: 'Rotation' },
+    { value: 'manual', label: 'Added manually' },
+  ];
+  const FILTER_GROUPS = [
+    { key: 'priority', label: 'Priority', options: PRIORITY_OPTIONS },
+    { key: 'state', label: 'Status', options: STATE_OPTIONS },
+    { key: 'assignment', label: 'Assignment', options: ASSIGNMENT_OPTIONS },
+    { key: 'source', label: 'Source', options: SOURCE_OPTIONS },
+  ];
+
+  const toggleFilter = (groupKey, value) => {
+    setActiveFilters(prev => {
+      const current = prev?.[groupKey] || [];
+      const next = current?.includes(value)
+        ? current?.filter(v => v !== value)
+        : [...current, value];
+      return { ...prev, [groupKey]: next };
+    });
+  };
+  const clearFilters = () => setActiveFilters({ priority: [], state: [], assignment: [], source: [] });
+
+  // Flattened chips for the active-filter row under the toolbar
+  const activeFilterChips = FILTER_GROUPS?.flatMap(g =>
+    (activeFilters?.[g?.key] || [])?.map(v => ({
+      groupKey: g?.key,
+      value: v,
+      label: g?.options?.find(o => o?.value === v)?.label || v,
+    }))
+  );
+  const hasActiveFilters = activeFilterChips?.length > 0;
+  // True when the empty states should read "nothing matched" rather than "nothing here".
+  const hasToolbarQuery = hasActiveFilters || !!searchQuery?.trim();
+
+  // Close the filter panel / sort menu on an outside click
+  useEffect(() => {
+    if (!showFilterPanel && !showSortMenu) return undefined;
+    const onDocDown = (e) => {
+      if (showFilterPanel && filterPanelRef?.current && !filterPanelRef?.current?.contains(e?.target)) {
+        setShowFilterPanel(false);
+      }
+      if (showSortMenu && sortMenuRef?.current && !sortMenuRef?.current?.contains(e?.target)) {
+        setShowSortMenu(false);
+      }
+    };
+    document?.addEventListener('mousedown', onDocDown);
+    return () => document?.removeEventListener('mousedown', onDocDown);
+  }, [showFilterPanel, showSortMenu]);
 
   // Handle Move Board: reorder to a specific position
   const handleMoveBoard = useCallback((boardId, targetIndex) => {
@@ -1540,6 +1626,96 @@ const TeamJobsManagement = () => {
     return `${y}-${m}-${day}`;
   })();
 
+  // ── Toolbar pipeline: search + filters + sort, applied to every column ──
+  // Every list the boards render is passed through this so the search box,
+  // filter chips and sort order act on the whole page, and the column counts
+  // agree with what is actually listed.
+  const jobDueDate = (item) => {
+    const raw = item?.due_date ?? item?.dueDate ?? item?.due_date_str ?? null;
+    return raw ? String(raw)?.split('T')?.[0] : null;
+  };
+  const jobAssignee = (item) => (
+    item?.assigned_to ?? item?.assignedTo ?? (Array.isArray(item?.assignees) ? item?.assignees?.[0] : null) ?? null
+  );
+  const PRIORITY_RANK = { high: 0, medium: 1, low: 2 };
+
+  const applyToolbar = useCallback((items) => {
+    let out = items || [];
+    const q = searchQuery?.trim()?.toLowerCase();
+    if (q) {
+      out = out?.filter(item => {
+        const haystack = [
+          item?.title, item?.name, item?.description,
+          item?.priority, item?.source,
+        ]?.filter(Boolean)?.join(' ')?.toLowerCase();
+        return haystack?.includes(q);
+      });
+    }
+
+    const { priority = [], state = [], assignment = [], source = [] } = activeFilters || {};
+
+    if (priority?.length > 0) {
+      out = out?.filter(item => priority?.includes(item?.priority || 'none'));
+    }
+
+    if (state?.length > 0) {
+      out = out?.filter(item => {
+        const completed = item?.status === 'completed';
+        const due = jobDueDate(item);
+        return state?.some(s2 => {
+          if (s2 === 'open') return !completed;
+          if (s2 === 'completed') return completed;
+          if (s2 === 'overdue') return !completed && !!due && due < todayLocal;
+          if (s2 === 'today') return !!due && due === todayLocal;
+          if (s2 === 'nodate') return !due;
+          return false;
+        });
+      });
+    }
+
+    if (assignment?.length > 0) {
+      out = out?.filter(item => {
+        const who = jobAssignee(item);
+        return assignment?.some(a => {
+          if (a === 'mine') return !!who && who === currentUserId;
+          if (a === 'others') return !!who && who !== currentUserId;
+          if (a === 'unassigned') return !who;
+          return false;
+        });
+      });
+    }
+
+    if (source?.length > 0) {
+      out = out?.filter(item => {
+        const isRotation = item?.source === 'rotation';
+        return source?.some(s3 => (s3 === 'rotation' ? isRotation : !isRotation));
+      });
+    }
+
+    const sorted = [...(out || [])];
+    sorted?.sort((a, b) => {
+      if (sortBy === 'title-asc') {
+        return String(a?.title || a?.name || '')?.localeCompare(String(b?.title || b?.name || ''));
+      }
+      if (sortBy === 'priority') {
+        const ra = PRIORITY_RANK?.[a?.priority] ?? 3;
+        const rb = PRIORITY_RANK?.[b?.priority] ?? 3;
+        return ra - rb;
+      }
+      if (sortBy === 'created-desc') {
+        return String(b?.createdAt || b?.created_at || '')?.localeCompare(String(a?.createdAt || a?.created_at || ''));
+      }
+      // due-asc / due-desc — jobs without a due date always sort last
+      const da = jobDueDate(a);
+      const db = jobDueDate(b);
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return sortBy === 'due-desc' ? db?.localeCompare(da) : da?.localeCompare(db);
+    });
+    return sorted;
+  }, [searchQuery, activeFilters, sortBy, todayLocal, currentUserId]);
+
   // Open items: not archived, no board, due today or overdue — only jobs assigned to current user
   const openItems = allItems?.filter(item => {
     if (item?.archived === true) return false;
@@ -1577,7 +1753,7 @@ const TeamJobsManagement = () => {
 
   // My Jobs: jobs assigned to current user, due today or overdue, still open (not completed)
   // Includes rotation jobs but only if due today
-  const myJobsItems = allItems?.filter(item => {
+  const myJobsItemsRaw = allItems?.filter(item => {
     if (item?.archived === true) return false;
     // Allow completed jobs only if completed today (they stay visible until next day/refresh)
     if (item?.status === 'completed') {
@@ -1619,7 +1795,7 @@ const TeamJobsManagement = () => {
 
   // Open jobs for the currently selected department (used when viewing another dept)
   // Shows ALL open jobs for that dept due today or earlier (not just user's jobs)
-  const openJobsForSelectedDept = allItems?.filter(item => {
+  const openJobsForSelectedDeptRaw = allItems?.filter(item => {
     if (item?.archived === true) return false;
     if (item?.status === 'completed') {
       // Show completed-today jobs
@@ -1644,7 +1820,7 @@ const TeamJobsManagement = () => {
     return true;
   });
 
-  const getBoardItems = (boardId) => {
+  const getBoardItemsRaw = (boardId) => {
     return allItems?.filter(item => {
       if (item?.board !== boardId || item?.archived) return false;
       // Hide completed jobs that have been refreshed away (user clicked Refresh or new day)
@@ -1685,7 +1861,7 @@ const TeamJobsManagement = () => {
   };
 
   // For ALL view: get My Jobs for a specific department (assigned to current user, no board)
-  const getMyJobsForDept = (deptId) => {
+  const getMyJobsForDeptRaw = (deptId) => {
     return mergedCards?.filter(item => {
       if (item?.archived === true) return false;
       // Allow completed jobs only if completed today (they stay visible until next day/refresh)
@@ -1725,7 +1901,7 @@ const TeamJobsManagement = () => {
   };
 
   // For ALL view: get all open unassigned/unboarded jobs for a department
-  const getOpenJobsForDept = (deptId) => {
+  const getOpenJobsForDeptRaw = (deptId) => {
     return mergedCards?.filter(item => {
       if (item?.archived) return false;
       if (item?.status === 'completed') return false;
@@ -1744,14 +1920,13 @@ const TeamJobsManagement = () => {
     });
   };
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high': return 'bg-red-500';
-      case 'medium': return 'bg-yellow-500';
-      case 'low': return 'bg-green-500';
-      default: return 'bg-gray-400';
-    }
-  };
+  // Toolbar-aware views of every column source — search / filters / sort are
+  // applied here so the lists and their header counts stay in agreement.
+  const myJobsItems = applyToolbar(myJobsItemsRaw);
+  const openJobsForSelectedDept = applyToolbar(openJobsForSelectedDeptRaw);
+  const getBoardItems = (boardId) => applyToolbar(getBoardItemsRaw(boardId));
+  const getMyJobsForDept = (deptId) => applyToolbar(getMyJobsForDeptRaw(deptId));
+  const getOpenJobsForDept = (deptId) => applyToolbar(getOpenJobsForDeptRaw(deptId));
 
   const renderJobCard = (item) => {
     const isDutySet = item?.type === 'dutyset';
@@ -1769,83 +1944,105 @@ const TeamJobsManagement = () => {
     const showCheckbox = !isDutySet && canCompleteThis;
     // Show edit pen only when user can edit department AND job is not from rotation AND tier is COMMAND/CHIEF/HOD
     const isEditableTier = effectiveTier === 'COMMAND' || effectiveTier === 'CHIEF' || effectiveTier === 'HOD';
-    const isPrivateBoard = isPrivateBoardOwner(item, currentUserId);
     const showEditPen = !isDutySet && _canEditDept && item?.source !== 'rotation' && isEditableTier;
     const isCheckboxLoading = completingJobId === item?.id;
+    const due = jobDueDate(item);
+    const isOverdue = !isCompleted && !!due && due < todayLocal;
+    const priorityClass = ['high', 'medium', 'low']?.includes(item?.priority) ? item?.priority : 'none';
 
     return (
       <div
         key={item?.id}
         onClick={() => !isDutySet && handleCardClick(item)}
-        className={`bg-background rounded-xl border border-border p-3.5 hover:shadow-sm transition-all cursor-pointer mb-2.5 ${
-          isCompleted ? 'opacity-60' : ''
-        }`}
+        className={`tj-card${isCompleted ? ' done' : ''}`}
       >
-        <div className="flex items-start gap-2 mb-2">
-          {/* Checkbox for non-dutyset jobs — only when canComplete */}
+        <div className="tj-card-row">
+          {/* Completion checkbox — only when canComplete */}
           {showCheckbox && (
             <button
               onClick={(e) => handleCompleteJob(item?.id, e)}
               disabled={isCheckboxLoading}
-              className="flex-shrink-0 mt-0.5 focus:outline-none"
+              className="tj-check"
               title={isCompleted ? 'Mark as open' : 'Mark as complete'}
             >
               {isCheckboxLoading ? (
-                <div className="w-4 h-4 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
-              ) : isCompleted ? (
-                <div className="w-4 h-4 rounded border-2 border-green-500 bg-green-500 flex items-center justify-center">
-                  <Icon name="Check" size={10} className="text-white" />
-                </div>
+                <span className="spin" />
               ) : (
-                <div className="w-4 h-4 rounded border-2 border-border hover:border-primary transition-colors" />
+                <span className={`box${isCompleted ? ' on' : ''}`}>
+                  {isCompleted && <Icon name="Check" size={11} />}
+                </span>
               )}
             </button>
           )}
 
           {isDutySet ? (
-            <Icon name="ListChecks" size={14} className="text-primary flex-shrink-0 mt-0.5" />
+            <Icon name="ListChecks" size={14} style={{ color: '#C65A1A', flexShrink: 0, marginTop: 2 }} />
           ) : (
-            !showCheckbox && item?.priority && (
-              <div className={`w-2 h-2 rounded-full ${getPriorityColor(item?.priority)} flex-shrink-0 mt-1.5`} />
-            )
+            <span className={`tj-dot ${priorityClass}`} title={`${item?.priority || 'No'} priority`} />
           )}
 
-          {/* Priority dot (when checkbox shown, show it after) */}
-          {!isDutySet && showCheckbox && item?.priority && (
-            <div className={`w-2 h-2 rounded-full ${getPriorityColor(item?.priority)} flex-shrink-0 mt-1.5`} />
-          )}
+          {/* Title + meta share a column so the meta line stays aligned with
+              the title rather than hanging under the checkbox. */}
+          <div className="tj-card-main">
+            <p className="tj-card-title">{isDutySet ? item?.name : item?.title}</p>
 
-          <p className={`text-sm font-medium text-foreground line-clamp-2 flex-1 ${
-            isCompleted ? 'line-through text-muted-foreground' : ''
-          }`}>
-            {isDutySet ? item?.name : item?.title}
-          </p>
+            {(due || item?.source === 'rotation' || item?.is_private) && (
+              <div className="tj-card-meta">
+                {due && (
+                  <span className={`due${isOverdue ? ' overdue' : ''}`}>
+                    <Icon name={isOverdue ? 'AlertTriangle' : 'Calendar'} size={11} />
+                    {isoToUK(due)}
+                  </span>
+                )}
+                {item?.source === 'rotation' && (
+                  <span className="tj-pill rotation">
+                    <Icon name="RefreshCw" size={9} />
+                    Rotation
+                  </span>
+                )}
+                {item?.is_private && (
+                  <span className="tj-pill private">
+                    <Icon name="Lock" size={9} />
+                    Private
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
 
-          {/* Edit pen icon — only when canEditDepartment */}
+          {/* Edit pen — only when canEditDepartment */}
           {showEditPen && (
             <button
               onClick={(e) => { e?.stopPropagation(); setEditingJob(item); }}
-              className="flex-shrink-0 p-1 rounded hover:bg-muted transition-colors"
+              className="tj-pen"
               title="Edit job"
             >
-              <Icon name="Pencil" size={12} className="text-muted-foreground hover:text-foreground" />
+              <Icon name="Pencil" size={12} />
             </button>
           )}
         </div>
-
-        {item?.dueDate && (
-          <div className="flex items-center gap-1 mt-1.5">
-            <Icon name="Calendar" size={12} className="text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">
-              {new Date(item?.dueDate)?.toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric' })}
-            </span>
-          </div>
-        )}
       </div>
     );
   };
 
-  // Render items in a column: open first, then a divider, then completed
+  // Shared column bodies — one loading and one empty treatment across every
+  // column so the boards read as a single editorial system.
+  const renderColumnLoading = () => (
+    <div className="tj-loading">
+      <div className="spin" />
+      <p>Loading jobs…</p>
+    </div>
+  );
+
+  const renderColumnEmpty = (icon, title, subtitle) => (
+    <div className="tj-empty">
+      <div className="tj-empty-ico"><Icon name={icon} size={17} /></div>
+      <p className="tj-empty-t">{title}</p>
+      {subtitle && <p className="tj-empty-s">{subtitle}</p>}
+    </div>
+  );
+
+  // Render items in a column: open first, then a hairline rule, then completed
   const renderColumnItems = (items) => {
     const openJobs = items?.filter(i => i?.status !== 'completed');
     const completedJobs = items?.filter(i => i?.status === 'completed');
@@ -1854,14 +2051,7 @@ const TeamJobsManagement = () => {
         <div>{openJobs?.map(renderJobCard)}</div>
         {completedJobs?.length > 0 && (
           <>
-            <div className="flex items-center gap-2 my-3">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                <Icon name="CheckCircle" size={11} className="text-green-500" />
-                Completed today ({completedJobs?.length})
-              </span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
+            <div className="tj-donerule">Completed today ({completedJobs?.length})</div>
             <div>{completedJobs?.map(renderJobCard)}</div>
           </>
         )}
@@ -1911,209 +2101,332 @@ const TeamJobsManagement = () => {
     }
   };
 
+  // ── Page meta strip figures (scoped to what the page is showing) ──
+  const pageMeta = (() => {
+    const scoped = (allItems || [])?.filter(item => {
+      if (item?.archived) return false;
+      const deptId = item?.department_id ?? item?.departmentId ?? null;
+      if (departmentFilter?.id && departmentFilter?.id !== 'ALL' && deptId && deptId !== departmentFilter?.id) return false;
+      return true;
+    });
+    const open = scoped?.filter(i => i?.status !== 'completed');
+    const due = (i) => {
+      const raw = i?.due_date ?? i?.dueDate ?? i?.due_date_str ?? null;
+      return raw ? String(raw)?.split('T')?.[0] : null;
+    };
+    return {
+      open: open?.length || 0,
+      today: open?.filter(i => due(i) === todayLocal)?.length || 0,
+      overdue: open?.filter(i => { const d = due(i); return !!d && d < todayLocal; })?.length || 0,
+      done: scoped?.filter(i => i?.status === 'completed')?.length || 0,
+    };
+  })();
+
+  // Headline qualifier reflects the state of the board, editorial-style.
+  const headlineQualifier = pageMeta?.overdue > 0
+    ? 'catching up'
+    : (pageMeta?.open === 0 ? 'all clear' : 'in motion');
+
+  const scopeLabel = departmentFilter?.id && departmentFilter?.id !== 'ALL'
+    ? (departmentFilter?.label || 'Department')
+    : 'All departments';
+
   return (
     <div
-      className="min-h-screen bg-background transition-colors duration-300"
-      onClick={(e) => {
+      className="tj-page"
+      onClick={() => {
         setShowBoardMenu(null);
         setShowDeptDropdown(false);
       }}
     >
       <Header />
-      <main className="p-6 max-w-[1800px] mx-auto">
+      <div className="tj-wrap">
         {/* Loading skeleton while tenantMember is loading */}
         {tierLoading ? (
-          <div className="flex flex-col gap-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="h-8 w-32 bg-muted rounded animate-pulse mb-2" />
-                <div className="h-4 w-56 bg-muted rounded animate-pulse" />
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-9 w-36 bg-muted rounded animate-pulse" />
-                <div className="h-9 w-28 bg-muted rounded animate-pulse" />
+          <>
+            <div className="tj-skel" style={{ height: 12, width: 240, marginBottom: 14 }} />
+            <div className="tj-header">
+              <div className="tj-skel" style={{ height: 44, width: 340 }} />
+              <div className="tj-actions">
+                <div className="tj-skel" style={{ height: 40, width: 160 }} />
+                <div className="tj-skel" style={{ height: 40, width: 124 }} />
               </div>
             </div>
-            <div className="flex gap-5">
+            <div className="tj-skel" style={{ height: 44, width: '100%', borderRadius: 999, marginBottom: 18 }} />
+            <div className="tj-boards">
               {[1, 2, 3]?.map(i => (
-                <div key={i} className="flex-shrink-0 w-72 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-                  <div className="px-4 py-4 border-b border-border">
-                    <div className="h-5 w-24 bg-muted rounded animate-pulse" />
+                <div key={i} className="tj-col">
+                  <div className="tj-col-head">
+                    <div className="tj-skel" style={{ height: 18, width: 108 }} />
                   </div>
-                  <div className="p-4 space-y-3">
+                  <div className="tj-col-body">
                     {[1, 2, 3]?.map(j => (
-                      <div key={j} className="h-16 bg-muted/40 rounded-xl animate-pulse" />
+                      <div key={j} className="tj-skel" style={{ height: 58, borderRadius: 12, marginBottom: 9 }} />
                     ))}
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </>
         ) : (
           <>
-        {/* Page Header */}
-        <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
+        {/* Meta strip — canonical editorial inline data */}
+        <p className="editorial-meta tj-metastrip">
+          <span className="dot">●</span>
+          <span>Jobs</span>
+          <span className="bar" />
+          <span className="muted">{scopeLabel}</span>
+          <span className="bar" />
+          <span>{pageMeta?.open} Open</span>
+          <span className="bar" />
+          <span className="muted">{pageMeta?.today} Due today</span>
+          <span className="bar" />
+          <span className={pageMeta?.overdue > 0 ? 'alert' : 'muted'}>{pageMeta?.overdue} Overdue</span>
+          <span className="bar" />
+          <span className="muted">{pageMeta?.done} Completed today</span>
+        </p>
+
+        {/* Header Row */}
+        <div className="tj-header">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Jobs</h1>
-            <p className="text-sm text-muted-foreground mt-1">Manage all team tasks and boards</p>
+            <h1 className="tj-headline">
+              JOBS<span className="punc">,</span> <em>{headlineQualifier}</em><span className="punc">.</span>
+            </h1>
+            <p className="tj-subtitle">Every team task and board, in one place.</p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Department Filter - COMMAND tier only */}
-            {isCommand(effectiveTier) && (
-              <div className="relative" onClick={e => e?.stopPropagation()}>
-                <button
-onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!showDeptDropdown)}
-                disabled={!canToggleDept || departments?.length === 0 || deptLoading}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card text-sm text-foreground transition-colors ${
-                  canToggleDept && departments?.length > 0 ? 'hover:bg-muted cursor-pointer' : 'opacity-60 cursor-not-allowed'
-                }`}
+          <div className="tj-actions">
+            {/* Pending Acceptance — visible to COMMAND and CHIEF only */}
+            {_canSeePending && (
+              <button
+                onClick={() => setShowReviewQueue(true)}
+                className="tj-btn accent"
+                title="Jobs waiting on your acceptance"
               >
-                <span className="text-muted-foreground">Department:</span>
-                {deptLoading ? (
-                  <span className="font-medium text-muted-foreground">Loading...</span>
-                ) : departments?.length === 0 ? (
-                  <span className="font-medium text-muted-foreground">No departments configured</span>
-                ) : (
-                  <span className="font-medium">{departmentFilter?.label || 'All'}</span>
-                )}
-                {canToggleDept && departments?.length > 0 && (
-                  <Icon name="ChevronDown" size={14} className="text-muted-foreground" />
-                )}
+                <Icon name="Inbox" size={15} />
+                <span>Pending</span>
+                <span className="tj-btn-count">{pendingReviewCount}</span>
               </button>
-{showDeptDropdown && deptDropdownOptions?.length > 0 && (
-                <div className="absolute top-full left-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-20 min-w-[180px]">
-{deptDropdownOptions?.map(opt => (
+            )}
+
+            {/* Archive — COMMAND and CHIEF only */}
+            {canShowArchive && (
+              <button
+                onClick={() => setShowArchiveModal(true)}
+                className="tj-btn ghost icon"
+                title="Job history archive"
+              >
+                <Icon name="Archive" size={16} />
+              </button>
+            )}
+
+            {/* Refresh — COMMAND and CHIEF only */}
+            {canShowArchive && (
+              <button
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                className="tj-btn ghost icon"
+                title="Refresh jobs and archive completed"
+              >
+                <Icon name="RefreshCw" size={16} className={isRefreshing ? 'animate-spin' : ''} />
+              </button>
+            )}
+
+            <button
+              onClick={() => navigate('/duty-sets-rotation-management')}
+              className="tj-btn ghost"
+              title="Manage the duty rotation"
+            >
+              <Icon name="CalendarDays" size={15} />
+              <span className="hidden sm:inline">Manage rotation</span>
+            </button>
+
+            {/* Create Job — gated by canAddJob */}
+            {_canAddJob && (
+              <button onClick={() => setShowComprehensiveModal(true)} className="tj-btn primary">
+                <Icon name="Plus" size={15} />
+                Create job
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Toolbar — search / filter / sort / department */}
+        <div className="tj-toolbar">
+          <div className="tj-toolbar-row">
+            <div className="tj-search">
+              <Icon name="Search" size={15} />
+              <input
+                type="text"
+                placeholder="Search all jobs — title, description, priority…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e?.target?.value)}
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery('')} className="tj-search-clear" title="Clear search">
+                  <Icon name="X" size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Department — COMMAND tier only */}
+            {isCommand(effectiveTier) && (
+              <div className="tj-menuwrap" onClick={e => e?.stopPropagation()}>
+                <button
+                  onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!showDeptDropdown)}
+                  disabled={!canToggleDept || departments?.length === 0 || deptLoading}
+                  className="tj-tool"
+                >
+                  <Icon name="Building2" size={15} />
+                  <span className="tj-tool-lead hidden sm:inline">Dept</span>
+                  <span>
+                    {deptLoading
+                      ? 'Loading…'
+                      : departments?.length === 0
+                        ? 'None configured'
+                        : (departmentFilter?.label || 'All')}
+                  </span>
+                  {canToggleDept && departments?.length > 0 && (
+                    <Icon name="ChevronDown" size={13} className={showDeptDropdown ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                  )}
+                </button>
+                {showDeptDropdown && deptDropdownOptions?.length > 0 && (
+                  <div className="tj-menu left">
+                    {deptDropdownOptions?.map(opt => (
+                      <button
+                        key={opt?.id}
+                        onClick={() => handleDeptSelect(opt)}
+                        className={`tj-menuitem${departmentFilter?.id === opt?.id ? ' on' : ''}`}
+                      >
+                        <span>{opt?.label}</span>
+                        {opt?.viewOnly
+                          ? <span className="hint">view only</span>
+                          : (departmentFilter?.id === opt?.id && <Icon name="Check" size={14} />)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Filter */}
+            <div className="tj-menuwrap" ref={filterPanelRef} onClick={e => e?.stopPropagation()}>
+              <button
+                onClick={() => { setShowFilterPanel(prev => !prev); setShowSortMenu(false); }}
+                className={`tj-tool${hasActiveFilters ? ' on' : ''}`}
+              >
+                <Icon name="SlidersHorizontal" size={15} />
+                <span className="hidden sm:inline">Filter</span>
+                {hasActiveFilters && <span className="tj-tool-count">{activeFilterChips?.length}</span>}
+              </button>
+              {showFilterPanel && (
+                <div className="tj-filterpanel">
+                  {FILTER_GROUPS?.map(group => (
+                    <div key={group?.key} className="tj-fp-sect">
+                      <p className="tj-fp-label">{group?.label}</p>
+                      <div className="tj-fp-opts">
+                        {group?.options?.map(opt => {
+                          const on = (activeFilters?.[group?.key] || [])?.includes(opt?.value);
+                          return (
+                            <button
+                              key={opt?.value}
+                              onClick={() => toggleFilter(group?.key, opt?.value)}
+                              className={`tj-fp-opt${on ? ' on' : ''}`}
+                            >
+                              {opt?.swatch && <span className="swatch" style={{ background: on ? '#FFFFFF' : opt?.swatch }} />}
+                              {opt?.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="tj-fp-foot">
+                    <button className="tj-fp-clear" onClick={clearFilters} disabled={!hasActiveFilters}>
+                      Clear all
+                    </button>
+                    <button className="tj-fp-done" onClick={() => setShowFilterPanel(false)}>Done</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sort */}
+            <div className="tj-menuwrap" ref={sortMenuRef} onClick={e => e?.stopPropagation()}>
+              <button
+                onClick={() => { setShowSortMenu(prev => !prev); setShowFilterPanel(false); }}
+                className="tj-tool"
+              >
+                <Icon name="ArrowUpDown" size={15} />
+                <span className="hidden sm:inline max-w-[140px] truncate">{currentSortLabel}</span>
+                <Icon name="ChevronDown" size={13} className={showSortMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />
+              </button>
+              {showSortMenu && (
+                <div className="tj-menu">
+                  {SORT_OPTIONS?.map(opt => (
                     <button
-                      key={opt?.id}
-                      onClick={() => handleDeptSelect(opt)}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                        departmentFilter?.id === opt?.id ? 'text-primary font-medium' : 'text-foreground'
-                      }`}
+                      key={opt?.value}
+                      onClick={() => { setSortBy(opt?.value); setShowSortMenu(false); }}
+                      className={`tj-menuitem${sortBy === opt?.value ? ' on' : ''}`}
                     >
                       {opt?.label}
-                      {opt?.viewOnly && (
-                        <span className="ml-1 text-xs text-muted-foreground">(view only)</span>
-                      )}
+                      {sortBy === opt?.value && <Icon name="Check" size={14} />}
                     </button>
                   ))}
                 </div>
               )}
             </div>
-            )}
-
-            {/* Pending Acceptance — visible to COMMAND and CHIEF only */}
-            {_canSeePending && (
-              <button
-                onClick={() => setShowReviewQueue(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-              >
-                Pending Acceptance ({pendingReviewCount})
-              </button>
-            )}
-
-            {/* Create Job — gated by canAddJob */}
-            {_canAddJob && (
-              <button
-                onClick={() => setShowComprehensiveModal(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-              >
-                <Icon name="Plus" size={15} />
-                Create Job
-              </button>
-            )}
-
-            {/* Archive button - COMMAND and CHIEF only */}
-            {canShowArchive && (
-              <button
-                onClick={() => setShowArchiveModal(true)}
-                className="p-2 rounded-lg border border-border bg-card hover:bg-muted transition-colors"
-                title="Job History Archive"
-              >
-                <Icon name="Archive" size={18} className="text-foreground" />
-              </button>
-            )}
-
-            {/* Refresh button - COMMAND and CHIEF only */}
-            {canShowArchive && (
-              <button
-                onClick={handleManualRefresh}
-                disabled={isRefreshing}
-                className="p-2 rounded-lg border border-border bg-card hover:bg-muted transition-colors disabled:opacity-50"
-                title="Refresh jobs and archive completed"
-              >
-                <Icon
-                  name="RefreshCw"
-                  size={18}
-                  className={`text-foreground ${isRefreshing ? 'animate-spin' : ''}`}
-                />
-              </button>
-            )}
-
-            {/* Manage Rotation */}
-            <button
-              onClick={() => navigate('/duty-sets-rotation-management')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-sm font-medium text-foreground hover:bg-muted transition-colors"
-            >
-              <Icon name="Calendar" size={15} className="text-muted-foreground" />
-              Manage Rotation
-            </button>
           </div>
         </div>
 
+        {/* Active filter chips */}
+        {hasActiveFilters && (
+          <div className="tj-chips">
+            {activeFilterChips?.map(chip => (
+              <span key={`${chip?.groupKey}:${chip?.value}`} className="tj-chip">
+                {chip?.label}
+                <button onClick={() => toggleFilter(chip?.groupKey, chip?.value)} title="Remove filter">
+                  <Icon name="X" size={12} />
+                </button>
+              </span>
+            ))}
+            <button className="tj-chips-clear" onClick={clearFilters}>Clear all</button>
+          </div>
+        )}
+
         {/* Drag mode banner */}
         {dragMode && (
-          <div className="mb-4 flex items-center justify-between px-4 py-2.5 bg-primary/10 border border-primary/30 rounded-xl">
-            <div className="flex items-center gap-2">
-              <Icon name="GripHorizontal" size={16} className="text-primary" />
-              <span className="text-sm font-medium text-primary">Board reorder mode — drag boards to rearrange. Your order is private.</span>
-            </div>
+          <div className="tj-banner">
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <Icon name="GripHorizontal" size={15} />
+              Board reorder mode — drag boards to rearrange. Your order is private.
+            </span>
             <button
               onClick={(e) => { e?.stopPropagation(); exitDragMode(); }}
-              className="text-xs font-medium text-primary hover:text-primary/70 transition-colors px-2 py-1 rounded hover:bg-primary/10"
+              className="tj-banner-done"
             >
               Done
             </button>
           </div>
         )}
 
-        {/* Shake keyframe style */}
-        <style>{`
-          @keyframes boardShake {
-            0%, 100% { transform: rotate(0deg); }
-            15% { transform: rotate(-1.5deg); }
-            30% { transform: rotate(1.5deg); }
-            45% { transform: rotate(-1.5deg); }
-            60% { transform: rotate(1.5deg); }
-            75% { transform: rotate(-1deg); }
-            90% { transform: rotate(1deg); }
-          }
-          .board-shake { animation: boardShake 0.6s ease-in-out; }
-          @keyframes boardWiggle {
-            0%, 100% { transform: rotate(0deg); }
-            25% { transform: rotate(-0.8deg); }
-            75% { transform: rotate(0.8deg); }
-          }
-          .board-wiggle { animation: boardWiggle 0.5s ease-in-out infinite; }
-          .board-shifting { transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important; }
-        `}</style>
-
         {/* Boards Layout */}
-        <div
-          className="flex gap-5 overflow-x-auto pb-6"
-          style={{ alignItems: 'flex-start' }}
-        >
+        <div className="tj-boards">
           {departmentFilter?.id === 'ALL' ? (
             /* ALL view: My Jobs + Open Jobs columns per department */
-            (departments?.length === 0 ? (<div className="flex-shrink-0 w-72 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-4 border-b border-border">
-                <h2 className="text-base font-bold text-foreground">Open Jobs</h2>
-              </div>
-              <div className="p-4">
-                <div className="bg-muted/40 rounded-xl p-8 text-center">
-                  <p className="text-sm font-medium text-foreground">No departments configured</p>
+            (departments?.length === 0 ? (
+              <div className="tj-col">
+                <div className="tj-col-head">
+                  <h2 className="tj-col-title">Open jobs</h2>
+                </div>
+                <div className="tj-col-body">
+                  <div className="tj-empty">
+                    <div className="tj-empty-ico"><Icon name="Building2" size={17} /></div>
+                    <p className="tj-empty-t">No departments configured</p>
+                    <p className="tj-empty-s">Add a department in settings to start assigning jobs.</p>
+                  </div>
                 </div>
               </div>
-            </div>) : (
+            ) : (
               <>
                 {departments?.map(dept => {
                   const myJobsDept = getMyJobsForDept(dept?.id);
@@ -2124,61 +2437,43 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
                     <React.Fragment key={dept?.id}>
                       {/* My Jobs column: only show for the COMMAND user's own department */}
                       {dept?.id === userDepartmentId && (
-                        <div className="flex-shrink-0 w-72 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-                          <div className="flex items-center justify-between px-4 py-4 border-b border-border">
-                            <div>
-                              <h2 className="text-base font-bold text-foreground">My Jobs</h2>
-                              <p className="text-xs text-muted-foreground mt-0.5">{dept?.name}</p>
+                        <div className="tj-col">
+                          <div className="tj-col-head">
+                            <div style={{ minWidth: 0 }}>
+                              <h2 className="tj-col-title">My jobs</h2>
+                              <p className="tj-col-sub">{dept?.name}</p>
                             </div>
-                            <span className="text-sm text-muted-foreground">{myJobsCount} tasks</span>
+                            <span className="tj-col-count">{myJobsCount} open</span>
                           </div>
-                          <div className="p-4">
+                          <div className="tj-col-body">
                             {jobsLoading ? (
-                              <div className="bg-muted/40 rounded-xl p-8 text-center">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                                <p className="text-xs text-muted-foreground">Loading jobs...</p>
-                              </div>
+                              renderColumnLoading()
                             ) : myJobsDept?.length === 0 ? (
-                              <div className="bg-muted/40 rounded-xl p-8 text-center">
-                                <div className="w-10 h-10 rounded-full border-2 border-muted-foreground/30 flex items-center justify-center mx-auto mb-3">
-                                  <Icon name="Check" size={18} className="text-muted-foreground/50" />
-                                </div>
-                                <p className="text-sm font-medium text-foreground mb-1">
-                                  {departmentFilter?.id !== 'ALL' && departmentFilter?.id
-                                    ? `No jobs for ${departmentFilter?.label}`
-                                    : 'No open jobs'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">Nothing due today and nothing overdue.</p>
-                        </div>
-                  ) : (
-                    renderColumnItems(myJobsDept)
-                  )}
+                              renderColumnEmpty('Check', 'Nothing on your list', hasToolbarQuery
+                                ? 'No jobs match your search or filters.'
+                                : 'Nothing due today and nothing overdue.')
+                            ) : (
+                              renderColumnItems(myJobsDept)
+                            )}
                           </div>
                         </div>
                       )}
                       {/* Open Jobs column: show for every department */}
-                      <div className="flex-shrink-0 w-72 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-                        <div className="flex items-center justify-between px-4 py-4 border-b border-border">
-                          <div>
-                            <h2 className="text-base font-bold text-foreground">Open Jobs</h2>
-                            <p className="text-xs text-muted-foreground mt-0.5">{dept?.name}</p>
+                      <div className="tj-col">
+                        <div className="tj-col-head">
+                          <div style={{ minWidth: 0 }}>
+                            <h2 className="tj-col-title">Open jobs</h2>
+                            <p className="tj-col-sub">{dept?.name}</p>
                           </div>
-                          <span className="text-sm text-muted-foreground">{openCount} tasks</span>
+                          <span className="tj-col-count">{openCount} open</span>
                         </div>
-                        <div className="p-4">
+                        <div className="tj-col-body">
                           {jobsLoading ? (
-                            <div className="bg-muted/40 rounded-xl p-8 text-center">
-                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                              <p className="text-xs text-muted-foreground">Loading jobs...</p>
-                            </div>
+                            renderColumnLoading()
                           ) : openJobsDept?.length === 0 ? (
-                            <div className="bg-muted/40 rounded-xl p-8 text-center">
-                              <div className="w-10 h-10 rounded-full border-2 border-muted-foreground/30 flex items-center justify-center mx-auto mb-3">
-                                <Icon name="Inbox" size={18} className="text-muted-foreground/50" />
-                              </div>
-                              <p className="text-sm font-medium text-foreground mb-1">No open jobs</p>
-                              <p className="text-xs text-muted-foreground">All caught up for {dept?.name}.</p>
-                            </div>
+                            renderColumnEmpty('Inbox', 'No open jobs', hasToolbarQuery
+                              ? 'No jobs match your search or filters.'
+                              : `All caught up for ${dept?.name}.`)
                           ) : (
                             renderColumnItems(openJobsDept)
                           )}
@@ -2193,42 +2488,30 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
             /* Specific department view: Open Jobs + custom boards for that department */
             (<>
               {/* My Jobs / Open Jobs Column — dynamic based on whether viewing own dept */}
-              <div className="flex-shrink-0 w-72 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-4 border-b border-border">
-                  <div>
-                    <h2 className="text-base font-bold text-foreground">
-                      {isViewingOwnDept ? 'My Jobs' : 'Open Jobs'}
-                    </h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">{departmentFilter?.label}</p>
+              <div className="tj-col">
+                <div className="tj-col-head">
+                  <div style={{ minWidth: 0 }}>
+                    <h2 className="tj-col-title">{isViewingOwnDept ? 'My jobs' : 'Open jobs'}</h2>
+                    <p className="tj-col-sub">{departmentFilter?.label}</p>
                   </div>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="tj-col-count">
                     {isViewingOwnDept
                       ? myJobsItems?.filter(i => i?.status !== 'completed')?.length
                       : openJobsForSelectedDept?.filter(i => i?.status !== 'completed')?.length
-                    } tasks
+                    } open
                   </span>
                 </div>
-                <div className="p-4">
+                <div className="tj-col-body">
                   {jobsLoading ? (
-                    <div className="bg-muted/40 rounded-xl p-8 text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                      <p className="text-xs text-muted-foreground">Loading jobs...</p>
-                    </div>
+                    renderColumnLoading()
                   ) : (isViewingOwnDept ? myJobsItems : openJobsForSelectedDept)?.length === 0 ? (
-                    <div className="bg-muted/40 rounded-xl p-8 text-center">
-                      <div className="w-10 h-10 rounded-full border-2 border-muted-foreground/30 flex items-center justify-center mx-auto mb-3">
-                        <Icon name="Inbox" size={18} className="text-muted-foreground/50" />
-                      </div>
-                      <p className="text-sm font-medium text-foreground mb-1">
-                        {isViewingOwnDept
-                          ? (departmentFilter?.id !== 'ALL' && departmentFilter?.id
-                              ? `No jobs for ${departmentFilter?.label}`
-                              : 'No open jobs')
-                          : `No open jobs for ${departmentFilter?.label}`
-                        }
-                      </p>
-                      <p className="text-xs text-muted-foreground">Nothing due today and nothing overdue.</p>
-                    </div>
+                    renderColumnEmpty(
+                      isViewingOwnDept ? 'Check' : 'Inbox',
+                      isViewingOwnDept ? 'Nothing on your list' : `No open jobs for ${departmentFilter?.label}`,
+                      hasToolbarQuery
+                        ? 'No jobs match your search or filters.'
+                        : 'Nothing due today and nothing overdue.'
+                    )
                   ) : (
                     renderColumnItems(isViewingOwnDept ? myJobsItems : openJobsForSelectedDept)
                   )}
@@ -2265,12 +2548,12 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
                         {(dndListeners) => (
                         <div
                           data-board-id={board?.id}
-                          className="flex-shrink-0 w-72 bg-card rounded-2xl border border-border shadow-sm overflow-hidden"
+                          className={`tj-col${activeDragId === board?.id ? ' dragging' : ''}`}
                           style={{ cursor: activeDragId === board?.id ? 'grabbing' : undefined }}
                         >
                           {/* Board header: drag handle area — listeners applied here, blocked on interactive children */}
                           <div
-                            className="flex items-center justify-between px-4 py-4 border-b border-border cursor-grab active:cursor-grabbing"
+                            className="tj-col-head grab"
                             {...(() => {
                               const { onPointerDown: _dndPD, ...restListeners } = dndListeners || {};
                               return restListeners;
@@ -2300,49 +2583,57 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
                                 onChange={(e) => setEditingBoardName(e?.target?.value)}
                                 onBlur={() => handleBoardTitleSave(board?.id)}
                                 onKeyDown={(e) => handleBoardTitleKeyDown(e, board?.id)}
-                                className="text-base font-bold text-foreground bg-transparent border-b border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                className="tj-col-nameinput"
                                 onClick={(e) => e?.stopPropagation()}
                                 data-no-dnd="true"
                               />
                             ) : (
-                              <h2
-                                className={`text-base font-bold text-foreground flex-1 truncate ${
-                                  boardCanAdd || boardCanDelete ? 'hover:text-primary transition-colors' : ''
-                                }`}
-                              >
-                                {displayBoardName}
-                              </h2>
+                              boardCanRename ? (
+                                /* Rendered as a button so the header's drag handler
+                                   lets the click through to start an inline rename. */
+                                <button
+                                  type="button"
+                                  className="tj-col-title rename"
+                                  title="Rename board"
+                                  onClick={(e) => { e?.stopPropagation(); handleBoardTitleClick(board); }}
+                                >
+                                  {displayBoardName}
+                                </button>
+                              ) : (
+                                <h2 className="tj-col-title">{displayBoardName}</h2>
+                              )
                             )}
                             {(boardCanAdd || boardCanDelete) && (
                               <div className="relative" onClick={e => e?.stopPropagation()}>
                                 <button
                                   onClick={() => setShowBoardMenu(showBoardMenu === board?.id ? null : board?.id)}
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors"
+                                  className="tj-col-menubtn"
+                                  title="Board options"
                                 >
-                                  <Icon name="MoreHorizontal" size={16} className="text-muted-foreground" />
+                                  <Icon name="MoreHorizontal" size={16} />
                                 </button>
                                 {showBoardMenu === board?.id && (
-                                  <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-20 min-w-[160px]">
+                                  <div className="tj-col-menu">
                                     {boardCanAdd && (
                                       <button
                                         onClick={() => { setShowCreateCardBoardId(board?.id); setShowCreateCard('task'); setShowBoardMenu(null); }}
-                                        className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors rounded-t-lg flex items-center gap-2"
+                                        className="tj-menuitem"
                                       >
-                                        <Icon name="Plus" size={14} />Add Job
+                                        <Icon name="Plus" size={14} />Add job
                                       </button>
                                     )}
                                     <button
                                       onClick={() => { setMoveBoardId(board?.id); setShowBoardMenu(null); }}
-                                      className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2"
+                                      className="tj-menuitem"
                                     >
-                                      <Icon name="ArrowLeftRight" size={14} />Move Board
+                                      <Icon name="ArrowLeftRight" size={14} />Move board
                                     </button>
                                     {boardCanDelete && (
                                       <button
                                         onClick={() => handleDeleteBoard(board?.id)}
-                                        className="w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-muted transition-colors rounded-b-lg flex items-center gap-2"
+                                        className="tj-menuitem danger"
                                       >
-                                        <Icon name="Trash2" size={14} />Delete Board
+                                        <Icon name="Trash2" size={14} />Delete board
                                       </button>
                                     )}
                                   </div>
@@ -2350,28 +2641,20 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
                               </div>
                             )}
                           </div>
-                          <div className="p-4">
+                          <div className="tj-col-body">
                             {boardItems?.length === 0 ? (
-                              <div className="bg-muted/40 rounded-xl p-8 text-center mb-3">
-                                <div className="w-10 h-10 rounded-full border-2 border-muted-foreground/30 flex items-center justify-center mx-auto mb-3">
-                                  <Icon name="Inbox" size={18} className="text-muted-foreground/50" />
-                                </div>
-                                <p className="text-sm font-medium text-foreground mb-1">
-                                  {departmentFilter?.id !== 'ALL' && departmentFilter?.id
-                                    ? `No jobs for ${departmentFilter?.label}`
-                                    : 'No open jobs'}
-                                </p>
-                                <p className="text-xs text-muted-foreground">Nothing due today and nothing overdue.</p>
-                              </div>
+                              renderColumnEmpty('Inbox', 'Nothing on this board', hasToolbarQuery
+                                ? 'No jobs match your search or filters.'
+                                : 'Add a job to get this board moving.')
                             ) : (
-                              <div className="mb-3">{renderColumnItems(boardItems)}</div>
+                              renderColumnItems(boardItems)
                             )}
-                            <div className="border-t border-border pt-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm text-muted-foreground">Total</span>
-                                <span className="text-sm font-medium text-foreground">{openCount}</span>
+                            <div className="tj-col-foot">
+                              <div className="tj-col-total">
+                                <span>Open</span>
+                                <strong>{openCount}</strong>
                               </div>
-                              <div className="border-t border-border pt-3" data-no-dnd="true">
+                              <div data-no-dnd="true">
                                 {showQuickAdd ? (
                                   <QuickAddJobInput
                                     boardId={board?.id} board={board} onAdd={handleQuickAddJob}
@@ -2381,9 +2664,9 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
                                   boardCanAdd && (
                                     <button
                                       onClick={() => { setShowCreateCardBoardId(board?.id); setShowCreateCard('task'); }}
-                                      className="w-full flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                                      className="tj-addjob"
                                     >
-                                      <Icon name="Plus" size={14} />Add Job
+                                      <Icon name="Plus" size={14} />Add job
                                     </button>
                                   )
                                 )}
@@ -2404,13 +2687,13 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
                     const deptId = _effectiveDeptId && _effectiveDeptId !== 'ALL' ? _effectiveDeptId : null;
                     const displayBoardName = (deptId && board?.names?.[deptId]) ? board?.names?.[deptId] : (board?.name || 'Board');
                     return (
-                      <div className="flex-shrink-0 w-72 bg-card rounded-2xl border-2 border-primary shadow-2xl overflow-hidden opacity-95 rotate-1">
-                        <div className="flex items-center justify-between px-4 py-4 border-b border-border">
-                          <h2 className="text-base font-bold text-foreground flex-1 truncate">{displayBoardName}</h2>
+                      <div className="tj-col dragging" style={{ transform: 'rotate(1deg)', opacity: 0.96 }}>
+                        <div className="tj-col-head">
+                          <h2 className="tj-col-title">{displayBoardName}</h2>
                         </div>
-                        <div className="p-4">
-                          <div className="bg-muted/40 rounded-xl p-6 text-center">
-                            <Icon name="GripVertical" size={20} className="text-muted-foreground mx-auto" />
+                        <div className="tj-col-body">
+                          <div className="tj-empty" style={{ padding: '20px 12px' }}>
+                            <Icon name="GripVertical" size={20} style={{ color: '#C65A1A' }} />
                           </div>
                         </div>
                       </div>
@@ -2420,16 +2703,11 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
               </DndContext>
               {/* New Board Card — only when canCreateBoard */}
               {_canCreateBoard && (
-                <div
-                  onClick={() => setShowCreateBoard(true)}
-                  className="flex-shrink-0 w-72 rounded-2xl border-2 border-dashed border-border hover:border-primary/40 transition-colors cursor-pointer flex flex-col items-center justify-center py-16 px-6 text-center"
-                >
-                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Icon name="Plus" size={22} className="text-muted-foreground" />
-                  </div>
-                  <h3 className="text-base font-semibold text-foreground mb-1">New Board</h3>
-                  <p className="text-sm text-muted-foreground">Create a custom board for your team</p>
-                </div>
+                <button onClick={() => setShowCreateBoard(true)} className="tj-newboard">
+                  <span className="tj-newboard-ico"><Icon name="Plus" size={21} /></span>
+                  <span className="tj-newboard-t">New board</span>
+                  <span className="tj-newboard-s">Create a custom board for your team</span>
+                </button>
               )}
 
               {/* Move Board Modal */}
@@ -2439,15 +2717,15 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
                 const movingBoardName = movingBoard ? ((deptId && movingBoard?.names?.[deptId]) ? movingBoard?.names?.[deptId] : (movingBoard?.name || 'Board')) : '';
                 const currentIndex = orderedBoards?.findIndex(b => b?.id === moveBoardId);
                 return (
-                  <ModalShell onClose={() => setMoveBoardId(null)} panelClassName="bg-card rounded-2xl shadow-2xl w-full max-w-sm p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-lg font-semibold text-foreground">Move Board</h2>
-                      <button onClick={() => setMoveBoardId(null)} className="text-muted-foreground hover:text-foreground">
-                        <Icon name="X" size={20} />
+                  <ModalShell onClose={() => setMoveBoardId(null)} panelClassName="tjm-panel">
+                    <div className="tjm-head">
+                      <h2 className="tjm-title">Move board</h2>
+                      <button onClick={() => setMoveBoardId(null)} className="tjm-x" title="Close">
+                        <Icon name="X" size={18} />
                       </button>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-4">Move <strong className="text-foreground">{movingBoardName}</strong> to position:</p>
-                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                    <p className="tjm-sub">Move <strong>{movingBoardName}</strong> to position:</p>
+                    <div className="tjm-list">
                       {orderedBoards?.map((b, idx) => {
                         const bName = (deptId && b?.names?.[deptId]) ? b?.names?.[deptId] : (b?.name || 'Board');
                         const isCurrent = b?.id === moveBoardId;
@@ -2456,21 +2734,16 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
                             key={b?.id}
                             disabled={isCurrent}
                             onClick={() => handleMoveBoard(moveBoardId, idx)}
-                            className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${
-                              isCurrent
-                                ? 'bg-primary/10 text-primary font-medium cursor-default' :'hover:bg-muted text-foreground'
-                            }`}
+                            className={`tjm-item${isCurrent ? ' current' : ''}`}
                           >
-                            <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground flex-shrink-0">{idx + 1}</span>
+                            <span className="tjm-num">{idx + 1}</span>
                             {bName}
-                            {isCurrent && <span className="ml-auto text-xs text-primary">(current)</span>}
+                            {isCurrent && <span className="tjm-tag">current</span>}
                           </button>
                         );
                       })}
                     </div>
-                    <div className="mt-4">
-                      <Button variant="outline" className="w-full" onClick={() => setMoveBoardId(null)}>Cancel</Button>
-                    </div>
+                    <button className="tjm-cancel" onClick={() => setMoveBoardId(null)}>Cancel</button>
                   </ModalShell>
                 );
               })()}
@@ -2644,7 +2917,7 @@ onClick={() => canToggleDept && departments?.length > 0 && setShowDeptDropdown(!
         )}
       </>
       )}
-      </main>
+      </div>
     </div>
   );
 };
