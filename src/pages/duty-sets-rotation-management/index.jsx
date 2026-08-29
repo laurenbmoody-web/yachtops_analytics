@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
@@ -13,7 +14,18 @@ import EditTemplateModal from './components/EditTemplateModal';
 import '../../styles/editorial.css';
 import './duty-sets.css';
 
+const DEFAULT_TEMPLATE_SORT = 'name-asc';
+
+const TEMPLATE_SORT_OPTIONS = [
+  { value: 'name-asc', label: 'Name (A \u2192 Z)' },
+  { value: 'name-desc', label: 'Name (Z \u2192 A)' },
+  { value: 'duration-asc', label: 'Shortest first' },
+  { value: 'duration-desc', label: 'Longest first' },
+  { value: 'tasks-desc', label: 'Most tasks' },
+];
+
 const DutySetsRotationManagement = () => {
+  const navigate = useNavigate();
   const { currentUser, tenantRole, session, bootstrapComplete } = useAuth();
   const { activeTenantId, loadingTenant, currentTenantMember } = useTenant();
   const [view, setView] = useState('templates'); // 'templates' or 'rotation'
@@ -23,6 +35,8 @@ const DutySetsRotationManagement = () => {
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [showDeptMenu, setShowDeptMenu] = useState(false);
   const [showBoardMenu, setShowBoardMenu] = useState(false);
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const [sortBy, setSortBy] = useState(DEFAULT_TEMPLATE_SORT);
 
   // Department state
   const [departments, setDepartments] = useState([]);
@@ -277,11 +291,24 @@ const DutySetsRotationManagement = () => {
   };
 
   // Filter templates
-  const filteredTemplates = templates?.filter(template => {
-    const matchesSearch = template?.name?.toLowerCase()?.includes(searchQuery?.toLowerCase());
-    const matchesDuty = filterBoard === 'all' || template?.category === filterBoard;
-    return matchesSearch && matchesDuty;
-  });
+  const filteredTemplates = (() => {
+    const matched = templates?.filter(template => {
+      const matchesSearch = template?.name?.toLowerCase()?.includes(searchQuery?.toLowerCase());
+      const matchesDuty = filterBoard === 'all' || template?.category === filterBoard;
+      return matchesSearch && matchesDuty;
+    }) || [];
+    const dur = (t) => t?.estimatedDuration ?? t?.estimated_duration ?? 0;
+    const tasks = (t) => t?.taskCount ?? t?.task_count ?? t?.tasks?.length ?? 0;
+    return [...matched]?.sort((a, b) => {
+      switch (sortBy) {
+        case 'name-desc': return String(b?.name || '')?.localeCompare(String(a?.name || ''));
+        case 'duration-asc': return dur(a) - dur(b);
+        case 'duration-desc': return dur(b) - dur(a);
+        case 'tasks-desc': return tasks(b) - tasks(a);
+        default: return String(a?.name || '')?.localeCompare(String(b?.name || ''));
+      }
+    });
+  })();
 
   // Group by category
   const groupedTemplates = filteredTemplates?.reduce((acc, template) => {
@@ -344,9 +371,15 @@ const DutySetsRotationManagement = () => {
   }
 
   return (
-    <div className="dsr-page" onClick={() => { setShowDeptMenu(false); setShowBoardMenu(false); }}>
+    <div className="dsr-page" onClick={() => { setShowDeptMenu(false); setShowBoardMenu(false); setShowSortMenu(false); }}>
       <Header />
       <div className="dsr-wrap">
+        {/* Back to jobs — Manage rotation is reached from the Jobs header */}
+        <button type="button" className="dsr-back" onClick={() => navigate('/team-jobs-management')}>
+          <Icon name="ChevronLeft" size={16} />
+          Back to Jobs
+        </button>
+
         {/* Meta strip — canonical editorial inline data */}
         <p className="editorial-meta dsr-metastrip">
           <span className="dot">●</span>
@@ -469,6 +502,55 @@ const DutySetsRotationManagement = () => {
                         {filterBoard === o?.value && <Icon name="Check" size={14} />}
                       </button>
                     ))}
+                    <div className="dsr-menu-foot">
+                      <button
+                        className="dsr-menu-clear"
+                        disabled={filterBoard === 'all'}
+                        onClick={() => { setFilterBoard('all'); setShowBoardMenu(false); }}
+                      >
+                        Clear all
+                      </button>
+                      <button className="dsr-menu-done" onClick={() => setShowBoardMenu(false)}>Done</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sort */}
+              <div className="dsr-menuwrap" onClick={e => e?.stopPropagation()}>
+                <button
+                  className={`dsr-tool${sortBy !== DEFAULT_TEMPLATE_SORT ? ' on' : ''}`}
+                  onClick={() => { setShowSortMenu(v => !v); setShowBoardMenu(false); }}
+                >
+                  <Icon name="ArrowUpDown" size={15} />
+                  <span className="hidden sm:inline">Sort</span>
+                  <span className="dsr-tool-cur">
+                    · {TEMPLATE_SORT_OPTIONS?.find(o => o?.value === sortBy)?.label}
+                  </span>
+                  <Icon name="ChevronDown" size={13} className={showSortMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                </button>
+                {showSortMenu && (
+                  <div className="dsr-menu">
+                    {TEMPLATE_SORT_OPTIONS?.map(o => (
+                      <button
+                        key={o?.value}
+                        className={`dsr-menuitem${sortBy === o?.value ? ' on' : ''}`}
+                        onClick={() => { setSortBy(o?.value); setShowSortMenu(false); }}
+                      >
+                        {o?.label}
+                        {sortBy === o?.value && <Icon name="Check" size={14} />}
+                      </button>
+                    ))}
+                    <div className="dsr-menu-foot">
+                      <button
+                        className="dsr-menu-clear"
+                        disabled={sortBy === DEFAULT_TEMPLATE_SORT}
+                        onClick={() => setSortBy(DEFAULT_TEMPLATE_SORT)}
+                      >
+                        Reset
+                      </button>
+                      <button className="dsr-menu-done" onClick={() => setShowSortMenu(false)}>Done</button>
+                    </div>
                   </div>
                 )}
               </div>

@@ -55,6 +55,8 @@ const notifyJobAssigned = (assigneeIds, jobTitle, jobId, dueDate) => {
   console.log('Job assigned notification:', { assigneeIds, jobTitle, jobId, dueDate });
 };
 
+const DEFAULT_SORT = 'due-asc';
+
 const hasCommandAccessLocal = (user) => hasCommandAccess(user);
 const hasChiefAccessLocal = (user) => hasChiefAccess(user);
 
@@ -162,7 +164,12 @@ const TeamJobsManagement = () => {
   const navigate = useNavigate();
   const { currentUser: authUser, user } = useAuth();
   const { activeTenantId, loadingTenant, currentTenantMember } = useTenant();
-  const currentUser = getCurrentUser();
+  // getCurrentUser() JSON.parses localStorage, so it returns a NEW object on
+  // every render. Memoise it — fetchJobsFromSupabase depends on it, and an
+  // unstable identity there re-created the callback each render, re-fired the
+  // fetch effect, and left `jobsLoading` permanently true (the My Jobs column
+  // spun forever while the page re-queried Supabase in a loop).
+  const currentUser = useMemo(() => getCurrentUser(), [authUser?.id]);
 
   // ── State declarations ──
   const [boards, setBoards] = useState(() => loadBoards());
@@ -570,7 +577,7 @@ const TeamJobsManagement = () => {
     } finally {
       setJobsLoading(false);
     }
-  }, [activeTenantId, authUser, currentUser]);
+  }, [activeTenantId, authUser?.id, currentUser?.id]);
 
   // ── Set default department selection once departments + tier are known ──
   useEffect(() => {
@@ -1137,7 +1144,7 @@ const TeamJobsManagement = () => {
   // ── Toolbar: search / filter / sort (editorial toolbar, mirrors Inventory) ──
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState({ priority: [], state: [], assignment: [], source: [] });
-  const [sortBy, setSortBy] = useState('due-asc');
+  const [sortBy, setSortBy] = useState(DEFAULT_SORT);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const filterPanelRef = useRef(null);
@@ -2142,6 +2149,12 @@ const TeamJobsManagement = () => {
     >
       <Header />
       <div className="tj-wrap">
+        {/* Back to dashboard — canonical editorial back link */}
+        <button type="button" className="tj-back" onClick={() => navigate('/dashboard')}>
+          <Icon name="ChevronLeft" size={16} />
+          Back to Dashboard
+        </button>
+
         {/* Loading skeleton while tenantMember is loading */}
         {tierLoading ? (
           <>
@@ -2358,7 +2371,8 @@ const TeamJobsManagement = () => {
                 className="tj-tool"
               >
                 <Icon name="ArrowUpDown" size={15} />
-                <span className="hidden sm:inline max-w-[140px] truncate">{currentSortLabel}</span>
+                <span className="hidden sm:inline">Sort</span>
+                <span className="tj-tool-cur">· {currentSortLabel}</span>
                 <Icon name="ChevronDown" size={13} className={showSortMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />
               </button>
               {showSortMenu && (
@@ -2373,6 +2387,16 @@ const TeamJobsManagement = () => {
                       {sortBy === opt?.value && <Icon name="Check" size={14} />}
                     </button>
                   ))}
+                  <div className="tj-menu-foot">
+                    <button
+                      className="tj-menu-clear"
+                      disabled={sortBy === DEFAULT_SORT}
+                      onClick={() => setSortBy(DEFAULT_SORT)}
+                    >
+                      Reset
+                    </button>
+                    <button className="tj-menu-done" onClick={() => setShowSortMenu(false)}>Done</button>
+                  </div>
                 </div>
               )}
             </div>
