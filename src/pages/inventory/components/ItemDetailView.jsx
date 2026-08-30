@@ -7,6 +7,7 @@ import { formatBoughtIn } from '../../../data/unitGroups';
 import { getCategoryL1ById, getCategoryL2ById, getCategoryL3ById, getCategoryL4ById } from '../utils/taxonomyStorage';
 import { getCurrentUser, hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../../utils/authStorage';
 import useDismissable from '../../../components/ui/useDismissable';
+import ItemJobHistory from './ItemJobHistory';
 
 const ItemDetailView = ({ item, onClose, onUpdate }) => {
   const [isEditMode, setIsEditMode] = useState(false);
@@ -266,6 +267,9 @@ const ItemDetailView = ({ item, onClose, onUpdate }) => {
               <p className="text-gray-900 whitespace-pre-wrap">{item?.notes}</p>
             </div>
           )}
+
+          {/* Jobs that have used this item, and a way to raise the next one */}
+          <ItemJobHistory item={item} canRaise={canEdit} />
 
           {/* Additional Metadata */}
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">

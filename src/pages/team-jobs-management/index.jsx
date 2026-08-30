@@ -15,6 +15,7 @@ import { getCurrentUser } from '../../utils/authStorage';
 import { loadBoards, saveBoards, loadBoardsFromSupabase, saveBoardToSupabase, deleteBoardFromSupabase, loadBoardOrderFromSupabase, saveBoardOrderToSupabase } from './utils/boardStorage';
 import { loadCards, saveCards } from './utils/cardStorage';
 import { tickAllDutyTasks, clearAutoDutyTasks, rotationAssignmentIdOf } from './utils/dutyProgress';
+import { consumeJobLinks, restoreJobLinks } from './utils/jobLinks';
 
 
 import {
@@ -1531,6 +1532,30 @@ const TeamJobsManagement = () => {
   };
 
   // Complete a job: mark as completed with strikethrough (stays on card until next day)
+  // Stock moving is a real-world consequence, so it is said out loud rather
+  // than happening quietly in the background — including the two cases worth
+  // knowing about: the shelf could not cover it, and a size-tracked item that
+  // has to be adjusted by hand.
+  const reportStockMoves = (moved, consumed) => {
+    if (!moved?.length) return;
+    const refused = moved?.filter(m => m?.refused);
+    const short = moved?.filter(m => m?.shortfall > 0);
+    const real = moved?.filter(m => m?.moved > 0);
+
+    if (real?.length > 0) {
+      const what = real?.map(m => `${m?.moved} ${m?.name}`)?.join(', ');
+      showToast(consumed ? `Stock updated — used ${what}.` : `Stock restored — put back ${what}.`, 'success');
+    }
+    short?.forEach(m => showToast(
+      `${m?.name} only had ${m?.moved} left, so ${m?.shortfall} more is unaccounted for.`,
+      'warning',
+    ));
+    refused?.forEach(m => showToast(
+      `${m?.name} is tracked by size, so adjust it from the item itself.`,
+      'warning',
+    ));
+  };
+
   const handleCompleteJob = async (jobId, e) => {
     if (e) e?.stopPropagation();
     if (completingJobId === jobId) return;
@@ -1604,6 +1629,19 @@ const TeamJobsManagement = () => {
       }
     }
 
+    // Parts a job uses come off the shelf when it is done, and go back if it
+    // is reopened. Quantities the crew never set move nothing.
+    if (activeTenantId) {
+      try {
+        const moved = newStatus === 'completed'
+          ? await consumeJobLinks({ job, tenantId: activeTenantId, userId })
+          : await restoreJobLinks({ job, tenantId: activeTenantId, userId });
+        reportStockMoves(moved, newStatus === 'completed');
+      } catch (err) {
+        console.warn('[TeamJobs] Failed to move stock for this job:', err);
+      }
+    }
+
     setCompletingJobId(null);
   };
 
@@ -1640,6 +1678,16 @@ const TeamJobsManagement = () => {
         userId: authUser?.id || currentUser?.id || completedBy,
         auto: true,
       })?.catch(err => console.warn('[TeamJobs] Failed to tick duty set on completion:', err));
+    }
+
+    if (job && activeTenantId) {
+      consumeJobLinks({
+        job,
+        tenantId: activeTenantId,
+        userId: authUser?.id || currentUser?.id || completedBy,
+      })
+        ?.then(moved => reportStockMoves(moved, true))
+        ?.catch(err => console.warn('[TeamJobs] Failed to move stock for this job:', err));
     }
   };
 
