@@ -468,6 +468,43 @@ const TeamJobsManagement = () => {
     }
   }, [activeTenantId, userDepartmentId]);
 
+  // ── Fetch the vessel's crew so names resolve on job cards and detail ──
+  // team_jobs stores user ids in assigned_to / created_by, so this list is
+  // keyed by user_id (not tenant_member id) to match those lookups. Without it
+  // every job detail read "Unknown User".
+  const fetchTeamMembers = useCallback(async () => {
+    if (!activeTenantId) return;
+    try {
+      const { data: tmData, error: tmErr } = await supabase
+        ?.from('tenant_members')
+        ?.select('user_id, department_id')
+        ?.eq('tenant_id', activeTenantId)
+        ?.eq('active', true);
+      if (tmErr) throw tmErr;
+
+      const userIds = tmData?.map(tm => tm?.user_id)?.filter(Boolean);
+      if (!userIds?.length) { setTeamMembers([]); return; }
+
+      const { data: profiles } = await supabase
+        ?.from('profiles')
+        ?.select('id, full_name, first_name, last_name')
+        ?.in('id', userIds);
+
+      setTeamMembers(tmData?.map(tm => {
+        const p = profiles?.find(pr => pr?.id === tm?.user_id);
+        const name = p?.full_name
+          || [p?.first_name, p?.last_name]?.filter(Boolean)?.join(' ')
+          || null;
+        return { id: tm?.user_id, user_id: tm?.user_id, name, department_id: tm?.department_id };
+      })?.filter(m => m?.name) || []);
+    } catch (err) {
+      console.warn('[TeamJobs] fetchTeamMembers error:', err);
+    }
+  }, [activeTenantId]);
+
+  useEffect(() => { if (activeTenantId && !loadingTenant) fetchTeamMembers(); },
+    [activeTenantId, loadingTenant, fetchTeamMembers]);
+
   // ── Fetch jobs from public.team_jobs filtered by tenant + optional department ──
   const fetchJobsFromSupabase = useCallback(async (selectedDept, skipCompleted = false) => {
     if (!activeTenantId) return;
@@ -2929,6 +2966,15 @@ const TeamJobsManagement = () => {
             teamMembers={teamMembers}
             modalMode={calcJobModalMode(effectiveTier, selectedDeptId, userDepartmentId, isPrivateJobOwner(selectedCard, currentUserId))}
             activeTenantId={activeTenantId}
+            departments={departments}
+            /* These default to false in the modal and were never passed, so the
+               checklist, its notes and the duty set checkboxes all rendered
+               disabled. Whoever can complete the job can work its tasks. */
+            canInteract={!tierLoading && canCompleteJob(
+              effectiveTier, selectedDeptId, userDepartmentId,
+              isPrivateJobOwner(selectedCard, currentUserId),
+            )}
+            canFullEdit={_canEditDept}
           />
         )}
 

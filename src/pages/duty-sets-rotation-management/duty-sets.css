@@ -451,3 +451,20 @@
   font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 .dsr-menu-done:hover { background: #B14E16; }
+
+/* a cell can hold more than one duty set — list them, dotted when paired */
+.rc-dutystack { display: flex; flex-direction: column; gap: 3px; width: 100%; }
+.rc-dutystack .rc-dutyname {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+}
+.rc-dutystack .dot {
+  width: 5px; height: 5px; border-radius: 999px; flex-shrink: 0;
+}
+/* checkbox on the multi-select picker rows */
+.rc-pickbox {
+  width: 16px; height: 16px; border-radius: 5px; flex-shrink: 0;
+  border: 1.5px solid #D3D7DF; background: #FFFFFF; color: #FFFFFF;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.14s, border-color 0.14s;
+}
+.rc-pickbox.on { background: #C65A1A; border-color: #C65A1A; }

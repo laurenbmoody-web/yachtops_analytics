@@ -12,6 +12,9 @@ import { hasCommandAccess, hasChiefAccess, loadUsers } from '../../../utils/auth
 import { format } from 'date-fns';
 import { canPerformAction, getDisabledTooltip } from '../utils/tierPermissions';
 
+const isUUIDish = (v) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i?.test(String(v || ''));
+
 // Priority / status → the shared jm-tag tones used across the Jobs modals
 const priorityTagTone = (priority) => {
   switch (priority) {
@@ -51,6 +54,7 @@ const CardDetailModal = ({
   canUnarchive = false,
   modalMode = 'FULL', // 'FULL' | 'VIEW_ONLY'
   activeTenantId = null,
+  departments = [],
 }) => {
   const [editMode, setEditMode] = useState(false);
   const [editedTitle, setEditedTitle] = useState(card?.title || '');
@@ -89,45 +93,56 @@ const CardDetailModal = ({
   const canCompleteAction = modalMode === 'FULL' && canPerformAction(currentUser, card, 'complete');
 
   // Helper function to resolve creator information from users store
+  // The card mapping stores the creator as created_by / createdBy; this only
+  // ever read createdByUserId, which no mapping sets, so every job reported
+  // "Unknown User" before it even looked anyone up. Check the fields that
+  // exist, resolve against the vessel's crew first, then local accounts.
   const getCreatorInfo = () => {
-    if (!card?.createdByUserId) {
-      return {
-        name: 'Unknown User',
-        tier: '—',
-        department: '—'
-      };
+    const creatorId = card?.created_by || card?.createdBy || card?.createdByUserId || null;
+    if (!creatorId) {
+      return { name: 'Unknown user', tier: '—', department: '—' };
     }
 
-    // Normalize IDs as strings for comparison
-    const creatorId = String(card?.createdByUserId);
-    const users = loadUsers();
-    const creator = users?.find(u => String(u?.id) === creatorId);
-
-    if (creator) {
-      // User found - return actual user information
+    const id = String(creatorId);
+    const member = teamMembers?.find(m => String(m?.id) === id || String(m?.user_id) === id);
+    if (member?.name) {
       return {
-        name: creator?.fullName || creator?.name || 'Unknown User',
-        tier: creator?.effectiveTier || creator?.tier || '—',
-        department: creator?.department || '—'
-      };
-    } else {
-      // User not found (deleted/missing) but ID exists
-      return {
-        name: 'Former user',
+        name: member?.name,
         tier: card?.createdByRoleTier || '—',
-        department: card?.createdByDepartment || '—'
+        department: getDepartmentName(member?.department_id) || '—',
       };
     }
+
+    const creator = loadUsers()?.find(u => String(u?.id) === id);
+    if (creator) {
+      return {
+        name: creator?.fullName || creator?.name || 'Unknown user',
+        tier: creator?.effectiveTier || creator?.tier || '—',
+        department: creator?.department || '—',
+      };
+    }
+
+    // The id is real but resolves to nobody we can see — say so plainly
+    // rather than printing a uuid.
+    return {
+      name: 'Former crew',
+      tier: card?.createdByRoleTier || '—',
+      department: card?.createdByDepartment || '—',
+    };
   };
 
   // Get resolved creator info
   const creatorInfo = getCreatorInfo();
 
   // Helper function to get user name from ID
+  // teamMembers is the vessel's crew (keyed by user id); loadUsers() only ever
+  // held locally-created accounts, which is why Supabase crew showed as
+  // "Unknown User".
   const getUserNameById = (userId) => {
     if (!userId) return null;
-    const users = loadUsers();
-    const user = users?.find(u => u?.id === userId);
+    const member = teamMembers?.find(m => m?.id === userId || m?.user_id === userId);
+    if (member?.name) return member?.name;
+    const user = loadUsers()?.find(u => u?.id === userId);
     return user?.name || null;
   };
 
@@ -142,15 +157,23 @@ const CardDetailModal = ({
   };
 
   // Add this block - Helper function to get department name
+  // Jobs store department_id as a uuid. The old lookup only knew the four
+  // legacy uppercase names, so a uuid fell through and was printed raw on the
+  // card. Resolve against the real department list first, then the legacy
+  // names, and never render a bare uuid.
   const getDepartmentName = (dept) => {
     if (!dept) return null;
+    const match = departments?.find(d => d?.id === dept);
+    if (match?.name) return match?.name;
     const deptMap = {
-      'INTERIOR': 'Interior',
-      'DECK': 'Deck',
-      'ENGINEERING': 'Engineering',
-      'GALLEY': 'Galley'
+      INTERIOR: 'Interior',
+      DECK: 'Deck',
+      ENGINEERING: 'Engineering',
+      GALLEY: 'Galley',
     };
-    return deptMap?.[dept?.toUpperCase()] || dept;
+    const legacy = deptMap?.[String(dept)?.toUpperCase()];
+    if (legacy) return legacy;
+    return isUUIDish(dept) ? null : dept;
   };
 
   // Add this block - Helper function to get assigned user name
