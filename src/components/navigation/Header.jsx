@@ -621,13 +621,18 @@ const Header = () => {
       <header className="nav-header">
         {/* LEFT ZONE: Logo + the vessel you're on */}
         <div className="flex items-center gap-3 flex-shrink-0 nav-brand">
-          {/* Full "cargo" wordmark on desktop. On phones its embedded raster
-              blurs when shrunk (and it crowds out the vessel name), so show the
-              compact square mark instead. */}
+          {/* Full "cargo" wordmark on desktop. This used to point at
+              centered-logo.svg, which is not vector at all — a raster wrapped in
+              an <svg> and composited through feColorMatrix filters. Safari
+              rasterises filtered SVG content below device resolution, so on a
+              retina screen the wordmark came out soft. cargo-wordmark.png is the
+              same artwork flattened to a real transparent PNG at 6x the display
+              height: sharp everywhere, and a fifth of the file size.
+              On phones it crowds out the vessel name, so show the compact mark. */}
           <Image
-            src="/centered-logo.svg"
+            src="/cargo-wordmark.png"
             alt="Cargo"
-            className="h-8 w-auto object-contain cursor-pointer hover:opacity-80 transition-smooth hidden sm:block"
+            className="h-7 w-auto object-contain cursor-pointer hover:opacity-80 transition-smooth hidden sm:block"
             onClick={() => navigate('/dashboard')}
           />
           <Image
