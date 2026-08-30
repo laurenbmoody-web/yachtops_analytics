@@ -36,6 +36,7 @@ const DutySetsRotationManagement = () => {
   const [showDeptMenu, setShowDeptMenu] = useState(false);
   const [showBoardMenu, setShowBoardMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [lastDoneById, setLastDoneById] = useState({});
   const [sortBy, setSortBy] = useState(DEFAULT_TEMPLATE_SORT);
 
   // Department state
@@ -134,6 +135,29 @@ const DutySetsRotationManagement = () => {
       setTemplates([]);
     }
   }, [activeTenantId, effectiveDepartmentId, fetchTemplates]);
+
+  // ── When was each task last ticked off? ──
+  // Drives the monthly "last done" line and the over-three-weeks flag. One
+  // query for the whole department; the newest row per task wins.
+  const fetchLastDone = useCallback(async () => {
+    if (!activeTenantId) return;
+    try {
+      const { data, error } = await supabase
+        ?.from('duty_task_progress')
+        ?.select('task_id, done_at')
+        ?.eq('tenant_id', activeTenantId)
+        ?.eq('done', true)
+        ?.order('done_at', { ascending: false });
+      if (error) throw error;
+      const map = {};
+      (data || [])?.forEach(r => { if (!map[r?.task_id]) map[r.task_id] = r?.done_at; });
+      setLastDoneById(map);
+    } catch (err) {
+      console.warn('[DutySets] fetchLastDone error:', err);
+    }
+  }, [activeTenantId]);
+
+  useEffect(() => { if (activeTenantId) fetchLastDone(); }, [activeTenantId, fetchLastDone]);
 
   // ── Create template → INSERT into Supabase ──
   const handleCreateTemplate = async (templateData) => {
@@ -617,6 +641,7 @@ const DutySetsRotationManagement = () => {
                           onDuplicate={handleDuplicateTemplate}
                           onDelete={handleDeleteTemplate}
                           onEdit={setEditingTemplate}
+                          lastDoneById={lastDoneById}
                         />
                       ))}
                     </div>

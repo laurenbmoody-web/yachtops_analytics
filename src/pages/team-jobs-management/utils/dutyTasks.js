@@ -93,3 +93,55 @@ export const groupDutyTasks = (tasks, dateISO, lastDoneById = {}, now = new Date
     monthlyRecent,
   };
 };
+
+/**
+ * The same rules, but for looking at a TEMPLATE rather than one day's job.
+ *
+ * A job shows only the weekly tasks for its own weekday. A template is the
+ * definition, so it shows every weekday bucket — that is how you check a task
+ * you set to "every Tuesday" actually landed under Tuesday.
+ *
+ * @param tasks        duty_set_templates.tasks
+ * @param lastDoneById { [taskId]: ISO timestamp } most recent completion
+ * @returns { daily, weeklyByDay: [{ day, label, tasks }], monthly }
+ *          monthly entries carry daysSinceDone and due
+ */
+export const groupTemplateTasks = (tasks, lastDoneById = {}, now = new Date()) => {
+  const all = Array.isArray(tasks) ? tasks : [];
+  const daily = [];
+  const byDay = {};
+  const monthly = [];
+
+  all.forEach((task) => {
+    const f = task?.frequency;
+
+    if (isMonthly(f)) {
+      const since = daysSince(lastDoneById?.[task?.id], now);
+      monthly.push({
+        ...task,
+        daysSinceDone: since,
+        lastDoneAt: lastDoneById?.[task?.id] || null,
+        // Past three weeks (or never done) it is suggested every day until
+        // it gets ticked off again.
+        due: since === null || since > MONTHLY_DUE_AFTER_DAYS,
+      });
+      return;
+    }
+
+    const wd = weeklyDayOf(f);
+    if (wd) {
+      (byDay[wd] = byDay[wd] || []).push(task);
+      return;
+    }
+
+    if (isDaily(f)) daily.push(task);
+  });
+
+  // Monday-first, and only days that actually carry tasks
+  const order = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const weeklyByDay = order
+    .filter((d) => byDay[d]?.length)
+    .map((d) => ({ day: d, label: dayLabel(d), tasks: byDay[d] }));
+
+  return { daily, weeklyByDay, monthly };
+};

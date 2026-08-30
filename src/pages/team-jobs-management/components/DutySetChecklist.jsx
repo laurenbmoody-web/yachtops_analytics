@@ -133,7 +133,29 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
     );
   }
 
-  if (!template) return null;
+  if (error) {
+    return (
+      <div className="jm-notice danger">
+        <Icon name="AlertCircle" size={15} />
+        <span>{error}</span>
+      </div>
+    );
+  }
+
+  // The job points at a duty set that has since been deleted or renamed away.
+  // Rendering nothing here looks exactly like the checklist not existing, so
+  // say what is actually wrong.
+  if (!template) {
+    return (
+      <div className="jm-notice warn">
+        <Icon name="AlertTriangle" size={15} />
+        <span>
+          This job came from a duty set that no longer exists, so its task list
+          can’t be shown. Re-assign the day from Manage rotation to relink it.
+        </span>
+      </div>
+    );
+  }
 
   const total = (grouped?.today?.length || 0) + (grouped?.weekly?.tasks?.length || 0) + (grouped?.monthlyDue?.length || 0);
   const doneCount = [...(grouped?.today || []), ...(grouped?.weekly?.tasks || []), ...(grouped?.monthlyDue || [])]
@@ -211,13 +233,6 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
         <span className="cd-progress-count">{doneCount}/{total}</span>
       </div>
       <div className="cd-progress"><div className="bar" style={{ width: `${pct}%` }} /></div>
-
-      {error && (
-        <div className="jm-notice danger" style={{ marginBottom: 14 }}>
-          <Icon name="AlertCircle" size={15} />
-          <span>{error}</span>
-        </div>
-      )}
 
       {/* Dailies — always */}
       {grouped?.today?.length > 0 && (
