@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
+import DutySetChecklist from './DutySetChecklist';
 import '../job-modals.css';
 import '../../duty-sets-rotation-management/duty-sets.css';
 
@@ -49,6 +50,7 @@ const CardDetailModal = ({
   canArchive = false,
   canUnarchive = false,
   modalMode = 'FULL', // 'FULL' | 'VIEW_ONLY'
+  activeTenantId = null,
 }) => {
   const [editMode, setEditMode] = useState(false);
   const [editedTitle, setEditedTitle] = useState(card?.title || '');
@@ -408,6 +410,23 @@ const CardDetailModal = ({
       </div>
 
       <div className="jm-body">
+        {/* ── Duty set checklist ──
+            For a rotation job this is the whole point of opening the card, so
+            it sits first: today's dailies, this weekday's weeklies, and any
+            monthly that has gone long enough to need doing. Renders nothing
+            for jobs that did not come from a duty set. */}
+        {(card?.rotation_assignment_id || card?.rotationAssignmentId) && (
+          <>
+            <DutySetChecklist
+              job={card}
+              activeTenantId={activeTenantId}
+              currentUserId={currentUser?.id}
+              canInteract={canInteract}
+            />
+            <hr className="jm-rule" />
+          </>
+        )}
+
         {/* ── Metadata (collapsible) ── */}
         <div className="cd-meta">
           <button onClick={() => setMetadataExpanded(!metadataExpanded)} className="cd-meta-head">
