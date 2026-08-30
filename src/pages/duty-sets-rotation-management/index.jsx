@@ -104,7 +104,7 @@ const DutySetsRotationManagement = () => {
     try {
       const { data, error } = await supabase
         ?.from('duty_set_templates')
-        ?.select('id, name, category, estimated_duration, task_count, tasks, department_id, tenant_id')
+        ?.select('id, name, category, estimated_duration, task_count, tasks, recurrence, department_id, tenant_id')
         ?.eq('tenant_id', activeTenantId)
         ?.eq('department_id', effectiveDepartmentId)
         ?.order('created_at', { ascending: true });
@@ -116,6 +116,7 @@ const DutySetsRotationManagement = () => {
         ...t,
         taskCount: t?.task_count,
         estimatedDuration: t?.estimated_duration,
+        recurrence: t?.recurrence || { type: 'daily' },
       })) || [];
 
       setTemplates(normalized);
@@ -148,6 +149,8 @@ const DutySetsRotationManagement = () => {
           estimated_duration: templateData?.estimatedDuration || 30,
           task_count: templateData?.tasks?.length || 0,
           tasks: templateData?.tasks || [],
+          // The modal has always collected this; it used to be dropped here.
+          recurrence: templateData?.recurrence || { type: 'daily' },
           created_by: currentUser?.id || null,
         })
         ?.select()
@@ -160,6 +163,7 @@ const DutySetsRotationManagement = () => {
           ...inserted,
           taskCount: inserted?.task_count,
           estimatedDuration: inserted?.estimated_duration,
+          recurrence: inserted?.recurrence || { type: 'daily' },
         };
         setTemplates(prev => [...prev, normalized]);
       }
@@ -184,6 +188,7 @@ const DutySetsRotationManagement = () => {
           estimated_duration: template?.estimated_duration,
           task_count: template?.task_count,
           tasks: template?.tasks,
+          recurrence: template?.recurrence || { type: 'daily' },
           created_by: currentUser?.id || null,
         })
         ?.select()
@@ -196,6 +201,7 @@ const DutySetsRotationManagement = () => {
           ...inserted,
           taskCount: inserted?.task_count,
           estimatedDuration: inserted?.estimated_duration,
+          recurrence: inserted?.recurrence || { type: 'daily' },
         };
         setTemplates(prev => [...prev, normalized]);
       }
@@ -231,6 +237,7 @@ const DutySetsRotationManagement = () => {
           estimated_duration: formData?.estimatedDuration,
           task_count: formData?.tasks?.length || 0,
           tasks: formData?.tasks,
+          recurrence: formData?.recurrence || { type: 'daily' },
         })
         ?.eq('id', templateId)
         ?.select()
@@ -243,6 +250,7 @@ const DutySetsRotationManagement = () => {
           ...updated,
           taskCount: updated?.task_count,
           estimatedDuration: updated?.estimated_duration,
+          recurrence: updated?.recurrence || { type: 'daily' },
         };
         setTemplates(prev => prev?.map(t => t?.id === templateId ? normalized : t));
       }
