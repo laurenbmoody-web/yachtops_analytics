@@ -14,6 +14,7 @@ import { getCurrentUser } from '../../utils/authStorage';
 
 import { loadBoards, saveBoards, loadBoardsFromSupabase, saveBoardToSupabase, deleteBoardFromSupabase, loadBoardOrderFromSupabase, saveBoardOrderToSupabase } from './utils/boardStorage';
 import { loadCards, saveCards } from './utils/cardStorage';
+import { tickAllDutyTasks, clearAutoDutyTasks, rotationAssignmentIdOf } from './utils/dutyProgress';
 
 
 import {
@@ -56,6 +57,9 @@ const notifyJobAssigned = (assigneeIds, jobTitle, jobId, dueDate) => {
 };
 
 const DEFAULT_SORT = 'due-asc';
+
+const isValidUUID = (val) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i?.test(String(val || ''));
 
 const hasCommandAccessLocal = (user) => hasCommandAccess(user);
 const hasChiefAccessLocal = (user) => hasChiefAccess(user);
@@ -1486,8 +1490,13 @@ const TeamJobsManagement = () => {
           priority: taskData?.priority || null,
           is_private: taskData?.isPrivate || taskData?.private || false,
           assigned_to: assignedTo && isValidUUID(assignedTo) ? assignedTo : null,
-          pending_for_department: taskData?.pendingForDepartment && isValidUUID(taskData?.pendingForDepartment) ? taskData?.pendingForDepartment : null,
-          source_department: taskData?.sourceDepartment && isValidUUID(taskData?.sourceDepartment) ? taskData?.sourceDepartment : null,
+          // The cross-department columns are target_department_id and
+          // source_department_id. This named them pending_for_department and
+          // source_department, which are not columns — and PostgREST rejects
+          // the whole insert when it is handed a column it does not know, so
+          // every job created here failed and lived on only in localStorage.
+          target_department_id: taskData?.pendingForDepartment && isValidUUID(taskData?.pendingForDepartment) ? taskData?.pendingForDepartment : null,
+          source_department_id: taskData?.sourceDepartment && isValidUUID(taskData?.sourceDepartment) ? taskData?.sourceDepartment : null,
           metadata: taskData?.metadata || [],
         };
         if (boardId && isValidUUID(boardId)) insertPayload.board_id = boardId;
@@ -1578,6 +1587,23 @@ const TeamJobsManagement = () => {
         console.warn('Failed to sync completion to Supabase:', err);
       }
     }
+
+    // A duty set job IS its task list, so ticking the job ticks the round:
+    // nobody wants to work through eighteen boxes and then tick the job as
+    // well. Reopening undoes only the ticks completion made — a task the
+    // person ticked on the round, and every note, stays exactly as it was.
+    if (rotationAssignmentIdOf(job) && activeTenantId) {
+      try {
+        if (newStatus === 'completed') {
+          await tickAllDutyTasks({ job, tenantId: activeTenantId, userId, auto: true });
+        } else {
+          await clearAutoDutyTasks({ job });
+        }
+      } catch (err) {
+        console.warn('[TeamJobs] Failed to sync duty set ticks:', err);
+      }
+    }
+
     setCompletingJobId(null);
   };
 
@@ -1605,13 +1631,80 @@ const TeamJobsManagement = () => {
           if (error) console.warn('[TeamJobs] Failed to sync completion to Supabase:', error);
         });
     }
+
+    // Same as the card checkbox: completing a duty set job ticks its round.
+    if (job && rotationAssignmentIdOf(job) && activeTenantId) {
+      tickAllDutyTasks({
+        job,
+        tenantId: activeTenantId,
+        userId: authUser?.id || currentUser?.id || completedBy,
+        auto: true,
+      })?.catch(err => console.warn('[TeamJobs] Failed to tick duty set on completion:', err));
+    }
   };
 
   const handleCardClick = (card) => { setSelectedCard(card); };
 
-  const handleCardUpdate = (updatedCard) => {
-    const updatedCards = cards?.map(c => c?.id === updatedCard?.id ? updatedCard : c);
-    setCards(updatedCards); saveCards(updatedCards); setSelectedCard(updatedCard);
+  // The detail modal calls onUpdate(cardId, patch) — a partial, never a whole
+  // card. This was written for a whole card, so `updatedCard?.id` was undefined,
+  // no card ever matched, and selectedCard was set to the id string: every edit
+  // made through the detail modal silently did nothing. It takes the pair now,
+  // and writes the fields that have columns through to Supabase so a change
+  // survives a refresh instead of living in this tab's memory.
+  const handleCardUpdate = async (cardId, patch) => {
+    if (!cardId || !patch) return;
+
+    const existing = cards?.find(c => c?.id === cardId)
+      || supabaseJobs?.find(c => c?.id === cardId)
+      || (selectedCard?.id === cardId ? selectedCard : null);
+
+    const merged = { ...(existing || { id: cardId }), ...patch };
+    // assignees and assigned_to are two views of the same thing; keep them in step
+    if (Object.prototype.hasOwnProperty.call(patch, 'assignees')) {
+      merged.assignees = patch?.assignees || [];
+      merged.assigned_to = patch?.assignees?.[0] || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'department')) {
+      merged.department_id = patch?.department || null;
+    }
+
+    const updatedCards = cards?.map(c => (c?.id === cardId ? { ...c, ...merged } : c));
+    setCards(updatedCards);
+    saveCards(updatedCards);
+    setSupabaseJobs(prev => prev?.map(j => (j?.id === cardId ? { ...j, ...merged } : j)));
+    setSelectedCard(prev => (prev?.id === cardId ? merged : prev));
+
+    const supabaseId = merged?.supabase_id
+      || (String(cardId)?.includes('-') && !String(cardId)?.startsWith('card-') ? cardId : null);
+    if (!supabaseId || !activeTenantId) return;
+
+    // Only the fields team_jobs actually has. Labels, checklist and notes have
+    // no columns yet, so they stay local rather than failing the whole update —
+    // PostgREST rejects an update naming a column it does not know.
+    const row = { updated_at: new Date()?.toISOString() };
+    if ('title' in patch) row.title = patch?.title || null;
+    if ('description' in patch) row.description = patch?.description || null;
+    if ('priority' in patch) row.priority = patch?.priority || null;
+    if ('recurrence' in patch) row.recurrence = patch?.recurrence || null;
+    if ('dueDate' in patch) row.due_date = patch?.dueDate || null;
+    if ('assignees' in patch) {
+      const first = patch?.assignees?.[0] || null;
+      row.assigned_to = first && isValidUUID(first) ? first : null;
+    }
+    if ('department' in patch && patch?.department && isValidUUID(patch?.department)) {
+      row.department_id = patch?.department;
+    }
+    if (Object.keys(row)?.length === 1) return; // nothing but the timestamp
+
+    try {
+      const { error } = await supabase
+        ?.from('team_jobs')?.update(row)
+        ?.eq('id', supabaseId)?.eq('tenant_id', activeTenantId);
+      if (error) throw error;
+    } catch (err) {
+      console.warn('[TeamJobs] Failed to save job change:', err);
+      showToast('That change did not save. Check your connection and try again.', 'error');
+    }
   };
 
   const handleCardDelete = (cardId) => {

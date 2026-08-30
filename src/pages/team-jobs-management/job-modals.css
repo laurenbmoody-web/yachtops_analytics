@@ -817,6 +817,41 @@
 .cd-pickrow:hover { background: #FFFFFF; }
 .cd-avatar-img { width: 26px; height: 26px; border-radius: 999px; object-fit: cover; flex-shrink: 0; }
 
+/* ── Quick actions ──
+   The To Do row at the top of a job: assign, due date, priority. Pills that
+   read as a summary when set and open one inline panel at a time. */
+.cd-quickwrap { margin-bottom: 20px; }
+.cd-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.cd-quickbtn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 14px; border-radius: 999px;
+  border: 1px solid #E5E7EB; background: #FFFFFF; cursor: pointer;
+  font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.cd-quickbtn svg { color: #AEB4C2; transition: color 0.12s; }
+.cd-quickbtn:hover { border-color: #C65A1A; color: #C65A1A; }
+.cd-quickbtn:hover svg { color: #C65A1A; }
+/* set = this job already has a value, so the pill reads it back */
+.cd-quickbtn.set { color: #1C1B3A; font-weight: 600; }
+.cd-quickbtn.set svg { color: #C65A1A; }
+.cd-quickbtn.on {
+  border-color: #C65A1A; background: #FBEFE9; color: #C65A1A;
+}
+.cd-quickbtn.on svg { color: #C65A1A; }
+
+.cd-quickpanel {
+  margin-top: 12px; padding: 14px; border-radius: 12px;
+  border: 1px solid #EEF0F4; background: #FAFAF8;
+}
+.cd-quickpanel .jm-label { margin-top: 0; }
+.cd-quickclear {
+  margin-top: 10px; padding: 0; border: none; background: none; cursor: pointer;
+  font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.cd-quickclear:hover { color: #C65A1A; }
+
 /* checklist */
 .cd-progress-count {
   font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
@@ -913,6 +948,20 @@
    the monthlies that have gone long enough to need doing.
    ============================================================ */
 .dc { margin-bottom: 4px; }
+
+/* Tick all / clear all, beside the n/total count */
+.dc-headside { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.dc-bulk {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px; border-radius: 999px;
+  border: 1px solid #E5E7EB; background: #FFFFFF; cursor: pointer;
+  font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.dc-bulk svg { color: #C65A1A; }
+.dc-bulk:hover:not(:disabled) { border-color: #C65A1A; background: #FBEFE9; color: #C65A1A; }
+.dc-bulk:disabled { opacity: 0.55; cursor: default; }
+
 .dc-group { margin-top: 18px; }
 .dc-grouphead {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;

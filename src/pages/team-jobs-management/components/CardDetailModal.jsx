@@ -3,6 +3,7 @@ import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
 import DutySetChecklist from './DutySetChecklist';
+import AssigneePicker from './AssigneePicker';
 import '../job-modals.css';
 import '../../duty-sets-rotation-management/duty-sets.css';
 
@@ -74,6 +75,9 @@ const CardDetailModal = ({
   const [expandedAuditEntry, setExpandedAuditEntry] = useState(null);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
   const [editedDepartment, setEditedDepartment] = useState(card?.department || '');
+  // Which quick action is open, To Do style: one panel at a time, saves as you
+  // pick rather than making you open the whole edit form for a due date.
+  const [openQuick, setOpenQuick] = useState(null); // 'assign' | 'due' | 'priority'
   
   const { userRole } = useRole();
 
@@ -344,6 +348,42 @@ const CardDetailModal = ({
     setEditedLabels(prev => prev?.filter(l => l !== label));
   };
 
+  // ── Quick actions ──
+  // A job typed onto a board arrives with nothing but a title. Sending someone
+  // to the full edit form to put a name and a date on it is the long way round,
+  // so the three things you always set live here and save on the spot.
+  const applyQuick = (patch) => {
+    onUpdate(card?.id, patch);
+    setOpenQuick(null);
+  };
+
+  const quickAssigneeIds = card?.assignees?.length > 0
+    ? card?.assignees
+    : (card?.assigned_to ? [card?.assigned_to] : []);
+
+  const quickAssigneeLabel = (() => {
+    const names = quickAssigneeIds
+      ?.map(id => teamMembers?.find(m => m?.id === id || m?.user_id === id)?.name)
+      ?.filter(Boolean);
+    if (!names?.length) return null;
+    return names?.length > 1 ? `${names?.[0]} +${names?.length - 1}` : names?.[0];
+  })();
+
+  const quickDueLabel = card?.dueDate
+    ? new Date(card?.dueDate)?.toLocaleDateString(dateLocale())
+    : null;
+
+  const isoDaysFromToday = (days) => {
+    const d = new Date();
+    d?.setDate(d?.getDate() + days);
+    return `${d?.getFullYear()}-${String(d?.getMonth() + 1)?.padStart(2, '0')}-${String(d?.getDate())?.padStart(2, '0')}`;
+  };
+
+  // Rotation jobs are owned by the duty roster, not by whoever opens the card,
+  // and a completed job is a record — neither should be quietly reassigned.
+  const showQuickActions = modalMode === 'FULL' && canFullEdit && !editMode
+    && card?.source !== 'rotation' && card?.status !== 'completed';
+
   const handleComplete = () => {
     if (showAssistedCompletion) {
       onComplete(card?.id, selectedCompletedBy);
@@ -436,6 +476,114 @@ const CardDetailModal = ({
       </div>
 
       <div className="jm-body">
+        {/* ── Quick actions ──
+            The To Do move: a job typed onto a board opens on the three things
+            it is still missing, each editable in place and saved on the spot.
+            The pencil still opens the full form for title and description. */}
+        {showQuickActions && (
+          <div className="cd-quickwrap">
+            <div className="cd-quick">
+              <button
+                type="button"
+                className={`cd-quickbtn${openQuick === 'assign' ? ' on' : ''}${quickAssigneeLabel ? ' set' : ''}`}
+                onClick={() => setOpenQuick(openQuick === 'assign' ? null : 'assign')}
+              >
+                <Icon name="UserPlus" size={14} />
+                {quickAssigneeLabel || 'Assign'}
+              </button>
+              <button
+                type="button"
+                className={`cd-quickbtn${openQuick === 'due' ? ' on' : ''}${quickDueLabel ? ' set' : ''}`}
+                onClick={() => setOpenQuick(openQuick === 'due' ? null : 'due')}
+              >
+                <Icon name="Calendar" size={14} />
+                {quickDueLabel || 'Due date'}
+              </button>
+              <button
+                type="button"
+                className={`cd-quickbtn${openQuick === 'priority' ? ' on' : ''}${card?.priority ? ' set' : ''}`}
+                onClick={() => setOpenQuick(openQuick === 'priority' ? null : 'priority')}
+              >
+                <Icon name="Flag" size={14} />
+                {card?.priority
+                  ? `${card?.priority?.charAt(0)?.toUpperCase()}${card?.priority?.slice(1)} priority`
+                  : 'Priority'}
+              </button>
+            </div>
+
+            {openQuick === 'assign' && (
+              <div className="cd-quickpanel">
+                <p className="jm-label">Assign to</p>
+                <AssigneePicker
+                  multiple={false}
+                  options={(teamMembers || [])?.map(m => ({
+                    value: m?.id || m?.user_id,
+                    label: m?.name,
+                    description: getDepartmentName(m?.department_id) || undefined,
+                  }))}
+                  value={quickAssigneeIds}
+                  onChange={(next) => applyQuick({ assignees: next || [] })}
+                  placeholder="Search crew…"
+                />
+                {quickAssigneeIds?.length > 0 && (
+                  <button
+                    type="button"
+                    className="cd-quickclear"
+                    onClick={() => applyQuick({ assignees: [] })}
+                  >
+                    Unassign
+                  </button>
+                )}
+              </div>
+            )}
+
+            {openQuick === 'due' && (
+              <div className="cd-quickpanel">
+                <p className="jm-label">Due date</p>
+                <div className="jm-pills" style={{ marginBottom: 10 }}>
+                  <button type="button" className="jm-pill" onClick={() => applyQuick({ dueDate: isoDaysFromToday(0) })}>Today</button>
+                  <button type="button" className="jm-pill" onClick={() => applyQuick({ dueDate: isoDaysFromToday(1) })}>Tomorrow</button>
+                  <button type="button" className="jm-pill" onClick={() => applyQuick({ dueDate: isoDaysFromToday(7) })}>Next week</button>
+                </div>
+                <input
+                  type="date"
+                  className="jm-input"
+                  value={card?.dueDate?.split('T')?.[0] || ''}
+                  onChange={(e) => applyQuick({ dueDate: e?.target?.value || null })}
+                />
+                {card?.dueDate && (
+                  <button type="button" className="cd-quickclear" onClick={() => applyQuick({ dueDate: null })}>
+                    Clear due date
+                  </button>
+                )}
+              </div>
+            )}
+
+            {openQuick === 'priority' && (
+              <div className="cd-quickpanel">
+                <p className="jm-label">Priority</p>
+                <div className="jm-pills">
+                  {['low', 'medium', 'high']?.map(p => (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`jm-pill${card?.priority === p ? ' on' : ''}`}
+                      onClick={() => applyQuick({ priority: p })}
+                    >
+                      {p?.charAt(0)?.toUpperCase() + p?.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                {card?.priority && (
+                  <button type="button" className="cd-quickclear" onClick={() => applyQuick({ priority: null })}>
+                    Clear priority
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ── Duty set checklist ──
             For a rotation job this is the whole point of opening the card, so
             it sits first: today's dailies, this weekday's weeklies, and any
