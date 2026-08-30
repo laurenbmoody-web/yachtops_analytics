@@ -1965,6 +1965,21 @@ const TeamJobsManagement = () => {
     });
   };
 
+  // My Jobs is a day view, the way To Do and Trello work a "today" list: it
+  // leads with what is actually due today rather than every job ever issued.
+  // Anything that rolled over is kept — it is real outstanding work — but it
+  // sits behind its own header so a week of stale rotation rounds cannot
+  // masquerade as today's list.
+  const isForToday = (item) => {
+    const raw = item?.due_date ?? item?.dueDate ?? item?.due_date_str ?? null;
+    const due = raw ? String(raw)?.split('T')?.[0] : null;
+    return !due || due === todayLocal;
+  };
+  const splitByDay = (items) => ({
+    today: items?.filter(isForToday) || [],
+    earlier: items?.filter(i => !isForToday(i)) || [],
+  });
+
   // Toolbar-aware views of every column source — search / filters / sort are
   // applied here so the lists and their header counts stay in agreement.
   const myJobsItems = applyToolbar(myJobsItemsRaw);
@@ -2086,6 +2101,30 @@ const TeamJobsManagement = () => {
       {subtitle && <p className="tj-empty-s">{subtitle}</p>}
     </div>
   );
+
+  // A day column: today's work, then anything that rolled over under its own
+  // header so it is visible without pretending to be today's list.
+  const renderDayColumn = (items) => {
+    const { today, earlier } = splitByDay(items);
+    if (today?.length === 0 && earlier?.length === 0) return null;
+    return (
+      <>
+        {today?.length > 0
+          ? renderColumnItems(today)
+          : (
+            <div className="tj-empty" style={{ padding: '20px 12px' }}>
+              <p className="tj-empty-s">Nothing due today.</p>
+            </div>
+          )}
+        {earlier?.length > 0 && (
+          <>
+            <div className="tj-donerule">Rolled over ({earlier?.length})</div>
+            {renderColumnItems(earlier)}
+          </>
+        )}
+      </>
+    );
+  };
 
   // Render items in a column: open first, then a hairline rule, then completed
   const renderColumnItems = (items) => {
@@ -2557,10 +2596,10 @@ const TeamJobsManagement = () => {
                     <p className="tj-col-sub">{departmentFilter?.label}</p>
                   </div>
                   <span className="tj-col-count">
-                    {isViewingOwnDept
-                      ? myJobsItems?.filter(i => i?.status !== 'completed')?.length
-                      : openJobsForSelectedDept?.filter(i => i?.status !== 'completed')?.length
-                    } open
+                    {splitByDay(
+                      (isViewingOwnDept ? myJobsItems : openJobsForSelectedDept)
+                        ?.filter(i => i?.status !== 'completed'),
+                    )?.today?.length} today
                   </span>
                 </div>
                 <div className="tj-col-body">
@@ -2575,7 +2614,7 @@ const TeamJobsManagement = () => {
                         : 'Nothing due today and nothing overdue.'
                     )
                   ) : (
-                    renderColumnItems(isViewingOwnDept ? myJobsItems : openJobsForSelectedDept)
+                    renderDayColumn(isViewingOwnDept ? myJobsItems : openJobsForSelectedDept)
                   )}
                 </div>
               </div>
