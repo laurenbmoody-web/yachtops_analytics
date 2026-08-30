@@ -57,6 +57,12 @@ const DutySetsRotationManagement = () => {
   );
   const userDepartmentId = currentTenantMember?.department_id || null;
 
+  // Who is actually doing this. currentUser comes from a localStorage account
+  // record that a Supabase sign-in never writes, so its id is usually null —
+  // and a null created_by is how every rotation job on the vessel ended up
+  // stamped with one arbitrary chief's name. The session user is the real one.
+  const actingUserId = session?.user?.id || currentUser?.id || null;
+
   // ── Effective department_id to use ──
   const effectiveDepartmentId = isChiefOrHod
     ? userDepartmentId
@@ -175,7 +181,7 @@ const DutySetsRotationManagement = () => {
           tasks: templateData?.tasks || [],
           // The modal has always collected this; it used to be dropped here.
           recurrence: templateData?.recurrence || { type: 'daily' },
-          created_by: currentUser?.id || null,
+          created_by: actingUserId,
         })
         ?.select()
         ?.single();
@@ -213,7 +219,7 @@ const DutySetsRotationManagement = () => {
           task_count: template?.task_count,
           tasks: template?.tasks,
           recurrence: template?.recurrence || { type: 'daily' },
-          created_by: currentUser?.id || null,
+          created_by: actingUserId,
         })
         ?.select()
         ?.single();
@@ -674,7 +680,7 @@ const DutySetsRotationManagement = () => {
             templates={templates}
             departmentId={effectiveDepartmentId}
             tenantId={activeTenantId}
-            currentUserId={currentUser?.id || null}
+            currentUserId={actingUserId}
           />
         )}
       </div>

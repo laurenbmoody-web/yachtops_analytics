@@ -2,6 +2,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabaseClient';
 import { groupDutyTasks, MONTHLY_DUE_AFTER_DAYS } from '../utils/dutyTasks';
+import {
+  loadDutySetForJob,
+  tickAllDutyTasks,
+  clearAutoDutyTasks,
+  dutyTasksForDay,
+} from '../utils/dutyProgress';
 import '../job-modals.css';
 
 /**
@@ -25,11 +31,16 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
   const [openNote, setOpenNote] = useState(null);    // taskId whose note field is open
   const [savingId, setSavingId] = useState(null);
 
+  const [bulkSaving, setBulkSaving] = useState(false);
+
   const jobId = job?.supabase_id || job?.id || null;
   const rotationAssignmentId = job?.rotation_assignment_id || job?.rotationAssignmentId || null;
   const dueDate = job?.dueDate || job?.due_date || null;
+  const jobStatus = job?.status || null;
 
   // ── Load the template behind this job, plus its saved progress ──
+  // Keyed on jobStatus too: completing the job ticks its tasks server-side, so
+  // a checklist left open has to pick that up rather than keep showing zero.
   useEffect(() => {
     let cancelled = false;
     if (!rotationAssignmentId || !activeTenantId) { setLoading(false); return undefined; }
@@ -38,47 +49,11 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
       setLoading(true);
       setError(null);
       try {
-        const { data: assignment, error: aErr } = await supabase
-          ?.from('rotation_assignments')
-          ?.select('duty_set_template_id')
-          ?.eq('id', rotationAssignmentId)
-          ?.single();
-        if (aErr) throw aErr;
-
-        const templateId = assignment?.duty_set_template_id;
-        if (!templateId) { if (!cancelled) { setTemplate(null); setLoading(false); } return; }
-
-        const [{ data: tpl, error: tErr }, { data: rows }] = await Promise.all([
-          supabase?.from('duty_set_templates')
-            ?.select('id, name, tasks')?.eq('id', templateId)?.single(),
-          jobId
-            ? supabase?.from('duty_task_progress')
-                ?.select('task_id, done, note')?.eq('job_id', jobId)
-            : Promise.resolve({ data: [] }),
-        ]);
-        if (tErr) throw tErr;
-
-        // Most recent completion per task across the vessel — drives the
-        // "falling due" split on monthlies.
-        const { data: history } = await supabase
-          ?.from('duty_task_progress')
-          ?.select('task_id, done_at')
-          ?.eq('tenant_id', activeTenantId)
-          ?.eq('template_id', templateId)
-          ?.eq('done', true)
-          ?.order('done_at', { ascending: false });
-
+        const loaded = await loadDutySetForJob({ job, tenantId: activeTenantId });
         if (cancelled) return;
-
-        const seen = {};
-        (history || []).forEach(h => { if (!seen[h?.task_id]) seen[h.task_id] = h?.done_at; });
-
-        const prog = {};
-        (rows || []).forEach(r => { prog[r?.task_id] = { done: !!r?.done, note: r?.note || '' }; });
-
-        setTemplate(tpl || null);
-        setProgress(prog);
-        setLastDone(seen);
+        setTemplate(loaded?.template || null);
+        setProgress(loaded?.progress || {});
+        setLastDone(loaded?.lastDone || {});
       } catch (err) {
         if (!cancelled) setError(err?.message || 'Could not load this duty set.');
       } finally {
@@ -87,7 +62,10 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
     })();
 
     return () => { cancelled = true; };
-  }, [rotationAssignmentId, activeTenantId, jobId]);
+    // job is rebuilt on every render of the modal; the identifiers below are
+    // what actually decide what to load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rotationAssignmentId, activeTenantId, jobId, jobStatus]);
 
   const grouped = useMemo(
     () => groupDutyTasks(template?.tasks, dueDate, lastDone),
@@ -110,6 +88,9 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
           done: next?.done,
           done_at: next?.done ? new Date()?.toISOString() : null,
           done_by: next?.done ? (currentUserId || null) : null,
+          // A tick someone made themselves is theirs: clearing the auto flag is
+          // what stops reopening the job from undoing it.
+          auto_completed: false,
           note: next?.note || null,
           updated_at: new Date()?.toISOString(),
         }, { onConflict: 'job_id,task_id' });
@@ -121,6 +102,69 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
       setSavingId(null);
     }
   }, [jobId, activeTenantId, template, currentUserId, progress]);
+
+  // ── Tick all / clear all ──
+  // Eighteen boxes is a lot to click when the round genuinely went to plan, so
+  // there is one control for it. Clearing only undoes ticks, never notes.
+  const handleTickAll = useCallback(async () => {
+    if (!template || bulkSaving) return;
+    setBulkSaving(true);
+    try {
+      const ids = await tickAllDutyTasks({
+        job, tenantId: activeTenantId, userId: currentUserId, auto: false,
+      });
+      setProgress(prev => {
+        const next = { ...prev };
+        ids?.forEach(id => { next[id] = { ...(next?.[id] || { note: '' }), done: true, auto: false }; });
+        return next;
+      });
+    } catch (err) {
+      console.warn('[DutySetChecklist] tick all failed:', err);
+      setError('Could not tick everything. Check your connection and try again.');
+    } finally {
+      setBulkSaving(false);
+    }
+  }, [job, template, activeTenantId, currentUserId, bulkSaving]);
+
+  const handleClearAll = useCallback(async () => {
+    if (!template || bulkSaving) return;
+    const ids = dutyTasksForDay(template, dueDate, lastDone)
+      ?.map(t => t?.id)
+      ?.filter(id => progress?.[id]?.done);
+    if (!ids?.length) return;
+    setBulkSaving(true);
+    try {
+      const now = new Date()?.toISOString();
+      const { error: upErr } = await supabase
+        ?.from('duty_task_progress')
+        ?.upsert(
+          ids?.map(id => ({
+            tenant_id: activeTenantId,
+            job_id: jobId,
+            template_id: template?.id || null,
+            task_id: id,
+            done: false,
+            done_at: null,
+            done_by: null,
+            auto_completed: false,
+            note: progress?.[id]?.note || null,
+            updated_at: now,
+          })),
+          { onConflict: 'job_id,task_id' },
+        );
+      if (upErr) throw upErr;
+      setProgress(prev => {
+        const next = { ...prev };
+        ids?.forEach(id => { next[id] = { ...(next?.[id] || { note: '' }), done: false, auto: false }; });
+        return next;
+      });
+    } catch (err) {
+      console.warn('[DutySetChecklist] clear all failed:', err);
+      setError('Could not clear the ticks. Check your connection and try again.');
+    } finally {
+      setBulkSaving(false);
+    }
+  }, [template, dueDate, lastDone, progress, activeTenantId, jobId, bulkSaving]);
 
   if (!rotationAssignmentId) return null;
 
@@ -230,7 +274,22 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
           <Icon name="ListChecks" size={14} />
           {template?.name} — today
         </p>
-        <span className="cd-progress-count">{doneCount}/{total}</span>
+        <div className="dc-headside">
+          {canInteract && total > 0 && (
+            <button
+              type="button"
+              className="dc-bulk"
+              onClick={doneCount === total ? handleClearAll : handleTickAll}
+              disabled={bulkSaving}
+            >
+              <Icon name={doneCount === total ? 'Square' : 'CheckCheck'} size={13} />
+              {bulkSaving
+                ? 'Saving…'
+                : (doneCount === total ? 'Clear all' : 'Tick all')}
+            </button>
+          )}
+          <span className="cd-progress-count">{doneCount}/{total}</span>
+        </div>
       </div>
       <div className="cd-progress"><div className="bar" style={{ width: `${pct}%` }} /></div>
 
