@@ -8,6 +8,7 @@ import lazyWithRetry from './utils/lazyWithRetry';
 import Dashboard from './pages/dashboard';
 import SignInBoard from './pages/sign-in-board';
 import TeamJobsManagement from './pages/team-jobs-management';
+import Upkeep from './pages/upkeep';
 import Accounts from './pages/accounts';
 import DepartmentCards from './pages/accounts/department-cards';
 import MyReconcile from './pages/accounts/my';
@@ -1222,6 +1223,10 @@ const Routes = () => {
         
         {/* Jobs Routes */}
         <Route path="/team-jobs-management" element={<ProtectedRoute><TeamJobsManagement /></ProtectedRoute>} />
+
+        {/* Upkeep — recurring work across every department. Schedules live here;
+            the work itself lands in Team Jobs as source='upkeep' occurrences. */}
+        <Route path="/upkeep" element={<ProtectedRoute><Upkeep /></ProtectedRoute>} />
         <Route path="/duty-sets-rotation-management" element={<ProtectedRoute><DutySetsRotationManagement /></ProtectedRoute>} />
         
         {/* Calendar Routes */}

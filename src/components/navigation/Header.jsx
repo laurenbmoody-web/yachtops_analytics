@@ -320,6 +320,7 @@ const Header = () => {
     { label: 'Crew', path: '/crew-management', icon: 'Users' },
     { label: 'Rota', path: '/crew', icon: 'CalendarClock' },
     { label: 'Jobs', path: '/team-jobs-management', icon: 'CheckSquare' },
+    { label: 'Upkeep', path: '/upkeep', icon: 'Wrench' },
     { label: 'Defects', path: '/defects', icon: 'AlertTriangle' },
     { label: 'Calendar', path: '/ops-vessel-calendar', icon: 'Calendar' },
     { label: 'Accounts', path: '/accounts', icon: 'DollarSign' },

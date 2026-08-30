@@ -4,6 +4,8 @@ import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
 import '../job-modals.css';
 import '../../duty-sets-rotation-management/duty-sets.css';
+import StepRunner from '../../upkeep/components/StepRunner';
+import { useDefectActor } from '../../defects/utils/useDefectActor';
 
 import { exportAuditTrailCSV } from '../utils/cardStorage';
 import { useRole } from '../../../contexts/RoleContext';
@@ -52,6 +54,9 @@ const CardDetailModal = ({
 }) => {
   const [editMode, setEditMode] = useState(false);
   const [editedTitle, setEditedTitle] = useState(card?.title || '');
+  // Upkeep occurrences (source='upkeep') carry a typed step list of their own.
+  const upkeepActor = useDefectActor();
+
   const [editedDescription, setEditedDescription] = useState(card?.description || '');
   const [editedAssignees, setEditedAssignees] = useState(card?.assignees || []);
   const [editedDueDate, setEditedDueDate] = useState(card?.dueDate?.split('T')?.[0] || '');
@@ -510,6 +515,29 @@ const CardDetailModal = ({
             <p className="jm-hint">{getDisabledTooltip(currentUser, 'editCoreFields')}</p>
           )}
         </div>
+
+        {/* ── Upkeep steps ──
+            An occurrence raised from an Upkeep schedule brings its own steps:
+            each one its own tick, comment and — for a reading — a number checked
+            against its normal range. The wording is the frozen copy taken when
+            the job was raised, so editing the schedule later cannot rewrite what
+            this job was signed off against. */}
+        {card?.source === 'upkeep' && (
+          <>
+            <hr className="jm-rule" />
+            <p className="jm-secthead">
+              <Icon name="ListChecks" size={14} />
+              Upkeep steps
+            </p>
+            <div className="jm-section">
+              <StepRunner
+                jobId={card?.id}
+                actor={upkeepActor}
+                readOnly={card?.status === 'completed'}
+              />
+            </div>
+          </>
+        )}
 
         {/* ── Department ── */}
         <p className="jm-secthead">

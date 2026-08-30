@@ -1,0 +1,160 @@
+/* ============================================================
+   Upkeep — recurring work across every department.
+   Page (uk-*). Follows the canonical editorial standard
+   (month-end / laundry): cool #F8FAFC ground, DM Serif headings,
+   Inter tracked-caps labels, navy ink + terracotta accent,
+   hairline rules and whitespace — no boxed cards.
+   ============================================================ */
+
+.uk-page {
+  min-height: calc(100vh - 64px);
+  background: #F8FAFC;
+  padding: 26px 40px 80px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+  box-sizing: border-box;
+}
+.uk-wrap { max-width: none; width: 100%; }
+
+.uk-back {
+  display: inline-flex; align-items: center; gap: 6px; background: none; border: none;
+  font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6E6B85; cursor: pointer;
+  padding: 2px 0; margin-bottom: 12px; transition: color 0.14s;
+}
+.uk-back:hover { color: #C65A1A; }
+
+.uk-head { margin-bottom: 22px; }
+.uk-titlerow {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 24px 32px; flex-wrap: wrap;
+}
+.uk-actions { display: flex; align-items: center; gap: 10px; }
+
+/* ── buttons ── */
+.uk-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif;
+  padding: 9px 15px; border-radius: 10px; cursor: pointer;
+  border: 1px solid #E5E7EB; background: #fff; color: #1C1B3A;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+}
+.uk-btn:hover { border-color: #D6D9E0; background: #FAFAF8; }
+.uk-btn--primary { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.uk-btn--primary:hover { background: #B14E16; border-color: #B14E16; }
+.uk-btn--ghostdanger { color: #B42318; }
+.uk-btn--ghostdanger:hover { border-color: #FDA29B; background: #FEF3F2; }
+.uk-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── filter rail ── */
+.uk-filters {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 0 0 16px; margin-bottom: 6px; border-bottom: 1px solid #EEF0F4;
+}
+.uk-pill {
+  border: 1px solid #E5E7EB; background: #fff; color: #4B5563;
+  font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif;
+  padding: 6px 13px; border-radius: 999px; cursor: pointer;
+  transition: all 0.14s; white-space: nowrap;
+}
+.uk-pill:hover { border-color: #D6D9E0; color: #1C1B3A; }
+.uk-pill.is-on { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.uk-search {
+  flex: 1 1 220px; min-width: 180px; margin-left: auto;
+  border: 1px solid #E5E7EB; border-radius: 10px; background: #FAFAF8;
+  padding: 8px 12px; font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+}
+.uk-search:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+
+/* ── section label ── */
+.uk-seclabel {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; margin: 26px 0 2px;
+}
+
+/* ── schedule rows — hairline separated, not boxed ── */
+.uk-list { margin-top: 6px; }
+.uk-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.1fr) auto;
+  gap: 18px; align-items: center;
+  padding: 15px 4px; border-bottom: 1px solid #F0F1F5;
+  cursor: pointer; transition: background 0.12s;
+}
+.uk-row:hover { background: #FCFCFD; }
+.uk-row-main { min-width: 0; }
+.uk-row-name {
+  font: 600 14.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  margin: 0 0 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.uk-row-sub {
+  font: 500 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+}
+.uk-row-sub .sep { color: #D6D9E0; }
+.uk-row-cell {
+  font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis;
+}
+.uk-row-actions { display: flex; align-items: center; gap: 6px; }
+
+.uk-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: 600 10.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  padding: 3px 9px; border-radius: 999px;
+  background: #FBEFE9; color: #C65A1A; white-space: nowrap;
+}
+.uk-chip--plain { background: #F4F4F6; color: #6B7280; }
+.uk-chip--class { background: #EEF2FF; color: #4338CA; }
+
+/* due states — semantic, not the brand accent */
+.uk-due { font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; }
+.uk-due--overdue { color: #B42318; }
+.uk-due--today   { color: #C65A1A; }
+.uk-due--soon    { color: #B54708; }
+.uk-due--ahead   { color: #6B7280; }
+.uk-due--none    { color: #AEB4C2; }
+
+.uk-count {
+  font: 500 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+}
+
+/* ── empty / loading ── */
+.uk-empty {
+  padding: 54px 20px; text-align: center; color: #8B8478;
+  font: 500 13.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.uk-empty h3 {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 20px; font-weight: 400; color: #1C1B3A; margin: 0 0 6px;
+}
+.uk-empty p { margin: 0 auto 18px; max-width: 430px; line-height: 1.55; }
+
+/* ── stat strip ── */
+.uk-stats {
+  display: flex; gap: 34px; flex-wrap: wrap;
+  padding: 16px 4px 18px; border-bottom: 1px solid #EEF0F4;
+}
+.uk-stat-n {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 27px; line-height: 1; color: #1C1B3A;
+}
+.uk-stat-n.is-alert { color: #B42318; }
+.uk-stat-l {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; margin-top: 5px;
+}
+
+@media (max-width: 860px) {
+  .uk-page { padding: 20px 18px 64px; }
+  .uk-row { grid-template-columns: 1fr auto; gap: 10px; }
+  .uk-row-cell { display: none; }
+  .uk-stats { gap: 22px; }
+}
+
+.uk-error {
+  background: #FEF3F2; border: 1px solid #FDA29B; color: #B42318;
+  border-radius: 10px; padding: 10px 13px;
+  font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; margin-bottom: 16px;
+}
