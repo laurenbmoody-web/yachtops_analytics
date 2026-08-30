@@ -185,7 +185,18 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
     );
   };
 
-  const anyQty = links?.some(l => l?.kind === INVENTORY && l?.qty > 0 && !l?.consumedAt);
+  // Say what the quantity is for, before it does anything. A number in a box
+  // that silently moves real stock when the job is ticked is the kind of thing
+  // people discover afterwards, so the panel states it either way: what will
+  // happen once a quantity is set, and exactly what will move when one is.
+  const stockLinks = links?.filter(l => l?.kind === INVENTORY);
+  const pending = stockLinks?.filter(l => l?.qty > 0 && !l?.consumedAt);
+  const unquantified = stockLinks?.filter(l => !(l?.qty > 0) && !l?.consumedAt);
+  const consumedLinks = stockLinks?.filter(l => l?.consumedAt);
+
+  const listOf = (ls) => ls
+    ?.map(l => `${l?.qty} ${l?.name}${l?.item?.unit && l?.item?.unit !== 'each' ? ` ${l.item.unit}` : ''}`)
+    ?.join(', ');
 
   return (
     <div className="jl">
@@ -215,9 +226,21 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
         !picking && <p className="jm-hint" style={{ marginTop: 0 }}>Nothing linked yet.</p>
       )}
 
-      {anyQty && (
+      {pending?.length > 0 && (
         <p className="jm-hint">
-          Completing this job will take these off the shelf and record the movement.
+          Marking this job complete takes <strong>{listOf(pending)}</strong> off the
+          shelf and records it against the item. Reopening the job puts it back.
+        </p>
+      )}
+      {pending?.length === 0 && unquantified?.length > 0 && (
+        <p className="jm-hint">
+          Set a quantity to have completing this job take that many out of stock.
+          Leave it blank and the link is just a reference.
+        </p>
+      )}
+      {consumedLinks?.length > 0 && (
+        <p className="jm-hint">
+          Already taken out of stock when this job was completed.
         </p>
       )}
 

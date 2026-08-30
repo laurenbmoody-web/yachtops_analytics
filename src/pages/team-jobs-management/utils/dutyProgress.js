@@ -74,10 +74,9 @@ export const loadDutySetForJob = async ({ job, tenantId }) => {
 };
 
 /**
- * The tasks a job's checklist actually shows for its day: the daily round,
- * this weekday's weeklies, and any monthly that has gone long enough to be
- * falling due. Monthlies that were done recently are deliberately excluded —
- * ticking those would claim they were redone today and push their clock out.
+ * Everything a job's checklist shows for its day: the daily round, this
+ * weekday's weeklies, and any monthly that has gone long enough to be falling
+ * due. Monthlies done recently are excluded — they are not on today's list.
  */
 export const dutyTasksForDay = (template, dueDate, lastDone) => {
   const grouped = groupDutyTasks(template?.tasks, dueDate, lastDone);
@@ -89,10 +88,26 @@ export const dutyTasksForDay = (template, dueDate, lastDone) => {
 };
 
 /**
- * Tick every task on the job's list for the day.
+ * The daily round, and only that.
  *
- * Tasks already ticked are left exactly as they are, so a tick someone made
- * themselves is never rewritten as an automatic one and its note survives.
+ * This is the set anything automatic is allowed to tick. The dailies are the
+ * work that always happens, so ticking them off the back of a finished round
+ * is a fair statement. The weeklies and the monthlies are not: they are the
+ * jobs that get skipped, which is the whole reason they are surfaced
+ * separately, and a monthly ticked by a machine claims it was done today and
+ * pushes its three-week clock out — quietly burying the very task the
+ * "suggested before month end" list exists to raise. Those stay a person's
+ * call, one box at a time.
+ */
+export const dutyDailyTasks = (template) =>
+  groupDutyTasks(template?.tasks, null, {})?.today || [];
+
+/**
+ * Tick the daily round.
+ *
+ * Deliberately the dailies only — see dutyDailyTasks. Tasks already ticked are
+ * left exactly as they are, so a tick someone made themselves is never
+ * rewritten as an automatic one and its note survives.
  *
  * @param auto true when this came from completing the whole job rather than
  *             from someone pressing "tick all" — it is what lets reopening the
@@ -103,10 +118,10 @@ export const tickAllDutyTasks = async ({ job, tenantId, userId, auto = false }) 
   const jobId = jobIdOf(job);
   if (!jobId || !tenantId || !rotationAssignmentIdOf(job)) return [];
 
-  const { template, progress, lastDone } = await loadDutySetForJob({ job, tenantId });
+  const { template, progress } = await loadDutySetForJob({ job, tenantId });
   if (!template) return [];
 
-  const outstanding = dutyTasksForDay(template, dueDateOf(job), lastDone)
+  const outstanding = dutyDailyTasks(template)
     ?.filter(t => t?.id && !progress?.[t?.id]?.done);
   if (!outstanding?.length) return [];
 
