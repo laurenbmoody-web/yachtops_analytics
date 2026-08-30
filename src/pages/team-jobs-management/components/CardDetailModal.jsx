@@ -92,6 +92,29 @@ const CardDetailModal = ({
   const canAddNotes = modalMode === 'FULL' && canPerformAction(currentUser, card, 'addNotes');
   const canCompleteAction = modalMode === 'FULL' && canPerformAction(currentUser, card, 'complete');
 
+  // Helper function to get department name.
+  // Jobs store department_id as a uuid. The old lookup only knew the four
+  // legacy uppercase names, so a uuid fell through and was printed raw on the
+  // card. Resolve against the real department list first, then the legacy
+  // names, and never render a bare uuid.
+  // Declared here, above getCreatorInfo, because creatorInfo is computed
+  // during render and calls this — reading it any later is a temporal dead
+  // zone and threw before the page could paint.
+  const getDepartmentName = (dept) => {
+    if (!dept) return null;
+    const match = departments?.find(d => d?.id === dept);
+    if (match?.name) return match?.name;
+    const deptMap = {
+      INTERIOR: 'Interior',
+      DECK: 'Deck',
+      ENGINEERING: 'Engineering',
+      GALLEY: 'Galley',
+    };
+    const legacy = deptMap?.[String(dept)?.toUpperCase()];
+    if (legacy) return legacy;
+    return isUUIDish(dept) ? null : dept;
+  };
+
   // Helper function to resolve creator information from users store
   // The card mapping stores the creator as created_by / createdBy; this only
   // ever read createdByUserId, which no mapping sets, so every job reported
@@ -154,26 +177,6 @@ const CardDetailModal = ({
     } catch (e) {
       return null;
     }
-  };
-
-  // Add this block - Helper function to get department name
-  // Jobs store department_id as a uuid. The old lookup only knew the four
-  // legacy uppercase names, so a uuid fell through and was printed raw on the
-  // card. Resolve against the real department list first, then the legacy
-  // names, and never render a bare uuid.
-  const getDepartmentName = (dept) => {
-    if (!dept) return null;
-    const match = departments?.find(d => d?.id === dept);
-    if (match?.name) return match?.name;
-    const deptMap = {
-      INTERIOR: 'Interior',
-      DECK: 'Deck',
-      ENGINEERING: 'Engineering',
-      GALLEY: 'Galley',
-    };
-    const legacy = deptMap?.[String(dept)?.toUpperCase()];
-    if (legacy) return legacy;
-    return isUUIDish(dept) ? null : dept;
   };
 
   // Add this block - Helper function to get assigned user name
