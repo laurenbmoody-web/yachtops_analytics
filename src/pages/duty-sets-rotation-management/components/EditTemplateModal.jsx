@@ -3,6 +3,7 @@ import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
 import '../../team-jobs-management/job-modals.css';
 import '../duty-sets.css';
+import { DAYS, ORDINALS, WEEKDAYS, REPEATS_OPTIONS, DEFAULT_RECURRENCE } from './recurrenceOptions';
 
 const EditTemplateModal = ({ template, existingTemplates = [], onClose, onSave }) => {
   // Derive duty options from existing templates
@@ -26,8 +27,26 @@ const EditTemplateModal = ({ template, existingTemplates = [], onClose, onSave }
       id: t?.id || `task-${Math.random()}`,
       text: t?.text || t?.title || t?.name || '',
       frequency: t?.frequency || 'daily'
-    })) : []
+    })) : [],
+    // Seeded from the row, so saving an edit carries the schedule through
+    // rather than resetting it.
+    recurrence: { ...DEFAULT_RECURRENCE, ...(template?.recurrence || {}) },
   });
+
+  const rec = formData?.recurrence;
+
+  const toggleWeekDay = (day) => {
+    setFormData(prev => {
+      const days = prev?.recurrence?.weekDays?.includes(day)
+        ? prev?.recurrence?.weekDays?.filter(d => d !== day)
+        : [...(prev?.recurrence?.weekDays || []), day];
+      return { ...prev, recurrence: { ...prev?.recurrence, weekDays: days } };
+    });
+  };
+
+  const updateRecurrence = (field, value) => {
+    setFormData(prev => ({ ...prev, recurrence: { ...prev?.recurrence, [field]: value } }));
+  };
 
   const [newTask, setNewTask] = useState({ text: '', frequency: 'daily' });
 
@@ -125,6 +144,134 @@ const EditTemplateModal = ({ template, existingTemplates = [], onClose, onSave }
               <span className="suffix">minutes</span>
             </div>
           </div>
+        </div>
+
+        {/* Recurrence — the modal collected this and threw it away before the
+            recurrence column existed; it now round-trips. */}
+        <div className="jm-section">
+          <label className="jm-label" htmlFor="etpl-repeats">Repeats</label>
+          <select
+            id="etpl-repeats"
+            className="jm-select"
+            value={rec?.type || 'daily'}
+            onChange={(e) => updateRecurrence('type', e?.target?.value)}
+          >
+            {REPEATS_OPTIONS?.map(o => (
+              <option key={o?.value} value={o?.value}>{o?.label}</option>
+            ))}
+          </select>
+
+          {(rec?.type === 'weekly' || rec?.type === 'fortnightly') && (
+            <div style={{ marginTop: 16 }}>
+              <p className="jm-label">Days</p>
+              <div className="jm-pills">
+                {DAYS?.map(d => (
+                  <button
+                    key={d?.key}
+                    type="button"
+                    onClick={() => toggleWeekDay(d?.key)}
+                    className={`jm-pill${rec?.weekDays?.includes(d?.key) ? ' on' : ''}`}
+                  >
+                    {d?.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {rec?.type === 'fortnightly' && (
+            <div style={{ marginTop: 16 }}>
+              <p className="jm-label">Which week</p>
+              <div className="jm-pills">
+                {['A', 'B']?.map(w => (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => updateRecurrence('fortnightWeek', w)}
+                    className={`jm-pill${rec?.fortnightWeek === w ? ' on' : ''}`}
+                  >
+                    Week {w}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {rec?.type === 'monthly' && (
+            <div style={{ marginTop: 16 }}>
+              <p className="jm-label">Monthly pattern</p>
+              <div className="jm-pills">
+                <button
+                  type="button"
+                  onClick={() => updateRecurrence('monthlyMode', 'day')}
+                  className={`jm-pill${rec?.monthlyMode === 'day' ? ' on' : ''}`}
+                >
+                  Day of month
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateRecurrence('monthlyMode', 'nth')}
+                  className={`jm-pill${rec?.monthlyMode === 'nth' ? ' on' : ''}`}
+                >
+                  Nth weekday
+                </button>
+              </div>
+
+              {rec?.monthlyMode === 'day' && (
+                <div className="dsr-inlinerow">
+                  <span>Day</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    className="jm-input narrow"
+                    value={rec?.monthDay}
+                    onChange={(e) => updateRecurrence('monthDay', parseInt(e?.target?.value) || 1)}
+                  />
+                  <span>of the month</span>
+                </div>
+              )}
+
+              {rec?.monthlyMode === 'nth' && (
+                <div className="dsr-inlinerow">
+                  <span>The</span>
+                  <select
+                    className="jm-select auto"
+                    value={rec?.nthOrdinal}
+                    onChange={(e) => updateRecurrence('nthOrdinal', e?.target?.value)}
+                  >
+                    {ORDINALS?.map(o => (
+                      <option key={o?.value} value={o?.value}>{o?.label}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="jm-select auto"
+                    value={rec?.nthWeekday}
+                    onChange={(e) => updateRecurrence('nthWeekday', e?.target?.value)}
+                  >
+                    {WEEKDAYS?.map(w => (
+                      <option key={w?.value} value={w?.value}>{w?.label}</option>
+                    ))}
+                  </select>
+                  <span>of the month</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {rec?.type === 'custom' && (
+            <div className="dsr-inlinerow">
+              <span>Every</span>
+              <input
+                type="number"
+                min={1}
+                className="jm-input narrow"
+                value={rec?.everyXDays}
+                onChange={(e) => updateRecurrence('everyXDays', parseInt(e?.target?.value) || 1)}
+              />
+              <span>days</span>
+            </div>
+          )}
         </div>
 
         <hr className="jm-rule" />

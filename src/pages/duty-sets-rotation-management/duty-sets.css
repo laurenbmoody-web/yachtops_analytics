@@ -376,11 +376,13 @@
   color: #8B8478; text-align: center; padding: 16px 10px; margin: 0;
 }
 .rc-memberrow {
+  position: relative;
   display: flex; align-items: center; gap: 9px; cursor: pointer;
   padding: 7px 8px; border-radius: 9px; transition: background 0.12s;
 }
 .rc-memberrow:hover { background: #F5F6F8; }
-.rc-memberrow input { position: absolute; opacity: 0; width: 0; height: 0; }
+.rc-memberrow input { position: absolute; top: 0; left: 0; opacity: 0; width: 0; height: 0;
+  margin: 0; pointer-events: none; }
 .rc-memberrow .box {
   width: 16px; height: 16px; border-radius: 5px; flex-shrink: 0;
   border: 1.5px solid #D3D7DF; background: #FFFFFF; color: #FFFFFF;
@@ -451,3 +453,44 @@
   font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 .dsr-menu-done:hover { background: #B14E16; }
+
+/* a cell can hold more than one duty set — list them, dotted when paired */
+.rc-dutystack { display: flex; flex-direction: column; gap: 3px; width: 100%; }
+.rc-dutystack .rc-dutyname {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+}
+.rc-dutystack .dot {
+  width: 5px; height: 5px; border-radius: 999px; flex-shrink: 0;
+}
+/* checkbox on the multi-select picker rows */
+.rc-pickbox {
+  width: 16px; height: 16px; border-radius: 5px; flex-shrink: 0;
+  border: 1.5px solid #D3D7DF; background: #FFFFFF; color: #FFFFFF;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.14s, border-color 0.14s;
+}
+.rc-pickbox.on { background: #C65A1A; border-color: #C65A1A; }
+
+/* task groups on an expanded template card */
+.dsr-taskgroup + .dsr-taskgroup { margin-top: 16px; }
+.dsr-taskgrouphead {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 0 0 9px; padding-bottom: 6px; border-bottom: 1px solid #F0F1F5;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.dsr-taskgrouphead .n {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 11px; letter-spacing: 0; color: #AEB4C2;
+  font-variant-numeric: tabular-nums;
+}
+.dsr-task.due .pip { background: #C0453C; }
+.dsr-task.due .f { color: #C0453C; font-weight: 700; }
+.dsr-duepill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 9px; border-radius: 999px;
+  background: #FCF1F0; border: 1px solid #F3D5D2; color: #C0453C;
+  font-size: 10.5px; font-weight: 700;
+}
+.dsr-duepill svg { color: #C0453C; }

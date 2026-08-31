@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Icon from '../../../components/AppIcon';
 import '../duty-sets.css';
+import { groupTemplateTasks } from '../../team-jobs-management/utils/dutyTasks';
+import { isoToUK } from '../../../utils/dateFormat';
 
-const DutySetTemplateCard = ({ template, onDuplicate, onDelete, onEdit }) => {
+const DutySetTemplateCard = ({ template, onDuplicate, onDelete, onEdit, lastDoneById = {} }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const menuRef = useRef(null);
@@ -18,6 +20,8 @@ const DutySetTemplateCard = ({ template, onDuplicate, onDelete, onEdit }) => {
   }, [showMenu]);
 
   const taskCount = template?.taskCount ?? template?.tasks?.length ?? 0;
+  const grouped = groupTemplateTasks(template?.tasks, lastDoneById);
+  const dueCount = grouped?.monthly?.filter(t => t?.due)?.length || 0;
 
   return (
     <div className="dsr-card">
@@ -65,6 +69,12 @@ const DutySetTemplateCard = ({ template, onDuplicate, onDelete, onEdit }) => {
           <Icon name="Clock" size={13} />
           {template?.estimatedDuration} min
         </span>
+        {dueCount > 0 && (
+          <span className="dsr-duepill" title="Monthly tasks not done in over three weeks">
+            <Icon name="AlertTriangle" size={12} />
+            {dueCount} due
+          </span>
+        )}
       </div>
 
       {taskCount > 0 && (
@@ -76,17 +86,59 @@ const DutySetTemplateCard = ({ template, onDuplicate, onDelete, onEdit }) => {
 
       {expanded && (
         <div className="dsr-tasklist">
-          {template?.tasks?.map((task, idx) => (
-            <div key={task?.id ?? idx} className="dsr-task">
-              <span className="pip" />
-              <div>
-                <p className="t">{task?.text || task?.title || task?.name}</p>
-                {task?.frequency && (
-                  <p className="f">{String(task?.frequency)?.replace('-', ' — ')}</p>
-                )}
-              </div>
+          {/* Grouped the same way a job is worked: the daily pile, then each
+              weekday's weeklies, then the monthlies with when they were last
+              done. A monthly past three weeks is flagged, and stays flagged
+              until it gets ticked off again. */}
+          {grouped?.daily?.length > 0 && (
+            <div className="dsr-taskgroup">
+              <p className="dsr-taskgrouphead"><span>Daily</span><span className="n">{grouped?.daily?.length}</span></p>
+              {grouped?.daily?.map((task, idx) => (
+                <div key={task?.id ?? `d${idx}`} className="dsr-task">
+                  <span className="pip" />
+                  <div><p className="t">{task?.text || task?.title || task?.name}</p></div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {grouped?.weeklyByDay?.map(bucket => (
+            <div key={bucket?.day} className="dsr-taskgroup">
+              <p className="dsr-taskgrouphead">
+                <span>Weekly — {bucket?.label}</span><span className="n">{bucket?.tasks?.length}</span>
+              </p>
+              {bucket?.tasks?.map((task, idx) => (
+                <div key={task?.id ?? `w${idx}`} className="dsr-task">
+                  <span className="pip" />
+                  <div><p className="t">{task?.text || task?.title || task?.name}</p></div>
+                </div>
+              ))}
             </div>
           ))}
+
+          {grouped?.monthly?.length > 0 && (
+            <div className="dsr-taskgroup">
+              <p className="dsr-taskgrouphead">
+                <span>Monthly</span>
+                <span className="n">
+                  {dueCount > 0 ? `${dueCount} due` : `${grouped?.monthly?.length}`}
+                </span>
+              </p>
+              {grouped?.monthly?.map((task, idx) => (
+                <div key={task?.id ?? `m${idx}`} className={`dsr-task${task?.due ? ' due' : ''}`}>
+                  <span className="pip" />
+                  <div>
+                    <p className="t">{task?.text || task?.title || task?.name}</p>
+                    <p className="f">
+                      {task?.lastDoneAt
+                        ? `Last done ${isoToUK(task?.lastDoneAt)}${task?.due ? ` · ${task?.daysSinceDone} days ago` : ''}`
+                        : 'Never done'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

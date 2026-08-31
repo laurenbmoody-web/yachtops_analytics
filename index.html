@@ -7,7 +7,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#000000" />
   <meta name="description" content="Web site created using create-react-app" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=4" />
+  <!-- Tab icon. favicon.svg is not true vector — it is a filtered raster
+       wrapped in an <svg> — and Safari will not draw it. Declaring PNGs was
+       not enough on its own, so the baseline is now a real multi-size
+       favicon.ico at the root: the one format every browser has always
+       honoured, and the file Safari looks for by convention even when it
+       ignores the <link> tags. PNGs follow for browsers that prefer them,
+       and the SVG stays last. No query strings — Safari's favicon cache is
+       keyed loosely enough that a fresh path is more reliable than ?v=. -->
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />

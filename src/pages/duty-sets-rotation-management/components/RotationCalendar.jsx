@@ -178,10 +178,13 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
 
       if (error) throw error;
 
+      // A person can hold more than one duty set on a day — stairs and bridge,
+      // say — so each cell keeps a list. The crew decide the pairing on the
+      // day; nothing here is tied to a particular weekday.
       const map = {};
       data?.forEach(a => {
         const key = `${a?.member_id}__${a?.date}`;
-        map[key] = a;
+        (map[key] = map[key] || [])?.push(a);
       });
       setAssignments(map);
     } catch (err) {
@@ -209,112 +212,92 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
     setAssignModal({ memberId, date });
   };
 
-  // ── Save assignment (manual cell click) ──
-  const handleSaveAssignment = async (templateId) => {
+  // ── Toggle one duty set on a cell ──
+  // Adding a second does not replace the first: a cell holds as many duty sets
+  // as the crew agreed for that day. Passing null clears the cell entirely.
+  const handleToggleAssignment = async (templateId) => {
     if (!assignModal || !tenantId || !departmentId) return;
     setSavingAssignment(true);
     const dateKey = formatDateKey(assignModal?.date);
     const key = `${assignModal?.memberId}__${dateKey}`;
-    // Look up the auth user_id for this member (assignModal.memberId is tenant_members.id)
+    const current = assignments?.[key] || [];
+    // assignModal.memberId is tenant_members.id; jobs are keyed by auth user id
     const memberRecord = members?.find(m => m?.id === assignModal?.memberId);
     const memberUserId = memberRecord?.user_id || assignModal?.memberId;
+
     try {
-      const existing = assignments?.[key];
-      if (existing) {
-        if (templateId === null) {
-          // ── Remove assignment + linked job ──
-          await deleteJobForAssignment(existing?.linked_job_id);
-          await supabase?.from('rotation_assignments')?.delete()?.eq('id', existing?.id);
-          setAssignments(prev => {
-            const next = { ...prev };
-            delete next?.[key];
-            return next;
-          });
-        } else {
-          // ── Update assignment + sync linked job ──
-          const templateName = templates?.find(t => t?.id === templateId)?.name || null;
-          const jobId = await syncJobForAssignment({
-            assignmentId: existing?.id,
-            linkedJobId: existing?.linked_job_id || null,
-            tenantId,
-            departmentId,
-            memberId: memberUserId,
-            dateKey,
-            templateName,
-            createdBy: currentUserId,
-          });
-
-          // Update rotation_assignment with new template + linked_job_id
-          const updatePayload = { duty_set_template_id: templateId };
-          if (jobId && !existing?.linked_job_id) updatePayload.linked_job_id = jobId;
-
-          await supabase
-            ?.from('rotation_assignments')
-            ?.update(updatePayload)
-            ?.eq('id', existing?.id);
-
-          setAssignments(prev => ({
-            ...prev,
-            [key]: {
-              ...existing,
-              duty_set_template_id: templateId,
-              linked_job_id: jobId || existing?.linked_job_id || null,
-            },
-          }));
+      if (templateId === null) {
+        // Clear the whole cell
+        for (const a of current) {
+          await deleteJobForAssignment(a?.linked_job_id);
+          await supabase?.from('rotation_assignments')?.delete()?.eq('id', a?.id);
         }
-      } else if (templateId !== null) {
-        // ── Insert new assignment ──
-        const { data: inserted } = await supabase
-          ?.from('rotation_assignments')
-          ?.insert({
-            tenant_id: tenantId,
-            department_id: departmentId,
-            member_id: assignModal?.memberId,
-            date: dateKey,
-            duty_set_template_id: templateId,
-          })
-          ?.select()
-          ?.single();
-
-        if (inserted) {
-          // ── Create linked job ──
-          const templateName = templates?.find(t => t?.id === templateId)?.name || null;
-          const jobId = await syncJobForAssignment({
-            assignmentId: inserted?.id,
-            linkedJobId: null,
-            tenantId,
-            departmentId,
-            memberId: memberUserId,
-            dateKey,
-            templateName,
-            createdBy: currentUserId,
-          });
-
-          // Store linked_job_id back on the assignment
-          if (jobId) {
-            await supabase
-              ?.from('rotation_assignments')
-              ?.update({ linked_job_id: jobId })
-              ?.eq('id', inserted?.id);
-          }
-
-          setAssignments(prev => ({
-            ...prev,
-            [key]: { ...inserted, linked_job_id: jobId || null },
-          }));
-        }
+        setAssignments(prev => { const next = { ...prev }; delete next?.[key]; return next; });
+        setAssignModal(null);
+        return;
       }
+
+      const existing = current?.find(a => a?.duty_set_template_id === templateId);
+
+      if (existing) {
+        // Already on this cell — take it off
+        await deleteJobForAssignment(existing?.linked_job_id);
+        await supabase?.from('rotation_assignments')?.delete()?.eq('id', existing?.id);
+        setAssignments(prev => ({
+          ...prev,
+          [key]: (prev?.[key] || [])?.filter(a => a?.id !== existing?.id),
+        }));
+        return;
+      }
+
+      // Add it alongside whatever is already there
+      const { data: inserted } = await supabase
+        ?.from('rotation_assignments')
+        ?.insert({
+          tenant_id: tenantId,
+          department_id: departmentId,
+          member_id: assignModal?.memberId,
+          date: dateKey,
+          duty_set_template_id: templateId,
+        })
+        ?.select()
+        ?.single();
+
+      if (!inserted) return;
+
+      const templateName = templates?.find(t => t?.id === templateId)?.name || null;
+      const jobId = await syncJobForAssignment({
+        assignmentId: inserted?.id,
+        linkedJobId: null,
+        tenantId,
+        departmentId,
+        memberId: memberUserId,
+        dateKey,
+        templateName,
+        createdBy: currentUserId,
+      });
+
+      if (jobId) {
+        await supabase
+          ?.from('rotation_assignments')
+          ?.update({ linked_job_id: jobId })
+          ?.eq('id', inserted?.id);
+      }
+
+      setAssignments(prev => ({
+        ...prev,
+        [key]: [...(prev?.[key] || []), { ...inserted, linked_job_id: jobId || null }],
+      }));
     } catch (err) {
-      console.warn('[RotationCalendar] saveAssignment error:', err);
+      console.warn('[RotationCalendar] toggleAssignment error:', err);
     } finally {
       setSavingAssignment(false);
-      setAssignModal(null);
     }
   };
 
-  const getAssignmentForCell = (memberId, date) => {
+  const getAssignmentsForCell = (memberId, date) => {
     const key = `${memberId}__${formatDateKey(date)}`;
-    return assignments?.[key] || null;
+    return assignments?.[key] || [];
   };
 
   const getTemplateName = (templateId) => {
@@ -342,7 +325,7 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
       const currentAssignmentsMap = {};
       (currentWeekData || [])?.forEach(a => {
         const key = `${a?.member_id}__${a?.date}`;
-        currentAssignmentsMap[key] = a;
+        (currentAssignmentsMap[key] = currentAssignmentsMap[key] || [])?.push(a);
       });
 
       // ── Step 1: Fetch previous week's assignments to determine rotation continuity ──
@@ -392,8 +375,8 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
           const dateKey = formatDateKey(date);
           const cellKey = `${member?.id}__${dateKey}`;
 
-          // Skip if already assigned (respect manual changes)
-          if (currentAssignmentsMap?.[cellKey]) return;
+          // Skip cells that already hold a duty set (respect manual changes)
+          if (currentAssignmentsMap?.[cellKey]?.length) return;
 
           const templateIdx = (startIdx + dayIdx) % templates?.length;
           const template = templates?.[templateIdx];
@@ -406,13 +389,13 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
             date: dateKey,
             duty_set_template_id: template?.id,
           });
-          newAssignments[cellKey] = {
+          newAssignments[cellKey] = [{
             tenant_id: tenantId,
             department_id: departmentId,
             member_id: member?.id,
             date: dateKey,
             duty_set_template_id: template?.id,
-          };
+          }];
         });
       });
 
@@ -466,7 +449,9 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
       inserted?.forEach(row => {
         const key = `${row?.member_id}__${row?.date}`;
         const jobLink = jobLinkUpdates?.find(u => u?.id === row?.id);
-        insertedMap[key] = { ...row, linked_job_id: jobLink?.linked_job_id || null };
+        (insertedMap[key] = insertedMap[key] || [])?.push({
+          ...row, linked_job_id: jobLink?.linked_job_id || null,
+        });
       });
 
       setAssignments(prev => ({ ...prev, ...currentAssignmentsMap, ...insertedMap }));
@@ -671,25 +656,40 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
               <span className="rc-membername">{member?.name}</span>
             </div>
             {weekDates?.map((date, idx) => {
-              const assignment = getAssignmentForCell(member?.id, date);
-              const templateId = assignment?.duty_set_template_id;
-              const templateName = templateId ? getTemplateName(templateId) : null;
-              const color = templateId ? getTemplateColor(templateId, templates) : null;
+              // One cell, every duty set that person holds that day, listed by
+              // name. The first one's colour tints the cell; each name carries
+              // its own dot so a pairing stays readable.
+              const cell = getAssignmentsForCell(member?.id, date);
+              const entries = cell?.map(a => ({
+                id: a?.id,
+                name: getTemplateName(a?.duty_set_template_id),
+                color: getTemplateColor(a?.duty_set_template_id, templates),
+              }))?.filter(e => e?.name);
+              const lead = entries?.[0]?.color;
               return (
                 <div
                   key={idx}
                   onClick={() => handleDayClick(member?.id, date)}
                   className="rc-cell rc-daycell"
-                  style={color ? {
-                    backgroundColor: color?.bg,
-                    borderLeft: `3px solid ${color?.border}`,
+                  style={lead ? {
+                    backgroundColor: lead?.bg,
+                    borderLeft: `3px solid ${lead?.border}`,
                   } : undefined}
-                  title={templateName
-                    ? `${templateName} — click to change`
+                  title={entries?.length
+                    ? `${entries?.map(e => e?.name)?.join(' + ')} — click to change`
                     : `Assign duty to ${member?.name} on ${date?.toLocaleDateString(dateLocale())}`}
                 >
-                  {templateName && color ? (
-                    <span className="rc-dutyname" style={{ color: color?.text }}>{templateName}</span>
+                  {entries?.length > 0 ? (
+                    <span className="rc-dutystack">
+                      {entries?.map(e => (
+                        <span key={e?.id} className="rc-dutyname" style={{ color: e?.color?.text }}>
+                          {entries?.length > 1 && (
+                            <span className="dot" style={{ background: e?.color?.border }} />
+                          )}
+                          {e?.name}
+                        </span>
+                      ))}
+                    </span>
                   ) : (
                     <span className="rc-addhint"><Icon name="Plus" size={13} /></span>
                   )}
@@ -719,10 +719,10 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
           member={members?.find(m => m?.id === assignModal?.memberId)}
           date={assignModal?.date}
           templates={templates}
-          currentAssignment={getAssignmentForCell(assignModal?.memberId, assignModal?.date)}
+          currentAssignments={getAssignmentsForCell(assignModal?.memberId, assignModal?.date)}
           saving={savingAssignment}
           onClose={() => setAssignModal(null)}
-          onSelect={handleSaveAssignment}
+          onToggle={handleToggleAssignment}
         />
       )}
     </div>
@@ -730,15 +730,23 @@ const RotationCalendar = ({ templates, departmentId, tenantId, currentUserId }) 
 };
 
 // ── Duty Set Assignment Modal ──
-const DutySetAssignModal = ({ member, date, templates, currentAssignment, saving, onClose, onSelect }) => {
+// ── Duty Set Assignment Modal ──
+// Multi-select: a person can hold more than one duty set on a day (stairs and
+// bridge, say). Which pairing is up to the crew on the day, so nothing here is
+// tied to a weekday — tick as many as apply.
+const DutySetAssignModal = ({ member, date, templates, currentAssignments = [], saving, onClose, onToggle }) => {
   const dateLabel = date?.toLocaleDateString(dateLocale(), { weekday: 'long', month: 'long', day: 'numeric' });
+  const selectedIds = (currentAssignments || [])?.map(a => a?.duty_set_template_id);
+  const selectedNames = templates
+    ?.filter(t => selectedIds?.includes(t?.id))
+    ?.map(t => t?.name);
 
   return (
     <ModalShell onClose={onClose} isBusy={saving} panelClassName="jm-panel sm">
       <div className="jm-head">
         <div>
           <p className="jm-eyebrow">Rotation</p>
-          <h3 className="jm-title">Assign a duty set</h3>
+          <h3 className="jm-title">Assign duty sets</h3>
           <p className="jm-sub">{member?.name} · {dateLabel}</p>
         </div>
         <button onClick={onClose} className="jm-x" title="Close">
@@ -754,50 +762,63 @@ const DutySetAssignModal = ({ member, date, templates, currentAssignment, saving
             <p className="jm-empty-s">Create a duty set template for this department first.</p>
           </div>
         ) : (
-          <div className="rc-picklist">
-            {templates?.map((template, idx) => {
-              const isSelected = currentAssignment?.duty_set_template_id === template?.id;
-              const color = TEMPLATE_COLORS?.[idx % TEMPLATE_COLORS?.length];
-              return (
-                <button
-                  key={template?.id}
-                  onClick={() => onSelect(template?.id)}
-                  disabled={saving}
-                  className={`rc-pick${isSelected ? ' on' : ''}`}
-                  style={isSelected ? { backgroundColor: color?.bg, borderColor: color?.border } : undefined}
-                >
-                  <span className="swatch" style={{ backgroundColor: color?.border }} />
-                  <span className="main">
-                    <span className="t" style={isSelected ? { color: color?.text } : undefined}>
-                      {template?.name}
+          <>
+            <p className="jm-hint" style={{ marginTop: 0, marginBottom: 12 }}>
+              Tick every duty set this person is covering. More than one is fine.
+            </p>
+            <div className="rc-picklist">
+              {templates?.map((template, idx) => {
+                const isSelected = selectedIds?.includes(template?.id);
+                const color = TEMPLATE_COLORS?.[idx % TEMPLATE_COLORS?.length];
+                return (
+                  <button
+                    key={template?.id}
+                    onClick={() => onToggle(template?.id)}
+                    disabled={saving}
+                    className={`rc-pick${isSelected ? ' on' : ''}`}
+                    style={isSelected ? { backgroundColor: color?.bg, borderColor: color?.border } : undefined}
+                  >
+                    <span className={`rc-pickbox${isSelected ? ' on' : ''}`}>
+                      {isSelected && <Icon name="Check" size={11} />}
                     </span>
-                    <span className="s">
-                      {template?.category} · {template?.taskCount ?? template?.tasks?.length ?? 0} tasks
+                    <span className="swatch" style={{ backgroundColor: color?.border }} />
+                    <span className="main">
+                      <span className="t" style={isSelected ? { color: color?.text } : undefined}>
+                        {template?.name}
+                      </span>
+                      <span className="s">
+                        {template?.category} · {template?.taskCount ?? template?.tasks?.length ?? 0} tasks
+                      </span>
                     </span>
-                  </span>
-                  {isSelected && <Icon name="Check" size={15} style={{ color: color?.text }} />}
-                </button>
-              );
-            })}
-          </div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
-      {(currentAssignment || saving) && (
-        <div className="jm-foot">
-          {saving ? (
-            <span className="rc-saving">
-              <span className="jm-spin sm" />
-              Saving…
-            </span>
-          ) : (
-            <button className="jm-btn danger wide" onClick={() => onSelect(null)} disabled={saving}>
-              <Icon name="Trash2" size={15} />
-              Remove assignment
+      <div className="jm-foot">
+        {saving ? (
+          <span className="rc-saving">
+            <span className="jm-spin sm" />
+            Saving…
+          </span>
+        ) : (
+          <>
+            {selectedNames?.length > 0 && (
+              <button className="jm-btn danger" onClick={() => onToggle(null)}>
+                <Icon name="Trash2" size={15} />
+                Clear day
+              </button>
+            )}
+            <div className="spacer" />
+            <button className="jm-btn primary" onClick={onClose}>
+              {selectedNames?.length > 0 ? `Done · ${selectedNames?.join(' + ')}` : 'Done'}
             </button>
-          )}
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </ModalShell>
   );
 };

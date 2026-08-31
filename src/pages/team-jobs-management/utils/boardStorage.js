@@ -29,32 +29,15 @@ export const loadBoards = () => {
       return boards;
     }
     
-    // Initialize with default "Additional jobs" board if empty
-    const defaultBoards = [
-      {
-        id: crypto.randomUUID(),
-        name: 'Additional jobs',
-        boardType: 'Interior',
-        department: 'INTERIOR',
-        description: '',
-        createdAt: new Date()?.toISOString()
-      }
-    ];
-    
-    saveBoards(defaultBoards);
-    return defaultBoards;
+    // No seeded boards. An empty "Additional jobs" column shipped with every
+    // vessel and, alongside the rotation columns, left the page opening on
+    // boards nobody had asked for. Start empty — the New board tile is right
+    // there when a team actually wants one.
+    saveBoards([]);
+    return [];
   } catch (error) {
     console.error('Error loading boards:', error);
-    return [
-      {
-        id: crypto.randomUUID(),
-        name: 'Additional jobs',
-        boardType: 'Interior',
-        department: 'INTERIOR',
-        description: '',
-        createdAt: new Date()?.toISOString()
-      }
-    ];
+    return [];
   }
 };
 

@@ -3,34 +3,7 @@ import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
 import '../../team-jobs-management/job-modals.css';
 import '../duty-sets.css';
-
-const DAYS = [
-  { key: 'Mon', label: 'Mon' },
-  { key: 'Tue', label: 'Tue' },
-  { key: 'Wed', label: 'Wed' },
-  { key: 'Thu', label: 'Thu' },
-  { key: 'Fri', label: 'Fri' },
-  { key: 'Sat', label: 'Sat' },
-  { key: 'Sun', label: 'Sun' },
-];
-
-const ORDINALS = [
-  { value: '1', label: '1st' },
-  { value: '2', label: '2nd' },
-  { value: '3', label: '3rd' },
-  { value: '4', label: '4th' },
-  { value: '5', label: '5th (last)' },
-];
-
-const WEEKDAYS = [
-  { value: 'Monday', label: 'Monday' },
-  { value: 'Tuesday', label: 'Tuesday' },
-  { value: 'Wednesday', label: 'Wednesday' },
-  { value: 'Thursday', label: 'Thursday' },
-  { value: 'Friday', label: 'Friday' },
-  { value: 'Saturday', label: 'Saturday' },
-  { value: 'Sunday', label: 'Sunday' },
-];
+import { DAYS, ORDINALS, WEEKDAYS, REPEATS_OPTIONS } from './recurrenceOptions';
 
 const DEFAULT_DUTIES = [
   'Daily Service',
@@ -119,14 +92,6 @@ const CreateTemplateModal = ({ onClose, onCreate, existingTemplates = [] }) => {
   };
 
   const dutyOptions = duties?.map(c => ({ value: c, label: c }));
-
-  const repeatsOptions = [
-    { value: 'daily', label: 'Daily' },
-    { value: 'weekly', label: 'Weekly' },
-    { value: 'fortnightly', label: 'Fortnightly' },
-    { value: 'monthly', label: 'Monthly' },
-    { value: 'custom', label: 'Custom' },
-  ];
 
   const rec = formData?.recurrence;
 
@@ -220,7 +185,7 @@ const CreateTemplateModal = ({ onClose, onCreate, existingTemplates = [] }) => {
             value={rec?.type || ''}
             onChange={(e) => updateRecurrence('type', e?.target?.value)}
           >
-            {repeatsOptions?.map(o => (
+            {REPEATS_OPTIONS?.map(o => (
               <option key={o?.value} value={o?.value}>{o?.label}</option>
             ))}
           </select>

@@ -36,6 +36,7 @@ const DutySetsRotationManagement = () => {
   const [showDeptMenu, setShowDeptMenu] = useState(false);
   const [showBoardMenu, setShowBoardMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [lastDoneById, setLastDoneById] = useState({});
   const [sortBy, setSortBy] = useState(DEFAULT_TEMPLATE_SORT);
 
   // Department state
@@ -55,6 +56,12 @@ const DutySetsRotationManagement = () => {
     hasChiefAccess(currentUser)
   );
   const userDepartmentId = currentTenantMember?.department_id || null;
+
+  // Who is actually doing this. currentUser comes from a localStorage account
+  // record that a Supabase sign-in never writes, so its id is usually null —
+  // and a null created_by is how every rotation job on the vessel ended up
+  // stamped with one arbitrary chief's name. The session user is the real one.
+  const actingUserId = session?.user?.id || currentUser?.id || null;
 
   // ── Effective department_id to use ──
   const effectiveDepartmentId = isChiefOrHod
@@ -104,7 +111,7 @@ const DutySetsRotationManagement = () => {
     try {
       const { data, error } = await supabase
         ?.from('duty_set_templates')
-        ?.select('id, name, category, estimated_duration, task_count, tasks, department_id, tenant_id')
+        ?.select('id, name, category, estimated_duration, task_count, tasks, recurrence, department_id, tenant_id')
         ?.eq('tenant_id', activeTenantId)
         ?.eq('department_id', effectiveDepartmentId)
         ?.order('created_at', { ascending: true });
@@ -116,6 +123,7 @@ const DutySetsRotationManagement = () => {
         ...t,
         taskCount: t?.task_count,
         estimatedDuration: t?.estimated_duration,
+        recurrence: t?.recurrence || { type: 'daily' },
       })) || [];
 
       setTemplates(normalized);
@@ -134,6 +142,29 @@ const DutySetsRotationManagement = () => {
     }
   }, [activeTenantId, effectiveDepartmentId, fetchTemplates]);
 
+  // ── When was each task last ticked off? ──
+  // Drives the monthly "last done" line and the over-three-weeks flag. One
+  // query for the whole department; the newest row per task wins.
+  const fetchLastDone = useCallback(async () => {
+    if (!activeTenantId) return;
+    try {
+      const { data, error } = await supabase
+        ?.from('duty_task_progress')
+        ?.select('task_id, done_at')
+        ?.eq('tenant_id', activeTenantId)
+        ?.eq('done', true)
+        ?.order('done_at', { ascending: false });
+      if (error) throw error;
+      const map = {};
+      (data || [])?.forEach(r => { if (!map[r?.task_id]) map[r.task_id] = r?.done_at; });
+      setLastDoneById(map);
+    } catch (err) {
+      console.warn('[DutySets] fetchLastDone error:', err);
+    }
+  }, [activeTenantId]);
+
+  useEffect(() => { if (activeTenantId) fetchLastDone(); }, [activeTenantId, fetchLastDone]);
+
   // ── Create template → INSERT into Supabase ──
   const handleCreateTemplate = async (templateData) => {
     if (!activeTenantId || !effectiveDepartmentId) return;
@@ -148,7 +179,9 @@ const DutySetsRotationManagement = () => {
           estimated_duration: templateData?.estimatedDuration || 30,
           task_count: templateData?.tasks?.length || 0,
           tasks: templateData?.tasks || [],
-          created_by: currentUser?.id || null,
+          // The modal has always collected this; it used to be dropped here.
+          recurrence: templateData?.recurrence || { type: 'daily' },
+          created_by: actingUserId,
         })
         ?.select()
         ?.single();
@@ -160,6 +193,7 @@ const DutySetsRotationManagement = () => {
           ...inserted,
           taskCount: inserted?.task_count,
           estimatedDuration: inserted?.estimated_duration,
+          recurrence: inserted?.recurrence || { type: 'daily' },
         };
         setTemplates(prev => [...prev, normalized]);
       }
@@ -184,7 +218,8 @@ const DutySetsRotationManagement = () => {
           estimated_duration: template?.estimated_duration,
           task_count: template?.task_count,
           tasks: template?.tasks,
-          created_by: currentUser?.id || null,
+          recurrence: template?.recurrence || { type: 'daily' },
+          created_by: actingUserId,
         })
         ?.select()
         ?.single();
@@ -196,6 +231,7 @@ const DutySetsRotationManagement = () => {
           ...inserted,
           taskCount: inserted?.task_count,
           estimatedDuration: inserted?.estimated_duration,
+          recurrence: inserted?.recurrence || { type: 'daily' },
         };
         setTemplates(prev => [...prev, normalized]);
       }
@@ -231,6 +267,7 @@ const DutySetsRotationManagement = () => {
           estimated_duration: formData?.estimatedDuration,
           task_count: formData?.tasks?.length || 0,
           tasks: formData?.tasks,
+          recurrence: formData?.recurrence || { type: 'daily' },
         })
         ?.eq('id', templateId)
         ?.select()
@@ -243,6 +280,7 @@ const DutySetsRotationManagement = () => {
           ...updated,
           taskCount: updated?.task_count,
           estimatedDuration: updated?.estimated_duration,
+          recurrence: updated?.recurrence || { type: 'daily' },
         };
         setTemplates(prev => prev?.map(t => t?.id === templateId ? normalized : t));
       }
@@ -609,6 +647,7 @@ const DutySetsRotationManagement = () => {
                           onDuplicate={handleDuplicateTemplate}
                           onDelete={handleDeleteTemplate}
                           onEdit={setEditingTemplate}
+                          lastDoneById={lastDoneById}
                         />
                       ))}
                     </div>
@@ -641,7 +680,7 @@ const DutySetsRotationManagement = () => {
             templates={templates}
             departmentId={effectiveDepartmentId}
             tenantId={activeTenantId}
-            currentUserId={currentUser?.id || null}
+            currentUserId={actingUserId}
           />
         )}
       </div>
