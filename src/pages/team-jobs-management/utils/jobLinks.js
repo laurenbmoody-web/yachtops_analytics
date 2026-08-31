@@ -137,6 +137,40 @@ export const applyStockDelta = (item, delta, into = null) => {
   return { applied: -applied, shortfall, stock_locations: next, total: currentTotal - applied, breakdown };
 };
 
+/** Add one per-location breakdown to another, summing by location. */
+const mergeBreakdown = (a, b) => {
+  if (!Array.isArray(a) || a?.length === 0) return Array.isArray(b) ? b : null;
+  if (!Array.isArray(b) || b?.length === 0) return a;
+  const out = a?.map(e => ({ ...e }));
+  b?.forEach(e => {
+    const i = out?.findIndex(x => x?.locationName === e?.locationName);
+    if (i >= 0) out[i].qty = (Number(out[i]?.qty) || 0) + (Number(e?.qty) || 0);
+    else out?.push({ ...e });
+  });
+  return out;
+};
+
+/**
+ * Pull `amount` back out of a recorded breakdown.
+ *
+ * @returns { plan, rest } — plan is where that amount came from, so it goes
+ *          back to the same shelves; rest is what stays consumed.
+ */
+const takeFromBreakdown = (bd, amount) => {
+  if (!Array.isArray(bd) || bd?.length === 0) return { plan: null, rest: null };
+  let left = amount;
+  const plan = [];
+  const rest = [];
+  bd?.forEach(e => {
+    const have = Number(e?.qty) || 0;
+    const take = Math.min(left, have);
+    if (take > 0) { plan?.push({ locationName: e?.locationName, qty: take }); left -= take; }
+    const keep = have - take;
+    if (keep > 0) rest?.push({ locationName: e?.locationName, qty: keep });
+  });
+  return { plan: plan?.length ? plan : null, rest: rest?.length ? rest : null };
+};
+
 /** Every link on a job, with enough of the target to render it. */
 export const loadJobLinks = async ({ job, tenantId }) => {
   const jobId = jobIdOf(job);
@@ -390,4 +424,96 @@ export const loadJobHistoryForTarget = async ({ tenantId, kind, targetId, limit 
       const bt = b?.job?.completed_at || b?.consumedAt || b?.job?.due_date || '';
       return String(bt)?.localeCompare(String(at));
     });
+};
+
+/**
+ * Correct how much a completed job actually used.
+ *
+ * The verb guess and the quantity someone typed before the round are both
+ * estimates; what came off the shelf is only known afterwards. So a consumed
+ * link stays editable, and stock follows the correction — take one more, or
+ * put one back, against the shelves it originally came from. Setting it to
+ * zero returns everything and reopens the quantity, which is the full undo.
+ *
+ * Only the difference moves, so a correction leaves one honest ledger row
+ * rather than a return and a fresh withdrawal that never happened.
+ *
+ * @returns { name, moved, shortfall, refused, direction } for the caller
+ */
+export const adjustConsumedQty = async ({ link, tenantId, userId, newQty }) => {
+  const item = link?.item;
+  if (!item || !link?.consumedAt) return null;
+
+  const current = Number(link?.qty) || 0;
+  const next = Math.max(0, Number(newQty) || 0);
+  const delta = next - current;
+  if (delta === 0) return null;
+
+  if (isVariantItem(item)) {
+    return { name: item?.name, moved: 0, shortfall: 0, refused: 'size-tracked' };
+  }
+
+  let result;
+  let consumedFrom;
+
+  if (delta > 0) {
+    // Using more than was booked out: take the extra now.
+    result = applyStockDelta(item, -delta);
+    consumedFrom = mergeBreakdown(link?.consumedFrom, result?.breakdown);
+  } else {
+    // Used less: hand the difference back to the shelves it came from.
+    const give = Math.abs(delta);
+    const { plan, rest } = takeFromBreakdown(link?.consumedFrom, give);
+    result = applyStockDelta(item, give, plan);
+    consumedFrom = rest;
+  }
+
+  const { applied, shortfall, stock_locations, total } = result;
+
+  const { error: itemErr } = await supabase
+    ?.from('inventory_items')
+    ?.update({
+      stock_locations,
+      quantity: total,
+      total_qty: total,
+      updated_at: new Date()?.toISOString(),
+    })
+    ?.eq('id', item?.id)
+    ?.eq('tenant_id', tenantId);
+  if (itemErr) throw itemErr;
+
+  try {
+    await supabase?.from('inventory_movements')?.insert({
+      tenant_id: tenantId,
+      inventory_item_id: item?.id,
+      qty_delta: applied,
+      reason: 'job_adjusted',
+      notes: `Corrected from ${current} to ${next} used on a job`,
+      created_by: userId || null,
+    });
+  } catch (err) {
+    console.warn('[jobLinks] movement ledger write failed (non-blocking):', err);
+  }
+
+  const { error: linkErr } = await supabase
+    ?.from('job_links')
+    ?.update({
+      qty: next > 0 ? next : null,
+      // Back to nothing used at all: the link stops being a consumption and
+      // its quantity opens up again rather than sitting at a stale zero.
+      consumed_at: next > 0 ? link?.consumedAt : null,
+      consumed_by: next > 0 ? (userId || link?.consumedBy || null) : null,
+      consumed_from: next > 0 ? consumedFrom : null,
+      updated_at: new Date()?.toISOString(),
+    })
+    ?.eq('id', link?.id);
+  if (linkErr) throw linkErr;
+
+  return {
+    name: item?.name,
+    moved: Math.abs(applied),
+    shortfall,
+    refused: null,
+    direction: delta > 0 ? 'out' : 'back',
+  };
 };
