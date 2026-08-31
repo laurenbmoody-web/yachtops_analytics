@@ -10,6 +10,7 @@ import {
   setJobLinkQty,
   setJobLinkPurpose,
   removeJobLink,
+  adjustConsumedQty,
   searchLinkTargets,
   isVariantItem,
   suggestsConsumption,
@@ -138,6 +139,31 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
     }
   };
 
+  // Correcting a completed job. The guess and the pre-round estimate are both
+  // estimates; what actually came off the shelf is only known afterwards, so
+  // stock follows the correction rather than the other way round.
+  const handleAdjust = async (link, raw) => {
+    const next = raw === '' ? 0 : Math.max(0, Number(raw) || 0);
+    if (next === (Number(link?.qty) || 0)) return;
+    setBusyId(link?.id);
+    try {
+      const r = await adjustConsumedQty({
+        link, tenantId: activeTenantId, userId: currentUserId, newQty: next,
+      });
+      if (r?.refused) {
+        setError(`${r?.name} is tracked by size, so adjust it from the item itself.`);
+      } else if (r?.shortfall > 0) {
+        setError(`Only ${r?.moved} were left in stock, so ${r?.shortfall} more is unaccounted for.`);
+      }
+      await refresh();
+    } catch (err) {
+      console.warn('[JobLinksPanel] adjust failed:', err);
+      setError('That correction did not save. Check your connection and try again.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const handleRemove = async (link) => {
     setBusyId(link?.id);
     try {
@@ -181,10 +207,25 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
         {isStock && (
           <div className="jl-qty">
             {link?.consumedAt ? (
-              <span className="jl-used">
-                <Icon name="Check" size={11} />
-                {link?.qty} used
-              </span>
+              canInteract ? (
+                <span className="jl-usededit" title="Correct how many were actually used">
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    className="jm-input jl-qtyfield used"
+                    defaultValue={link?.qty ?? ''}
+                    disabled={busyId === link?.id}
+                    onBlur={(e) => handleAdjust(link, e?.target?.value)}
+                  />
+                  <span className="jl-unit">{link?.item?.unit || ''} used</span>
+                </span>
+              ) : (
+                <span className="jl-used">
+                  <Icon name="Check" size={11} />
+                  {link?.qty} used
+                </span>
+              )
             ) : (
               <>
                 {/* What the link is for. Reference is the default and moves
@@ -316,7 +357,9 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
       )}
       {consumedLinks?.length > 0 && (
         <p className="jm-hint">
-          Already taken out of stock when this job was completed.
+          {canInteract
+            ? 'Already taken out of stock. Change the number if a different amount was actually used — stock adjusts to match, and zero puts it all back.'
+            : 'Already taken out of stock when this job was completed.'}
         </p>
       )}
 

@@ -998,6 +998,15 @@
   font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
   min-width: 26px;
 }
+/* A consumed quantity stays editable — the correction is the point */
+.jl-usededit { display: inline-flex; align-items: center; gap: 6px; }
+.jl-qtyfield.used {
+  background: #EDF5EF; border-color: #CBE3D2; color: #2F6B40; font-weight: 600;
+}
+.jl-qtyfield.used:focus {
+  background: #FFFFFF; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7;
+}
+
 .jl-used {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 4px 10px; border-radius: 999px; background: #EDF5EF; color: #3F7A50;
