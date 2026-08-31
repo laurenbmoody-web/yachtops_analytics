@@ -9,6 +9,30 @@ import { supabase } from '../../../lib/supabaseClient';
 export const INVENTORY = 'inventory';
 export const EQUIPMENT = 'equipment';
 
+// Why the link exists. 'about' moves nothing; 'uses' consumes stock when the
+// job is completed. Default is 'about' — the safe thing to do by accident.
+export const ABOUT = 'about';
+export const USES = 'uses';
+
+// Verbs that mean the job consumes what it is linked to. Used to preselect the
+// purpose when someone links an item, never to decide it: the toggle is right
+// there and always wins. "Replace the ashtray" can just as easily mean swap it
+// for a clean one, so a guess must be visible and one click to undo, not a
+// silent deduction from real stock.
+const CONSUMING_VERBS = [
+  'replace', 'replacing', 'refill', 'refilling', 'top up', 'topping up',
+  'renew', 'renewing', 'change', 'changing', 'restock', 'restocking',
+  'fit ', 'fitting', 'install', 'installing', 'swap', 'swapping',
+  'new filter', 'new filters', 'use up',
+];
+
+/** Does this job title read as consuming something? */
+export const suggestsConsumption = (title) => {
+  const t = String(title || '')?.toLowerCase();
+  if (!t) return false;
+  return CONSUMING_VERBS?.some(v => t?.includes(v));
+};
+
 const jobIdOf = (job) => job?.supabase_id || job?.id || null;
 
 // A size-tracked item keeps per-size quantities inside stock_locations[].sizes.
@@ -121,7 +145,7 @@ export const loadJobLinks = async ({ job, tenantId }) => {
   const { data, error } = await supabase
     ?.from('job_links')
     ?.select(`
-      id, kind, qty, note, consumed_at, consumed_from, inventory_item_id, equipment_id, created_at,
+      id, kind, purpose, qty, note, consumed_at, consumed_from, inventory_item_id, equipment_id, created_at,
       inventory_items ( id, name, unit, total_qty, quantity, location, sub_location, has_variants, variants, stock_locations ),
       equipment ( id, name, code, manufacturer, model, location_label )
     `)
@@ -133,6 +157,7 @@ export const loadJobLinks = async ({ job, tenantId }) => {
   return (data || [])?.map(r => ({
     id: r?.id,
     kind: r?.kind,
+    purpose: r?.purpose || ABOUT,
     qty: r?.qty === null || r?.qty === undefined ? null : Number(r?.qty),
     note: r?.note || '',
     consumedAt: r?.consumed_at || null,
@@ -143,7 +168,9 @@ export const loadJobLinks = async ({ job, tenantId }) => {
   }));
 };
 
-export const addJobLink = async ({ job, tenantId, kind, targetId, qty = null, userId = null }) => {
+export const addJobLink = async ({
+  job, tenantId, kind, targetId, purpose = ABOUT, qty = null, userId = null,
+}) => {
   const jobId = jobIdOf(job);
   if (!jobId || !tenantId || !targetId) return null;
 
@@ -155,7 +182,8 @@ export const addJobLink = async ({ job, tenantId, kind, targetId, qty = null, us
       kind,
       inventory_item_id: kind === INVENTORY ? targetId : null,
       equipment_id: kind === EQUIPMENT ? targetId : null,
-      qty: kind === INVENTORY && qty ? qty : null,
+      purpose: kind === INVENTORY ? purpose : ABOUT,
+      qty: kind === INVENTORY && purpose === USES && qty ? qty : null,
       created_by: userId,
     })
     ?.select('id')
@@ -168,6 +196,25 @@ export const setJobLinkQty = async ({ linkId, qty }) => {
   const { error } = await supabase
     ?.from('job_links')
     ?.update({ qty: qty || null, updated_at: new Date()?.toISOString() })
+    ?.eq('id', linkId);
+  if (error) throw error;
+};
+
+/**
+ * Switch a link between "the job is about this" and "the job uses this up".
+ *
+ * Dropping back to a reference clears the quantity: a number left behind on a
+ * link that no longer consumes anything is the ambiguity this field exists to
+ * remove.
+ */
+export const setJobLinkPurpose = async ({ linkId, purpose, qty = null }) => {
+  const { error } = await supabase
+    ?.from('job_links')
+    ?.update({
+      purpose,
+      qty: purpose === USES ? (qty || null) : null,
+      updated_at: new Date()?.toISOString(),
+    })
     ?.eq('id', linkId);
   if (error) throw error;
 };
@@ -239,13 +286,18 @@ const moveStockForLink = async ({ link, tenantId, userId, sign }) => {
 /**
  * Completing a job takes the parts it used off the shelf.
  *
- * Only links that carry a quantity and have not already been consumed move —
- * consumed_at makes this exactly-once, so a double click, or completing a job
- * that was completed and reopened and completed again, deducts one time each.
+ * Only links explicitly marked as using the item move. A link that is merely
+ * about the item — the ashtrays a cleaning round polishes — is left alone no
+ * matter what is in its quantity field.
+ *
+ * consumed_at makes this exactly-once —
+ * so a double click, or completing a job that was completed and reopened and
+ * completed again, deducts one time each.
  */
 export const consumeJobLinks = async ({ job, tenantId, userId }) => {
   const links = await loadJobLinks({ job, tenantId });
-  const pending = links?.filter(l => l?.kind === INVENTORY && l?.qty > 0 && !l?.consumedAt);
+  const pending = links?.filter(
+    l => l?.kind === INVENTORY && l?.purpose === USES && l?.qty > 0 && !l?.consumedAt);
   const results = [];
   for (const link of pending) {
     try {
