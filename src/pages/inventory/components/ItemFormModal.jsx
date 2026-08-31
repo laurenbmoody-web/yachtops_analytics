@@ -25,16 +25,28 @@ const PROFILES = [
 const PROFILE_TITLE = { bonded: 'Bonded store', eng: 'Engineering', uniform: 'Uniform' };
 const PROFILE_ICON = { bonded: 'Wine', eng: 'Wrench', uniform: 'Shirt' };
 
+// Extensive default runs — the common full range for each scale. Anything
+// outside it (an odd EU 49, a 5XL) is added per-item with the "+ add" chip.
 const SIZE_SETS = {
-  alpha: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
-  waist: ['28', '30', '32', '34', '36', '38'],
-  waistin: ['30/30', '32/32', '34/32', '36/34'],
-  youth: ['XS', 'S', 'M', 'L', '8-10', '12-14'],
+  alpha: ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL'],
+  waist: ['26', '28', '30', '32', '34', '36', '38', '40', '42', '44', '46'],
+  waistin: ['30/30', '30/32', '32/30', '32/32', '34/32', '34/34', '36/32', '36/34', '38/34'],
+  youth: ['2-3y', '4-5y', '6-7y', '8-9y', '10-11y', '12-13y', 'XS', 'S', 'M', 'L'],
   one: ['One size'],
   custom: [],
 };
-const SHOE = [{ uk: '6', eu: '39', us: '7' }, { uk: '7', eu: '41', us: '8' }, { uk: '8', eu: '42', us: '9' }, { uk: '9', eu: '43', us: '10' }, { uk: '10', eu: '44', us: '11' }, { uk: '11', eu: '45', us: '12' }];
-const WOMEN = [{ us: '2', eu: '34', uk: '6' }, { us: '4', eu: '36', uk: '8' }, { us: '6', eu: '38', uk: '10' }, { us: '8', eu: '40', uk: '12' }, { us: '10', eu: '42', uk: '14' }];
+const SHOE = [
+  { uk: '2', eu: '35', us: '3' }, { uk: '3', eu: '36', us: '4' }, { uk: '4', eu: '37', us: '5' },
+  { uk: '5', eu: '38', us: '6' }, { uk: '6', eu: '39', us: '7' }, { uk: '6.5', eu: '40', us: '7.5' },
+  { uk: '7', eu: '41', us: '8' }, { uk: '8', eu: '42', us: '9' }, { uk: '9', eu: '43', us: '10' },
+  { uk: '10', eu: '44', us: '11' }, { uk: '10.5', eu: '45', us: '11.5' }, { uk: '11', eu: '46', us: '12' },
+  { uk: '12', eu: '47', us: '13' }, { uk: '13', eu: '48', us: '14' },
+];
+const WOMEN = [
+  { us: '2', eu: '34', uk: '4' }, { us: '4', eu: '36', uk: '6' }, { us: '6', eu: '38', uk: '8' },
+  { us: '8', eu: '40', uk: '10' }, { us: '10', eu: '42', uk: '12' }, { us: '12', eu: '44', uk: '14' },
+  { us: '14', eu: '46', uk: '16' }, { us: '16', eu: '48', uk: '18' }, { us: '18', eu: '50', uk: '20' },
+];
 const isMultiSize = (t) => t === 'shoe' || t === 'women';
 
 const FLAGS = [
@@ -251,12 +263,30 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [savedId, setSavedId] = useState(item?.id || null);
   const nameRef = useRef(null);
 
-  // size labels for the current system
+  // Custom sizes added on this item via "+ add" (kept even while toggled off).
+  const [customSizes, setCustomSizes] = useState([]);
+  const [newSize, setNewSize] = useState('');
+
+  // size labels for the current system — the built-in run, plus any custom or
+  // already-selected size that isn't part of it (so an item saved with an
+  // out-of-range size still shows its chip on edit).
   const sizeList = useMemo(() => {
-    if (sizeType === 'shoe') return SHOE.map((s) => (region === 'all' ? `${s.uk}·${s.eu}·${s.us}` : s[region] || s.uk));
-    if (sizeType === 'women') return WOMEN.map((s) => (region === 'all' ? `${s.us}·${s.eu}·${s.uk}` : s[region] || s.us));
-    return SIZE_SETS[sizeType] || [];
-  }, [sizeType, region]);
+    let base;
+    if (sizeType === 'shoe') base = SHOE.map((s) => (region === 'all' ? `${s.uk}·${s.eu}·${s.us}` : s[region] || s.uk));
+    else if (sizeType === 'women') base = WOMEN.map((s) => (region === 'all' ? `${s.us}·${s.eu}·${s.uk}` : s[region] || s.us));
+    else base = SIZE_SETS[sizeType] || [];
+    const onKeys = Object.keys(sizeOn).filter((k) => sizeOn[k]);
+    const extras = [...new Set([...customSizes, ...onKeys])].filter((s) => s && !base.includes(s));
+    return [...base, ...extras];
+  }, [sizeType, region, customSizes, sizeOn]);
+
+  const addCustomSize = () => {
+    const v = newSize.trim();
+    if (!v) return;
+    setCustomSizes((cs) => (cs.includes(v) ? cs : [...cs, v]));
+    setSizeOn((o) => ({ ...o, [v]: true }));
+    setNewSize('');
+  };
 
   // default first-4 sizes on when the size system changes — but keep the
   // hydrated run intact on the very first render of an edit.
@@ -267,6 +297,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     const next = {};
     sizeList.forEach((s, i) => { if (i < 4) next[s] = true; });
     setSizeOn(next);
+    setCustomSizes([]); setNewSize(''); // custom sizes belong to the previous scale
     if (sizeType === 'women') setRegion((r) => (r === 'uk' ? 'us' : r));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sizeType, profile]);
@@ -836,7 +867,13 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                 {isMultiSize(sizeType) && (
                   <div className="itf-f"><label className="itf-lab">Label by <span className="opt">· same item, different scale</span></label><div className="itf-rtoggle">{['uk', 'eu', 'us', 'all'].map((r) => <span key={r} className={`itf-rt${region === r ? ' on' : ''}`} onClick={() => setRegion(r)}>{r === 'all' ? 'Show all' : r.toUpperCase()}</span>)}</div></div>
                 )}
-                <div className="itf-f" style={{ marginBottom: 0 }}><label className="itf-lab">Sizes in use <span className="opt">· quantities go in Stock</span></label><div className="itf-chips">{sizeList.map((s) => <span key={s} className={`itf-chip${sizeOn[s] ? ' on' : ''}`} onClick={() => setSizeOn((o) => ({ ...o, [s]: !o[s] }))}>{s}</span>)}</div></div>
+                <div className="itf-f" style={{ marginBottom: 0 }}><label className="itf-lab">Sizes in use <span className="opt">· quantities go in Stock</span></label><div className="itf-chips">
+                  {sizeList.map((s) => <span key={s} className={`itf-chip${sizeOn[s] ? ' on' : ''}`} onClick={() => setSizeOn((o) => ({ ...o, [s]: !o[s] }))}>{s}</span>)}
+                  <span className="itf-chip-add">
+                    <input value={newSize} onChange={(e) => setNewSize(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomSize(); } }} placeholder="add size" aria-label="Add a custom size" />
+                    <button type="button" onClick={addCustomSize} disabled={!newSize.trim()} aria-label="Add size">+</button>
+                  </span>
+                </div></div>
                 <div className="itf-more" onClick={() => setMoreUni((v) => !v)}><span className="pl">{moreUni ? '–' : '+'}</span> Branding & care</div>
                 <div className={`itf-morebody${moreUni ? ' show' : ''}`}>
                   <div className="itf-g2" style={{ margin: 0 }}><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Branding</label><select className="itf-sel" value={brandingType} onChange={(e) => setBrandingType(e.target.value)}><option>None</option><option>Embroidery</option><option>Print</option><option>Woven badge</option></select></div><div className="itf-f" style={{ margin: 0 }}><label className="itf-lab">Style code <span className="opt">(opt)</span></label><input className="itf-in" value={styleCode} onChange={(e) => setStyleCode(e.target.value)} placeholder="SKU / style ref" /></div></div>
