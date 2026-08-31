@@ -5,8 +5,7 @@ import { groupDutyTasks, MONTHLY_DUE_AFTER_DAYS } from '../utils/dutyTasks';
 import {
   loadDutySetForJob,
   tickAllDutyTasks,
-  clearAutoDutyTasks,
-  dutyTasksForDay,
+  dutyDailyTasks,
 } from '../utils/dutyProgress';
 import '../job-modals.css';
 
@@ -103,9 +102,13 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
     }
   }, [jobId, activeTenantId, template, currentUserId, progress]);
 
-  // ── Tick all / clear all ──
+  // ── Tick all dailies / clear them ──
   // Eighteen boxes is a lot to click when the round genuinely went to plan, so
-  // there is one control for it. Clearing only undoes ticks, never notes.
+  // there is one control for it — but it covers the daily round only. The
+  // weeklies and monthlies are the jobs that legitimately get skipped, and a
+  // monthly ticked by a machine claims it was done today and pushes its
+  // three-week clock out, hiding the very task the suggestion list exists to
+  // raise. Those stay a person's call. Clearing only undoes ticks, never notes.
   const handleTickAll = useCallback(async () => {
     if (!template || bulkSaving) return;
     setBulkSaving(true);
@@ -128,7 +131,7 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
 
   const handleClearAll = useCallback(async () => {
     if (!template || bulkSaving) return;
-    const ids = dutyTasksForDay(template, dueDate, lastDone)
+    const ids = dutyDailyTasks(template)
       ?.map(t => t?.id)
       ?.filter(id => progress?.[id]?.done);
     if (!ids?.length) return;
@@ -164,7 +167,7 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
     } finally {
       setBulkSaving(false);
     }
-  }, [template, dueDate, lastDone, progress, activeTenantId, jobId, bulkSaving]);
+  }, [template, progress, activeTenantId, jobId, bulkSaving]);
 
   if (!rotationAssignmentId) return null;
 
@@ -205,6 +208,12 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
   const doneCount = [...(grouped?.today || []), ...(grouped?.weekly?.tasks || []), ...(grouped?.monthlyDue || [])]
     ?.filter(t => progress?.[t?.id]?.done)?.length;
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
+
+  // The bulk control speaks for the daily round only, so its label and its
+  // done/not-done state come from the dailies, not the whole list.
+  const dailyTotal = grouped?.today?.length || 0;
+  const dailyDone = (grouped?.today || [])?.filter(t => progress?.[t?.id]?.done)?.length;
+  const allDailiesDone = dailyTotal > 0 && dailyDone === dailyTotal;
 
   const renderTask = (task, tone) => {
     const state = progress?.[task?.id] || { done: false, note: '' };
@@ -275,17 +284,17 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
           {template?.name} — today
         </p>
         <div className="dc-headside">
-          {canInteract && total > 0 && (
+          {canInteract && dailyTotal > 0 && (
             <button
               type="button"
               className="dc-bulk"
-              onClick={doneCount === total ? handleClearAll : handleTickAll}
+              onClick={allDailiesDone ? handleClearAll : handleTickAll}
               disabled={bulkSaving}
             >
-              <Icon name={doneCount === total ? 'Square' : 'CheckCheck'} size={13} />
+              <Icon name={allDailiesDone ? 'Square' : 'CheckCheck'} size={13} />
               {bulkSaving
                 ? 'Saving…'
-                : (doneCount === total ? 'Clear all' : 'Tick all')}
+                : (allDailiesDone ? 'Clear dailies' : 'Tick all dailies')}
             </button>
           )}
           <span className="cd-progress-count">{doneCount}/{total}</span>

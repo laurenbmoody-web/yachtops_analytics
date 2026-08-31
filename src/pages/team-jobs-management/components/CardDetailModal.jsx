@@ -4,6 +4,7 @@ import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
 import DutySetChecklist from './DutySetChecklist';
 import AssigneePicker from './AssigneePicker';
+import JobLinksPanel from './JobLinksPanel';
 import '../job-modals.css';
 import '../../duty-sets-rotation-management/duty-sets.css';
 import StepRunner from '../../upkeep/components/StepRunner';
@@ -605,6 +606,18 @@ const CardDetailModal = ({
             <hr className="jm-rule" />
           </>
         )}
+
+        {/* ── What this job is about ──
+            The stock it uses and the equipment it services. A quantity here is
+            deducted when the job is completed, so it sits above the metadata,
+            in the part of the card someone actually reads. */}
+        <JobLinksPanel
+          job={card}
+          activeTenantId={activeTenantId}
+          currentUserId={currentUser?.id}
+          canInteract={canInteract}
+        />
+        <hr className="jm-rule" />
 
         {/* ── Metadata (collapsible) ── */}
         <div className="cd-meta">

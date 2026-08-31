@@ -943,6 +943,109 @@
 @media (max-width: 560px) { .cd-change-grid { grid-template-columns: 1fr; } }
 
 /* ============================================================
+   Job links (prefix jl-*) — the stock a job uses and the
+   equipment it services, plus the picker that adds them.
+   ============================================================ */
+.jl { margin-bottom: 4px; }
+.jl-list { display: flex; flex-direction: column; }
+.jl-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 0; border-bottom: 1px solid #F0F1F5;
+}
+.jl-row:last-child { border-bottom: none; }
+.jl-ico {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: #FBEFE9; color: #C65A1A;
+}
+.jl-ico.equip { background: #EEF2F8; color: #4A5568; }
+.jl-main { flex: 1; min-width: 0; display: block; }
+.jl-name {
+  display: block; margin: 0;
+  font: 600 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jl-sub {
+  display: block; margin: 2px 0 0;
+  font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jl-qty { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* Reference | Uses — what the link is for. Two states, always both visible, so
+   the one that moves stock is never the one you fell into. */
+.jl-mode {
+  display: inline-flex; border: 1px solid #E5E7EB; border-radius: 999px;
+  background: #F7F8FA; padding: 2px; gap: 2px;
+}
+.jl-modebtn {
+  border: none; background: none; cursor: pointer;
+  padding: 4px 11px; border-radius: 999px;
+  font: 600 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  transition: background 0.12s, color 0.12s, box-shadow 0.12s;
+}
+.jl-modebtn:hover:not(:disabled):not(.on) { color: #1C1B3A; }
+.jl-modebtn.on {
+  background: #FFFFFF; color: #1C1B3A;
+  box-shadow: 0 1px 2px rgba(28, 27, 58, 0.10);
+}
+/* The consuming state carries the accent — it is the one with a consequence */
+.jl-modebtn.on:last-child { color: #C65A1A; }
+.jl-modebtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.jl-qtyfield { width: 72px; padding: 7px 9px; text-align: right; }
+.jl-unit {
+  font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  min-width: 26px;
+}
+/* A consumed quantity stays editable — the correction is the point */
+.jl-usededit { display: inline-flex; align-items: center; gap: 6px; }
+.jl-qtyfield.used {
+  background: #EDF5EF; border-color: #CBE3D2; color: #2F6B40; font-weight: 600;
+}
+.jl-qtyfield.used:focus {
+  background: #FFFFFF; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7;
+}
+
+.jl-used {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 999px; background: #EDF5EF; color: #3F7A50;
+  font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.jl-x {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: #AEB4C2;
+  transition: background 0.12s, color 0.12s;
+}
+.jl-x:hover:not(:disabled) { background: #FCF1F0; color: #C0453C; }
+.jl-x:disabled { opacity: 0.5; cursor: default; }
+
+.jl-picker {
+  margin-top: 13px; padding: 14px; border-radius: 12px;
+  border: 1px solid #EEF0F4; background: #FAFAF8;
+}
+.jl-results { margin-top: 11px; max-height: 260px; overflow-y: auto; }
+.jl-grouphead {
+  margin: 12px 0 5px; font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.jl-grouphead:first-child { margin-top: 0; }
+.jl-result {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 8px 9px; border-radius: 9px; border: none; background: none;
+  cursor: pointer; color: #AEB4C2; transition: background 0.12s;
+}
+.jl-result:hover:not(:disabled) { background: #FFFFFF; }
+.jl-result:disabled { cursor: default; }
+.jl-added {
+  font: 600 11px 'Plus Jakarta Sans', system-ui, sans-serif; color: #3F7A50;
+  flex-shrink: 0;
+}
+
+/* ============================================================
    Duty set checklist (prefix dc-*) — the working view of a
    rotation job: today's dailies, this weekday's weeklies, and
    the monthlies that have gone long enough to need doing.
