@@ -3,22 +3,31 @@ import Icon from '../../../components/AppIcon';
 import {
   INVENTORY,
   EQUIPMENT,
+  ABOUT,
+  USES,
   loadJobLinks,
   addJobLink,
   setJobLinkQty,
+  setJobLinkPurpose,
   removeJobLink,
   searchLinkTargets,
   isVariantItem,
+  suggestsConsumption,
 } from '../utils/jobLinks';
 import '../job-modals.css';
 
 /**
  * What this job is about: the stock it uses and the equipment it services.
  *
- * A quantity on a stock link is a promise the app keeps — completing the job
- * takes that many off the shelf and writes it to the movements ledger, and
- * reopening puts them back. So the quantity field says so out loud rather than
- * letting someone discover it.
+ * Every stock link says which of the two it is. A reference just puts the job
+ * in the item's history. "Uses stock" is a promise the app keeps — completing
+ * the job takes that many off the shelf and writes it to the movements ledger,
+ * and reopening puts them back — so it is a deliberate choice on the row, not
+ * something inferred from whether a quantity happens to be filled in.
+ *
+ * A job whose title reads as consuming something ("replace the filter") opens
+ * with Uses preselected. That is a starting point, not a decision: the toggle
+ * is on the row and the panel says why it guessed.
  */
 const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true }) => {
   const [links, setLinks] = useState([]);
@@ -29,6 +38,9 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
   const [results, setResults] = useState({ items: [], equipment: [] });
   const [searching, setSearching] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  // Links this session preselected from the job title, so the panel can own up
+  // to the guess rather than leaving someone wondering who set it.
+  const [suggested, setSuggested] = useState([]);
 
   const jobStatus = job?.status || null;
   const jobId = job?.supabase_id || job?.id || null;
@@ -75,10 +87,23 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
   const handleAdd = async (kind, target) => {
     if (linkedIds?.has(target?.id)) return;
     setBusyId(target?.id);
+    // "Replace the ice maker filter" almost certainly uses one, so open on that
+    // rather than making someone set it every time. Never for a size-tracked
+    // item, which cannot be deducted at all.
+    const guess = kind === INVENTORY
+      && !isVariantItem(target)
+      && suggestsConsumption(job?.title);
     try {
       await addJobLink({
-        job, tenantId: activeTenantId, kind, targetId: target?.id, userId: currentUserId,
+        job,
+        tenantId: activeTenantId,
+        kind,
+        targetId: target?.id,
+        purpose: guess ? USES : ABOUT,
+        qty: guess ? 1 : null,
+        userId: currentUserId,
       });
+      if (guess) setSuggested(prev => [...prev, target?.id]);
       setQuery('');
       setPicking(false);
       await refresh();
@@ -99,6 +124,17 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
     } catch (err) {
       console.warn('[JobLinksPanel] qty save failed:', err);
       setError('That quantity did not save.');
+    }
+  };
+
+  const handlePurpose = async (link, purpose) => {
+    const qty = purpose === USES ? (link?.qty || 1) : null;
+    setLinks(prev => prev?.map(l => (l?.id === link?.id ? { ...l, purpose, qty } : l)));
+    try {
+      await setJobLinkPurpose({ linkId: link?.id, purpose, qty });
+    } catch (err) {
+      console.warn('[JobLinksPanel] purpose save failed:', err);
+      setError('That did not save.');
     }
   };
 
@@ -151,20 +187,46 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
               </span>
             ) : (
               <>
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  className="jm-input jl-qtyfield"
-                  placeholder="Qty"
-                  defaultValue={link?.qty ?? ''}
-                  disabled={!canInteract || variant}
-                  title={variant
-                    ? 'This item is tracked by size, so it cannot be deducted automatically'
-                    : 'How many this job uses'}
-                  onBlur={(e) => handleQty(link, e?.target?.value)}
-                />
-                <span className="jl-unit">{link?.item?.unit || ''}</span>
+                {/* What the link is for. Reference is the default and moves
+                    nothing; Uses is the deliberate choice that deducts. */}
+                <div className="jl-mode" role="group" aria-label="What this link is for">
+                  <button
+                    type="button"
+                    className={`jl-modebtn${link?.purpose !== USES ? ' on' : ''}`}
+                    disabled={!canInteract}
+                    onClick={() => handlePurpose(link, ABOUT)}
+                    title="The job is about this item — nothing comes out of stock"
+                  >
+                    Reference
+                  </button>
+                  <button
+                    type="button"
+                    className={`jl-modebtn${link?.purpose === USES ? ' on' : ''}`}
+                    disabled={!canInteract || variant}
+                    onClick={() => handlePurpose(link, USES)}
+                    title={variant
+                      ? 'This item is tracked by size, so it cannot be deducted automatically'
+                      : 'The job uses this up — completing it takes the quantity out of stock'}
+                  >
+                    Uses
+                  </button>
+                </div>
+                {link?.purpose === USES && (
+                  <>
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      className="jm-input jl-qtyfield"
+                      placeholder="Qty"
+                      defaultValue={link?.qty ?? ''}
+                      disabled={!canInteract}
+                      title="How many this job uses"
+                      onBlur={(e) => handleQty(link, e?.target?.value)}
+                    />
+                    <span className="jl-unit">{link?.item?.unit || ''}</span>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -190,9 +252,11 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
   // people discover afterwards, so the panel states it either way: what will
   // happen once a quantity is set, and exactly what will move when one is.
   const stockLinks = links?.filter(l => l?.kind === INVENTORY);
-  const pending = stockLinks?.filter(l => l?.qty > 0 && !l?.consumedAt);
-  const unquantified = stockLinks?.filter(l => !(l?.qty > 0) && !l?.consumedAt);
+  const pending = stockLinks?.filter(l => l?.purpose === USES && l?.qty > 0 && !l?.consumedAt);
+  const needsQty = stockLinks?.filter(l => l?.purpose === USES && !(l?.qty > 0) && !l?.consumedAt);
+  const references = stockLinks?.filter(l => l?.purpose !== USES && !l?.consumedAt);
   const consumedLinks = stockLinks?.filter(l => l?.consumedAt);
+  const guessed = stockLinks?.some(l => suggested?.includes(l?.item?.id) && l?.purpose === USES);
 
   const listOf = (ls) => ls
     ?.map(l => `${l?.qty} ${l?.name}${l?.item?.unit && l?.item?.unit !== 'each' ? ` ${l.item.unit}` : ''}`)
@@ -232,10 +296,22 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
           shelf and records it against the item. Reopening the job puts it back.
         </p>
       )}
-      {pending?.length === 0 && unquantified?.length > 0 && (
+      {needsQty?.length > 0 && (
         <p className="jm-hint">
-          Set a quantity to have completing this job take that many out of stock.
-          Leave it blank and the link is just a reference.
+          Set a quantity for {needsQty?.map(l => l?.name)?.join(', ')} — how many the
+          job uses.
+        </p>
+      )}
+      {guessed && (
+        <p className="jm-hint">
+          Set to <strong>Uses</strong> because this job reads as replacing something.
+          Switch it to Reference if nothing actually comes out of stock.
+        </p>
+      )}
+      {pending?.length === 0 && needsQty?.length === 0 && references?.length > 0 && (
+        <p className="jm-hint">
+          Linked for reference — completing this job won’t change any stock. Switch a
+          row to <strong>Uses</strong> if the job consumes it.
         </p>
       )}
       {consumedLinks?.length > 0 && (
