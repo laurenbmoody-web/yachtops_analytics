@@ -2,7 +2,7 @@
 //
 // Tables (20260830101926_upkeep_schema.sql):
 //   equipment / equipment_counters / equipment_counter_readings
-//   upkeep_schedules / upkeep_steps / upkeep_step_results
+//   upkeep_schedules / upkeep_steps
 //
 // Occurrences are NOT a table of their own: a schedule generates a row in
 // team_jobs with source='upkeep' + upkeep_schedule_id, exactly as rotations
@@ -14,7 +14,7 @@
 // matching the defects data layer.
 
 import { supabase } from '../../../lib/supabaseClient';
-import { nextDue, stepsForOccurrence, toISODate, isOutOfRange } from './recurrence';
+import { nextDue, stepsForOccurrence, toISODate } from './recurrence';
 
 // ── row ⇄ view mapping ───────────────────────────────────────────────────────
 const mapSchedule = (r) => r && ({
@@ -90,31 +90,6 @@ const mapCounter = (r) => r && ({
   currentValue: r.current_value != null ? Number(r.current_value) : null,
   currentAsOf: r.current_as_of,
   externalRef: r.external_ref,
-});
-
-const mapResult = (r) => r && ({
-  id: r.id,
-  jobId: r.job_id,
-  stepId: r.step_id,
-  position: r.position ?? 0,
-  stepText: r.step_text,
-  stepType: r.step_type || 'check',
-  unit: r.unit,
-  minNormal: r.min_normal != null ? Number(r.min_normal) : null,
-  maxNormal: r.max_normal != null ? Number(r.max_normal) : null,
-  status: r.status,
-  valueNumeric: r.value_numeric != null ? Number(r.value_numeric) : null,
-  valueText: r.value_text,
-  comment: r.comment,
-  photoUrl: r.photo_url,
-  outOfRange: !!r.out_of_range,
-  isMandatory: !!r.is_mandatory,
-  counterId: r.counter_id,
-  inventoryItemId: r.inventory_item_id,
-  quantityUsed: r.quantity_used != null ? Number(r.quantity_used) : null,
-  completedBy: r.completed_by,
-  completedByName: r.completed_by_name,
-  completedAt: r.completed_at,
 });
 
 // ── schedules ────────────────────────────────────────────────────────────────
@@ -201,8 +176,9 @@ export const deleteSchedule = async (scheduleId) => {
 
 // ── steps ────────────────────────────────────────────────────────────────────
 // Replace-the-set: the editor owns the whole list, so deleting and re-inserting
-// keeps ordering honest. Past sign-offs are unaffected — upkeep_step_results
-// carries its own frozen copy of the text (step_id is ON DELETE SET NULL).
+// keeps ordering honest. Past sign-offs are unaffected — job_checklist_items
+// carries its own frozen copy of the text, so a step deleted here never
+// rewrites what an occurrence already recorded.
 
 export const replaceSteps = async (scheduleId, steps, actor) => {
   if (!scheduleId) return;
@@ -406,99 +382,88 @@ export const generateOccurrence = async (schedule, actor, { dueDate = null, coun
     .single();
   if (jobErr) throw jobErr;
 
+  // The steps that apply to this occurrence become checklist items on the job,
+  // in the same table a duty round and a hand-typed card use. Wording is frozen
+  // by the copy, so editing the schedule later cannot rewrite what this job was
+  // signed off against.
   const applicable = stepsForOccurrence(schedule.steps, new Date(targetDate));
   if (applicable.length) {
     const rows = applicable.map((s, i) => ({
       tenant_id: actor.tenantId,
       job_id: job.id,
-      step_id: s.id,
       position: i,
-      step_text: s.text,          // FROZEN — the audit answer
-      step_type: s.stepType,
+      text: s.text,
+      item_type: s.stepType || 'check',
       unit: s.unit,
       min_normal: s.minNormal,
       max_normal: s.maxNormal,
+      is_mandatory: !!s.isMandatory,
+      guidance: s.guidance || null,
       status: 'pending',
-      inventory_item_id: s.inventoryItemId,
-      quantity_used: s.quantityUsed,
-      is_mandatory: s.isMandatory,
-      counter_id: s.counterId,
+      origin_kind: 'upkeep',
+      origin_ref: s.id,
+      counter_id: s.counterId || null,
     }));
-    const { error: resErr } = await supabase.from('upkeep_step_results').insert(rows);
-    if (resErr) throw resErr;
+    const { error: itemErr } = await supabase
+      .from('job_checklist_items')
+      .upsert(rows, { onConflict: 'job_id,origin_kind,origin_ref', ignoreDuplicates: true });
+    if (itemErr) throw itemErr;
+  }
+
+  // Parts a step consumes become job_links, which is what actually moves stock:
+  // it deducts on completion against the movements ledger, takes from the
+  // fullest location, and puts it back exactly on reopen. Doing our own
+  // decrement as well would move the same stock twice.
+  const parts = applicable.filter((s) => s.inventoryItemId && s.quantityUsed > 0);
+  if (parts.length) {
+    const links = parts.map((s) => ({
+      tenant_id: actor.tenantId,
+      job_id: job.id,
+      kind: 'inventory',
+      inventory_item_id: s.inventoryItemId,
+      qty: s.quantityUsed,
+      purpose: 'uses',
+      note: s.text,
+      created_by: actor.userId || null,
+    }));
+    const { error: linkErr } = await supabase
+      .from('job_links')
+      .upsert(links, { onConflict: 'job_id,inventory_item_id', ignoreDuplicates: true });
+    // Non-blocking: a job without its part link is recoverable by hand; a job
+    // that failed to exist is not.
+    if (linkErr) console.warn('[upkeep] could not link parts for job', job.id, linkErr);
+  }
+
+  // The equipment the schedule services, so the job shows up in that asset's
+  // history alongside anything else done to it.
+  if (schedule.equipmentId) {
+    const { error: eqErr } = await supabase
+      .from('job_links')
+      .upsert([{
+        tenant_id: actor.tenantId,
+        job_id: job.id,
+        kind: 'equipment',
+        equipment_id: schedule.equipmentId,
+        purpose: 'about',
+        created_by: actor.userId || null,
+      }], { onConflict: 'job_id,equipment_id', ignoreDuplicates: true });
+    if (eqErr) console.warn('[upkeep] could not link equipment for job', job.id, eqErr);
   }
 
   return job.id;
 };
 
-export const fetchStepResults = async (jobId) => {
-  if (!jobId) return [];
-  const { data, error } = await supabase
-    .from('upkeep_step_results')
-    .select('*')
-    .eq('job_id', jobId)
-    .order('position', { ascending: true });
-  if (error) throw error;
-  return (data || []).map(mapResult);
-};
-
-/**
- * Record one step. The reading is range-checked here so out_of_range is stored,
- * not recomputed at read time — a normal range edited later must not silently
- * reclassify a past reading.
- */
-export const saveStepResult = async (resultId, patch, actor) => {
-  if (!resultId) throw new Error('No step to save.');
-
-  const row = {};
-  if ('status' in patch) row.status = patch.status;
-  if ('valueText' in patch) row.value_text = patch.valueText || null;
-  if ('comment' in patch) row.comment = patch.comment || null;
-  if ('photoUrl' in patch) row.photo_url = patch.photoUrl || null;
-
-  if ('valueNumeric' in patch) {
-    const v = patch.valueNumeric === '' || patch.valueNumeric == null ? null : Number(patch.valueNumeric);
-    row.value_numeric = v;
-    row.out_of_range = isOutOfRange(v, patch.minNormal, patch.maxNormal);
-  }
-
-  if (patch.status && patch.status !== 'pending') {
-    row.completed_by = actor?.userId || null;
-    row.completed_by_name = actor?.userName || null;
-    row.completed_at = new Date().toISOString();
-  } else if (patch.status === 'pending') {
-    row.completed_by = null;
-    row.completed_by_name = null;
-    row.completed_at = null;
-  }
-
-  const { data, error } = await supabase
-    .from('upkeep_step_results')
-    .update(row)
-    .eq('id', resultId)
-    .select('*')
-    .single();
-  if (error) throw error;
-
-  // A reading step that captured a counter value feeds the counter log too, so
-  // running hours recorded during a job drive the next counter-based due date.
-  if (patch.counterId && row.value_numeric != null) {
-    await addCounterReading(patch.counterId, row.value_numeric, actor, {
-      source: 'job_step',
-      jobId: data.job_id,
-    });
-  }
-
-  return mapResult(data);
-};
-
 /**
  * Close out an occurrence: stamp the schedule so the next due date can be
- * calculated from it, and decrement any stock the steps consumed.
+ * calculated from it.
+ *
+ * Stock is NOT touched here. The parts an occurrence uses are job_links rows,
+ * and completing the job consumes them through consumeJobLinks — multi-location
+ * aware, against the movements ledger, exactly-once, and reversible on reopen.
+ * A second decrement from this side would double every part used.
  */
 export const completeOccurrence = async (jobId, scheduleId, actor, { counter = null } = {}) => {
   if (!scheduleId) return;
-
   const { error } = await supabase
     .from('upkeep_schedules')
     .update({
@@ -507,71 +472,6 @@ export const completeOccurrence = async (jobId, scheduleId, actor, { counter = n
     })
     .eq('id', scheduleId);
   if (error) throw error;
-
-  await consumeStepParts(jobId, actor);
-};
-
-/**
- * Decrement inventory for every completed step that names a part.
- *
- * inventory_items keeps THREE views of stock and the app writes them together:
- *   quantity / total_qty  — the scalar the item card and provisioning read
- *   stock_locations       — the per-location breakdown (jsonb)
- * There is no DB trigger reconciling them, so both scalars must move here.
- *
- * The breakdown is only touched when the item sits in exactly one location.
- * With several, which one the part came out of is genuinely unknown — guessing
- * would put the breakdown out of step with reality, so the scalars move and the
- * step is reported back as needing a manual stock-location adjustment.
- *
- * Best-effort: a failure must never block a sign-off, so it is reported, not thrown.
- */
-export const consumeStepParts = async (jobId, actor) => {
-  const results = await fetchStepResults(jobId);
-  const consuming = results.filter(
-    (r) => r.status === 'done' && r.inventoryItemId && r.quantityUsed > 0,
-  );
-  const failures = [];
-  const needsLocationCheck = [];
-  let consumed = 0;
-
-  for (const r of consuming) {
-    try {
-      const { data: item, error: readErr } = await supabase
-        .from('inventory_items')
-        .select('id, name, quantity, total_qty, stock_locations')
-        .eq('id', r.inventoryItemId)
-        .maybeSingle();
-      if (readErr || !item) { failures.push(r.stepText); continue; }
-
-      const before = Number(item.total_qty ?? item.quantity ?? 0);
-      const used = Number(r.quantityUsed);
-      const after = Math.max(0, before - used);
-
-      const patch = { quantity: after, total_qty: after };
-
-      const locs = Array.isArray(item.stock_locations) ? item.stock_locations : [];
-      if (locs.length === 1) {
-        patch.stock_locations = [
-          { ...locs[0], qty: Math.max(0, Number(locs[0]?.qty ?? before) - used) },
-        ];
-      } else if (locs.length > 1) {
-        needsLocationCheck.push({ step: r.stepText, item: item.name });
-      }
-
-      const { error: writeErr } = await supabase
-        .from('inventory_items')
-        .update(patch)
-        .eq('id', r.inventoryItemId);
-      if (writeErr) { failures.push(r.stepText); continue; }
-
-      consumed += 1;
-    } catch {
-      failures.push(r.stepText);
-    }
-  }
-
-  return { consumed, failures, needsLocationCheck };
 };
 
 /** Distinct categories in use, for the free-text category picker's suggestions. */

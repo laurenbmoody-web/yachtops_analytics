@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
-import DutySetChecklist from './DutySetChecklist';
+import JobChecklist from './JobChecklist';
 import AssigneePicker from './AssigneePicker';
 import JobLinksPanel from './JobLinksPanel';
 import '../job-modals.css';
 import '../../duty-sets-rotation-management/duty-sets.css';
-import StepRunner from '../../upkeep/components/StepRunner';
 import { useDefectActor } from '../../defects/utils/useDefectActor';
 
 import { exportAuditTrailCSV } from '../utils/cardStorage';
@@ -590,22 +589,23 @@ const CardDetailModal = ({
           </div>
         )}
 
-        {/* ── Duty set checklist ──
-            For a rotation job this is the whole point of opening the card, so
-            it sits first: today's dailies, this weekday's weeklies, and any
-            monthly that has gone long enough to need doing. Renders nothing
-            for jobs that did not come from a duty set. */}
-        {(card?.rotation_assignment_id || card?.rotationAssignmentId) && (
-          <>
-            <DutySetChecklist
-              job={card}
-              activeTenantId={activeTenantId}
-              currentUserId={currentUser?.id}
-              canInteract={canInteract}
-            />
-            <hr className="jm-rule" />
-          </>
-        )}
+        {/* ── Checklist ──
+            A job is a card and a checklist is something a card has, so one
+            component serves every job. What differs is only who fills it: a
+            duty set slices its template to this day (today's dailies, this
+            weekday's weeklies, the monthlies falling due), an upkeep schedule
+            brings its typed steps and readings, and on anything else it is the
+            list someone types themselves. For a rotation job it is the whole
+            point of opening the card, so it sits first. */}
+        <>
+          <JobChecklist
+            job={card}
+            tenantId={activeTenantId}
+            actor={upkeepActor}
+            canInteract={canInteract}
+          />
+          <hr className="jm-rule" />
+        </>
 
         {/* ── What this job is about ──
             The stock it uses and the equipment it services. A quantity here is
@@ -722,28 +722,6 @@ const CardDetailModal = ({
           )}
         </div>
 
-        {/* ── Upkeep steps ──
-            An occurrence raised from an Upkeep schedule brings its own steps:
-            each one its own tick, comment and — for a reading — a number checked
-            against its normal range. The wording is the frozen copy taken when
-            the job was raised, so editing the schedule later cannot rewrite what
-            this job was signed off against. */}
-        {card?.source === 'upkeep' && (
-          <>
-            <hr className="jm-rule" />
-            <p className="jm-secthead">
-              <Icon name="ListChecks" size={14} />
-              Upkeep steps
-            </p>
-            <div className="jm-section">
-              <StepRunner
-                jobId={card?.id}
-                actor={upkeepActor}
-                readOnly={card?.status === 'completed'}
-              />
-            </div>
-          </>
-        )}
 
         {/* ── Department ── */}
         <p className="jm-secthead">
