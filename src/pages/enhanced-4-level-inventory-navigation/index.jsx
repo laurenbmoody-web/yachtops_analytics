@@ -4011,7 +4011,24 @@ const LocationFirstInventory = () => {
               {String(headlineWord || 'Inventory').toUpperCase()}<span className="punc">,</span>{' '}
               <em>{headlineQualifier}</em><span className="punc">.</span>
             </h1>
-            {pageSubtitle && <p className="inv-subtitle">{pageSubtitle}</p>}
+            {pageSubtitle && (
+              pathSegments?.length > 1 ? (
+                <p className="inv-subtitle inv-crumbs">
+                  {pathSegments.map((seg, i) => (
+                    <React.Fragment key={i}>
+                      {i > 0 && <span className="inv-crumb-sep">→</span>}
+                      {i === pathSegments.length - 1 ? (
+                        <span className="inv-crumb cur">{seg}</span>
+                      ) : (
+                        <button type="button" className="inv-crumb" onClick={() => navigate(segmentsToUrl(pathSegments.slice(0, i + 1)))}>{seg}</button>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </p>
+              ) : (
+                <p className="inv-subtitle">{pageSubtitle}</p>
+              )
+            )}
           </div>
           <div className="inv-actions">
             <button onClick={() => navigate('/inventory/attention')} className="inv-btn ghost" title="Expired, below-par & expiring items">

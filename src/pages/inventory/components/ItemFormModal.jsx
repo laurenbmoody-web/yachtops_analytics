@@ -523,7 +523,12 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         // variants = per-size totals aggregated across every stowage location; the
         // consumable case also carries its own supplier + price per pack-size.
         variants = activeSizes.map((s) => {
-          const v = { size: s, qty: uniLocs.reduce((a, l) => a + (l.label ? cell(keyOf(l), s) : 0), 0) };
+          // Count stock placed in a named location PLUS any typed before a
+          // location was chosen (the blank row, keyed '') — otherwise quantities
+          // added without picking a location silently vanish. Mirrors the plain
+          // path below.
+          const placed = uniLocs.reduce((a, l) => a + (l.label ? cell(keyOf(l), s) : 0), 0);
+          const v = { size: s, qty: placed + cell('', s) };
           if (profile !== 'uniform') {
             if (varBuy[s]?.supplier) v.supplier = varBuy[s].supplier;
             if (varBuy[s]?.sku) v.sku = varBuy[s].sku;
