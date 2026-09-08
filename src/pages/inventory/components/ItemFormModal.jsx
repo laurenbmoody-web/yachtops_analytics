@@ -147,7 +147,15 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     });
     if (item && item.reorderPoint != null) reord[''] = item.reorderPoint;
     else if (item && item.parLevel != null) reord[''] = item.parLevel;
-    if (!locs.length) locs.push({ label: '', id: '' });
+    if (!locs.length) {
+      // No stock-location rows yet — but the item can still hold a flat quantity
+      // (e.g. set from the card's quick +/-, which doesn't write a location row).
+      // Seed the single blank row from that total so the form reflects reality
+      // instead of showing 0.
+      locs.push({ label: '', id: '' });
+      const flat = Number(item?.quantity ?? item?.totalQty ?? item?.total_qty ?? 0) || 0;
+      if (flat) mx['||'] = flat;
+    }
     return { locs, on, mx, formats: [''], buy: {}, reord, simple: true };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
