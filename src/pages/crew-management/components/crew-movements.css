@@ -246,6 +246,12 @@
 .mv-occ .on { font-size: 13px; font-weight: 600; }
 .mv-occ .or { font-size: 11px; color: #AEB4C2; }
 .mv-occ.free .fr { font-size: 12px; color: #AEB4C2; font-style: italic; padding: 3px 0; }
+/* Berthed but currently off the vessel (on leave / rotation) — the bed is held,
+   so mark the occupant rather than hide them. Mirrors the "On leave" tray. */
+.mv-occ.is-away .av { opacity: 0.82; }
+.mv-occ.is-away .on { color: #6B7280; }
+.mv-occ-leave { display: inline-flex; align-items: center; gap: 5px; color: #8B8478; }
+.mv-occ-leave i { width: 7px; height: 7px; border-radius: 999px; flex: 0 0 auto; }
 
 .mv-setup { text-align: center; padding: 40px 0; }
 .mv-setup p { font-size: 13px; color: #6B7280; margin-bottom: 14px; }

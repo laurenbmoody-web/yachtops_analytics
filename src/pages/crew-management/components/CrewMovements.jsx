@@ -992,7 +992,8 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                 </div>
                 {c.beds.map((b, i) => {
                   const m = c.occ[i];
-                  return <div key={b.id} className={`mv-occ${m ? '' : ' free'}`}>{m ? <><span className="av" style={{ background: tint(deptOf(m.user_id), 0.34) }}>{initials(m.fullName)}</span><div><div className="on">{m.fullName}{sexOf(m.user_id) && <span className="mv-sex">{sexOf(m.user_id)}</span>}</div><div className="or">{b.label}</div></div></> : <span className="fr">{b.label} · free</span>}</div>;
+                  const away = m && AWAY.has(m.status);
+                  return <div key={b.id} className={`mv-occ${m ? '' : ' free'}${away ? ' is-away' : ''}`}>{m ? <><span className="av" style={{ background: tint(deptOf(m.user_id), 0.34) }}>{initials(m.fullName)}</span><div><div className="on">{m.fullName}{sexOf(m.user_id) && <span className="mv-sex">{sexOf(m.user_id)}</span>}</div><div className="or">{away ? <span className="mv-occ-leave"><i style={{ background: STATUS_COLORS[m.status] }} />{getStatusLabel(m.status)}</span> : b.label}</div></div></> : <span className="fr">{b.label} · free</span>}</div>;
                 })}
               </div>
             );
