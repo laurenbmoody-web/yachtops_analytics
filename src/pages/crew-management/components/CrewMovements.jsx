@@ -679,7 +679,7 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
                       : (isToday ? `${statusLabel || 'Today'}${statusLabel ? ' · today' : ''}` : statusLabel)
                   }
                   style={st ? { background: STATUS_COLORS[st] } : undefined}
-                  onPointerDown={canManage ? (e) => { if (e.button !== 0) return; e.preventDefault(); dragRef.current = { userId: m.user_id, a: i, b: i }; setDragSel({ userId: m.user_id, a: i, b: i }); } : undefined}
+                  onPointerDown={canManage ? (e) => { if (e.button !== 0) return; e.preventDefault(); try { e.currentTarget.releasePointerCapture?.(e.pointerId); } catch { /* not captured */ } dragRef.current = { userId: m.user_id, a: i, b: i }; setDragSel({ userId: m.user_id, a: i, b: i }); } : undefined}
                   onPointerEnter={canManage ? () => { const d = dragRef.current; if (!d || d.userId !== m.user_id) return; d.b = i; setDragSel({ userId: m.user_id, a: d.a, b: i }); } : undefined}
                 />
               );
