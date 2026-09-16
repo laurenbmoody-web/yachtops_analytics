@@ -305,19 +305,35 @@ const CrewMovements = ({ members = [], tenantId, currentUserId, canManage, canNa
     return map;
   }, [cabins, assigns, sexMap, span]); // eslint-disable-line
 
+  // "Berthed" is about *now*, not "has any bar somewhere in the window" — a
+  // rotation that ended last month must not keep a crew member off these trays.
+  const todayStr = dstr(today);
+  // Has a bed covering today.
+  const berthedToday = useMemo(
+    () => new Set(assigns.filter((a) => a.start_date <= todayStr && (!a.end_date || a.end_date > todayStr)).map((a) => a.user_id)),
+    [assigns, todayStr],
+  );
+  // Has a bed held for now OR the future (a past, ended stay doesn't count).
+  const berthedNowOrFuture = useMemo(
+    () => new Set(assigns.filter((a) => !a.end_date || a.end_date > todayStr).map((a) => a.user_id)),
+    [assigns, todayStr],
+  );
+
   // ── who's aboard but not berthed (unberthed tray) ────────────────────────────
-  const unberthed = useMemo(() => {
-    const berthed = new Set(assigns.filter((a) => span(a)).map((a) => a.user_id));
-    return members.filter((m) => ABOARD.has(m.status) && !berthed.has(m.user_id)).sort(byDeptThenRole);
-  }, [members, assigns, span]);
+  const unberthed = useMemo(
+    () => members.filter((m) => ABOARD.has(m.status) && !berthedToday.has(m.user_id)).sort(byDeptThenRole),
+    [members, berthedToday],
+  );
 
   // ── crew currently away (leave / travelling) and not berthed ─────────────────
   // They aren't aboard so they don't need a bed *now*, but they still belong on
   // the planning board — drag one onto a bed to reserve it for their return.
-  const onLeave = useMemo(() => {
-    const berthed = new Set(assigns.filter((a) => span(a)).map((a) => a.user_id));
-    return members.filter((m) => AWAY.has(m.status) && !berthed.has(m.user_id)).sort(byDeptThenRole);
-  }, [members, assigns, span]);
+  // Anyone away without a current or future bed lands here (a stay that has
+  // since ended no longer holds them a place), so rotated-off crew stay visible.
+  const onLeave = useMemo(
+    () => members.filter((m) => AWAY.has(m.status) && !berthedNowOrFuture.has(m.user_id)).sort(byDeptThenRole),
+    [members, berthedNowOrFuture],
+  );
 
   // ── coalesce same-crew same-bed contiguous stays in the DB, then reload ──────
   const reconcile = useCallback(async (rows) => {
