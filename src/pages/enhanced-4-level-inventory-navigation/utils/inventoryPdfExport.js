@@ -56,41 +56,77 @@ const fetchImageAsBase64 = (url) => {
   });
 };
 
+
 /**
- * Collect all unique custom field keys across a list of items.
- * Returns an array of raw keys (e.g. ['colour', 'bag_name', 'batch_no', 'category']).
+ * A compact, readable column set. Rather than one narrow column per attribute
+ * (which crushed a dozen custom fields into unreadable vertical single letters),
+ * every secondary attribute is consolidated into a single wide "Details" column,
+ * and per-size stock gets its own "Sizes" column. This keeps ~8 wide columns on
+ * landscape A4 instead of 25+ slivers.
  */
-const collectCustomFieldKeys = (items) => {
-  const keySet = new Set();
-  (items || [])?.forEach(item => {
-    const cf = item?.customFields || item?.custom_fields || {};
-    Object.keys(cf)?.forEach(k => {
-      if (cf?.[k] != null && String(cf?.[k])?.trim()) keySet?.add(k);
-    });
-  });
-  return Array.from(keySet);
+const COLUMNS = ['Cargo ID', 'Name', 'Brand', 'Folder', 'Sizes', 'Details', 'Locations (qty)', 'Qty'];
+// mm widths for the columns above, summing to the 269mm usable width (no image).
+const COLUMN_WIDTHS = [20, 44, 26, 30, 34, 63, 34, 18];
+
+/** Human label for a custom-field / attribute key. */
+const formatAttrKey = (key) =>
+  String(key || '')?.replace(/_/g, ' ')?.replace(/\b\w/g, (c) => c?.toUpperCase());
+
+/** Per-size stock breakdown, e.g. "S ×2 · M ×4 · L ×2". Empty for non-variant items. */
+const buildSizes = (item) => {
+  const vars = Array.isArray(item?.variants) ? item?.variants : [];
+  if (!vars?.length) return '';
+  return vars
+    ?.map((v) => {
+      const label = String(v?.size || v?.label || '')?.trim();
+      if (!label) return null;
+      const qty = Number(v?.qty ?? v?.quantity ?? 0) || 0;
+      return `${label} ×${qty}`;
+    })
+    ?.filter(Boolean)
+    ?.join('  ·  ');
 };
 
-/**
- * Format a raw custom field key into a human-readable column header.
- * e.g. 'bag_name' → 'Bag Name'
- */
-const formatCfKey = (key) =>
-  key?.replace(/_/g, ' ')?.replace(/\b\w/g, c => c?.toUpperCase());
+// Custom-field keys already surfaced elsewhere (Sizes column / size machinery),
+// so they should not be repeated in Details.
+const SIZE_LIKE_KEY = /(^|_)(format|formats|size|sizes|variant|variants)(_|$)/i;
 
 /**
- * Base column definitions — fixed columns that always appear first.
- * Locations (qty), Qty, and Used are NOT included here; they are appended
- * as the absolute last columns after any custom fields.
+ * Everything worth knowing about an item, condensed into one "Key: value"
+ * string wrapped across a wide column — colour, fit, supplier, cost, barcode,
+ * expiry, notes, plus any custom fields (minus size-related ones).
  */
-const BASE_COLUMNS = [
-  'Cargo ID', 'Name', 'Brand', 'Supplier', 'Folder',
-  'Unit', 'Restock', 'Expiry', 'Barcode',
-  'Cost', 'Tags', 'Notes', 'Year', 'Tasting Notes',
-];
+const buildDetails = (item) => {
+  const cf = item?.customFields || item?.custom_fields || {};
+  const parts = [];
+  const push = (label, value) => {
+    const v = sanitizeCell(value);
+    if (v) parts?.push(`${label}: ${v}`);
+  };
 
-// Tail columns — always last, in this order
-const TAIL_COLUMNS = ['Locations (qty)', 'Qty'];
+  // Colour first (comes from a dedicated column or a custom field).
+  push('Colour', item?.color || cf?.colour || cf?.color);
+  // Remaining custom fields (skip colour + size-related + "used", handled elsewhere).
+  Object.keys(cf || {})?.forEach((k) => {
+    const kl = k?.toLowerCase();
+    if (kl === 'colour' || kl === 'color') return;
+    if (SIZE_LIKE_KEY?.test(k)) return;
+    if (['used', 'used_quantity', 'usedqty', 'used_qty']?.includes(kl?.replace(/\s/g, '_'))) return;
+    push(formatAttrKey(k), cf?.[k]);
+  });
+  // Standard optional attributes.
+  push('Supplier', item?.supplier);
+  push('Unit', item?.unit);
+  push('Cost', item?.unitCost != null && item?.unitCost !== '' ? `$${item?.unitCost}` : '');
+  push('Barcode', item?.barcode);
+  push('Expiry', item?.expiryDate);
+  push('Restock', item?.restockLevel != null ? String(item?.restockLevel) : '');
+  push('Vintage', item?.vintageYear || item?.vintage_year || item?.year);
+  push('Tasting', item?.tastingNotes);
+  push('Tags', (item?.tags || [])?.join(', '));
+  push('Notes', item?.notes);
+  return parts?.join('   ·   ');
+};
 
 /**
  * Strip OCR/checkbox artefacts like ":selected:" and ":unselected:" from a cell value.
@@ -101,34 +137,18 @@ const sanitizeCell = (value) => {
   return String(value)?.replace(/:selected:/gi, '')?.replace(/:unselected:/gi, '')?.replace(/\s{2,}/g, ' ')?.trim();
 };
 
-/** Build row data for an item. Image placeholder is prepended when includeImages=true.
- *  customFieldKeys is the ordered list of CF keys to include as dedicated columns.
- *  usedKeys is the list of "used" custom field keys that go in the tail. */
-const buildRow = (item, includeImages, customFieldKeys, usedKeys) => {
-  const cf = item?.customFields || item?.custom_fields || {};
-
+/** Build row data for an item, matching COLUMNS. Image placeholder is prepended
+ *  when includeImages=true. */
+const buildRow = (item, includeImages) => {
   const dataRow = [
     sanitizeCell(item?.cargoItemId || item?.cargo_item_id || ''),
     sanitizeCell(item?.name || ''),
     sanitizeCell(item?.brand || ''),
-    sanitizeCell(item?.supplier || ''),
     sanitizeCell(getFolderLabel(item)),
-    sanitizeCell(item?.unit || ''),
-    sanitizeCell(item?.restockLevel != null ? String(item?.restockLevel) : ''),
-    sanitizeCell(item?.expiryDate || ''),
-    sanitizeCell(item?.barcode || ''),
-    sanitizeCell(item?.unitCost != null ? `$${item?.unitCost}` : ''),
-    sanitizeCell((item?.tags || [])?.join(', ')),
-    sanitizeCell(item?.notes || ''),
-    sanitizeCell(item?.vintageYear || item?.vintage_year || item?.year || ''),
-    sanitizeCell(item?.tastingNotes || ''),
-    // Custom field values (non-used) — before tail
-    ...(customFieldKeys || [])?.map(k => sanitizeCell(cf?.[k] != null ? String(cf?.[k]) : '')),
-    // Tail: Locations (qty), Qty
+    buildSizes(item),
+    buildDetails(item),
     sanitizeCell(formatLocations(item) || String(getTotalQty(item))),
     sanitizeCell(String(getTotalQty(item))),
-    // Used custom field values — absolute last
-    ...(usedKeys || [])?.map(k => sanitizeCell(cf?.[k] != null ? String(cf?.[k]) : '')),
   ];
 
   if (includeImages) return ['', ...dataRow]; // empty placeholder; image drawn via didDrawCell
@@ -148,18 +168,19 @@ export const exportInventoryToPDF = async ({
 }) => {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-  const primaryColor = [30, 58, 95];
-  const accentColor = [180, 150, 100];
-  const lightGray = [245, 245, 245];
-  const borderGray = [220, 220, 220];
-  const folderHeaderBg = [235, 240, 248];
+  // Editorial palette — navy ink + terracotta accent (no warm gold/cream).
+  const primaryColor = [28, 27, 58];    // #1C1B3A navy
+  const accentColor = [198, 90, 26];    // #C65A1A terracotta
+  const lightGray = [248, 250, 252];    // #F8FAFC cool alt row
+  const borderGray = [229, 231, 235];   // #E5E7EB hairline
+  const folderHeaderBg = [244, 245, 250]; // cool tint
 
   const pageWidth = doc?.internal?.pageSize?.getWidth();
   const pageHeight = doc?.internal?.pageSize?.getHeight();
   const margin = 14;
 
-  // ── Collect all custom field keys across every item being exported ───────
-  const allExportItemsForCf = (() => {
+  // Items in scope (used for image pre-fetch).
+  const allExportItems = (() => {
     if (scope === 'entire' && allFoldersMeta?.length > 0) {
       return allFoldersMeta?.flatMap(f => f?.items || []);
     } else if (scope === 'selected' && selectedFoldersMeta?.length > 0) {
@@ -167,21 +188,11 @@ export const exportInventoryToPDF = async ({
     }
     return items || [];
   })();
-  const allCustomFieldKeys = collectCustomFieldKeys(allExportItemsForCf);
-
-  // Separate "used" keys from other custom field keys
-  const USED_KEYS_LOWER = ['used', 'used_quantity', 'usedqty', 'used qty', 'used_qty'];
-  const usedKeys = allCustomFieldKeys?.filter(k =>
-    USED_KEYS_LOWER?.includes(k?.toLowerCase()?.replace(/\s/g, '_'))
-  );
-  const customFieldKeys = allCustomFieldKeys?.filter(k =>
-    !USED_KEYS_LOWER?.includes(k?.toLowerCase()?.replace(/\s/g, '_'))
-  );
 
   // ── Pre-fetch images if needed ───────────────────────────────────────────
   const imageCache = {};
   if (includeImages) {
-    const uniqueUrls = [...new Set(allExportItemsForCf?.map(i => i?.imageUrl)?.filter(Boolean))];
+    const uniqueUrls = [...new Set(allExportItems?.map(i => i?.imageUrl)?.filter(Boolean))];
     await Promise.all(
       uniqueUrls?.map(async (url) => {
         const b64 = await fetchImageAsBase64(url);
@@ -232,81 +243,37 @@ export const exportInventoryToPDF = async ({
   doc?.line(margin, yPos, pageWidth - margin, yPos);
   yPos += 4;
 
-  // ── Build column headers ─────────────────────────────────────────────────
-  // Order: BASE_COLUMNS → custom fields (non-used) → TAIL_COLUMNS → used fields
-  const cfColumnHeaders = customFieldKeys?.map(formatCfKey);
-  const usedColumnHeaders = usedKeys?.map(formatCfKey);
-  const allDataColumns = [...BASE_COLUMNS, ...cfColumnHeaders, ...TAIL_COLUMNS, ...usedColumnHeaders];
-
-  // Image column is FIRST when includeImages is true
-  const columns = includeImages ? ['Image', ...allDataColumns] : [...allDataColumns];
+  // ── Column headers ───────────────────────────────────────────────────────
+  // Image column is FIRST when includeImages is true.
+  const columns = includeImages ? ['Image', ...COLUMNS] : [...COLUMNS];
 
   // ── Render a table for a group of items ─────────────────────────────────
   const renderTable = (tableItems, startY) => {
     if (tableItems?.length === 0) return startY;
-    const body = tableItems?.map(item => buildRow(item, includeImages, customFieldKeys, usedKeys));
+    const body = tableItems?.map(item => buildRow(item, includeImages));
     const rowImageUrls = tableItems?.map(item => item?.imageUrl || null);
 
-    /**
-     * Column width strategy (landscape A4 = 297mm, margins 14mm each side → 269mm usable):
-     * Base columns are scaled proportionally; custom field columns each get a fixed 14mm.
-     */
+    // Fixed, readable column widths summing to the usable width. With images,
+    // an 18mm thumbnail column is prepended and the rest scaled to fit.
     const usableWidth = pageWidth - margin * 2; // 269mm
-    const cfColWidth = 14; // fixed width per custom field column
-    const totalCfWidth = (customFieldKeys?.length + usedKeys?.length) * cfColWidth;
-
     const colStyles = {};
 
+    const qtyIdx = COLUMNS.indexOf('Qty');
+    const nameIdx = COLUMNS.indexOf('Name');
+
     if (includeImages) {
-      const imageColWidth = 14;
-      const dataWidth = usableWidth - imageColWidth - totalCfWidth;
-
+      const imageColWidth = 18;
+      const scale = (usableWidth - imageColWidth) / usableWidth;
       colStyles[0] = { cellWidth: imageColWidth, halign: 'center' };
-
-      const baseDataWidths = [14, 24, 16, 14, 14, 7, 12, 16, 14, 8, 12, 16, 7, 16, 16, 7];
-      const baseDataTotal = baseDataWidths?.reduce((a, b) => a + b, 0);
-      const scale = dataWidth / baseDataTotal;
-
-      baseDataWidths?.forEach((w, i) => {
+      COLUMN_WIDTHS?.forEach((w, i) => {
         colStyles[i + 1] = { cellWidth: Math.round(w * scale * 10) / 10 };
       });
-
-      // Bold the Name column (index 2 when image present: 0=image, 1=cargoId, 2=name)
-      colStyles[2] = { ...colStyles?.[2], fontStyle: 'bold' };
-
-      // Custom field columns (non-used) — after base data columns
-      customFieldKeys?.forEach((_, i) => {
-        colStyles[1 + baseDataWidths.length + i] = { cellWidth: cfColWidth };
-      });
-
-      // Used custom field columns — after tail columns
-      const tailOffset = 1 + baseDataWidths?.length + customFieldKeys?.length + TAIL_COLUMNS?.length;
-      usedKeys?.forEach((_, i) => {
-        colStyles[tailOffset + i] = { cellWidth: cfColWidth };
-      });
+      colStyles[nameIdx + 1] = { ...colStyles?.[nameIdx + 1], fontStyle: 'bold' };
+      colStyles[qtyIdx + 1] = { ...colStyles?.[qtyIdx + 1], halign: 'right', fontStyle: 'bold' };
     } else {
-      const dataWidth = usableWidth - totalCfWidth;
-      const baseDataWidths = [14, 24, 16, 14, 14, 7, 12, 16, 14, 8, 12, 16, 7, 16, 16, 7];
-      const baseDataTotal = baseDataWidths?.reduce((a, b) => a + b, 0);
-      const scale = dataWidth / baseDataTotal;
-
-      baseDataWidths?.forEach((w, i) => {
-        colStyles[i] = { cellWidth: Math.round(w * scale * 10) / 10 };
-      });
-
-      // Bold the Name column (index 1 when no image: 0=cargoId, 1=name)
-      colStyles[1] = { ...colStyles?.[1], fontStyle: 'bold' };
-
-      // Custom field columns (non-used) — after base data columns
-      customFieldKeys?.forEach((_, i) => {
-        colStyles[baseDataWidths.length + i] = { cellWidth: cfColWidth };
-      });
-
-      // Used custom field columns — after tail columns
-      const tailOffset = baseDataWidths?.length + customFieldKeys?.length + TAIL_COLUMNS?.length;
-      usedKeys?.forEach((_, i) => {
-        colStyles[tailOffset + i] = { cellWidth: cfColWidth };
-      });
+      COLUMN_WIDTHS?.forEach((w, i) => { colStyles[i] = { cellWidth: w }; });
+      colStyles[nameIdx] = { ...colStyles?.[nameIdx], fontStyle: 'bold' };
+      colStyles[qtyIdx] = { ...colStyles?.[qtyIdx], halign: 'right', fontStyle: 'bold' };
     }
 
     autoTable(doc, {
@@ -316,21 +283,23 @@ export const exportInventoryToPDF = async ({
       margin: { left: margin, right: margin },
       tableWidth: usableWidth,
       styles: {
-        fontSize: 6,
-        cellPadding: { top: 1, right: 1, bottom: 1, left: 1 },
+        fontSize: 7.5,
+        cellPadding: { top: 1.6, right: 2, bottom: 1.6, left: 2 },
         overflow: 'linebreak',
         valign: 'middle',
         textColor: [40, 40, 40],
-        minCellHeight: includeImages ? 16 : 6,
+        lineColor: borderGray,
+        lineWidth: 0.1,
+        minCellHeight: includeImages ? 20 : 7,
       },
       headStyles: {
         fillColor: primaryColor,
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 6,
+        fontSize: 7.5,
         overflow: 'linebreak',
-        minCellHeight: 10,
-        cellPadding: { top: 1.5, right: 1, bottom: 1.5, left: 1 },
+        minCellHeight: 9,
+        cellPadding: { top: 2, right: 2, bottom: 2, left: 2 },
       },
       alternateRowStyles: {
         fillColor: lightGray,
