@@ -97,7 +97,7 @@ const Sec = ({ id, icon, name, open, onToggle, summary, children }) => (
   </div>
 );
 
-const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onSaved, quick = false }) => {
+const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onSaved, onDelete, quick = false }) => {
   const isEdit = !!item;
   // Quick-add lane (dashboard): open on just the essentials, one tap to the full
   // form. Editing always opens the full form.
@@ -1071,6 +1071,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       )}
 
       <div className="itf-foot">
+        {isEdit && onDelete && (
+          <button className="itf-btn itf-danger" onClick={onDelete}>Delete item</button>
+        )}
         <button className="itf-btn itf-ghost" onClick={onClose}>Cancel</button>
         <button className="itf-btn itf-prim" disabled={saving} onClick={save}>{saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add item'}</button>
       </div>

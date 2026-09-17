@@ -82,7 +82,9 @@ const Inventory = () => {
   const currentUser = getCurrentUser();
   const canImport = hasCommandAccess(currentUser) || hasChiefAccess(currentUser) || hasHODAccess(currentUser);
   const canAddItem = hasCommandAccess(currentUser) || hasChiefAccess(currentUser) || hasHODAccess(currentUser);
-  const canBulkDelete = hasCommandAccess(currentUser) || hasChiefAccess(currentUser);
+  // Deleting stock is a day-to-day crew task, so it's open to all crew tiers
+  // (crew, HOD, chief, command) — not restricted like settings/import.
+  const canBulkDelete = true;
   const canAccessSettings = hasCommandAccess(currentUser) || hasChiefAccess(currentUser);
   const canExport = hasCommandAccess(currentUser) || hasChiefAccess(currentUser) || hasHODAccess(currentUser);
 
@@ -277,6 +279,15 @@ const Inventory = () => {
     setShowAddItemModal(false);
     setEditingItem(null);
     loadData();
+  };
+
+  // Delete the item currently open in the edit modal (all crew tiers).
+  const handleDeleteFromModal = () => {
+    if (!editingItem?.id) return;
+    if (window.confirm('Delete this item? This cannot be undone.')) {
+      deleteItem(editingItem?.id);
+      handleModalClose();
+    }
   };
   
   const handleImportSuccess = () => {
@@ -780,6 +791,7 @@ const Inventory = () => {
             defaultLocation={null}
             defaultSubLocation={null}
             onClose={handleModalClose}
+            onDelete={editingItem ? handleDeleteFromModal : null}
           />
         )}
         
