@@ -27,7 +27,8 @@ const BulkActionsModal = ({ selectedItems, items, onClose, onComplete }) => {
   const [taxonomyL4, setTaxonomyL4] = useState([]);
 
   const currentUser = getCurrentUser();
-  const canDelete = hasCommandAccess(currentUser) || hasChiefAccess(currentUser);
+  // Deleting stock is a day-to-day crew task — open to all crew tiers.
+  const canDelete = true;
 
   const selectedItemsData = items?.filter(item => selectedItems?.includes(item?.id));
 

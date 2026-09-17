@@ -280,6 +280,10 @@
 .itf-ghost{background:#fff;border-color:var(--border);color:var(--ink);}
 .itf-prim{background:var(--g);color:#fff;}
 .itf-prim:disabled{opacity:.6;cursor:default;}
+/* Destructive delete — sits on the left, kept modest so it never competes with
+   the primary Save. Restrained red rather than a filled badge. */
+.itf-danger{flex:0 0 auto;background:#fff;border-color:#F0C9C2;color:#B42318;}
+.itf-danger:hover{background:#FEF3F2;border-color:#E8A29A;}
 
 /* barcode / QR — input on its own row, actions beneath so nothing clips */
 .itf-scanbtns{display:flex;gap:8px;margin-top:8px;}
