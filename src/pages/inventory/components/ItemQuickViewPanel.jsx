@@ -31,7 +31,7 @@ const Row = ({ label, value, onClick }) => ((value == null || value === '') ? nu
   </div>
 ));
 
-const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vesselLocations = [] }) => {
+const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, onDelete, vesselLocations = [] }) => {
   const navigate = useNavigate();
   const [activePhoto, setActivePhoto] = useState(null);
   const [dupBusy, setDupBusy] = useState(false);
@@ -388,6 +388,9 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, vess
           )}
           {canEdit && onEdit && (
             <button type="button" className="uv-btn" onClick={() => onEdit(item)}><Icon name="Pencil" size={14} /> Edit</button>
+          )}
+          {onDelete && (
+            <button type="button" className="uv-btn uv-btn-danger" onClick={onDelete}><Icon name="Trash2" size={14} /> Delete</button>
           )}
         </div>
       </aside>
