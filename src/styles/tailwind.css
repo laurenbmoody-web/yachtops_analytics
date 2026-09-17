@@ -207,13 +207,14 @@
   }
 
   [data-theme="day"] {
-    /* Page canvas is always the cool maritime white — never warm beige. */
+    /* Cool maritime white throughout — never warm beige/cream. Cards are pure
+       white, hairlines and muted fills are cool slate (mirrors the base :root). */
     --color-background: #F8FAFC;
-    --color-card: #FAF8F4;
-    --color-border: #E2DDD4;
-    --color-foreground: #1a1a1a;
-    --color-muted: #E2DDD4;
-    --color-muted-foreground: #6b6b6b;
+    --color-card: #FFFFFF;
+    --color-border: #E5E7EB;
+    --color-foreground: #1C1B3A;
+    --color-muted: #F1F5F9;
+    --color-muted-foreground: #6B7280;
   }
 
   * {
@@ -640,8 +641,8 @@ div.bg-card:hover {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #FAF8F4;
-  border: 1.5px solid #d1ccc4;
+  background: #FFFFFF;
+  border: 1.5px solid #E5E7EB;
   display: flex;
   align-items: center;
   justify-content: center;
