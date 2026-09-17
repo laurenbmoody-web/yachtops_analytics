@@ -112,14 +112,14 @@
   padding: 12px 22px; border: 0; background: none;
   cursor: pointer; font: inherit; transition: background 0.14s ease;
 }
-.ad-row { border-bottom: 1px solid #F3F1EB; }
-.ad-row:hover { background: #FAF8F4; }
+.ad-row { border-bottom: 1px solid #EEF0F4; }
+.ad-row:hover { background: #F5F7FA; }
 
-.ad-nrow { position: relative; border-bottom: 1px solid #F3F1EB; transition: background 0.14s ease; }
+.ad-nrow { position: relative; border-bottom: 1px solid #EEF0F4; transition: background 0.14s ease; }
 .ad-nrow > .ad-row { border-bottom: 0; }
-.ad-nrow:hover { background: #FAF8F4; }
-.ad-nrow.is-unread { background: #FDF8F4; }
-.ad-nrow.is-unread:hover { background: #FBF2EB; }
+.ad-nrow:hover { background: #F5F7FA; }
+.ad-nrow.is-unread { background: #FBEFE9; }
+.ad-nrow.is-unread:hover { background: #F7E4DA; }
 .ad-nrow.is-sub { background: #FCFBF9; }
 .ad-nrow.is-sub > .ad-row { padding-left: 40px; }
 
