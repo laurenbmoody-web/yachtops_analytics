@@ -124,6 +124,9 @@
 .uv-btn:hover { border-color: #C65A1A; color: #C65A1A; }
 .uv-btn-quiet { margin-right: auto; color: #6B7280; }
 .uv-btn:disabled { opacity: .55; cursor: default; }
+/* Destructive delete — restrained red, kept quiet next to Export/Duplicate. */
+.uv-btn-danger { color: #B42318; border-color: #F0C9C2; }
+.uv-btn-danger:hover { color: #B42318; border-color: #E8A29A; background: #FEF3F2; }
 
 /* QR / label block in view mode — the actual code, not just its text. */
 .uv-qr { display: flex; align-items: center; gap: 16px; }

@@ -845,6 +845,13 @@ const Inventory = () => {
             item={quickViewItem}
             onClose={() => setQuickViewItem(null)}
             onDuplicated={() => { setQuickViewItem(null); loadData(); }}
+            onDelete={() => {
+              if (quickViewItem?.id && window.confirm('Delete this item? This cannot be undone.')) {
+                deleteItem(quickViewItem?.id);
+                setQuickViewItem(null);
+                loadData();
+              }
+            }}
             vesselLocations={vesselLocations}
           />
         )}
