@@ -2677,9 +2677,13 @@ const LocationFirstInventory = () => {
   const isHOD     = !isCommand && !isChief && (ctxIsHOD || (bootstrapComplete && (tenantRole?.toUpperCase() === 'HOD')));
   const userDepartment = currentUser?.department || '';
 
-  // Managing items (edit / move / duplicate / delete) is for Command, Chief and
-  // HOD only — crew get a read-only item list. Server RLS enforces the same.
+  // Managing items (move / duplicate) is for Command, Chief and HOD only.
   const canManageItems = isCommand || isChief || isHOD;
+  // Deleting stock is a routine task open to every crew tier (crew included),
+  // matching editing (canEdit). RLS still scopes crew/HOD deletes to their own
+  // department, and everything drops into Trash (30-day recovery), so this is
+  // safe to surface widely.
+  const canDeleteItems = !!(session);
   // Trash (recovery) is Command + Chief only — HODs ask their Chief to restore.
   const canUseTrash = isCommand || isChief;
 
@@ -3568,7 +3572,7 @@ const LocationFirstInventory = () => {
             item={item}
             canEdit={canEdit}
             onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
-            onDelete={canManageItems ? (i) => setDeletingItem(i) : undefined}
+            onDelete={canDeleteItems ? (i) => setDeletingItem(i) : undefined}
             onMove={(i) => setMovingItem(i)}
             onClone={canManageItems ? handleCloneItem : undefined}
             onUpdate={loadData}
@@ -3590,7 +3594,7 @@ const LocationFirstInventory = () => {
             item={item}
             canEdit={canEdit}
             onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
-            onDelete={canManageItems ? (i) => setDeletingItem(i) : undefined}
+            onDelete={canDeleteItems ? (i) => setDeletingItem(i) : undefined}
             onMove={(i) => setMovingItem(i)}
             onClone={canManageItems ? handleCloneItem : undefined}
             onUpdate={loadData}
@@ -4222,7 +4226,7 @@ const LocationFirstInventory = () => {
               <Icon name="FolderInput" size={13} />
               Move
             </button>
-            {canManageItems && (
+            {canDeleteItems && (
               <button onClick={() => setShowBulkDeleteModal(true)} className="inv-selbtn danger">
                 <Icon name="Trash2" size={13} />
                 Delete
@@ -4317,7 +4321,7 @@ const LocationFirstInventory = () => {
                       item={item}
                       canEdit={canEdit}
                       onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
-                      onDelete={canManageItems ? (i) => setDeletingItem(i) : undefined}
+                      onDelete={canDeleteItems ? (i) => setDeletingItem(i) : undefined}
                       onMove={(i) => setMovingItem(i)}
                       onClone={canManageItems ? handleCloneItem : undefined}
                       onUpdate={loadData}
@@ -4333,7 +4337,7 @@ const LocationFirstInventory = () => {
                       draggable={canEdit}
                       canEdit={canEdit}
                       onEdit={(i) => { setQuickViewItem(null); setEditingItem(i); setShowAddModal(true); }}
-                      onDelete={canManageItems ? (i) => setDeletingItem(i) : undefined}
+                      onDelete={canDeleteItems ? (i) => setDeletingItem(i) : undefined}
                       onMove={(i) => setMovingItem(i)}
                       onClone={canManageItems ? handleCloneItem : undefined}
                       onUpdate={loadData}
