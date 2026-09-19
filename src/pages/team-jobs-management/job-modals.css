@@ -817,6 +817,15 @@
 .cd-pickrow:hover { background: #FFFFFF; }
 .cd-avatar-img { width: 26px; height: 26px; border-radius: 999px; object-fit: cover; flex-shrink: 0; }
 
+/* Description you can click straight into, like a To Do note */
+.cd-detailedit {
+  cursor: text; border-radius: 9px; padding: 8px 10px; margin: -8px -10px;
+  transition: background 0.12s, box-shadow 0.12s;
+}
+.cd-detailedit:hover { background: #FAFAF8; box-shadow: inset 0 0 0 1px #EEF0F4; }
+.cd-detailedit:focus-visible { outline: 2px solid #C65A1A; outline-offset: 2px; }
+.cd-detailedit.empty { color: #AEB4C2; font-style: italic; }
+
 /* ── Quick actions ──
    The To Do row at the top of a job: assign, due date, priority. Pills that
    read as a summary when set and open one inline panel at a time. */

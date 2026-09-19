@@ -773,57 +773,99 @@ const TeamJobsManagement = () => {
   };
   const userCapabilities = getUserCapabilities(enhancedUser);
 
-  const handleQuickAddJob = async (title, boardId) => {
+  /**
+   * Type a title, press Enter, it is on the list — the To Do move.
+   *
+   * The column it was typed into decides what the job is: a board column sets
+   * the board, a department's Open jobs column sets that department, and My
+   * jobs assigns it to whoever typed it. Nothing else has to be filled in, and
+   * everything else is set afterwards from the job itself.
+   */
+  // setCards + persist, from the previous state rather than a captured one.
+  // Anything that can run twice before a render — adding jobs one after
+  // another, an insert resolving while the next is typed — has to build on
+  // what is actually there, not on the snapshot its closure happens to hold.
+  const applyCards = (updater) => {
+    setCards(prev => {
+      const next = updater(prev) || [];
+      saveCards(next);
+      return next;
+    });
+  };
+
+  const handleQuickAddJob = async (title, target = {}) => {
+    const { boardId = null, departmentId: targetDept = null, assignToMe = false } = target;
     const userId = authUser?.id || currentUser?.id;
     const tier = effectiveTier;
-    let departmentId = null;
-    if (tier === 'COMMAND') {
-      const targetBoard = boardId ? boards?.find(b => b?.id === boardId) : null;
-      departmentId = targetBoard?.department_id || targetBoard?.department || null;
-      // If viewing a specific department (not All), use that department
-      if (!departmentId && departmentFilter?.id && departmentFilter?.id !== 'ALL') {
-        departmentId = departmentFilter?.id;
-      }
-    } else {
-      departmentId = userDepartmentId || null;
-    }
+
+    // Most specific wins: the column that was typed into, then the board it
+    // belongs to, then whatever department is being viewed, then the member's
+    // own. A COMMAND user in the All view has no own department to fall back on.
+    const targetBoard = boardId ? boards?.find(b => b?.id === boardId) : null;
+    const departmentId = targetDept
+      || targetBoard?.department_id || targetBoard?.department
+      || (departmentFilter?.id && departmentFilter?.id !== 'ALL' ? departmentFilter?.id : null)
+      || (tier === 'COMMAND' ? null : userDepartmentId)
+      || null;
+
     const isPrivate = tier === 'CREW';
+    const assignedTo = assignToMe && userId && isValidUUID(userId) ? userId : null;
     const optimisticId = `card-${Date.now()}`;
     const optimisticCard = {
       id: optimisticId, type: 'task', title, board: boardId || null,
       status: 'pending', department: departmentId, department_id: departmentId,
-      assigned_to: null, assignees: [], priority: null, is_private: isPrivate,
+      assigned_to: assignedTo, assignees: assignedTo ? [assignedTo] : [],
+      priority: null, is_private: isPrivate,
       created_by: userId, createdAt: new Date()?.toISOString(),
       notes: [], attachments: [], activity: [], checklist: []
     };
-    const updatedCards = [...cards, optimisticCard];
-    setCards(updatedCards);
-    saveCards(updatedCards);
+    // Every write here goes through the updater form. The whole point of this
+    // row is that you can add several in a row, and `cards` captured from a
+    // render is already stale by the second one — the earlier version rebuilt
+    // the list from that snapshot and silently dropped the supabase_id the
+    // first job had just been given, so editing that job afterwards saved
+    // nothing.
+    applyCards(prev => [...prev, optimisticCard]);
+
     if (activeTenantId && userId) {
       try {
         const insertPayload = {
           tenant_id: activeTenantId, title, created_by: userId,
-          status: 'pending', assigned_to: null, priority: null, is_private: isPrivate
+          status: 'pending', assigned_to: assignedTo, priority: null, is_private: isPrivate
         };
-        const isValidUUID = (val) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i?.test(val);
         if (departmentId && isValidUUID(departmentId)) insertPayload.department_id = departmentId;
+        if (boardId && isValidUUID(boardId)) insertPayload.board_id = boardId;
         const { data: insertedJob, error: insertError } = await supabase
           ?.from('team_jobs')?.insert(insertPayload)?.select('id')?.single();
         if (insertError) {
-          const revertedCards = cards?.filter(c => c?.id !== optimisticId);
-          setCards(revertedCards); saveCards(revertedCards);
+          applyCards(prev => prev?.filter(c => c?.id !== optimisticId));
           throw new Error(insertError?.message || 'Failed to save job');
         }
         if (insertedJob?.id) {
-          const reconciledCards = updatedCards?.map(c =>
+          applyCards(prev => prev?.map(c =>
             c?.id === optimisticId ? { ...c, supabase_id: insertedJob?.id } : c
-          );
-          setCards(reconciledCards); saveCards(reconciledCards);
+          ));
           // Refresh jobs from Supabase to get the new job in the list
           fetchJobsFromSupabase(departmentFilter);
         }
       } catch (err) { throw err; }
     }
+  };
+
+  /**
+   * Can this person add a job straight into a department's column?
+   *
+   * The board version below asks the same question for a board. Kept separate
+   * because the All view shows every department at once, so "is this my
+   * department" has to be asked per column rather than of the page filter.
+   */
+  const canQuickAddToDept = (deptId) => {
+    if (tierLoading || !effectiveTier || isViewOnly(effectiveTier)) return false;
+    if (isCommand(effectiveTier)) return true;
+    if (isChief(effectiveTier) || isHod(effectiveTier)) {
+      return !!deptId && deptId === userDepartmentId;
+    }
+    return false;
   };
 
   const canShowQuickAdd = (board) => {
@@ -2698,6 +2740,15 @@ const TeamJobsManagement = () => {
                               renderColumnItems(myJobsDept)
                             )}
                           </div>
+                          {canQuickAddToDept(dept?.id) && (
+                            <div className="tj-col-foot">
+                              <QuickAddJobInput
+                                target={{ departmentId: dept?.id, assignToMe: true }}
+                                onAdd={handleQuickAddJob}
+                                placeholder="Add a job for yourself…"
+                              />
+                            </div>
+                          )}
                         </div>
                       )}
                       {/* Open Jobs column: show for every department */}
@@ -2720,6 +2771,15 @@ const TeamJobsManagement = () => {
                             renderColumnItems(openJobsDept)
                           )}
                         </div>
+                        {canQuickAddToDept(dept?.id) && (
+                          <div className="tj-col-foot">
+                            <QuickAddJobInput
+                              target={{ departmentId: dept?.id }}
+                              onAdd={handleQuickAddJob}
+                              placeholder={`Add a job for ${dept?.name}…`}
+                            />
+                          </div>
+                        )}
                       </div>
                     </React.Fragment>
                   );
@@ -2758,6 +2818,17 @@ const TeamJobsManagement = () => {
                     renderDayColumn(isViewingOwnDept ? myJobsItems : openJobsForSelectedDept)
                   )}
                 </div>
+                {canQuickAddToDept(selectedDeptId) && (
+                  <div className="tj-col-foot">
+                    <QuickAddJobInput
+                      target={{ departmentId: selectedDeptId, assignToMe: isViewingOwnDept }}
+                      onAdd={handleQuickAddJob}
+                      placeholder={isViewingOwnDept
+                        ? 'Add a job for yourself…'
+                        : `Add a job for ${departmentFilter?.label}…`}
+                    />
+                  </div>
+                )}
               </div>
               {/* Board Columns — dnd-kit sortable */}
               <DndContext
@@ -2899,8 +2970,9 @@ const TeamJobsManagement = () => {
                               <div data-no-dnd="true">
                                 {showQuickAdd ? (
                                   <QuickAddJobInput
-                                    boardId={board?.id} board={board} onAdd={handleQuickAddJob}
-                                    currentUserId={currentUserId} isPersonalBoard={personal}
+                                    target={{ boardId: board?.id }}
+                                    onAdd={handleQuickAddJob}
+                                    placeholder={`Add a job to ${board?.name || 'this board'}…`}
                                   />
                                 ) : (
                                   boardCanAdd && (

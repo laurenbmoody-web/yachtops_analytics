@@ -1,95 +1,76 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import Icon from '../../../components/AppIcon';
 import '../job-modals.css';
 
 /**
- * Trello-style inline Quick Add Job input.
+ * Type a title, press Enter, it is on the list.
+ *
+ * Always a live field rather than a button that reveals one: the To Do move is
+ * that adding costs a keystroke, not a click then a keystroke, and the row
+ * sitting there ready is half of what makes a list feel quick to keep.
+ *
+ * Enter saves and keeps focus so several can go in one after another. The text
+ * survives a failure — losing what someone just typed because the network
+ * blipped is worse than the failure itself.
+ *
  * Props:
- *   boardId        - the board/list this input belongs to
- *   board          - full board object (for personal board detection)
- *   onAdd          - async fn(title, boardId) => void — called on Enter
- *   currentUserId  - auth user id
- *   isPersonalBoard - boolean: is this board personal to the current user?
+ *   target  - { boardId?, departmentId?, assignToMe? } — what the column this
+ *             input sits in means, passed straight back to onAdd
+ *   onAdd   - async fn(title, target) — called on Enter
+ *   placeholder - overrides the default, so a column can say where it lands
  */
-const QuickAddJobInput = ({ boardId, board, onAdd, currentUserId, isPersonalBoard }) => {
-  const [isOpen, setIsOpen] = useState(false);
+const QuickAddJobInput = ({ target = {}, onAdd, placeholder = 'Add a job…' }) => {
   const [value, setValue] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [focused, setFocused] = useState(false);
   const inputRef = useRef(null);
 
-  // Focus input when opened
-  useEffect(() => {
-    if (isOpen && inputRef?.current) {
-      inputRef?.current?.focus();
-    }
-  }, [isOpen]);
-
-  const handleOpen = () => {
-    setIsOpen(true);
+  // Deliberately never disables the field. A disabled input loses focus, and
+  // focus is the whole point of the row: you type, press Enter, and type the
+  // next one. Double submits are guarded on `saving` instead.
+  const submit = async () => {
+    const trimmed = value?.trim();
+    if (!trimmed || saving) return;
+    setSaving(true);
     setError(null);
-  };
-
-  const handleClose = () => {
-    setIsOpen(false);
-    setValue('');
-    setError(null);
-  };
-
-  const handleKeyDown = async (e) => {
-    if (e?.key === 'Escape') {
-      handleClose();
-      return;
-    }
-    if (e?.key === 'Enter') {
-      e?.preventDefault();
-      const trimmed = value?.trim();
-      if (!trimmed) return;
-
-      setSaving(true);
+    try {
+      await onAdd(trimmed, target);
+      setValue('');
       setError(null);
-      try {
-        await onAdd(trimmed, boardId);
-        // On success: clear input, keep focus for rapid entry
-        setValue('');
-        setError(null);
-        if (inputRef?.current) inputRef?.current?.focus();
-      } catch (err) {
-        // On failure: revert optimistic UI is handled by parent; show inline error without losing text
-        setError(err?.message || 'Failed to add job. Please try again.');
-      } finally {
-        setSaving(false);
-      }
+    } catch (err) {
+      setError(err?.message || 'That did not save. Try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  if (!isOpen) {
-    return (
-      <button onClick={handleOpen} className="tj-addjob">
-        <Icon name="Plus" size={14} />
-        Add a job…
-      </button>
-    );
-  }
+  const handleKeyDown = (e) => {
+    if (e?.key === 'Escape') { setValue(''); setError(null); inputRef?.current?.blur(); return; }
+    if (e?.key === 'Enter') { e?.preventDefault(); submit(); }
+  };
 
   return (
     <div className="tj-quickadd">
-      <div className="tj-quickadd-field">
+      <div className={`tj-quickadd-row${focused ? ' on' : ''}${error ? ' err' : ''}`}>
+        <span className="tj-quickadd-ico">
+          {saving ? <span className="jm-spin sm" /> : <Icon name="Plus" size={14} />}
+        </span>
         <input
           ref={inputRef}
           type="text"
           value={value}
           onChange={(e) => setValue(e?.target?.value)}
           onKeyDown={handleKeyDown}
-          disabled={saving}
-          placeholder="Job title…"
-          className={`jm-input${error ? ' err' : ''}`}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          className="tj-quickadd-input"
+          aria-label={placeholder}
         />
-        {saving ? (
-          <span className="tj-quickadd-end"><span className="jm-spin sm" /></span>
-        ) : (
-          <button onClick={handleClose} className="tj-quickadd-end clear" tabIndex={-1} title="Cancel">
-            <Icon name="X" size={13} />
+        {value?.trim() && !saving && (
+          <button type="button" className="tj-quickadd-go" onClick={submit} title="Add">
+            <Icon name="CornerDownLeft" size={13} />
           </button>
         )}
       </div>
@@ -99,7 +80,6 @@ const QuickAddJobInput = ({ boardId, board, onAdd, currentUserId, isPersonalBoar
           {error}
         </p>
       )}
-      <p className="jm-hint">Enter to save · Esc to cancel</p>
     </div>
   );
 };
