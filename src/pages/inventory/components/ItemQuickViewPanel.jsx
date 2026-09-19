@@ -40,13 +40,19 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, onDe
   const [events, setEvents] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [showReorder, setShowReorder] = useState(false);
+  const [lightbox, setLightbox] = useState(null); // full-image URL, or null
   useEffect(() => {
-    const onKey = (e) => { if (e?.key === 'Escape') onClose?.(); };
+    const onKey = (e) => {
+      if (e?.key !== 'Escape') return;
+      // Esc closes the full-image lightbox first, then the panel.
+      if (lightbox) setLightbox(null);
+      else onClose?.();
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, lightbox]);
   // Reset the active gallery photo when switching to a different item.
-  useEffect(() => { setActivePhoto(null); }, [item?.id]);
+  useEffect(() => { setActivePhoto(null); setLightbox(null); }, [item?.id]);
 
   // Render the item's saved code as a QR preview so view mode shows the actual
   // code, not just the text — click it (or Print) to reopen the label window.
@@ -240,7 +246,7 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, onDe
         <div className="uv-body">
           {mainPhoto && (
             <>
-              <div className="uv-photo"><img src={mainPhoto} alt={item?.name || ''} /></div>
+              <button type="button" className="uv-photo" onClick={() => setLightbox(mainPhoto)} title="Click to view full image" aria-label="View full image"><img src={mainPhoto} alt={item?.name || ''} /></button>
               {gallery.length > 1 && (
                 <div className="uv-gallery">
                   {gallery.map((url, i) => (
@@ -400,6 +406,12 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, onDe
           suggestedQty={reorderQty}
           onClose={() => setShowReorder(false)}
         />
+      )}
+      {lightbox && (
+        <div className="uv-lightbox" onClick={() => setLightbox(null)} role="dialog" aria-modal="true">
+          <button type="button" className="uv-lightbox-x" onClick={() => setLightbox(null)} aria-label="Close"><Icon name="X" size={22} /></button>
+          <img src={lightbox} alt={item?.name || ''} onClick={(e) => e.stopPropagation()} />
+        </div>
       )}
     </>
   );
