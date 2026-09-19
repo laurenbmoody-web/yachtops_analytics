@@ -17,12 +17,17 @@ const Row = ({ label, value }) => ((value == null || value === '') ? null : (
 const UniformItemView = ({ item, canEdit, onEdit, onDuplicated, onClose }) => {
   const [activePhoto, setActivePhoto] = useState(null);
   const [dupBusy, setDupBusy] = useState(false);
+  const [lightbox, setLightbox] = useState(null); // full-image URL, or null
   useEffect(() => {
-    const onKey = (e) => { if (e?.key === 'Escape') onClose?.(); };
+    const onKey = (e) => {
+      if (e?.key !== 'Escape') return;
+      if (lightbox) setLightbox(null);
+      else onClose?.();
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  useEffect(() => { setActivePhoto(null); }, [item?.id]);
+  }, [onClose, lightbox]);
+  useEffect(() => { setActivePhoto(null); setLightbox(null); }, [item?.id]);
 
   const cf = item?.customFields || item?.custom_fields || {};
   const gallery = (Array.isArray(cf.images) && cf.images.length ? cf.images : (item?.imageUrl ? [item.imageUrl] : [])).filter(Boolean);
@@ -69,7 +74,7 @@ const UniformItemView = ({ item, canEdit, onEdit, onDuplicated, onClose }) => {
         <div className="uv-body">
           {mainPhoto && (
             <>
-              <div className="uv-photo"><img src={mainPhoto} alt={item?.name || ''} /></div>
+              <button type="button" className="uv-photo" onClick={() => setLightbox(mainPhoto)} title="Click to view full image" aria-label="View full image"><img src={mainPhoto} alt={item?.name || ''} /></button>
               {gallery.length > 1 && (
                 <div className="uv-gallery">
                   {gallery.map((url, i) => (
@@ -159,6 +164,12 @@ const UniformItemView = ({ item, canEdit, onEdit, onDuplicated, onClose }) => {
           )}
         </div>
       </aside>
+      {lightbox && (
+        <div className="uv-lightbox" onClick={() => setLightbox(null)} role="dialog" aria-modal="true">
+          <button type="button" className="uv-lightbox-x" onClick={() => setLightbox(null)} aria-label="Close"><Icon name="X" size={22} /></button>
+          <img src={lightbox} alt={item?.name || ''} onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </>
   );
 };

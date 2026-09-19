@@ -13,8 +13,14 @@
 .uv-x:hover { color: #C65A1A; background: #FBEFE9; }
 
 .uv-body { padding: 18px 24px 24px; overflow-y: auto; flex: 1; }
-.uv-photo { width: 100%; height: 260px; border-radius: 14px; overflow: hidden; border: 1px solid #E5E7EB; background: #F8FAFC; margin-bottom: 18px; display: grid; place-items: center; }
+.uv-photo { width: 100%; height: 260px; border-radius: 14px; overflow: hidden; border: 1px solid #E5E7EB; background: #F8FAFC; margin-bottom: 18px; display: grid; place-items: center; padding: 0; cursor: zoom-in; font: inherit; }
 .uv-photo img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+
+/* Full-image lightbox — click the quick-view photo to view it at full size. */
+.uv-lightbox { position: fixed; inset: 0; z-index: 1600; background: rgba(20, 19, 40, 0.86); display: grid; place-items: center; padding: 40px; cursor: zoom-out; animation: uv-fade 0.15s ease; }
+.uv-lightbox img { max-width: 96vw; max-height: 92vh; object-fit: contain; border-radius: 10px; box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6); cursor: default; }
+.uv-lightbox-x { position: fixed; top: 20px; right: 24px; width: 40px; height: 40px; border-radius: 999px; border: 0; background: rgba(255,255,255,0.14); color: #fff; display: grid; place-items: center; cursor: pointer; transition: background 0.14s ease; }
+.uv-lightbox-x:hover { background: rgba(255,255,255,0.26); }
 
 .uv-gallery { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 18px; }
 .uv-gthumb { width: 52px; height: 52px; border-radius: 10px; overflow: hidden; border: 1px solid #E5E7EB; padding: 0; background: none; cursor: pointer; }
