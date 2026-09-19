@@ -1705,6 +1705,13 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
   // Format expiry date — check both camelCase and snake_case field names
   const rawExpiry = item?.expiryDate || item?.expiry_date || null;
   const expiryLabel = rawExpiry ? (formatDate(rawExpiry) || rawExpiry) : null;
+  // Differentiators surfaced on hover — brand + fit (Mens/Womens/Unisex) +
+  // colour let you tell apart items that share the same stock photo.
+  const cfCard = item?.customFields || item?.custom_fields || {};
+  const brandLabel = item?.brand || null;
+  const fitLabel = cfCard?.fit || cfCard?.gender || null;
+  const colourLabel = cfCard?.colour || cfCard?.color || null;
+  const descriptorLabel = [fitLabel, colourLabel].filter(Boolean).join(' · ') || null;
 
   return (
     <>
@@ -1762,6 +1769,16 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
           onClick={() => onQuickView?.(item)}
           title="Quick view"
         >{item?.name}</p>
+
+        {/* Differentiators for items that share a stock photo — brand, fit
+            (Mens/Womens/Unisex, tinted so it pops) and colour, as clean pills. */}
+        {(brandLabel || fitLabel || colourLabel) && (
+          <div className="inv-card-chips">
+            {brandLabel && <span className="inv-chip">{brandLabel}</span>}
+            {fitLabel && <span className="inv-chip fit">{fitLabel}</span>}
+            {colourLabel && <span className="inv-chip">{colourLabel}</span>}
+          </div>
+        )}
 
         {/* Category */}
         {categoryLabel && (
