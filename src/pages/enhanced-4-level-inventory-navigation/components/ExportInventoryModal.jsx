@@ -551,13 +551,16 @@ const ExportInventoryModal = ({
             </div>
           </div>
           <button
+            role="switch"
+            aria-checked={includeImages}
+            aria-label="Include images"
             onClick={() => setIncludeImages(v => !v)}
-            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
-              includeImages ? 'bg-primary' : 'bg-muted-foreground/30'
+            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 border ${
+              includeImages ? 'bg-[#C65A1A] border-[#C65A1A]' : 'bg-[#CBD5E1] border-[#94A3B8]'
             }`}
           >
             <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform ${
                 includeImages ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
