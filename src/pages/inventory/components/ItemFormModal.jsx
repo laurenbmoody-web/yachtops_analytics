@@ -104,6 +104,17 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [showFull, setShowFull] = useState(isEdit || !quick);
   const folderDisplay = defaultSubLocation ? `${defaultLocation} > ${defaultSubLocation}` : (defaultLocation || '');
 
+  // When EDITING, the folder must come from the item's own stored path — never
+  // the folder currently being viewed. Editing an item pulled into an aggregated
+  // parent view ("expand all") otherwise re-homed it into that parent on save.
+  const itemSubSegs = String(item?.subLocation || item?.sub_location || '')
+    .split(/[>›]/).map((s) => s.trim()).filter(Boolean);
+  const itemFolderPath = item?.location ? [item.location, ...itemSubSegs] : [];
+  const initFolderPath = isEdit && itemFolderPath.length
+    ? itemFolderPath
+    : (defaultLocation ? (defaultSubLocation ? [defaultLocation, defaultSubLocation] : [defaultLocation]) : []);
+  const initFolderDisplay = isEdit && itemFolderPath.length ? itemFolderPath.join(' > ') : folderDisplay;
+
   const [profile, setProfile] = useState(
     item?.customFields?.profile
     || ((item?.isUniform || item?.is_uniform || item?.customFields?.garmentType) ? 'uniform' : autoProfile(folderDisplay))
@@ -172,8 +183,8 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoErr, setPhotoErr] = useState('');
   const [originalUrl, setOriginalUrl] = useState('');
-  const [folder, setFolder] = useState(folderDisplay);
-  const [folderPath, setFolderPath] = useState(defaultLocation ? (defaultSubLocation ? [defaultLocation, defaultSubLocation] : [defaultLocation]) : []);
+  const [folder, setFolder] = useState(initFolderDisplay);
+  const [folderPath, setFolderPath] = useState(initFolderPath);
   const [folderTree, setFolderTree] = useState({});
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [vesselLocations, setVesselLocations] = useState([]);
