@@ -79,6 +79,9 @@ const CardDetailModal = ({
   // Which quick action is open, To Do style: one panel at a time, saves as you
   // pick rather than making you open the whole edit form for a due date.
   const [openQuick, setOpenQuick] = useState(null); // 'assign' | 'due' | 'priority'
+  // Description editing in place, the way To Do lets you add a note without
+  // opening anything. Separate from editMode, which is the whole form.
+  const [editingDetail, setEditingDetail] = useState(false);
   
   const { userRole } = useRole();
 
@@ -709,6 +712,33 @@ const CardDetailModal = ({
               value={editedDescription}
               onChange={(e) => setEditedDescription(e?.target?.value)}
             />
+          ) : editingDetail ? (
+            /* Click-to-edit, saved on blur. A job typed onto a board is a
+               title and nothing else, and the detail usually arrives a moment
+               later — that should not mean opening the whole edit form. */
+            <textarea
+              autoFocus
+              className="jm-textarea"
+              rows={3}
+              placeholder="What the crew will need to know…"
+              defaultValue={card?.description || ''}
+              onBlur={(e) => {
+                const v = e?.target?.value;
+                setEditingDetail(false);
+                if (v !== (card?.description || '')) onUpdate(card?.id, { description: v || null });
+              }}
+              onKeyDown={(e) => { if (e?.key === 'Escape') setEditingDetail(false); }}
+            />
+          ) : showQuickActions ? (
+            <p
+              className={`cd-text cd-detailedit${card?.description ? '' : ' empty'}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => setEditingDetail(true)}
+              onKeyDown={(e) => { if (e?.key === 'Enter' || e?.key === ' ') { e?.preventDefault(); setEditingDetail(true); } }}
+            >
+              {card?.description || 'Add detail…'}
+            </p>
           ) : (
             <p className="cd-text">{card?.description || 'No description.'}</p>
           )}
