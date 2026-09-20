@@ -47,16 +47,12 @@ import SelfReportedJobModal from './components/SelfReportedJobModal';
 import ReviewQueuePanel from './components/ReviewQueuePanel';
 
 import { hasCommandAccess, hasChiefAccess } from '../../utils/authStorage';
-import { notifySenderDeclined, notifySenderAccepted } from './utils/notifications';
+import { notifyJobAssigned, notifySenderDeclined, notifySenderAccepted } from './utils/jobNotify';
 
 import { normalizeTier, isCommand, isChief, isHod, isCrew, isViewOnly, isOwnDepartmentView as calcIsOwnDeptView, canEditDepartment, canAddJob, canCompleteJob, canComment, canCreateBoard, canDeleteBoard, canRenameBoard, jobModalMode as calcJobModalMode, isPrivateJobOwner, isPrivateBoardOwner, getUserCapabilities } from './utils/tierPermissions';
 import { showToast } from '../../utils/toast';
 
 import ModalShell from '../../components/ui/ModalShell';
-const notifyJobAssigned = (assigneeIds, jobTitle, jobId, dueDate) => {
-  console.log('Job assigned notification:', { assigneeIds, jobTitle, jobId, dueDate });
-};
-
 const DEFAULT_SORT = 'due-asc';
 
 const isValidUUID = (val) =>
@@ -1541,7 +1537,13 @@ const TeamJobsManagement = () => {
     setCards(updatedCards); saveCards(updatedCards);
     setShowCreateCard(null); setShowCreateCardBoardId(null);
     if (taskData?.assignees?.length > 0) {
-      notifyJobAssigned(taskData?.assignees, taskData?.title, newCard?.id, taskData?.dueDate);
+      notifyJobAssigned({
+        assigneeIds: taskData?.assignees,
+        jobTitle: taskData?.title,
+        jobId: newCard?.id,
+        dueDate: taskData?.dueDate,
+        actorId: userId,
+      });
     }
 
     // Save to Supabase
@@ -2387,13 +2389,13 @@ const TeamJobsManagement = () => {
     const senderId = card?.created_by || card?.createdBy;
     if (senderId) {
       const rejectorDept = currentTenantMember?.department?.name || enhancedUser?.department || 'your department';
-      notifySenderDeclined(
+      notifySenderDeclined({
         senderId,
-        card?.title || 'Job',
-        cardId,
-        rejectorDept,
-        rejectionNotes
-      );
+        jobTitle: card?.title || 'Job',
+        jobId: card?.supabase_id || cardId,
+        byDept: rejectorDept,
+        reason: rejectionNotes,
+      });
     }
 
     // Persist rejection to Supabase if possible
@@ -3345,6 +3347,7 @@ const TeamJobsManagement = () => {
         {editingJob && (
           <JobEditModal
             job={editingJob}
+            departments={departments}
             onClose={() => setEditingJob(null)}
             onSave={(updatedJob) => {
               const updatedCards = cards?.map(c => c?.id === updatedJob?.id ? updatedJob : c);
@@ -3365,7 +3368,12 @@ const TeamJobsManagement = () => {
               const senderId = editingJob?.created_by || editingJob?.createdBy;
               if (senderId) {
                 const acceptorDept = currentTenantMember?.department?.name || enhancedUser?.department || 'your department';
-                notifySenderAccepted(senderId, editingJob?.title || 'Job', editingJob?.id, acceptorDept);
+                notifySenderAccepted({
+                  senderId,
+                  jobTitle: editingJob?.title || 'Job',
+                  jobId: editingJob?.supabase_id || editingJob?.id,
+                  byDept: acceptorDept,
+                });
               }
               fetchJobsFromSupabase(departmentFilter);
             }}
@@ -3392,7 +3400,12 @@ const TeamJobsManagement = () => {
               const senderId = acceptanceJob?.created_by || acceptanceJob?.createdBy;
               if (senderId) {
                 const acceptorDept = currentTenantMember?.department?.name || enhancedUser?.department || 'your department';
-                notifySenderAccepted(senderId, acceptedJob?.title || 'Job', acceptedJob?.id, acceptorDept);
+                notifySenderAccepted({
+                  senderId,
+                  jobTitle: acceptedJob?.title || 'Job',
+                  jobId: acceptedJob?.supabase_id || acceptedJob?.id,
+                  byDept: acceptorDept,
+                });
               }
               fetchJobsFromSupabase(departmentFilter);
             }}

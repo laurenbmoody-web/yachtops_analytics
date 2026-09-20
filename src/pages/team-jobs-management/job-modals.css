@@ -1323,3 +1323,11 @@
   color: #8B8478; flex-shrink: 0;
 }
 .cd-remindwho .jm-select { flex: 1; min-width: 0; }
+
+/* A form needs more width than a detail pane, but the same full height —
+   the point of the drawer is that Save is always in view without scrolling
+   to find it. */
+.jm-panel.jm-drawer.wide { width: 560px; }
+@media (max-width: 620px) {
+  .jm-panel.jm-drawer.wide { width: 100vw; border-left: none; }
+}

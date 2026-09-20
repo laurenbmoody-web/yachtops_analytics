@@ -131,6 +131,11 @@ const JobEditModal = ({
   }, [boards, selectedDeptId]);
 
   // ── Fetch departments if not passed ──
+  // Depends on the LENGTH, not the array. The prop defaults to a literal [],
+  // which is a new array on every render, so depending on its identity
+  // re-ran this effect forever: setLoadingDepts(true) → fetch → false →
+  // render → true again, and the field sat on "Loading departments…" for
+  // good, with Department required and the job unsaveable.
   useEffect(() => {
     if (departments?.length > 0) {
       setSupabaseDepts(departments);
@@ -161,7 +166,8 @@ const JobEditModal = ({
       }
     };
     fetchDepts();
-  }, [activeTenantId, canSelectDept, departments]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTenantId, canSelectDept, departments?.length]);
 
   // ── Helper: get department name ──
   const getDeptName = (deptId) => {
@@ -524,7 +530,7 @@ const JobEditModal = ({
   // ─────────────────────────────────────────────────────────────────────────
   if (acceptanceMode) {
     return (
-      <ModalShell onClose={onClose} isBusy={saving} panelClassName="jm-panel xl">
+      <ModalShell onClose={onClose} isBusy={saving} variant="drawer" panelClassName="jm-panel jm-drawer wide">
         <div className="jm-head">
           <div>
             <p className="jm-eyebrow">Jobs</p>
@@ -869,7 +875,8 @@ const JobEditModal = ({
     <ModalShell
       onClose={onClose}
       isBusy={saving}
-      panelClassName="jm-panel xl"
+      variant="drawer"
+      panelClassName="jm-panel jm-drawer wide"
     >
       <div className="jm-head">
         <div>

@@ -6,7 +6,7 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { supabase } from '../../../lib/supabaseClient';
 import SearchableAssigneeDropdown from './SearchableAssigneeDropdown';
 import { DEPARTMENTS } from '../../../utils/authStorage';
-import { notifyChiefsPendingAcceptance, notifyJobAssigned } from '../utils/notifications';
+import { notifyChiefsPendingAcceptance, notifyJobAssigned } from '../utils/jobNotify';
 import { logActivity, JobActions } from '../../../utils/activityStorage';
 import { normalizeTier, canAssignTo } from '../utils/tierPermissions';
 
@@ -604,17 +604,25 @@ const ComprehensiveJobModal = ({ boards, selectedDate, defaultBoardId, onClose, 
         } : null
       };
 
-      // Notifications
-      if (currentUserTier === 'COMMAND') {
-        if (finalStatus === 'pending_acceptance') {
-          notifyChiefsPendingAcceptance(finalDepartment, newCard?.title, newCard?.id, newCard?.dueDate);
-        } else if (finalAssignees?.length > 0) {
-          notifyJobAssigned(finalAssignees, newCard?.title, newCard?.id, newCard?.dueDate);
-        }
-      } else if (finalStatus === 'pending_acceptance') {
-        notifyChiefsPendingAcceptance(finalDepartment, newCard?.title, newCard?.id, newCard?.dueDate);
-      } else {
-        if (finalAssignees?.length > 0) notifyJobAssigned(finalAssignees, newCard?.title, newCard?.id, newCard?.dueDate);
+      // Notifications. finalDepartment is a department ID — the old helper
+      // compared it against a department NAME, so the chiefs of a handed-over
+      // job were never told; it now resolves them from tenant_members.
+      if (finalStatus === 'pending_acceptance') {
+        notifyChiefsPendingAcceptance({
+          tenantId: activeTenantId,
+          departmentId: finalDepartment,
+          jobTitle: newCard?.title,
+          jobId: newCard?.supabase_id || newCard?.id,
+          dueDate: newCard?.dueDate,
+        });
+      } else if (finalAssignees?.length > 0) {
+        notifyJobAssigned({
+          assigneeIds: finalAssignees,
+          jobTitle: newCard?.title,
+          jobId: newCard?.supabase_id || newCard?.id,
+          dueDate: newCard?.dueDate,
+          actorId: supabaseUserId,
+        });
       }
 
       logActivity({
@@ -674,7 +682,8 @@ const ComprehensiveJobModal = ({ boards, selectedDate, defaultBoardId, onClose, 
       onClose={onClose}
       isBusy={isSubmitting}
       isDirty={!!formData?.title?.trim()}
-      panelClassName="jm-panel xl"
+      variant="drawer"
+      panelClassName="jm-panel jm-drawer wide"
     >
       <div className="jm-head">
         <div>
