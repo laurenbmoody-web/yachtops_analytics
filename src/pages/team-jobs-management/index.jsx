@@ -167,7 +167,7 @@ const applyBoardOrder = (boards, orderedIds) => {
 
 const TeamJobsManagement = () => {
   const navigate = useNavigate();
-  const { currentUser: authUser, user } = useAuth();
+  const { currentUser: authUser, user, session } = useAuth();
   const { activeTenantId, loadingTenant, currentTenantMember } = useTenant();
   // getCurrentUser() JSON.parses localStorage, so it returns a NEW object on
   // every render. Memoise it — fetchJobsFromSupabase depends on it, and an
@@ -199,6 +199,9 @@ const TeamJobsManagement = () => {
   const [newBoardName, setNewBoardName] = useState('');
   const [newBoardDescription, setNewBoardDescription] = useState('');
   const [showCreateBoard, setShowCreateBoard] = useState(false);
+  // A personal list: a board only its owner sees. Crew get one of these
+  // whether or not they can create a shared board for the department.
+  const [newBoardPrivate, setNewBoardPrivate] = useState(false);
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
   const [completingJobId, setCompletingJobId] = useState(null);
   const [showComprehensiveModal, setShowComprehensiveModal] = useState(false);
@@ -224,8 +227,18 @@ const TeamJobsManagement = () => {
     : normalizeTier(currentTenantMember?.permission_tier) || (activeTenantId ? 'VIEW_ONLY' : null);
   const userDepartmentId = currentTenantMember?.department_id || null;
   const tierLoading = loadingTenant || (activeTenantId && effectiveTier === null);
-  const currentUserId = authUser?.id || currentUser?.id || null;
-  const me = user?.id ?? authUser?.id;
+  // One identity for the whole page, and it comes from the session first.
+  //
+  // `currentUser` is a localStorage account record that a Supabase sign-in
+  // never writes, so on a real login it is null. Every write here used to take
+  // its id from that, while the My-jobs filter alone used the session user —
+  // so the writer and the reader disagreed about who you are. Quick add fell
+  // through `if (activeTenantId && userId)`, skipped the insert without a
+  // word, and left a job that existed only in this browser with nobody
+  // assigned: which is why adding a job to My jobs put it in the department's
+  // Open jobs instead.
+  const currentUserId = session?.user?.id || user?.id || authUser?.id || currentUser?.id || null;
+  const me = currentUserId;
 
   // Helper: persist hidden completed IDs to localStorage
   const persistHiddenIds = (idSet) => {
@@ -557,7 +570,7 @@ const TeamJobsManagement = () => {
       }
 
       // Also fetch rotation jobs assigned to the current user that may be in a different dept scope
-      const userId = authUser?.id || currentUser?.id;
+      const userId = currentUserId;
       let rotationRows = [];
       if (userId) {
         const { data: rotData } = await supabase
@@ -703,7 +716,7 @@ const TeamJobsManagement = () => {
   // ── Load boards from Supabase on mount so all users see the latest names ──
   useEffect(() => {
     if (!activeTenantId || loadingTenant) return;
-    loadBoardsFromSupabase(activeTenantId)?.then(supabaseBoards => {
+    loadBoardsFromSupabase(activeTenantId, currentUserId)?.then(supabaseBoards => {
       if (supabaseBoards === null) return; // Supabase unavailable, keep localStorage
       if (supabaseBoards?.length === 0) {
         // No boards in Supabase yet — push localStorage boards up
@@ -727,7 +740,7 @@ const TeamJobsManagement = () => {
       setBoards(merged);
       saveBoards(merged);
     });
-  }, [activeTenantId, loadingTenant]);
+  }, [activeTenantId, loadingTenant, currentUserId]);
 
   // ── Derived permission flags based on current tier + selected department ──
   const selectedDeptId = departmentFilter?.id || null;
@@ -795,7 +808,7 @@ const TeamJobsManagement = () => {
 
   const handleQuickAddJob = async (title, target = {}) => {
     const { boardId = null, departmentId: targetDept = null, assignToMe = false } = target;
-    const userId = authUser?.id || currentUser?.id;
+    const userId = currentUserId;
     const tier = effectiveTier;
 
     // Most specific wins: the column that was typed into, then the board it
@@ -827,28 +840,33 @@ const TeamJobsManagement = () => {
     // nothing.
     applyCards(prev => [...prev, optimisticCard]);
 
-    if (activeTenantId && userId) {
-      try {
-        const insertPayload = {
-          tenant_id: activeTenantId, title, created_by: userId,
-          status: 'pending', assigned_to: assignedTo, priority: null, is_private: isPrivate
-        };
-        if (departmentId && isValidUUID(departmentId)) insertPayload.department_id = departmentId;
-        if (boardId && isValidUUID(boardId)) insertPayload.board_id = boardId;
-        const { data: insertedJob, error: insertError } = await supabase
-          ?.from('team_jobs')?.insert(insertPayload)?.select('id')?.single();
-        if (insertError) {
-          applyCards(prev => prev?.filter(c => c?.id !== optimisticId));
-          throw new Error(insertError?.message || 'Failed to save job');
-        }
-        if (insertedJob?.id) {
-          applyCards(prev => prev?.map(c =>
-            c?.id === optimisticId ? { ...c, supabase_id: insertedJob?.id } : c
-          ));
-          // Refresh jobs from Supabase to get the new job in the list
-          fetchJobsFromSupabase(departmentFilter);
-        }
-      } catch (err) { throw err; }
+    // No tenant or no user means this cannot be saved. Saying nothing leaves a
+    // card that looks filed and lives only in this browser, which is how a job
+    // added to My jobs ended up belonging to nobody.
+    if (!activeTenantId || !userId) {
+      applyCards(prev => prev?.filter(c => c?.id !== optimisticId));
+      throw new Error('You are signed out, so that could not be saved. Refresh and try again.');
+    }
+
+    const insertPayload = {
+      tenant_id: activeTenantId, title, created_by: userId,
+      status: 'pending', assigned_to: assignedTo, priority: null, is_private: isPrivate
+    };
+    if (departmentId && isValidUUID(departmentId)) insertPayload.department_id = departmentId;
+    if (boardId && isValidUUID(boardId)) insertPayload.board_id = boardId;
+
+    const { data: insertedJob, error: insertError } = await supabase
+      ?.from('team_jobs')?.insert(insertPayload)?.select('id')?.single();
+    if (insertError) {
+      applyCards(prev => prev?.filter(c => c?.id !== optimisticId));
+      throw new Error(insertError?.message || 'That did not save. Try again.');
+    }
+    if (insertedJob?.id) {
+      applyCards(prev => prev?.map(c =>
+        c?.id === optimisticId ? { ...c, supabase_id: insertedJob?.id } : c
+      ));
+      // Refresh jobs from Supabase to get the new job in the list
+      fetchJobsFromSupabase(departmentFilter);
     }
   };
 
@@ -1366,12 +1384,16 @@ const TeamJobsManagement = () => {
 
   const handleCreateBoard = () => {
     if (!newBoardName?.trim()) return;
-    const userId = authUser?.id || currentUser?.id;
+    const userId = currentUserId;
     const deptId = departmentFilter?.id && departmentFilter?.id !== 'ALL' ? departmentFilter?.id : null;
     const newBoard = {
       id: `board-${Date.now()}`, name: newBoardName, description: newBoardDescription,
       color: '#3B82F6', department: deptId || 'General', department_id: deptId,
       members: [], created_by: userId, createdAt: new Date()?.toISOString(),
+      // Crew can only ever make a personal list, so the flag is forced on for
+      // them rather than left to a toggle they could turn off and then be
+      // refused on save.
+      is_private: newBoardPrivate || isCrew(effectiveTier),
     };
     const updatedBoards = [...boards, newBoard];
     setBoards(updatedBoards); saveBoards(updatedBoards);
@@ -1379,7 +1401,8 @@ const TeamJobsManagement = () => {
     if (activeTenantId) {
       saveBoardToSupabase(newBoard, activeTenantId, deptId, newBoardName);
     }
-    setNewBoardName(''); setNewBoardDescription(''); setShowCreateBoard(false);
+    setNewBoardName(''); setNewBoardDescription('');
+    setNewBoardPrivate(false); setShowCreateBoard(false);
   };
 
   const handleDeleteBoard = (boardId) => {
@@ -1463,7 +1486,7 @@ const TeamJobsManagement = () => {
   };
 
   const handleCreateTask = async (taskData) => {
-    const userId = authUser?.id || currentUser?.id;
+    const userId = currentUserId;
     const isValidUUID = (val) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i?.test(val);
 
     // Determine board_id: prefer boardId, then board field
@@ -1606,7 +1629,7 @@ const TeamJobsManagement = () => {
     const job = cards?.find(c => c?.id === jobId) || supabaseJobs?.find(c => c?.id === jobId);
     if (!job) { setCompletingJobId(null); return; }
 
-    const userId = authUser?.id || currentUser?.id;
+    const userId = currentUserId;
     const completedAt = new Date()?.toISOString();
 
     // Toggle: if already completed, unmark it
@@ -1699,7 +1722,7 @@ const TeamJobsManagement = () => {
     const supabaseId = job?.supabase_id || (job?.id?.includes('-') && !job?.id?.startsWith('card-') ? job?.id : null);
     if (supabaseId && activeTenantId) {
       const completedAt = new Date()?.toISOString();
-      const userId = authUser?.id || currentUser?.id || completedBy;
+      const userId = currentUserId || completedBy;
       supabase?.from('team_jobs')?.update({
         status: 'completed',
         completed_at: completedAt,
@@ -1717,7 +1740,7 @@ const TeamJobsManagement = () => {
       tickAllDutyTasks({
         job,
         tenantId: activeTenantId,
-        userId: authUser?.id || currentUser?.id || completedBy,
+        userId: currentUserId || completedBy,
         auto: true,
       })?.catch(err => console.warn('[TeamJobs] Failed to tick duty set on completion:', err));
     }
@@ -1726,7 +1749,7 @@ const TeamJobsManagement = () => {
       consumeJobLinks({
         job,
         tenantId: activeTenantId,
-        userId: authUser?.id || currentUser?.id || completedBy,
+        userId: currentUserId || completedBy,
       })
         ?.then(moved => reportStockMoves(moved, true))
         ?.catch(err => console.warn('[TeamJobs] Failed to move stock for this job:', err));
@@ -2136,6 +2159,18 @@ const TeamJobsManagement = () => {
       if (!item?.department_id) return false;
       if (item?.department_id !== deptId) return false;
       if (item?.board) return false;
+      // Your own department shows My jobs right beside this column, so a job
+      // assigned to you belongs in one of them, not both. Only your own is
+      // filtered out: a chief still sees what the rest of the crew is on, and
+      // in another department — where you get no My jobs column — nothing is
+      // hidden from you at all.
+      if (deptId === userDepartmentId) {
+        const assignedTo =
+          item?.assigned_to ??
+          item?.assignedTo ??
+          (Array.isArray(item?.assignees) ? item?.assignees?.[0] : null);
+        if (assignedTo && assignedTo === me) return false;
+      }
       // Only show jobs due today or overdue (exclude future-dated jobs)
       const rawDue =
         item?.due_date ??
@@ -2170,6 +2205,11 @@ const TeamJobsManagement = () => {
   const getBoardItems = (boardId) => applyToolbar(getBoardItemsRaw(boardId));
   const getMyJobsForDept = (deptId) => applyToolbar(getMyJobsForDeptRaw(deptId));
   const getOpenJobsForDept = (deptId) => applyToolbar(getOpenJobsForDeptRaw(deptId));
+
+  // My personal lists on this vessel. loadBoardsFromSupabase already drops
+  // everyone else's, but boards can also come from localStorage on this
+  // device, so ownership is checked here too rather than trusted.
+  const myPersonalBoards = (boards || [])?.filter(b => isPrivateBoardOwner(b, currentUserId));
 
   const renderJobCard = (item) => {
     const isDutySet = item?.type === 'dutyset';
@@ -2784,6 +2824,47 @@ const TeamJobsManagement = () => {
                     </React.Fragment>
                   );
                 })}
+
+                {/* Personal lists — yours, wherever you are looking.
+                    A personal list is not scoped to a department the way a
+                    shared board is, so it follows you into the All view rather
+                    than hiding until you filter down to one department. */}
+                {myPersonalBoards?.map(board => {
+                  const boardItems = getBoardItems(board?.id);
+                  const boardOpen = boardItems?.filter(i => i?.status !== 'completed')?.length;
+                  return (
+                    <div className="tj-col" key={board?.id}>
+                      <div className="tj-col-head">
+                        <div style={{ minWidth: 0 }}>
+                          <h2 className="tj-col-title">{board?.name}</h2>
+                          <p className="tj-col-sub">
+                            <Icon name="Lock" size={10} /> Just you
+                          </p>
+                        </div>
+                        <span className="tj-col-count">{boardOpen} open</span>
+                      </div>
+                      <div className="tj-col-body">
+                        {jobsLoading ? (
+                          renderColumnLoading()
+                        ) : boardItems?.length === 0 ? (
+                          renderColumnEmpty('Lock', 'Nothing on this list',
+                            hasToolbarQuery
+                              ? 'No jobs match your search or filters.'
+                              : 'Yours alone — add the first thing below.')
+                        ) : (
+                          renderColumnItems(boardItems)
+                        )}
+                      </div>
+                      <div className="tj-col-foot">
+                        <QuickAddJobInput
+                          target={{ boardId: board?.id }}
+                          onAdd={handleQuickAddJob}
+                          placeholder={`Add to ${board?.name}…`}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </>
             ))
           ) : (
@@ -3118,11 +3199,41 @@ const TeamJobsManagement = () => {
                   onChange={(e) => setNewBoardDescription(e?.target?.value)}
                 />
               </div>
+              <div className="jm-section">
+                <p className="jm-label">Who can see it</p>
+                <div className="jm-pills">
+                  <button
+                    type="button"
+                    className={`jm-pill${!newBoardPrivate && !isCrew(effectiveTier) ? ' on' : ''}`}
+                    onClick={() => setNewBoardPrivate(false)}
+                    disabled={isCrew(effectiveTier)}
+                  >
+                    <Icon name="Users" size={13} />
+                    The department
+                  </button>
+                  <button
+                    type="button"
+                    className={`jm-pill${newBoardPrivate || isCrew(effectiveTier) ? ' on' : ''}`}
+                    onClick={() => setNewBoardPrivate(true)}
+                  >
+                    <Icon name="Lock" size={13} />
+                    Just me
+                  </button>
+                </div>
+                <p className="jm-hint">
+                  {newBoardPrivate || isCrew(effectiveTier)
+                    ? 'A personal list. Nobody else sees this board or anything on it.'
+                    : 'Everyone in this department sees this board.'}
+                </p>
+              </div>
             </div>
             <div className="jm-foot">
               <button
                 className="jm-btn ghost"
-                onClick={() => { setShowCreateBoard(false); setNewBoardName(''); setNewBoardDescription(''); }}
+                onClick={() => {
+                  setShowCreateBoard(false); setNewBoardName('');
+                  setNewBoardDescription(''); setNewBoardPrivate(false);
+                }}
               >
                 Cancel
               </button>

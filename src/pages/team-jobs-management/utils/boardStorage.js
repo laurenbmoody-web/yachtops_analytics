@@ -59,7 +59,7 @@ export const saveBoards = (boards) => {
  * @param {string} tenantId
  * @returns {Promise<Array>} Array of Board objects
  */
-export const loadBoardsFromSupabase = async (tenantId) => {
+export const loadBoardsFromSupabase = async (tenantId, currentUserId = null) => {
   if (!tenantId) return null;
   try {
     const { data, error } = await supabase
@@ -88,6 +88,7 @@ export const loadBoardsFromSupabase = async (tenantId) => {
           department: row?.department_id || null,
           description: row?.description || '',
           created_by: row?.created_by || null,
+          is_private: !!row?.is_private,
           createdAt: row?.created_at || new Date()?.toISOString(),
           names: {},
         };
@@ -98,7 +99,10 @@ export const loadBoardsFromSupabase = async (tenantId) => {
       }
     }
 
-    return Object.values(boardMap);
+    // A personal list belongs to one person. Everyone else's stays out of the
+    // board row entirely — not greyed out, not named: absent.
+    return Object.values(boardMap)
+      ?.filter(b => !b?.is_private || (currentUserId && b?.created_by === currentUserId));
   } catch (err) {
     console.warn('[boardStorage] loadBoardsFromSupabase error:', err);
     return null;
@@ -124,6 +128,7 @@ export const saveBoardToSupabase = async (board, tenantId, departmentId, name) =
       description: board?.description || null,
       board_type: board?.boardType || 'Interior',
       created_by: board?.created_by || null,
+      is_private: !!board?.is_private,
       updated_at: new Date()?.toISOString(),
     };
 
