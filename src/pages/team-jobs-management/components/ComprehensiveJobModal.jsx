@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import Icon from '../../../components/AppIcon';
+import DateInput from '../../../components/ui/DateInput';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import { supabase } from '../../../lib/supabaseClient';
@@ -926,9 +927,8 @@ const ComprehensiveJobModal = ({ boards, selectedDate, defaultBoardId, onClose, 
             <label className="jm-label" htmlFor="cjm-due">
               Due date<span className="req">required</span>
             </label>
-            <input
+            <DateInput
               id="cjm-due"
-              type="date"
               className="jm-input"
               value={formData?.dueDate}
               onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e?.target?.value }))}

@@ -1331,3 +1331,32 @@
 @media (max-width: 620px) {
   .jm-panel.jm-drawer.wide { width: 100vw; border-left: none; }
 }
+
+/* ── collapsible drawer sections ─────────────────────────────── */
+.jm-acc { border-bottom: 1px solid #F0F1F5; }
+.jm-acc:last-child { border-bottom: none; }
+.jm-acchead { display: flex; align-items: center; gap: 8px; }
+.jm-accbtn {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 6px;
+  background: none; border: 0; cursor: pointer; text-align: left;
+  font: 600 13.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+  border-radius: 8px;
+  transition: background 0.14s;
+}
+.jm-accbtn:hover { background: #FAFAF8; }
+.jm-accico { color: #8B8478; display: inline-flex; flex-shrink: 0; }
+.jm-acc.open .jm-accico, .jm-accbtn:hover .jm-accico { color: #C65A1A; }
+.jm-acctitle { flex-shrink: 0; }
+/* The value, read back while the section is shut. */
+.jm-accsum {
+  flex: 1; min-width: 0; text-align: right;
+  font-weight: 500; font-size: 12.5px; color: #8B8478;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jm-accchev { color: #AEB4C2; display: inline-flex; flex-shrink: 0; }
+.jm-accbody { padding: 2px 6px 16px; }
+/* The stacked sections already separate themselves with hairlines. */
+.jm-accbody .jm-section:last-child { margin-bottom: 0; }
