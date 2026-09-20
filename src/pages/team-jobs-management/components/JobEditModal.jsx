@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { format } from 'date-fns';
 import Icon from '../../../components/AppIcon';
 import DateInput from '../../../components/ui/DateInput';
+import { isoToUK } from '../../../utils/dateFormat';
 import ModalShell from '../../../components/ui/ModalShell';
+import DrawerSection from './DrawerSection';
 import { supabase } from '../../../lib/supabaseClient';
 import { TIER_RANK, normalizeTier, canAssignTo } from '../utils/tierPermissions';
 import SearchableAssigneeDropdown from './SearchableAssigneeDropdown';
@@ -868,6 +870,39 @@ const JobEditModal = ({
     );
   }
 
+  // ── What each collapsed section says about itself ──
+  // The value, not a field count: "20/09/2026 · Interior · high" tells you
+  // whether you need to open it; "6 fields" never does.
+  const coreSummary = useMemo(() => {
+    const bits = [
+      isoToUK(dueDate) || null,
+      getDeptName(selectedDeptId) || null,
+      priority || null,
+    ]?.filter(Boolean);
+    return bits?.join(' · ') || 'Not set';
+  }, [dueDate, selectedDeptId, priority, supabaseDepts]);
+
+  const checklistSummary = useMemo(() => {
+    if (!checklists?.length) return 'None';
+    const items = checklists?.reduce((n, c) => n + (c?.items?.length || 0), 0);
+    const done = checklists?.reduce(
+      (n, c) => n + (c?.items?.filter(i => i?.done || i?.checked)?.length || 0), 0);
+    if (!items) return `${checklists.length} list${checklists.length === 1 ? '' : 's'}`;
+    return `${done} of ${items} done`;
+  }, [checklists]);
+
+  const recurrenceSummary = useMemo(() => {
+    if (!recurrence || recurrence === 'none') return 'One-time job';
+    return String(recurrence)?.charAt(0)?.toUpperCase() + String(recurrence)?.slice(1);
+  }, [recurrence]);
+
+  const attachmentSummary = useMemo(
+    () => (attachments?.length
+      ? `${attachments.length} file${attachments.length === 1 ? '' : 's'}`
+      : 'None'),
+    [attachments],
+  );
+
   // ─────────────────────────────────────────────────────────────────────────
   // FULL EDIT MODE — ComprehensiveJobModal-style layout
   // ─────────────────────────────────────────────────────────────────────────
@@ -899,11 +934,10 @@ const JobEditModal = ({
           </div>
         )}
 
-        {/* ── Core ── */}
-        <p className="jm-secthead">
-          <Icon name="FileText" size={14} />
-          Core information
-        </p>
+        {/* Collapsed sections, the way To Do opens a task: the whole job in
+            one view, each row reading back its own value, and only the part
+            you are changing expanded. */}
+        <DrawerSection icon="FileText" title="Core information" defaultOpen summary={coreSummary}>
 
         <div className="jm-section">
           <label className="jm-label" htmlFor="jem-title">
@@ -1004,9 +1038,8 @@ const JobEditModal = ({
         <div className="jm-section jm-grid">
           <div>
             <label className="jm-label" htmlFor="jem-due">Due date</label>
-            <input
+            <DateInput
               id="jem-due"
-              type="date"
               className="jm-input"
               value={dueDate}
               onChange={(e) => setDueDate(e?.target?.value)}
@@ -1060,14 +1093,13 @@ const JobEditModal = ({
           </div>
         </div>
 
-        <hr className="jm-rule" />
+        </DrawerSection>
 
-        {/* ── Checklists ── */}
-        <div className="jm-secthead-row">
-          <p className="jm-secthead">
-            <Icon name="CheckSquare" size={14} />
-            Checklists
-          </p>
+        <DrawerSection
+          icon="CheckSquare"
+          title="Checklists"
+          summary={checklistSummary}
+          action={(
           <button
             type="button"
             className="jm-btn ghost sm"
@@ -1082,7 +1114,8 @@ const JobEditModal = ({
             <Icon name="Plus" size={14} />
             Add checklist
           </button>
-        </div>
+          )}
+        >
 
         {checklists?.map((checklist, checklistIndex) => (
           <div key={checklist?.id} className="jm-subcard">
@@ -1152,13 +1185,9 @@ const JobEditModal = ({
           </div>
         ))}
 
-        <hr className="jm-rule" />
+        </DrawerSection>
 
-        {/* ── Recurrence ── */}
-        <p className="jm-secthead">
-          <Icon name="Repeat" size={14} />
-          Recurrence
-        </p>
+        <DrawerSection icon="Repeat" title="Recurrence" summary={recurrenceSummary}>
         <div className="jm-section">
           <label className="jm-label" htmlFor="jem-recur">Repeat</label>
           <select
@@ -1206,13 +1235,9 @@ const JobEditModal = ({
           </div>
         )}
 
-        <hr className="jm-rule" />
+        </DrawerSection>
 
-        {/* ── Duty set ── */}
-        <p className="jm-secthead">
-          <Icon name="Briefcase" size={14} />
-          Duty set
-        </p>
+        <DrawerSection icon="Briefcase" title="Duty set" summary={dutySetName || 'Not part of one'}>
         <div className="jm-section">
           <label className="jm-label" htmlFor="jem-dutyset">
             Duty set name<span className="opt">optional</span>
@@ -1228,13 +1253,9 @@ const JobEditModal = ({
           <p className="jm-hint">Links this job to a grouped operational duty.</p>
         </div>
 
-        <hr className="jm-rule" />
+        </DrawerSection>
 
-        {/* ── Attachments ── */}
-        <p className="jm-secthead">
-          <Icon name="Paperclip" size={14} />
-          Attachments
-        </p>
+        <DrawerSection icon="Paperclip" title="Attachments" summary={attachmentSummary}>
         <div className="jm-section">
           <input
             type="file"
@@ -1276,13 +1297,9 @@ const JobEditModal = ({
           )}
         </div>
 
-        <hr className="jm-rule" />
+        </DrawerSection>
 
-        {/* ── Comment ── */}
-        <p className="jm-secthead">
-          <Icon name="MessageSquare" size={14} />
-          Add a comment
-        </p>
+        <DrawerSection icon="MessageSquare" title="Add a comment" summary={newComment ? 'Draft' : 'None'}>
         <div className="jm-section">
           <textarea
             className="jm-textarea"
@@ -1292,6 +1309,8 @@ const JobEditModal = ({
             onChange={(e) => setNewComment(e?.target?.value)}
           />
         </div>
+
+        </DrawerSection>
 
         {/* ── Change history ── */}
         {showMeta && existingMeta?.length > 0 && (

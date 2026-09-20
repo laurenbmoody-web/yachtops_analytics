@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Icon from '../../../components/AppIcon';
+import DateInput from '../../../components/ui/DateInput';
 import ModalShell from '../../../components/ui/ModalShell';
 import AssigneePicker from './AssigneePicker';
 import '../job-modals.css';
@@ -369,9 +370,8 @@ const CreateTaskModal = ({ boards, defaultBoardId, onClose, onCreate, selectedDe
             <label className="jm-label" htmlFor="ctm-due">
               Due date<span className="req">required</span>
             </label>
-            <input
+            <DateInput
               id="ctm-due"
-              type="date"
               className="jm-input"
               value={formData?.dueDate}
               onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e?.target?.value }))}

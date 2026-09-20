@@ -775,6 +775,10 @@ const TeamJobsManagement = () => {
 
   const enhancedUser = {
     ...currentUser,
+    // The session id, not the localStorage account's — a Supabase sign-in
+    // never writes that record, so spreading currentUser alone can leave
+    // enhancedUser with no id at all.
+    id: currentUserId || currentUser?.id || null,
     permission_tier: effectiveTier,
     effectiveTier,
     department_id: userDepartmentId,
@@ -3347,7 +3351,15 @@ const TeamJobsManagement = () => {
         {editingJob && (
           <JobEditModal
             job={editingJob}
+            /* Without these the modal has no boards to offer (so a job that
+               lives on Additional jobs reads "— No board —"), no tenant and
+               no user, so the assignee fetch cannot run and Interior reads
+               "No eligible crew in this department". */
+            boards={boards}
             departments={departments}
+            currentUser={enhancedUser}
+            currentUserTier={effectiveTier}
+            activeTenantId={activeTenantId}
             onClose={() => setEditingJob(null)}
             onSave={(updatedJob) => {
               const updatedCards = cards?.map(c => c?.id === updatedJob?.id ? updatedJob : c);
@@ -3390,6 +3402,9 @@ const TeamJobsManagement = () => {
             acceptanceMode={true}
             boards={boards}
             departments={departments}
+            currentUser={enhancedUser}
+            currentUserTier={effectiveTier}
+            activeTenantId={activeTenantId}
             onClose={() => setAcceptanceJob(null)}
             onAccepted={(acceptedJob) => {
               const updatedCards = cards?.map(c => c?.id === acceptedJob?.id ? acceptedJob : c);

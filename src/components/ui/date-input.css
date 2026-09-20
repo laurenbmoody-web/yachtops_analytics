@@ -1,0 +1,80 @@
+/* The calendar behind DateInput.
+ *
+ * Every field in the app used to hand this off to input[type=date].showPicker(),
+ * which draws the BROWSER's calendar: square corners, system blue selection,
+ * system font. Next to a terracotta-and-navy editorial panel it reads as a
+ * different product, and it looks different again in every browser.
+ *
+ * Scoped under di-* because the popover is positioned out of flow and sits
+ * inside whatever panel opened it. */
+.di-wrap { position: relative; display: inline-flex; width: 100%; align-items: center; }
+
+.di-trigger {
+  position: absolute; right: 6px;
+  background: none; border: 0; padding: 2px; cursor: pointer;
+  color: #9098B1; line-height: 0; border-radius: 6px;
+  transition: color 0.14s, background 0.14s;
+}
+.di-trigger:hover { color: #C65A1A; background: #FBEFE9; }
+
+.di-pop {
+  position: absolute; z-index: 60; top: calc(100% + 6px); right: 0;
+  width: 264px; padding: 12px;
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 14px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+/* Flips up when the field sits low in a drawer and the panel would be cut off. */
+.di-pop.up { top: auto; bottom: calc(100% + 6px); }
+
+.di-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.di-month {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 16px; font-weight: 400; color: #1C1B3A;
+}
+.di-nav {
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 8px;
+  width: 26px; height: 26px; display: inline-flex; align-items: center;
+  justify-content: center; cursor: pointer; color: #6B7280;
+  transition: border-color 0.14s, color 0.14s;
+}
+.di-nav:hover { border-color: #C65A1A; color: #C65A1A; }
+
+.di-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.di-dow {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; text-align: center; padding: 4px 0 6px;
+}
+.di-day {
+  height: 30px; border: 1px solid transparent; border-radius: 999px;
+  background: none; cursor: pointer;
+  font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #1C1B3A;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.di-day:hover { background: #FBEFE9; color: #C65A1A; }
+.di-day.out { color: #AEB4C2; }
+/* Today is outlined, not filled — filling it competes with the selection. */
+.di-day.today { border-color: #E0B9A2; }
+.di-day.on { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; font-weight: 700; }
+.di-day.on:hover { background: #B14E16; color: #FFFFFF; }
+
+.di-foot {
+  display: flex; gap: 6px; justify-content: space-between;
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid #F0F1F5;
+}
+.di-act {
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px;
+  padding: 5px 12px; cursor: pointer;
+  font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  transition: border-color 0.14s, color 0.14s;
+}
+.di-act:hover { border-color: #C65A1A; color: #C65A1A; }
+.di-act.muted { color: #8B8478; }

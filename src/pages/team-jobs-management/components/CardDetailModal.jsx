@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
+import DateInput from '../../../components/ui/DateInput';
 import ModalShell from '../../../components/ui/ModalShell';
 import DutySetChecklist from './DutySetChecklist';
 import AssigneePicker from './AssigneePicker';
@@ -547,8 +548,7 @@ const CardDetailModal = ({
                   <button type="button" className="jm-pill" onClick={() => applyQuick({ dueDate: isoDaysFromToday(1) })}>Tomorrow</button>
                   <button type="button" className="jm-pill" onClick={() => applyQuick({ dueDate: isoDaysFromToday(7) })}>Next week</button>
                 </div>
-                <input
-                  type="date"
+                <DateInput
                   className="jm-input"
                   value={card?.dueDate?.split('T')?.[0] || ''}
                   onChange={(e) => applyQuick({ dueDate: e?.target?.value || null })}
@@ -901,8 +901,7 @@ const CardDetailModal = ({
           <div>
             <p className="jm-label">Due date</p>
             {editMode && canFullEdit ? (
-              <input
-                type="date"
+              <DateInput
                 className="jm-input"
                 value={editedDueDate}
                 onChange={(e) => setEditedDueDate(e?.target?.value)}
