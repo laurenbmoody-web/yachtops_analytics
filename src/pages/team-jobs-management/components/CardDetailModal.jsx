@@ -6,6 +6,7 @@ import DutySetChecklist from './DutySetChecklist';
 import AssigneePicker from './AssigneePicker';
 import JobLinksPanel from './JobLinksPanel';
 import JobSteps from './JobSteps';
+import JobReminder from './JobReminder';
 import '../job-modals.css';
 import '../../duty-sets-rotation-management/duty-sets.css';
 
@@ -430,7 +431,7 @@ const CardDetailModal = ({
   const displayPriority = editMode ? editedPriority : card?.priority;
 
   return (
-    <ModalShell onClose={onClose} panelClassName="jm-panel lg">
+    <ModalShell onClose={onClose} variant="drawer" panelClassName="jm-panel jm-drawer">
       {/* Header */}
       <div className="jm-head">
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -554,6 +555,16 @@ const CardDetailModal = ({
                 />
               </div>
             )}
+
+            {/* Remind me — sits under Due date because "morning of the due
+                date" is the preset people actually reach for. */}
+            <JobReminder
+              job={card}
+              activeTenantId={activeTenantId}
+              currentUserId={currentUser?.id}
+              teamMembers={teamMembers}
+              canInteract={canInteract}
+            />
 
             {/* Assign */}
             <button

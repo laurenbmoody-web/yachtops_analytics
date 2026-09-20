@@ -1,6 +1,14 @@
-// Centered-modal primitive — every focus-stealing modal in the app
-// should consume this rather than hand-rolling its own fixed-inset-0
-// backdrop. Owns:
+// Focus-stealing panel primitive — every modal in the app should consume
+// this rather than hand-rolling its own fixed-inset-0 backdrop.
+//
+// Two shapes, same behaviour: the default centered modal, and
+// variant="drawer", a full-height panel that slides in from the right. A
+// drawer is the better home for a detail view you edit in place (the way
+// To Do's task pane works) — it keeps the list visible behind it, it has
+// the full height of the window so the content does not need scrolling,
+// and it does not shove the page contents sideways on open.
+//
+// Owns:
 //
 //   • the dim backdrop layer at z-[var(--z-overlay)]
 //   • click-outside-to-close (mousedown on the backdrop, panel stops
@@ -30,8 +38,10 @@ const ModalShell = ({
   isBusy = false,
   panelClassName = '',
   panelStyle,
+  variant = 'modal', // 'modal' (centered) | 'drawer' (right, full height)
   children,
 }) => {
+  const isDrawer = variant === 'drawer';
   const { tryClose } = useDismissable({ onClose, isDirty, isBusy });
 
   useEffect(() => {
@@ -47,18 +57,29 @@ const ModalShell = ({
   return createPortal(
     <div
       onMouseDown={onBackdropMouseDown}
-      className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center"
-      style={{
-        background: 'rgba(0, 0, 0, 0.5)',
-        // Asymmetric top padding: 64px nav clearance + 16px breathing
-        // room. items-center honours the padded content area, so on
-        // tall viewports the panel sits ~24px below true centre; on
-        // short viewports the panel top is guaranteed ≥ 80px (nav +
-        // gap) before overflow kicks in.
-        padding: '16px',
-        paddingTop: 'calc(64px + 16px)',
-        overflowY: 'auto',
-      }}
+      className={`fixed inset-0 z-[var(--z-overlay)] flex ${
+        isDrawer ? 'items-stretch justify-end' : 'items-center justify-center'
+      }`}
+      style={
+        isDrawer
+          ? {
+              // Lighter scrim than the centered modal: a drawer is meant to
+              // sit beside the list you came from, not blot it out.
+              background: 'rgba(28, 27, 58, 0.28)',
+              padding: 0,
+            }
+          : {
+              background: 'rgba(0, 0, 0, 0.5)',
+              // Asymmetric top padding: 64px nav clearance + 16px breathing
+              // room. items-center honours the padded content area, so on
+              // tall viewports the panel sits ~24px below true centre; on
+              // short viewports the panel top is guaranteed ≥ 80px (nav +
+              // gap) before overflow kicks in.
+              padding: '16px',
+              paddingTop: 'calc(64px + 16px)',
+              overflowY: 'auto',
+            }
+      }
     >
       <div
         className={panelClassName}
