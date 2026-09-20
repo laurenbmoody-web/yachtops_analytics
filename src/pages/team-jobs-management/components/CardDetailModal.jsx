@@ -5,6 +5,7 @@ import ModalShell from '../../../components/ui/ModalShell';
 import DutySetChecklist from './DutySetChecklist';
 import AssigneePicker from './AssigneePicker';
 import JobLinksPanel from './JobLinksPanel';
+import JobSteps from './JobSteps';
 import '../job-modals.css';
 import '../../duty-sets-rotation-management/duty-sets.css';
 
@@ -442,7 +443,23 @@ const CardDetailModal = ({
               onChange={(e) => setEditedTitle(e?.target?.value)}
             />
           ) : (
-            <h2 className="jm-title">{card?.title}</h2>
+            /* Complete is a circle beside the title, where To Do puts it —
+               the one action you take most often should not be a button at
+               the bottom of a long panel. */
+            <div className="cd-titlerow">
+              {canCompleteAction && (
+                <button
+                  type="button"
+                  className={`cd-donecircle${card?.status === 'completed' ? ' on' : ''}`}
+                  onClick={handleComplete}
+                  title={card?.status === 'completed' ? 'Completed' : 'Mark complete'}
+                  aria-pressed={card?.status === 'completed'}
+                >
+                  {card?.status === 'completed' && <Icon name="Check" size={14} />}
+                </button>
+              )}
+              <h2 className="jm-title">{card?.title}</h2>
+            </div>
           )}
           <div className="cd-tags">
             {displayPriority && (
@@ -480,70 +497,50 @@ const CardDetailModal = ({
       </div>
 
       <div className="jm-body">
-        {/* ── Quick actions ──
-            The To Do move: a job typed onto a board opens on the three things
-            it is still missing, each editable in place and saved on the spot.
-            The pencil still opens the full form for title and description. */}
+        {/* ── The extras, as To Do lays them out ──
+            One row per thing you can set, each opening in place. A row that
+            is set reads its value back and carries a clear; a row that is not
+            reads as the invitation ("Add step", "Due date"). Cheap to scan,
+            one tap to change, and nothing hidden behind an edit mode. */}
         {showQuickActions && (
-          <div className="cd-quickwrap">
-            <div className="cd-quick">
-              <button
-                type="button"
-                className={`cd-quickbtn${openQuick === 'assign' ? ' on' : ''}${quickAssigneeLabel ? ' set' : ''}`}
-                onClick={() => setOpenQuick(openQuick === 'assign' ? null : 'assign')}
-              >
-                <Icon name="UserPlus" size={14} />
-                {quickAssigneeLabel || 'Assign'}
-              </button>
-              <button
-                type="button"
-                className={`cd-quickbtn${openQuick === 'due' ? ' on' : ''}${quickDueLabel ? ' set' : ''}`}
-                onClick={() => setOpenQuick(openQuick === 'due' ? null : 'due')}
-              >
-                <Icon name="Calendar" size={14} />
-                {quickDueLabel || 'Due date'}
-              </button>
-              <button
-                type="button"
-                className={`cd-quickbtn${openQuick === 'priority' ? ' on' : ''}${card?.priority ? ' set' : ''}`}
-                onClick={() => setOpenQuick(openQuick === 'priority' ? null : 'priority')}
-              >
-                <Icon name="Flag" size={14} />
-                {card?.priority
-                  ? `${card?.priority?.charAt(0)?.toUpperCase()}${card?.priority?.slice(1)} priority`
-                  : 'Priority'}
-              </button>
+          <div className="cd-rows">
+            {/* Steps first, because breaking a job down is the thing you do
+                right after typing its title. */}
+            <div className="cd-row block">
+              <span className="cd-rowico"><Icon name="ListChecks" size={15} /></span>
+              <div className="cd-rowbody">
+                <JobSteps
+                  job={card}
+                  activeTenantId={activeTenantId}
+                  currentUserId={currentUser?.id}
+                  canInteract={canInteract}
+                />
+              </div>
             </div>
 
-            {openQuick === 'assign' && (
-              <div className="cd-quickpanel">
-                <p className="jm-label">Assign to</p>
-                <AssigneePicker
-                  multiple={false}
-                  options={(teamMembers || [])?.map(m => ({
-                    value: m?.id || m?.user_id,
-                    label: m?.name,
-                    description: getDepartmentName(m?.department_id) || undefined,
-                  }))}
-                  value={quickAssigneeIds}
-                  onChange={(next) => applyQuick({ assignees: next || [] })}
-                  placeholder="Search crew…"
-                />
-                {quickAssigneeIds?.length > 0 && (
-                  <button
-                    type="button"
-                    className="cd-quickclear"
-                    onClick={() => applyQuick({ assignees: [] })}
-                  >
-                    Unassign
-                  </button>
-                )}
-              </div>
-            )}
-
+            {/* Due date */}
+            <button
+              type="button"
+              className={`cd-row${openQuick === 'due' ? ' open' : ''}${quickDueLabel ? ' set' : ''}`}
+              onClick={() => setOpenQuick(openQuick === 'due' ? null : 'due')}
+            >
+              <span className="cd-rowico"><Icon name="Calendar" size={15} /></span>
+              <span className="cd-rowlabel">{quickDueLabel ? `Due ${quickDueLabel}` : 'Due date'}</span>
+              {card?.dueDate && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="cd-rowclear"
+                  title="Clear due date"
+                  onClick={(e) => { e?.stopPropagation(); applyQuick({ dueDate: null }); }}
+                  onKeyDown={(e) => { if (e?.key === 'Enter') { e?.stopPropagation(); applyQuick({ dueDate: null }); } }}
+                >
+                  <Icon name="X" size={14} />
+                </span>
+              )}
+            </button>
             {openQuick === 'due' && (
-              <div className="cd-quickpanel">
-                <p className="jm-label">Due date</p>
+              <div className="cd-rowpanel">
                 <div className="jm-pills" style={{ marginBottom: 10 }}>
                   <button type="button" className="jm-pill" onClick={() => applyQuick({ dueDate: isoDaysFromToday(0) })}>Today</button>
                   <button type="button" className="jm-pill" onClick={() => applyQuick({ dueDate: isoDaysFromToday(1) })}>Tomorrow</button>
@@ -555,17 +552,73 @@ const CardDetailModal = ({
                   value={card?.dueDate?.split('T')?.[0] || ''}
                   onChange={(e) => applyQuick({ dueDate: e?.target?.value || null })}
                 />
-                {card?.dueDate && (
-                  <button type="button" className="cd-quickclear" onClick={() => applyQuick({ dueDate: null })}>
-                    Clear due date
-                  </button>
-                )}
               </div>
             )}
 
+            {/* Assign */}
+            <button
+              type="button"
+              className={`cd-row${openQuick === 'assign' ? ' open' : ''}${quickAssigneeLabel ? ' set' : ''}`}
+              onClick={() => setOpenQuick(openQuick === 'assign' ? null : 'assign')}
+            >
+              <span className="cd-rowico"><Icon name="UserPlus" size={15} /></span>
+              <span className="cd-rowlabel">{quickAssigneeLabel || 'Assign to'}</span>
+              {quickAssigneeIds?.length > 0 && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="cd-rowclear"
+                  title="Unassign"
+                  onClick={(e) => { e?.stopPropagation(); applyQuick({ assignees: [] }); }}
+                  onKeyDown={(e) => { if (e?.key === 'Enter') { e?.stopPropagation(); applyQuick({ assignees: [] }); } }}
+                >
+                  <Icon name="X" size={14} />
+                </span>
+              )}
+            </button>
+            {openQuick === 'assign' && (
+              <div className="cd-rowpanel">
+                <AssigneePicker
+                  multiple={false}
+                  options={(teamMembers || [])?.map(m => ({
+                    value: m?.id || m?.user_id,
+                    label: m?.name,
+                    description: getDepartmentName(m?.department_id) || undefined,
+                  }))}
+                  value={quickAssigneeIds}
+                  onChange={(next) => applyQuick({ assignees: next || [] })}
+                  placeholder="Search crew…"
+                />
+              </div>
+            )}
+
+            {/* Priority — To Do's star, with the three levels this app has */}
+            <button
+              type="button"
+              className={`cd-row${openQuick === 'priority' ? ' open' : ''}${card?.priority ? ' set' : ''}`}
+              onClick={() => setOpenQuick(openQuick === 'priority' ? null : 'priority')}
+            >
+              <span className="cd-rowico"><Icon name="Flag" size={15} /></span>
+              <span className="cd-rowlabel">
+                {card?.priority
+                  ? `${card?.priority?.charAt(0)?.toUpperCase()}${card?.priority?.slice(1)} priority`
+                  : 'Priority'}
+              </span>
+              {card?.priority && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="cd-rowclear"
+                  title="Clear priority"
+                  onClick={(e) => { e?.stopPropagation(); applyQuick({ priority: null }); }}
+                  onKeyDown={(e) => { if (e?.key === 'Enter') { e?.stopPropagation(); applyQuick({ priority: null }); } }}
+                >
+                  <Icon name="X" size={14} />
+                </span>
+              )}
+            </button>
             {openQuick === 'priority' && (
-              <div className="cd-quickpanel">
-                <p className="jm-label">Priority</p>
+              <div className="cd-rowpanel">
                 <div className="jm-pills">
                   {['low', 'medium', 'high']?.map(p => (
                     <button
@@ -578,11 +631,6 @@ const CardDetailModal = ({
                     </button>
                   ))}
                 </div>
-                {card?.priority && (
-                  <button type="button" className="cd-quickclear" onClick={() => applyQuick({ priority: null })}>
-                    Clear priority
-                  </button>
-                )}
               </div>
             )}
           </div>
@@ -774,7 +822,9 @@ const CardDetailModal = ({
           )}
         </div>
 
-        {/* ── Assignees ── */}
+        {/* ── Assignees ──
+            Hidden when the To Do rows are up, which already carry this. */}
+        {!showQuickActions && (<>
         <p className="jm-secthead">
           <Icon name="Users" size={14} />
           Assigned to
@@ -832,8 +882,10 @@ const CardDetailModal = ({
             <p className="jm-hint">{getDisabledTooltip(currentUser, 'editCoreFields')}</p>
           )}
         </div>
+        </>)}
 
         {/* ── Due date & priority ── */}
+        {!showQuickActions && (
         <div className="jm-section jm-grid">
           <div>
             <p className="jm-label">Due date</p>
@@ -870,6 +922,7 @@ const CardDetailModal = ({
             )}
           </div>
         </div>
+        )}
 
         {/* ── Recurrence (edit only) ── */}
         {editMode && canFullEdit && (
@@ -936,63 +989,27 @@ const CardDetailModal = ({
           )}
         </div>
 
-        {/* ── Checklist ── */}
-        {(checklist?.length > 0 || (editMode && canInteract)) && (
+        {/* ── Steps, for anyone who does not get the row stack ──
+            View-only readers and rotation jobs still need to see the steps;
+            they just do not get the To Do rows above. The old checklist that
+            stood here kept its items in React state and localStorage, and the
+            job fetch reset them to [] on every load, so they disappeared for
+            their author and never reached the person the job was assigned to.
+            JobSteps is the same idea against a real table. */}
+        {!showQuickActions && (
           <>
             <hr className="jm-rule" />
-            <div className="jm-secthead-row">
-              <p className="jm-secthead">
-                <Icon name="CheckSquare" size={14} />
-                Checklist
-              </p>
-              {totalCount > 0 && (
-                <span className="cd-progress-count">{completedCount}/{totalCount}</span>
-              )}
-            </div>
-            {totalCount > 0 && (
-              <div className="cd-progress">
-                <div className="bar" style={{ width: `${progress}%` }} />
-              </div>
-            )}
+            <p className="jm-secthead">
+              <Icon name="ListChecks" size={14} />
+              Steps
+            </p>
             <div className="jm-section">
-              {checklist?.map(item => (
-                <label key={item?.id} className="jm-check cd-checkrow">
-                  <input
-                    type="checkbox"
-                    checked={item?.completed}
-                    onChange={() => handleChecklistToggle(item?.id)}
-                    disabled={!canInteract}
-                  />
-                  <span className="box"><Icon name="Check" size={11} /></span>
-                  <span className={`t${item?.completed ? ' done' : ''}`}>{item?.text}</span>
-                  {canInteract && (
-                    <span
-                      role="button"
-                      tabIndex={-1}
-                      className="rm"
-                      title="Remove item"
-                      onClick={(e) => { e?.preventDefault(); handleRemoveChecklistItem(item?.id); }}
-                    >
-                      <Icon name="X" size={13} />
-                    </span>
-                  )}
-                </label>
-              ))}
-              {canInteract && (
-                <div className="dsr-inlineadd">
-                  <input
-                    type="text"
-                    className="jm-input"
-                    placeholder="Add checklist item"
-                    value={newChecklistItem}
-                    onChange={(e) => setNewChecklistItem(e?.target?.value)}
-                    onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddChecklistItem(); } }}
-                  />
-                  <button className="jm-btn accent sm" onClick={handleAddChecklistItem}>
-                    <Icon name="Plus" size={14} />
-                  </button>
-                </div>
-              )}
+              <JobSteps
+                job={card}
+                activeTenantId={activeTenantId}
+                currentUserId={currentUser?.id}
+                canInteract={canInteract}
+              />
             </div>
           </>
         )}

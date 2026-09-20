@@ -817,6 +817,113 @@
 .cd-pickrow:hover { background: #FFFFFF; }
 .cd-avatar-img { width: 26px; height: 26px; border-radius: 999px; object-fit: cover; flex-shrink: 0; }
 
+/* ============================================================
+   The extras, To Do's shape: one row per thing you can set.
+   Quiet until it holds a value, one tap to open, one to clear.
+   ============================================================ */
+.cd-rows {
+  display: flex; flex-direction: column;
+  border: 1px solid #EEF0F4; border-radius: 12px;
+  overflow: hidden; margin-bottom: 20px; background: #FFFFFF;
+}
+.cd-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 13px 14px; border: none; background: none; cursor: pointer;
+  text-align: left; border-bottom: 1px solid #F0F1F5;
+  font: 500 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
+  transition: background 0.12s, color 0.12s;
+}
+.cd-row:last-child { border-bottom: none; }
+.cd-row:hover { background: #FAFAF8; color: #1C1B3A; }
+.cd-row.open { background: #FBEFE9; color: #C65A1A; }
+/* set = this job already has a value, so the row reads it back */
+.cd-row.set { color: #1C1B3A; font-weight: 600; }
+.cd-rowico {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; color: #AEB4C2; transition: color 0.12s;
+}
+.cd-row:hover .cd-rowico, .cd-row.open .cd-rowico, .cd-row.set .cd-rowico { color: #C65A1A; }
+.cd-rowlabel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cd-rowclear {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 6px; color: #AEB4C2; cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.cd-rowclear:hover { background: #FCF1F0; color: #C0453C; }
+
+/* a row that holds a block of its own rather than a value (Steps) */
+.cd-row.block {
+  display: flex; align-items: flex-start; cursor: default;
+  background: none; color: #1C1B3A;
+}
+.cd-row.block:hover { background: none; }
+.cd-row.block .cd-rowico { margin-top: 3px; }
+.cd-rowbody { flex: 1; min-width: 0; }
+
+/* the editor a row opens, sitting under it inside the stack */
+.cd-rowpanel {
+  padding: 13px 14px 15px; background: #FAFAF8;
+  border-bottom: 1px solid #F0F1F5;
+}
+.cd-rowpanel:last-child { border-bottom: none; }
+
+/* ── Steps ─────────────────────────────────────────────────── */
+.cd-steps { display: flex; flex-direction: column; }
+.cd-steplist { display: flex; flex-direction: column; }
+.cd-step { display: flex; align-items: center; gap: 10px; padding: 3px 0; }
+.cd-stepcheck {
+  flex-shrink: 0; width: 17px; height: 17px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1.5px solid #D6D9E0; background: #FFFFFF; color: transparent;
+  cursor: pointer; transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.cd-stepcheck:hover:not(:disabled) { border-color: #C65A1A; }
+.cd-stepcheck.on { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+.cd-stepcheck:disabled { cursor: default; opacity: 0.6; }
+.cd-steptext {
+  flex: 1; min-width: 0; border: none; background: none; padding: 4px 2px;
+  font: 400 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  border-radius: 6px;
+}
+.cd-steptext:focus { outline: none; background: #FFFFFF; box-shadow: 0 0 0 2px #FAECE7; }
+.cd-steptext.ro { padding: 4px 2px; }
+.cd-step.done .cd-steptext { color: #8B8478; text-decoration: line-through; }
+.cd-stepx {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; color: #C9CED6; cursor: pointer;
+  opacity: 0; transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+.cd-step:hover .cd-stepx { opacity: 1; }
+.cd-stepx:hover { background: #FCF1F0; color: #C0453C; }
+.cd-stepadd { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.cd-stepaddico {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; color: #C65A1A;
+}
+.cd-stepinput {
+  flex: 1; min-width: 0; border: none; background: none; padding: 4px 2px;
+  font: 500 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+}
+.cd-stepinput::placeholder { color: #AEB4C2; }
+.cd-stepinput:focus { outline: none; }
+.cd-stepcount {
+  margin: 6px 0 0; font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif;
+  color: #8B8478; font-variant-numeric: tabular-nums;
+}
+
+/* ── Complete, beside the title where To Do puts it ────────── */
+.cd-titlerow { display: flex; align-items: flex-start; gap: 12px; }
+.cd-donecircle {
+  flex-shrink: 0; margin-top: 4px;
+  width: 24px; height: 24px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #D6D9E0; background: #FFFFFF; color: transparent;
+  cursor: pointer; transition: background 0.14s, border-color 0.14s, color 0.14s;
+}
+.cd-donecircle:hover { border-color: #3F7A50; color: #A9C9B3; }
+.cd-donecircle.on { background: #3F7A50; border-color: #3F7A50; color: #FFFFFF; }
+
 /* Description you can click straight into, like a To Do note */
 .cd-detailedit {
   cursor: text; border-radius: 9px; padding: 8px 10px; margin: -8px -10px;
