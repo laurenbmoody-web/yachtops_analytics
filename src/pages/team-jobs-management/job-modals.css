@@ -1259,3 +1259,67 @@
 .dc-recent > summary::-webkit-details-marker { display: none; }
 .dc-recent > summary:hover { color: #C65A1A; }
 .dc-recent[open] > summary { color: #1C1B3A; }
+
+/* ── the job detail as a slide-out drawer ────────────────────────
+   Microsoft To Do opens a task in a pane beside the list, not a box on top
+   of it, and that is the difference between "glance and set a due date" and
+   "navigate a form". A centered modal has to be short enough to centre, so
+   everything below the fold needs scrolling; a drawer has the whole height
+   of the window, so the rows all fit in one view.
+   The list stays visible to its left, which is also how you keep your place. */
+.jm-panel.jm-drawer {
+  width: 440px;
+  max-width: 100vw;
+  max-height: none;
+  height: 100%;
+  border: none;
+  border-left: 1px solid #ECEAE3;
+  border-radius: 0;
+  box-shadow: -24px 0 60px -16px rgba(28, 27, 58, 0.28);
+  animation: jm-drawer-in 0.18s ease-out;
+}
+@keyframes jm-drawer-in {
+  from { transform: translateX(24px); opacity: 0.4; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jm-panel.jm-drawer { animation: none; }
+}
+
+/* Tighter than the centered modal's header — the drawer's job is to get you
+   to the rows, not to present a title. */
+.jm-drawer .jm-head { padding: 18px 20px 12px; }
+.jm-drawer .jm-title { font-size: 22px; }
+.jm-drawer .jm-body { padding: 4px 20px 24px; }
+.jm-drawer .cd-rows { margin: 0 0 12px; }
+.jm-drawer .cd-row { padding: 9px 8px; }
+.jm-drawer .jm-secthead { margin-top: 14px; }
+.jm-drawer .jm-rule { margin: 12px 0; }
+
+/* Full width on a phone — a 440px drawer on a 390px screen is just a modal
+   with the corners cut off. */
+@media (max-width: 520px) {
+  .jm-panel.jm-drawer { width: 100vw; border-left: none; }
+  @keyframes jm-drawer-in {
+    from { transform: translateY(24px); opacity: 0.4; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+}
+
+/* ── Remind me row ───────────────────────────────────────────── */
+/* The "snoozed 3×" tail. Quiet, but a job pushed three times is worth
+   seeing without opening the row. */
+.cd-rowmeta {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; flex-shrink: 0;
+}
+.cd-remindrow { display: flex; gap: 8px; align-items: center; }
+.cd-remindrow .jm-input { flex: 1; min-width: 0; }
+.cd-remindwho { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.cd-remindwholbl {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; flex-shrink: 0;
+}
+.cd-remindwho .jm-select { flex: 1; min-width: 0; }
