@@ -283,12 +283,16 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
           before you have seen anything else about the job; the header still
           carries the count and Tick all dailies, which is what most opens
           actually want. */}
-      <div className="jm-secthead-row">
-        <button type="button" className="dc-toggle" onClick={() => setListOpen(!listOpen)}>
-          <Icon name="ListChecks" size={14} />
-          <span>{template?.name} — today</span>
-          <Icon name={listOpen ? 'ChevronUp' : 'ChevronDown'} size={14} />
-        </button>
+      {/* Two lines, not one. A duty set name like "Pantries, stairs &
+          corridors — today" wraps, and sharing that row with the button and
+          the count made all three cramped. Title and chevron own the first
+          line; the bar, then Tick all dailies and the count, sit under it. */}
+      <button type="button" className="dc-toggle" onClick={() => setListOpen(!listOpen)}>
+        <Icon name="ListChecks" size={14} />
+        <span className="dc-toggle-name">{template?.name} — today</span>
+        <Icon name={listOpen ? 'ChevronUp' : 'ChevronDown'} size={14} />
+      </button>
+      <div className="dc-headfoot">
         <div className="dc-headside">
           {canInteract && dailyTotal > 0 && (
             <button

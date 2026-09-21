@@ -1455,3 +1455,11 @@
 .dc-toggle svg { color: #8B8478; }
 .dc-toggle:hover svg { color: #C65A1A; }
 .dc.shut .cd-progress { margin-bottom: 4px; }
+
+/* The duty header on two lines: title and chevron, then the bar, then the
+   bulk action and the count. All three on one line left a wrapped title
+   fighting a button for width. */
+.dc-toggle { width: 100%; justify-content: flex-start; padding: 2px 0 6px; }
+.dc-toggle-name { flex: 1; min-width: 0; text-align: left; line-height: 1.4; }
+.dc-headfoot { display: flex; justify-content: flex-end; margin-top: 8px; }
+.dc-headfoot .dc-headside { display: flex; align-items: center; gap: 10px; }

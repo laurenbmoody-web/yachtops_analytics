@@ -2561,7 +2561,6 @@ const TeamJobsManagement = () => {
             <h1 className="tj-headline">
               JOBS<span className="punc">,</span> <em>{headlineQualifier}</em><span className="punc">.</span>
             </h1>
-            <p className="tj-subtitle">Every team task and board, in one place.</p>
           </div>
           <div className="tj-actions">
             {/* Pending Acceptance — visible to COMMAND and CHIEF only */}
