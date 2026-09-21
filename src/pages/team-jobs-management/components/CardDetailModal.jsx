@@ -8,7 +8,6 @@ import AssigneePicker from './AssigneePicker';
 import JobLinksPanel from './JobLinksPanel';
 import JobSteps from './JobSteps';
 import JobReminder from './JobReminder';
-import DrawerSection from './DrawerSection';
 import '../job-modals.css';
 import '../../duty-sets-rotation-management/duty-sets.css';
 
@@ -439,13 +438,6 @@ const CardDetailModal = ({
 
   const filteredAuditTrail = getFilteredAuditTrail();
 
-  // What the closed Notes row says about itself.
-  const noteSummary = (() => {
-    const t = String(card?.description || '')?.trim();
-    if (!t) return 'None';
-    return t?.length > 40 ? `${t.slice(0, 40)}…` : t;
-  })();
-
   const displayPriority = editMode ? editedPriority : card?.priority;
 
   return (
@@ -772,9 +764,16 @@ const CardDetailModal = ({
           )}
         </div>
 
-        {/* Everything below the rows is a closed row too, so the whole job
-            fits the window instead of running off the bottom of it. */}
-        <DrawerSection icon="AlignLeft" title="Notes" summary={noteSummary}>
+        <hr className="jm-rule" />
+
+        {/* Plain sections, not collapsible rows. These are mostly short and
+            mostly read-only; giving each one a chevron added lines and
+            furniture to a pane whose whole job is to be glanceable. The rows
+            above are the things you SET — this is what the job already is. */}
+        <p className="jm-secthead">
+          <Icon name="AlignLeft" size={14} />
+          Description
+        </p>
         <div className="jm-section">
           {editMode && canEditCoreFields ? (
             <textarea
@@ -819,13 +818,10 @@ const CardDetailModal = ({
           )}
         </div>
 
-        </DrawerSection>
-
-        <DrawerSection
-          icon="Building2"
-          title="Department"
-          summary={getDepartmentName(card?.department) || getDepartmentName(card?.department_id) || 'None'}
-        >
+        <p className="jm-secthead">
+          <Icon name="Building2" size={14} />
+          Department
+        </p>
         <div className="jm-section">
           {editMode && canEditCoreFields ? (
             <select
@@ -847,8 +843,6 @@ const CardDetailModal = ({
             <p className="jm-hint">{getDisabledTooltip(currentUser, 'editCoreFields')}</p>
           )}
         </div>
-
-        </DrawerSection>
 
         {/* ── Assignees ──
             Hidden when the To Do rows are up, which already carry this. */}
@@ -968,11 +962,12 @@ const CardDetailModal = ({
           </div>
         )}
 
-        <DrawerSection
-          icon="Tag"
-          title="Labels"
-          summary={editedLabels?.length ? editedLabels.join(', ') : 'None'}
-        >
+        <hr className="jm-rule" />
+
+        <p className="jm-secthead">
+          <Icon name="Tag" size={14} />
+          Labels
+        </p>
         <div className="jm-section">
           {editedLabels?.length > 0 && (
             <div className="jm-pills" style={{ marginBottom: canInteract ? 10 : 0 }}>
@@ -1014,8 +1009,6 @@ const CardDetailModal = ({
             </div>
           )}
         </div>
-
-        </DrawerSection>
 
         {/* ── Steps, for anyone who does not get the row stack ──
             View-only readers and rotation jobs still need to see the steps;
