@@ -976,6 +976,99 @@ const JobEditModal = ({
           />
         </div>
 
+        <DrawerSection
+          icon="CheckSquare"
+          title="Checklists"
+          defaultOpen
+          summary={checklistSummary}
+          action={(
+          <button
+            type="button"
+            className="jm-btn ghost sm"
+            onClick={() => {
+              const name = prompt('Checklist name:');
+              if (name?.trim()) {
+                setChecklists(prev => [...prev, { id: crypto.randomUUID(), name: name?.trim(), items: [] }]);
+                setActiveChecklistIndex(checklists?.length);
+              }
+            }}
+          >
+            <Icon name="Plus" size={14} />
+            Add checklist
+          </button>
+          )}
+        >
+
+        {checklists?.map((checklist, checklistIndex) => (
+          <div key={checklist?.id} className="jm-subcard">
+            <div className="jm-subcard-head">
+              <h4>{checklist?.name}</h4>
+              <button
+                type="button"
+                onClick={() => handleRemoveChecklist(checklistIndex)}
+                className="jm-file-x"
+                title="Remove checklist"
+              >
+                <Icon name="Trash2" size={14} />
+              </button>
+            </div>
+            {checklist?.items?.length > 0 && (
+              <div className="jm-checkitems">
+                {checklist?.items?.map((item, itemIndex) => (
+                  <div key={item?.id} className="jm-checkitem">
+                    <span className="box" />
+                    <span className="t">{item?.text}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'up')}
+                      disabled={itemIndex === 0}
+                      title="Move up"
+                    >
+                      <Icon name="ChevronUp" size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'down')}
+                      disabled={itemIndex === checklist?.items?.length - 1}
+                      title="Move down"
+                    >
+                      <Icon name="ChevronDown" size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveChecklistItem(checklistIndex, item?.id)}
+                      className="danger"
+                      title="Remove item"
+                    >
+                      <Icon name="X" size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="dsr-inlineadd">
+              <input
+                type="text"
+                className="jm-input"
+                placeholder="Add checklist item"
+                value={activeChecklistIndex === checklistIndex ? newChecklistItem : ''}
+                onChange={(e) => { setNewChecklistItem(e?.target?.value); setActiveChecklistIndex(checklistIndex); }}
+                onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddChecklistItem(checklistIndex); } }}
+              />
+              <button
+                type="button"
+                className="jm-btn accent sm"
+                onClick={() => handleAddChecklistItem(checklistIndex)}
+                disabled={!newChecklistItem?.trim() || activeChecklistIndex !== checklistIndex}
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        ))}
+
+        </DrawerSection>
+
         <DrawerSection icon="AlignLeft" title="Notes" summary={descSummary}>
 
         <div className="jm-section">
@@ -1135,97 +1228,6 @@ const JobEditModal = ({
 
         </DrawerSection>
 
-        <DrawerSection
-          icon="CheckSquare"
-          title="Checklists"
-          summary={checklistSummary}
-          action={(
-          <button
-            type="button"
-            className="jm-btn ghost sm"
-            onClick={() => {
-              const name = prompt('Checklist name:');
-              if (name?.trim()) {
-                setChecklists(prev => [...prev, { id: crypto.randomUUID(), name: name?.trim(), items: [] }]);
-                setActiveChecklistIndex(checklists?.length);
-              }
-            }}
-          >
-            <Icon name="Plus" size={14} />
-            Add checklist
-          </button>
-          )}
-        >
-
-        {checklists?.map((checklist, checklistIndex) => (
-          <div key={checklist?.id} className="jm-subcard">
-            <div className="jm-subcard-head">
-              <h4>{checklist?.name}</h4>
-              <button
-                type="button"
-                onClick={() => handleRemoveChecklist(checklistIndex)}
-                className="jm-file-x"
-                title="Remove checklist"
-              >
-                <Icon name="Trash2" size={14} />
-              </button>
-            </div>
-            {checklist?.items?.length > 0 && (
-              <div className="jm-checkitems">
-                {checklist?.items?.map((item, itemIndex) => (
-                  <div key={item?.id} className="jm-checkitem">
-                    <span className="box" />
-                    <span className="t">{item?.text}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'up')}
-                      disabled={itemIndex === 0}
-                      title="Move up"
-                    >
-                      <Icon name="ChevronUp" size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleMoveChecklistItem(checklistIndex, itemIndex, 'down')}
-                      disabled={itemIndex === checklist?.items?.length - 1}
-                      title="Move down"
-                    >
-                      <Icon name="ChevronDown" size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveChecklistItem(checklistIndex, item?.id)}
-                      className="danger"
-                      title="Remove item"
-                    >
-                      <Icon name="X" size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="dsr-inlineadd">
-              <input
-                type="text"
-                className="jm-input"
-                placeholder="Add checklist item"
-                value={activeChecklistIndex === checklistIndex ? newChecklistItem : ''}
-                onChange={(e) => { setNewChecklistItem(e?.target?.value); setActiveChecklistIndex(checklistIndex); }}
-                onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleAddChecklistItem(checklistIndex); } }}
-              />
-              <button
-                type="button"
-                className="jm-btn accent sm"
-                onClick={() => handleAddChecklistItem(checklistIndex)}
-                disabled={!newChecklistItem?.trim() || activeChecklistIndex !== checklistIndex}
-              >
-                Add
-              </button>
-            </div>
-          </div>
-        ))}
-
-        </DrawerSection>
 
         <DrawerSection icon="Repeat" title="Recurrence" summary={recurrenceSummary}>
         <div className="jm-section">
