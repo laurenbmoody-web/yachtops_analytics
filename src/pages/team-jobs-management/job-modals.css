@@ -1335,7 +1335,12 @@
   color: #8B8478; flex-shrink: 0;
 }
 .cd-remindrow { display: flex; gap: 8px; align-items: center; }
-.cd-remindrow .jm-input { flex: 1; min-width: 0; }
+/* The date field takes the slack; the time field is a fixed 104px. Without
+   this the flex:1 hit both and the time input collapsed to a sliver with a
+   caret in it — a small mystery box next to Set. */
+.cd-remindrow .di-wrap { flex: 1; min-width: 0; }
+.cd-remindrow .jm-input { min-width: 0; }
+.cd-remindtime { flex: 0 0 104px; width: 104px; }
 .cd-remindwho { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .cd-remindwholbl {
   font-family: 'Inter', system-ui, sans-serif;
@@ -1385,10 +1390,26 @@
 .jm-titlealways { margin-bottom: 6px; }
 .jm-titlealways .jm-titlefield { width: 100%; }
 
-/* Date + time + Set, on one line. */
-.cd-remindtime { width: 104px; flex-shrink: 0; }
 
 /* Plain section inside a drawer — a heading and its contents, no chevron. */
 .jm-plainsec { margin-top: 18px; }
 .jm-plainhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .jm-plainhead .jm-secthead { margin-bottom: 8px; }
+
+/* The small "+ Add" that reveals a section's input. */
+.cd-addmini {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: 0; cursor: pointer; padding: 2px 6px;
+  border-radius: 7px;
+  font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A;
+  transition: background 0.14s;
+}
+.cd-addmini:hover { background: #FBEFE9; }
+
+/* Tighter bottom half. Each section was carrying a lot of air for a one-line
+   read-out, which is what pushed the pane past the window. */
+.jm-drawer .jm-plainsec { margin-top: 12px; }
+.jm-drawer .jm-secthead { margin-bottom: 5px; }
+.jm-drawer .jm-section { margin-bottom: 10px; }
+.jm-drawer .jm-rule { margin: 10px 0; }
+.jm-drawer .cd-text { margin: 0; }

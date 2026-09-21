@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { isoToUK, ukToISO, weekStartsOn, weekdayLabelsShort } from '../../utils/dateFormat';
 import './date-input.css';
 
@@ -73,14 +74,30 @@ const DateInput = React.forwardRef(({
     };
   }, [open]);
 
-  // Low in a drawer there is no room below, so the panel flips above.
-  const toggle = () => {
-    if (!open && wrapRef.current) {
-      const box = wrapRef.current.getBoundingClientRect();
+  const toggle = () => setOpen(!open);
+
+  // The calendar is drawn on document.body. Inside a drawer it is otherwise
+  // clipped by the scrolling panel — the month was rendering, you just could
+  // not see past the third week of it. Flipping it upward does not help,
+  // because what cuts it off is the ancestor, not the room below.
+  const [rect, setRect] = useState(null);
+  useEffect(() => {
+    if (!open || !wrapRef.current) { setRect(null); return undefined; }
+    const measure = () => {
+      const box = wrapRef.current?.getBoundingClientRect();
+      if (!box) return;
+      setRect(box);
       setFlip(window.innerHeight - box.bottom < 330);
-    }
-    setOpen(!open);
-  };
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    // capture, so a scroll inside the drawer moves it too
+    window.addEventListener('scroll', measure, true);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+    };
+  }, [open]);
 
   const firstDay = weekStartsOn();
   const dows = weekdayLabelsShort();
@@ -122,8 +139,21 @@ const DateInput = React.forwardRef(({
         </button>
       )}
 
-      {open && !disabled && (
-        <div className={`di-pop${flip ? ' up' : ''}`} role="dialog" aria-label="Choose a date">
+      {open && !disabled && rect && createPortal(
+        <div
+          className={`di-pop portal${flip ? ' up' : ''}`}
+          role="dialog"
+          aria-label="Choose a date"
+          style={{
+            left: Math.max(8, Math.min(rect.right - 264, window.innerWidth - 272)),
+            ...(flip
+              ? { bottom: window.innerHeight - rect.top + 6 }
+              : { top: rect.bottom + 6 }),
+          }}
+          // It lives outside wrapRef now, so the click-outside test would
+          // treat using the calendar as clicking away from it.
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <div className="di-head">
             <button type="button" className="di-nav" onClick={() => step(-1)} aria-label="Previous month">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
@@ -157,7 +187,8 @@ const DateInput = React.forwardRef(({
             <button type="button" className="di-act" onClick={() => pick(new Date())}>Today</button>
             <button type="button" className="di-act muted" onClick={() => { emit(''); setOpen(false); }}>Clear</button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </span>
   );
