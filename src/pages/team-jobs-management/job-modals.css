@@ -1442,3 +1442,16 @@
 .jm-drawer .cd-kv .cd-detailedit.empty { color: #8B8478; }
 .jm-drawer .cd-kv .jm-pills { justify-content: flex-end; }
 .jm-drawer .cd-kv .dsr-inlineadd { display: flex; gap: 6px; }
+
+/* The duty checklist's own header doubles as its open/shut control. */
+.dc-toggle {
+  display: inline-flex; align-items: center; gap: 7px;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478;
+}
+.dc-toggle:hover { color: #C65A1A; }
+.dc-toggle svg { color: #8B8478; }
+.dc-toggle:hover svg { color: #C65A1A; }
+.dc.shut .cd-progress { margin-bottom: 4px; }
