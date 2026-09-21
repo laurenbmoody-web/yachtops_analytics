@@ -120,10 +120,15 @@ const SearchableAssigneeDropdown = ({ crewMembers, selectedAssignees, onChange, 
       }
     }
     
-    // Keep dropdown open for multi-select
+    // Picking someone closes the list. It used to stay open "for
+    // multi-select" and then refocus the input, which onFocus re-opened — so
+    // the panel could not be dismissed at all, by choosing or by clicking
+    // away. Assigning a second person is one more click on the field; being
+    // unable to close it is a dead end.
     setSearchQuery('');
     setFocusedIndex(-1);
-    inputRef?.current?.focus();
+    setIsOpen(false);
+    inputRef?.current?.blur();
   };
 
   const removeAssignee = (crewId) => {

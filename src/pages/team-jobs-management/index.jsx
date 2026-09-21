@@ -937,16 +937,53 @@ const TeamJobsManagement = () => {
   const effectiveDeptIdRef = useRef(null);
   const currentUserIdRef = useRef(null);
 
-  // Ordered boards for the current user/dept view
+  // Ordered boards for the current user/dept view.
+  //
+  // A board is on YOUR page only once you have put it there. The page used to
+  // open on every board the vessel had ever made — Dailies, an unnamed one
+  // reading "Additional jobs" — none of which the person looking had asked
+  // for, which is the opposite of a quick list. My jobs is the default and
+  // the rest is opt-in, added from the New board tile.
+  //
+  // Nothing is deleted by this: a board left off is still in job_boards, its
+  // jobs are still there, and adding it back puts the column straight back.
   const orderedBoards = useMemo(() => {
     const filtered = boards?.filter(board => {
       const boardDept = board?.department_id || board?.department;
       if (!boardDept || boardDept === 'General') return true;
       return boardDept === _effectiveDeptId;
     });
-    if (!boardOrder) return filtered;
-    return applyBoardOrder(filtered, boardOrder);
+    // No saved order at all = a page nobody has arranged yet = just My jobs.
+    if (!boardOrder) return [];
+    return applyBoardOrder(filtered, boardOrder)
+      ?.filter(b => boardOrder?.includes(b?.id));
   }, [boards, boardOrder, _effectiveDeptId]);
+
+  // Boards that exist but are not on this person's page — offered by the New
+  // board tile so hiding one is never a one-way door.
+  const boardsNotShown = useMemo(() => {
+    const shownIds = new Set(orderedBoards?.map(b => b?.id));
+    return boards?.filter(board => {
+      if (shownIds?.has(board?.id)) return false;
+      const boardDept = board?.department_id || board?.department;
+      if (boardDept && boardDept !== 'General' && boardDept !== _effectiveDeptId) return false;
+      return true;
+    }) || [];
+  }, [boards, orderedBoards, _effectiveDeptId]);
+
+  /** Put an existing board back on this person's page. */
+  const showExistingBoard = useCallback(async (boardId) => {
+    if (!boardId) return;
+    const next = [...(boardOrder || []), boardId];
+    setBoardOrder(next);
+    // Same key the loader uses, or the cached order is written where nothing
+    // will ever read it.
+    const deptKey = _effectiveDeptId && _effectiveDeptId !== 'ALL' ? _effectiveDeptId : 'all';
+    saveBoardOrder(currentUserId, deptKey, next);
+    if (currentUserId && activeTenantId) {
+      await saveBoardOrderToSupabase(currentUserId, activeTenantId, next);
+    }
+  }, [boardOrder, _effectiveDeptId, currentUserId, activeTenantId]);
 
   // Load saved board order when user/dept changes (Supabase first, localStorage fallback)
   useEffect(() => {
@@ -1397,9 +1434,16 @@ const TeamJobsManagement = () => {
     };
     const updatedBoards = [...boards, newBoard];
     setBoards(updatedBoards); saveBoards(updatedBoards);
+    // A board is only on your page once it is in your order, so the one you
+    // just made has to be put there — otherwise creating a board would appear
+    // to do nothing at all.
+    const nextOrder = [...(boardOrder || []), newBoard?.id];
+    setBoardOrder(nextOrder);
+    saveBoardOrder(userId, deptId || 'all', nextOrder);
     // Persist to Supabase
     if (activeTenantId) {
       saveBoardToSupabase(newBoard, activeTenantId, deptId, newBoardName);
+      saveBoardOrderToSupabase(userId, activeTenantId, nextOrder);
     }
     setNewBoardName(''); setNewBoardDescription('');
     setNewBoardPrivate(false); setShowCreateBoard(false);
@@ -3193,6 +3237,29 @@ const TeamJobsManagement = () => {
                   onKeyDown={(e) => { if (e?.key === 'Enter') { e?.preventDefault(); handleCreateBoard(); } }}
                 />
               </div>
+              {/* Boards the vessel already has that are not on this page.
+                  Leaving one off is a view preference, not a deletion, so it
+                  has to be one click to bring back. */}
+              {boardsNotShown?.length > 0 && (
+                <div className="jm-section">
+                  <p className="jm-label">
+                    Or show a board you already have
+                  </p>
+                  <div className="jm-pills">
+                    {boardsNotShown?.map(b => (
+                      <button
+                        key={b?.id}
+                        type="button"
+                        className="jm-pill"
+                        onClick={() => { showExistingBoard(b?.id); setShowCreateBoard(false); }}
+                      >
+                        <Icon name="Plus" size={12} />
+                        {b?.name || 'Board'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="jm-section">
                 <label className="jm-label" htmlFor="tj-board-desc">
                   Description<span className="opt">optional</span>
