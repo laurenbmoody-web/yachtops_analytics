@@ -873,14 +873,38 @@ const JobEditModal = ({
   // ── What each collapsed section says about itself ──
   // The value, not a field count: "20/09/2026 · Interior · high" tells you
   // whether you need to open it; "6 fields" never does.
-  const coreSummary = useMemo(() => {
-    const bits = [
-      isoToUK(dueDate) || null,
-      getDeptName(selectedDeptId) || null,
-      priority || null,
-    ]?.filter(Boolean);
+  const descSummary = useMemo(() => {
+    const t = String(description || '')?.trim();
+    if (!t) return 'None';
+    return t?.length > 42 ? `${t.slice(0, 42)}…` : t;
+  }, [description]);
+
+  const deptBoardSummary = useMemo(() => {
+    const dept = getDeptName(selectedDeptId) || 'No department';
+    const board = selectedBoardId
+      ? (filteredBoards?.find(b => b?.id === selectedBoardId)?.name || 'A board')
+      : 'No board';
+    return `${dept} · ${board}`;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDeptId, selectedBoardId, supabaseDepts, filteredBoards]);
+
+  const assignSummary = useMemo(() => {
+    if (!assignees?.length) return 'Nobody';
+    const nameOf = (id) => assigneeOptions?.find(a => a?.id === id)?.name
+      || assigneeOptions?.find(a => a?.id === id)?.full_name || 'Someone';
+    if (assignees.length === 1) return nameOf(assignees[0]);
+    return `${nameOf(assignees[0])} +${assignees.length - 1}`;
+  }, [assignees, assigneeOptions]);
+
+  const dueSummary = useMemo(() => {
+    const bits = [isoToUK(dueDate) || null, dueTime || null, priority || null]?.filter(Boolean);
     return bits?.join(' · ') || 'Not set';
-  }, [dueDate, selectedDeptId, priority, supabaseDepts]);
+  }, [dueDate, dueTime, priority]);
+
+  const statusSummary = useMemo(
+    () => (status ? status?.charAt(0)?.toUpperCase() + status?.slice(1) : 'Not set'),
+    [status],
+  );
 
   const checklistSummary = useMemo(() => {
     if (!checklists?.length) return 'None';
@@ -937,12 +961,10 @@ const JobEditModal = ({
         {/* Collapsed sections, the way To Do opens a task: the whole job in
             one view, each row reading back its own value, and only the part
             you are changing expanded. */}
-        <DrawerSection icon="FileText" title="Core information" defaultOpen summary={coreSummary}>
-
-        <div className="jm-section">
-          <label className="jm-label" htmlFor="jem-title">
-            Job title<span className="req">required</span>
-          </label>
+        {/* The title is the one thing always in view — it is what you came to read,
+            and in To Do it is the task itself, not a field inside a section.
+            Everything else stays a closed row until you want it. */}
+        <div className="jm-section jm-titlealways">
           <input
             id="jem-title"
             autoFocus
@@ -953,6 +975,8 @@ const JobEditModal = ({
             onChange={(e) => setTitle(e?.target?.value)}
           />
         </div>
+
+        <DrawerSection icon="AlignLeft" title="Notes" summary={descSummary}>
 
         <div className="jm-section">
           <label className="jm-label" htmlFor="jem-desc">
@@ -967,6 +991,10 @@ const JobEditModal = ({
             onChange={(e) => setDescription(e?.target?.value)}
           />
         </div>
+
+        </DrawerSection>
+
+        <DrawerSection icon="Building2" title="Department & board" summary={deptBoardSummary}>
 
         <div className="jm-section">
           <label className="jm-label" htmlFor="jem-dept">
@@ -1014,7 +1042,12 @@ const JobEditModal = ({
           </select>
         </div>
 
+        </DrawerSection>
+
+        {/* Only rendered where the tier may assign, so the row itself is
+            conditional — not just its contents. */}
         {canShowAssignee && (
+        <DrawerSection icon="Users" title="Assign to" summary={assignSummary}>
           <div className="jm-section">
             <label className="jm-label">
               Assign to
@@ -1033,7 +1066,10 @@ const JobEditModal = ({
               />
             )}
           </div>
+        </DrawerSection>
         )}
+
+        <DrawerSection icon="Calendar" title="Due & priority" summary={dueSummary}>
 
         <div className="jm-section jm-grid">
           <div>
@@ -1076,6 +1112,10 @@ const JobEditModal = ({
             ))}
           </div>
         </div>
+
+        </DrawerSection>
+
+        <DrawerSection icon="Flag" title="Status" summary={statusSummary}>
 
         <div className="jm-section">
           <p className="jm-label">Status</p>

@@ -1360,3 +1360,7 @@
 .jm-accbody { padding: 2px 6px 16px; }
 /* The stacked sections already separate themselves with hairlines. */
 .jm-accbody .jm-section:last-child { margin-bottom: 0; }
+
+/* The title stays out of the accordion — it is the task, not a field. */
+.jm-titlealways { margin-bottom: 6px; }
+.jm-titlealways .jm-titlefield { width: 100%; }

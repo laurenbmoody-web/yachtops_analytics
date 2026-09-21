@@ -279,9 +279,12 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
   margin-bottom: 10px;
 }
 .tj-col-total strong { color: #1C1B3A; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* No dashed outline. A broken line reads as a placeholder for something
+   missing; this is a real control you use every day, so it gets a soft field
+   the way the inputs do, and finds its edge on hover. */
 .tj-addjob {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 9px; border-radius: 10px; border: 1px dashed #E5E7EB; background: none;
+  padding: 9px; border-radius: 10px; border: 1px solid transparent; background: #FAFAF8;
   font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
   cursor: pointer; transition: color 0.14s, border-color 0.14s, background 0.14s;
 }
@@ -464,15 +467,15 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 .tj-quickadd-row {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 10px; border-radius: 10px;
-  border: 1px dashed #E5E7EB; background: none;
+  border: 1px solid transparent; background: #FAFAF8;
   transition: border-color 0.14s, background 0.14s, box-shadow 0.14s;
 }
-.tj-quickadd-row:hover { border-color: #D6D9E0; background: #FAFAF8; }
+.tj-quickadd-row:hover { border-color: #E5E7EB; background: #F5F5F2; }
 .tj-quickadd-row.on {
-  border-style: solid; border-color: #C65A1A; background: #FFFFFF;
+  border-color: #C65A1A; background: #FFFFFF;
   box-shadow: 0 0 0 3px #FAECE7;
 }
-.tj-quickadd-row.err { border-style: solid; border-color: #C0453C; }
+.tj-quickadd-row.err { border-color: #C0453C; }
 .tj-quickadd-ico {
   flex-shrink: 0; display: flex; align-items: center; justify-content: center;
   width: 16px; height: 16px; color: #AEB4C2; transition: color 0.14s;
