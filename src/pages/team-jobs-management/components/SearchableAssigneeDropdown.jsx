@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import '../job-modals.css';
 
@@ -54,11 +55,29 @@ const SearchableAssigneeDropdown = ({ crewMembers, selectedAssignees, onChange, 
     return () => document?.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Decide which way the menu should open each time it does.
+  // The menu is drawn in a portal on document.body, because inside a drawer
+  // its absolutely-positioned box was clipped by the scrolling panel — the
+  // crew list was there, you just could not see past the first row of it.
+  // That means positioning it by the control's viewport rect, and keeping
+  // that rect current while the page moves under it.
+  const [rect, setRect] = useState(null);
   useEffect(() => {
-    if (!isOpen || !containerRef?.current) return;
-    const box = containerRef?.current?.getBoundingClientRect();
-    setFlipUp(window.innerHeight - box.bottom < 270);
+    if (!isOpen || !containerRef?.current) { setRect(null); return undefined; }
+    const measure = () => {
+      const box = containerRef?.current?.getBoundingClientRect();
+      if (!box) return;
+      setRect(box);
+      setFlipUp(window.innerHeight - box.bottom < 270);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    // capture:true so it also follows a scroll inside the drawer, not just
+    // the window's own.
+    window.addEventListener('scroll', measure, true);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+    };
   }, [isOpen]);
 
   // Handle keyboard navigation
@@ -198,8 +217,22 @@ const SearchableAssigneeDropdown = ({ crewMembers, selectedAssignees, onChange, 
         <Icon name={isOpen ? 'ChevronUp' : 'ChevronDown'} size={14} />
       </div>
 
-      {isOpen && (
-        <div className={`jm-combo-menu${flipUp ? ' up' : ''}`} ref={dropdownRef}>
+      {isOpen && rect && createPortal(
+        <div
+          className={`jm-combo-menu portal${flipUp ? ' up' : ''}`}
+          ref={dropdownRef}
+          style={{
+            left: rect.left,
+            width: rect.width,
+            ...(flipUp
+              ? { bottom: window.innerHeight - rect.top + 6 }
+              : { top: rect.bottom + 6 }),
+          }}
+          // The click-outside handler tests containment on the container,
+          // which no longer contains this node; stop the event here so
+          // choosing someone is not read as a click away.
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           {dropdownOptions?.length === 0 ? (
             <p className="jm-combo-empty">No crew match that search</p>
           ) : (
@@ -232,7 +265,8 @@ const SearchableAssigneeDropdown = ({ crewMembers, selectedAssignees, onChange, 
               );
             })
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -2350,9 +2350,14 @@ const TeamJobsManagement = () => {
           {/* Edit pen — only when canEditDepartment */}
           {showEditPen && (
             <button
-              onClick={(e) => { e?.stopPropagation(); setEditingJob(item); }}
+              /* Same destination as clicking the card. Two ways in that led
+                 to two different screens was the confusion; the pencil just
+                 means "open this one" now. The full form is still reachable
+                 from the pencil inside the pane, for recurrence, duty set
+                 and attachments. */
+              onClick={(e) => { e?.stopPropagation(); handleCardClick(item); }}
               className="tj-pen"
-              title="Edit job"
+              title="Open job"
             >
               <Icon name="Pencil" size={12} />
             </button>

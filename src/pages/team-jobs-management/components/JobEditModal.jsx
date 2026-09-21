@@ -980,7 +980,7 @@ const JobEditModal = ({
         <DrawerSection
           icon="CheckSquare"
           title="Checklists"
-          defaultOpen
+          variant="plain"
           summary={checklistSummary}
           action={(
           <button
@@ -1070,7 +1070,7 @@ const JobEditModal = ({
 
         </DrawerSection>
 
-        <DrawerSection icon="Calendar" title="Due date" summary={dueOnlySummary}>
+        <DrawerSection icon="Calendar" title="Due date" summary={dueOnlySummary} variant="row">
 
         <div className="jm-section jm-grid">
           <div>
@@ -1112,7 +1112,7 @@ const JobEditModal = ({
         {/* Only rendered where the tier may assign, so the row itself is
             conditional — not just its contents. */}
         {canShowAssignee && (
-        <DrawerSection icon="Users" title="Assign to" summary={assignSummary}>
+        <DrawerSection icon="Users" title="Assign to" summary={assignSummary} variant="row">
           <div className="jm-section">
             <label className="jm-label">
               Assign to
@@ -1134,7 +1134,7 @@ const JobEditModal = ({
         </DrawerSection>
         )}
 
-        <DrawerSection icon="Flag" title="Priority" summary={priority || 'Not set'}>
+        <DrawerSection icon="Flag" title="Priority" summary={priority || 'Not set'} variant="row">
         <div className="jm-section">
           <div className="jm-pills">
             {PRIORITY_OPTIONS?.map(p => (
@@ -1156,7 +1156,7 @@ const JobEditModal = ({
             undifferentiated list. */}
         <hr className="jm-rule" />
 
-        <DrawerSection icon="AlignLeft" title="Notes" summary={descSummary}>
+        <DrawerSection icon="AlignLeft" title="Notes" variant="plain">
 
         <div className="jm-section">
           <label className="jm-label" htmlFor="jem-desc">
@@ -1174,7 +1174,7 @@ const JobEditModal = ({
 
         </DrawerSection>
 
-        <DrawerSection icon="Building2" title="Department & board" summary={deptBoardSummary}>
+        <DrawerSection icon="Building2" title="Department & board" variant="plain">
 
         <div className="jm-section">
           <label className="jm-label" htmlFor="jem-dept">
@@ -1224,7 +1224,7 @@ const JobEditModal = ({
 
         </DrawerSection>
 
-        <DrawerSection icon="CircleDot" title="Status" summary={statusSummary}>
+        <DrawerSection icon="CircleDot" title="Status" variant="plain">
 
         <div className="jm-section">
           <p className="jm-label">Status</p>
@@ -1245,7 +1245,7 @@ const JobEditModal = ({
         </DrawerSection>
 
 
-        <DrawerSection icon="Repeat" title="Recurrence" summary={recurrenceSummary}>
+        <DrawerSection icon="Repeat" title="Recurrence" variant="plain">
         <div className="jm-section">
           <label className="jm-label" htmlFor="jem-recur">Repeat</label>
           <select
@@ -1295,7 +1295,7 @@ const JobEditModal = ({
 
         </DrawerSection>
 
-        <DrawerSection icon="Briefcase" title="Duty set" summary={dutySetName || 'Not part of one'}>
+        <DrawerSection icon="Briefcase" title="Duty set" variant="plain">
         <div className="jm-section">
           <label className="jm-label" htmlFor="jem-dutyset">
             Duty set name<span className="opt">optional</span>
@@ -1313,7 +1313,7 @@ const JobEditModal = ({
 
         </DrawerSection>
 
-        <DrawerSection icon="Paperclip" title="Attachments" summary={attachmentSummary}>
+        <DrawerSection icon="Paperclip" title="Attachments" variant="plain">
         <div className="jm-section">
           <input
             type="file"
@@ -1357,7 +1357,7 @@ const JobEditModal = ({
 
         </DrawerSection>
 
-        <DrawerSection icon="MessageSquare" title="Add a comment" summary={newComment ? 'Draft' : 'None'}>
+        <DrawerSection icon="MessageSquare" title="Add a comment" variant="plain">
         <div className="jm-section">
           <textarea
             className="jm-textarea"

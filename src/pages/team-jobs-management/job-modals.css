@@ -306,6 +306,13 @@
 }
 /* Opens upward when the field sits low in a drawer. */
 .jm-combo-menu.up { top: auto; bottom: calc(100% + 6px); }
+/* Drawn on document.body, so it is positioned against the viewport and sits
+   above the drawer instead of being clipped by it. */
+.jm-combo-menu.portal {
+  position: fixed; left: auto; right: auto;
+  z-index: calc(var(--z-overlay) + 10);
+}
+.jm-combo-menu.portal.up { top: auto; }
 
 /* ── calendar grid (archive) ────────────────────────────────── */
 .jm-cal-head {
@@ -871,7 +878,9 @@
 
 /* the editor a row opens, sitting under it inside the stack */
 .cd-rowpanel {
-  padding: 13px 14px 15px; background: #F6F8FB;
+  /* White, like the rest of the pane. The filled panel made an opened row
+     look like a different surface dropped into the drawer. */
+  padding: 13px 14px 15px; background: #FFFFFF;
   border-bottom: 1px solid #F0F1F5;
 }
 .cd-rowpanel:last-child { border-bottom: none; }
@@ -1378,3 +1387,8 @@
 
 /* Date + time + Set, on one line. */
 .cd-remindtime { width: 104px; flex-shrink: 0; }
+
+/* Plain section inside a drawer — a heading and its contents, no chevron. */
+.jm-plainsec { margin-top: 18px; }
+.jm-plainhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.jm-plainhead .jm-secthead { margin-bottom: 8px; }
