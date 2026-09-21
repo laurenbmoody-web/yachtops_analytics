@@ -600,7 +600,6 @@ const TeamJobsManagement = () => {
         department_id: j?.department_id || null,
         board: j?.board_id || null,
         assigned_to: j?.assigned_to || null,
-        assignees: j?.assigned_to ? [j?.assigned_to] : [],
         dueDate: j?.due_date || null,
         is_private: j?.is_private || false,
         created_by: j?.created_by || null,
@@ -610,8 +609,12 @@ const TeamJobsManagement = () => {
         metadata: j?.metadata || [],
         source: j?.source || null,
         rotation_assignment_id: j?.rotation_assignment_id || null,
-        // Labels come back from the row now that the column exists; notes,
-        // attachments and the checklist still have nowhere to live.
+        // Labels and assignees come back from the row now that the columns
+        // exist; notes, attachments and the checklist still have nowhere to
+        // live. assigned_to is the fallback for rows written before the array.
+        assignees: (Array.isArray(j?.assignees) && j?.assignees?.length)
+          ? j?.assignees
+          : (j?.assigned_to ? [j?.assigned_to] : []),
         labels: Array.isArray(j?.labels) ? j?.labels : [],
         notes: [],
         attachments: [],
@@ -1852,8 +1855,11 @@ const TeamJobsManagement = () => {
     if ('recurrence' in patch) row.recurrence = patch?.recurrence || null;
     if ('dueDate' in patch) row.due_date = patch?.dueDate || null;
     if ('assignees' in patch) {
-      const first = patch?.assignees?.[0] || null;
-      row.assigned_to = first && isValidUUID(first) ? first : null;
+      // The array is the full list; assigned_to stays its head, because every
+      // board filter, the rota and the notification helpers read that column.
+      const list = (patch?.assignees || [])?.filter(id => id && isValidUUID(id));
+      row.assignees = list;
+      row.assigned_to = list?.[0] || null;
     }
     if ('department' in patch && patch?.department && isValidUUID(patch?.department)) {
       row.department_id = patch?.department;
@@ -2064,11 +2070,11 @@ const TeamJobsManagement = () => {
       // Completed today — still need to pass the assignee check below
     }
     // Resolve assigned user — support both snake_case and camelCase (Rocket mapping inconsistency)
-    const assignedTo =
-      item?.assigned_to ??
-      item?.assignedTo ??
-      (Array.isArray(item?.assignees) ? item?.assignees?.[0] : null);
-    if (!assignedTo || assignedTo !== me) return false;
+    // Anyone on the job, not just the first name. A job can carry several
+    // assignees now, and the second one needs it on their list too.
+    const onIt = Array.isArray(item?.assignees) && item?.assignees?.includes(me);
+    const assignedTo = item?.assigned_to ?? item?.assignedTo ?? null;
+    if (!onIt && assignedTo !== me) return false;
     // Completed-today jobs: skip due-date check (they already passed it when they were open)
     if (item?.status === 'completed') return true;
     // Resolve due date — support both snake_case and camelCase
@@ -2216,11 +2222,9 @@ const TeamJobsManagement = () => {
       // in another department — where you get no My jobs column — nothing is
       // hidden from you at all.
       if (deptId === userDepartmentId) {
-        const assignedTo =
-          item?.assigned_to ??
-          item?.assignedTo ??
-          (Array.isArray(item?.assignees) ? item?.assignees?.[0] : null);
-        if (assignedTo && assignedTo === me) return false;
+        const onIt = Array.isArray(item?.assignees) && item?.assignees?.includes(me);
+        const assignedTo = item?.assigned_to ?? item?.assignedTo ?? null;
+        if (onIt || (assignedTo && assignedTo === me)) return false;
       }
       // Only show jobs due today or overdue (exclude future-dated jobs)
       const rawDue =

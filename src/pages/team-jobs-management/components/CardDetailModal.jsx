@@ -618,7 +618,7 @@ const CardDetailModal = ({
             {openQuick === 'assign' && (
               <div className="cd-rowpanel">
                 <AssigneePicker
-                  multiple={false}
+                  multiple
                   options={assignableMembers?.map(m => ({
                     value: m?.id || m?.user_id,
                     label: m?.name,
