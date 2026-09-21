@@ -42,7 +42,6 @@ import JobArchiveCalendarModal from './components/JobArchiveCalendarModal';
 import CardDetailModal from './components/CardDetailModal';
 
 import CreateTaskModal from './components/CreateTaskModal';
-import ComprehensiveJobModal from './components/ComprehensiveJobModal';
 import SelfReportedJobModal from './components/SelfReportedJobModal';
 import ReviewQueuePanel from './components/ReviewQueuePanel';
 
@@ -200,8 +199,6 @@ const TeamJobsManagement = () => {
   const [newBoardPrivate, setNewBoardPrivate] = useState(false);
   const [showDeptDropdown, setShowDeptDropdown] = useState(false);
   const [completingJobId, setCompletingJobId] = useState(null);
-  const [showComprehensiveModal, setShowComprehensiveModal] = useState(false);
-  const [comprehensiveModalBoardId, setComprehensiveModalBoardId] = useState(null);
   const [showSelfReportedModal, setShowSelfReportedModal] = useState(false);
   const [teamMembers, setTeamMembers] = useState([]);
   const [acceptanceJob, setAcceptanceJob] = useState(null);
@@ -2612,13 +2609,10 @@ const TeamJobsManagement = () => {
               <span className="hidden sm:inline">Manage rotation</span>
             </button>
 
-            {/* Create Job — gated by canAddJob */}
-            {_canAddJob && (
-              <button onClick={() => setShowComprehensiveModal(true)} className="tj-btn primary">
-                <Icon name="Plus" size={15} />
-                Create job
-              </button>
-            )}
+            {/* No Create job button. A job is made on the board it belongs to —
+               every column carries its own add row, which also settles the
+               department and the board without asking. A button up here could
+               only ask those questions again in a form. */}
           </div>
         </div>
 
@@ -3350,21 +3344,6 @@ const TeamJobsManagement = () => {
         )}
 
         {/* Comprehensive Job Modal */}
-        {showComprehensiveModal && (
-          <ComprehensiveJobModal
-            boards={boards}
-            defaultBoardId={comprehensiveModalBoardId}
-            onClose={() => { setShowComprehensiveModal(false); setComprehensiveModalBoardId(null); }}
-            onSubmit={handleCreateTask}
-            onSuccess={handleCreateTask}
-            currentUser={enhancedUser}
-            currentUserProp={enhancedUser}
-            activeTenantId={activeTenantId}
-            activeTenantIdProp={activeTenantId}
-            selectedDate={null}
-          />
-        )}
-
         {/* Self Reported Job Modal */}
         {showSelfReportedModal && (
           <SelfReportedJobModal

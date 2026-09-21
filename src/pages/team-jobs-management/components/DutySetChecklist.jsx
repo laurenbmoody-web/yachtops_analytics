@@ -28,6 +28,7 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [openNote, setOpenNote] = useState(null);    // taskId whose note field is open
+  const [listOpen, setListOpen] = useState(false);
   const [savingId, setSavingId] = useState(null);
 
   const [bulkSaving, setBulkSaving] = useState(false);
@@ -277,12 +278,17 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
   };
 
   return (
-    <div className="dc">
+    <div className={`dc${listOpen ? '' : ' shut'}`}>
+      {/* Collapsed on opening. Nineteen tasks expanded is the whole drawer
+          before you have seen anything else about the job; the header still
+          carries the count and Tick all dailies, which is what most opens
+          actually want. */}
       <div className="jm-secthead-row">
-        <p className="jm-secthead">
+        <button type="button" className="dc-toggle" onClick={() => setListOpen(!listOpen)}>
           <Icon name="ListChecks" size={14} />
-          {template?.name} — today
-        </p>
+          <span>{template?.name} — today</span>
+          <Icon name={listOpen ? 'ChevronUp' : 'ChevronDown'} size={14} />
+        </button>
         <div className="dc-headside">
           {canInteract && dailyTotal > 0 && (
             <button
@@ -303,7 +309,7 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
       <div className="cd-progress"><div className="bar" style={{ width: `${pct}%` }} /></div>
 
       {/* Dailies — always */}
-      {grouped?.today?.length > 0 && (
+      {listOpen && grouped?.today?.length > 0 && (
         <div className="dc-group">
           <p className="dc-grouphead">
             <span>Daily</span>
@@ -314,7 +320,7 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
       )}
 
       {/* This weekday's weeklies only */}
-      {grouped?.weekly?.tasks?.length > 0 && (
+      {listOpen && grouped?.weekly?.tasks?.length > 0 && (
         <div className="dc-group">
           <p className="dc-grouphead">
             <span>Weekly — {grouped?.weekly?.label}</span>
@@ -325,7 +331,7 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
       )}
 
       {/* Monthlies that have gone long enough to need doing */}
-      {grouped?.monthlyDue?.length > 0 && (
+      {listOpen && grouped?.monthlyDue?.length > 0 && (
         <div className="dc-group due">
           <p className="dc-grouphead">
             <span>Suggested before month end</span>

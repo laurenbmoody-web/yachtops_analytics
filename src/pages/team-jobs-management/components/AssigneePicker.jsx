@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Icon from '../../../components/AppIcon';
 import '../job-modals.css';
 
@@ -26,6 +27,11 @@ const AssigneePicker = ({
   emptyLabel = 'No crew match that search',
 }) => {
   const [open, setOpen] = useState(false);
+  // Drawn on document.body. Inside the job drawer this menu was clipped by
+  // the scrolling panel: its search field showed and the crew underneath did
+  // not, which read as an empty list rather than a hidden one.
+  const [rect, setRect] = useState(null);
+  const [flipUp, setFlipUp] = useState(false);
   const [query, setQuery] = useState('');
   const wrapRef = useRef(null);
   const inputRef = useRef(null);
@@ -48,6 +54,23 @@ const AssigneePicker = ({
   }, [options, query]);
 
   // Close on outside click
+  useEffect(() => {
+    if (!open || !wrapRef?.current) { setRect(null); return undefined; }
+    const measure = () => {
+      const box = wrapRef?.current?.getBoundingClientRect();
+      if (!box) return;
+      setRect(box);
+      setFlipUp(window.innerHeight - box.bottom < 280);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true); // capture: drawer scrolls too
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+    };
+  }, [open]);
+
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e) => {
@@ -110,8 +133,20 @@ const AssigneePicker = ({
         <Icon name="ChevronDown" size={14} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} />
       </button>
 
-      {open && (
-        <div className="jm-combo-menu">
+      {open && rect && createPortal(
+        <div
+          className={`jm-combo-menu portal${flipUp ? ' up' : ''}`}
+          style={{
+            left: rect.left,
+            width: rect.width,
+            ...(flipUp
+              ? { bottom: window.innerHeight - rect.top + 6 }
+              : { top: rect.bottom + 6 }),
+          }}
+          // It is outside wrapRef now, so without this the click-outside test
+          // would read picking someone as clicking away.
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           <div className="jm-combo-search">
             <Icon name="Search" size={13} />
             <input
@@ -143,7 +178,8 @@ const AssigneePicker = ({
               );
             })
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
