@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
 import DateInput from '../../../components/ui/DateInput';
@@ -444,6 +444,19 @@ const CardDetailModal = ({
 
   const filteredAuditTrail = getFilteredAuditTrail();
 
+  // Assigning is scoped to the job's own department. The picker was offered
+  // the whole vessel, so an Interior job listed Engineering, Bridge and Deck
+  // — and the one assignment that is nearly always wrong is the one to
+  // somebody who does not work on that job. A job with no department falls
+  // back to everyone rather than to an empty list.
+  const jobDeptId = card?.department_id || card?.department || null;
+  const assignableMembers = useMemo(() => {
+    const all = teamMembers || [];
+    if (!jobDeptId) return all;
+    const inDept = all?.filter(m => (m?.department_id || m?.department) === jobDeptId);
+    return inDept?.length > 0 ? inDept : all;
+  }, [teamMembers, jobDeptId]);
+
   const displayPriority = editMode ? editedPriority : card?.priority;
 
   return (
@@ -606,7 +619,7 @@ const CardDetailModal = ({
               <div className="cd-rowpanel">
                 <AssigneePicker
                   multiple={false}
-                  options={(teamMembers || [])?.map(m => ({
+                  options={assignableMembers?.map(m => ({
                     value: m?.id || m?.user_id,
                     label: m?.name,
                     description: getDepartmentName(m?.department_id) || undefined,
