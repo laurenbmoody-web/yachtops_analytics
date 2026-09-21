@@ -5,6 +5,7 @@ import DateInput from '../../../components/ui/DateInput';
 import { isoToUK } from '../../../utils/dateFormat';
 import ModalShell from '../../../components/ui/ModalShell';
 import DrawerSection from './DrawerSection';
+import JobReminder from './JobReminder';
 import { supabase } from '../../../lib/supabaseClient';
 import { TIER_RANK, normalizeTier, canAssignTo } from '../utils/tierPermissions';
 import SearchableAssigneeDropdown from './SearchableAssigneeDropdown';
@@ -896,10 +897,10 @@ const JobEditModal = ({
     return `${nameOf(assignees[0])} +${assignees.length - 1}`;
   }, [assignees, assigneeOptions]);
 
-  const dueSummary = useMemo(() => {
-    const bits = [isoToUK(dueDate) || null, dueTime || null, priority || null]?.filter(Boolean);
+  const dueOnlySummary = useMemo(() => {
+    const bits = [isoToUK(dueDate) || null, dueTime || null]?.filter(Boolean);
     return bits?.join(' · ') || 'Not set';
-  }, [dueDate, dueTime, priority]);
+  }, [dueDate, dueTime]);
 
   const statusSummary = useMemo(
     () => (status ? status?.charAt(0)?.toUpperCase() + status?.slice(1) : 'Not set'),
@@ -1069,6 +1070,92 @@ const JobEditModal = ({
 
         </DrawerSection>
 
+        <DrawerSection icon="Calendar" title="Due date" summary={dueOnlySummary}>
+
+        <div className="jm-section jm-grid">
+          <div>
+            <label className="jm-label" htmlFor="jem-due">Due date</label>
+            <DateInput
+              id="jem-due"
+              className="jm-input"
+              value={dueDate}
+              onChange={(e) => setDueDate(e?.target?.value)}
+            />
+          </div>
+          <div>
+            <label className="jm-label" htmlFor="jem-time">
+              Time<span className="opt">optional</span>
+            </label>
+            <input
+              id="jem-time"
+              type="time"
+              className="jm-input"
+              value={dueTime}
+              onChange={(e) => setDueTime(e?.target?.value)}
+            />
+          </div>
+        </div>
+
+        </DrawerSection>
+
+        {/* Remind me sits with the other four things you set in passing,
+            in the order they get asked: when is it due, when should I be
+            told, who is doing it, how much does it matter. */}
+        <JobReminder
+          job={job}
+          activeTenantId={activeTenantId}
+          currentUserId={userId}
+          teamMembers={assigneeOptions}
+          canInteract={isFullEdit}
+        />
+
+        {/* Only rendered where the tier may assign, so the row itself is
+            conditional — not just its contents. */}
+        {canShowAssignee && (
+        <DrawerSection icon="Users" title="Assign to" summary={assignSummary}>
+          <div className="jm-section">
+            <label className="jm-label">
+              Assign to
+              {selectedDeptId && <span className="opt">{getDeptName(selectedDeptId)}</span>}
+            </label>
+            {loadingAssignees ? (
+              <div className="jm-readonly muted">Loading team members…</div>
+            ) : assigneeOptions?.length === 0 ? (
+              <div className="jm-readonly muted">No eligible crew in this department</div>
+            ) : (
+              <SearchableAssigneeDropdown
+                crewMembers={assigneeOptions}
+                selectedAssignees={assignees}
+                onChange={(newAssignees) => setAssignees(newAssignees)}
+                department={selectedDeptId}
+              />
+            )}
+          </div>
+        </DrawerSection>
+        )}
+
+        <DrawerSection icon="Flag" title="Priority" summary={priority || 'Not set'}>
+        <div className="jm-section">
+          <div className="jm-pills">
+            {PRIORITY_OPTIONS?.map(p => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPriority(p)}
+                className={`jm-pill${priority === p ? ' on' : ''}`}
+              >
+                {p?.charAt(0)?.toUpperCase() + p?.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+        </DrawerSection>
+
+        {/* The four you set in passing are above; everything else is below the
+            rule, which is the separation she asked for rather than one long
+            undifferentiated list. */}
+        <hr className="jm-rule" />
+
         <DrawerSection icon="AlignLeft" title="Notes" summary={descSummary}>
 
         <div className="jm-section">
@@ -1137,78 +1224,7 @@ const JobEditModal = ({
 
         </DrawerSection>
 
-        {/* Only rendered where the tier may assign, so the row itself is
-            conditional — not just its contents. */}
-        {canShowAssignee && (
-        <DrawerSection icon="Users" title="Assign to" summary={assignSummary}>
-          <div className="jm-section">
-            <label className="jm-label">
-              Assign to
-              {selectedDeptId && <span className="opt">{getDeptName(selectedDeptId)}</span>}
-            </label>
-            {loadingAssignees ? (
-              <div className="jm-readonly muted">Loading team members…</div>
-            ) : assigneeOptions?.length === 0 ? (
-              <div className="jm-readonly muted">No eligible crew in this department</div>
-            ) : (
-              <SearchableAssigneeDropdown
-                crewMembers={assigneeOptions}
-                selectedAssignees={assignees}
-                onChange={(newAssignees) => setAssignees(newAssignees)}
-                department={selectedDeptId}
-              />
-            )}
-          </div>
-        </DrawerSection>
-        )}
-
-        <DrawerSection icon="Calendar" title="Due & priority" summary={dueSummary}>
-
-        <div className="jm-section jm-grid">
-          <div>
-            <label className="jm-label" htmlFor="jem-due">Due date</label>
-            <DateInput
-              id="jem-due"
-              className="jm-input"
-              value={dueDate}
-              onChange={(e) => setDueDate(e?.target?.value)}
-            />
-          </div>
-          <div>
-            <label className="jm-label" htmlFor="jem-time">
-              Time<span className="opt">optional</span>
-            </label>
-            <input
-              id="jem-time"
-              type="time"
-              className="jm-input"
-              value={dueTime}
-              onChange={(e) => setDueTime(e?.target?.value)}
-            />
-          </div>
-        </div>
-
-        <div className="jm-section">
-          <p className="jm-label">
-            Priority<span className="req">required</span>
-          </p>
-          <div className="jm-pills">
-            {PRIORITY_OPTIONS?.map(p => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPriority(p)}
-                className={`jm-pill${priority === p ? ' on' : ''}`}
-              >
-                {p?.charAt(0)?.toUpperCase() + p?.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        </DrawerSection>
-
-        <DrawerSection icon="Flag" title="Status" summary={statusSummary}>
+        <DrawerSection icon="CircleDot" title="Status" summary={statusSummary}>
 
         <div className="jm-section">
           <p className="jm-label">Status</p>
