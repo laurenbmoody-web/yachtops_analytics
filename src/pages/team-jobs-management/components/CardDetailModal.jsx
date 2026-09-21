@@ -8,6 +8,7 @@ import AssigneePicker from './AssigneePicker';
 import JobLinksPanel from './JobLinksPanel';
 import JobSteps from './JobSteps';
 import JobReminder from './JobReminder';
+import DrawerSection from './DrawerSection';
 import '../job-modals.css';
 import '../../duty-sets-rotation-management/duty-sets.css';
 
@@ -345,14 +346,23 @@ const CardDetailModal = ({
     window.URL?.revokeObjectURL(url);
   };
 
+  // Labels save as you go, like every other row. They used to change local
+  // state and wait for a Save that only existed in edit mode — and the save
+  // named a column team_jobs did not have, so they never survived a refresh.
+  const commitLabels = (next) => {
+    setEditedLabels(next);
+    onUpdate?.(card?.id, { labels: next });
+  };
+
   const handleAddLabel = () => {
-    if (!newLabel?.trim() || editedLabels?.includes(newLabel?.trim())) return;
-    setEditedLabels(prev => [...prev, newLabel?.trim()]);
+    const clean = newLabel?.trim();
+    if (!clean || editedLabels?.includes(clean)) return;
+    commitLabels([...(editedLabels || []), clean]);
     setNewLabel('');
   };
 
   const handleRemoveLabel = (label) => {
-    setEditedLabels(prev => prev?.filter(l => l !== label));
+    commitLabels((editedLabels || [])?.filter(l => l !== label));
   };
 
   // ── Quick actions ──
@@ -428,6 +438,13 @@ const CardDetailModal = ({
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   const filteredAuditTrail = getFilteredAuditTrail();
+
+  // What the closed Notes row says about itself.
+  const noteSummary = (() => {
+    const t = String(card?.description || '')?.trim();
+    if (!t) return 'None';
+    return t?.length > 40 ? `${t.slice(0, 40)}…` : t;
+  })();
 
   const displayPriority = editMode ? editedPriority : card?.priority;
 
@@ -755,13 +772,9 @@ const CardDetailModal = ({
           )}
         </div>
 
-        <hr className="jm-rule" />
-
-        {/* ── Description ── */}
-        <p className="jm-secthead">
-          <Icon name="AlignLeft" size={14} />
-          Description
-        </p>
+        {/* Everything below the rows is a closed row too, so the whole job
+            fits the window instead of running off the bottom of it. */}
+        <DrawerSection icon="AlignLeft" title="Notes" summary={noteSummary}>
         <div className="jm-section">
           {editMode && canEditCoreFields ? (
             <textarea
@@ -806,11 +819,13 @@ const CardDetailModal = ({
           )}
         </div>
 
-        {/* ── Department ── */}
-        <p className="jm-secthead">
-          <Icon name="Building2" size={14} />
-          Department
-        </p>
+        </DrawerSection>
+
+        <DrawerSection
+          icon="Building2"
+          title="Department"
+          summary={getDepartmentName(card?.department) || getDepartmentName(card?.department_id) || 'None'}
+        >
         <div className="jm-section">
           {editMode && canEditCoreFields ? (
             <select
@@ -832,6 +847,8 @@ const CardDetailModal = ({
             <p className="jm-hint">{getDisabledTooltip(currentUser, 'editCoreFields')}</p>
           )}
         </div>
+
+        </DrawerSection>
 
         {/* ── Assignees ──
             Hidden when the To Do rows are up, which already carry this. */}
@@ -951,20 +968,18 @@ const CardDetailModal = ({
           </div>
         )}
 
-        <hr className="jm-rule" />
-
-        {/* ── Labels ── */}
-        <p className="jm-secthead">
-          <Icon name="Tag" size={14} />
-          Labels
-        </p>
+        <DrawerSection
+          icon="Tag"
+          title="Labels"
+          summary={editedLabels?.length ? editedLabels.join(', ') : 'None'}
+        >
         <div className="jm-section">
-          {editedLabels?.length > 0 ? (
-            <div className="jm-pills" style={{ marginBottom: editMode && canFullEdit ? 10 : 0 }}>
+          {editedLabels?.length > 0 && (
+            <div className="jm-pills" style={{ marginBottom: canInteract ? 10 : 0 }}>
               {editedLabels?.map(label => (
                 <span key={label} className="jm-tag accent">
                   {label}
-                  {editMode && canFullEdit && (
+                  {canInteract && (
                     <span
                       role="button"
                       tabIndex={-1}
@@ -978,10 +993,11 @@ const CardDetailModal = ({
                 </span>
               ))}
             </div>
-          ) : (
-            !editMode && <p className="cd-text">No labels.</p>
           )}
-          {editMode && canFullEdit && (
+          {/* Available whenever you can touch the job, not only inside edit
+              mode — the section said "No labels." and gave you no way to add
+              one, which is just a dead end with a heading. */}
+          {canInteract && (
             <div className="dsr-inlineadd" style={{ marginTop: 0 }}>
               <input
                 type="text"
@@ -998,6 +1014,8 @@ const CardDetailModal = ({
             </div>
           )}
         </div>
+
+        </DrawerSection>
 
         {/* ── Steps, for anyone who does not get the row stack ──
             View-only readers and rotation jobs still need to see the steps;

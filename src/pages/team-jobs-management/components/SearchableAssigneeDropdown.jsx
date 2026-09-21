@@ -5,6 +5,9 @@ import '../job-modals.css';
 
 const SearchableAssigneeDropdown = ({ crewMembers, selectedAssignees, onChange, department }) => {
   const [isOpen, setIsOpen] = useState(false);
+  // Flips above the field when there is no room below — inside a drawer the
+  // menu was being cut off by the scrolling body and the crew list with it.
+  const [flipUp, setFlipUp] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const inputRef = useRef(null);
@@ -50,6 +53,13 @@ const SearchableAssigneeDropdown = ({ crewMembers, selectedAssignees, onChange, 
     document?.addEventListener('mousedown', handleClickOutside);
     return () => document?.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Decide which way the menu should open each time it does.
+  useEffect(() => {
+    if (!isOpen || !containerRef?.current) return;
+    const box = containerRef?.current?.getBoundingClientRect();
+    setFlipUp(window.innerHeight - box.bottom < 270);
+  }, [isOpen]);
 
   // Handle keyboard navigation
   const handleKeyDown = (e) => {
@@ -189,7 +199,7 @@ const SearchableAssigneeDropdown = ({ crewMembers, selectedAssignees, onChange, 
       </div>
 
       {isOpen && (
-        <div className="jm-combo-menu" ref={dropdownRef}>
+        <div className={`jm-combo-menu${flipUp ? ' up' : ''}`} ref={dropdownRef}>
           {dropdownOptions?.length === 0 ? (
             <p className="jm-combo-empty">No crew match that search</p>
           ) : (

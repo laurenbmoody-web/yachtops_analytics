@@ -155,7 +155,7 @@
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 12px; border-radius: 999px;
   font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif;
-  background: #FAFAF8; color: #1C1B3A; border: 1px solid #E5E7EB;
+  background: #F6F8FB; color: #1C1B3A; border: 1px solid #E5E7EB;
   cursor: pointer; transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 .tj-fp-opt:hover { border-color: #C9CED6; }
@@ -272,7 +272,15 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 .tj-col-menu .tj-menuitem.danger:hover { background: #FCF1F0; }
 
 /* column footer — total + add */
-.tj-col-foot { border-top: 1px solid #F0F1F5; padding-top: 12px; margin-top: 12px; }
+/* Inset from the card's edge rather than run to it. A 10px pill sitting
+   flush inside a 14px rounded card leaves two mismatched corners at the
+   bottom; giving it the same side margin as the body reads as part of the
+   card instead of a lid that does not fit. */
+.tj-col-foot {
+  border-top: 1px solid #F0F1F5;
+  padding: 12px 16px 14px;
+  margin-top: 12px;
+}
 .tj-col-total {
   display: flex; align-items: center; justify-content: space-between;
   font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
@@ -284,7 +292,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
    the way the inputs do, and finds its edge on hover. */
 .tj-addjob {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 9px; border-radius: 10px; border: 1px solid transparent; background: #FAFAF8;
+  padding: 9px; border-radius: 10px; border: 1px solid transparent; background: #F6F8FB;
   font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
   cursor: pointer; transition: color 0.14s, border-color 0.14s, background 0.14s;
 }
@@ -321,7 +329,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 .tj-pill {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 2px 9px; border-radius: 999px;
-  background: #FAFAF8; border: 1px solid #EEF0F4; color: #6B7280;
+  background: #F6F8FB; border: 1px solid #EEF0F4; color: #6B7280;
   font-size: 10.5px; font-weight: 600;
 }
 .tj-pill.rotation { background: #FBEFE9; border-color: #F3D9CB; color: #C65A1A; }
@@ -386,7 +394,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
   display: flex; flex-direction: column; align-items: center;
   transition: border-color 0.16s, background 0.16s;
 }
-.tj-newboard:hover { border-color: #C65A1A; background: #FDF6F2; }
+.tj-newboard:hover { border-color: #C65A1A; background: #F2F6FB; }
 .tj-newboard-ico {
   width: 46px; height: 46px; border-radius: 999px; margin-bottom: 14px;
   background: #FBEFE9; display: flex; align-items: center; justify-content: center;
@@ -467,10 +475,10 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 .tj-quickadd-row {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 10px; border-radius: 10px;
-  border: 1px solid transparent; background: #FAFAF8;
+  border: 1px solid transparent; background: #F6F8FB;
   transition: border-color 0.14s, background 0.14s, box-shadow 0.14s;
 }
-.tj-quickadd-row:hover { border-color: #E5E7EB; background: #F5F5F2; }
+.tj-quickadd-row:hover { border-color: #E5E7EB; background: #EEF2F7; }
 .tj-quickadd-row.on {
   border-color: #C65A1A; background: #FFFFFF;
   box-shadow: 0 0 0 3px #FAECE7;
