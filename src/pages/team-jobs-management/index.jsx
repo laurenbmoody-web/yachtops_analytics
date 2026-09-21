@@ -3,7 +3,7 @@ import { isoToUK } from '../../utils/dateFormat';
 import '../../styles/editorial.css';
 import './team-jobs.css';
 import './job-modals.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 
@@ -174,6 +174,10 @@ const TeamJobsManagement = () => {
   // ── State declarations ──
   const [boards, setBoards] = useState(() => loadBoards());
   const [cards, setCards] = useState(() => loadCards());
+  // ?job=<id> opens that job straight away. The dashboard widget has always
+  // linked here with it and the page ignored it, so clicking a job on the
+  // dashboard dropped you on the board and left you to find it again.
+  const [searchParams, setSearchParams] = useSearchParams();
   const [departments, setDepartments] = useState([]);
   const [departmentFilter, setDepartmentFilter] = useState(null);
   const [deptLoading, setDeptLoading] = useState(false);
@@ -1810,6 +1814,24 @@ const TeamJobsManagement = () => {
   };
 
   const handleCardClick = (card) => { setSelectedCard(card); };
+
+  // Open the job named in ?job= once the lists have it, then drop the param so
+  // a refresh or a back does not keep reopening the same pane. Runs once per
+  // id: openedFromUrl remembers which one has been honoured.
+  const openedFromUrl = useRef(null);
+  useEffect(() => {
+    const wanted = searchParams?.get('job');
+    if (!wanted || openedFromUrl?.current === wanted) return;
+    const match = mergedCards?.find(c => c?.id === wanted || c?.supabase_id === wanted);
+    if (!match) return;                       // not loaded yet — try again next render
+    openedFromUrl.current = wanted;
+    setSelectedCard(match);
+    const next = new URLSearchParams(searchParams);
+    next.delete('job');
+    setSearchParams(next, { replace: true });
+    // searchParams/setSearchParams are stable enough for this one-shot
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, mergedCards]);
 
   // The detail modal calls onUpdate(cardId, patch) — a partial, never a whole
   // card. This was written for a whole card, so `updatedCard?.id` was undefined,

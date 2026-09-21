@@ -287,9 +287,13 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
           corridors — today" wraps, and sharing that row with the button and
           the count made all three cramped. Title and chevron own the first
           line; the bar, then Tick all dailies and the count, sit under it. */}
+      {/* Title, count and chevron on one line; the bulk action under it only
+          when there are dailies to bulk. The count travels with the title
+          rather than sitting on its own row with the button. */}
       <button type="button" className="dc-toggle" onClick={() => setListOpen(!listOpen)}>
         <Icon name="ListChecks" size={14} />
         <span className="dc-toggle-name">{template?.name} — today</span>
+        <span className="cd-progress-count">{doneCount}/{total}</span>
         <Icon name={listOpen ? 'ChevronUp' : 'ChevronDown'} size={14} />
       </button>
       <div className="dc-headfoot">
@@ -307,10 +311,13 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
                 : (allDailiesDone ? 'Clear dailies' : 'Tick all dailies')}
             </button>
           )}
-          <span className="cd-progress-count">{doneCount}/{total}</span>
         </div>
       </div>
-      <div className="cd-progress"><div className="bar" style={{ width: `${pct}%` }} /></div>
+      {/* No track when nothing is done — an empty 5px bar across the whole
+          pane reads as a heavy rule, not as progress. */}
+      {doneCount > 0 && (
+        <div className="cd-progress dc-bar"><div className="bar" style={{ width: `${pct}%` }} /></div>
+      )}
 
       {/* Dailies — always */}
       {listOpen && grouped?.today?.length > 0 && (

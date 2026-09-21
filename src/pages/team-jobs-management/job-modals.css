@@ -1459,7 +1459,11 @@
 /* The duty header on two lines: title and chevron, then the bar, then the
    bulk action and the count. All three on one line left a wrapped title
    fighting a button for width. */
-.dc-toggle { width: 100%; justify-content: flex-start; padding: 2px 0 6px; }
+.dc-toggle {
+  width: 100%; justify-content: flex-start; gap: 8px;
+  padding: 2px 0 0; background: none; border: 0;
+}
 .dc-toggle-name { flex: 1; min-width: 0; text-align: left; line-height: 1.4; }
-.dc-headfoot { display: flex; justify-content: flex-end; margin-top: 8px; }
+.dc-headfoot { display: flex; justify-content: flex-start; margin: 8px 0 2px; }
 .dc-headfoot .dc-headside { display: flex; align-items: center; gap: 10px; }
+.dc-bar { height: 3px; margin: 6px 0 10px; }
