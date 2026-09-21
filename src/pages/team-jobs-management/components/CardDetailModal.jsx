@@ -575,6 +575,27 @@ const CardDetailModal = ({
                   <button type="button" className="jm-pill" onClick={() => applyQuick({ dueDate: isoDaysFromToday(0) })}>Today</button>
                   <button type="button" className="jm-pill" onClick={() => applyQuick({ dueDate: isoDaysFromToday(1) })}>Tomorrow</button>
                   <button type="button" className="jm-pill" onClick={() => applyQuick({ dueDate: isoDaysFromToday(7) })}>Next week</button>
+                  {/* The same one-day push the card carries, so deferring from
+                      here and deferring from the board mean the same thing.
+                      Relative to the job's own date, not to today. */}
+                  {card?.dueDate && (
+                    <button
+                      type="button"
+                      className="jm-pill"
+                      onClick={() => {
+                        const base = new Date(String(card?.dueDate)?.split('T')?.[0]);
+                        if (Number.isNaN(base?.getTime())) return;
+                        base?.setDate(base?.getDate() + 1);
+                        const pad = (n) => String(n)?.padStart(2, '0');
+                        applyQuick({
+                          dueDate: `${base?.getFullYear()}-${pad(base?.getMonth() + 1)}-${pad(base?.getDate())}`,
+                        });
+                      }}
+                    >
+                      <Icon name="ChevronsRight" size={12} />
+                      A day on
+                    </button>
+                  )}
                 </div>
                 <DateInput
                   className="jm-input"
