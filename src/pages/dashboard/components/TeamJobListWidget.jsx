@@ -89,7 +89,11 @@ const TeamJobListWidget = () => {
         return b.urgent - a.urgent;
       });
 
-      setJobs(shaped);
+      // Today's work only. The widget is the "what am I doing now" card, and
+      // a job due Tuesday sitting under four due today is noise on a Monday.
+      // Overdue stays: something that should have been done yesterday is very
+      // much today's problem. rank 0 = overdue, 1 = today.
+      setJobs(shaped.filter((j) => j.due.rank <= 1));
       setDoneToday(doneRes.count || 0);
     } catch (err) {
       console.error('[TeamJobListWidget] fetch error:', err);
