@@ -537,3 +537,19 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
   font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 .tj-menu-done:hover { background: #B14E16; }
+
+/* Push the due date on a day, from the card. Appears on hover so a board at
+   rest stays quiet; always there on touch, where there is no hover to give
+   it away. */
+.tj-due-push {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: 4px; padding: 1px; border: 0; background: none; cursor: pointer;
+  color: #AEB4C2; border-radius: 5px;
+  opacity: 0; transition: opacity 0.14s, color 0.14s, background 0.14s;
+}
+.tj-card:hover .tj-due-push,
+.tj-due-push:focus-visible { opacity: 1; }
+.tj-due-push:hover { color: #C65A1A; background: #FBEFE9; }
+@media (hover: none) {
+  .tj-due-push { opacity: 1; }
+}

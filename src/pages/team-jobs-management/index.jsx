@@ -1813,25 +1813,27 @@ const TeamJobsManagement = () => {
     }
   };
 
+  /**
+   * Push a job's due date on by a day, from the card.
+   *
+   * Deferring is the commonest edit there is on a list like this — at the end
+   * of a watch, half of what did not get done just moves to tomorrow — and
+   * making it cost an open, a row, a picker and a close is why lists go
+   * stale instead. From an undated job it means "due tomorrow".
+   */
+  const pushDueDateByADay = (card, e) => {
+    e?.stopPropagation();
+    const raw = card?.dueDate || card?.due_date || null;
+    const base = raw ? new Date(String(raw)?.split('T')?.[0]) : new Date();
+    if (Number.isNaN(base?.getTime())) return;
+    base?.setDate(base?.getDate() + 1);
+    const pad = (n) => String(n)?.padStart(2, '0');
+    const next = `${base?.getFullYear()}-${pad(base?.getMonth() + 1)}-${pad(base?.getDate())}`;
+    handleCardUpdate(card?.id, { dueDate: next });
+  };
+
   const handleCardClick = (card) => { setSelectedCard(card); };
 
-  // Open the job named in ?job= once the lists have it, then drop the param so
-  // a refresh or a back does not keep reopening the same pane. Runs once per
-  // id: openedFromUrl remembers which one has been honoured.
-  const openedFromUrl = useRef(null);
-  useEffect(() => {
-    const wanted = searchParams?.get('job');
-    if (!wanted || openedFromUrl?.current === wanted) return;
-    const match = mergedCards?.find(c => c?.id === wanted || c?.supabase_id === wanted);
-    if (!match) return;                       // not loaded yet — try again next render
-    openedFromUrl.current = wanted;
-    setSelectedCard(match);
-    const next = new URLSearchParams(searchParams);
-    next.delete('job');
-    setSearchParams(next, { replace: true });
-    // searchParams/setSearchParams are stable enough for this one-shot
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, mergedCards]);
 
   // The detail modal calls onUpdate(cardId, patch) — a partial, never a whole
   // card. This was written for a whole card, so `updatedCard?.id` was undefined,
@@ -1915,6 +1917,29 @@ const TeamJobsManagement = () => {
     const localOnly = safeCards?.filter(c => !c?.supabase_id || !supabaseIds?.has(c?.supabase_id));
     return [...supabaseJobs, ...localOnly];
   }, [supabaseJobs, cards]);
+
+  // Open the job named in ?job= once the lists have it, then drop the param so
+  // a refresh or a back does not keep reopening the same pane. Runs once per
+  // id: openedFromUrl remembers which one has been honoured.
+  //
+  // Deliberately BELOW mergedCards. This effect names it in its dependency
+  // array, and a dependency array is built during render — sitting above the
+  // const meant reading it in its temporal dead zone, which took the whole
+  // page down with "Cannot access 'mergedCards' before initialization".
+  const openedFromUrl = useRef(null);
+  useEffect(() => {
+    const wanted = searchParams?.get('job');
+    if (!wanted || openedFromUrl?.current === wanted) return;
+    const match = mergedCards?.find(c => c?.id === wanted || c?.supabase_id === wanted);
+    if (!match) return;                       // not loaded yet — try again next render
+    openedFromUrl.current = wanted;
+    setSelectedCard(match);
+    const next = new URLSearchParams(searchParams);
+    next.delete('job');
+    setSearchParams(next, { replace: true });
+    // searchParams/setSearchParams are stable enough for this one-shot
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, mergedCards]);
 
   const tasks = mergedCards?.filter(c => c?.type === 'task' || !c?.type);
   const dutySets = mergedCards?.filter(c => c?.type === 'dutyset');
@@ -2352,6 +2377,19 @@ const TeamJobsManagement = () => {
                   <span className={`due${isOverdue ? ' overdue' : ''}`}>
                     <Icon name={isOverdue ? 'AlertTriangle' : 'Calendar'} size={11} />
                     {isoToUK(due)}
+                    {/* One day on, without opening anything. Shows on hover so
+                        the card stays quiet until you reach for it. */}
+                    {showEditPen && !isCompleted && (
+                      <button
+                        type="button"
+                        className="tj-due-push"
+                        title="Push to the next day"
+                        aria-label="Push due date to the next day"
+                        onClick={(e) => pushDueDateByADay(item, e)}
+                      >
+                        <Icon name="ChevronsRight" size={11} />
+                      </button>
+                    )}
                   </span>
                 )}
                 {item?.source === 'rotation' && (
