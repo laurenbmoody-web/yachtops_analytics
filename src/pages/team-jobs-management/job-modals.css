@@ -87,7 +87,7 @@
   width: 100%; box-sizing: border-box;
   padding: 10px 13px;
   font: 400 13.5px 'Plus Jakarta Sans', system-ui, sans-serif;
-  color: #1C1B3A; background: #FAFAF8;
+  color: #1C1B3A; background: #F6F8FB;
   border: 1px solid #E5E7EB; border-radius: 10px;
   transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
 }
@@ -184,7 +184,7 @@
   display: inline-flex; align-items: center; gap: 6px;
   padding: 7px 14px; border-radius: 999px;
   font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif;
-  background: #FAFAF8; color: #1C1B3A; border: 1px solid #E5E7EB;
+  background: #F6F8FB; color: #1C1B3A; border: 1px solid #E5E7EB;
   cursor: pointer; transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 .jm-pill:hover:not(:disabled) { border-color: #C9CED6; }
@@ -197,7 +197,7 @@
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px 10px; border-radius: 999px;
   font: 600 11px 'Plus Jakarta Sans', system-ui, sans-serif;
-  background: #FAFAF8; border: 1px solid #EEF0F4; color: #6B7280;
+  background: #F6F8FB; border: 1px solid #EEF0F4; color: #6B7280;
 }
 .jm-tag.accent { background: #FBEFE9; border-color: #F3D9CB; color: #C65A1A; }
 .jm-tag.danger { background: #FCF1F0; border-color: #F3D5D2; color: #C0453C; }
@@ -304,6 +304,8 @@
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
   z-index: 60; padding: 5px; max-height: 250px; overflow-y: auto;
 }
+/* Opens upward when the field sits low in a drawer. */
+.jm-combo-menu.up { top: auto; bottom: calc(100% + 6px); }
 
 /* ── calendar grid (archive) ────────────────────────────────── */
 .jm-cal-head {
@@ -363,7 +365,7 @@
   display: flex; align-items: center; gap: 10px;
   padding: 9px 13px; min-height: 40px;
   font: 400 13.5px 'Plus Jakarta Sans', system-ui, sans-serif;
-  color: #1C1B3A; background: #FAFAF8; text-align: left;
+  color: #1C1B3A; background: #F6F8FB; text-align: left;
   border: 1px solid #E5E7EB; border-radius: 10px; cursor: pointer;
   transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
 }
@@ -397,10 +399,10 @@
 .jm-drop {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 22px 16px; border-radius: 12px; cursor: pointer; text-align: center;
-  border: 1px dashed #D8DCE4; background: #FAFAF8;
+  border: 1px dashed #D8DCE4; background: #F6F8FB;
   transition: border-color 0.14s, background 0.14s;
 }
-.jm-drop:hover { border-color: #C65A1A; background: #FDF6F2; }
+.jm-drop:hover { border-color: #C65A1A; background: #F2F6FB; }
 .jm-drop-ico {
   width: 38px; height: 38px; border-radius: 999px; margin-bottom: 10px;
   background: #FBEFE9; display: flex; align-items: center; justify-content: center;
@@ -412,7 +414,7 @@
 .jm-file {
   display: flex; align-items: center; gap: 9px;
   padding: 9px 12px; border-radius: 10px;
-  background: #FAFAF8; border: 1px solid #EEF0F4;
+  background: #F6F8FB; border: 1px solid #EEF0F4;
   font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
 }
 .jm-file > svg { color: #8B8478; flex-shrink: 0; }
@@ -441,7 +443,7 @@
   padding: 13px; border-radius: 11px; border: 1px solid transparent; background: none;
   cursor: pointer; transition: background 0.12s, border-color 0.12s;
 }
-.rq-item:hover { background: #FAFAF8; }
+.rq-item:hover { background: #F6F8FB; }
 .rq-item.on { background: #FBEFE9; border-color: #F3D9CB; }
 .rq-item-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 9px; }
 .rq-item-title {
@@ -610,7 +612,7 @@
 .ar-history { display: flex; flex-direction: column; gap: 7px; }
 .ar-hist {
   padding: 10px 12px; border-radius: 10px;
-  background: #FAFAF8; border: 1px solid #EEF0F4;
+  background: #F6F8FB; border: 1px solid #EEF0F4;
 }
 .ar-hist-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .ar-hist .who { font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
@@ -675,7 +677,7 @@
 
 .jm-subcard {
   padding: 14px; border-radius: 12px; margin-bottom: 11px;
-  background: #FAFAF8; border: 1px solid #EEF0F4;
+  background: #F6F8FB; border: 1px solid #EEF0F4;
 }
 .jm-subcard-head {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 11px;
@@ -710,7 +712,7 @@
 .jm-toggle-row {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 14px 16px; border-radius: 12px;
-  background: #FAFAF8; border: 1px solid #EEF0F4;
+  background: #F6F8FB; border: 1px solid #EEF0F4;
 }
 .jm-toggle-t { margin: 0; font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
 .jm-toggle-s {
@@ -769,7 +771,7 @@
 .cd-meta { border: 1px solid #EEF0F4; border-radius: 12px; overflow: hidden; }
 .cd-meta-head {
   width: 100%; display: flex; align-items: center; gap: 12px;
-  padding: 13px 15px; background: #FAFAF8; border: none; cursor: pointer; text-align: left;
+  padding: 13px 15px; background: #F6F8FB; border: none; cursor: pointer; text-align: left;
   transition: background 0.12s;
 }
 .cd-meta-head:hover { background: #F5F6F8; }
@@ -803,14 +805,14 @@
 }
 .cd-decision-note {
   display: block; margin-top: 8px; padding: 9px 11px; border-radius: 9px;
-  background: #FAFAF8; border: 1px solid #EEF0F4; text-transform: none;
+  background: #F6F8FB; border: 1px solid #EEF0F4; text-transform: none;
   font: 400 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #4A5568;
 }
 
 /* assignee picker rows */
 .cd-picklist {
   max-height: 190px; overflow-y: auto; padding: 6px;
-  border: 1px solid #E5E7EB; border-radius: 11px; background: #FAFAF8;
+  border: 1px solid #E5E7EB; border-radius: 11px; background: #F6F8FB;
   display: flex; flex-direction: column; gap: 2px;
 }
 .cd-pickrow { padding: 7px 8px; border-radius: 9px; transition: background 0.12s; }
@@ -834,8 +836,15 @@
   transition: background 0.12s, color 0.12s;
 }
 .cd-row:last-child { border-bottom: none; }
-.cd-row:hover { background: #FAFAF8; color: #1C1B3A; }
-.cd-row.open { background: #FBEFE9; color: #C65A1A; }
+.cd-row:hover { background: #F6F8FB; color: #1C1B3A; }
+/* The open row is marked by a terracotta rule and terracotta type, not by a
+   wash of #FBEFE9 across its whole width. That tint is for a chip or an icon
+   badge; spread over a full-width row in a white drawer it reads as beige,
+   which is the one thing the canvas is not. */
+.cd-row.open {
+  background: none; color: #C65A1A;
+  box-shadow: inset 2px 0 0 #C65A1A;
+}
 /* set = this job already has a value, so the row reads it back */
 .cd-row.set { color: #1C1B3A; font-weight: 600; }
 .cd-rowico {
@@ -862,7 +871,7 @@
 
 /* the editor a row opens, sitting under it inside the stack */
 .cd-rowpanel {
-  padding: 13px 14px 15px; background: #FAFAF8;
+  padding: 13px 14px 15px; background: #F6F8FB;
   border-bottom: 1px solid #F0F1F5;
 }
 .cd-rowpanel:last-child { border-bottom: none; }
@@ -929,7 +938,7 @@
   cursor: text; border-radius: 9px; padding: 8px 10px; margin: -8px -10px;
   transition: background 0.12s, box-shadow 0.12s;
 }
-.cd-detailedit:hover { background: #FAFAF8; box-shadow: inset 0 0 0 1px #EEF0F4; }
+.cd-detailedit:hover { background: #F6F8FB; box-shadow: inset 0 0 0 1px #EEF0F4; }
 .cd-detailedit:focus-visible { outline: 2px solid #C65A1A; outline-offset: 2px; }
 .cd-detailedit.empty { color: #AEB4C2; font-style: italic; }
 
@@ -952,13 +961,13 @@
 .cd-quickbtn.set { color: #1C1B3A; font-weight: 600; }
 .cd-quickbtn.set svg { color: #C65A1A; }
 .cd-quickbtn.on {
-  border-color: #C65A1A; background: #FBEFE9; color: #C65A1A;
+  border-color: #C65A1A; background: #FFFFFF; color: #C65A1A;
 }
 .cd-quickbtn.on svg { color: #C65A1A; }
 
 .cd-quickpanel {
   margin-top: 12px; padding: 14px; border-radius: 12px;
-  border: 1px solid #EEF0F4; background: #FAFAF8;
+  border: 1px solid #EEF0F4; background: #F6F8FB;
 }
 .cd-quickpanel .jm-label { margin-top: 0; }
 .cd-quickclear {
@@ -979,7 +988,7 @@
 }
 .cd-progress .bar { height: 100%; border-radius: 999px; background: #C65A1A; transition: width 0.3s; }
 .cd-checkrow { padding: 7px 6px; border-radius: 9px; width: 100%; transition: background 0.12s; }
-.cd-checkrow:hover { background: #FAFAF8; }
+.cd-checkrow:hover { background: #F6F8FB; }
 .cd-checkrow .t { flex: 1; min-width: 0; }
 .cd-checkrow .t.done { text-decoration: line-through; color: #8B8478; }
 .cd-checkrow .rm { display: flex; color: #AEB4C2; cursor: pointer; opacity: 0; transition: opacity 0.12s, color 0.12s; }
@@ -989,7 +998,7 @@
 /* notes */
 .cd-note {
   padding: 11px 13px; border-radius: 11px; margin-bottom: 8px;
-  background: #FAFAF8; border: 1px solid #EEF0F4;
+  background: #F6F8FB; border: 1px solid #EEF0F4;
 }
 .cd-note-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 5px; }
 .cd-note .who { font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
@@ -1007,8 +1016,8 @@
   padding: 11px 13px; background: none; border: none; cursor: pointer;
   transition: background 0.12s;
 }
-.cd-auditrow-head:hover { background: #FAFAF8; }
-.cd-auditrow-head.on { background: #FAFAF8; }
+.cd-auditrow-head:hover { background: #F6F8FB; }
+.cd-auditrow-head.on { background: #F6F8FB; }
 .cd-auditrow-head .what {
   flex: 1; min-width: 0;
   font: 400 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #6B7280; line-height: 1.5;
@@ -1140,7 +1149,7 @@
 
 .jl-picker {
   margin-top: 13px; padding: 14px; border-radius: 12px;
-  border: 1px solid #EEF0F4; background: #FAFAF8;
+  border: 1px solid #EEF0F4; background: #F6F8FB;
 }
 .jl-results { margin-top: 11px; max-height: 260px; overflow-y: auto; }
 .jl-grouphead {
@@ -1346,7 +1355,7 @@
   border-radius: 8px;
   transition: background 0.14s;
 }
-.jm-accbtn:hover { background: #FAFAF8; }
+.jm-accbtn:hover { background: #F6F8FB; }
 .jm-accico { color: #8B8478; display: inline-flex; flex-shrink: 0; }
 .jm-acc.open .jm-accico, .jm-accbtn:hover .jm-accico { color: #C65A1A; }
 .jm-acctitle { flex-shrink: 0; }
@@ -1364,3 +1373,6 @@
 /* The title stays out of the accordion — it is the task, not a field. */
 .jm-titlealways { margin-bottom: 6px; }
 .jm-titlealways .jm-titlefield { width: 100%; }
+
+/* Date + time + Set, on one line. */
+.cd-remindtime { width: 104px; flex-shrink: 0; }

@@ -613,6 +613,9 @@ const TeamJobsManagement = () => {
         metadata: j?.metadata || [],
         source: j?.source || null,
         rotation_assignment_id: j?.rotation_assignment_id || null,
+        // Labels come back from the row now that the column exists; notes,
+        // attachments and the checklist still have nowhere to live.
+        labels: Array.isArray(j?.labels) ? j?.labels : [],
         notes: [],
         attachments: [],
         activity: [],
@@ -830,7 +833,7 @@ const TeamJobsManagement = () => {
       assigned_to: assignedTo, assignees: assignedTo ? [assignedTo] : [],
       priority: null, is_private: isPrivate,
       created_by: userId, createdAt: new Date()?.toISOString(),
-      notes: [], attachments: [], activity: [], checklist: []
+      labels: [], notes: [], attachments: [], activity: [], checklist: []
     };
     // Every write here goes through the updater form. The whole point of this
     // row is that you can add several in a row, and `cards` captured from a
@@ -1841,10 +1844,11 @@ const TeamJobsManagement = () => {
       || (String(cardId)?.includes('-') && !String(cardId)?.startsWith('card-') ? cardId : null);
     if (!supabaseId || !activeTenantId) return;
 
-    // Only the fields team_jobs actually has. Labels, checklist and notes have
-    // no columns yet, so they stay local rather than failing the whole update —
+    // Only the fields team_jobs actually has. Checklist and notes have no
+    // columns yet, so they stay local rather than failing the whole update —
     // PostgREST rejects an update naming a column it does not know.
     const row = { updated_at: new Date()?.toISOString() };
+    if ('labels' in patch) row.labels = Array.isArray(patch?.labels) ? patch?.labels : [];
     if ('title' in patch) row.title = patch?.title || null;
     if ('description' in patch) row.description = patch?.description || null;
     if ('priority' in patch) row.priority = patch?.priority || null;

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Icon from '../../../components/AppIcon';
+import DateInput from '../../../components/ui/DateInput';
 import {
   loadJobReminders,
   setJobReminder,
@@ -40,7 +41,8 @@ const JobReminder = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [forUserId, setForUserId] = useState(currentUserId || '');
-  const [custom, setCustom] = useState('');
+  const [customDate, setCustomDate] = useState('');
+  const [customTime, setCustomTime] = useState('09:00');
 
   const jobId = job?.supabase_id || job?.id || null;
 
@@ -102,7 +104,7 @@ const JobReminder = ({
       });
       await refresh();
       setOpen(false);
-      setCustom('');
+      setCustomDate('');
     } catch (err) {
       console.warn('[JobReminder] save failed:', err);
       setError(err?.message || 'That reminder did not save.');
@@ -194,19 +196,28 @@ const JobReminder = ({
             ))}
           </div>
 
+          {/* A date and a time, not input[type=datetime-local] — that drew
+              the browser's calendar, which is the one thing on this panel
+              that did not look like Cargo. */}
           <div className="cd-remindrow">
-            <input
-              type="datetime-local"
+            <DateInput
               className="jm-input"
-              value={custom}
-              onChange={(e) => setCustom(e?.target?.value)}
+              value={customDate}
+              onChange={(e) => setCustomDate(e?.target?.value)}
+            />
+            <input
+              type="time"
+              className="jm-input cd-remindtime"
+              value={customTime}
+              onChange={(e) => setCustomTime(e?.target?.value)}
+              aria-label="Time"
             />
             <button
               type="button"
               className="jm-btn primary sm"
-              disabled={!custom || saving}
+              disabled={!customDate || saving}
               onClick={() => {
-                const d = fromWallClock(custom);
+                const d = fromWallClock(`${customDate}T${customTime || '09:00'}`);
                 if (d) (fired ? snooze(toWallClock(d)) : save(toWallClock(d)));
               }}
             >
