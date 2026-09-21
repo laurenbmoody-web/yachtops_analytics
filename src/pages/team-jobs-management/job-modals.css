@@ -1413,3 +1413,32 @@
 .jm-drawer .jm-section { margin-bottom: 10px; }
 .jm-drawer .jm-rule { margin: 10px 0; }
 .jm-drawer .cd-text { margin: 0; }
+
+/* ── compact read-outs at the bottom of the detail pane ──────────
+   Label left in tracked caps, value right, one line each. */
+.jm-drawer .cd-kv {
+  display: flex; align-items: baseline; gap: 14px;
+  padding: 8px 0; margin-bottom: 0;
+  border-bottom: 1px solid #F0F1F5;
+}
+.jm-drawer .cd-kv > .k {
+  display: inline-flex; align-items: center; gap: 6px;
+  flex: 0 0 auto; min-width: 84px;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478;
+}
+.jm-drawer .cd-kv > .k svg { color: #8B8478; }
+/* Everything that is not the label shares the rest of the line, right-aligned. */
+.jm-drawer .cd-kv > *:not(.k) {
+  flex: 1; min-width: 0; margin: 0; text-align: right;
+}
+.jm-drawer .cd-kv > .cd-addmini { flex: 0 0 auto; }
+.jm-drawer .cd-kv .cd-text,
+.jm-drawer .cd-kv .cd-detailedit {
+  font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jm-drawer .cd-kv .cd-detailedit.empty { color: #8B8478; }
+.jm-drawer .cd-kv .jm-pills { justify-content: flex-end; }
+.jm-drawer .cd-kv .dsr-inlineadd { display: flex; gap: 6px; }

@@ -776,11 +776,13 @@ const CardDetailModal = ({
             mostly read-only; giving each one a chevron added lines and
             furniture to a pane whose whole job is to be glanceable. The rows
             above are the things you SET — this is what the job already is. */}
-        <p className="jm-secthead">
-          <Icon name="AlignLeft" size={14} />
-          Description
-        </p>
-        <div className="jm-section">
+        {/* Label left, value right, one line each. Each of these was a
+            heading on one line and a short value on the next, which is what
+            pushed the bottom of the pane onto a scrollbar. Opening exactly
+            one div, as the heading-plus-section did, so the tag balance of a
+            1,200-line file cannot drift. */}
+        <div className="jm-section cd-kv">
+          <span className="k"><Icon name="AlignLeft" size={12} />Description</span>
           {editMode && canEditCoreFields ? (
             <textarea
               className="jm-textarea"
@@ -824,11 +826,8 @@ const CardDetailModal = ({
           )}
         </div>
 
-        <p className="jm-secthead">
-          <Icon name="Building2" size={14} />
-          Department
-        </p>
-        <div className="jm-section">
+        <div className="jm-section cd-kv">
+          <span className="k"><Icon name="Building2" size={12} />Department</span>
           {editMode && canEditCoreFields ? (
             <select
               className="jm-select"
@@ -968,21 +967,14 @@ const CardDetailModal = ({
           </div>
         )}
 
-        <hr className="jm-rule" />
-
-        <div className="jm-secthead-row">
-          <p className="jm-secthead">
-            <Icon name="Tag" size={14} />
-            Labels
-          </p>
+        <div className="jm-section cd-kv">
+          <span className="k"><Icon name="Tag" size={12} />Labels</span>
           {canInteract && !showLabelAdd && (
             <button type="button" className="cd-addmini" onClick={() => setShowLabelAdd(true)}>
-              <Icon name="Plus" size={13} />
+              <Icon name="Plus" size={12} />
               Add
             </button>
           )}
-        </div>
-        <div className="jm-section">
           {editedLabels?.length > 0 && (
             <div className="jm-pills" style={{ marginBottom: canInteract ? 10 : 0 }}>
               {editedLabels?.map(label => (
@@ -1052,19 +1044,14 @@ const CardDetailModal = ({
         <hr className="jm-rule" />
 
         {/* ── Notes ── */}
-        <div className="jm-secthead-row">
-          <p className="jm-secthead">
-            <Icon name="MessageSquare" size={14} />
-            Notes
-          </p>
+        <div className="jm-section cd-kv">
+          <span className="k"><Icon name="MessageSquare" size={12} />Notes</span>
           {modalMode === 'FULL' && canAddNotes && !showNoteAdd && (
             <button type="button" className="cd-addmini" onClick={() => setShowNoteAdd(true)}>
-              <Icon name="Plus" size={13} />
+              <Icon name="Plus" size={12} />
               Add
             </button>
           )}
-        </div>
-        <div className="jm-section">
           {notes?.map(note => (
             <div key={note?.id} className="cd-note">
               <div className="cd-note-top">
