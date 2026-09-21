@@ -3,25 +3,68 @@ import Icon from '../../../components/AppIcon';
 import '../job-modals.css';
 
 /**
- * One collapsed row that opens in place — the To Do move, applied to a form.
+ * One section of a job drawer, in the three shapes the drawers need.
  *
- * The edit drawer had seven sections stacked end to end, so finding Recurrence
- * meant scrolling past every checklist item. Collapsed, the whole job fits in
- * one view and each row reads back its own state, so you can see what is set
- * without opening anything.
+ *   variant="row"      the To Do row: icon, the value where the label would
+ *                      be, opening in place. For the handful of things you
+ *                      set in passing — due date, assignee, priority.
+ *   variant="plain"    a heading with its contents always showing. For the
+ *                      rest, which read better as sections than as a stack of
+ *                      chevrons; a chevron on a short read-out costs a line
+ *                      and saves nothing.
+ *   variant="accordion" the collapsed row with its value on the right.
  *
- * `summary` is what the row says while shut. Make it the value, not a count of
- * fields: "Tomorrow, Interior, high" tells you something; "5 fields" does not.
+ * `summary` is what the section says about itself while shut. Make it the
+ * value, not a count of fields: "Interior · Additional jobs" tells you
+ * whether to open it; "2 fields" never does.
  */
+const EMPTY = ['none', 'not set', 'nobody', 'no board', 'one-time job', 'not part of one'];
+
 const DrawerSection = ({
   icon,
   title,
   summary,
   action,
   defaultOpen = false,
+  variant = 'accordion',
   children,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
+
+  if (variant === 'plain') {
+    return (
+      <div className="jm-plainsec">
+        <div className="jm-plainhead">
+          <p className="jm-secthead">
+            <Icon name={icon} size={14} />
+            {title}
+          </p>
+          {action}
+        </div>
+        {children}
+      </div>
+    );
+  }
+
+  if (variant === 'row') {
+    // A row that is set reads its value back; one that is not reads as the
+    // invitation. Same as the detail pane, which is the point.
+    const isSet = summary && !EMPTY.includes(String(summary).toLowerCase());
+    return (
+      <>
+        <button
+          type="button"
+          className={`cd-row${open ? ' open' : ''}${isSet ? ' set' : ''}`}
+          onClick={() => setOpen(!open)}
+          aria-expanded={open}
+        >
+          <span className="cd-rowico"><Icon name={icon} size={15} /></span>
+          <span className="cd-rowlabel">{isSet ? summary : title}</span>
+        </button>
+        {open && <div className="cd-rowpanel">{children}</div>}
+      </>
+    );
+  }
 
   return (
     <div className={`jm-acc${open ? ' open' : ''}`}>
@@ -39,9 +82,6 @@ const DrawerSection = ({
             <Icon name={open ? 'ChevronUp' : 'ChevronDown'} size={15} />
           </span>
         </button>
-        {/* Section-level actions (Add checklist) stay reachable, but only
-            while the section is open — a button for a section you cannot see
-            is just noise. */}
         {open && action}
       </div>
       {open && <div className="jm-accbody">{children}</div>}
