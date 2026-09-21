@@ -69,6 +69,12 @@ const CardDetailModal = ({
   const [editedPriority, setEditedPriority] = useState(card?.priority || 'medium');
   const [editedLabels, setEditedLabels] = useState(card?.labels || []);
   const [newLabel, setNewLabel] = useState('');
+  // The add fields for labels and notes are revealed, not always on. Two
+  // permanently-open input boxes at the bottom of the pane cost about 80px
+  // between them and were the difference between the job fitting the window
+  // and not.
+  const [showLabelAdd, setShowLabelAdd] = useState(false);
+  const [showNoteAdd, setShowNoteAdd] = useState(false);
   const [checklist, setChecklist] = useState(card?.checklist || []);
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [notes, setNotes] = useState(card?.notes || []);
@@ -964,10 +970,18 @@ const CardDetailModal = ({
 
         <hr className="jm-rule" />
 
-        <p className="jm-secthead">
-          <Icon name="Tag" size={14} />
-          Labels
-        </p>
+        <div className="jm-secthead-row">
+          <p className="jm-secthead">
+            <Icon name="Tag" size={14} />
+            Labels
+          </p>
+          {canInteract && !showLabelAdd && (
+            <button type="button" className="cd-addmini" onClick={() => setShowLabelAdd(true)}>
+              <Icon name="Plus" size={13} />
+              Add
+            </button>
+          )}
+        </div>
         <div className="jm-section">
           {editedLabels?.length > 0 && (
             <div className="jm-pills" style={{ marginBottom: canInteract ? 10 : 0 }}>
@@ -992,7 +1006,7 @@ const CardDetailModal = ({
           {/* Available whenever you can touch the job, not only inside edit
               mode — the section said "No labels." and gave you no way to add
               one, which is just a dead end with a heading. */}
-          {canInteract && (
+          {canInteract && showLabelAdd && (
             <div className="dsr-inlineadd" style={{ marginTop: 0 }}>
               <input
                 type="text"
@@ -1038,10 +1052,18 @@ const CardDetailModal = ({
         <hr className="jm-rule" />
 
         {/* ── Notes ── */}
-        <p className="jm-secthead">
-          <Icon name="MessageSquare" size={14} />
-          Notes
-        </p>
+        <div className="jm-secthead-row">
+          <p className="jm-secthead">
+            <Icon name="MessageSquare" size={14} />
+            Notes
+          </p>
+          {modalMode === 'FULL' && canAddNotes && !showNoteAdd && (
+            <button type="button" className="cd-addmini" onClick={() => setShowNoteAdd(true)}>
+              <Icon name="Plus" size={13} />
+              Add
+            </button>
+          )}
+        </div>
         <div className="jm-section">
           {notes?.map(note => (
             <div key={note?.id} className="cd-note">
@@ -1052,7 +1074,7 @@ const CardDetailModal = ({
               <p className="body">{note?.text}</p>
             </div>
           ))}
-          {modalMode === 'FULL' && canAddNotes && (
+          {modalMode === 'FULL' && canAddNotes && showNoteAdd && (
             <div className="dsr-inlineadd">
               <input
                 type="text"

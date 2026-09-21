@@ -29,6 +29,10 @@
 }
 /* Flips up when the field sits low in a drawer and the panel would be cut off. */
 .di-pop.up { top: auto; bottom: calc(100% + 6px); }
+/* Drawn on document.body: positioned against the viewport, above the drawer
+   rather than clipped inside it. */
+.di-pop.portal { position: fixed; right: auto; z-index: calc(var(--z-overlay) + 10); }
+.di-pop.portal.up { top: auto; }
 
 .di-head {
   display: flex; align-items: center; justify-content: space-between;
