@@ -22,6 +22,8 @@ const PRE_AUTOINJECT = [
   'teamJobs', 'rota', 'todaySnapshot', 'recentActivity', 'vesselStatus',
   'vesselView', 'laundry', 'quickActions', 'charterAccounts', 'ownerAccounts',
   'inventoryHealth', 'provisioning', 'pantry', 'vesselDocRenewals',
+  // Fridge temps is opt-in — hidden by default, added via "Add widgets".
+  'fridgeTemps',
 ];
 
 export const useDashboardLayout = () => {
