@@ -238,6 +238,7 @@ const FridgeTempWidget = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [showManage, setShowManage] = useState(false);
   const [showScan, setShowScan] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   const load = useCallback(async () => {
     if (!activeTenantId) { setLoading(false); return; }
@@ -255,6 +256,18 @@ const FridgeTempWidget = () => {
     const f = data.fridges.find((x) => (x.code || '').toUpperCase() === val || x.name.toUpperCase() === val);
     if (f) setLogTarget(f);
     else showToast('No fridge matches that code', 'error');
+  };
+
+  // New vessels start empty — seed a sensible default of 2 fridges for managers.
+  const setupDefaults = async () => {
+    if (seeding) return;
+    setSeeding(true);
+    try {
+      await addFridge(activeTenantId, { name: 'Fridge 1', safeMin: 0, safeMax: 5, sortOrder: 0 });
+      await addFridge(activeTenantId, { name: 'Fridge 2', safeMin: 0, safeMax: 5, sortOrder: 1 });
+      await load();
+    } catch (e) { showToast(e.message || 'Could not set up', 'error'); }
+    finally { setSeeding(false); }
   };
 
   const doneCount = data.fridges.filter((f) => data.byFridge[f.id]?.loggedThisWeek).length;
@@ -277,7 +290,14 @@ const FridgeTempWidget = () => {
       {loading ? (
         <div className="ft-skel" aria-hidden="true" />
       ) : total === 0 ? (
-        <p className="ft-empty">No fridges set up.{canManage ? ' Use the settings icon to add some.' : ''}</p>
+        <div className="ft-setup">
+          <p className="ft-empty">No fridges set up yet.</p>
+          {canManage && (
+            <button className="ft-btn prim" onClick={setupDefaults} disabled={seeding}>
+              {seeding ? 'Setting up…' : 'Set up fridge log'}
+            </button>
+          )}
+        </div>
       ) : (
         <div className="ft-grid">
           {data.fridges.map((f) => {

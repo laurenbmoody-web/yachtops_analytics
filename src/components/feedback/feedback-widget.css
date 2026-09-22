@@ -10,11 +10,16 @@
 }
 
 /* ── The tab ── */
+/* Rests as a compact circular bubble (icon only) so it never covers page
+   controls like a Save bar; expands to reveal the word on hover/focus. */
 .fbw-tab {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 10px 15px;
+  gap: 0;
+  height: 46px;
+  width: 46px;
+  padding: 0;
+  justify-content: center;
   background: #C65A1A;
   color: #FFFFFF;
   border: none;
@@ -23,11 +28,27 @@
   font-weight: 600;
   letter-spacing: 0.2px;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
   box-shadow: 0 10px 26px -8px rgba(198, 90, 26, 0.55);
-  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease,
+              width 0.2s ease, padding 0.2s ease, gap 0.2s ease;
 }
-.fbw-tab:hover { background: #B14E16; transform: translateY(-1px); box-shadow: 0 14px 30px -8px rgba(198, 90, 26, 0.6); }
-.fbw-tab svg { display: block; }
+.fbw-tab span {
+  max-width: 0;
+  opacity: 0;
+  transition: max-width 0.2s ease, opacity 0.15s ease;
+}
+.fbw-tab:hover, .fbw-tab:focus-visible {
+  width: auto;
+  padding: 0 17px;
+  gap: 7px;
+  background: #B14E16;
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px -8px rgba(198, 90, 26, 0.6);
+}
+.fbw-tab:hover span, .fbw-tab:focus-visible span { max-width: 96px; opacity: 1; }
+.fbw-tab svg { display: block; flex: 0 0 auto; }
 
 /* ── The composer ── */
 .fbw-panel {

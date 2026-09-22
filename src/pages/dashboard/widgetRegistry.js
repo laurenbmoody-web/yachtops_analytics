@@ -112,6 +112,6 @@ export const WIDGET_META = {
 
 export const DEFAULT_LAYOUT = {
   left:   ['signInOut', 'teamJobs', 'rota', 'hoursOfRest', 'todaySnapshot', 'recentActivity'],
-  center: ['vesselStatus', 'vesselView', 'laundry', 'quickActions', 'pantry', 'fridgeTemps'],
+  center: ['vesselStatus', 'vesselView', 'laundry', 'quickActions', 'pantry'],
   right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth', 'vesselDocRenewals', 'provisioning'],
 };
