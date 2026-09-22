@@ -11,21 +11,26 @@
 .ft-skel { height: 180px; border-radius: 12px; background: linear-gradient(90deg,#F1F5F9,#F8FAFC,#F1F5F9); }
 .ft-empty { font-size: 13px; color: #6B7280; padding: 18px 4px; text-align: center; }
 
-.ft-list { display: flex; flex-direction: column; }
-.ft-row { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 4px; background: none; border: 0; border-bottom: 1px solid #F0F1F5; cursor: pointer; text-align: left; font: inherit; }
-.ft-row:last-child { border-bottom: 0; }
-.ft-row:hover { background: #FAFBFC; }
-.ft-status { width: 26px; height: 26px; border-radius: 999px; display: grid; place-items: center; flex: 0 0 auto; }
-.ft-status.done { background: #E7F4EE; color: #2F855A; }
-.ft-status.due { background: #FBEFE9; color: #C65A1A; }
-.ft-rmain { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
-.ft-rname { font-size: 14px; font-weight: 600; color: #1C1B3A; display: flex; align-items: center; gap: 6px; }
-.ft-kind { font-size: 9px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #6B7280; background: #F1F5F9; border-radius: 999px; padding: 1px 6px; }
-.ft-rmeta { font-size: 11.5px; color: #8B8478; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ft-last { display: flex; flex-direction: column; align-items: flex-end; font-size: 15px; font-weight: 700; flex: 0 0 auto; line-height: 1.1; }
-.ft-last.in { color: #2F855A; } .ft-last.out { color: #B42318; } .ft-last.na { color: #8B8478; }
-.ft-lastdate { font-size: 10px; font-weight: 500; color: #AEB4C2; }
-.ft-chev { color: #CBD5E1; flex: 0 0 auto; }
+/* Visual tile grid — 3 across, so 6 fridges read as a compact board, not a
+   text list. Due tiles carry a soft terracotta wash so what's outstanding pops. */
+.ft-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 2px 0 8px; }
+@media (max-width: 380px) { .ft-grid { grid-template-columns: repeat(2, 1fr); } }
+.ft-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 11px 9px; border: 1px solid #E5E7EB; border-radius: 12px; background: #fff; cursor: pointer; text-align: left; font: inherit; transition: transform .1s ease, box-shadow .14s ease, border-color .14s ease; min-height: 88px; }
+.ft-tile:hover { transform: translateY(-1px); box-shadow: 0 8px 20px -12px rgba(28,27,58,0.28); border-color: #D6C3B4; }
+.ft-tile.due { background: #FCF4EF; border-color: #F1DDD1; }
+.ft-tile.breach { background: #FDF1EF; border-color: #F0C9C2; }
+.ft-tile-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; }
+.ft-tile-fridge { display: flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: #1C1B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ft-tile-fridge svg { color: #8B8478; flex: 0 0 auto; }
+.ft-tile-badge { width: 22px; height: 22px; border-radius: 999px; display: grid; place-items: center; flex: 0 0 auto; }
+.ft-tile-badge.done { background: #E7F4EE; color: #2F855A; }
+.ft-tile-badge.due { background: #FBEFE9; color: #C65A1A; }
+.ft-tile-badge.breach { background: #FBE3DF; color: #B42318; }
+.ft-tile-temp { font-family: 'DM Serif Display', Georgia, serif; font-size: 26px; line-height: 1.15; margin-top: 4px; color: #1C1B3A; }
+.ft-tile-temp.in { color: #2F855A; } .ft-tile-temp.out { color: #B42318; } .ft-tile-temp.na { color: #C4CAD4; }
+.ft-tile-sub { font-size: 10px; font-weight: 600; letter-spacing: .2px; color: #8B8478; text-transform: uppercase; }
+.ft-tile.due .ft-tile-sub { color: #C65A1A; }
+.ft-tile.breach .ft-tile-sub { color: #B42318; }
 
 /* ── Modals ── */
 .ft-modal-scrim { position: fixed; inset: 0; z-index: 1600; background: rgba(28,27,58,0.34); display: grid; place-items: center; padding: 20px; animation: ft-fade .15s ease; }
