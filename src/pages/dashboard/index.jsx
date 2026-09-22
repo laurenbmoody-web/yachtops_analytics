@@ -35,6 +35,7 @@ import SortableWidget from './components/SortableWidget';
 import DashboardEditBar from './components/DashboardEditBar';
 import ProvisioningWidget from './components/ProvisioningWidget';
 import PantryWidget from './components/PantryWidget';
+import FridgeTempWidget from './components/FridgeTempWidget';
 import AnchorChainProgress from '../../components/onboarding/AnchorChainProgress';
 
 import '../../styles/editorial-tokens.css';
@@ -697,6 +698,8 @@ const Dashboard = () => {
         return <ProvisioningWidget />;
       case 'pantry':
         return <PantryWidget />;
+      case 'fridgeTemps':
+        return <FridgeTempWidget />;
       default:
         return null;
     }
