@@ -41,8 +41,7 @@ export async function loadOnboardCrew(tenantId, day = new Date()) {
     // No history table / no rows — treat everyone as aboard.
   }
 
-  // Cabin + interior laundry marking (number / colour) — set on the Issued Kit
-  // tab, stored on crew_employment. This is what the laundry needs.
+  // Interior laundry marking (number / colour) — stored on crew_employment.
   const kitByUser = {};
   try {
     const { data } = await supabase
@@ -54,6 +53,43 @@ export async function loadOnboardCrew(tenantId, day = new Date()) {
     // No employment rows — leave the marking blank.
   }
 
+  // Berth cabin for the day — the authoritative source is the Movements board
+  // (cabin_assignments → cabin_beds → vessel_cabins), exactly what the crew
+  // profile shows as "Cabin · from Movements". Falls back to any cabin stored
+  // on crew_employment, then blank.
+  const cabinByUser = {};
+  try {
+    const dayStr = (day instanceof Date ? day : new Date(day)).toISOString().slice(0, 10);
+    const { data: assigns } = await supabase
+      .from('cabin_assignments')
+      .select('user_id, bed_id, start_date, end_date')
+      .eq('tenant_id', tenantId)
+      .in('user_id', ids);
+    const activeByUser = {};
+    (assigns || []).forEach((a) => {
+      if ((a.start_date || '') <= dayStr && (!a.end_date || a.end_date > dayStr)) {
+        const prev = activeByUser[a.user_id];
+        if (!prev || (a.start_date || '') > (prev.start_date || '')) activeByUser[a.user_id] = a;
+      }
+    });
+    const bedIds = [...new Set(Object.values(activeByUser).map((a) => a.bed_id).filter(Boolean))];
+    if (bedIds.length) {
+      const { data: beds } = await supabase.from('cabin_beds').select('id, cabin_id').in('id', bedIds);
+      const cabinIdByBed = Object.fromEntries((beds || []).map((b) => [b.id, b.cabin_id]));
+      const cabinIds = [...new Set((beds || []).map((b) => b.cabin_id).filter(Boolean))];
+      const { data: cabins } = cabinIds.length
+        ? await supabase.from('vessel_cabins').select('id, name').in('id', cabinIds)
+        : { data: [] };
+      const nameByCabin = Object.fromEntries((cabins || []).map((c) => [c.id, c.name]));
+      Object.entries(activeByUser).forEach(([uid, a]) => {
+        const name = nameByCabin[cabinIdByBed[a.bed_id]];
+        if (name) cabinByUser[uid] = name;
+      });
+    }
+  } catch (e) {
+    // No berth data — leave the cabin blank (the laundry master can type one).
+  }
+
   return crew
     .filter((c) => (statusByUser[c.id] || 'active') === 'active')
     .map((c) => ({
@@ -61,7 +97,7 @@ export async function loadOnboardCrew(tenantId, day = new Date()) {
       fullName: c.fullName,
       roleTitle: c.roleTitle,
       department: c.department,
-      cabin: kitByUser[c.id]?.cabin || '',
+      cabin: cabinByUser[c.id] || kitByUser[c.id]?.cabin || '',
       laundryNumber: kitByUser[c.id]?.laundry_number || '',
       laundryColour: kitByUser[c.id]?.laundry_colour || '',
     }))
