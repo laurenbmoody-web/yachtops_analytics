@@ -1770,14 +1770,15 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
           title="Quick view"
         >{item?.name}</p>
 
-        {/* Differentiators for items that share a stock photo — brand, fit
-            (Mens/Womens/Unisex, tinted so it pops) and colour, as clean pills. */}
-        {(brandLabel || fitLabel || colourLabel) && (
-          <div className="inv-card-chips">
-            {brandLabel && <span className="inv-chip">{brandLabel}</span>}
-            {fitLabel && <span className="inv-chip fit">{fitLabel}</span>}
-            {colourLabel && <span className="inv-chip">{colourLabel}</span>}
-          </div>
+        {/* Differentiators for items that share a stock photo — clean editorial
+            text (no pills): brand, then fit (emphasised) · colour. */}
+        {brandLabel && <p className="inv-card-brand">{brandLabel}</p>}
+        {(fitLabel || colourLabel) && (
+          <p className="inv-card-desc">
+            {fitLabel && <span className="inv-fit">{fitLabel}</span>}
+            {fitLabel && colourLabel && <span className="inv-dot"> · </span>}
+            {colourLabel && <span>{colourLabel}</span>}
+          </p>
         )}
 
         {/* Category */}
