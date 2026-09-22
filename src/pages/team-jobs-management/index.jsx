@@ -1926,6 +1926,25 @@ const TeamJobsManagement = () => {
   // array, and a dependency array is built during render — sitting above the
   // const meant reading it in its temporal dead zone, which took the whole
   // page down with "Cannot access 'mergedCards' before initialization".
+  // ── Open one board on its own ──────────────────────────────────
+  // ?board=<key> narrows the strip to a single column. Every column carries a
+  // key (board:<id>, mine:<dept>, open:<dept>) and the others are simply not
+  // rendered, so a focused board gets the whole width instead of being one of
+  // six things to scroll past. In the URL so it survives a refresh and the
+  // back button takes you out of it.
+  const focusKey = searchParams?.get('board') || null;
+  const colClass = (key) => (focusKey && key !== focusKey ? 'tj-col is-hidden' : 'tj-col');
+  const focusBoard = (key) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('board', key);
+    setSearchParams(next);
+  };
+  const clearFocus = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('board');
+    setSearchParams(next);
+  };
+
   const openedFromUrl = useRef(null);
   useEffect(() => {
     const wanted = searchParams?.get('job');
@@ -2850,11 +2869,17 @@ const TeamJobsManagement = () => {
         )}
 
         {/* Boards Layout */}
-        <div className="tj-boards">
+        {focusKey && (
+          <button type="button" className="tj-focusback" onClick={clearFocus}>
+            <Icon name="ChevronLeft" size={14} />
+            All boards
+          </button>
+        )}
+        <div className={`tj-boards${focusKey ? ' focused' : ''}`}>
           {departmentFilter?.id === 'ALL' ? (
             /* ALL view: My Jobs + Open Jobs columns per department */
             (departments?.length === 0 ? (
-              <div className="tj-col">
+              <div className={colClass('open:none')}>
                 <div className="tj-col-head">
                   <h2 className="tj-col-title">Open jobs</h2>
                 </div>
@@ -2877,13 +2902,17 @@ const TeamJobsManagement = () => {
                     <React.Fragment key={dept?.id}>
                       {/* My Jobs column: only show for the COMMAND user's own department */}
                       {dept?.id === userDepartmentId && (
-                        <div className="tj-col">
+                        <div className={colClass(`mine:${dept?.id}`)}>
                           <div className="tj-col-head">
                             <div style={{ minWidth: 0 }}>
                               <h2 className="tj-col-title">My jobs</h2>
                               <p className="tj-col-sub">{dept?.name}</p>
                             </div>
                             <span className="tj-col-count">{myJobsCount} open</span>
+                            <button type="button" className="tj-col-focus" title="Open this board on its own"
+                              onClick={() => focusBoard(`mine:${dept?.id}`)}>
+                              <Icon name="Maximize2" size={13} />
+                            </button>
                           </div>
                           <div className="tj-col-body">
                             {jobsLoading ? (
@@ -2908,13 +2937,17 @@ const TeamJobsManagement = () => {
                         </div>
                       )}
                       {/* Open Jobs column: show for every department */}
-                      <div className="tj-col">
+                      <div className={colClass(`open:${dept?.id}`)}>
                         <div className="tj-col-head">
                           <div style={{ minWidth: 0 }}>
                             <h2 className="tj-col-title">Open jobs</h2>
                             <p className="tj-col-sub">{dept?.name}</p>
                           </div>
                           <span className="tj-col-count">{openCount} open</span>
+                          <button type="button" className="tj-col-focus" title="Open this board on its own"
+                            onClick={() => focusBoard(`open:${dept?.id}`)}>
+                            <Icon name="Maximize2" size={13} />
+                          </button>
                         </div>
                         <div className="tj-col-body">
                           {jobsLoading ? (
@@ -2949,7 +2982,7 @@ const TeamJobsManagement = () => {
                   const boardItems = getBoardItems(board?.id);
                   const boardOpen = boardItems?.filter(i => i?.status !== 'completed')?.length;
                   return (
-                    <div className="tj-col" key={board?.id}>
+                    <div className={colClass(`board:${board?.id}`)} key={board?.id}>
                       <div className="tj-col-head">
                         <div style={{ minWidth: 0 }}>
                           <h2 className="tj-col-title">{board?.name}</h2>
@@ -2958,6 +2991,10 @@ const TeamJobsManagement = () => {
                           </p>
                         </div>
                         <span className="tj-col-count">{boardOpen} open</span>
+                        <button type="button" className="tj-col-focus" title="Open this board on its own"
+                          onClick={() => focusBoard(`board:${board?.id}`)}>
+                          <Icon name="Maximize2" size={13} />
+                        </button>
                       </div>
                       <div className="tj-col-body">
                         {jobsLoading ? (
@@ -2987,7 +3024,7 @@ const TeamJobsManagement = () => {
             /* Specific department view: Open Jobs + custom boards for that department */
             (<>
               {/* My Jobs / Open Jobs Column — dynamic based on whether viewing own dept */}
-              <div className="tj-col">
+              <div className={colClass(`mine:${_effectiveDeptId || 'all'}`)}>
                 <div className="tj-col-head">
                   <div style={{ minWidth: 0 }}>
                     <h2 className="tj-col-title">{isViewingOwnDept ? 'My jobs' : 'Open jobs'}</h2>
@@ -2999,6 +3036,10 @@ const TeamJobsManagement = () => {
                         ?.filter(i => i?.status !== 'completed'),
                     )?.today?.length} today
                   </span>
+                  <button type="button" className="tj-col-focus" title="Open this board on its own"
+                    onClick={() => focusBoard(`mine:${_effectiveDeptId || 'all'}`)}>
+                    <Icon name="Maximize2" size={13} />
+                  </button>
                 </div>
                 <div className="tj-col-body">
                   {jobsLoading ? (
@@ -3058,7 +3099,7 @@ const TeamJobsManagement = () => {
                         {(dndListeners) => (
                         <div
                           data-board-id={board?.id}
-                          className={`tj-col${activeDragId === board?.id ? ' dragging' : ''}`}
+                          className={`${colClass(`board:${board?.id}`)}${activeDragId === board?.id ? ' dragging' : ''}`}
                           style={{ cursor: activeDragId === board?.id ? 'grabbing' : undefined }}
                         >
                           {/* Board header: drag handle area — listeners applied here, blocked on interactive children */}
@@ -3113,6 +3154,15 @@ const TeamJobsManagement = () => {
                                 <h2 className="tj-col-title">{displayBoardName}</h2>
                               )
                             )}
+                            <button
+                              type="button"
+                              className="tj-col-focus"
+                              title="Open this board on its own"
+                              data-no-dnd="true"
+                              onClick={(e) => { e?.stopPropagation(); focusBoard(`board:${board?.id}`); }}
+                            >
+                              <Icon name="Maximize2" size={13} />
+                            </button>
                             {(boardCanAdd || boardCanDelete) && (
                               <div className="relative" onClick={e => e?.stopPropagation()}>
                                 <button
