@@ -239,6 +239,10 @@
   font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #8B8478; white-space: nowrap; flex-shrink: 0;
   font-variant-numeric: tabular-nums; padding-top: 4px;
+  /* Last in the header whatever else lands beside the title — the count is
+     the number you scan down the strip for, so it stays pinned to the right
+     edge instead of being pushed inboard by the maximise control. */
+  order: 3; margin-left: auto;
 }
 .tj-col-body { padding: 14px 16px 16px; }
 button.tj-col-title {
@@ -587,3 +591,15 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
   cursor: pointer; transition: border-color 0.14s, color 0.14s;
 }
 .tj-focusback:hover { border-color: #C65A1A; color: #C65A1A; }
+
+/* ── Docked job detail ───────────────────────────────────────── */
+/* With one board open the right half of the page is empty, so the detail
+   docks into it: the page keeps that column clear and the panel lives in it.
+   No scrim, so the board beside it stays live — it reads as the other half of
+   the page rather than something laid over it. Below 1180px there is no room
+   to dock into and the detail goes back to overlaying (see useHasSideRoom). */
+.tj-page.tj-docked { padding-right: 480px; }
+.tj-page.tj-docked .tj-boards.focused .tj-col { max-width: none; }
+@media (max-width: 1180px) {
+  .tj-page.tj-docked { padding-right: 40px; }
+}
