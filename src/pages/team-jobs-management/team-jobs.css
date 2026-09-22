@@ -553,3 +553,37 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 @media (hover: none) {
   .tj-due-push { opacity: 1; }
 }
+
+/* ── one board on its own ────────────────────────────────────────
+   The strip is for scanning several lists at once; sometimes you want the
+   one you are actually working and the whole width for it. */
+.tj-col-focus {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; flex-shrink: 0;
+  border: 0; background: none; cursor: pointer; color: #AEB4C2;
+  border-radius: 7px; opacity: 0;
+  transition: opacity 0.14s, color 0.14s, background 0.14s;
+}
+.tj-col:hover .tj-col-focus,
+.tj-col-focus:focus-visible { opacity: 1; }
+.tj-col-focus:hover { color: #C65A1A; background: #FBEFE9; }
+@media (hover: none) { .tj-col-focus { opacity: 1; } }
+
+.tj-col-head { gap: 6px; }
+
+/* Focused: the one column left takes the width, and the horizontal scroll
+   the strip normally needs goes away. */
+.tj-boards.focused { overflow-x: visible; }
+.tj-boards.focused .tj-col { width: 100%; max-width: 980px; }
+.tj-col.is-hidden { display: none; }
+/* the maximise control is redundant once a single board is open */
+.tj-boards.focused .tj-col-focus { display: none; }
+
+.tj-focusback {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin: 0 0 14px; padding: 5px 11px 5px 8px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px;
+  font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+  cursor: pointer; transition: border-color 0.14s, color 0.14s;
+}
+.tj-focusback:hover { border-color: #C65A1A; color: #C65A1A; }
