@@ -279,27 +279,32 @@ const FridgeTempWidget = () => {
       ) : total === 0 ? (
         <p className="ft-empty">No fridges set up.{canManage ? ' Use the settings icon to add some.' : ''}</p>
       ) : (
-        <div className="ft-list">
+        <div className="ft-grid">
           {data.fridges.map((f) => {
             const st = data.byFridge[f.id] || {};
             const last = st.lastLog;
             const done = st.loggedThisWeek;
+            const breach = last?.in_range === false;
+            const tempState = last ? (last.in_range === false ? 'out' : last.in_range ? 'in' : 'na') : 'na';
+            const tempText = last ? (last.temp_c == null ? (last.photo_url ? '📷' : '—') : `${last.temp_c}°`) : '—';
             return (
-              <button key={f.id} className="ft-row" onClick={() => setLogTarget(f)}>
-                <span className={`ft-status ${done ? 'done' : 'due'}`}>
-                  <Icon name={done ? 'Check' : 'Clock'} size={13} />
-                </span>
-                <span className="ft-rmain">
-                  <span className="ft-rname">{f.name}{f.kind === 'freezer' && <span className="ft-kind">freezer</span>}</span>
-                  <span className="ft-rmeta">{done ? 'Logged this week' : 'Due this week'} · safe {rangeLabel(f)}</span>
-                </span>
-                {last && (
-                  <span className={`ft-last ${last.in_range === false ? 'out' : last.in_range ? 'in' : 'na'}`}>
-                    {last.temp_c == null ? (last.photo_url ? 'photo' : '—') : `${last.temp_c}°`}
-                    <span className="ft-lastdate">{ddmm(last.logged_at)}</span>
+              <button
+                key={f.id}
+                className={`ft-tile ${done ? 'done' : 'due'}${breach ? ' breach' : ''}`}
+                onClick={() => setLogTarget(f)}
+                title={`${f.name} · safe ${rangeLabel(f)}`}
+              >
+                <span className="ft-tile-top">
+                  <span className="ft-tile-fridge">
+                    <Icon name={f.kind === 'freezer' ? 'Snowflake' : 'Refrigerator'} size={13} />
+                    {f.name}
                   </span>
-                )}
-                <Icon name="ChevronRight" size={15} className="ft-chev" />
+                  <span className={`ft-tile-badge ${done ? 'done' : 'due'}${breach ? ' breach' : ''}`}>
+                    <Icon name={breach ? 'AlertTriangle' : done ? 'Check' : 'Clock'} size={12} />
+                  </span>
+                </span>
+                <span className={`ft-tile-temp ${tempState}`}>{tempText}</span>
+                <span className="ft-tile-sub">{done ? `Logged ${last ? ddmm(last.logged_at) : ''}` : 'Due this week'}</span>
               </button>
             );
           })}
