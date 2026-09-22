@@ -1316,6 +1316,22 @@
 .jm-drawer .jm-secthead { margin-top: 14px; }
 .jm-drawer .jm-rule { margin: 12px 0; }
 
+/* Docked: the page has cleared a column for it, so it drops the overlay
+   costume — no lift shadow, no slide-in from nothing, just the panel sitting
+   in the space the page left for it, with a hairline as its only seam. */
+.jm-panel.jm-drawer.jm-docked {
+  box-shadow: none;
+  border-left: 1px solid #E5E7EB;
+  animation: jm-dock-in 0.16s ease-out;
+}
+@keyframes jm-dock-in {
+  from { opacity: 0.55; }
+  to   { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jm-panel.jm-drawer.jm-docked { animation: none; }
+}
+
 /* Full width on a phone — a 440px drawer on a 390px screen is just a modal
    with the corners cut off. */
 @media (max-width: 520px) {

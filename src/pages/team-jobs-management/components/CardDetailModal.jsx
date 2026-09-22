@@ -60,6 +60,9 @@ const CardDetailModal = ({
   modalMode = 'FULL', // 'FULL' | 'VIEW_ONLY'
   activeTenantId = null,
   departments = [],
+  // Dock into the page instead of overlaying it — set when a single board is
+  // open and there is room to its right.
+  docked = false,
 }) => {
   const [editMode, setEditMode] = useState(false);
   const [editedTitle, setEditedTitle] = useState(card?.title || '');
@@ -460,7 +463,7 @@ const CardDetailModal = ({
   const displayPriority = editMode ? editedPriority : card?.priority;
 
   return (
-    <ModalShell onClose={onClose} variant="drawer" panelClassName="jm-panel jm-drawer">
+    <ModalShell onClose={onClose} variant="drawer" docked={docked} panelClassName="jm-panel jm-drawer">
       {/* Header */}
       <div className="jm-head">
         <div style={{ flex: 1, minWidth: 0 }}>

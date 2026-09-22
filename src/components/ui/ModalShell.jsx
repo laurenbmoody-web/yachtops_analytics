@@ -18,7 +18,7 @@
 //     window.confirm("Discard changes?") before closing
 //   • the in-flight gate — pass isBusy={true} during async ops and
 //     backdrop / Esc are inert
-//   • body scroll lock while mounted
+//   • body scroll lock while mounted (not in docked mode — see below)
 //   • the +~16px top-offset nudge so modal centroids sit slightly
 //     below true viewport-center and the panel top never tucks under
 //     the fixed nav (var(--z-nav) at 64px) on short viewports
@@ -39,16 +39,25 @@ const ModalShell = ({
   panelClassName = '',
   panelStyle,
   variant = 'modal', // 'modal' (centered) | 'drawer' (right, full height)
+  // A drawer that docks instead of overlaying: no scrim, no scroll lock, and
+  // the page behind it stays live. Use it where the page has made room to the
+  // right (a single focused board), so the panel reads as part of the page
+  // rather than something covering it. Esc and the panel's own close still
+  // dismiss it; click-outside does not, because there is nothing to click
+  // outside of.
+  docked = false,
   children,
 }) => {
   const isDrawer = variant === 'drawer';
+  const isDocked = isDrawer && docked;
   const { tryClose } = useDismissable({ onClose, isDirty, isBusy });
 
   useEffect(() => {
+    if (isDocked) return undefined;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
-  }, []);
+  }, [isDocked]);
 
   const onBackdropMouseDown = (e) => {
     if (e.target === e.currentTarget) tryClose();
@@ -61,7 +70,16 @@ const ModalShell = ({
         isDrawer ? 'items-stretch justify-end' : 'items-center justify-center'
       }`}
       style={
-        isDrawer
+        isDocked
+          ? {
+              // Below the fixed nav, and inert: only the panel takes clicks,
+              // so the board beside it stays usable.
+              background: 'transparent',
+              padding: 0,
+              paddingTop: 64,
+              pointerEvents: 'none',
+            }
+          : isDrawer
           ? {
               // Lighter scrim than the centered modal: a drawer is meant to
               // sit beside the list you came from, not blot it out.
@@ -82,8 +100,8 @@ const ModalShell = ({
       }
     >
       <div
-        className={panelClassName}
-        style={panelStyle}
+        className={`${panelClassName}${isDocked ? ' jm-docked' : ''}`}
+        style={isDocked ? { pointerEvents: 'auto', ...(panelStyle || {}) } : panelStyle}
         onMouseDown={(e) => e.stopPropagation()}
       >
         {children}

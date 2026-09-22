@@ -54,6 +54,25 @@ import { showToast } from '../../utils/toast';
 import ModalShell from '../../components/ui/ModalShell';
 const DEFAULT_SORT = 'due-asc';
 
+// Is there room beside a focused board for the job detail to dock into?
+// Below this the detail goes back to overlaying the page as a drawer, because
+// a docked panel would simply sit on top of the board it is meant to sit next
+// to. Matches the .tj-page.tj-docked media query in team-jobs.css.
+const SIDE_ROOM_QUERY = '(min-width: 1180px)';
+const useHasSideRoom = () => {
+  const [hasRoom, setHasRoom] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(SIDE_ROOM_QUERY)?.matches,
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const mq = window.matchMedia(SIDE_ROOM_QUERY);
+    const onChange = (e) => setHasRoom(e?.matches);
+    mq?.addEventListener('change', onChange);
+    return () => mq?.removeEventListener('change', onChange);
+  }, []);
+  return hasRoom;
+};
+
 const isValidUUID = (val) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i?.test(String(val || ''));
 
@@ -1944,6 +1963,10 @@ const TeamJobsManagement = () => {
     next.delete('board');
     setSearchParams(next);
   };
+  // With one board open the page has a whole empty half to its right, so the
+  // job detail docks into it as part of the page rather than sliding over it.
+  const hasSideRoom = useHasSideRoom();
+  const detailDocked = !!focusKey && hasSideRoom;
 
   const openedFromUrl = useRef(null);
   useEffect(() => {
@@ -2579,7 +2602,7 @@ const TeamJobsManagement = () => {
 
   return (
     <div
-      className="tj-page"
+      className={`tj-page${detailDocked && selectedCard ? ' tj-docked' : ''}`}
       onClick={() => {
         setShowBoardMenu(null);
         setShowDeptDropdown(false);
@@ -3512,6 +3535,7 @@ const TeamJobsManagement = () => {
               isPrivateJobOwner(selectedCard, currentUserId),
             )}
             canFullEdit={_canEditDept}
+            docked={detailDocked}
           />
         )}
 
