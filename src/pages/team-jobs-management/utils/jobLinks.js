@@ -137,6 +137,186 @@ export const applyStockDelta = (item, delta, into = null) => {
   return { applied: -applied, shortfall, stock_locations: next, total: currentTotal - applied, breakdown };
 };
 
+/**
+ * The sizes an item is tracked in, with how many of each are on the shelf.
+ *
+ * stock_locations[].sizes is authoritative when the item has any — variants[]
+ * is the rollup — so the list is built from the locations and falls back to
+ * the rollup for an item that has sizes but has never been placed anywhere.
+ */
+export const sizesOf = (item) => {
+  const locations = Array.isArray(item?.stock_locations) ? item.stock_locations : [];
+  const totals = new Map();
+  locations?.forEach(l => {
+    (Array.isArray(l?.sizes) ? l.sizes : [])?.forEach(s => {
+      const size = String(s?.size ?? '')?.trim();
+      if (!size) return;
+      totals?.set(size, (totals?.get(size) || 0) + (Number(s?.qty) || 0));
+    });
+  });
+  if (totals?.size === 0) {
+    (Array.isArray(item?.variants) ? item.variants : [])?.forEach(v => {
+      const size = String(v?.size ?? '')?.trim();
+      if (!size) return;
+      totals?.set(size, (totals?.get(size) || 0) + (Number(v?.qty) || 0));
+    });
+  }
+  return [...(totals?.entries() || [])]?.map(([size, qty]) => ({ size, qty }));
+};
+
+const sameSize = (a, b) => String(a ?? '')?.trim() === String(b ?? '')?.trim();
+
+const normalizeSizedLocations = (raw) => (Array.isArray(raw) ? raw : [])?.map(l => ({
+  ...l,
+  qty: Number(l?.qty) || 0,
+  sizes: (Array.isArray(l?.sizes) ? l.sizes : [])?.map(s => ({ ...s, qty: Number(s?.qty) || 0 })),
+}));
+
+const qtyOfSize = (loc, size) =>
+  (loc?.sizes || [])?.reduce((s, v) => (sameSize(v?.size, size) ? s + (Number(v?.qty) || 0) : s), 0);
+
+/** The variants[] rollup implied by the per-location size counts. */
+const rollupVariants = (locations, previous) => {
+  const totals = new Map();
+  // Every size the item knows about, so one that empties stays on the item at
+  // zero rather than disappearing from its size list.
+  (Array.isArray(previous) ? previous : [])?.forEach(v => {
+    const size = String(v?.size ?? '')?.trim();
+    if (size) totals?.set(size, 0);
+  });
+  locations?.forEach(l => {
+    l?.sizes?.forEach(s => {
+      const size = String(s?.size ?? '')?.trim();
+      if (!size) return;
+      totals?.set(size, (totals?.get(size) || 0) + (Number(s?.qty) || 0));
+    });
+  });
+  return [...(totals?.entries() || [])]?.map(([size, qty]) => ({ size, qty }));
+};
+
+/**
+ * Move `delta` of one size on a size-tracked item.
+ *
+ * Same contract as applyStockDelta, plus the variants[] rollup and a breakdown
+ * that carries the size as well as the shelf — so a correction or a reopen puts
+ * the right size back on the right shelf. Consuming draws from the location
+ * holding the most of that size; a size the shelves cannot cover empties them
+ * and reports the shortfall rather than going negative.
+ */
+export const applyVariantDelta = (item, size, delta, into = null) => {
+  const locations = normalizeSizedLocations(item?.stock_locations);
+  const sized = locations?.some(l => l?.sizes?.length > 0);
+
+  // Sizes recorded only as the rollup: adjust that and nothing else, so an
+  // item that has never been placed still deducts correctly.
+  if (!sized) {
+    const variants = (Array.isArray(item?.variants) ? item.variants : [])
+      ?.map(v => ({ ...v, qty: Number(v?.qty) || 0 }));
+    const idx = variants?.findIndex(v => sameSize(v?.size, size));
+    const have = idx >= 0 ? variants[idx]?.qty : 0;
+    const applied = delta < 0 ? Math.min(Math.abs(delta), have) : delta;
+    const shortfall = delta < 0 ? Math.abs(delta) - applied : 0;
+    if (idx >= 0) variants[idx] = { ...variants[idx], qty: have + (delta < 0 ? -applied : applied) };
+    else if (applied > 0) variants?.push({ size, qty: applied });
+    return {
+      applied: delta < 0 ? -applied : applied,
+      shortfall,
+      stock_locations: item?.stock_locations || [],
+      variants,
+      total: variants?.reduce((s, v) => s + (Number(v?.qty) || 0), 0),
+      breakdown: null,
+    };
+  }
+
+  const next = [...locations];
+  const breakdown = [];
+
+  if (delta < 0) {
+    const wanted = Math.abs(delta);
+    let left = wanted;
+    const order = locations
+      ?.map((l, i) => ({ l, i }))
+      ?.sort((a, b) => qtyOfSize(b?.l, size) - qtyOfSize(a?.l, size));
+    for (const { l, i } of order) {
+      if (left <= 0) break;
+      const take = Math.min(left, qtyOfSize(l, size));
+      if (take <= 0) continue;
+      next[i] = {
+        ...l,
+        qty: (l?.qty || 0) - take,
+        sizes: l?.sizes?.map(s => (sameSize(s?.size, size) ? { ...s, qty: (s?.qty || 0) - take } : s)),
+      };
+      breakdown?.push({ locationName: l?.locationName, size, qty: take });
+      left -= take;
+    }
+    const applied = wanted - left;
+    return {
+      applied: -applied,
+      shortfall: left,
+      stock_locations: next,
+      variants: rollupVariants(next, item?.variants),
+      total: next?.reduce((s, l) => s + (Number(l?.qty) || 0), 0),
+      breakdown: breakdown?.length ? breakdown : null,
+    };
+  }
+
+  // Putting back: to the shelves it came from, or the first one if that shelf
+  // has since been renamed or removed.
+  const plan = Array.isArray(into) && into?.length > 0
+    ? into
+    : [{ locationName: locations?.[0]?.locationName, size, qty: delta }];
+  let unplaced = 0;
+  plan?.forEach(entry => {
+    const qty = Number(entry?.qty) || 0;
+    if (qty <= 0) return;
+    const entrySize = entry?.size ?? size;
+    const idx = next?.findIndex(l => l?.locationName === entry?.locationName);
+    const target = idx >= 0 ? idx : -1;
+    if (target < 0) { unplaced += qty; return; }
+    const l = next[target];
+    const hasSize = l?.sizes?.some(s => sameSize(s?.size, entrySize));
+    next[target] = {
+      ...l,
+      qty: (l?.qty || 0) + qty,
+      sizes: hasSize
+        ? l?.sizes?.map(s => (sameSize(s?.size, entrySize) ? { ...s, qty: (s?.qty || 0) + qty } : s))
+        : [...(l?.sizes || []), { size: entrySize, qty }],
+    };
+  });
+  if (unplaced > 0 && next?.length > 0) {
+    const l = next[0];
+    const hasSize = l?.sizes?.some(s => sameSize(s?.size, size));
+    next[0] = {
+      ...l,
+      qty: (l?.qty || 0) + unplaced,
+      sizes: hasSize
+        ? l?.sizes?.map(s => (sameSize(s?.size, size) ? { ...s, qty: (s?.qty || 0) + unplaced } : s))
+        : [...(l?.sizes || []), { size, qty: unplaced }],
+    };
+  }
+
+  const moved = plan?.reduce((s, e) => s + (Number(e?.qty) || 0), 0) || delta;
+  return {
+    applied: moved,
+    shortfall: 0,
+    stock_locations: next,
+    variants: rollupVariants(next, item?.variants),
+    total: next?.reduce((s, l) => s + (Number(l?.qty) || 0), 0),
+    breakdown: null,
+  };
+};
+
+/**
+ * One stock move, whichever kind of item it is: per-size for a size-tracked
+ * item, flat for everything else. Callers get the same shape either way, with
+ * `variants` set only when the item keeps a size rollup to write back.
+ */
+const applyDelta = (item, { size, delta, into = null }) => (
+  isVariantItem(item)
+    ? applyVariantDelta(item, size, delta, into)
+    : { ...applyStockDelta(item, delta, into), variants: null }
+);
+
 /** Add one per-location breakdown to another, summing by location. */
 const mergeBreakdown = (a, b) => {
   if (!Array.isArray(a) || a?.length === 0) return Array.isArray(b) ? b : null;
@@ -179,7 +359,7 @@ export const loadJobLinks = async ({ job, tenantId }) => {
   const { data, error } = await supabase
     ?.from('job_links')
     ?.select(`
-      id, kind, purpose, qty, note, consumed_at, consumed_from, inventory_item_id, equipment_id, created_at,
+      id, kind, purpose, qty, size, note, consumed_at, consumed_from, inventory_item_id, equipment_id, created_at,
       inventory_items ( id, name, unit, total_qty, quantity, location, sub_location, has_variants, variants, stock_locations ),
       equipment ( id, name, code, manufacturer, model, location_label )
     `)
@@ -193,6 +373,7 @@ export const loadJobLinks = async ({ job, tenantId }) => {
     kind: r?.kind,
     purpose: r?.purpose || ABOUT,
     qty: r?.qty === null || r?.qty === undefined ? null : Number(r?.qty),
+    size: r?.size || null,
     note: r?.note || '',
     consumedAt: r?.consumed_at || null,
     consumedFrom: r?.consumed_from || null,
@@ -203,7 +384,7 @@ export const loadJobLinks = async ({ job, tenantId }) => {
 };
 
 export const addJobLink = async ({
-  job, tenantId, kind, targetId, purpose = ABOUT, qty = null, userId = null,
+  job, tenantId, kind, targetId, purpose = ABOUT, qty = null, size = null, userId = null,
 }) => {
   const jobId = jobIdOf(job);
   if (!jobId || !tenantId || !targetId) return null;
@@ -218,6 +399,7 @@ export const addJobLink = async ({
       equipment_id: kind === EQUIPMENT ? targetId : null,
       purpose: kind === INVENTORY ? purpose : ABOUT,
       qty: kind === INVENTORY && purpose === USES && qty ? qty : null,
+      size: kind === INVENTORY && purpose === USES ? (size || null) : null,
       created_by: userId,
     })
     ?.select('id')
@@ -241,14 +423,24 @@ export const setJobLinkQty = async ({ linkId, qty }) => {
  * link that no longer consumes anything is the ambiguity this field exists to
  * remove.
  */
-export const setJobLinkPurpose = async ({ linkId, purpose, qty = null }) => {
+export const setJobLinkPurpose = async ({ linkId, purpose, qty = null, size = null }) => {
   const { error } = await supabase
     ?.from('job_links')
     ?.update({
       purpose,
       qty: purpose === USES ? (qty || null) : null,
+      size: purpose === USES ? (size || null) : null,
       updated_at: new Date()?.toISOString(),
     })
+    ?.eq('id', linkId);
+  if (error) throw error;
+};
+
+/** Which size a size-tracked link takes off the shelf. */
+export const setJobLinkSize = async ({ linkId, size }) => {
+  const { error } = await supabase
+    ?.from('job_links')
+    ?.update({ size: size || null, updated_at: new Date()?.toISOString() })
     ?.eq('id', linkId);
   if (error) throw error;
 };
@@ -268,18 +460,24 @@ const moveStockForLink = async ({ link, tenantId, userId, sign }) => {
   const item = link?.item;
   if (!item || !link?.qty) return null;
 
-  if (isVariantItem(item)) {
+  // A size-tracked item needs to know which size; without one there is no
+  // safe deduction to make, so the link stays untouched rather than guessing.
+  if (isVariantItem(item) && !link?.size) {
     return { name: item?.name, moved: 0, shortfall: 0, refused: 'size-tracked' };
   }
 
-  const { applied, shortfall, stock_locations, total, breakdown } =
-    applyStockDelta(item, sign * Number(link?.qty), sign > 0 ? link?.consumedFrom : null);
+  const { applied, shortfall, stock_locations, variants, total, breakdown } = applyDelta(item, {
+    size: link?.size,
+    delta: sign * Number(link?.qty),
+    into: sign > 0 ? link?.consumedFrom : null,
+  });
   if (applied === 0 && shortfall === 0) return null;
 
   const { error: itemErr } = await supabase
     ?.from('inventory_items')
     ?.update({
       stock_locations,
+      ...(variants ? { variants } : {}),
       quantity: total,
       total_qty: total,
       updated_at: new Date()?.toISOString(),
@@ -296,7 +494,10 @@ const moveStockForLink = async ({ link, tenantId, userId, sign }) => {
       inventory_item_id: item?.id,
       qty_delta: applied,
       reason: sign < 0 ? 'job' : 'job_reopened',
-      notes: sign < 0 ? 'Used on a job' : 'Returned when the job was reopened',
+      notes: [
+        sign < 0 ? 'Used on a job' : 'Returned when the job was reopened',
+        link?.size ? `size ${link.size}` : null,
+      ]?.filter(Boolean)?.join(' — '),
       created_by: userId || null,
     });
   } catch (err) {
@@ -449,7 +650,7 @@ export const adjustConsumedQty = async ({ link, tenantId, userId, newQty }) => {
   const delta = next - current;
   if (delta === 0) return null;
 
-  if (isVariantItem(item)) {
+  if (isVariantItem(item) && !link?.size) {
     return { name: item?.name, moved: 0, shortfall: 0, refused: 'size-tracked' };
   }
 
@@ -458,22 +659,23 @@ export const adjustConsumedQty = async ({ link, tenantId, userId, newQty }) => {
 
   if (delta > 0) {
     // Using more than was booked out: take the extra now.
-    result = applyStockDelta(item, -delta);
+    result = applyDelta(item, { size: link?.size, delta: -delta });
     consumedFrom = mergeBreakdown(link?.consumedFrom, result?.breakdown);
   } else {
     // Used less: hand the difference back to the shelves it came from.
     const give = Math.abs(delta);
     const { plan, rest } = takeFromBreakdown(link?.consumedFrom, give);
-    result = applyStockDelta(item, give, plan);
+    result = applyDelta(item, { size: link?.size, delta: give, into: plan });
     consumedFrom = rest;
   }
 
-  const { applied, shortfall, stock_locations, total } = result;
+  const { applied, shortfall, stock_locations, variants, total } = result;
 
   const { error: itemErr } = await supabase
     ?.from('inventory_items')
     ?.update({
       stock_locations,
+      ...(variants ? { variants } : {}),
       quantity: total,
       total_qty: total,
       updated_at: new Date()?.toISOString(),
@@ -488,7 +690,10 @@ export const adjustConsumedQty = async ({ link, tenantId, userId, newQty }) => {
       inventory_item_id: item?.id,
       qty_delta: applied,
       reason: 'job_adjusted',
-      notes: `Corrected from ${current} to ${next} used on a job`,
+      notes: [
+        `Corrected from ${current} to ${next} used on a job`,
+        link?.size ? `size ${link.size}` : null,
+      ]?.filter(Boolean)?.join(' — '),
       created_by: userId || null,
     });
   } catch (err) {

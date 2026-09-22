@@ -9,10 +9,12 @@ import {
   addJobLink,
   setJobLinkQty,
   setJobLinkPurpose,
+  setJobLinkSize,
   removeJobLink,
   adjustConsumedQty,
   searchLinkTargets,
   isVariantItem,
+  sizesOf,
   suggestsConsumption,
 } from '../utils/jobLinks';
 import '../job-modals.css';
@@ -29,6 +31,10 @@ import '../job-modals.css';
  * A job whose title reads as consuming something ("replace the filter") opens
  * with Uses preselected. That is a starting point, not a decision: the toggle
  * is on the row and the panel says why it guessed.
+ *
+ * An item tracked by size — crew kit, uniform — says which size it uses as
+ * well, because that is what comes off the shelf. Uses is live for those too;
+ * it just needs the size before it will move anything.
  */
 const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true }) => {
   const [links, setLinks] = useState([]);
@@ -90,7 +96,7 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
     setBusyId(target?.id);
     // "Replace the ice maker filter" almost certainly uses one, so open on that
     // rather than making someone set it every time. Never for a size-tracked
-    // item, which cannot be deducted at all.
+    // item: which size it uses is not something a title can tell us.
     const guess = kind === INVENTORY
       && !isVariantItem(target)
       && suggestsConsumption(job?.title);
@@ -130,12 +136,28 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
 
   const handlePurpose = async (link, purpose) => {
     const qty = purpose === USES ? (link?.qty || 1) : null;
-    setLinks(prev => prev?.map(l => (l?.id === link?.id ? { ...l, purpose, qty } : l)));
+    // Only one size on the shelf: there is nothing to choose, so choose it.
+    const sizes = isVariantItem(link?.item) ? sizesOf(link?.item) : [];
+    const size = purpose === USES
+      ? (link?.size || (sizes?.length === 1 ? sizes[0]?.size : null))
+      : null;
+    setLinks(prev => prev?.map(l => (l?.id === link?.id ? { ...l, purpose, qty, size } : l)));
     try {
-      await setJobLinkPurpose({ linkId: link?.id, purpose, qty });
+      await setJobLinkPurpose({ linkId: link?.id, purpose, qty, size });
     } catch (err) {
       console.warn('[JobLinksPanel] purpose save failed:', err);
       setError('That did not save.');
+    }
+  };
+
+  const handleSize = async (link, size) => {
+    const next = size || null;
+    setLinks(prev => prev?.map(l => (l?.id === link?.id ? { ...l, size: next } : l)));
+    try {
+      await setJobLinkSize({ linkId: link?.id, size: next });
+    } catch (err) {
+      console.warn('[JobLinksPanel] size save failed:', err);
+      setError('That size did not save.');
     }
   };
 
@@ -151,7 +173,7 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
         link, tenantId: activeTenantId, userId: currentUserId, newQty: next,
       });
       if (r?.refused) {
-        setError(`${r?.name} is tracked by size, so adjust it from the item itself.`);
+        setError(`${r?.name} is tracked by size and this link has no size on it, so adjust it from the item itself.`);
       } else if (r?.shortfall > 0) {
         setError(`Only ${r?.moved} were left in stock, so ${r?.shortfall} more is unaccounted for.`);
       }
@@ -218,7 +240,10 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
                     disabled={busyId === link?.id}
                     onBlur={(e) => handleAdjust(link, e?.target?.value)}
                   />
-                  <span className="jl-unit">{link?.item?.unit || ''} used</span>
+                  <span className="jl-unit">
+                    {[link?.item?.unit, link?.size ? `size ${link.size}` : null]
+                      ?.filter(Boolean)?.join(' · ')} used
+                  </span>
                 </span>
               ) : (
                 <span className="jl-used">
@@ -243,15 +268,30 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
                   <button
                     type="button"
                     className={`jl-modebtn${link?.purpose === USES ? ' on' : ''}`}
-                    disabled={!canInteract || variant}
+                    disabled={!canInteract}
                     onClick={() => handlePurpose(link, USES)}
-                    title={variant
-                      ? 'This item is tracked by size, so it cannot be deducted automatically'
-                      : 'The job uses this up — completing it takes the quantity out of stock'}
+                    title="The job uses this up — completing it takes the quantity out of stock"
                   >
                     Uses
                   </button>
                 </div>
+                {link?.purpose === USES && variant && (
+                  /* Which size comes off the shelf. Nothing moves until this is
+                     set, so it sits before the quantity and shows what is
+                     actually in stock for each. */
+                  <select
+                    className="jm-input jl-sizefield"
+                    value={link?.size || ''}
+                    disabled={!canInteract}
+                    title="Which size this job uses"
+                    onChange={(e) => handleSize(link, e?.target?.value)}
+                  >
+                    <option value="">Size…</option>
+                    {sizesOf(link?.item)?.map(s => (
+                      <option key={s?.size} value={s?.size}>{s?.size} · {s?.qty}</option>
+                    ))}
+                  </select>
+                )}
                 {link?.purpose === USES && (
                   <>
                     <input
@@ -293,14 +333,17 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
   // people discover afterwards, so the panel states it either way: what will
   // happen once a quantity is set, and exactly what will move when one is.
   const stockLinks = links?.filter(l => l?.kind === INVENTORY);
-  const pending = stockLinks?.filter(l => l?.purpose === USES && l?.qty > 0 && !l?.consumedAt);
-  const needsQty = stockLinks?.filter(l => l?.purpose === USES && !(l?.qty > 0) && !l?.consumedAt);
+  // A size-tracked link is only ready once it says which size, so it counts as
+  // unfinished rather than as something that will move on completion.
+  const ready = (l) => l?.qty > 0 && (!isVariantItem(l?.item) || !!l?.size);
+  const pending = stockLinks?.filter(l => l?.purpose === USES && ready(l) && !l?.consumedAt);
+  const needsQty = stockLinks?.filter(l => l?.purpose === USES && !ready(l) && !l?.consumedAt);
   const references = stockLinks?.filter(l => l?.purpose !== USES && !l?.consumedAt);
   const consumedLinks = stockLinks?.filter(l => l?.consumedAt);
   const guessed = stockLinks?.some(l => suggested?.includes(l?.item?.id) && l?.purpose === USES);
 
   const listOf = (ls) => ls
-    ?.map(l => `${l?.qty} ${l?.name}${l?.item?.unit && l?.item?.unit !== 'each' ? ` ${l.item.unit}` : ''}`)
+    ?.map(l => `${l?.qty} ${l?.name}${l?.size ? ` (${l.size})` : ''}${l?.item?.unit && l?.item?.unit !== 'each' ? ` ${l.item.unit}` : ''}`)
     ?.join(', ');
 
   return (
@@ -339,8 +382,9 @@ const JobLinksPanel = ({ job, activeTenantId, currentUserId, canInteract = true 
       )}
       {needsQty?.length > 0 && (
         <p className="jm-hint">
-          Set a quantity for {needsQty?.map(l => l?.name)?.join(', ')} — how many the
-          job uses.
+          {needsQty?.map(l => l?.name)?.join(', ')}: set {needsQty?.some(l => isVariantItem(l?.item) && !l?.size)
+            ? 'the size and how many'
+            : 'a quantity — how many'} the job uses. Nothing moves until you do.
         </p>
       )}
       {guessed && (

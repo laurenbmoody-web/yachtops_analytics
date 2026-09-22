@@ -1691,8 +1691,10 @@ const TeamJobsManagement = () => {
       `${m?.name} only had ${m?.moved} left, so ${m?.shortfall} more is unaccounted for.`,
       'warning',
     ));
+    // The only refusal left: a size-tracked item whose link never said which
+    // size. Nothing moved, and the fix is one field on the link.
     refused?.forEach(m => showToast(
-      `${m?.name} is tracked by size, so adjust it from the item itself.`,
+      `${m?.name} is tracked by size — set the size on the link and nothing was taken off the shelf.`,
       'warning',
     ));
   };

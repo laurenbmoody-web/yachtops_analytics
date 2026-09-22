@@ -102,6 +102,10 @@
 .jm-input.err, .jm-textarea.err { border-color: #C0453C; }
 .jm-input.err:focus, .jm-textarea.err:focus { box-shadow: 0 0 0 3px #FBEBEA; }
 .jm-textarea { resize: vertical; min-height: 78px; line-height: 1.55; }
+/* The click-to-edit description in the detail pane: one line to start, taller
+   as it fills. A fixed three-row box left a block of empty space on a job
+   whose detail is a sentence. */
+.cd-detailarea { min-height: 0; resize: none; overflow: hidden; }
 .jm-select {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238B8478' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
@@ -1106,6 +1110,14 @@
 }
 .jl-qty { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
+/* The drawer has no 440px to spare for a name, a toggle, a size and a
+   quantity on one line — the name was being squeezed to nothing. So the row
+   wraps: what it is on the first line, what it does on the second. */
+.jm-drawer .jl-row { flex-wrap: wrap; row-gap: 9px; }
+.jm-drawer .jl-main { flex: 1 1 55%; }
+.jm-drawer .jl-x { order: 2; }
+.jm-drawer .jl-qty { order: 3; flex: 1 1 100%; justify-content: flex-end; }
+
 /* Reference | Uses — what the link is for. Two states, always both visible, so
    the one that moves stock is never the one you fell into. */
 .jl-mode {
@@ -1128,6 +1140,13 @@
 .jl-modebtn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .jl-qtyfield { width: 72px; padding: 7px 9px; text-align: right; }
+/* Which size comes off the shelf, for a size-tracked item. Sits before the
+   quantity because nothing moves until it is set. */
+.jl-sizefield {
+  width: 96px; padding: 7px 9px;
+  font: 500 12px 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.jl-sizefield:invalid, .jl-sizefield[value=""] { color: #8B8478; }
 .jl-unit {
   font: 500 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
   min-width: 26px;
