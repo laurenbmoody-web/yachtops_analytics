@@ -96,6 +96,12 @@ export const WIDGET_META = {
     allowedTiers: WIDGET_PERMISSIONS.ALL,
     defaultColumn: 'center',
   },
+  fridgeTemps: {
+    id: 'fridgeTemps',
+    title: 'Fridge Temps',
+    allowedTiers: WIDGET_PERMISSIONS.ALL,
+    defaultColumn: 'center',
+  },
   vesselDocRenewals: {
     id: 'vesselDocRenewals',
     title: 'Document Renewals',
@@ -106,6 +112,6 @@ export const WIDGET_META = {
 
 export const DEFAULT_LAYOUT = {
   left:   ['signInOut', 'teamJobs', 'rota', 'hoursOfRest', 'todaySnapshot', 'recentActivity'],
-  center: ['vesselStatus', 'vesselView', 'laundry', 'quickActions', 'pantry'],
+  center: ['vesselStatus', 'vesselView', 'laundry', 'quickActions', 'pantry', 'fridgeTemps'],
   right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth', 'vesselDocRenewals', 'provisioning'],
 };
