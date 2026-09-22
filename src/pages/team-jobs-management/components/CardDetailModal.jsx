@@ -39,6 +39,13 @@ const statusTagTone = (status) => {
   }
 };
 
+// Size a textarea to its content, to a sensible ceiling.
+const autoGrow = (el) => {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
+};
+
 const CardDetailModal = ({ 
   card, 
   currentUser, 
@@ -834,10 +841,15 @@ const CardDetailModal = ({
                later — that should not mean opening the whole edit form. */
             <textarea
               autoFocus
-              className="jm-textarea"
-              rows={3}
+              className="jm-textarea cd-detailarea"
+              rows={1}
               placeholder="What the crew will need to know…"
               defaultValue={card?.description || ''}
+              /* Opens at the height of what is in it and grows as you type,
+                 rather than a three-row box of empty space above a job that
+                 needs one line of detail. */
+              ref={autoGrow}
+              onInput={(e) => autoGrow(e?.target)}
               onBlur={(e) => {
                 const v = e?.target?.value;
                 setEditingDetail(false);
