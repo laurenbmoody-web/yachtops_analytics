@@ -8,6 +8,8 @@
   z-index: 2147483000; /* above app chrome, below toasts if any */
   font-family: 'Inter', system-ui, sans-serif;
 }
+/* Hidden while the dashboard customise bar is open (see dashboard index). */
+body.dashboard-editing .fbw-root { display: none; }
 
 /* ── The tab ── */
 /* Rests as a compact circular bubble (icon only) so it never covers page

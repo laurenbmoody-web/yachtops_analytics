@@ -1,0 +1,67 @@
+/* Dashboard customise bar — editorial (Cargo) design system. Floating white
+   panel, terracotta primary, fully-rounded pills. */
+.deb-wrap {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: var(--z-nav, 1000);
+  display: flex; justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+.deb-bar {
+  pointer-events: auto;
+  width: 100%; max-width: 1180px;
+  display: flex; align-items: center; gap: 16px;
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  padding: 11px 14px 11px 18px;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.deb-label {
+  flex: 0 0 auto;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+
+.deb-chips {
+  flex: 1 1 auto;
+  display: flex; align-items: center; gap: 8px;
+  overflow-x: auto; padding-bottom: 1px;
+}
+.deb-chips::-webkit-scrollbar { height: 0; }
+.deb-empty { font-size: 13px; color: #AEB4C2; font-style: italic; }
+
+.deb-chip {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 13px;
+  border: 1px solid #E5E7EB; border-radius: 999px;
+  background: #FFFFFF; color: #1C1B3A;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.deb-chip:hover { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+
+.deb-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+.deb-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 999px; font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: inherit; border: 1px solid transparent;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+.deb-btn.ghost { padding: 7px 14px; background: #FFFFFF; border-color: #E5E7EB; color: #6B7280; }
+.deb-btn.ghost:hover { border-color: #C65A1A; color: #C65A1A; }
+.deb-btn.prim { padding: 8px 18px; background: #C65A1A; color: #FFFFFF; }
+.deb-btn.prim:hover { background: #B14E16; }
+
+.deb-ico { width: 14px; height: 14px; flex: 0 0 auto; }
+
+@media (max-width: 640px) {
+  .deb-bar { flex-wrap: wrap; gap: 10px; }
+  .deb-chips { order: 3; width: 100%; }
+  .deb-actions { margin-left: auto; }
+}

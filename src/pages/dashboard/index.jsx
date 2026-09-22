@@ -426,6 +426,13 @@ const Dashboard = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [activeId, setActiveId] = useState(null); // widget being dragged
 
+  // Hide the floating Feedback button while customising so it never overlaps
+  // the edit bar's controls (Feedback watches for this body class).
+  useEffect(() => {
+    document.body.classList.toggle('dashboard-editing', isEditing);
+    return () => document.body.classList.remove('dashboard-editing');
+  }, [isEditing]);
+
   const { layout, resetLayout, addWidget, removeWidget, moveWidget, hiddenWidgets } =
     useDashboardLayout();
 
