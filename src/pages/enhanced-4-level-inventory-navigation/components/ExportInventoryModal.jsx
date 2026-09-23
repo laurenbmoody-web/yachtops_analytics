@@ -213,9 +213,14 @@ const ExportInventoryModal = ({
   allItems = [],
   preSelectedItemIds = new Set(),
   folderTree = {},
+  filteredItems = null,
+  filterActive = false,
+  filterLabel = '',
+  filterKind = 'filter',
 }) => {
+  const hasView = filterActive && Array.isArray(filteredItems);
   const [scope, setScope] = useState(
-    selectedCount > 0 ? 'selected' : isRoot ? 'entire' : 'folder'
+    hasView ? 'view' : selectedCount > 0 ? 'selected' : isRoot ? 'entire' : 'folder'
   );
   const [format, setFormat] = useState('pdf');
   const [includeImages, setIncludeImages] = useState(false);
@@ -319,10 +324,18 @@ const ExportInventoryModal = ({
       selectedFolderItems: scope === 'selected' ? selectedFolderItems : undefined,
       selectedFoldersMeta,
       allFoldersMeta: flatFolderMeta,
+      viewItems: scope === 'view' ? filteredItems : undefined,
+      viewLabel: scope === 'view' ? filterLabel : undefined,
     });
   };
 
   const scopeOptions = [
+    ...(hasView ? [{
+      value: 'view',
+      label: filterKind === 'location' ? `This area — ${filterLabel}` : 'Current filter',
+      description: `${filteredItems.length} item${filteredItems.length !== 1 ? 's' : ''} matching what's on screen${filterKind === 'location' ? ' in this location' : ''}`,
+      icon: filterKind === 'location' ? 'MapPin' : 'Filter',
+    }] : []),
     {
       value: 'entire',
       label: 'Entire Inventory',
@@ -578,7 +591,7 @@ const ExportInventoryModal = ({
         </button>
         <button
           onClick={handleExport}
-          disabled={isExporting || (scope === 'selected' && selectedKeys?.size === 0 && selectedCount === 0)}
+          disabled={isExporting || (scope === 'selected' && selectedKeys?.size === 0 && selectedCount === 0) || (scope === 'view' && (!filteredItems || filteredItems.length === 0))}
           className="inline-flex items-center gap-2 px-5 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {isExporting ? (
@@ -589,7 +602,7 @@ const ExportInventoryModal = ({
           ) : (
             <>
               <Icon name="Download" size={15} />
-              Export{scope === 'selected' && selectedItemCount > 0 ? ` (${selectedItemCount})` : ''}
+              Export{scope === 'view' ? ` (${filteredItems?.length || 0})` : scope === 'selected' && selectedItemCount > 0 ? ` (${selectedItemCount})` : ''}
             </>
           )}
         </button>
