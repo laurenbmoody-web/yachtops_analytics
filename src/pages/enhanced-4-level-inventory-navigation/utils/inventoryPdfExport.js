@@ -204,6 +204,7 @@ export const exportInventoryToPDF = async ({
   // Scope label
   const scopeLabel = scope === 'entire' ? 'Entire Inventory'
     : scope === 'folder' ? `Current Folder: ${folderPath || 'Root'}`
+    : scope === 'view' ? (folderPath || 'Filtered items')
     : 'Selected Items';
 
   // ── Header ──────────────────────────────────────────────────────────────
@@ -233,6 +234,9 @@ export const exportInventoryToPDF = async ({
 
   if (scope === 'folder' && folderPath) {
     doc?.text(`Folder: ${folderPath}`, margin, yPos);
+    yPos += 5;
+  } else if (scope === 'view' && folderPath) {
+    doc?.text(`Location / filter: ${folderPath}`, margin, yPos);
     yPos += 5;
   }
   doc?.text(`Total items: ${(items || [])?.length}`, margin, yPos);

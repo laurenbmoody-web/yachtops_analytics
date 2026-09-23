@@ -431,11 +431,15 @@ const buildSummarySheet = (worksheet, folderGroups, allItems) => {
 
 const buildExportInfoSheet = (worksheet, scope, folderPath, items, includeImages, exportedBy) => {
   const now = new Date();
+  const scopeText = scope === 'view' ? 'Location / filter'
+    : scope === 'entire' ? 'Entire inventory'
+    : scope === 'folder' ? 'Current folder'
+    : scope === 'selected' ? 'Selected folders' : scope;
   const rows = [
-    ['Export Scope', scope],
+    ['Export Scope', scopeText],
     ['Exported By', exportedBy || 'Unknown'],
     ['Export Date', now?.toLocaleString('en-GB')],
-    ['Folder Path', folderPath || '—'],
+    [scope === 'view' ? 'Location / Filter' : 'Folder Path', folderPath || '—'],
     ['Total Items Exported', items?.length],
     ['Images Included', includeImages ? 'Yes' : 'No'],
     ['Format', 'Excel (.xlsx)'],

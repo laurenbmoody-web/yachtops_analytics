@@ -3705,11 +3705,16 @@ const LocationFirstInventory = () => {
   }, [allItems, subFolders, isCommand, isChief]);
 
 
-  const handleExport = async ({ scope, format, includeImages, selectedFolderItems, selectedFoldersMeta, allFoldersMeta }) => {
+  const handleExport = async ({ scope, format, includeImages, selectedFolderItems, selectedFoldersMeta, allFoldersMeta, viewItems, viewLabel }) => {
     setIsExporting(true);
     try {
       let exportItems = [];
-      if (scope === 'selected' && selectedFolderItems) {
+      let viewPathLabel = null;
+      if (scope === 'view') {
+        // Current filtered view — e.g. a physical location/room or search filter.
+        exportItems = viewItems || [];
+        viewPathLabel = viewLabel || 'Filtered items';
+      } else if (scope === 'selected' && selectedFolderItems) {
         exportItems = selectedFolderItems;
       } else if (scope === 'folder') {
         const folderLocation = pathSegments?.[0] || '';
@@ -3727,7 +3732,7 @@ const LocationFirstInventory = () => {
         exportItems = allItems;
       }
 
-      const folderPath = pathSegments?.join(' › ') || 'Entire Inventory';
+      const folderPath = viewPathLabel || pathSegments?.join(' › ') || 'Entire Inventory';
       const exportedBy = currentUser?.full_name || currentUser?.name || currentUser?.email || 'Unknown';
 
       if (format === 'pdf') {
@@ -4605,6 +4610,14 @@ const LocationFirstInventory = () => {
           searchQuery={searchQuery}
           allItems={allItems}
           selectedItemIds={selectedItemIds}
+          isRoot={isRoot}
+          currentFolderPath={pathSegments?.join(' › ') || ''}
+          filteredItems={filteredItems}
+          filterActive={!!activeLocationId || !!searchQuery || !!activeTagFilter || (activeFilters && (
+            (activeFilters?.tags?.length > 0) || activeFilters?.brand || activeFilters?.supplier ||
+            activeFilters?.belowPar || activeFilters?.hasExpiry || activeFilters?.hasImage || activeFilters?.location))}
+          filterLabel={activeLocationId ? (activeLocationName || 'Selected location') : (searchQuery ? `“${searchQuery}”` : 'Current filter')}
+          filterKind={activeLocationId ? 'location' : 'filter'}
         />
       )}
       {showAzureImportModal && (
