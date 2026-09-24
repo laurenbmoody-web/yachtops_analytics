@@ -2408,6 +2408,25 @@ const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], 
   const currentParent = locBrowse.length ? locBrowse[locBrowse.length - 1] : null;
   const locRows = childrenOf(currentParent);
 
+  // All leaf locations (the actual boxes/shelves you scan) beneath a node —
+  // used by the bulk QR sheet so it always prints boxes, never the intermediate
+  // deck/room nodes. rootId = null walks the whole tree.
+  const leafLocations = (rootId) => {
+    const out = [];
+    const walk = (id) => {
+      const kids = childrenOf(id);
+      if (!kids.length) { if (id != null && byId[id]) out.push(byId[id]); return; }
+      kids.forEach((k) => walk(k.id));
+    };
+    if (rootId == null) childrenOf(null).forEach((r) => walk(r.id));
+    else walk(rootId);
+    return out;
+  };
+  // Print scope: the location you've selected (filter chip) or drilled into.
+  const qrScopeId = activeLocationId || currentParent || null;
+  const qrLeaves = leafLocations(qrScopeId);
+  const qrScopeName = qrScopeId ? (byId[qrScopeId]?.name || 'Location') : 'All locations';
+
   const Chip = ({ on, label, onClick }) => (
     <button type="button" className={`invf-chip${on ? ' on' : ''}`} onClick={onClick}>{label}</button>
   );
@@ -2424,17 +2443,17 @@ const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], 
         <div className="invf-sec">
           <div className="invf-sechead">
             <p className="invf-label" style={{ margin: 0 }}>Location</p>
-            {locRows.length > 0 && (
+            {qrLeaves.length > 0 && (
               <button type="button" className="invf-qrall"
-                title={`Print QR labels for the ${locRows.length} location${locRows.length === 1 ? '' : 's'} here`}
+                title={`Print QR labels for the ${qrLeaves.length} box${qrLeaves.length === 1 ? '' : 'es'} in ${qrScopeName}`}
                 onClick={() => printQrSheet({
-                  title: currentParent ? `${byId[currentParent]?.name || 'Location'} — QR labels` : 'Location QR labels',
-                  entries: locRows.map((n) => ({
+                  title: `${qrScopeName} — box QR labels`,
+                  entries: qrLeaves.map((n) => ({
                     value: boxQrUrl(n.id, n.name), name: n.name,
-                    sub: locBrowse.map((id) => byId[id]?.name).filter(Boolean).join(' › '),
+                    sub: qrScopeId && qrScopeName !== n.name ? qrScopeName : '',
                   })),
                 })}>
-                <Icon name="QrCode" size={13} /> QR sheet
+                <Icon name="QrCode" size={13} /> QR sheet ({qrLeaves.length})
               </button>
             )}
           </div>
