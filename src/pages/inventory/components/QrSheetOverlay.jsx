@@ -9,7 +9,8 @@ import './qr-sheet-overlay.css';
 // 24 × 40 mm square labels (4 × 6); also supports auto-fill A4 and roll sizes.
 
 const SIZES = [
-  { id: 'sheet24', label: 'A4 sheet · 24 labels (40 × 40 mm)', grid: { cols: 4, rows: 6, cell: 40 } },
+  // Herma 9642: A4, 4 × 6 = 24 labels, 40 × 40 mm, ~8 mm gaps (adjustable below).
+  { id: 'sheet24', label: 'Herma 9642 · 24 × 40 mm (A4)', grid: { cols: 4, rows: 6, cell: 40, gapX: 8, gapY: 8 } },
   { id: 'sheetauto', label: 'A4 sheet · auto-fill' },
   { id: 'dymo', label: 'Dymo 89 × 36 mm (99012)', w: 89, h: 36 },
   { id: 'brother', label: 'Brother QL 62 × 29 mm (DK-11209)', w: 62, h: 29 },
@@ -24,6 +25,12 @@ export default function QrSheetOverlay({ title = 'QR labels', entries = [], onCl
   const [qr, setQr] = useState({});
   const [ready, setReady] = useState(false);
   const [stock, setStock] = useState('sheet24');
+  // Fine-tune to the physical sheet (mm): gap between labels + a whole-sheet
+  // nudge to correct printer offset.
+  const [gapX, setGapX] = useState(8);
+  const [gapY, setGapY] = useState(8);
+  const [offX, setOffX] = useState(0);
+  const [offY, setOffY] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -59,18 +66,23 @@ export default function QrSheetOverlay({ title = 'QR labels', entries = [], onCl
 
   const renderBody = () => {
     if (size.grid) {
-      const per = size.grid.cols * size.grid.rows;
-      const qmm = Math.round(size.grid.cell * 0.62);
-      const padH = (210 - size.grid.cols * size.grid.cell) / 2;
-      const padV = (297 - size.grid.rows * size.grid.cell) / 2;
+      const { cols, rows, cell: cs } = size.grid;
+      const per = cols * rows;
+      const qmm = Math.round(cs * 0.62);
+      const blockW = cols * cs + (cols - 1) * gapX;
+      const blockH = rows * cs + (rows - 1) * gapY;
+      const padH = Math.max(0, (210 - blockW) / 2) + offX;
+      const padV = Math.max(0, (297 - blockH) / 2) + offY;
       return chunk(list, per).map((pageItems, pi) => (
         <div
           key={pi}
           className="qro-page grid"
           style={{
-            width: '210mm', height: '297mm', padding: `${padV}mm ${padH}mm`,
-            gridTemplateColumns: `repeat(${size.grid.cols}, ${size.grid.cell}mm)`,
-            gridTemplateRows: `repeat(${size.grid.rows}, ${size.grid.cell}mm)`,
+            width: '210mm', height: '297mm',
+            paddingTop: `${padV}mm`, paddingLeft: `${padH}mm`,
+            gridTemplateColumns: `repeat(${cols}, ${cs}mm)`,
+            gridTemplateRows: `repeat(${rows}, ${cs}mm)`,
+            columnGap: `${gapX}mm`, rowGap: `${gapY}mm`,
             '--qmm': `${qmm}mm`,
           }}
         >
@@ -129,7 +141,16 @@ export default function QrSheetOverlay({ title = 'QR labels', entries = [], onCl
           <Icon name="Printer" size={15} /> {ready ? 'Print' : 'Preparing…'}
         </button>
         <button className="qro-btn ghost" onClick={onClose}>Close</button>
-        <span className="qro-hint">Prints inside the app — no pop-up. Print at <b>100% / actual size</b> (turn off “fit to page”) so a 24 × 40 mm sheet lines up.</span>
+        {size.grid && (
+          <div className="qro-tune">
+            <span className="qro-tune-l">Fine-tune (mm)</span>
+            <label>Gap ↔<input type="number" step="0.5" value={gapX} onChange={(e) => setGapX(Number(e.target.value) || 0)} /></label>
+            <label>Gap ↕<input type="number" step="0.5" value={gapY} onChange={(e) => setGapY(Number(e.target.value) || 0)} /></label>
+            <label>Shift →<input type="number" step="0.5" value={offX} onChange={(e) => setOffX(Number(e.target.value) || 0)} /></label>
+            <label>Shift ↓<input type="number" step="0.5" value={offY} onChange={(e) => setOffY(Number(e.target.value) || 0)} /></label>
+          </div>
+        )}
+        <span className="qro-hint">Prints inside the app — no pop-up. Print at <b>100% / actual size</b> (turn off “fit to page”). This is set for <b>Herma 9642</b> (40 × 40 mm, 24-up); if it’s slightly off, tweak the gap/shift above and re-print.</span>
       </div>
       <div className="qro-scroll">{renderBody()}</div>
     </div>,
