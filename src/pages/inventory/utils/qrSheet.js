@@ -84,13 +84,15 @@ const CSS = `
  * Open a print window that tiles every entry's QR onto label pages.
  * @param {{ title?: string, entries: Array<{value:string,name?:string,sub?:string}> }} opts
  */
-export async function printQrSheet({ title = 'QR labels', entries = [] }) {
+export async function printQrSheet({ title = 'QR labels', entries = [], win = null }) {
   const list = (entries || []).filter((e) => e && String(e.value || '').trim());
   if (!list.length) return;
 
-  let w = null;
+  // Prefer a window the caller opened synchronously inside the click (popup-safe
+  // across the async QR generation below); otherwise open one now.
+  let w = win || null;
   try {
-    w = window.open('', '_blank');
+    if (!w) w = window.open('', '_blank');
     if (w) { w.document.open(); w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(title)}</title><body style="font-family:system-ui;padding:40px;color:#6B7280">Preparing ${list.length} QR labels…</body>`); w.document.close(); }
   } catch { /* popup blocked */ }
 
