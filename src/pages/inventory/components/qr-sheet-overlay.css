@@ -27,6 +27,12 @@
 .qro-qrph { background: #F1F5F9; }
 .qro-cell .nm { font: 700 7pt 'Inter'; line-height: 1.05; margin-top: 1mm; word-break: break-word; }
 .qro-cell .cd { font: 700 6pt 'Inter'; color: #6B7280; word-break: break-all; }
+.qro-cell[draggable="true"] { cursor: grab; border-radius: 6px; }
+.qro-cell[draggable="true"]:hover { background: #FBEFE9; }
+.qro-cell.dragging { opacity: .35; }
+.qro-cell.empty { border-radius: 6px; }
+.qro-slot-empty { width: var(--qmm, 25mm); height: var(--qmm, 25mm); border: 1.5px dashed #D6DBE4; border-radius: 6px; display: block; }
+.qro-cell.empty:hover .qro-slot-empty { border-color: #C65A1A; background: #FCF4EF; }
 
 .qro-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; padding: 8mm; }
 .qro-card { border: 1px solid #E5E7EB; border-radius: 10px; padding: 10px; text-align: center; }
@@ -51,4 +57,7 @@
   .qro-page, .qro-tag { box-shadow: none !important; break-after: page; page-break-after: always; }
   .qro-page:last-child, .qro-tag:last-child { break-after: auto; page-break-after: auto; }
   .qro-card { border: 1px solid #E5E7EB; }
+  /* Empty stickers print blank — no dashed guide, no hover tint. */
+  .qro-cell.empty, .qro-cell[draggable="true"] { background: none !important; }
+  .qro-slot-empty { display: none !important; }
 }
