@@ -14,7 +14,7 @@ import ItemFormModal from '../inventory/components/ItemFormModal';
 import UniformItemView from '../inventory/components/UniformItemView';
 import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
 import PartialBottleModal from '../inventory/components/PartialBottleModal';
-import { printBoxQr, boxQrUrl } from '../inventory/utils/locationQr';
+import { boxQrUrl } from '../inventory/utils/locationQr';
 import QrSheetOverlay from '../inventory/components/QrSheetOverlay';
 import { supabase } from '../../lib/supabaseClient';
 import { markTutorialStep } from '../../utils/tutorialState';
@@ -2496,7 +2496,7 @@ const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], 
                     {/* Leaf locations (a box / room) are scannable — print their QR straight from here. */}
                     {kids === 0 && (
                       <button type="button" title="Print this location's QR label"
-                        onClick={(e) => { e.stopPropagation(); printBoxQr({ locationId: node.id, title: node.name }); }}
+                        onClick={(e) => { e.stopPropagation(); onPrintQr?.(`${node.name} — QR label`, [{ value: boxQrUrl(node.id, node.name), name: node.name }]); }}
                         style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#C65A1A', padding: 2, display: 'inline-flex' }}>
                         <Icon name="QrCode" size={14} />
                       </button>
@@ -4419,7 +4419,7 @@ const LocationFirstInventory = () => {
             {activeLocationId && (
               <button
                 className="inv-chip qr"
-                onClick={() => printBoxQr({ locationId: activeLocationId, title: activeLocationName || 'Location', count: filteredItems?.length })}
+                onClick={() => setQrSheetData({ title: `${activeLocationName || 'Location'} — QR label`, entries: [{ value: boxQrUrl(activeLocationId, activeLocationName || 'Location'), name: activeLocationName || 'Location' }] })}
                 title="Print a QR label for this box — scan it to see what's inside"
               >
                 <Icon name="QrCode" size={12} />

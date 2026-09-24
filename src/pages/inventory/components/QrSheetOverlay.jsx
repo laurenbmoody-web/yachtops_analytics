@@ -31,6 +31,30 @@ export default function QrSheetOverlay({ title = 'QR labels', entries = [], onCl
   const [gapY, setGapY] = useState(8);
   const [offX, setOffX] = useState(0);
   const [offY, setOffY] = useState(0);
+  // Placement: slot index -> label index (-1 = empty). Lets you drag a QR onto
+  // a different sticker — e.g. to skip labels already used on a part-printed sheet.
+  const [place, setPlace] = useState([]);
+  const [dragFrom, setDragFrom] = useState(null);
+
+  const size0 = SIZES.find((s) => s.id === stock) || SIZES[0];
+  const per0 = size0.grid ? size0.grid.cols * size0.grid.rows : 0;
+  useEffect(() => {
+    if (!per0) { setPlace([]); return; }
+    const pages = Math.max(1, Math.ceil(list.length / per0));
+    const arr = new Array(pages * per0).fill(-1);
+    for (let i = 0; i < list.length; i += 1) arr[i] = i;
+    setPlace(arr);
+  }, [list, per0]);
+
+  const moveSlot = (to) => {
+    setPlace((p) => {
+      if (dragFrom == null || dragFrom === to) return p;
+      const n = [...p];
+      const a = n[dragFrom]; n[dragFrom] = n[to]; n[to] = a;
+      return n;
+    });
+    setDragFrom(null);
+  };
 
   useEffect(() => {
     let alive = true;
@@ -56,12 +80,12 @@ export default function QrSheetOverlay({ title = 'QR labels', entries = [], onCl
   const size = SIZES.find((s) => s.id === stock) || SIZES[0];
   const pageRule = size.grid ? '@page{size:A4;margin:0}' : size.w ? `@page{size:${size.w}mm ${size.h}mm;margin:0}` : '@page{size:A4;margin:8mm}';
 
-  const cell = (it, i) => (
-    <div className="qro-cell" key={i}>
-      {qr[it.value] ? <img src={qr[it.value]} alt="" /> : <div className="qro-qrph" />}
+  const cellContent = (it) => (
+    <>
+      {qr[it.value] ? <img src={qr[it.value]} alt="" draggable={false} /> : <div className="qro-qrph" />}
       {it.name ? <div className="nm">{it.name}</div> : null}
       {it.code ? <div className="cd">{it.code}</div> : null}
-    </div>
+    </>
   );
 
   const renderBody = () => {
@@ -73,7 +97,9 @@ export default function QrSheetOverlay({ title = 'QR labels', entries = [], onCl
       const blockH = rows * cs + (rows - 1) * gapY;
       const padH = Math.max(0, (210 - blockW) / 2) + offX;
       const padV = Math.max(0, (297 - blockH) / 2) + offY;
-      return chunk(list, per).map((pageItems, pi) => (
+      const slots = place.length ? place : list.map((_, i) => i);
+      const pages = Math.max(1, Math.ceil(slots.length / per));
+      return Array.from({ length: pages }).map((_, pi) => (
         <div
           key={pi}
           className="qro-page grid"
@@ -86,7 +112,25 @@ export default function QrSheetOverlay({ title = 'QR labels', entries = [], onCl
             '--qmm': `${qmm}mm`,
           }}
         >
-          {pageItems.map((it, i) => cell(it, i))}
+          {Array.from({ length: per }).map((__, si) => {
+            const slot = pi * per + si;
+            const li = slots[slot];
+            const it = li >= 0 && li != null ? list[li] : null;
+            return (
+              <div
+                key={si}
+                className={`qro-cell${it ? '' : ' empty'}${dragFrom === slot ? ' dragging' : ''}`}
+                draggable={!!it}
+                onDragStart={() => setDragFrom(slot)}
+                onDragEnd={() => setDragFrom(null)}
+                onDragOver={(e) => { e.preventDefault(); }}
+                onDrop={() => moveSlot(slot)}
+                title={it ? 'Drag onto another label' : 'Drop a label here'}
+              >
+                {it ? cellContent(it) : <span className="qro-slot-empty" aria-hidden="true" />}
+              </div>
+            );
+          })}
         </div>
       ));
     }
