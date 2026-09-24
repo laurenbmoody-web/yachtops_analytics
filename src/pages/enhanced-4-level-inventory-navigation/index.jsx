@@ -15,7 +15,7 @@ import UniformItemView from '../inventory/components/UniformItemView';
 import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
 import PartialBottleModal from '../inventory/components/PartialBottleModal';
 import { printBoxQr, boxQrUrl } from '../inventory/utils/locationQr';
-import { printQrSheet } from '../inventory/utils/qrSheet';
+import QrSheetOverlay from '../inventory/components/QrSheetOverlay';
 import { supabase } from '../../lib/supabaseClient';
 import { markTutorialStep } from '../../utils/tutorialState';
 import { DndContext, closestCenter, MouseSensor, TouchSensor, useSensor, useSensors, useDroppable, DragOverlay } from '@dnd-kit/core';
@@ -2387,7 +2387,7 @@ const segmentsToStorageFields = (segments) => ({
 const isItemDragId = (id) => typeof id === 'string' && id?.startsWith('item:');
 
 // ─── Filter Panel ─────────────────────────────────────────────────────────────
-const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], activeLocationId, onPickLocation }) => {
+const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], activeLocationId, onPickLocation, onPrintQr }) => {
   const availableTags = [...new Set(items?.flatMap(i => i?.tags || []))];
   const availableBrands = [...new Set(items?.map(i => i?.brand)?.filter(Boolean))];
   const availableSuppliers = [...new Set(items?.map(i => i?.supplier)?.filter(Boolean))];
@@ -2432,17 +2432,10 @@ const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], 
   const printChosenQr = () => {
     const chosen = qrLeaves.filter((l) => qrSel.has(l.id));
     if (!chosen.length) return;
-    let win = null;
-    try { win = window.open('', '_blank'); } catch { /* blocked */ }
-    if (!win) { try { window.showToast?.('Allow pop-ups for this site to print QR labels', 'error'); } catch {} return; }
-    printQrSheet({
-      win,
-      title: `${qrScopeName} — box QR labels`,
-      entries: chosen.map((n) => ({
-        value: boxQrUrl(n.id, n.name), name: n.name,
-        sub: byId[n.parent_id]?.name && byId[n.parent_id]?.name !== n.name ? byId[n.parent_id]?.name : '',
-      })),
-    });
+    onPrintQr?.(`${qrScopeName} — box QR labels`, chosen.map((n) => ({
+      value: boxQrUrl(n.id, n.name), name: n.name,
+      sub: byId[n.parent_id]?.name && byId[n.parent_id]?.name !== n.name ? byId[n.parent_id]?.name : '',
+    })));
     setQrPickOpen(false);
   };
 
@@ -2680,6 +2673,7 @@ const LocationFirstInventory = () => {
 
   const [selectedItemIds, setSelectedItemIds] = useState(new Set());
   const [showExportModal, setShowExportModal] = useState(false);
+  const [qrSheetData, setQrSheetData] = useState(null); // { title, entries } — in-app QR print overlay
   const [isExporting, setIsExporting] = useState(false);
   const [showAzureImportModal, setShowAzureImportModal] = useState(false);
   const [showBulkScanModal, setShowBulkScanModal] = useState(false);
@@ -4266,6 +4260,7 @@ const LocationFirstInventory = () => {
                     vesselLocations={vesselLocations}
                     activeLocationId={activeLocationId}
                     onPickLocation={(id, name) => { setActiveLocationId(id); setActiveLocationName(name || ''); setShowFilterPanel(false); }}
+                    onPrintQr={(t, e) => setQrSheetData({ title: t, entries: e })}
                   />
                 )}
               </div>
@@ -4368,11 +4363,7 @@ const LocationFirstInventory = () => {
               onClick={() => {
                 const chosen = (allItems || []).filter(i => selectedItemIds?.has(i?.id));
                 if (!chosen.length) return;
-                let win = null;
-                try { win = window.open('', '_blank'); } catch { /* blocked */ }
-                if (!win) { try { window.showToast?.('Allow pop-ups for this site to print QR labels', 'error'); } catch {} return; }
-                printQrSheet({
-                  win,
+                setQrSheetData({
                   title: `${chosen.length} item QR label${chosen.length === 1 ? '' : 's'}`,
                   entries: chosen.map(i => {
                     const val = String(i?.barcode || i?.code || i?.cargoItemId || '').trim();
@@ -4628,6 +4619,9 @@ const LocationFirstInventory = () => {
         )}
       </div>
       {/* Modals */}
+      {qrSheetData && (
+        <QrSheetOverlay title={qrSheetData.title} entries={qrSheetData.entries} onClose={() => setQrSheetData(null)} />
+      )}
       {showAddModal && (
         <ItemFormModal
           item={editingItem}
