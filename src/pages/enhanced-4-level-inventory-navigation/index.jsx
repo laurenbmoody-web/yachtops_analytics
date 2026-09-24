@@ -2432,7 +2432,11 @@ const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], 
   const printChosenQr = () => {
     const chosen = qrLeaves.filter((l) => qrSel.has(l.id));
     if (!chosen.length) return;
+    let win = null;
+    try { win = window.open('', '_blank'); } catch { /* blocked */ }
+    if (!win) { try { window.showToast?.('Allow pop-ups for this site to print QR labels', 'error'); } catch {} return; }
     printQrSheet({
+      win,
       title: `${qrScopeName} — box QR labels`,
       entries: chosen.map((n) => ({
         value: boxQrUrl(n.id, n.name), name: n.name,
@@ -4363,7 +4367,12 @@ const LocationFirstInventory = () => {
             <button
               onClick={() => {
                 const chosen = (allItems || []).filter(i => selectedItemIds?.has(i?.id));
+                if (!chosen.length) return;
+                let win = null;
+                try { win = window.open('', '_blank'); } catch { /* blocked */ }
+                if (!win) { try { window.showToast?.('Allow pop-ups for this site to print QR labels', 'error'); } catch {} return; }
                 printQrSheet({
+                  win,
                   title: `${chosen.length} item QR label${chosen.length === 1 ? '' : 's'}`,
                   entries: chosen.map(i => {
                     const val = String(i?.barcode || i?.code || i?.cargoItemId || '').trim();
