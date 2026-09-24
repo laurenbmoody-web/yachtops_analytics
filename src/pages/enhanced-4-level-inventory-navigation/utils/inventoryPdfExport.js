@@ -8,14 +8,18 @@ const lastSegment = (str) => {
   return parts?.[parts?.length - 1] || str;
 };
 
-/** Format stock locations as "Location: qty | Location: qty" */
+/** Stock locations. A single location shows just its name (the total is already
+ *  in the Qty column, so repeating it is redundant); a split shows the per-
+ *  location breakdown, where the counts actually add information. */
 const formatLocations = (item) => {
   const locs = item?.stockLocations || [];
   if (!locs?.length) return '';
-  return locs?.map(loc => {
-    const name = lastSegment(loc?.locationName || loc?.location_name || loc?.location || loc?.name || '');
-    return `${name}: ${loc?.qty ?? 0}`;
-  })?.join(' | ');
+  const named = locs.map(loc => ({
+    name: lastSegment(loc?.locationName || loc?.location_name || loc?.location || loc?.name || ''),
+    qty: loc?.qty ?? 0,
+  }));
+  if (named.length === 1) return named[0].name;
+  return named.map(l => `${l.name}: ${l.qty}`).join(' | ');
 };
 
 /** Get total quantity */
@@ -64,7 +68,7 @@ const fetchImageAsBase64 = (url) => {
  * and per-size stock gets its own "Sizes" column. This keeps ~8 wide columns on
  * landscape A4 instead of 25+ slivers.
  */
-const COLUMNS = ['Cargo ID', 'Name', 'Brand', 'Folder', 'Sizes', 'Details', 'Locations (qty)', 'Qty'];
+const COLUMNS = ['Cargo ID', 'Name', 'Brand', 'Folder', 'Sizes', 'Details', 'Location', 'Qty'];
 // mm widths for the columns above, summing to the 269mm usable width (no image).
 const COLUMN_WIDTHS = [20, 44, 26, 30, 34, 63, 34, 18];
 
@@ -147,7 +151,7 @@ const buildRow = (item, includeImages) => {
     sanitizeCell(getFolderLabel(item)),
     buildSizes(item),
     buildDetails(item),
-    sanitizeCell(formatLocations(item) || String(getTotalQty(item))),
+    sanitizeCell(formatLocations(item)),
     sanitizeCell(String(getTotalQty(item))),
   ];
 

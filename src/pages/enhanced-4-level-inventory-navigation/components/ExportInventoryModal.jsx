@@ -382,11 +382,11 @@ const ExportInventoryModal = ({
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Icon name="Download" size={18} className="text-primary" />
+          <div className="w-9 h-9 rounded-xl bg-[#FBEFE9] flex items-center justify-center">
+            <Icon name="Download" size={18} className="text-[#C65A1A]" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-foreground">Export Inventory</h2>
+            <h2 className="text-base font-semibold text-[#1C1B3A]">Export Inventory</h2>
             <p className="text-xs text-muted-foreground">Choose scope, format and options</p>
           </div>
         </div>
@@ -412,30 +412,30 @@ const ExportInventoryModal = ({
                 disabled={opt?.disabled}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
                   opt?.disabled
-                    ? 'opacity-40 cursor-not-allowed border-border bg-muted/30'
+                    ? 'opacity-40 cursor-not-allowed border-[#E5E7EB] bg-[#FAFAF8]'
                     : scope === opt?.value
-                    ? 'border-primary bg-primary/5 shadow-sm'
-                    : 'border-border bg-background hover:border-primary/40 hover:bg-muted/30'
+                    ? 'border-[#C65A1A] bg-[#FBEFE9]'
+                    : 'border-[#E5E7EB] bg-white hover:border-[#C65A1A]/50 hover:bg-[#FAFAF8]'
                 }`}
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  scope === opt?.value && !opt?.disabled ? 'bg-primary/15' : 'bg-muted'
+                  scope === opt?.value && !opt?.disabled ? 'bg-[#F7E4DA]' : 'bg-[#F1F5F9]'
                 }`}>
                   <Icon
                     name={opt?.icon}
                     size={16}
-                    className={scope === opt?.value && !opt?.disabled ? 'text-primary' : 'text-muted-foreground'}
+                    className={scope === opt?.value && !opt?.disabled ? 'text-[#C65A1A]' : 'text-[#8B8478]'}
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${scope === opt?.value && !opt?.disabled ? 'text-primary' : 'text-foreground'}`}>
+                  <p className={`text-sm font-semibold ${scope === opt?.value && !opt?.disabled ? 'text-[#C65A1A]' : 'text-[#1C1B3A]'}`}>
                     {opt?.label}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">{opt?.description}</p>
+                  <p className="text-xs text-[#8B8478] truncate">{opt?.description}</p>
                 </div>
                 {scope === opt?.value && !opt?.disabled && (
-                  <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                    <Icon name="Check" size={12} className="text-primary-foreground" />
+                  <div className="w-5 h-5 rounded-full bg-[#C65A1A] flex items-center justify-center flex-shrink-0">
+                    <Icon name="Check" size={12} className="text-white" />
                   </div>
                 )}
               </button>
@@ -526,24 +526,24 @@ const ExportInventoryModal = ({
                 onClick={() => setFormat(opt?.value)}
                 className={`flex flex-col items-center gap-2 px-3 py-3.5 rounded-xl border text-center transition-all ${
                   format === opt?.value
-                    ? 'border-primary bg-primary/5 shadow-sm'
-                    : 'border-border bg-background hover:border-primary/40 hover:bg-muted/30'
+                    ? 'border-[#C65A1A] bg-[#FBEFE9]'
+                    : 'border-[#E5E7EB] bg-white hover:border-[#C65A1A]/50 hover:bg-[#FAFAF8]'
                 }`}
               >
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                  format === opt?.value ? 'bg-primary/15' : 'bg-muted'
+                  format === opt?.value ? 'bg-[#F7E4DA]' : 'bg-[#F1F5F9]'
                 }`}>
                   <Icon
                     name={opt?.icon}
                     size={18}
-                    className={format === opt?.value ? 'text-primary' : 'text-muted-foreground'}
+                    className={format === opt?.value ? 'text-[#C65A1A]' : 'text-[#8B8478]'}
                   />
                 </div>
                 <div>
-                  <p className={`text-sm font-semibold ${format === opt?.value ? 'text-primary' : 'text-foreground'}`}>
+                  <p className={`text-sm font-semibold ${format === opt?.value ? 'text-[#C65A1A]' : 'text-[#1C1B3A]'}`}>
                     {opt?.label}
                   </p>
-                  <p className="text-xs text-muted-foreground leading-tight mt-0.5">{opt?.description}</p>
+                  <p className="text-xs text-[#8B8478] leading-tight mt-0.5">{opt?.description}</p>
                 </div>
               </button>
             ))}
@@ -551,14 +551,14 @@ const ExportInventoryModal = ({
         </div>
 
         {/* Include Images toggle */}
-        <div className="flex items-center justify-between px-4 py-3 bg-muted/40 rounded-xl border border-border">
+        <div className="flex items-center justify-between px-4 py-3 bg-[#FAFAF8] rounded-xl border border-[#E5E7EB]">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-              <Icon name="Image" size={16} className="text-muted-foreground" />
+            <div className="w-8 h-8 rounded-lg bg-[#F1F5F9] flex items-center justify-center">
+              <Icon name="Image" size={16} className="text-[#8B8478]" />
             </div>
             <div>
-              <p className="text-sm font-medium text-foreground">Include Images</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm font-medium text-[#1C1B3A]">Include Images</p>
+              <p className="text-xs text-[#8B8478]">
                 {format === 'pdf' ? 'Thumbnails next to items' : 'Image URL column in spreadsheet'}
               </p>
             </div>
@@ -585,14 +585,14 @@ const ExportInventoryModal = ({
       <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border flex-shrink-0">
         <button
           onClick={onClose}
-          className="px-4 py-2 text-sm font-medium text-muted-foreground bg-muted rounded-xl hover:bg-muted/80 transition-colors"
+          className="px-4 py-2 text-sm font-medium text-[#6B7280] bg-white border border-[#E5E7EB] rounded-xl hover:border-[#C65A1A] hover:text-[#C65A1A] transition-colors"
         >
           Cancel
         </button>
         <button
           onClick={handleExport}
           disabled={isExporting || (scope === 'selected' && selectedKeys?.size === 0 && selectedCount === 0) || (scope === 'view' && (!filteredItems || filteredItems.length === 0))}
-          className="inline-flex items-center gap-2 px-5 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-5 py-2 text-sm font-medium bg-[#C65A1A] text-white rounded-xl hover:bg-[#B14E16] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {isExporting ? (
             <>
