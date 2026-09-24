@@ -22,6 +22,15 @@ const formatLocations = (item) => {
   return named.map(l => `${l.name}: ${l.qty}`).join(' | ');
 };
 
+/** The item's primary physical location (box/room) — used to group a
+ *  location export. Falls back to "Unassigned" when nothing is set. */
+const primaryLocation = (item) => {
+  const locs = item?.stockLocations || [];
+  if (!locs.length) return 'Unassigned';
+  const l = locs[0];
+  return lastSegment(l?.locationName || l?.location_name || l?.location || l?.name || '') || 'Unassigned';
+};
+
 /** Get total quantity */
 const getTotalQty = (item) => {
   const locs = item?.stockLocations || [];
@@ -483,6 +492,29 @@ export const exportInventoryToPDF = async ({
         doc?.addPage();
         currentY = 14;
       }
+    }
+    drawTotalsLine(items || [], currentY, 'OVERALL SUMMARY', true);
+  } else if (scope === 'view') {
+    // Location / filter export — group items by their physical box/location so
+    // everything in Box 1 sits together, Box 2 together, etc.
+    const groups = {};
+    (items || []).forEach((item) => {
+      const loc = primaryLocation(item);
+      (groups[loc] = groups[loc] || []).push(item);
+    });
+    // Natural sort so Box 2 comes before Box 10; "Unassigned" last.
+    const names = Object.keys(groups).sort((a, b) => {
+      if (a === 'Unassigned') return 1;
+      if (b === 'Unassigned') return -1;
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
+    let currentY = yPos;
+    for (let i = 0; i < names.length; i++) {
+      const groupItems = groups[names[i]];
+      currentY = drawFolderHeader(names[i], groupItems.length, currentY);
+      currentY = renderTable(groupItems, currentY) + 2;
+      currentY += 4;
+      if (i < names.length - 1 && currentY > pageHeight - 40) { doc?.addPage(); currentY = 14; }
     }
     drawTotalsLine(items || [], currentY, 'OVERALL SUMMARY', true);
   } else {
