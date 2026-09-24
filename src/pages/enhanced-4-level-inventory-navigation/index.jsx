@@ -2426,6 +2426,21 @@ const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], 
   const qrScopeId = activeLocationId || currentParent || null;
   const qrLeaves = leafLocations(qrScopeId);
   const qrScopeName = qrScopeId ? (byId[qrScopeId]?.name || 'Location') : 'All locations';
+  const [qrPickOpen, setQrPickOpen] = useState(false);
+  const [qrSel, setQrSel] = useState(new Set());
+  const openQrPicker = () => { setQrSel(new Set(qrLeaves.map((l) => l.id))); setQrPickOpen(true); };
+  const printChosenQr = () => {
+    const chosen = qrLeaves.filter((l) => qrSel.has(l.id));
+    if (!chosen.length) return;
+    printQrSheet({
+      title: `${qrScopeName} — box QR labels`,
+      entries: chosen.map((n) => ({
+        value: boxQrUrl(n.id, n.name), name: n.name,
+        sub: byId[n.parent_id]?.name && byId[n.parent_id]?.name !== n.name ? byId[n.parent_id]?.name : '',
+      })),
+    });
+    setQrPickOpen(false);
+  };
 
   const Chip = ({ on, label, onClick }) => (
     <button type="button" className={`invf-chip${on ? ' on' : ''}`} onClick={onClick}>{label}</button>
@@ -2445,14 +2460,8 @@ const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], 
             <p className="invf-label" style={{ margin: 0 }}>Location</p>
             {qrLeaves.length > 0 && (
               <button type="button" className="invf-qrall"
-                title={`Print QR labels for the ${qrLeaves.length} box${qrLeaves.length === 1 ? '' : 'es'} in ${qrScopeName}`}
-                onClick={() => printQrSheet({
-                  title: `${qrScopeName} — box QR labels`,
-                  entries: qrLeaves.map((n) => ({
-                    value: boxQrUrl(n.id, n.name), name: n.name,
-                    sub: qrScopeId && qrScopeName !== n.name ? qrScopeName : '',
-                  })),
-                })}>
+                title={`Choose which of the ${qrLeaves.length} box${qrLeaves.length === 1 ? '' : 'es'} in ${qrScopeName} to print`}
+                onClick={openQrPicker}>
                 <Icon name="QrCode" size={13} /> QR sheet ({qrLeaves.length})
               </button>
             )}
@@ -2508,6 +2517,49 @@ const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], 
             })}
           </div>
         </div>
+      )}
+
+      {qrPickOpen && createPortal(
+        <div className="qrp-scrim" onClick={() => setQrPickOpen(false)}>
+          <div className="qrp" onClick={(e) => e.stopPropagation()}>
+            <div className="qrp-head">
+              <div>
+                <p className="invf-label" style={{ margin: 0 }}>Print QR labels</p>
+                <h3 className="qrp-title">{qrScopeName}</h3>
+              </div>
+              <button className="qrp-x" onClick={() => setQrPickOpen(false)} aria-label="Close"><Icon name="X" size={16} /></button>
+            </div>
+            <div className="qrp-tools">
+              <span className="qrp-count">{qrSel.size} of {qrLeaves.length} selected</span>
+              <div className="qrp-tools-r">
+                <button className="qrp-link" onClick={() => setQrSel(new Set(qrLeaves.map((l) => l.id)))}>All</button>
+                <button className="qrp-link" onClick={() => setQrSel(new Set())}>None</button>
+              </div>
+            </div>
+            <div className="qrp-list">
+              {qrLeaves.map((n) => {
+                const checked = qrSel.has(n.id);
+                const parent = byId[n.parent_id]?.name;
+                return (
+                  <label key={n.id} className={`qrp-row${checked ? ' on' : ''}`}>
+                    <input type="checkbox" checked={checked} onChange={() => setQrSel((s) => {
+                      const next = new Set(s); if (next.has(n.id)) next.delete(n.id); else next.add(n.id); return next;
+                    })} />
+                    <span className="qrp-check">{checked && <Icon name="Check" size={11} />}</span>
+                    <span className="qrp-name">{n.name}{parent && parent !== n.name && <span className="qrp-parent"> · {parent}</span>}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="qrp-foot">
+              <button className="qrp-btn ghost" onClick={() => setQrPickOpen(false)}>Cancel</button>
+              <button className="qrp-btn prim" onClick={printChosenQr} disabled={qrSel.size === 0}>
+                <Icon name="QrCode" size={14} /> Print {qrSel.size} label{qrSel.size === 1 ? '' : 's'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
 
       {availableTags?.length > 0 && (
@@ -4313,11 +4365,15 @@ const LocationFirstInventory = () => {
                 const chosen = (allItems || []).filter(i => selectedItemIds?.has(i?.id));
                 printQrSheet({
                   title: `${chosen.length} item QR label${chosen.length === 1 ? '' : 's'}`,
-                  entries: chosen.map(i => ({
-                    value: String(i?.barcode || i?.code || i?.cargoItemId || '').trim(),
-                    name: i?.name,
-                    sub: [i?.brand, [i?.location, i?.subLocation].filter(Boolean).join(' › ')].filter(Boolean).join(' · '),
-                  })).filter(e => e.value),
+                  entries: chosen.map(i => {
+                    const val = String(i?.barcode || i?.code || i?.cargoItemId || '').trim();
+                    return {
+                      value: val,
+                      name: i?.name,
+                      code: val,
+                      sub: [i?.brand, [i?.location, i?.subLocation].filter(Boolean).join(' › ')].filter(Boolean).join(' · '),
+                    };
+                  }).filter(e => e.value),
                 });
               }}
               className="inv-selbtn"

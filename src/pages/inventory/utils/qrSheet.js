@@ -94,8 +94,11 @@ export async function printQrSheet({ title = 'QR labels', entries = [] }) {
     if (w) { w.document.open(); w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(title)}</title><body style="font-family:system-ui;padding:40px;color:#6B7280">Preparing ${list.length} QR labels…</body>`); w.document.close(); }
   } catch { /* popup blocked */ }
 
+  // `code` is an OPTIONAL short caption printed under the QR (e.g. an item's
+  // own code). It is NOT the encoded value — box labels encode a long URL that
+  // we never want printed, so they simply omit `code`.
   const withQr = await Promise.all(list.map(async (e) => ({
-    name: esc(e.name || ''), sub: esc(e.sub || ''), code: esc(e.value), qr: await makeQr(e.value).catch(() => ''),
+    name: esc(e.name || ''), sub: esc(e.sub || ''), code: e.code ? esc(e.code) : '', qr: await makeQr(e.value).catch(() => ''),
   })));
 
   const data = JSON.stringify({ sizes: LABEL_SIZES, title: esc(title), items: withQr }).replace(/</g, '\\u003c');
@@ -126,7 +129,7 @@ export async function printQrSheet({ title = 'QR labels', entries = [] }) {
           + '<div class="eyebrow">Cargo</div>'
           + (it.name ? '<div class="name">' + it.name + '</div>' : '')
           + (it.sub ? '<div class="sub">' + it.sub + '</div>' : '')
-          + '<div class="code">' + it.code + '</div></div>';
+          + (it.code ? '<div class="code">' + it.code + '</div>' : '') + '</div>';
       }
 
       // Fixed square-label sheets: pages of cols x rows cells at cell mm.
@@ -147,7 +150,7 @@ export async function printQrSheet({ title = 'QR labels', entries = [] }) {
             html += '<div class="cell" style="padding:1mm">'
               + (it.qr ? '<div class="qr" style="width:' + qmm + 'mm;height:' + qmm + 'mm"><img src="' + it.qr + '"/></div>' : '')
               + (it.name ? '<div class="name">' + it.name + '</div>' : '')
-              + '<div class="code">' + it.code + '</div></div>';
+              + (it.code ? '<div class="code">' + it.code + '</div>' : '') + '</div>';
           }
           html += '</div>';
         }
@@ -161,7 +164,7 @@ export async function printQrSheet({ title = 'QR labels', entries = [] }) {
             + (it.qr ? '<div class="qr" style="width:' + qpx + 'px;height:' + qpx + 'px"><img src="' + it.qr + '"/></div>' : '')
             + '<div class="meta"><div class="name">' + (it.name || '') + '</div>'
             + (it.sub ? '<div class="sub">' + it.sub + '</div>' : '')
-            + '<div class="code">' + it.code + '</div></div></div>';
+            + (it.code ? '<div class="code">' + it.code + '</div>' : '') + '</div></div>';
         }).join('');
       }
 
