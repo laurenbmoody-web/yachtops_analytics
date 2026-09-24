@@ -2433,6 +2433,15 @@ const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], 
             ))}
           </div>
           <div className="invf-loclist">
+            {/* Select the whole current location (all boxes/sub-locations under it). */}
+            {currentParent && (
+              <div className={`invf-locrow all${activeLocationId === currentParent ? ' on' : ''}`}
+                role="button" tabIndex={0}
+                onClick={() => onPickLocation?.(currentParent, byId[currentParent]?.name)}>
+                <span>View all in {byId[currentParent]?.name}</span>
+                <Icon name="Eye" size={14} style={{ color: activeLocationId === currentParent ? '#C65A1A' : '#AEB4C2' }} />
+              </div>
+            )}
             {locRows.length === 0 && <p className="invf-locempty">No sub-locations here.</p>}
             {locRows.map(node => {
               const kids = childrenOf(node.id).length;
@@ -3404,6 +3413,25 @@ const LocationFirstInventory = () => {
     setItems(prev => prev?.map(i => i?.id === itemId ? { ...i, icon, color } : i));
   }, []);
 
+  // The active physical-location filter expands to the selected node PLUS all its
+  // descendants, so picking a room (e.g. "Narnia Cupboard") shows everything in
+  // every box under it — not just items filed directly on the room node.
+  const activeLocationIds = React.useMemo(() => {
+    if (!activeLocationId) return null;
+    const childrenMap = {};
+    (vesselLocations || []).forEach((l) => {
+      const p = l.parent_id || null;
+      (childrenMap[p] = childrenMap[p] || []).push(l.id);
+    });
+    const out = new Set([activeLocationId]);
+    const stack = [activeLocationId];
+    while (stack.length) {
+      const cur = stack.pop();
+      (childrenMap[cur] || []).forEach((cid) => { if (!out.has(cid)) { out.add(cid); stack.push(cid); } });
+    }
+    return out;
+  }, [activeLocationId, vesselLocations]);
+
   const filteredItems = (() => {
     // On the root page there is no folder's item list; instead, search / filter
     // look across ALL inventory (a "find anything" launchpad). Only surface
@@ -3416,8 +3444,8 @@ const LocationFirstInventory = () => {
       // Physical-location filter (a box): match the item's stock locations or its
       // default location against the selected vessel_locations node id.
       if (activeLocationId) {
-        const atLoc = (item?.stockLocations || []).some(l => (l?.vesselLocationId || l?.locationId) === activeLocationId)
-          || item?.defaultLocationId === activeLocationId;
+        const atLoc = (item?.stockLocations || []).some(l => activeLocationIds?.has(l?.vesselLocationId || l?.locationId))
+          || (item?.defaultLocationId && activeLocationIds?.has(item.defaultLocationId));
         if (!atLoc) return false;
       }
       if (searchQuery) {
