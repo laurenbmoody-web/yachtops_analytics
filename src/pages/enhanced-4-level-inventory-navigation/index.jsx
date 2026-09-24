@@ -2767,6 +2767,10 @@ const LocationFirstInventory = () => {
 
   useEffect(() => {
     const handleClick = (e) => {
+      // The QR picker + print overlay are portaled to <body>, outside the panel;
+      // clicks inside them must not close the filter panel (which would unmount
+      // the picker mid-click).
+      if (e?.target?.closest?.('.qrp-scrim') || e?.target?.closest?.('.qro-root')) return;
       if (sortDropdownRef?.current && !sortDropdownRef?.current?.contains(e?.target)) setShowSortDropdown(false);
       if (filterPanelRef?.current && !filterPanelRef?.current?.contains(e?.target)) setShowFilterPanel(false);
     };
