@@ -688,6 +688,9 @@ button.inv-crumb:hover { color: #C65A1A; text-decoration: underline; }
 .invf-locrow:hover { border-color: #C65A1A; }
 .invf-locrow.on { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
 .invf-locrow .meta { display: flex; align-items: center; gap: 6px; color: #AEB4C2; }
+.invf-sechead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.invf-qrall { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #E5E7EB; background: #fff; color: #C65A1A; border-radius: 999px; padding: 5px 11px; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; transition: all .14s; }
+.invf-qrall:hover { border-color: #C65A1A; background: #FBEFE9; }
 /* "View all in <location>" — the whole-location shortcut, tinted to stand apart. */
 .invf-locrow.all { background: #FCF4EF; border-color: #F1DDD1; color: #C65A1A; margin-bottom: 4px; }
 .invf-locrow.all:hover { border-color: #C65A1A; }

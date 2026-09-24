@@ -14,7 +14,8 @@ import ItemFormModal from '../inventory/components/ItemFormModal';
 import UniformItemView from '../inventory/components/UniformItemView';
 import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
 import PartialBottleModal from '../inventory/components/PartialBottleModal';
-import { printBoxQr } from '../inventory/utils/locationQr';
+import { printBoxQr, boxQrUrl } from '../inventory/utils/locationQr';
+import { printQrSheet } from '../inventory/utils/qrSheet';
 import { supabase } from '../../lib/supabaseClient';
 import { markTutorialStep } from '../../utils/tutorialState';
 import { DndContext, closestCenter, MouseSensor, TouchSensor, useSensor, useSensors, useDroppable, DragOverlay } from '@dnd-kit/core';
@@ -2421,7 +2422,22 @@ const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], 
       {/* Locations — physical drill-down (Deck › Zone › Room › Box) */}
       {vesselLocations?.length > 0 && (
         <div className="invf-sec">
-          <p className="invf-label">Location</p>
+          <div className="invf-sechead">
+            <p className="invf-label" style={{ margin: 0 }}>Location</p>
+            {locRows.length > 0 && (
+              <button type="button" className="invf-qrall"
+                title={`Print QR labels for the ${locRows.length} location${locRows.length === 1 ? '' : 's'} here`}
+                onClick={() => printQrSheet({
+                  title: currentParent ? `${byId[currentParent]?.name || 'Location'} — QR labels` : 'Location QR labels',
+                  entries: locRows.map((n) => ({
+                    value: boxQrUrl(n.id, n.name), name: n.name,
+                    sub: locBrowse.map((id) => byId[id]?.name).filter(Boolean).join(' › '),
+                  })),
+                })}>
+                <Icon name="QrCode" size={13} /> QR sheet
+              </button>
+            )}
+          </div>
           <div className="invf-crumbs">
             <button className="invf-crumb" onClick={() => setLocBrowse([])}>All</button>
             {locBrowse.map((id, i) => (
@@ -4273,6 +4289,23 @@ const LocationFirstInventory = () => {
               {selectedItemIds?.size} item{selectedItemIds?.size !== 1 ? 's' : ''} selected
             </span>
             <div className="inv-selbar-spacer" />
+            <button
+              onClick={() => {
+                const chosen = (allItems || []).filter(i => selectedItemIds?.has(i?.id));
+                printQrSheet({
+                  title: `${chosen.length} item QR label${chosen.length === 1 ? '' : 's'}`,
+                  entries: chosen.map(i => ({
+                    value: String(i?.barcode || i?.code || i?.cargoItemId || '').trim(),
+                    name: i?.name,
+                    sub: [i?.brand, [i?.location, i?.subLocation].filter(Boolean).join(' › ')].filter(Boolean).join(' · '),
+                  })).filter(e => e.value),
+                });
+              }}
+              className="inv-selbtn"
+            >
+              <Icon name="QrCode" size={13} />
+              QR labels
+            </button>
             <button onClick={() => setShowBulkMoveModal(true)} className="inv-selbtn">
               <Icon name="FolderInput" size={13} />
               Move
