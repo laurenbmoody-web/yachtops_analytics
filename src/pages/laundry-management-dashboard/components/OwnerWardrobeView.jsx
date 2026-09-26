@@ -181,7 +181,7 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
   const load = async () => {
     const [ws, gs, all, cs] = await Promise.all([loadWardrobes(cfg.wardrobeScope), loadGuests().catch(() => []), loadAllLaundryItems(), loadCases().catch(() => [])]);
     setCases(cs);
-    const scopeGuests = (gs || []).filter((g) => (isGuest ? g.guestType !== GuestType.OWNER : g.guestType === GuestType.OWNER));
+    const scopeGuests = (gs || []).filter((g) => !g.isDeleted && (isGuest ? g.guestType !== GuestType.OWNER : g.guestType === GuestType.OWNER));
     const wIds = new Set(ws.map((w) => w.id));
     const gIds = new Set(scopeGuests.map((g) => g.id));
     // Owner world: homed in an owner wardrobe, OR an owner-type guest, OR the
