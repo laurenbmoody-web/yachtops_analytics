@@ -8,11 +8,17 @@ import './qr-sheet-overlay.css';
 // rest of the app so only the labels print. Default stock is an A4 sheet of
 // 24 × 40 mm square labels (4 × 6); also supports auto-fill A4 and roll sizes.
 
+// Per-printer calibration (mm) is remembered so you only dial it in once.
+const CAL_KEY = 'cargo_qr_sheet_cal_v1';
+const loadCal = () => {
+  try { return JSON.parse(localStorage.getItem(CAL_KEY)) || {}; } catch { return {}; }
+};
+
 const SIZES = [
-  // Herma 9642: A4, 4 × 6 = 24 labels, 40 × 40 mm, contiguous (no gaps — the
-  // 4×6 block of 40 mm cells centres on the page: 25 mm side, 28.5 mm top/bottom
-  // margins). Gaps default to 0; nudge with the fine-tune controls if needed.
-  { id: 'sheet24', label: 'Herma 9642 · 24 × 40 mm (A4)', grid: { cols: 4, rows: 6, cell: 40, gapX: 0, gapY: 0 } },
+  // Herma 9642: A4, 4 × 6 = 24 labels, 40 × 40 mm, centred on the page with 8 mm
+  // gaps between labels (the manufacturer layout: 13 mm side margin, 8.5 mm
+  // top/bottom, 48 mm pitch). Nudge Shift ↓/→ for your printer's own offset.
+  { id: 'sheet24', label: 'Herma 9642 · 24 × 40 mm (A4)', grid: { cols: 4, rows: 6, cell: 40, gapX: 8, gapY: 8 } },
   { id: 'sheetauto', label: 'A4 sheet · auto-fill' },
   { id: 'dymo', label: 'Dymo 89 × 36 mm (99012)', w: 89, h: 36 },
   { id: 'brother', label: 'Brother QL 62 × 29 mm (DK-11209)', w: 62, h: 29 },
@@ -28,11 +34,17 @@ export default function QrSheetOverlay({ title = 'QR labels', entries = [], onCl
   const [ready, setReady] = useState(false);
   const [stock, setStock] = useState('sheet24');
   // Fine-tune to the physical sheet (mm): gap between labels + a whole-sheet
-  // nudge to correct printer offset.
-  const [gapX, setGapX] = useState(0);
-  const [gapY, setGapY] = useState(0);
-  const [offX, setOffX] = useState(0);
-  const [offY, setOffY] = useState(0);
+  // nudge to correct printer offset. Seeded from the last saved calibration so
+  // it carries over between prints; defaults match the Herma 9642 layout.
+  const cal0 = loadCal();
+  const [gapX, setGapX] = useState(Number.isFinite(cal0.gapX) ? cal0.gapX : 8);
+  const [gapY, setGapY] = useState(Number.isFinite(cal0.gapY) ? cal0.gapY : 8);
+  const [offX, setOffX] = useState(Number.isFinite(cal0.offX) ? cal0.offX : 0);
+  const [offY, setOffY] = useState(Number.isFinite(cal0.offY) ? cal0.offY : 0);
+  // Remember the calibration so the next print starts where this one left off.
+  useEffect(() => {
+    try { localStorage.setItem(CAL_KEY, JSON.stringify({ gapX, gapY, offX, offY })); } catch { /* ignore */ }
+  }, [gapX, gapY, offX, offY]);
   // Placement: slot index -> label index (-1 = empty). Lets you drag a QR onto
   // a different sticker — e.g. to skip labels already used on a part-printed sheet.
   const [place, setPlace] = useState([]);
@@ -196,7 +208,7 @@ export default function QrSheetOverlay({ title = 'QR labels', entries = [], onCl
             <label>Shift ↓<input type="number" step="0.5" value={offY} onChange={(e) => setOffY(Number(e.target.value) || 0)} /></label>
           </div>
         )}
-        <span className="qro-hint">Prints inside the app — no pop-up. Print at <b>100% / actual size</b> (turn off “fit to page”). This is set for <b>Herma 9642</b> (40 × 40 mm, 24-up); if it’s slightly off, tweak the gap/shift above and re-print.</span>
+        <span className="qro-hint">Prints inside the app — no pop-up. Print at <b>100% / actual size</b> (turn off “fit to page” / “scale to fit”). Matches the <b>Herma 9642</b> template (40 × 40 mm, 24-up). If your printer sits it high or to one side, nudge <b>Shift ↓</b> / <b>Shift →</b> until it lands on the stickers — the calibration is remembered for next time.</span>
       </div>
       <div className="qro-scroll">{renderBody()}</div>
     </div>,
