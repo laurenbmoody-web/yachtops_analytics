@@ -9,8 +9,10 @@ import './qr-sheet-overlay.css';
 // 24 × 40 mm square labels (4 × 6); also supports auto-fill A4 and roll sizes.
 
 const SIZES = [
-  // Herma 9642: A4, 4 × 6 = 24 labels, 40 × 40 mm, ~8 mm gaps (adjustable below).
-  { id: 'sheet24', label: 'Herma 9642 · 24 × 40 mm (A4)', grid: { cols: 4, rows: 6, cell: 40, gapX: 8, gapY: 8 } },
+  // Herma 9642: A4, 4 × 6 = 24 labels, 40 × 40 mm, contiguous (no gaps — the
+  // 4×6 block of 40 mm cells centres on the page: 25 mm side, 28.5 mm top/bottom
+  // margins). Gaps default to 0; nudge with the fine-tune controls if needed.
+  { id: 'sheet24', label: 'Herma 9642 · 24 × 40 mm (A4)', grid: { cols: 4, rows: 6, cell: 40, gapX: 0, gapY: 0 } },
   { id: 'sheetauto', label: 'A4 sheet · auto-fill' },
   { id: 'dymo', label: 'Dymo 89 × 36 mm (99012)', w: 89, h: 36 },
   { id: 'brother', label: 'Brother QL 62 × 29 mm (DK-11209)', w: 62, h: 29 },
@@ -27,8 +29,8 @@ export default function QrSheetOverlay({ title = 'QR labels', entries = [], onCl
   const [stock, setStock] = useState('sheet24');
   // Fine-tune to the physical sheet (mm): gap between labels + a whole-sheet
   // nudge to correct printer offset.
-  const [gapX, setGapX] = useState(8);
-  const [gapY, setGapY] = useState(8);
+  const [gapX, setGapX] = useState(0);
+  const [gapY, setGapY] = useState(0);
   const [offX, setOffX] = useState(0);
   const [offY, setOffY] = useState(0);
   // Placement: slot index -> label index (-1 = empty). Lets you drag a QR onto
