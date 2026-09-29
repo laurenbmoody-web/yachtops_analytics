@@ -24,17 +24,19 @@
 
 .locp-list { flex: 1; overflow-y: auto; padding: 6px 0; }
 .locp-empty { padding: 30px 24px; text-align: center; font-size: 13px; color: #8B8478; }
-.locp-row { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 20px; border: none; background: none; text-align: left; cursor: pointer; transition: background 0.12s; border-bottom: 1px solid #F5F6F8; }
+.locp-row { width: 100%; display: flex; align-items: stretch; border-bottom: 1px solid #F5F6F8; }
 .locp-row:last-child { border-bottom: none; }
-.locp-row:hover { background: #FBEFE9; }
 .locp-row.sel { background: #FBEFE9; }
+.locp-row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 12px 8px 12px 20px; border: none; background: none; text-align: left; cursor: pointer; transition: background 0.12s; }
+.locp-row-main:hover { background: #FBEFE9; }
 .locp-row-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #F0F1F5; color: #8B8478; flex: none; }
 .locp-row.sel .locp-row-ic { background: #C65A1A; color: #FFFFFF; }
 .locp-row-name { flex: 1; min-width: 0; font: 600 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .locp-row.sel .locp-row-name { color: #C65A1A; }
-.locp-row-r { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #AEB4C2; flex: none; }
-.locp-row-r .locp-count { font-weight: 600; }
-.locp-row-r.sel { color: #C65A1A; }
+.locp-row-check { color: #C65A1A; flex: none; }
+.locp-row-open { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 12px 18px; border: none; border-left: 1px solid #F5F6F8; background: none; color: #AEB4C2; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.locp-row-open:hover { background: #FBEFE9; color: #C65A1A; }
+.locp-row-open .locp-count { font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; }
 
 .locp-create { flex: none; display: flex; align-items: center; gap: 8px; margin: 8px 20px 2px; padding: 8px 10px; border: 1px dashed #D6D2C7; border-radius: 10px; color: #8B8478; }
 .locp-create-in { flex: 1; border: 0; background: none; outline: none; font: 500 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }

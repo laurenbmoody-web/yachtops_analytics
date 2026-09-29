@@ -129,28 +129,33 @@ export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose,
 
       <div className="locp-list">
         {items?.length === 0 ? (
-          <p className="locp-empty">{current ? 'Nothing nested here — use “Place here” above.' : 'No locations yet. Add them in Location management.'}</p>
+          <p className="locp-empty">{current ? 'Nothing nested here yet — “Place here”, or add a sub-location below.' : 'No locations yet. Add them in Location management.'}</p>
         ) : (
           items?.map((loc) => {
             const isSelected = loc?.id === selectedId;
             const childCount = childrenOf(loc?.id)?.length || 0;
             return (
-              <button
-                key={loc?.id}
-                onClick={() => (childCount > 0 ? setPath((p) => [...p, loc]) : onSelect({ id: loc?.id, label: loc?.name, path: pathLabel(loc?.id) }))}
-                className={`locp-row${isSelected ? ' sel' : ''}`}
-              >
-                <span className="locp-row-ic"><Icon name={iconFor(loc)} size={16} /></span>
-                <span className="locp-row-name">{loc?.name}</span>
-                {childCount > 0 ? (
-                  <span className="locp-row-r">
-                    <span className="locp-count">{childCount}</span>
-                    <Icon name="ChevronRight" size={15} />
-                  </span>
-                ) : isSelected ? (
-                  <span className="locp-row-r sel"><Icon name="Check" size={15} /></span>
-                ) : null}
-              </button>
+              <div key={loc?.id} className={`locp-row${isSelected ? ' sel' : ''}`}>
+                {/* Tap the name to place the item straight in this location. */}
+                <button
+                  className="locp-row-main"
+                  onClick={() => onSelect({ id: loc?.id, label: loc?.name, path: pathLabel(loc?.id) })}
+                  title={`Place item in ${loc?.name}`}
+                >
+                  <span className="locp-row-ic"><Icon name={iconFor(loc)} size={16} /></span>
+                  <span className="locp-row-name">{loc?.name}</span>
+                  {isSelected && <Icon name="Check" size={15} className="locp-row-check" />}
+                </button>
+                {/* Open the location to see or add sub-locations inside it. */}
+                <button
+                  className="locp-row-open"
+                  onClick={() => setPath((p) => [...p, loc])}
+                  title={childCount > 0 ? `Open ${loc?.name} (${childCount} inside)` : `Open ${loc?.name} to add a sub-location`}
+                >
+                  {childCount > 0 && <span className="locp-count">{childCount}</span>}
+                  <Icon name="ChevronRight" size={16} />
+                </button>
+              </div>
             );
           })
         )}
