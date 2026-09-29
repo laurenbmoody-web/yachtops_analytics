@@ -5,6 +5,7 @@ import { saveItem, getFolderTree, updateItemStockLocations, getItemById } from '
 import InventoryFolderPicker from './InventoryFolderPicker';
 import MapPickerModal from '../../vessel-map/components/MapPickerModal';
 import { supabase } from '../../../lib/supabaseClient';
+import { showToast } from '../../../utils/toast';
 
 import ModalShell from '../../../components/ui/ModalShell';
 import { UNIT_GROUP_VALUES, STOCK_UNIT_GROUPS, STOCK_UNIT_VALUES, BOUGHT_BY_GROUPS, normalizeUnit } from '../../../data/unitGroups';
@@ -42,7 +43,10 @@ const isWineFolder = (folderDisplay) => {
 // depth by parent_id (deck > zone > space > sub-space > …), so it can reach — and
 // select — the vessel-map's pin nodes, letting inventory placement land on the
 // exact same vessel_locations row a pin uses. `level` is only a display hint now.
-export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose, onMap }) => {
+// Next level down when creating a nested location on the fly.
+const NEXT_VESSEL_LEVEL = { deck: 'zone', zone: 'space', space: 'container', container: 'container' };
+
+export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose, onMap, onReload }) => {
   const nodes = vesselLocations || [];
   const byId = new Map(nodes.map((n) => [n?.id, n]));
   const childrenOf = (pid) => nodes.filter((n) => (n?.parent_id || null) === (pid || null));
@@ -63,6 +67,37 @@ export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose,
   const current = path[path.length - 1] || null;
   const items = childrenOf(current?.id ?? null);
   const iconFor = (n) => (n?.level === 'deck' ? 'Layers' : n?.level === 'zone' ? 'MapPin' : 'Box');
+
+  // Free-type a nested location (e.g. "Master Cabin › under bed") when the map
+  // isn't fully set up. Creates a real vessel_locations child so it's reusable,
+  // then selects it for this item.
+  const [newName, setNewName] = useState('');
+  const [creating, setCreating] = useState(false);
+  const createSub = async () => {
+    const name = newName.trim();
+    if (!name || creating) return;
+    setCreating(true);
+    try {
+      const { data: ctx } = await supabase?.rpc('get_my_context');
+      const tenantId = ctx?.[0]?.tenant_id;
+      if (!tenantId) throw new Error('No vessel context');
+      const level = NEXT_VESSEL_LEVEL[current?.level] || (current ? 'container' : 'space');
+      const { data, error } = await supabase
+        .from('vessel_locations')
+        .insert({ tenant_id: tenantId, level, name, parent_id: current?.id || null, sort_order: items.length, is_archived: false })
+        .select('id, name, level, parent_id')
+        .single();
+      if (error) throw error;
+      setNewName('');
+      await onReload?.();
+      showToast(`Added ${name}`, 'success');
+      onSelect({ id: data.id, label: data.name, path: [current ? pathLabel(current.id) : '', data.name].filter(Boolean).join(' › ') });
+    } catch (e) {
+      showToast(e?.message || 'Could not add location', 'error');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <ModalShell onClose={onClose} panelClassName="locp-panel">
@@ -120,6 +155,22 @@ export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose,
           })
         )}
       </div>
+
+      {onReload && (
+        <div className="locp-create">
+          <Icon name="Plus" size={15} />
+          <input
+            className="locp-create-in"
+            placeholder={current ? `New location in ${current.name}…` : 'New top-level location…'}
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); createSub(); } }}
+          />
+          <button onClick={createSub} disabled={!newName.trim() || creating} className="locp-create-add">
+            {creating ? '…' : 'Add'}
+          </button>
+        </div>
+      )}
 
       <div className="locp-foot">
         <button onClick={onClose} className="locp-cancel">Cancel</button>
@@ -1185,6 +1236,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
           vesselLocations={vesselLocations}
           selectedId={pickerSelectedId}
           onSelect={handleLocationPicked}
+          onReload={loadVesselLocations}
           onClose={() => {
             setPickingLocationRowIndex(null);
             setPickingDefaultLocation(false);

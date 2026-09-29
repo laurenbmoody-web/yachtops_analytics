@@ -36,6 +36,12 @@
 .locp-row-r .locp-count { font-weight: 600; }
 .locp-row-r.sel { color: #C65A1A; }
 
+.locp-create { flex: none; display: flex; align-items: center; gap: 8px; margin: 8px 20px 2px; padding: 8px 10px; border: 1px dashed #D6D2C7; border-radius: 10px; color: #8B8478; }
+.locp-create-in { flex: 1; border: 0; background: none; outline: none; font: 500 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.locp-create-in::placeholder { color: #AEB4C2; }
+.locp-create-add { flex: none; border: 0; background: #1C1B3A; color: #FFFFFF; border-radius: 8px; padding: 7px 13px; font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; }
+.locp-create-add:disabled { opacity: .5; cursor: default; }
+
 .locp-foot { flex: none; padding: 12px 20px; border-top: 1px solid #F0F1F5; display: flex; gap: 10px; }
 .locp-cancel { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #E5E7EB; background: #FFFFFF; font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; cursor: pointer; }
 .locp-cancel:hover { border-color: #C65A1A; color: #C65A1A; }
