@@ -1,7 +1,7 @@
 // Inventory Items Storage - Supabase-backed, Location-First Schema
 import { supabase } from '../../../lib/supabaseClient';
 import { getCurrentUser } from '../../../utils/authStorage';
-import { logActivity, InventoryActions } from '../../../utils/activityStorage';
+import { logActivity, InventoryActions, resolveActorName } from '../../../utils/activityStorage';
 import { normalizeUnit } from '../../../data/unitGroups';
 import { findExistingItem } from '../../../utils/itemIdentity';
 
@@ -713,9 +713,12 @@ export const saveItem = async (itemData, { dedupe = false, force = false } = {})
     }
     // Log activity
     try {
+      // Resolve a real display name (roleTitle / fullName / name) rather than the
+      // bare `name` field, which is often empty and left the feed reading "Unknown".
+      const actorDisplay = resolveActorName(currentUser);
       logActivity({
         actorUserId: supabaseUserId,
-        actorName: currentUser?.name || 'Unknown User',
+        actorName: actorDisplay,
         actorDepartment: currentUser?.department || 'UNKNOWN',
         actorRoleTier: currentUser?.tier || 'CREW',
         departmentScope: savedItem?.usageDepartment || 'INTERIOR',
@@ -723,7 +726,7 @@ export const saveItem = async (itemData, { dedupe = false, force = false } = {})
         action: isUpdate ? InventoryActions?.ITEM_UPDATED : InventoryActions?.ITEM_CREATED,
         entityType: 'inventoryItem',
         entityId: savedItem?.id,
-        summary: `${currentUser?.name || 'Unknown'} ${isUpdate ? 'updated' : 'added'} "${savedItem?.name}"`,
+        summary: `${actorDisplay} ${isUpdate ? 'updated' : 'added'} "${savedItem?.name}"`,
         meta: { itemName: savedItem?.name, location: savedItem?.location, subLocation: savedItem?.subLocation }
       });
     } catch (_) {}
