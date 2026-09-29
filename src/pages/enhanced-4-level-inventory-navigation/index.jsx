@@ -3222,6 +3222,15 @@ const LocationFirstInventory = () => {
         }
         setItems(locationItems);
 
+        // Keep the full item set current from inside a folder too. A physical-
+        // location filter (a box/room) spans the whole folder tree, and its
+        // contents live in many folders — so "View all in <room>" searches
+        // allItems, which is otherwise only populated on the root view.
+        try {
+          const allForFilter = await getAllItems();
+          setAllItems(allForFilter || []);
+        } catch (_) { /* non-critical */ }
+
         let dbSubs = [];
         const currentSubPath = pathSegments?.slice(1)?.join(' > ');
         if (tenantId) {
