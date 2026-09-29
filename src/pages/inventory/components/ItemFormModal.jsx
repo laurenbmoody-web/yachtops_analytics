@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import ModalShell from '../../../components/ui/ModalShell';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabaseClient';
@@ -375,23 +375,26 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const toArr = (obj) => Object.keys(obj).filter((k) => obj[k]);
 
   // Load the inventory folder tree + vessel locations for the pickers.
+  const reloadVesselLocations = useCallback(async () => {
+    try {
+      const { data: ctx } = await supabase.rpc('get_my_context');
+      const tid = ctx?.[0]?.tenant_id;
+      if (!tid) return;
+      const { data } = await supabase.from('vessel_locations')
+        .select('id, name, level, parent_id').eq('tenant_id', tid).eq('is_archived', false)
+        .order('sort_order', { ascending: true }).order('name', { ascending: true });
+      if (data) setVesselLocations(data);
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     let alive = true;
     (async () => {
       try { const tree = await getFolderTree(); if (alive) setFolderTree(tree || {}); } catch { /* ignore */ }
-      try {
-        const { data: ctx } = await supabase.rpc('get_my_context');
-        const tid = ctx?.[0]?.tenant_id;
-        if (tid) {
-          const { data } = await supabase.from('vessel_locations')
-            .select('id, name, level, parent_id').eq('tenant_id', tid).eq('is_archived', false)
-            .order('sort_order', { ascending: true }).order('name', { ascending: true });
-          if (alive && data) setVesselLocations(data);
-        }
-      } catch { /* ignore */ }
+      await reloadVesselLocations();
     })();
     return () => { alive = false; };
-  }, []);
+  }, [reloadVesselLocations]);
 
   // Re-encode any picked photo to a downscaled JPEG via canvas. This makes
   // HEIC/AVIF/large iPhone shots work (the item-images bucket only accepts
@@ -1093,7 +1096,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       <InventoryFolderPicker tree={folderTree} onSelect={handleFolderSelect} onClose={() => setShowFolderPicker(false)} onFolderCreated={(t) => setFolderTree(t || {})} />
     )}
     {locTarget && (
-      <LocationPicker vesselLocations={vesselLocations} selectedId={uniLocs[locTarget?.idx]?.id || ''} onSelect={handleLocPicked} onClose={() => setLocTarget(null)} onMap={() => { setLocTarget(null); setOnMap(); }} />
+      <LocationPicker vesselLocations={vesselLocations} selectedId={uniLocs[locTarget?.idx]?.id || ''} onSelect={handleLocPicked} onReload={reloadVesselLocations} onClose={() => setLocTarget(null)} onMap={() => { setLocTarget(null); setOnMap(); }} />
     )}
     {mapItem && (
       <MapPickerModal placingItem={mapItem} onPlaced={(payload) => { if (payload?.nodeId) addMapLocation(payload); setMapItem(null); }} onClose={() => setMapItem(null)} />
