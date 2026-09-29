@@ -28,6 +28,12 @@ const SIZES = [
 
 const chunk = (arr, n) => { const out = []; for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n)); return out; };
 
+// Safari scales full-bleed label sheets down to its own printable area, which
+// shifts labels off the pre-cut stickers. Chrome honours margin:0 and lands
+// them 1:1, so we flag Safari and point the user to Chrome for sheet stock.
+const IS_SAFARI = typeof navigator !== 'undefined'
+  && /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent || '');
+
 export default function QrSheetOverlay({ title = 'QR labels', entries = [], onClose }) {
   const list = useMemo(() => (entries || []).filter((e) => e && String(e.value || '').trim()), [entries]);
   const [qr, setQr] = useState({});
@@ -207,6 +213,12 @@ export default function QrSheetOverlay({ title = 'QR labels', entries = [], onCl
             <label>Shift →<input type="number" step="0.5" value={offX} onChange={(e) => setOffX(Number(e.target.value) || 0)} /></label>
             <label>Shift ↓<input type="number" step="0.5" value={offY} onChange={(e) => setOffY(Number(e.target.value) || 0)} /></label>
           </div>
+        )}
+        {IS_SAFARI && size.grid && (
+          <span className="qro-warn">
+            <Icon name="AlertTriangle" size={13} />
+            <span><b>Safari shrinks label sheets when printing</b>, so they won’t line up on the stickers. For exact Herma alignment, open this page in <b>Chrome</b> and print from there. (Roll/label-printer sizes are fine in Safari.)</span>
+          </span>
         )}
         <span className="qro-hint">Prints inside the app — no pop-up. Print at <b>100% / actual size</b> (turn off “fit to page” / “scale to fit”). Matches the <b>Herma 9642</b> template (40 × 40 mm, 24-up). If your printer sits it high or to one side, nudge <b>Shift ↓</b> / <b>Shift →</b> until it lands on the stickers — the calibration is remembered for next time.</span>
       </div>
