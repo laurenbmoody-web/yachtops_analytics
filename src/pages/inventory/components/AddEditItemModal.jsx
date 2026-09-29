@@ -135,27 +135,22 @@ export const LocationPicker = ({ vesselLocations, selectedId, onSelect, onClose,
             const isSelected = loc?.id === selectedId;
             const childCount = childrenOf(loc?.id)?.length || 0;
             return (
-              <div key={loc?.id} className={`locp-row${isSelected ? ' sel' : ''}`}>
-                {/* Tap the name to place the item straight in this location. */}
-                <button
-                  className="locp-row-main"
-                  onClick={() => onSelect({ id: loc?.id, label: loc?.name, path: pathLabel(loc?.id) })}
-                  title={`Place item in ${loc?.name}`}
-                >
-                  <span className="locp-row-ic"><Icon name={iconFor(loc)} size={16} /></span>
-                  <span className="locp-row-name">{loc?.name}</span>
-                  {isSelected && <Icon name="Check" size={15} className="locp-row-check" />}
-                </button>
-                {/* Open the location to see or add sub-locations inside it. */}
-                <button
-                  className="locp-row-open"
-                  onClick={() => setPath((p) => [...p, loc])}
-                  title={childCount > 0 ? `Open ${loc?.name} (${childCount} inside)` : `Open ${loc?.name} to add a sub-location`}
-                >
+              // Tapping a row drills into it (even an empty room), so you can
+              // reach any level to "Place here" or add a sub-location below.
+              <button
+                key={loc?.id}
+                onClick={() => setPath((p) => [...p, loc])}
+                className={`locp-row${isSelected ? ' sel' : ''}`}
+                title={`Open ${loc?.name}`}
+              >
+                <span className="locp-row-ic"><Icon name={iconFor(loc)} size={16} /></span>
+                <span className="locp-row-name">{loc?.name}</span>
+                <span className="locp-row-r">
                   {childCount > 0 && <span className="locp-count">{childCount}</span>}
-                  <Icon name="ChevronRight" size={16} />
-                </button>
-              </div>
+                  {isSelected && <Icon name="Check" size={15} className="locp-row-check" />}
+                  <Icon name="ChevronRight" size={15} />
+                </span>
+              </button>
             );
           })
         )}
