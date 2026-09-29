@@ -16,6 +16,8 @@ import ItemQuickViewPanel from '../inventory/components/ItemQuickViewPanel';
 import PartialBottleModal from '../inventory/components/PartialBottleModal';
 import { boxQrUrl } from '../inventory/utils/locationQr';
 import QrSheetOverlay from '../inventory/components/QrSheetOverlay';
+import SetLocationModal from './components/SetLocationModal';
+import { showToast } from '../../utils/toast';
 import { supabase } from '../../lib/supabaseClient';
 import { markTutorialStep } from '../../utils/tutorialState';
 import { DndContext, closestCenter, MouseSensor, TouchSensor, useSensor, useSensors, useDroppable, DragOverlay } from '@dnd-kit/core';
@@ -1738,6 +1740,18 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
             />
           </span>
         )}
+        {/* Info toggle (touch) — anchored to the image so it never sits on the
+            qty stepper in the body below. */}
+        {imageUrl && (
+          <button
+            className="inv-card-reveal"
+            onClick={(e) => { e?.stopPropagation(); setRevealed((v) => !v); }}
+            title={revealed ? 'Hide details' : 'Show details'}
+            aria-label={revealed ? 'Hide details' : 'Show details'}
+          >
+            <Icon name={revealed ? 'ChevronDown' : 'Info'} size={15} />
+          </button>
+        )}
       </div>
       {/* Controls sit above the reveal overlay (card-level, not inside media). */}
       {isLow && <div className="inv-media-badge-low">Low</div>}
@@ -1752,16 +1766,6 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
         <div className="inv-card-media-bl inv-card-menu">
           <ItemActionsMenu item={item} onEdit={onEdit} onAppearance={(r) => setAppearanceAnchor(r)} onMove={onMove} onClone={onClone} onDelete={onDelete} size={28} />
         </div>
-      )}
-      {imageUrl && (
-        <button
-          className="inv-card-reveal"
-          onClick={(e) => { e?.stopPropagation(); setRevealed((v) => !v); }}
-          title={revealed ? 'Hide details' : 'Show details'}
-          aria-label={revealed ? 'Hide details' : 'Show details'}
-        >
-          <Icon name={revealed ? 'ChevronDown' : 'Info'} size={15} />
-        </button>
       )}
       <div className="inv-card-body">
         {/* Item Name */}
@@ -2674,6 +2678,28 @@ const LocationFirstInventory = () => {
   const [selectedItemIds, setSelectedItemIds] = useState(new Set());
   const [showExportModal, setShowExportModal] = useState(false);
   const [qrSheetData, setQrSheetData] = useState(null); // { title, entries } — in-app QR print overlay
+  const [showSetLocation, setShowSetLocation] = useState(false);
+
+  // Bulk-assign the selected items' physical storage location to a box.
+  const assignItemsToBox = async (box) => {
+    const chosen = (allItems || []).filter(i => selectedItemIds?.has(i?.id));
+    let ok = 0;
+    for (const it of chosen) {
+      const locs = it?.stockLocations || [];
+      const total = locs.length
+        ? locs.reduce((s, l) => s + (Number(l?.qty ?? l?.quantity) || 0), 0)
+        : (Number(it?.quantity ?? it?.totalQty) || 0);
+      const newLocs = locs.length === 1
+        ? [{ ...locs[0], locationId: box.id, vesselLocationId: box.id, locationName: box.name }]
+        : [{ locationId: box.id, vesselLocationId: box.id, locationName: box.name, qty: total }];
+      // eslint-disable-next-line no-await-in-loop
+      if (await updateItemStockLocations(it.id, newLocs)) ok += 1;
+    }
+    showToast(`${ok} item${ok === 1 ? '' : 's'} stored in ${box.name}`, 'success');
+    setShowSetLocation(false);
+    setSelectedItemIds(new Set());
+    loadData();
+  };
   const [isExporting, setIsExporting] = useState(false);
   const [showAzureImportModal, setShowAzureImportModal] = useState(false);
   const [showBulkScanModal, setShowBulkScanModal] = useState(false);
@@ -2709,21 +2735,18 @@ const LocationFirstInventory = () => {
   }, [searchParams, setSearchParams]);
 
   // Physical location tree (vessel_locations) for the Filter panel's drill-down.
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const tenantId = localStorage.getItem('cargo_active_tenant_id') || ctxActiveTenantId;
-      if (!tenantId) return;
-      const { data, error } = await supabase
-        ?.from('vessel_locations')
-        ?.select('id, name, parent_id, level, is_archived, sort_order')
-        ?.eq('tenant_id', tenantId)
-        ?.eq('is_archived', false);
-      if (!alive || error || !data) return;
-      setVesselLocations(data);
-    })();
-    return () => { alive = false; };
+  const reloadVesselLocations = useCallback(async () => {
+    const tenantId = localStorage.getItem('cargo_active_tenant_id') || ctxActiveTenantId;
+    if (!tenantId) return;
+    const { data, error } = await supabase
+      ?.from('vessel_locations')
+      ?.select('id, name, parent_id, level, is_archived, sort_order')
+      ?.eq('tenant_id', tenantId)
+      ?.eq('is_archived', false);
+    if (error || !data) return;
+    setVesselLocations(data);
   }, [ctxActiveTenantId]);
+  useEffect(() => { reloadVesselLocations(); }, [reloadVesselLocations]);
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem('cargo_inventory_view_mode') || 'list'; } catch { return 'list'; }
   });
@@ -2770,7 +2793,7 @@ const LocationFirstInventory = () => {
       // The QR picker + print overlay are portaled to <body>, outside the panel;
       // clicks inside them must not close the filter panel (which would unmount
       // the picker mid-click).
-      if (e?.target?.closest?.('.qrp-scrim') || e?.target?.closest?.('.qro-root')) return;
+      if (e?.target?.closest?.('.qrp-scrim') || e?.target?.closest?.('.qro-root') || e?.target?.closest?.('.slm-scrim')) return;
       if (sortDropdownRef?.current && !sortDropdownRef?.current?.contains(e?.target)) setShowSortDropdown(false);
       if (filterPanelRef?.current && !filterPanelRef?.current?.contains(e?.target)) setShowFilterPanel(false);
     };
@@ -4385,6 +4408,10 @@ const LocationFirstInventory = () => {
               <Icon name="QrCode" size={13} />
               QR labels
             </button>
+            <button onClick={() => setShowSetLocation(true)} className="inv-selbtn">
+              <Icon name="MapPin" size={13} />
+              Location
+            </button>
             <button onClick={() => setShowBulkMoveModal(true)} className="inv-selbtn">
               <Icon name="FolderInput" size={13} />
               Move
@@ -4625,6 +4652,16 @@ const LocationFirstInventory = () => {
       {/* Modals */}
       {qrSheetData && (
         <QrSheetOverlay title={qrSheetData.title} entries={qrSheetData.entries} onClose={() => setQrSheetData(null)} />
+      )}
+      {showSetLocation && (
+        <SetLocationModal
+          tenantId={localStorage.getItem('cargo_active_tenant_id') || ctxActiveTenantId}
+          count={selectedItemIds?.size || 0}
+          vesselLocations={vesselLocations}
+          onReloadLocations={reloadVesselLocations}
+          onAssign={assignItemsToBox}
+          onClose={() => setShowSetLocation(false)}
+        />
       )}
       {showAddModal && (
         <ItemFormModal
