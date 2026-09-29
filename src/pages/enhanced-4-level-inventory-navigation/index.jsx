@@ -4287,7 +4287,7 @@ const LocationFirstInventory = () => {
 
               <div className="inv-sortwrap" ref={filterPanelRef}>
                 <button
-                  onClick={() => { setShowFilterPanel(prev => !prev); setShowSortDropdown(false); }}
+                  onClick={() => { setShowFilterPanel(prev => { const next = !prev; if (next) reloadVesselLocations(); return next; }); setShowSortDropdown(false); }}
                   className={`inv-tool${hasActiveFilters ? ' on' : ''}`}
                 >
                   <Icon name="SlidersHorizontal" size={15} />
@@ -4430,7 +4430,7 @@ const LocationFirstInventory = () => {
               <Icon name="QrCode" size={13} />
               QR labels
             </button>
-            <button onClick={() => setShowSetLocation(true)} className="inv-selbtn">
+            <button onClick={() => { reloadVesselLocations(); setShowSetLocation(true); }} className="inv-selbtn">
               <Icon name="MapPin" size={13} />
               Location
             </button>
