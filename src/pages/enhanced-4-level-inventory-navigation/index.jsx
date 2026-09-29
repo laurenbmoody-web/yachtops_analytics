@@ -2746,7 +2746,13 @@ const LocationFirstInventory = () => {
     if (error || !data) return;
     setVesselLocations(data);
   }, [ctxActiveTenantId]);
-  useEffect(() => { reloadVesselLocations(); }, [reloadVesselLocations]);
+  useEffect(() => {
+    reloadVesselLocations();
+    // Pick up locations added elsewhere (Location Management) when returning.
+    const onFocus = () => reloadVesselLocations();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [reloadVesselLocations]);
   const [viewMode, setViewMode] = useState(() => {
     try { return localStorage.getItem('cargo_inventory_view_mode') || 'list'; } catch { return 'list'; }
   });
@@ -3551,7 +3557,12 @@ const LocationFirstInventory = () => {
     const anyRootFilter = !!searchQuery || !!activeTagFilter || !!activeLocationId || (activeFilters && (
       (activeFilters?.tags?.length > 0) || activeFilters?.brand || activeFilters?.supplier ||
       activeFilters?.belowPar || activeFilters?.hasExpiry || activeFilters?.hasImage || activeFilters?.location));
-    const baseList = isRoot ? (anyRootFilter ? (allItems || []) : []) : items;
+    // A physical-location filter (a box/room) spans the whole folder tree — its
+    // contents live in many different folders — so always search ALL items, not
+    // just the current folder's. Otherwise search/other filters follow the view.
+    const baseList = activeLocationId
+      ? (allItems || [])
+      : (isRoot ? (anyRootFilter ? (allItems || []) : []) : items);
     let result = baseList?.filter(item => {
       // Physical-location filter (a box): match the item's stock locations or its
       // default location against the selected vessel_locations node id.
@@ -4365,8 +4376,10 @@ const LocationFirstInventory = () => {
             </div>
           </div>
 
-        {/* Selection toolbar */}
-        {!isRoot && selectedItemIds?.size > 0 && (
+        {/* Selection toolbar — show whenever items are selected, including in a
+            root-level view (search or a physical-location filter like "Narnia"),
+            where isRoot is still true but an item list is on screen. */}
+        {selectedItemIds?.size > 0 && (
           <div className="inv-selbar">
             <button
               onClick={handleSelectAll}
