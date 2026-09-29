@@ -22,7 +22,9 @@
 
 .qro-page { background: #fff; box-shadow: 0 2px 16px rgba(28,27,58,.14); }
 .qro-page.grid { display: grid; }
-.qro-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; padding: 1mm; }
+/* On screen, outline every sticker cell so you can see the QR sits inside a
+   sticker before printing. The outline is screen-only (hidden in @media print). */
+.qro-cell { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow: hidden; padding: 1mm; box-shadow: inset 0 0 0 1px #E8EAF0; border-radius: 4px; }
 .qro-cell img, .qro-qrph { width: var(--qmm, 25mm); height: var(--qmm, 25mm); display: block; }
 .qro-qrph { background: #F1F5F9; }
 .qro-cell .nm { font: 700 7pt 'Inter'; line-height: 1.05; margin-top: 1mm; word-break: break-word; }
@@ -57,7 +59,8 @@
   .qro-page, .qro-tag { box-shadow: none !important; break-after: page; page-break-after: always; }
   .qro-page:last-child, .qro-tag:last-child { break-after: auto; page-break-after: auto; }
   .qro-card { border: 1px solid #E5E7EB; }
-  /* Empty stickers print blank — no dashed guide, no hover tint. */
+  /* Empty stickers print blank — no dashed guide, no hover tint, no cell outline. */
+  .qro-cell { box-shadow: none !important; border-radius: 0 !important; }
   .qro-cell.empty, .qro-cell[draggable="true"] { background: none !important; }
   .qro-slot-empty { display: none !important; }
 }
