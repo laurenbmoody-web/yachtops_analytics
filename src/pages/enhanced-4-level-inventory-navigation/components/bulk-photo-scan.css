@@ -41,7 +41,13 @@
 .bps-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--hair);}
 .bps-row.skipped{opacity:.45;}
 .bps-row-inc input{width:16px;height:16px;accent-color:var(--terra);cursor:pointer;}
-.bps-row-img{width:56px;height:56px;border-radius:10px;object-fit:cover;border:1px solid var(--hair);flex:none;}
+.bps-row-imgwrap{position:relative;width:56px;height:56px;flex:none;}
+.bps-row-img{width:56px;height:56px;border-radius:10px;object-fit:cover;border:1px solid var(--hair);display:block;background:#F5F6F8;}
+.bps-img-badge{position:absolute;left:3px;bottom:3px;padding:1px 5px;border-radius:999px;background:rgba(28,27,58,.82);color:#fff;font:700 8px 'Plus Jakarta Sans',system-ui,sans-serif;letter-spacing:.04em;text-transform:uppercase;}
+.bps-img-finding{position:absolute;inset:0;display:grid;place-items:center;border-radius:10px;background:rgba(255,255,255,.72);color:#C65A1A;}
+.bps-img-finding svg{animation:bps-rot 1s linear infinite;}
+.bps-img-clear{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:999px;border:1px solid var(--hair);background:#fff;color:#6B7280;display:grid;place-items:center;cursor:pointer;box-shadow:0 1px 3px rgba(28,27,58,.18);}
+.bps-img-clear:hover{color:#C65A1A;border-color:#C65A1A;}
 .bps-row-fields{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;}
 .bps-field-name{display:flex;align-items:center;gap:8px;}
 .bps-field-row{display:flex;align-items:center;gap:10px;}
