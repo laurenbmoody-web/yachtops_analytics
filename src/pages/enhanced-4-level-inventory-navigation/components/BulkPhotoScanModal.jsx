@@ -3,6 +3,8 @@ import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
 import { supabase } from '../../../lib/supabaseClient';
 import { detectInventoryItems } from '../../inventory/utils/itemVisionAi';
+import { findProductImage } from '../../inventory/utils/productImageSearch';
+import { pdfToPageBlobs } from '../../inventory/utils/pdfPages';
 import { getSubfolderPaths, resolveOrCreateFolderPath, saveItem } from '../../inventory/utils/inventoryStorage';
 import './bulk-photo-scan.css';
 
@@ -78,26 +80,38 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
 
   const busy = phase === 'analysing' || phase === 'saving';
 
-  const addFiles = useCallback((fileList) => {
-    const files = Array.from(fileList || []).filter((f) => f.type.startsWith('image/'));
-    if (!files.length) return;
-    setRows((prev) => [
-      ...prev,
-      ...files.map((file) => ({
-        id: `r${++ROW_SEQ}`,
-        file,
-        preview: URL.createObjectURL(file),
-        status: 'pending', // pending | ready | error
-        name: '',
-        quantity: 1,
-        folder: currentPath || '',
-        confidence: '',
-        description: '',
-        imageUrl: '',
-        include: true,
-      })),
-    ]);
-  }, [currentPath]);
+  const makeRow = useCallback((file) => ({
+    id: `r${++ROW_SEQ}`,
+    file,
+    preview: URL.createObjectURL(file),
+    status: 'pending', // pending | ready | error
+    name: '',
+    quantity: 1,
+    folder: currentPath || '',
+    confidence: '',
+    description: '',
+    imageUrl: '',
+    imageSource: '', // '' | 'source' | 'web' | 'none'
+    imgStatus: '',   // '' | 'searching' | 'done'
+    include: true,
+  }), [currentPath]);
+
+  // Accept photos, order screenshots AND PDF packing lists. Each PDF page is
+  // rasterised to an image and scanned like a photo.
+  const addFiles = useCallback(async (fileList) => {
+    const all = Array.from(fileList || []);
+    const images = all.filter((f) => f.type.startsWith('image/'));
+    const pdfs = all.filter((f) => f.type === 'application/pdf' || /\.pdf$/i.test(f.name || ''));
+    if (images.length) setRows((prev) => [...prev, ...images.map(makeRow)]);
+    for (const pdf of pdfs) {
+      try {
+        const blobs = await pdfToPageBlobs(pdf);
+        const base = (pdf.name || 'document').replace(/\.pdf$/i, '');
+        const pageFiles = blobs.map((b, i) => new File([b], `${base}-p${i + 1}.jpg`, { type: 'image/jpeg' }));
+        if (pageFiles.length) setRows((prev) => [...prev, ...pageFiles.map(makeRow)]);
+      } catch (_) { /* skip an unreadable PDF */ }
+    }
+  }, [makeRow]);
 
   const onDrop = (e) => {
     e.preventDefault(); setDragOver(false);
@@ -114,27 +128,24 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
     return rest;
   });
 
-  // Replace a just-analysed photo row with one row per detected item. All rows
-  // from the same photo share its preview + uploaded image. An empty result
-  // leaves a single blank "ready" row so the user can still fill it in manually.
-  const applyDetections = (seedId, detections, imageUrl) => setRows((prev) => {
-    const idx = prev.findIndex((r) => r.id === seedId);
-    if (idx === -1) return prev;
-    const seed = prev[idx];
-    const built = detections.length
+  // Build one row per detected item from a just-analysed photo row. All rows
+  // from the same photo share its preview + uploaded source image. An empty
+  // result yields a single blank "ready" row so the user can fill it manually.
+  const buildDetectionRows = (seed, detections, imageUrl) => (
+    detections.length
       ? detections.map((det, i) => ({
           ...seed,
           id: i === 0 ? seed.id : `r${++ROW_SEQ}`,
-          status: 'ready', imageUrl,
+          status: 'ready', imageUrl, sourceUrl: imageUrl, imageSource: imageUrl ? 'source' : '', imgStatus: '',
           name: det.name || '', quantity: det.quantity || 1,
           folder: det.folder || currentPath || '', confidence: det.confidence || 'medium',
           description: det.description || '', include: true,
         }))
-      : [{ ...seed, status: 'ready', imageUrl, confidence: 'low' }];
-    return [...prev.slice(0, idx), ...built, ...prev.slice(idx + 1)];
-  });
+      : [{ ...seed, status: 'ready', imageUrl, sourceUrl: imageUrl, imageSource: imageUrl ? 'source' : '', confidence: 'low' }]
+  );
 
-  // Analyse every pending row: compress → upload → vision-detect, capped by CONCURRENCY.
+  // Analyse every pending row: compress → upload → vision-detect, then search a
+  // real product photo per detected item. Capped by CONCURRENCY.
   const analyse = async () => {
     const pending = rows.filter((r) => r.status === 'pending');
     if (!pending.length) return;
@@ -151,7 +162,21 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
             uploadImage(blob).catch(() => ''),
           ]);
           const detections = await detectInventoryItems(dataUrl, { departmentName, currentPath, folders });
-          applyDetections(row.id, detections, imageUrl);
+          const built = buildDetectionRows(row, detections, imageUrl);
+          // Swap the source row for its detected item rows.
+          setRows((prev) => {
+            const idx = prev.findIndex((r) => r.id === row.id);
+            if (idx === -1) return prev;
+            return [...prev.slice(0, idx), ...built, ...prev.slice(idx + 1)];
+          });
+          // Suggest a real product photo for each named item (replaces the
+          // source screenshot when one is found; otherwise the screenshot stays).
+          const named = built.filter((b) => b.name && b.name.trim());
+          named.forEach((b) => patchRow(b.id, { imgStatus: 'searching' }));
+          await Promise.all(named.map(async (b) => {
+            const found = await findProductImage(b.name);
+            patchRow(b.id, found ? { imageUrl: found, imageSource: 'web', imgStatus: 'done' } : { imgStatus: 'done' });
+          }));
         } catch (err) {
           patchRow(row.id, { status: 'error', error: err?.message || 'failed' });
         } finally {
@@ -221,10 +246,10 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
               role="button" tabIndex={0}
             >
               <div className="bps-drop-icon"><Icon name="Camera" size={26} /></div>
-              <div className="bps-drop-title">Drop photos here, or click to choose</div>
-              <div className="bps-drop-sub">One or more items per photo — we’ll split multi-product shots into separate rows and suggest a folder in {departmentName} for each.</div>
+              <div className="bps-drop-title">Drop photos, order screenshots or a PDF here, or click to choose</div>
+              <div className="bps-drop-sub">Photos, an order screenshot, or a PDF packing list all work. We’ll split multi-product shots into separate rows, suggest a folder in {departmentName}, and find a product photo for each.</div>
               <input
-                ref={fileInputRef} type="file" accept="image/*" multiple capture="environment"
+                ref={fileInputRef} type="file" accept="image/*,application/pdf" multiple capture="environment"
                 style={{ display: 'none' }}
                 onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }}
               />
@@ -271,7 +296,27 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
                   <label className="bps-row-inc">
                     <input type="checkbox" checked={r.include} onChange={(e) => patchRow(r.id, { include: e.target.checked })} />
                   </label>
-                  <img className="bps-row-img" src={r.preview} alt="" />
+                  <div className="bps-row-imgwrap">
+                    <img className="bps-row-img" src={r.imageUrl || r.preview} alt="" />
+                    {r.imgStatus === 'searching' && (
+                      <span className="bps-img-finding" title="Finding a product photo…"><Icon name="Loader" size={12} /></span>
+                    )}
+                    {r.imageSource === 'web' && r.imgStatus !== 'searching' && (
+                      <span className="bps-img-badge" title="Product photo found by search">web</span>
+                    )}
+                    {(r.imageUrl || r.imageSource === 'web') && (
+                      <button
+                        type="button"
+                        className="bps-img-clear"
+                        title={r.imageSource === 'web' && r.sourceUrl ? 'Use the source image instead' : 'Remove photo'}
+                        onClick={() => patchRow(r.id, (r.imageSource === 'web' && r.sourceUrl)
+                          ? { imageUrl: r.sourceUrl, imageSource: 'source' }
+                          : { imageUrl: '', imageSource: 'none' })}
+                      >
+                        <Icon name="X" size={10} />
+                      </button>
+                    )}
+                  </div>
                   <div className="bps-row-fields">
                     <div className="bps-field-name">
                       <input
