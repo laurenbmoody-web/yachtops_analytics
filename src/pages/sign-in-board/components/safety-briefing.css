@@ -1,0 +1,49 @@
+/* Post-sign-in safety induction — editorial acknowledgment screen. */
+.sbrief-scrim {
+  position: fixed; inset: 0; z-index: 98; background: rgba(28,27,58,0.5);
+  display: grid; place-items: center; padding: 20px;
+}
+.sbrief {
+  width: 100%; max-width: 460px; max-height: calc(100vh - 40px); overflow-y: auto;
+  background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32);
+  padding: 22px 24px 24px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+.sbrief-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.sbrief-eyebrow {
+  margin: 0 0 4px; font-weight: 700; font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.sbrief-eyebrow .dot { color: #C65A1A; margin-right: 6px; }
+.sbrief-title {
+  margin: 0; font-family: 'DM Serif Display', Georgia, serif; font-weight: 400;
+  font-size: 30px; line-height: 1.02; color: #1C1B3A;
+}
+.sbrief-title em { font-style: italic; color: #C65A1A; }
+.sbrief-x {
+  flex: none; width: 34px; height: 34px; border: 0; background: none; border-radius: 9px;
+  color: #8B8478; cursor: pointer; display: grid; place-items: center;
+}
+.sbrief-x:hover { background: #FBEFE9; color: #C65A1A; }
+.sbrief-lead { margin: 12px 0 16px; font-size: 13.5px; line-height: 1.45; color: #6B7280; }
+
+.sbrief-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.sbrief-item { display: flex; gap: 13px; padding: 13px 0; border-top: 1px solid #F0F1F5; }
+.sbrief-item:first-child { border-top: 0; }
+.sbrief-ic {
+  flex: none; width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+  background: #FBEFE9; color: #C65A1A;
+}
+.sbrief-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sbrief-h { font-weight: 700; font-size: 14px; color: #1C1B3A; }
+.sbrief-b { font-size: 12.5px; line-height: 1.4; color: #6B7280; }
+
+.sbrief-cta {
+  margin-top: 20px; width: 100%; height: 52px; border: 0; border-radius: 12px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  background: #C65A1A; color: #FFFFFF; font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 16px; font-weight: 700; letter-spacing: 0.01em;
+  transition: background 0.15s ease;
+}
+.sbrief-cta:hover { background: #B14E16; }
+.sbrief-cta:disabled { opacity: 0.6; cursor: default; }
