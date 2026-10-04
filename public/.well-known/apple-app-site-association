@@ -1,0 +1,26 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["APPLE_TEAM_ID.uk.co.cargotechnology.app"],
+        "components": [
+          { "/": "/", "exclude": true, "comment": "marketing site stays in the browser" },
+          { "/": "/product", "exclude": true },
+          { "/": "/features", "exclude": true },
+          { "/": "/who-its-for", "exclude": true },
+          { "/": "/about", "exclude": true },
+          { "/": "/faq", "exclude": true },
+          { "/": "/pricing", "exclude": true },
+          { "/": "/checkout*", "exclude": true },
+          { "/": "/welcome", "exclude": true },
+          { "/": "/contact", "exclude": true },
+          { "/": "/privacy", "exclude": true },
+          { "/": "/terms", "exclude": true },
+          { "/": "/api/*", "exclude": true },
+          { "/": "/.netlify/*", "exclude": true },
+          { "/": "/*" }
+        ]
+      }
+    ]
+  }
+}

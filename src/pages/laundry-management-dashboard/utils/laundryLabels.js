@@ -10,11 +10,13 @@
 // open the window synchronously (so it isn't caught by the popup blocker),
 // show a "Preparing…" placeholder, then rewrite once the QR PNGs are ready.
 
+import { publicOrigin } from '../../../lib/native/platform';
+
 const esc = (s) => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-const laundryOrigin = () => (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+const laundryOrigin = () => publicOrigin();
 
 // Deep link an item label resolves to. Encoded in the QR and parsed below.
 export function scanUrlFor(id) {

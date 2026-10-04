@@ -1,3 +1,4 @@
+import { publicOrigin } from '../../lib/native/platform';
 import React, { useState, useEffect, useRef } from 'react';
 
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -664,7 +665,7 @@ const CrewManagement = () => {
   };
 
   const handleCopyInviteLink = (token) => {
-    const baseUrl = window?.location?.origin;
+    const baseUrl = publicOrigin();
     const link = `${baseUrl}/login-authentication?invite=${token}`;
     navigator?.clipboard?.writeText(link);
   };

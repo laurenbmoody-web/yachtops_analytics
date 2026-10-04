@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { ensureProfileExists } from '../../utils/profileHelpers';
 import './login.css';
+import { isNative } from '../../lib/native/platform';
 
 const CREW_CONTENT = {
   headlineLine1: 'BUILT BY CREW,',
@@ -457,10 +458,14 @@ const Login = () => {
 
           {!mfaStep && (
           <div className="cl-card-foot">
+            {/* In the iOS / Android app, crew arrive by invite and vessels sign up
+                on the web — no route into pricing / checkout from the app. */}
+            {!(isNative() && content.footerHref === '/pricing') && (
             <p className="cl-foot-primary">
               {content.footerLead}{' '}
               <a href={content.footerHref} className="cl-link-under">{content.footerLink}</a>
             </p>
+            )}
             <p className="cl-foot-secondary">
               {content.crossText}{' '}
               <button

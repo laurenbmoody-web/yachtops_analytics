@@ -7,6 +7,8 @@
 // the popup blocker doesn't eat it), show a placeholder, then rewrite once the
 // QR PNG is ready.
 
+import { publicOrigin } from '../../../lib/native/platform';
+
 const esc = (s) => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -16,7 +18,7 @@ const esc = (s) => String(s ?? '')
 // box" view. `id` is the vessel_locations node id; `name` is carried so the
 // landing view can label the chip without a lookup.
 export function boxQrUrl(id, name) {
-  const origin = (typeof window !== 'undefined' && window.location?.origin) || '';
+  const origin = publicOrigin();
   const base = `${origin}/inventory?loc=${encodeURIComponent(String(id || '').trim())}`;
   return name ? `${base}&ln=${encodeURIComponent(String(name).trim())}` : base;
 }

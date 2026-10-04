@@ -27,6 +27,16 @@
     "warning": "🚨 CRITICAL: DO NOT REMOVE OR MODIFY ABOVE DEPENDENCIES - Required for app functionality"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/filesystem": "^8.1.4",
+    "@capacitor/ios": "^8.5.2",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/push-notifications": "^8.1.3",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.2",
     "@dhiwise/component-tagger": "^1.0.14",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
@@ -85,7 +95,10 @@
     "start": "vite",
     "build": "vite build --sourcemap",
     "serve": "vite preview",
-    "test": "node --test"
+    "test": "node --test",
+    "app:sync": "vite build && cap sync",
+    "app:ios": "vite build && cap sync ios && cap open ios",
+    "app:android": "vite build && cap sync android && cap open android"
   },
   "eslintConfig": {
     "extends": [
@@ -106,6 +119,8 @@
     ]
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.2",
     "@tailwindcss/aspect-ratio": "^0.4.2",
     "@tailwindcss/container-queries": "^0.1.1",
     "@tailwindcss/line-clamp": "^0.1.0",

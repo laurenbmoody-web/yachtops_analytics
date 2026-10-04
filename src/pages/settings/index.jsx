@@ -1,3 +1,4 @@
+import { publicOrigin, isNative } from '../../lib/native/platform';
 import React, { useState, useEffect, useCallback } from 'react';
 import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
@@ -289,7 +290,7 @@ const SettingsPage = () => {
       const { error: authErr } = await supabase.auth.signInWithPassword({ email: currentEmail, password: curPassword });
       if (authErr) { setLoginMsg({ t: 'err', m: 'Incorrect password' }); setLoginBusy(false); return; }
       // 2. Request the change — Supabase emails the confirmation link(s).
-      const { error: updErr } = await supabase.auth.updateUser({ email: newE }, { emailRedirectTo: `${window.location.origin}/settings` });
+      const { error: updErr } = await supabase.auth.updateUser({ email: newE }, { emailRedirectTo: `${publicOrigin()}/settings` });
       if (updErr) { setLoginMsg({ t: 'err', m: updErr.message || 'Could not start the change' }); setLoginBusy(false); return; }
       setLoginSent(newE);
       setEditingLogin(false);
@@ -1115,7 +1116,7 @@ const SettingsPage = () => {
               {/* Billing is the subscription owner’s concern — only the vessel
                   admin (tenants.current_admin_user_id): the person who signed the
                   vessel up as admin, or whoever it was transferred to. */}
-              {activeTenantId && isVesselAdmin && (
+              {activeTenantId && isVesselAdmin && !isNative() && (
                 <RowNav label="Billing" desc="Manage payment and invoices." onClick={() => navigate('/membership')} />
               )}
               {/* The setup guide lives on the vessel dashboard — nothing to restore without one. */}

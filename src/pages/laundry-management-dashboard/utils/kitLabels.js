@@ -8,11 +8,13 @@
 //
 // Follows the self-contained print-window pattern used by laundryLabels.js.
 
+import { publicOrigin } from '../../../lib/native/platform';
+
 const esc = (s) => String(s ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-const wardrobeOrigin = () => (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+const wardrobeOrigin = () => publicOrigin();
 
 // Deep link a kit tag resolves to. Encoded in the QR and parsed below.
 export function issueScanUrlFor(id) {

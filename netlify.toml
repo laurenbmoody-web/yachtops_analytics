@@ -26,6 +26,19 @@
   # OOM ("allocation failure" near max_old_space_size); 6 GB gives real headroom.
   NODE_OPTIONS = "--max_old_space_size=6144"
 
+# Universal links (iOS) / app links (Android) for the Cargo app — both must be
+# served as JSON. They're static files, so the SPA fallback below never touches
+# them.
+[[headers]]
+  for = "/.well-known/apple-app-site-association"
+  [headers.values]
+    Content-Type = "application/json"
+
+[[headers]]
+  for = "/.well-known/assetlinks.json"
+  [headers.values]
+    Content-Type = "application/json"
+
 # API proxy to Netlify Functions
 [[redirects]]
   from = "/api/*"

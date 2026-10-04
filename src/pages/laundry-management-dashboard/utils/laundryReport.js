@@ -7,6 +7,7 @@
 // detail, and — for damaged items — a photo as evidence. A Cargo wordmark
 // signs off the footer.
 
+import { publicOrigin } from '../../../lib/native/platform';
 import { LaundryStatus, LaundryPriority, formatLaundryTag } from './laundryStorage';
 import { resolveLaundryPhotos } from './laundryPhotos';
 import { billingSummary, isBillable, effectiveCharge, money } from './laundryBilling';
@@ -128,7 +129,7 @@ export async function openTripReport(period, vessel, billing) {
   const bill = (period.billingBasis === 'plus_expenses' && billing) ? { config: billing, basis: period.billingBasis } : null;
   const photoMap = await evidenceMap(people);
   const care = (period.care?.bars || []).map((b) => `${esc(b.label)} ${b.count}`).join(' · ');
-  const cargoLogo = `${(typeof window !== 'undefined' && window.location ? window.location.origin : '')}/centered-logo.svg`;
+  const cargoLogo = `${publicOrigin()}/centered-logo.svg`;
 
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>Laundry — ${esc(period.name)}</title>
   <style>

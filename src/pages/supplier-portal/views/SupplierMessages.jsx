@@ -1,3 +1,4 @@
+import { publicOrigin } from '../../../lib/native/platform';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {formatTime, dateLocale } from '../../../utils/dateFormat';
 import { useSearchParams, useNavigate } from 'react-router-dom';
@@ -108,7 +109,7 @@ const QUICK = [
   { label: 'Confirm delivery', text: (o) => `Confirming your delivery${o?.delivery_date ? ` for ${new Date(o.delivery_date).toLocaleDateString(dateLocale(), { day: '2-digit', month: '2-digit', year: 'numeric' })}` : ''}${o?.delivery_time ? ` at ${String(o.delivery_time).slice(0, 5)}` : ''} — does that still work for you?` },
   { label: 'Substitution', text: (o) => {
     const base = `Some items in your order${o?.id ? ` #${shortId(o.id)}` : ''} are unavailable — please review the suggested substitutions on your order and confirm.`;
-    return o?.id ? `${base} ${typeof window !== 'undefined' ? window.location.origin : ''}/provisioning/orders/${o.id}` : base;
+    return o?.id ? `${base} ${publicOrigin()}/provisioning/orders/${o.id}` : base;
   } },
 ];
 
