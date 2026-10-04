@@ -72,6 +72,49 @@ export async function fetchContractorsOnBoard(tenantId) {
   return (data || []).map((k) => ({ ...k, state: k.status || 'onboard' }));
 }
 
+// ── Expected visitors (pre-registered for planned work) ─────────────────────
+export async function fetchExpectedVisitors(tenantId) {
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    ?.from('contractor_visits')
+    ?.select('id, name, company, phone, reason, created_at')
+    ?.eq('tenant_id', tenantId)?.eq('status', 'expected')?.order('created_at', { ascending: true });
+  if (error) { console.error('[pob] expected fetch failed', error); return []; }
+  return data || [];
+}
+
+export async function addExpectedVisitor(tenantId, { name, company, phone, reason }, createdBy) {
+  if (!tenantId || !name?.trim()) throw new Error('Name is required');
+  const { data, error } = await supabase
+    ?.from('contractor_visits')
+    ?.insert({
+      tenant_id: tenantId, name: name.trim(), company: company?.trim() || null, phone: phone?.trim() || null,
+      reason: reason?.trim() || null, status: 'expected', created_by: createdBy || null,
+    })?.select()?.single();
+  if (error) throw error;
+  return data;
+}
+
+// Turn an expected entry into an on-board visit (on arrival), carrying induction.
+export async function activateExpected(id, { inducted, reason } = {}) {
+  if (!id) return null;
+  const now = new Date().toISOString();
+  const patch = { status: 'onboard', signed_in_at: now, updated_at: now };
+  if (inducted) { patch.inducted = true; patch.inducted_at = now; }
+  if (reason != null) patch.reason = reason.trim() || null;
+  const { data, error } = await supabase?.from('contractor_visits')?.update(patch)?.eq('id', id)?.select()?.single();
+  if (error) throw error;
+  return data;
+}
+
+// Cancel an expected entry (status 'ashore' drops it off the expected list).
+export async function cancelExpected(id) {
+  if (!id) return;
+  const { error } = await supabase
+    ?.from('contractor_visits')?.update({ status: 'ashore', updated_at: new Date().toISOString() })?.eq('id', id);
+  if (error) throw error;
+}
+
 // Temporarily step a visitor out (keeps the visit open — they can tap back in
 // without re-entering anything).
 export async function stepOutContractor(id) {
