@@ -183,6 +183,18 @@ export async function addContractor(tenantId, name, company, phone, createdBy, o
   return data;
 }
 
+// Mark a signed-in visitor as having received & understood the safety briefing.
+// Called when they tap "I understand" on the post-sign-in induction screen.
+export async function inductVisit(id) {
+  if (!id) return;
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    ?.from('contractor_visits')
+    ?.update({ inducted: true, inducted_at: now, updated_at: now })
+    ?.eq('id', id);
+  if (error) throw error;
+}
+
 // Sign a contractor off the boat (keeps the record + times).
 export async function signOutContractor(id) {
   if (!id) return;

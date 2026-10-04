@@ -6,6 +6,7 @@ import LogoSpinner from '../../components/LogoSpinner';
 import DoorScanModal from './components/DoorScanModal';
 import DeviceSetupModal from './components/DeviceSetupModal';
 import VisitorPassModal from './components/VisitorPassModal';
+import SafetyBriefingModal from './components/SafetyBriefingModal';
 import { decodeVisitorPass } from './utils/visitorPass';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
@@ -18,6 +19,7 @@ import {
   fetchContractorsOnBoard, addContractor, signOutContractor,
   stepOutContractor, returnContractor, fetchRecentVisitors,
   fetchExpectedVisitors, addExpectedVisitor, activateExpected, cancelExpected,
+  inductVisit,
 } from '../../services/personsOnBoard';
 import '../../styles/editorial.css';
 import './sign-in-board.css';
@@ -90,7 +92,8 @@ const SignInBoard = () => {
   const [addPhone, setAddPhone] = useState('');
   const [addBusy, setAddBusy] = useState(false);
   const [addReason, setAddReason] = useState('');
-  const [addAck, setAddAck] = useState(false);
+  const [briefingVisitor, setBriefingVisitor] = useState(null); // { id, name } — post-sign-in safety induction
+  const [briefBusy, setBriefBusy] = useState(false);
   const [recentVisitors, setRecentVisitors] = useState([]);
   const [expectedVisitors, setExpectedVisitors] = useState([]); // pre-registered expected visitors
   const [fromExpected, setFromExpected] = useState(null); // expected id being signed in
@@ -99,7 +102,6 @@ const SignInBoard = () => {
   // Load recent (not-present) visitors when the Add panel opens, for one-tap return.
   useEffect(() => {
     if (!addOpen || !activeTenantId) return;
-    setAddAck(false);
     if (!fromExpected) setAddReason('');
     let alive = true;
     fetchRecentVisitors(activeTenantId).then((v) => { if (alive) setRecentVisitors(v); });
@@ -268,30 +270,49 @@ const SignInBoard = () => {
     try {
       const row = await addContractor(activeTenantId, nm, company, ph, meId, { reason, inducted: !!opts.inducted });
       logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: nm, direction: 'aboard', actorUserId: meId, source: logSource, meta: { company: String(company || '').trim(), phone: ph, reason } });
-      flashConfirm(nm, true);
-      setAddOpen(false); setAddName(''); setAddCompany(''); setAddPhone(''); setAddReason(''); setAddAck(false);
+      setAddOpen(false); setAddName(''); setAddCompany(''); setAddPhone(''); setAddReason('');
       load();
+      // First-time visitors get the safety briefing to acknowledge; returning
+      // (already-inducted) visitors skip straight to the welcome.
+      if (opts.briefAfter && row?.id) setBriefingVisitor({ id: row.id, name: nm });
+      else flashConfirm(nm, true);
     } catch (e) { showToast(e.message || 'Could not add visitor', 'error'); }
     finally { setAddBusy(false); }
   };
-  // Manual new visitor — needs the safety-briefing acknowledgment. If arriving
-  // from a pre-registered "expected" entry, activate that row instead of a new one.
+  // Sign the visitor in first; the safety briefing is acknowledged afterwards
+  // (post-sign-in induction screen). If arriving from a pre-registered "expected"
+  // entry, activate that row instead of creating a new one.
   const submitContractor = async () => {
-    if (!addAck) return;
     if (fromExpected) {
       if (addBusy) return;
+      const nm = addName.trim();
       setAddBusy(true);
       try {
-        const row = await activateExpected(fromExpected, { inducted: true, reason: addReason });
-        logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: addName.trim(), direction: 'aboard', actorUserId: meId, source: logSource, meta: { company: addCompany.trim(), phone: addPhone.trim(), reason: addReason.trim() } });
-        flashConfirm(addName.trim(), true);
-        setAddOpen(false); setFromExpected(null); setAddName(''); setAddCompany(''); setAddPhone(''); setAddReason(''); setAddAck(false);
+        const row = await activateExpected(fromExpected, { inducted: false, reason: addReason });
+        logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: nm, direction: 'aboard', actorUserId: meId, source: logSource, meta: { company: addCompany.trim(), phone: addPhone.trim(), reason: addReason.trim() } });
+        setAddOpen(false); setFromExpected(null); setAddName(''); setAddCompany(''); setAddPhone(''); setAddReason('');
         load();
+        if (row?.id) setBriefingVisitor({ id: row.id, name: nm });
+        else flashConfirm(nm, true);
       } catch (e) { showToast(e.message || 'Could not sign in', 'error'); }
       finally { setAddBusy(false); }
       return;
     }
-    signInVisitor(addName, addCompany, addPhone, { reason: addReason, inducted: true });
+    signInVisitor(addName, addCompany, addPhone, { reason: addReason, inducted: false, briefAfter: true });
+  };
+
+  // "I understand" on the safety briefing marks the visit inducted.
+  const confirmBriefing = async () => {
+    const b = briefingVisitor;
+    if (!b || briefBusy) return;
+    setBriefBusy(true);
+    try { await inductVisit(b.id); load(); }
+    catch (e) { showToast(e.message || 'Could not record induction', 'error'); }
+    finally {
+      setBriefBusy(false);
+      setBriefingVisitor(null);
+      flashConfirm(b.name, true);
+    }
   };
 
   // Pre-register an expected visitor (planned work) — no sign-in, no ack yet.
@@ -300,7 +321,7 @@ const SignInBoard = () => {
     setAddBusy(true);
     try {
       await addExpectedVisitor(activeTenantId, { name: addName, company: addCompany, phone: addPhone, reason: addReason }, meId);
-      setAddOpen(false); setFromExpected(null); setAddName(''); setAddCompany(''); setAddPhone(''); setAddReason(''); setAddAck(false);
+      setAddOpen(false); setFromExpected(null); setAddName(''); setAddCompany(''); setAddPhone(''); setAddReason('');
       showToast('Added to expected', 'success');
       load();
     } catch (e) { showToast(e.message || 'Could not save', 'error'); }
@@ -310,7 +331,7 @@ const SignInBoard = () => {
   // Tap an expected visitor to sign them in — prefill the induction panel.
   const arriveExpected = (x) => {
     setFromExpected(x.id);
-    setAddName(x.name || ''); setAddCompany(x.company || ''); setAddPhone(x.phone || ''); setAddReason(x.reason || ''); setAddAck(false);
+    setAddName(x.name || ''); setAddCompany(x.company || ''); setAddPhone(x.phone || ''); setAddReason(x.reason || '');
     setAddOpen(true);
   };
 
@@ -512,7 +533,7 @@ const SignInBoard = () => {
         <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) { setAddOpen(false); setFromExpected(null); } }}>
           <div className="sib-modal">
             <div className="sib-modal-head">
-              <h4>{fromExpected ? 'Sign in — induction' : 'Sign in a visitor'}</h4>
+              <h4>{fromExpected ? 'Sign in expected visitor' : 'Sign in a visitor'}</h4>
               <button type="button" className="sib-exit sm" onClick={() => { setAddOpen(false); setFromExpected(null); }} title="Close"><Icon name="X" size={16} /></button>
             </div>
 
@@ -547,10 +568,7 @@ const SignInBoard = () => {
               <input value={addReason} onChange={(e) => setAddReason(e.target.value)} placeholder="e.g. Engine survey"
                 onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
             </label>
-            <button type="button" className={`sib-ack${addAck ? ' on' : ''}`} onClick={() => setAddAck((v) => !v)}>
-              <span className="sib-ack-box">{addAck && <Icon name="Check" size={13} />}</span>
-              <span className="sib-ack-t">Safety briefing given &amp; understood <em>required</em></span>
-            </button>
+            <p className="sib-brief-note"><Icon name="ShieldCheck" size={13} /> Safety briefing comes next — they sign in, then confirm they understand it.</p>
             <div className="sib-modal-foot">
               <button type="button" className="sib-btn ghost" onClick={() => { setAddOpen(false); setFromExpected(null); }}>Cancel</button>
               {!fromExpected && (
@@ -558,7 +576,7 @@ const SignInBoard = () => {
                   Expected
                 </button>
               )}
-              <button type="button" className="sib-btn primary" onClick={submitContractor} disabled={addBusy || !addName.trim() || !addPhone.trim() || !addAck}>
+              <button type="button" className="sib-btn primary" onClick={submitContractor} disabled={addBusy || !addName.trim() || !addPhone.trim()}>
                 Sign in
               </button>
             </div>
@@ -567,6 +585,14 @@ const SignInBoard = () => {
       )}
 
       {passVisitor && <VisitorPassModal visitor={passVisitor} onClose={() => setPassVisitor(null)} />}
+      {briefingVisitor && (
+        <SafetyBriefingModal
+          name={briefingVisitor.name}
+          busy={briefBusy}
+          onConfirm={confirmBriefing}
+          onClose={() => { const b = briefingVisitor; setBriefingVisitor(null); if (b) flashConfirm(b.name, true); }}
+        />
+      )}
       {confirmFlash}
     </>
   );
@@ -686,7 +712,10 @@ const SignInBoard = () => {
             <h1 className="editorial-greeting sibq-greeting">{vesselName || 'On board'}<span className="period">,</span> <em>aboard</em><span className="period">.</span></h1>
           </div>
           <div className="sibq-actions">
-            <button type="button" className="sibq-btn scan" onClick={() => setScanOpen(true)}>
+            <button type="button" className="sibq-btn add" onClick={() => { setTab('visitors'); setFromExpected(null); setAddOpen(true); }}>
+              <Icon name="UserPlus" size={16} /> Add visitor
+            </button>
+            <button type="button" className="sibq-btn" onClick={() => setScanOpen(true)}>
               <Icon name="QrCode" size={16} /> Scan pass
             </button>
             <button type="button" className="sibq-btn muster" onClick={() => setDoorView('muster')}>
