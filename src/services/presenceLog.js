@@ -54,6 +54,22 @@ export async function saveMusterRecord({ tenantId, createdBy, createdByName, exp
   return data;
 }
 
+// ── Gangway device role ─────────────────────────────────────────────────────
+// Which member accounts are marked as a door device for this vessel.
+export async function fetchKioskDeviceIds(tenantId) {
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    ?.from('tenant_members')?.select('user_id')?.eq('tenant_id', tenantId)?.eq('is_kiosk_device', true);
+  if (error) { console.error('[presenceLog] fetch devices failed:', error?.message); return []; }
+  return (data || []).map((r) => r.user_id);
+}
+
+// Command-only: mark/unmark an account as the gangway device (enforced in the RPC).
+export async function setKioskDevice(userId, on) {
+  const { error } = await supabase?.rpc('set_kiosk_device', { p_user_id: userId, p_on: on });
+  if (error) throw error;
+}
+
 export async function fetchMusterRecords(tenantId, { limit = 100 } = {}) {
   if (!tenantId) return [];
   const { data, error } = await supabase

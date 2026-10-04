@@ -4,6 +4,7 @@ import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
 import LogoSpinner from '../../components/LogoSpinner';
 import DoorScanModal from './components/DoorScanModal';
+import DeviceSetupModal from './components/DeviceSetupModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
@@ -60,7 +61,9 @@ const SignInBoard = () => {
   const [musterSaving, setMusterSaving] = useState(false);
   const [musterSaved, setMusterSaved] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
-  const { session, activeTenantId } = useAuth();
+  const [deviceSetupOpen, setDeviceSetupOpen] = useState(false);
+  const { session, activeTenantId, hasCommandAccess } = useAuth();
+  const isCommand = typeof hasCommandAccess === 'function' && hasCommandAccess();
   const meId = session?.user?.id;
   const now = useClock();
 
@@ -430,6 +433,11 @@ const SignInBoard = () => {
             </button>
           )}
           <div className="sib-utilrow-r">
+            {!kiosk && isCommand && (
+              <button type="button" className="sib-standby-btn" onClick={() => setDeviceSetupOpen(true)} title="Set up the entry-door iPad">
+                <Icon name="Tablet" size={15} /><span className="lbl">Device</span>
+              </button>
+            )}
             {!kiosk && (
               <button type="button" className="sib-standby-btn" onClick={() => navigate('/presence-history')} title="Sign in/out & muster history">
                 <Icon name="History" size={15} /><span className="lbl">History</span>
@@ -538,6 +546,10 @@ const SignInBoard = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {deviceSetupOpen && (
+        <DeviceSetupModal tenantId={activeTenantId} crew={crew} onClose={() => setDeviceSetupOpen(false)} />
       )}
       </div>
     </>
