@@ -392,3 +392,7 @@
 .sibm-person { font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: clamp(16px, 1.6vw, 19px); color: #1C1B3A; line-height: 1.1; }
 .sibm-sub { font-family: 'Inter', system-ui, sans-serif; font-weight: 600; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #8B8478; }
 .sibm-foot { text-align: center; padding: 12px; font-family: 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 600; color: #8B8478; }
+
+/* Scan-pass button on the quick board (navy, distinct from Muster). */
+.sibq-btn.scan { background: #1C1B3A; border-color: #1C1B3A; color: #FFFFFF; }
+.sibq-btn.scan:hover { background: #2A285A; color: #FFFFFF; }

@@ -7,6 +7,7 @@ import lazyWithRetry from './utils/lazyWithRetry';
 
 import Dashboard from './pages/dashboard';
 import SignInBoard from './pages/sign-in-board';
+import DoorPass from './pages/door-pass';
 import TeamJobsManagement from './pages/team-jobs-management';
 import Accounts from './pages/accounts';
 import DepartmentCards from './pages/accounts/department-cards';
@@ -1130,6 +1131,8 @@ const Routes = () => {
         {/* Full-screen crew sign-in/out board — the wake-to-screen for a shared
             iPad at the gangway (lock the iPad onto it with iOS Guided Access). */}
         <Route path="/sign-in-board" element={<ProtectedRoute><SignInBoard /></ProtectedRoute>} />
+        {/* A crew member's personal gangway QR pass (interim before NFC/Wallet). */}
+        <Route path="/door-pass" element={<ProtectedRoute><DoorPass /></ProtectedRoute>} />
         <Route path="/today" element={<ProtectedRoute><TodayDetailPage /></ProtectedRoute>} />
         
         {/* Activity Feed */}
