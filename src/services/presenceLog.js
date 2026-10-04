@@ -4,7 +4,7 @@
 import { supabase } from '../lib/supabaseClient';
 
 // Fire-and-forget: logging must never block or break a sign in/out.
-export function logPresenceEvent({ tenantId, subjectType = 'crew', subjectId, subjectName, direction, actorUserId, actorName, source = 'app' }) {
+export function logPresenceEvent({ tenantId, subjectType = 'crew', subjectId, subjectName, direction, actorUserId, actorName, source = 'app', meta = {} }) {
   if (!tenantId || !direction) return;
   (async () => {
     try {
@@ -17,6 +17,7 @@ export function logPresenceEvent({ tenantId, subjectType = 'crew', subjectId, su
         actor_user_id: actorUserId || null,
         actor_name: actorName || null,
         source,
+        meta: meta || {},
       });
     } catch (err) {
       console.warn('[presenceLog] event insert failed (non-blocking):', err?.message);
@@ -28,7 +29,7 @@ export async function fetchPresenceEvents(tenantId, { limit = 200 } = {}) {
   if (!tenantId) return [];
   const { data, error } = await supabase
     ?.from('presence_events')
-    ?.select('id, subject_type, subject_name, direction, actor_name, source, created_at')
+    ?.select('id, subject_type, subject_name, direction, actor_name, source, meta, created_at')
     ?.eq('tenant_id', tenantId)
     ?.order('created_at', { ascending: false })
     ?.limit(limit);

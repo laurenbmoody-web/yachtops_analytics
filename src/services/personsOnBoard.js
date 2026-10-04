@@ -57,16 +57,36 @@ export async function setGuestOnBoard(guestId, onboard, actorUserId) {
 
 // ── Contractors ─────────────────────────────────────────────────────────────
 // Currently-aboard contractors (signed in, not yet out).
+// Visitors currently present — on board OR temporarily stepped out (e.g. lunch).
+// `state` distinguishes the two; a permanent sign-off sets status 'ashore' and
+// drops off the board.
 export async function fetchContractorsOnBoard(tenantId) {
   if (!tenantId) return [];
   const { data, error } = await supabase
     ?.from('contractor_visits')
-    ?.select('id, name, company, phone, signed_in_at')
+    ?.select('id, name, company, phone, signed_in_at, status')
     ?.eq('tenant_id', tenantId)
-    ?.eq('status', 'onboard')
+    ?.in('status', ['onboard', 'stepped_out'])
     ?.order('signed_in_at', { ascending: true });
   if (error) { console.error('[pob] contractors fetch failed', error); return []; }
-  return data || [];
+  return (data || []).map((k) => ({ ...k, state: k.status || 'onboard' }));
+}
+
+// Temporarily step a visitor out (keeps the visit open — they can tap back in
+// without re-entering anything).
+export async function stepOutContractor(id) {
+  if (!id) return;
+  const { error } = await supabase
+    ?.from('contractor_visits')?.update({ status: 'stepped_out', updated_at: new Date().toISOString() })?.eq('id', id);
+  if (error) throw error;
+}
+
+// Bring a stepped-out visitor back on board.
+export async function returnContractor(id) {
+  if (!id) return;
+  const { error } = await supabase
+    ?.from('contractor_visits')?.update({ status: 'onboard', updated_at: new Date().toISOString() })?.eq('id', id);
+  if (error) throw error;
 }
 
 export async function addContractor(tenantId, name, company, phone, createdBy) {
