@@ -86,12 +86,15 @@ const SignInBoard = () => {
   const [addCompany, setAddCompany] = useState('');
   const [addPhone, setAddPhone] = useState('');
   const [addBusy, setAddBusy] = useState(false);
+  const [addReason, setAddReason] = useState('');
+  const [addAck, setAddAck] = useState(false);
   const [recentVisitors, setRecentVisitors] = useState([]);
   const pollRef = useRef(null);
 
   // Load recent (not-present) visitors when the Add panel opens, for one-tap return.
   useEffect(() => {
     if (!addOpen || !activeTenantId) return;
+    setAddReason(''); setAddAck(false);
     let alive = true;
     fetchRecentVisitors(activeTenantId).then((v) => { if (alive) setRecentVisitors(v); });
     return () => { alive = false; };
@@ -247,21 +250,23 @@ const SignInBoard = () => {
     finally { mark(key, false); }
   };
 
-  const signInVisitor = async (name, company, phone) => {
+  const signInVisitor = async (name, company, phone, opts = {}) => {
     const nm = String(name || '').trim();
     const ph = String(phone || '').trim();
     if (!nm || !ph || addBusy) return;
+    const reason = String(opts.reason || '').trim();
     setAddBusy(true);
     try {
-      const row = await addContractor(activeTenantId, nm, company, ph, meId);
-      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: nm, direction: 'aboard', actorUserId: meId, source: logSource, meta: { company: String(company || '').trim(), phone: ph } });
+      const row = await addContractor(activeTenantId, nm, company, ph, meId, { reason, inducted: !!opts.inducted });
+      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: nm, direction: 'aboard', actorUserId: meId, source: logSource, meta: { company: String(company || '').trim(), phone: ph, reason } });
       flashConfirm(nm, true);
-      setAddOpen(false); setAddName(''); setAddCompany(''); setAddPhone('');
+      setAddOpen(false); setAddName(''); setAddCompany(''); setAddPhone(''); setAddReason(''); setAddAck(false);
       load();
     } catch (e) { showToast(e.message || 'Could not add visitor', 'error'); }
     finally { setAddBusy(false); }
   };
-  const submitContractor = () => signInVisitor(addName, addCompany, addPhone);
+  // Manual new visitor — needs the safety-briefing acknowledgment.
+  const submitContractor = () => { if (!addAck) return; signInVisitor(addName, addCompany, addPhone, { reason: addReason, inducted: true }); };
 
   // Prefill from a recent visitor when the typed phone matches one.
   const norm = (s) => String(s || '').replace(/\s+/g, '');
@@ -618,6 +623,7 @@ const SignInBoard = () => {
                     <span className="sib-av"><span className="sib-ini">{initials(k.name)}</span></span>
                     <span className="sib-name">{k.name}</span>
                     <span className="sib-dept">{k.company || 'Visitor'}</span>
+                    {k.reason && <span className="sib-vreason">{k.reason}</span>}
                     {k.phone && <span className="sib-phone"><Icon name="Phone" size={11} /> {k.phone}</span>}
                     {away ? (
                       <button type="button" className="sib-vbtn return" disabled={busyK} onClick={() => returnVisitor(k)}>
@@ -680,7 +686,7 @@ const SignInBoard = () => {
                 <div className="sib-recent-list">
                   {recentVisitors.map((v, i) => (
                     <button key={i} type="button" className="sib-recent-chip" disabled={addBusy}
-                      onClick={() => signInVisitor(v.name, v.company, v.phone)}>
+                      onClick={() => signInVisitor(v.name, v.company, v.phone, { reason: v.reason, inducted: true })}>
                       <span className="sib-recent-nm">{v.name}</span>
                       {v.company && <span className="sib-recent-co">{v.company}</span>}
                     </button>
@@ -701,9 +707,17 @@ const SignInBoard = () => {
               <input value={addCompany} onChange={(e) => setAddCompany(e.target.value)} placeholder="e.g. AV Marine"
                 onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
             </label>
+            <label className="sib-field"><span>Reason for visit <em>optional</em></span>
+              <input value={addReason} onChange={(e) => setAddReason(e.target.value)} placeholder="e.g. Engine survey"
+                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
+            </label>
+            <button type="button" className={`sib-ack${addAck ? ' on' : ''}`} onClick={() => setAddAck((v) => !v)}>
+              <span className="sib-ack-box">{addAck && <Icon name="Check" size={13} />}</span>
+              <span className="sib-ack-t">Safety briefing given &amp; understood <em>required</em></span>
+            </button>
             <div className="sib-modal-foot">
               <button type="button" className="sib-btn ghost" onClick={() => setAddOpen(false)}>Cancel</button>
-              <button type="button" className="sib-btn primary" onClick={submitContractor} disabled={addBusy || !addName.trim() || !addPhone.trim()}>
+              <button type="button" className="sib-btn primary" onClick={submitContractor} disabled={addBusy || !addName.trim() || !addPhone.trim() || !addAck}>
                 Sign in
               </button>
             </div>
