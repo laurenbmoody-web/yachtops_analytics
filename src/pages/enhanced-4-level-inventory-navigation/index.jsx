@@ -6,7 +6,7 @@ import Header from '../../components/navigation/Header';
 import Button from '../../components/ui/Button';
 import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
-import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, duplicateFolder, moveFolderToTrash, moveItemToTrash, moveItemsToTrash, restoreFromTrash, listTrash, purgeTrashRecord, emptyTrash, updateItemStockLocations, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
+import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, duplicateFolder, moveFolderToTrash, moveItemToTrash, moveItemsToTrash, restoreFromTrash, listTrash, purgeTrashRecord, emptyTrash, updateItemStockLocations, adjustItemStock, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
 import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
 import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
@@ -1017,7 +1017,9 @@ const QuickQtyControl = ({ item, onUpdate, locationQtys, setLocationQtys, showLo
     const newQty = Math.max(0, localQty + delta);
     setLocalQty(newQty);
     pendingUpdateRef.current = true;
-    await saveItem({ ...item, quantity: newQty, totalQty: newQty });
+    // Sent as a change (+1 / -1), so offline counts from several phones add up.
+    const only = stockLocations?.length === 1 ? { loc: stockLocations[0], index: 0 } : {};
+    if (newQty !== localQty) await adjustItemStock(item?.id, newQty - localQty, { ...only, name: item?.name });
     setLoading(false);
   };
 
@@ -1030,7 +1032,8 @@ const QuickQtyControl = ({ item, onUpdate, locationQtys, setLocationQtys, showLo
     const newTotal = updated?.reduce((sum, loc) => sum + (loc?.qty || 0), 0);
     setLocalQty(newTotal);
     pendingUpdateRef.current = true;
-    await updateItemStockLocations(item?.id, updated);
+    const applied = (updated[idx]?.qty || 0) - (locationQtys[idx]?.qty || 0);
+    if (applied) await adjustItemStock(item?.id, applied, { loc: locationQtys[idx], index: idx, name: item?.name });
   };
 
   // Variants take priority over locations: a size-run item expands per size.
@@ -1576,7 +1579,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, o
                     </button>
                   )}
                   <button
-                    onClick={(e) => { e?.stopPropagation(); const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: Math.max(0, (l?.qty || 0) - 1) } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; updateItemStockLocations(item?.id, updated); }}
+                    onClick={(e) => { e?.stopPropagation(); if ((loc?.qty || 0) <= 0) return; const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: Math.max(0, (l?.qty || 0) - 1) } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; adjustItemStock(item?.id, -1, { loc, index: idx, name: item?.name }); }}
                     disabled={loc?.qty <= 0}
                     className="inv-qtybtn minus" style={{ width: 24, height: 24 }}
                   >
@@ -1586,7 +1589,7 @@ const ItemRow = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClone, o
                     {hasPartial ? ((loc?.qty || 0) + loc.partial).toFixed(2).replace(/\.?0+$/, '') : (loc?.qty || 0)}
                   </span>
                   <button
-                    onClick={(e) => { e?.stopPropagation(); const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: (l?.qty || 0) + 1 } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; updateItemStockLocations(item?.id, updated); }}
+                    onClick={(e) => { e?.stopPropagation(); const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: (l?.qty || 0) + 1 } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; adjustItemStock(item?.id, 1, { loc, index: idx, name: item?.name }); }}
                     className="inv-qtybtn plus" style={{ width: 24, height: 24 }}
                   >
                     <Icon name="Plus" size={10} />
@@ -1879,7 +1882,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
                       </button>
                     )}
                     <button
-                      onClick={(e) => { e?.stopPropagation(); const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: Math.max(0, (l?.qty || 0) - 1) } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; updateItemStockLocations(item?.id, updated); }}
+                      onClick={(e) => { e?.stopPropagation(); if ((loc?.qty || 0) <= 0) return; const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: Math.max(0, (l?.qty || 0) - 1) } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; adjustItemStock(item?.id, -1, { loc, index: idx, name: item?.name }); }}
                       disabled={loc?.qty <= 0}
                       className="inv-qtybtn minus" style={{ width: 24, height: 24 }}
                     >
@@ -1889,7 +1892,7 @@ const ItemGridCard = ({ item: itemProp, canEdit, onEdit, onDelete, onMove, onClo
                       {hasPartial ? ((loc?.qty || 0) + loc.partial).toFixed(2).replace(/\.?0+$/, '') : (loc?.qty || 0)}
                     </span>
                     <button
-                      onClick={(e) => { e?.stopPropagation(); const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: (l?.qty || 0) + 1 } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; updateItemStockLocations(item?.id, updated); }}
+                      onClick={(e) => { e?.stopPropagation(); const updated = locationQtys?.map((l, i) => i === idx ? { ...l, qty: (l?.qty || 0) + 1 } : l); setLocationQtys(updated); pendingLocUpdateRef.current = true; adjustItemStock(item?.id, 1, { loc, index: idx, name: item?.name }); }}
                       className="inv-qtybtn plus" style={{ width: 24, height: 24 }}
                     >
                       <Icon name="Plus" size={10} />

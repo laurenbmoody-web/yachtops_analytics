@@ -1,5 +1,6 @@
 // Offline writes — layer 2 of offline Cargo. A persistent outbox of table
-// writes (upsert / delete) for workflows crew must be able to record at sea.
+// writes (insert / upsert / update / delete / upload / rpc) for workflows crew
+// must be able to record at sea.
 //
 //   submit(op)  Online: runs the write now; a real rejection (RLS, locked
 //               month, bad data) still throws, exactly as before. If the
@@ -13,6 +14,8 @@
 // line — otherwise it is queued after it, so the order of everything in
 // between is kept (pack a garment into a case created after it: the case must
 // reach the server before the packing). Several ops may wait for one row.
+// An `rpc` op (a server function applying a change, e.g. "+1 in the bar
+// fridge") is never folded: each one is sent, in order, so changes add up.
 // Ops are per user: only the signed-in user's ops are replayed or shown.
 // While waiting, pending ops are laid over every read of their table
 // (overlay.js), so the edit stays visible across reloads.
@@ -101,7 +104,7 @@ export function createOutbox({ store, execute, userId = () => null, now = () => 
     const queue = ops.filter((o) => o.user === op.user);
     const prev = queue.filter((o) => o.key === op.key).pop();
     if (prev) {
-      if (prev === queue[queue.length - 1]) {
+      if (prev === queue[queue.length - 1] && prev.type !== 'rpc' && op.type !== 'rpc') {
         const merged = combine(prev, op);
         if (merged) await save({ ...merged, id: prev.id });
         else await drop(prev); // created and deleted offline: nothing to send

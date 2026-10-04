@@ -48,6 +48,10 @@ function userOf(headers) {
 
 // Classify a request: is it a cacheable read, a write to a known table, or
 // neither? Returns { read: bool, table: string|null }.
+// Writing RPCs that change one table: a successful call marks that table's
+// saved reads stale, like a direct write would.
+const RPC_TABLE = { adjust_inventory_stock: 'inventory_items' };
+
 export function classify(url, method) {
   let u;
   try { u = new URL(url); } catch { return { read: false, table: null }; }
@@ -57,7 +61,7 @@ export function classify(url, method) {
     const rpc = rest[1].match(/^rpc\/([^/?]+)/);
     if (rpc) {
       const name = rpc[1];
-      return { read: (m === 'POST' || m === 'GET') && READ_RPC.test(name) && !WRITE_RPC.has(name), table: null };
+      return { read: (m === 'POST' || m === 'GET') && READ_RPC.test(name) && !WRITE_RPC.has(name), table: RPC_TABLE[name] || null };
     }
     const table = rest[1].split('/')[0];
     return { read: m === 'GET' || m === 'HEAD', table };

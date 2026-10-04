@@ -10,6 +10,7 @@ import { logReceived, logMoved, logCounted, logRemoved, logCreated } from './mov
 // the inventory picker, and Location Management all resolve one place to one row.
 import { resolvePinNode, getNodePath } from '../../../utils/locationTree';
 import { findExistingItem } from '../../../utils/itemIdentity';
+import { insertRow, updateRow } from '../../../lib/offline/rowWrites';
 
 // Back-compat re-exports — existing importers (PinItems) pull these from here.
 export { resolvePinNode };
@@ -28,8 +29,10 @@ const readItem = async (itemId) => {
     total: Number(data?.total_qty ?? data?.quantity) || 0,
   };
 };
+// Through the outbox (lib/offline): a count made offline is saved on the device
+// and synced later.
 const writeStock = (itemId, { stockLocations, totalQty }) =>
-  supabase.from('inventory_items').update({ stock_locations: stockLocations, total_qty: totalQty, quantity: totalQty }).eq('id', itemId);
+  updateRow('inventory_items', itemId, { stock_locations: stockLocations, total_qty: totalQty, quantity: totalQty }, 'Stock count');
 
 // Items physically at a node — the pin's contents. Matches items whose
 // stock_locations carry an entry for this node; the row's `pinQty` is how many
@@ -104,9 +107,7 @@ export async function clearItemNode(itemId, pin) {
   if (r.error) return { error: r.error };
   const removedQty = pinQty(r.stockLocations, pin.nodeId);
   const kept = (r.stockLocations || []).filter((e) => entryKey(e) !== pin.nodeId);
-  const { error } = await supabase.from('inventory_items')
-    .update({ stock_locations: kept.map((e) => ({ ...e, quantity: Number(e.qty ?? e.quantity) || 0 })) })
-    .eq('id', itemId);
+  const { error } = await updateRow('inventory_items', itemId, { stock_locations: kept.map((e) => ({ ...e, quantity: Number(e.qty ?? e.quantity) || 0 })) }, 'Remove from pin');
   if (error) return { error: error.message || 'Could not remove the item.' };
   logRemoved({ id: itemId, name: r.name, usage_department: r.department }, { qty: removedQty, pinName: pin.name, nodeId: pin.nodeId });
   return {};
@@ -134,9 +135,7 @@ export async function createItemAtNode({ tenantId, userId, name, qty, unit, pin,
   // by `location`, so this is what makes the item show up there.
   const location = category?.location || null;
   const subLocation = category?.sub_location || null;
-  const { data, error } = await supabase
-    .from('inventory_items')
-    .insert({
+  const { data, error } = await insertRow('inventory_items', {
       tenant_id: tenantId,
       name: clean,
       quantity,
@@ -147,9 +146,7 @@ export async function createItemAtNode({ tenantId, userId, name, qty, unit, pin,
       stock_locations: stock,
       default_location_id: pin.nodeId || null,
       created_by: userId || null,
-    })
-    .select(ITEM_COLS)
-    .single();
+    }, `Add ${clean}`);
   if (error) return { error: error.message || 'Could not create the item.' };
   logCreated({ id: data.id, name: data.name }, { qty: quantity, pinName: pin.name, nodeId: pin.nodeId });
   return { item: data };

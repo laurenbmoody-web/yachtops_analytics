@@ -5,6 +5,7 @@
 // off the shelf, and reopening the job puts it back.
 
 import { supabase } from '../../../lib/supabaseClient';
+import { outbox } from '../../../lib/offline/queue';
 
 export const INVENTORY = 'inventory';
 export const EQUIPMENT = 'equipment';
@@ -456,6 +457,23 @@ export const removeJobLink = async ({ linkId }) => {
  * @param sign -1 to consume on completion, +1 to put back on reopen
  * @returns { name, moved, shortfall, refused } for the caller to report
  */
+// Stock written through the outbox (lib/offline) — a job completed at sea
+// books its stock out on the device and syncs later. A real rejection throws.
+const writeItemStock = (item, tenantId, { stock_locations, variants, total }) => outbox.submit({
+  key: `inventory_items|${item?.id}`,
+  table: 'inventory_items',
+  type: 'update',
+  patch: {
+    stock_locations,
+    ...(variants ? { variants } : {}),
+    quantity: total,
+    total_qty: total,
+    updated_at: new Date()?.toISOString(),
+  },
+  match: { id: item?.id, tenant_id: tenantId },
+  label: `Stock for ${item?.name || 'job'}`,
+});
+
 const moveStockForLink = async ({ link, tenantId, userId, sign }) => {
   const item = link?.item;
   if (!item || !link?.qty) return null;
@@ -473,18 +491,7 @@ const moveStockForLink = async ({ link, tenantId, userId, sign }) => {
   });
   if (applied === 0 && shortfall === 0) return null;
 
-  const { error: itemErr } = await supabase
-    ?.from('inventory_items')
-    ?.update({
-      stock_locations,
-      ...(variants ? { variants } : {}),
-      quantity: total,
-      total_qty: total,
-      updated_at: new Date()?.toISOString(),
-    })
-    ?.eq('id', item?.id)
-    ?.eq('tenant_id', tenantId);
-  if (itemErr) throw itemErr;
+  await writeItemStock(item, tenantId, { stock_locations, variants, total });
 
   // The movements ledger is best-effort, the same way provisioning treats it:
   // a ledger failure must never leave the stock write half-done.
@@ -671,18 +678,7 @@ export const adjustConsumedQty = async ({ link, tenantId, userId, newQty }) => {
 
   const { applied, shortfall, stock_locations, variants, total } = result;
 
-  const { error: itemErr } = await supabase
-    ?.from('inventory_items')
-    ?.update({
-      stock_locations,
-      ...(variants ? { variants } : {}),
-      quantity: total,
-      total_qty: total,
-      updated_at: new Date()?.toISOString(),
-    })
-    ?.eq('id', item?.id)
-    ?.eq('tenant_id', tenantId);
-  if (itemErr) throw itemErr;
+  await writeItemStock(item, tenantId, { stock_locations, variants, total });
 
   try {
     await supabase?.from('inventory_movements')?.insert({

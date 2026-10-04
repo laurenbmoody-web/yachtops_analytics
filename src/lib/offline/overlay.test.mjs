@@ -66,3 +66,26 @@ test('select=* read: an update adds columns the row did not have yet (packed int
   ]);
   assert.deepEqual(out, [{ id: 'i1', tenant_id: 't1', description: 'Shirt', case_id: 'c1' }]);
 });
+
+test('pending stock changes add up on the item, by location id, then position + name', async () => {
+  const { applyStockDelta } = await import('./stockDelta.js');
+  const url = 'https://p.supabase.co/rest/v1/inventory_items?select=*&tenant_id=eq.t1&location=eq.Bar';
+  const row = { id: 'i1', quantity: 3, total_qty: 3, stock_locations: [
+    { qty: 1, locationName: 'Dayhead', vesselLocationId: 'a' },
+    { qty: 2, locationName: 'Dayhead', vesselLocationId: 'b' },
+  ] };
+  const op = (args) => ({ type: 'rpc', fn: 'adjust_inventory_stock', match: { id: 'i1' }, args: { p_item_id: 'i1', ...args } });
+  const out = applyOverlay(url, [row, { id: 'i2', quantity: 5 }], [
+    op({ p_delta: 1, p_location_id: 'b', p_location_index: 0, p_location_name: 'Dayhead' }),
+    op({ p_delta: 1, p_location_id: 'b' }),
+    op({ p_delta: -5, p_location_index: 0, p_location_name: 'Dayhead' }),
+  ]);
+  assert.deepEqual(out[0].stock_locations.map((l) => l.qty), [0, 4]);
+  assert.equal(out[0].quantity, 4);
+  assert.equal(out[0].total_qty, 4);
+  assert.equal(out[1].quantity, 5);
+  // No stock array: the plain quantity moves, never below zero.
+  assert.equal(applyStockDelta({ id: 'x', quantity: 2, stock_locations: [] }, { p_delta: -3 }).quantity, 0);
+  // Unknown location: left alone (the server refuses it too).
+  assert.equal(applyStockDelta(row, { p_delta: 1, p_location_name: 'Nowhere' }), row);
+});
