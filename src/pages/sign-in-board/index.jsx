@@ -17,6 +17,7 @@ import {
   fetchGuestsOnBoard, setGuestOnBoard,
   fetchContractorsOnBoard, addContractor, signOutContractor,
   stepOutContractor, returnContractor, fetchRecentVisitors,
+  fetchExpectedVisitors, addExpectedVisitor, activateExpected, cancelExpected,
 } from '../../services/personsOnBoard';
 import '../../styles/editorial.css';
 import './sign-in-board.css';
@@ -92,16 +93,19 @@ const SignInBoard = () => {
   const [addReason, setAddReason] = useState('');
   const [addAck, setAddAck] = useState(false);
   const [recentVisitors, setRecentVisitors] = useState([]);
+  const [expectedVisitors, setExpectedVisitors] = useState([]); // pre-registered expected visitors
+  const [fromExpected, setFromExpected] = useState(null); // expected id being signed in
   const pollRef = useRef(null);
 
   // Load recent (not-present) visitors when the Add panel opens, for one-tap return.
   useEffect(() => {
     if (!addOpen || !activeTenantId) return;
-    setAddReason(''); setAddAck(false);
+    setAddAck(false);
+    if (!fromExpected) setAddReason('');
     let alive = true;
     fetchRecentVisitors(activeTenantId).then((v) => { if (alive) setRecentVisitors(v); });
     return () => { alive = false; };
-  }, [addOpen, activeTenantId]);
+  }, [addOpen, activeTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!activeTenantId) return;
@@ -112,12 +116,13 @@ const SignInBoard = () => {
   const load = useCallback(async () => {
     if (!activeTenantId) { setLoading(false); return; }
     try {
-      const [c, g, k] = await Promise.all([
+      const [c, g, k, ex] = await Promise.all([
         fetchPresenceBoard(activeTenantId),
         fetchGuestsOnBoard(activeTenantId),
         fetchContractorsOnBoard(activeTenantId),
+        fetchExpectedVisitors(activeTenantId),
       ]);
-      setCrew(c); setGuests(g); setContractors(k);
+      setCrew(c); setGuests(g); setContractors(k); setExpectedVisitors(ex);
     } catch { /* keep last-known board on a transient failure */ }
     finally { setLoading(false); }
   }, [activeTenantId]);
@@ -282,8 +287,45 @@ const SignInBoard = () => {
     } catch (e) { showToast(e.message || 'Could not add visitor', 'error'); }
     finally { setAddBusy(false); }
   };
-  // Manual new visitor — needs the safety-briefing acknowledgment.
-  const submitContractor = () => { if (!addAck) return; signInVisitor(addName, addCompany, addPhone, { reason: addReason, inducted: true }); };
+  // Manual new visitor — needs the safety-briefing acknowledgment. If arriving
+  // from a pre-registered "expected" entry, activate that row instead of a new one.
+  const submitContractor = async () => {
+    if (!addAck) return;
+    if (fromExpected) {
+      if (addBusy) return;
+      setAddBusy(true);
+      try {
+        const row = await activateExpected(fromExpected, { inducted: true, reason: addReason });
+        logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: addName.trim(), direction: 'aboard', actorUserId: meId, source: logSource, meta: { company: addCompany.trim(), phone: addPhone.trim(), reason: addReason.trim() } });
+        flashConfirm(addName.trim(), true);
+        setAddOpen(false); setFromExpected(null); setAddName(''); setAddCompany(''); setAddPhone(''); setAddReason(''); setAddAck(false);
+        load();
+      } catch (e) { showToast(e.message || 'Could not sign in', 'error'); }
+      finally { setAddBusy(false); }
+      return;
+    }
+    signInVisitor(addName, addCompany, addPhone, { reason: addReason, inducted: true });
+  };
+
+  // Pre-register an expected visitor (planned work) — no sign-in, no ack yet.
+  const saveExpected = async () => {
+    if (!addName.trim() || addBusy) return;
+    setAddBusy(true);
+    try {
+      await addExpectedVisitor(activeTenantId, { name: addName, company: addCompany, phone: addPhone, reason: addReason }, meId);
+      setAddOpen(false); setFromExpected(null); setAddName(''); setAddCompany(''); setAddPhone(''); setAddReason(''); setAddAck(false);
+      showToast('Added to expected', 'success');
+      load();
+    } catch (e) { showToast(e.message || 'Could not save', 'error'); }
+    finally { setAddBusy(false); }
+  };
+
+  // Tap an expected visitor to sign them in — prefill the induction panel.
+  const arriveExpected = (x) => {
+    setFromExpected(x.id);
+    setAddName(x.name || ''); setAddCompany(x.company || ''); setAddPhone(x.phone || ''); setAddReason(x.reason || ''); setAddAck(false);
+    setAddOpen(true);
+  };
 
   // Prefill from a recent visitor when the typed phone matches one.
   const norm = (s) => String(s || '').replace(/\s+/g, '');
@@ -579,7 +621,7 @@ const SignInBoard = () => {
             <button type="button" className="sib-standby-btn" onClick={() => setDoorView('glance')} title="Switch to the always-on door display">
               <Icon name="Monitor" size={15} /><span className="lbl">Standby</span>
             </button>
-            <button type="button" className="sib-add-btn" onClick={() => setAddOpen(true)} aria-label="Add visitor">
+            <button type="button" className="sib-add-btn" onClick={() => { setFromExpected(null); setAddOpen(true); }} aria-label="Add visitor">
               <Icon name="Plus" size={18} /><span className="lbl">Visitor</span>
             </button>
           </div>
@@ -657,10 +699,28 @@ const SignInBoard = () => {
                   </div>
                 );
               })}
-              <button type="button" className="sib-add" onClick={() => setAddOpen(true)}>
+              <button type="button" className="sib-add" onClick={() => { setFromExpected(null); setAddOpen(true); }}>
                 <span className="sib-add-plus"><Icon name="Plus" size={22} /></span>
                 <span className="sib-add-label">Add visitor</span>
               </button>
+            </div>
+          )}
+
+          {tab === 'visitors' && expectedVisitors.length > 0 && (
+            <div className="sib-expected">
+              <p className="sib-expected-l">Expected</p>
+              <div className="sib-expected-list">
+                {expectedVisitors.map((x) => (
+                  <div key={x.id} className="sib-exp-row">
+                    <button type="button" className="sib-exp-main" onClick={() => arriveExpected(x)}>
+                      <span className="sib-exp-nm">{x.name}</span>
+                      <span className="sib-exp-sub">{[x.company, x.reason].filter(Boolean).join(' · ') || 'Visitor'}</span>
+                    </button>
+                    <button type="button" className="sib-exp-in" onClick={() => arriveExpected(x)}>Sign in</button>
+                    <button type="button" className="sib-exp-x" onClick={() => cancelExpected(x.id).then(load)} title="Remove"><Icon name="X" size={14} /></button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -693,14 +753,14 @@ const SignInBoard = () => {
       )}
 
       {addOpen && (
-        <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setAddOpen(false); }}>
+        <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) { setAddOpen(false); setFromExpected(null); } }}>
           <div className="sib-modal">
             <div className="sib-modal-head">
-              <h4>Sign in a visitor</h4>
-              <button type="button" className="sib-exit sm" onClick={() => setAddOpen(false)} title="Close"><Icon name="X" size={16} /></button>
+              <h4>{fromExpected ? 'Sign in — induction' : 'Sign in a visitor'}</h4>
+              <button type="button" className="sib-exit sm" onClick={() => { setAddOpen(false); setFromExpected(null); }} title="Close"><Icon name="X" size={16} /></button>
             </div>
 
-            {recentVisitors.length > 0 && (
+            {!fromExpected && recentVisitors.length > 0 && (
               <div className="sib-recent">
                 <span className="sib-recent-l">Returning? Tap to sign back in</span>
                 <div className="sib-recent-list">
@@ -736,7 +796,12 @@ const SignInBoard = () => {
               <span className="sib-ack-t">Safety briefing given &amp; understood <em>required</em></span>
             </button>
             <div className="sib-modal-foot">
-              <button type="button" className="sib-btn ghost" onClick={() => setAddOpen(false)}>Cancel</button>
+              <button type="button" className="sib-btn ghost" onClick={() => { setAddOpen(false); setFromExpected(null); }}>Cancel</button>
+              {!fromExpected && (
+                <button type="button" className="sib-btn ghost" onClick={saveExpected} disabled={addBusy || !addName.trim()} title="Pre-register — sign in when they arrive">
+                  Expected
+                </button>
+              )}
               <button type="button" className="sib-btn primary" onClick={submitContractor} disabled={addBusy || !addName.trim() || !addPhone.trim() || !addAck}>
                 Sign in
               </button>
