@@ -8,6 +8,7 @@ let state = {
   mode: 'online',      // 'online' | 'offline' | 'slow'
   dataAt: null,        // oldest saved copy shown during this offline spell (ms)
   reconnectedAt: null, // when we last came back online (for "Back online")
+  pending: 0,          // offline changes waiting to sync (outbox)
 };
 
 const emit = () => listeners.forEach((fn) => fn(state));
@@ -30,6 +31,9 @@ export function reportNetwork(event) {
       if (mode !== state.mode || dataAt !== state.dataAt) set({ mode, dataAt });
       break;
     }
+    case 'pending':
+      if (event.count !== state.pending) set({ pending: event.count });
+      break;
     default:
       break;
   }

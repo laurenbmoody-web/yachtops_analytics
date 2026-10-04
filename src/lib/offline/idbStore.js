@@ -5,6 +5,7 @@
 
 const DB_NAME = 'cargo-offline';
 const STORE = 'reads';
+const OUTBOX = 'outbox'; // offline writes waiting to sync (outbox.js)
 const MAX_ENTRIES = 4000;
 
 let dbPromise = null;
@@ -13,11 +14,15 @@ function openDb() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') { reject(new Error('no indexedDB')); return; }
-    const req = indexedDB.open(DB_NAME, 1);
+    const req = indexedDB.open(DB_NAME, 2);
     req.onupgradeneeded = () => {
-      const store = req.result.createObjectStore(STORE, { keyPath: 'k' });
-      store.createIndex('at', 'at');
-      store.createIndex('t', 't');
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        const store = db.createObjectStore(STORE, { keyPath: 'k' });
+        store.createIndex('at', 'at');
+        store.createIndex('t', 't');
+      }
+      if (!db.objectStoreNames.contains(OUTBOX)) db.createObjectStore(OUTBOX, { keyPath: 'key' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -26,10 +31,10 @@ function openDb() {
   return dbPromise;
 }
 
-function run(mode, fn) {
+function run(mode, fn, storeName = STORE) {
   return openDb().then((db) => new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, mode);
-    const result = fn(tx.objectStore(STORE));
+    const tx = db.transaction(storeName, mode);
+    const result = fn(tx.objectStore(storeName));
     tx.oncomplete = () => resolve(result?.result);
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
@@ -77,4 +82,13 @@ export const idbStore = {
   }).catch(() => {}),
 
   clear: () => run('readwrite', (store) => store.clear()).catch(() => {}),
+};
+
+// Offline writes waiting to sync. Unlike saved reads these are user data that
+// exists nowhere else yet — never pruned, and not cleared on sign-out (they
+// sync when that person signs in again).
+export const outboxStore = {
+  all: () => run('readonly', (store) => store.getAll(), OUTBOX).then((r) => r || []).catch(() => []),
+  put: (op) => run('readwrite', (store) => store.put(op), OUTBOX).catch(() => {}),
+  delete: (key) => run('readwrite', (store) => store.delete(key), OUTBOX).catch(() => {}),
 };

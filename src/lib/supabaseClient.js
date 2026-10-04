@@ -3,6 +3,8 @@ import { createReadCache } from './offline/readCache';
 import { withOfflineAuth } from './offline/authFallback';
 import { idbStore } from './offline/idbStore';
 import { reportNetwork, isKnownOffline } from './offline/status';
+import { storedSession, storedUserId } from './offline/session';
+import { outbox, setOutboxExecutor } from './offline/queue';
 
 const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
@@ -69,11 +71,14 @@ const timeoutFetch = (input, init = {}) => {
 
 // Offline reads (layer 1): every read is saved on the device and served back
 // when the network is down or stalls — see lib/offline/readCache.js.
-const storedSession = () => {
-  try { return JSON.parse(window.localStorage.getItem('supabase.auth.token') || 'null'); } catch { return null; }
-};
-const storedUserId = () => storedSession()?.user?.id || null;
-const offlineReads = createReadCache({ store: idbStore, isOffline: isKnownOffline, report: reportNetwork, userId: storedUserId });
+const offlineReads = createReadCache({
+  store: idbStore,
+  isOffline: isKnownOffline,
+  report: reportNetwork,
+  userId: storedUserId,
+  // Offline edits waiting to sync (layer 2) are laid over reads of their table.
+  pendingFor: (table) => outbox.pendingFor(table),
+});
 
 // Singleton Supabase client with enhanced lock handling
 // CRITICAL: This client is created ONCE and reused everywhere
@@ -103,6 +108,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       'X-Client-Info': 'supabase-js-web'
     }
   }
+});
+
+// Offline writes (layer 2): the outbox replays queued ops through this client.
+// Ops are plain table writes: { type: 'upsert', table, row, onConflict } or
+// { type: 'delete', table, match }.
+setOutboxExecutor(async (op) => {
+  if (op.type === 'upsert') {
+    return supabase.from(op.table).upsert(op.row, op.onConflict ? { onConflict: op.onConflict } : undefined);
+  }
+  if (op.type === 'delete') {
+    return supabase.from(op.table).delete().match(op.match);
+  }
+  return { error: { message: `unknown outbox op ${op.type}`, code: 'OUTBOX' } };
 });
 
 // Saved reads are per user, but clear them on sign-out anyway so a shared

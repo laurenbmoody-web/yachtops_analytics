@@ -160,3 +160,17 @@ test('caller abort is not masked by the cache', async () => {
   const err = Object.assign(new Error('aborted'), { name: 'AbortError' });
   await assert.rejects(wrap(() => Promise.reject(err))(url, { headers: auth(), signal: ac.signal }), /aborted/);
 });
+
+test('pending offline edits are laid over reads — network and saved copy alike', async () => {
+  const pending = [{ type: 'upsert', match: { entry_date: '2026-10-03' }, row: { tenant_id: 't1', entry_date: '2026-10-03', work_segments: [9] } }];
+  const { wrap } = setup({ pendingFor: (t) => (t === 'hor_work_entries' ? pending : []) });
+  const url = `${BASE}/rest/v1/hor_work_entries?select=entry_date,work_segments&tenant_id=eq.t1`;
+  const online = await wrap(async () => json([{ entry_date: '2026-10-03', work_segments: [1] }]))(url, { headers: auth() });
+  assert.deepEqual(await online.json(), [{ entry_date: '2026-10-03', work_segments: [9] }]);
+  await flush();
+  const off = await wrap(offline)(url, { headers: auth() });
+  assert.deepEqual(await off.json(), [{ entry_date: '2026-10-03', work_segments: [9] }]);
+  // other tables untouched
+  const other = await wrap(async () => json([{ id: 1 }]))(`${BASE}/rest/v1/team_jobs?select=*`, { headers: auth() });
+  assert.deepEqual(await other.json(), [{ id: 1 }]);
+});

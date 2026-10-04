@@ -16,6 +16,8 @@
 // Pure module (no browser globals at import) so it is unit-tested in Node —
 // see readCache.test.mjs. The IndexedDB store lives in idbStore.js.
 
+import { applyOverlay } from './overlay.js';
+
 export const STALL_MS = 6000;
 const MAX_BODY_CHARS = 4_000_000;
 
@@ -69,13 +71,39 @@ const isNetworkError = (e) => e && (e.name === 'TypeError' || e.name === 'AbortE
 // userId(): the signed-in user, if the caller can say. Offline with an expired
 // token, supabase-js sends the anon key instead of the user's JWT, so the
 // request alone can't identify them; the stored session still can.
-export function createReadCache({ store, now = () => Date.now(), stallMs = STALL_MS, isOffline = () => false, report = () => {}, userId = () => null }) {
+// pendingFor(table): offline edits waiting to sync for that table (outbox);
+// they are laid over every GET of it so a change made at sea stays visible.
+export function createReadCache({ store, now = () => Date.now(), stallMs = STALL_MS, isOffline = () => false, report = () => {}, userId = () => null, pendingFor = () => [] }) {
   const fromEntry = (entry) => new Response(entry.status === 204 ? null : entry.body, {
     status: entry.status,
     headers: { ...entry.headers, 'x-cargo-cached-at': String(entry.at) },
   });
 
+  // Lay pending offline edits over a table read (JSON array bodies only).
+  async function withPending(res, table, url) {
+    const ops = table ? pendingFor(table) : [];
+    if (!ops.length || !res.ok) return res;
+    try {
+      const rows = JSON.parse(await res.clone().text());
+      if (!Array.isArray(rows)) return res;
+      const headers = {};
+      res.headers.forEach((v, k) => { headers[k] = v; });
+      return new Response(JSON.stringify(applyOverlay(url, rows, ops)), { status: res.status, headers });
+    } catch { return res; }
+  }
+
   return function wrap(baseFetch) {
+    const cachedFetch = coreFetch(baseFetch);
+    return async function overlaidFetch(input, init = {}) {
+      const res = await cachedFetch(input, init);
+      const method = (init.method || (typeof input === 'object' && input?.method) || 'GET').toUpperCase();
+      if (method !== 'GET') return res;
+      const url = typeof input === 'string' ? input : input?.url || String(input);
+      return withPending(res, classify(url, method).table, url);
+    };
+  };
+
+  function coreFetch(baseFetch) {
     return async function cachedFetch(input, init = {}) {
       const url = typeof input === 'string' ? input : input?.url || String(input);
       const method = (init.method || (typeof input === 'object' && input?.method) || 'GET').toUpperCase();
