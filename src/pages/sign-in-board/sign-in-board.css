@@ -365,7 +365,7 @@
 .sibm-head-r { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .sibm-status { padding: 8px 16px; border-radius: 999px; font-family: 'Inter', system-ui, sans-serif; font-weight: 800; font-size: 14px; }
 .sibm-status.warn { background: #FBEFE9; color: #C65A1A; }
-.sibm-status.ok { background: #E7F4EC; color: #1E7F43; }
+.sibm-status.ok { background: #1C1B3A; color: #FFFFFF; }
 .sibm-btn { height: 48px; padding: 0 18px; cursor: pointer; border: 1px solid transparent; border-radius: 999px; background: #1C1B3A; color: #FFFFFF; font-family: 'Inter', system-ui, sans-serif; font-size: 15px; font-weight: 700; }
 .sibm-btn.ghost { background: #FFFFFF; border-color: #E5E7EB; color: #1C1B3A; }
 .sibm-btn.ghost:hover { border-color: #C65A1A; color: #C65A1A; }
@@ -412,7 +412,7 @@
 .sibm-cellx:hover { background: #FAFBFC; }
 .sibm-cellx.activecol { background: #FDF6F1; }
 .sibm-tick { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 999px; border: 2px solid #E0E4EA; background: #FFFFFF; color: #FFFFFF; }
-.sibm-cellx.on .sibm-tick { background: #1E7F43; border-color: #1E7F43; }
+.sibm-cellx.on .sibm-tick { background: #C65A1A; border-color: #C65A1A; }
 .sibm-td-add { border-bottom: 1px solid #F0F1F5; }
 .sibm-foot { text-align: center; padding: 12px; font-family: 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 600; color: #8B8478; }
 
@@ -421,8 +421,8 @@
 .sibq-btn.scan:hover { background: #2A285A; color: #FFFFFF; }
 
 /* Save-to-log button in muster (green). */
-.sibm-btn.save { display: inline-flex; align-items: center; gap: 7px; background: #1E7F43; border-color: #1E7F43; color: #FFFFFF; }
-.sibm-btn.save:hover { background: #1A6E3A; }
+.sibm-btn.save { display: inline-flex; align-items: center; gap: 7px; background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+.sibm-btn.save:hover { background: #B14E16; }
 .sibm-btn.save:disabled { opacity: 0.6; cursor: default; }
 
 /* Kiosk confirmation flash — big "Welcome aboard, {name}" after a tap/scan. */

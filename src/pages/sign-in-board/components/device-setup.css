@@ -1,32 +1,52 @@
-/* Gangway device setup — editorial modal (Command only). */
-.dsu-scrim { position: fixed; inset: 0; z-index: 95; background: rgba(28,27,58,0.42); display: grid; place-items: center; padding: 20px; }
-.dsu { width: 100%; max-width: 460px; max-height: 86vh; display: flex; flex-direction: column; background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); overflow: hidden; font-family: 'Inter', system-ui, sans-serif; }
-.dsu-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 18px 8px; }
+/* Gangway device setup — editorial (Cargo) modal, above the fixed nav (z 2000). */
+.dsu-scrim { position: fixed; inset: 0; z-index: 3000; background: rgba(28,27,58,0.42); display: grid; place-items: center; padding: 24px; }
+.dsu {
+  width: 100%; max-width: 440px; max-height: 88vh; display: flex; flex-direction: column;
+  background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); overflow: hidden;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.dsu-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px 20px 12px; border-bottom: 1px solid #F0F1F5; }
 .dsu-eyebrow { font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0; }
 .dsu-eyebrow::first-letter { color: #C65A1A; }
-.dsu-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 21px; color: #1C1B3A; margin: 3px 0 0; }
-.dsu-x { width: 32px; height: 32px; border: 0; background: none; border-radius: 8px; color: #8B8478; cursor: pointer; display: grid; place-items: center; }
+.dsu-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: #1C1B3A; margin: 3px 0 0; line-height: 1.1; }
+.dsu-x { width: 32px; height: 32px; border: 0; background: none; border-radius: 9px; color: #8B8478; cursor: pointer; display: grid; place-items: center; }
 .dsu-x:hover { background: #FBEFE9; color: #C65A1A; }
-.dsu-intro { margin: 0 18px 12px; font-size: 13px; line-height: 1.5; color: #6B7280; }
+
+.dsu-body { overflow-y: auto; padding: 16px 20px 20px; }
+
+.dsu-status { display: flex; align-items: center; gap: 9px; padding: 11px 13px; border-radius: 12px; background: #FAFAF8; border: 1px solid #EEF0F4; color: #6B7280; font-size: 13px; }
+.dsu-status.on { background: #FBEFE9; border-color: #F3D9CB; color: #1C1B3A; }
+.dsu-status svg { color: #C65A1A; flex: none; }
+.dsu-status b { color: #1C1B3A; }
+
+.dsu-intro { margin: 14px 0 0; font-size: 13.5px; line-height: 1.55; color: #6B7280; }
 .dsu-intro b { color: #1C1B3A; }
 
-.dsu-url { margin: 0 18px 10px; padding: 12px; border: 1px solid #EEF0F4; border-radius: 12px; background: #FAFAF8; }
-.dsu-url-l { display: block; font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 6px; }
-.dsu-url-row { display: flex; gap: 8px; }
-.dsu-url-in { flex: 1; min-width: 0; border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 10px; font-size: 12.5px; color: #1C1B3A; background: #FFFFFF; }
-.dsu-copy { flex: none; border: 0; background: #1C1B3A; color: #FFFFFF; border-radius: 8px; padding: 8px 14px; font-weight: 700; font-size: 12.5px; cursor: pointer; }
-.dsu-copy:hover { background: #2A285A; }
-.dsu-url-tip { display: block; margin-top: 6px; font-size: 11.5px; color: #8B8478; }
+.dsu-tip { display: flex; gap: 9px; margin: 12px 0 0; padding: 12px 13px; border-radius: 12px; background: #FBEFE9; border: 1px solid #F3D9CB; font-size: 12.5px; line-height: 1.5; color: #6B4A38; }
+.dsu-tip svg { color: #C65A1A; flex: none; margin-top: 1px; }
+.dsu-tip b { color: #1C1B3A; }
+.dsu-link { display: inline-block; margin-top: 6px; border: 0; background: none; padding: 0; color: #C65A1A; font: 700 12.5px 'Inter', system-ui, sans-serif; cursor: pointer; }
+.dsu-link:hover { color: #B14E16; text-decoration: underline; }
 
-.dsu-list { overflow-y: auto; padding: 4px 8px 12px; }
-.dsu-empty { padding: 18px; text-align: center; color: #8B8478; font-size: 13px; }
-.dsu-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border-radius: 10px; }
-.dsu-row:hover { background: #FAFBFC; }
-.dsu-row.on { background: #FBEFE9; }
+.dsu-url { margin: 14px 0 0; padding: 13px; border: 1px solid #EEF0F4; border-radius: 12px; background: #FAFAF8; }
+.dsu-url-l { display: block; font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 7px; }
+.dsu-url-row { display: flex; gap: 8px; }
+.dsu-url-in { flex: 1; min-width: 0; border: 1px solid #E5E7EB; border-radius: 10px; padding: 9px 11px; font-size: 12.5px; color: #1C1B3A; background: #FFFFFF; }
+.dsu-url-in:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.dsu-copy { flex: none; border: 0; background: #1C1B3A; color: #FFFFFF; border-radius: 10px; padding: 9px 16px; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+.dsu-copy:hover { background: #2A285A; }
+.dsu-url-tip { display: block; margin-top: 7px; font-size: 11.5px; color: #8B8478; }
+
+.dsu-list-l { margin: 18px 0 6px; font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.dsu-list { display: flex; flex-direction: column; }
+.dsu-empty { padding: 14px 2px; text-align: center; color: #8B8478; font-size: 13px; }
+.dsu-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 4px; border-bottom: 1px solid #F0F1F5; }
+.dsu-row:last-child { border-bottom: none; }
 .dsu-row-nm { display: flex; flex-direction: column; min-width: 0; }
 .dsu-person { font-weight: 700; font-size: 14px; color: #1C1B3A; }
-.dsu-dept { font: 700 10px 'Inter', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; }
-.dsu-toggle { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #E5E7EB; background: #FFFFFF; color: #1C1B3A; border-radius: 999px; padding: 8px 14px; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+.dsu-dept { font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.dsu-toggle { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #E5E7EB; background: #FFFFFF; color: #1C1B3A; border-radius: 999px; padding: 8px 15px; font-weight: 700; font-size: 12.5px; cursor: pointer; }
 .dsu-toggle:hover { border-color: #C65A1A; color: #C65A1A; }
 .dsu-toggle.on { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
 .dsu-toggle:disabled { opacity: 0.6; cursor: default; }
