@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { updateRow } from '../../../lib/offline/rowWrites';
 import Icon from '../../../components/AppIcon';
 import ModalShell from '../../../components/ui/ModalShell';
 import { showToast } from '../../../utils/toast';
@@ -2095,7 +2096,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
         const splits = locationSplits[item.id] || [{ locationName: match.location || '', currentQty: 0, addQty: qty * ratio }];
         const ok = await pushReceivedSplitsToInventory({ inventoryItemId: match.id, splits, tenantId, provisioningItemId: item.id, listId: item.list_id || null, unit: stockUnit, size: item.size, purchaseUnit, unitsPerPack: upp });
         if (ok === true) {
-          try { await supabase?.from('provisioning_items')?.update({ inventory_item_id: match.id })?.eq('id', item.id); } catch { /* non-fatal */ }
+          try { await updateRow('provisioning_items', item.id, { inventory_item_id: match.id }, 'Link to inventory'); } catch { /* non-fatal */ }
           pushed++;
         } else if (ok === 'variant') {
           variantSkipped++;
@@ -2110,7 +2111,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
         const splits = locationSplits[item.id] || [{ locationName: inlineLink.location || '', currentQty: 0, addQty: qty * ratio }];
         const ok = await pushReceivedSplitsToInventory({ inventoryItemId: inlineLink.id, splits, tenantId, provisioningItemId: item.id, listId: item.list_id || null, unit: stockUnit, size: item.size, purchaseUnit, unitsPerPack: upp });
         if (ok === true) {
-          try { await supabase?.from('provisioning_items')?.update({ inventory_item_id: inlineLink.id })?.eq('id', item.id); } catch { /* non-fatal */ }
+          try { await updateRow('provisioning_items', item.id, { inventory_item_id: inlineLink.id }, 'Link to inventory'); } catch { /* non-fatal */ }
           pushed++;
         } else if (ok === 'variant') {
           variantSkipped++;

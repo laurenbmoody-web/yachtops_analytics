@@ -51,6 +51,8 @@ import { loadTrips, findTripByAnyId } from '../../trips-management-dashboard/uti
 // meanwhile. Supplier orders, quotes, approvals, vendors and share links still
 // need a connection.
 const unwrap = ({ data, error }) => { if (error) throw error; return data; };
+// A read that failed only because the device is offline with no saved copy.
+const isOfflineError = (e) => !e?.code && /fetch|network|load failed|abort|offline/i.test(`${e?.message} ${e?.details}`);
 const rowOp = (table, id, op) => outbox.submit({ key: `${table}|${id}`, table, match: { id }, ...op });
 const updateLines = async (ids, patch, label) => {
   for (const id of ids) await rowOp('provisioning_items', id, { type: 'update', patch, label });
@@ -960,13 +962,7 @@ export const fetchDeliveries = async (listId) => {
 
 export const createDelivery = async (deliveryData) => {
   try {
-    const { data, error } = await supabase
-      ?.from('provisioning_deliveries')
-      ?.insert([{ ...deliveryData, delivered_at: deliveryData.delivered_at || new Date().toISOString() }])
-      ?.select()
-      ?.single();
-    if (error) throw error;
-    return data;
+    return unwrap(await insertRow('provisioning_deliveries', { ...deliveryData, delivered_at: deliveryData.delivered_at || new Date().toISOString() }, 'Delivery', { timestamps: false }));
   } catch (err) {
     console.error('[provisioningStorage] createDelivery error:', err);
     throw err;
@@ -977,14 +973,7 @@ export const createDelivery = async (deliveryData) => {
 
 export const updateListStatus = async (listId, status) => {
   try {
-    const { data, error } = await supabase
-      ?.from('provisioning_lists')
-      ?.update({ status, updated_at: new Date().toISOString() })
-      ?.eq('id', listId)
-      ?.select()
-      ?.single();
-    if (error) throw error;
-    return data;
+    return unwrap(await updateRow('provisioning_lists', listId, { status, updated_at: new Date().toISOString() }, `Board ${status}`));
   } catch (err) {
     console.error('[provisioningStorage] updateListStatus error:', err);
     throw err;
@@ -1578,9 +1567,12 @@ const addReceivedStock = async (item, inventoryItemId, tenantId, normName, qty) 
   if (!qty) return true;
   if (!normName) return adjustItemStock(inventoryItemId, qty, { name: item?.name || 'Delivery' });
   const locs = Array.isArray(item?.stock_locations) ? item.stock_locations : [];
-  const known = locs.some((l) => (l?.locationName || l?.name || '').toLowerCase() === normName.toLowerCase());
-  let create = null;
-  if (!known) {
+  const known = locs.find((l) => (l?.locationName || l?.name || '').toLowerCase() === normName.toLowerCase());
+  // Always say what to add if the place is gone or new by the time it syncs.
+  let create;
+  if (known) {
+    create = { locationName: normName, vesselLocationId: known.vesselLocationId || known.locationId || null };
+  } else {
     const vlIdx = await buildVesselLocIndex(tenantId);
     create = { locationName: normName, vesselLocationId: resolveVesselLocId(vlIdx, normName) };
   }
@@ -1657,7 +1649,7 @@ export const pushReceivedQtyToLocation = async ({ inventoryItemId, locationName,
       ?.eq('id', inventoryItemId)
       ?.eq('tenant_id', tenantId)
       ?.single();
-    if (fetchErr) throw fetchErr;
+    if (fetchErr && !isOfflineError(fetchErr)) throw fetchErr;
     if (isVariantItem(item)) { console.warn('[provisioningStorage] skipped flat push to size-tracked item', inventoryItemId); return 'variant'; }
 
     const normName = (locationName || '').trim();
@@ -1757,8 +1749,9 @@ export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, t
       ?.eq('id', inventoryItemId)
       ?.eq('tenant_id', tenantId)
       ?.single();
-    if (fetchErr) throw fetchErr;
+    if (fetchErr && !isOfflineError(fetchErr)) throw fetchErr;
     // Size-tracked items keep a per-size breakdown a flat add would corrupt.
+    // (Offline with no saved copy we can't tell: the server refuses it on sync.)
     if (isVariantItem(item)) { console.warn('[provisioningStorage] skipped flat push to size-tracked item', inventoryItemId); return 'variant'; }
 
     // Each split is added as a change on the server's current stock (a split
@@ -1772,13 +1765,16 @@ export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, t
     // STOCKING unit (the caller resolves a bulk line's inner unit, never the
     // 'case'); fill it only if missing/default. Fill a missing size. Stamp the
     // purchasing pack (purchase_unit + units_per_pack) if the item has none yet.
+    // (Only when the item could be read — "fill if missing" needs to know.)
     const patch = {};
-    const inUnit = normalizeUnit(unit);
-    if (inUnit && (!item.unit || item.unit === 'each') && inUnit !== item.unit) patch.unit = inUnit;
-    if (size && !item.size) patch.size = size;
-    const inPurchase = normalizeUnit(purchaseUnit);
-    if (inPurchase && !item.purchase_unit) patch.purchase_unit = inPurchase;
-    if (Number(unitsPerPack) > 0 && !(Number(item.units_per_pack) > 0)) patch.units_per_pack = Number(unitsPerPack);
+    if (item) {
+      const inUnit = normalizeUnit(unit);
+      if (inUnit && (!item.unit || item.unit === 'each') && inUnit !== item.unit) patch.unit = inUnit;
+      if (size && !item.size) patch.size = size;
+      const inPurchase = normalizeUnit(purchaseUnit);
+      if (inPurchase && !item.purchase_unit) patch.purchase_unit = inPurchase;
+      if (Number(unitsPerPack) > 0 && !(Number(item.units_per_pack) > 0)) patch.units_per_pack = Number(unitsPerPack);
+    }
 
     await stampProvisioned(inventoryItemId, tenantId, patch);
 
@@ -1894,11 +1890,9 @@ export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierNa
   for (const [i, payload] of attempts.entries()) {
     try {
       console.log(`[createDeliveryBatch] attempt ${i + 1}:`, JSON.stringify(payload));
-      const { data, error } = await supabase
-        ?.from('provisioning_deliveries')
-        ?.insert(payload)
-        ?.select()
-        ?.single();
+      // Outbox: offline the batch is created on the device (with its id, so the
+      // received lines can point at it) and synced later.
+      const { data, error } = await insertRow('provisioning_deliveries', payload, `Delivery ${payload.supplier_name || ''}`.trim(), { timestamps: false });
       if (error) {
         console.error(`[createDeliveryBatch] attempt ${i + 1} error:`, error.code, error.message, error.details, error.hint);
         errors.push(`attempt ${i + 1}: [${error.code}] ${error.message}`);

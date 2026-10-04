@@ -1768,6 +1768,15 @@ export const moveFolderToTrash = async (parentSegments, name, folderPath = null)
   }
 };
 
+// Full rows for the trash snapshot. Offline, that exact query may never have
+// been saved — fall back to the saved full inventory list (getAllItems).
+const readItemRows = async (tenantId, ids) => {
+  const { data } = await supabase?.from('inventory_items')?.select('*')?.eq('tenant_id', tenantId)?.in('id', ids);
+  if (data?.length) return data;
+  const { data: all } = await supabase?.from('inventory_items')?.select('*')?.eq('tenant_id', tenantId)?.order('created_at', { ascending: false });
+  return (all || []).filter((r) => ids.includes(r.id));
+};
+
 // Snapshot item rows into one inventory_trash record, then delete them — both
 // through the outbox, so trashing works offline (the snapshot comes from the
 // saved copy). → the trash record id, or null.
@@ -1812,7 +1821,7 @@ export const moveItemToTrash = async (itemId) => {
     const tenantId = getActiveTenantId();
     if (!tenantId || !itemId) return null;
     const { data: { session } } = await supabase?.auth?.getSession();
-    const { data: row } = await supabase?.from('inventory_items')?.select('*')?.eq('id', itemId)?.eq('tenant_id', tenantId)?.single();
+    const [row] = await readItemRows(tenantId, [itemId]);
     if (!row) return null;
     const path = [row?.location, row?.sub_location]?.filter(Boolean)?.join(' › ');
     return await trashRows(tenantId, session?.user?.id, [row], { folder_name: row?.name || 'Item', folder_path: path || null });
@@ -1828,7 +1837,7 @@ export const moveItemsToTrash = async (itemIds) => {
     const tenantId = getActiveTenantId();
     if (!tenantId || !itemIds?.length) return null;
     const { data: { session } } = await supabase?.auth?.getSession();
-    const { data: rows } = await supabase?.from('inventory_items')?.select('*')?.eq('tenant_id', tenantId)?.in('id', itemIds);
+    const rows = await readItemRows(tenantId, itemIds);
     if (!rows?.length) return null;
     return await trashRows(tenantId, session?.user?.id, rows, { folder_name: `${rows?.length} items`, folder_path: rows?.[0]?.location || null });
   } catch (err) {

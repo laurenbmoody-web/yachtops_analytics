@@ -53,12 +53,18 @@ it, `window.location.origin` is `capacitor://localhost` / `https://localhost`, s
   `newId()` in `lib/offline/ids.js`), `upsert` (`row`, `onConflict`), `update`
   (`patch`, `match`), `delete` (`match`), `upload` (Storage: `bucket`, `path`,
   `dataUrl` — decide the path on the device and store it on the row; queue the
-  upload first). `returning: true` hands back the saved row online. `key` = table +
+  upload first), `rpc` (`fn`, `args`, `match` — never folded; only for server
+  functions that skip a replayed op id; register how it shows on reads in
+  `RPC_VIEW` in `overlay.js`). `returning: true` hands back the saved row online. `key` = table +
   row identity; edits of one row fold together while nothing else is queued after
   it, otherwise they queue in order. `lib/offline/rowWrites.js` has `insertRow` /
   `updateRow` / `updateWhere` helpers with the `{ data, error }` shape. References:
   hours of rest (`horWorkEntries.js`), jobs (`team-jobs-management/utils/jobWrites.js`),
-  defects (`defectsStorage.js`), laundry (`laundryStorage.js`, `laundryPhotos.js`).
+  defects (`defectsStorage.js`), laundry (`laundryStorage.js`, `laundryPhotos.js`),
+  inventory (`inventoryStorage.js`), provisioning (`provisioningStorage.js`).
+  **Stock changes by a delta, never a new total**: use `adjustItemStock(itemId,
+  delta, { loc, index, create })` (→ `adjust_inventory_stock`, idempotent per op id)
+  for +/- and received stock, so offline counts from several phones add up.
 
 Full detail: `docs/native-app.md`.
 

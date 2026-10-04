@@ -85,7 +85,12 @@ device" / "Syncing".
 | Laundry photos — queued uploads, shown from the device until uploaded (`laundryPhotos.js`) | ✅ offline |
 | Wardrobes & cases — create, edit, pack/unpack, case photos, remove (`laundryWardrobes.js`, `laundryCases.js`) | ✅ offline |
 | Laundry vessel settings, "reset day" (chief), case share links | needs a connection |
-| Inventory & provisioning | next |
+| Inventory — add / edit items (`ItemFormModal`, `saveItem`), stock +/-, partial bottles, appearance, move, clear expiry, hide from attention, duplicate, delete / trash (`inventoryStorage.js`) | ✅ offline |
+| Inventory stock +/- and deliveries are sent as *changes* (`adjustItemStock` → `adjust_inventory_stock`), so counts from several phones add up; typed totals and map counts are last-writer-wins | ✅ offline |
+| Vessel map — count / place / remove at a pin, new item at a pin (`placement.js`, `vessel-map/utils/inventory.js`) | ✅ offline |
+| Stock used on jobs (`jobLinks.js`) | ✅ offline |
+| Provisioning — boards (create, edit, status), lines (add, edit, bulk edit / department, delete), tick received, receive a delivery into inventory (new places included), delivery batches, movement history (`provisioningStorage.js`) | ✅ offline |
+| Inventory folders (create / rename / move / delete), item photos, size-tracked stock per size; provisioning supplier orders, quotes, approvals, vendors, share links, delivery-note scanning, cross-board matching | needs a connection |
 
 ## Push
 

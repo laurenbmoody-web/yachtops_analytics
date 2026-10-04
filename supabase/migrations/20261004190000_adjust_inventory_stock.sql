@@ -87,8 +87,9 @@ begin
   -- Size-tracked items keep a per-size breakdown a flat change would corrupt.
   if exists (select 1 from public.inventory_items
               where id = p_item_id
-                and (coalesce(has_variants, false)
-                     or (jsonb_typeof(variants) = 'array' and jsonb_array_length(variants) > 0))) then
+                and jsonb_typeof(variants) = 'array'
+                and exists (select 1 from jsonb_array_elements(variants) v
+                             where coalesce(v ->> 'size', v ->> 'label', '') <> '')) then
     raise exception 'This item is tracked by size — change its stock per size' using errcode = 'P0001';
   end if;
   if jsonb_typeof(v_locs) <> 'array' then v_locs := '[]'::jsonb; end if;
