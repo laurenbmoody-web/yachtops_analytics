@@ -5,6 +5,8 @@ import Header from '../../components/navigation/Header';
 import LogoSpinner from '../../components/LogoSpinner';
 import DoorScanModal from './components/DoorScanModal';
 import DeviceSetupModal from './components/DeviceSetupModal';
+import VisitorPassModal from './components/VisitorPassModal';
+import { decodeVisitorPass } from './utils/visitorPass';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
@@ -66,6 +68,7 @@ const SignInBoard = () => {
   const [deviceSetupOpen, setDeviceSetupOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // { name, aboard } — kiosk confirmation flash
   const [leaveVisitor, setLeaveVisitor] = useState(null); // visitor the "leaving?" popover is open for
+  const [passVisitor, setPassVisitor] = useState(null); // visitor whose QR pass is being shown
   const [speakOn, setSpeakOn] = useState(() => { try { return localStorage.getItem('cargo_gangway_speak') === '1'; } catch { return false; } });
   const confirmTimer = useRef(null);
   const { session, activeTenantId, hasCommandAccess } = useAuth();
@@ -186,6 +189,20 @@ const SignInBoard = () => {
   const handleScan = (raw) => {
     setScanOpen(false);
     const str = String(raw || '').trim();
+    // Visitor pass → sign in / return (self-contained, no lookup needed).
+    const vm = /^cargo-visitor:(.+)$/i.exec(str);
+    if (vm) {
+      const v = decodeVisitorPass(vm[1]);
+      if (!v?.name || !v?.phone) { showToast('Visitor pass not recognised', 'error'); return; }
+      const existing = contractors.find((k) => norm(k.phone) === norm(v.phone));
+      if (existing) {
+        if (existing.state === 'stepped_out') { returnVisitor(existing); flashConfirm(v.name, true); }
+        else showToast(`${v.name} is already on board — tap their card to leave`, 'info');
+      } else {
+        signInVisitor(v.name, v.company, v.phone, { inducted: true });
+      }
+      return;
+    }
     const m = /^cargo-pass:(.+)$/i.exec(str);
     const uid = (m ? m[1] : str).trim();
     const member = crew.find((c) => c.userId === uid);
@@ -634,6 +651,9 @@ const SignInBoard = () => {
                         <Icon name="LogOut" size={14} /> Tap to leave
                       </button>
                     )}
+                    <button type="button" className="sib-vpasslink" onClick={() => setPassVisitor(k)}>
+                      <Icon name="QrCode" size={12} /> Pass
+                    </button>
                   </div>
                 );
               })}
@@ -728,6 +748,7 @@ const SignInBoard = () => {
       {deviceSetupOpen && (
         <DeviceSetupModal tenantId={activeTenantId} crew={crew} onClose={() => setDeviceSetupOpen(false)} />
       )}
+      {passVisitor && <VisitorPassModal visitor={passVisitor} onClose={() => setPassVisitor(null)} />}
       {confirmFlash}
       </div>
     </>
