@@ -12,6 +12,40 @@ import { getCurrentUser } from '../../../utils/authStorage';
 import { logActivity } from '../../../utils/activityStorage';
 import { showToast } from '../../../utils/toast';
 import { uploadLaundryPhotos, resolveLaundryPhotos, deleteLaundryPhotos, isStoredPath } from './laundryPhotos';
+import { outbox } from '../../../lib/offline/queue';
+import { newId } from '../../../lib/offline/ids';
+import { storedSession } from '../../../lib/offline/session';
+
+// ── Offline-capable writes (lib/offline/outbox.js) ───────────────────────────
+// Laundry is logged at sea, so item writes go through the outbox: online they
+// run immediately (a real rejection still errors); with no network they are
+// saved on the device, show in every read of laundry_items, and sync when the
+// link returns. Photos are queued uploads (laundryPhotos.js).
+const itemKey = (id) => `laundry_items|${id}`;
+
+// update(...).eq('id').select('*').single() → { data, error }. Offline, data is
+// the saved row with the edit applied.
+const updateItemRow = async (itemId, patch, label = 'A laundry update') => {
+  try {
+    const res = await outbox.submit({ key: itemKey(itemId), table: 'laundry_items', type: 'update', patch, match: { id: itemId }, returning: true, label });
+    if (!res.queued) return res.data ? { data: res.data, error: null } : { data: null, error: { message: 'Laundry item not found' } };
+    const { data } = await supabase.from('laundry_items').select('*').eq('id', itemId).maybeSingle();
+    return { data: data || { id: itemId, ...patch }, error: null };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
+// The same patch on several items (bulk actions) — one queued edit each, so
+// they fold together with per-item edits.
+const updateItemRows = async (ids, patch, label) => {
+  try {
+    await Promise.all(ids.map((id) => outbox.submit({ key: itemKey(id), table: 'laundry_items', type: 'update', patch, match: { id }, label })));
+    return { error: null };
+  } catch (error) {
+    return { error };
+  }
+};
 
 // Owner / status / priority enums (unchanged — values match stored strings).
 export const OwnerType = { GUEST: 'Guest', CREW: 'Crew', OTHER: 'Other' };
@@ -111,22 +145,25 @@ const ACTION_FOR_STATUS = {
 const logLaundryEvent = async (itemId, tenantId, action, changes = []) => {
   if (!itemId || !tenantId || !action) return;
   try {
-    const { data: authData } = await supabase.auth.getUser();
+    // From the stored session + cached profile — no network, works offline.
+    const authUser = storedSession()?.user;
     const u = getCurrentUser();
-    const meta = authData?.user?.user_metadata || {};
-    let actorName = u?.fullName || u?.name || meta.full_name || meta.name || meta.fullName;
-    if (!actorName && authData?.user?.id) {
-      try {
-        const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', authData.user.id).single();
-        actorName = prof?.full_name;
-      } catch (e) { /* ignore */ }
-    }
-    actorName = actorName || authData?.user?.email || 'Someone';
-    await supabase.from('laundry_item_events').insert({
-      tenant_id: tenantId, item_id: itemId, action,
-      actor_id: authData?.user?.id || null,
-      actor_name: actorName,
-      changes: Array.isArray(changes) ? changes : [],
+    const meta = authUser?.user_metadata || {};
+    const actorName = u?.fullName || u?.name || meta.full_name || meta.name || meta.fullName || authUser?.email || 'Someone';
+    const id = newId();
+    await outbox.submit({
+      key: `laundry_item_events|${id}`,
+      table: 'laundry_item_events',
+      type: 'insert',
+      row: {
+        id, tenant_id: tenantId, item_id: itemId, action,
+        actor_id: authUser?.id || null,
+        actor_name: actorName,
+        changes: Array.isArray(changes) ? changes : [],
+        at: new Date().toISOString(),
+      },
+      match: { id },
+      label: 'A laundry history entry',
     });
   } catch (e) { /* non-fatal */ }
 };
@@ -322,10 +359,7 @@ export const loadLaundryItemsByCase = async (caseId) => {
 export const setLaundryItemsCase = async (itemIds, caseId) => {
   const ids = (itemIds || []).filter(Boolean);
   if (!ids.length) return false;
-  const { error } = await supabase
-    .from('laundry_items')
-    .update({ case_id: caseId || null, updated_at: new Date().toISOString() })
-    .in('id', ids);
+  const { error } = await updateItemRows(ids, { case_id: caseId || null, updated_at: new Date().toISOString() }, caseId ? 'Packing a case' : 'Unpacking a case');
   if (error) { console.error('[laundry] set case failed', error); showToast('Could not update case', 'error'); return false; }
   return true;
 };
@@ -348,7 +382,7 @@ export const setLaundryItemsStatus = async (itemIds, status) => {
   if (!ids.length) return false;
   const patch = { status, updated_at: new Date().toISOString() };
   if (status === LaundryStatus.DELIVERED) patch.delivered_at = new Date().toISOString();
-  const { error } = await supabase.from('laundry_items').update(patch).in('id', ids);
+  const { error } = await updateItemRows(ids, patch, 'A laundry status change');
   if (error) { console.error('[laundry] bulk status failed', error); showToast('Could not update items', 'error'); return false; }
   return true;
 };
@@ -358,9 +392,7 @@ export const setLaundryItemsStatus = async (itemIds, status) => {
 export const archiveLaundryItems = async (itemIds) => {
   const ids = (itemIds || []).filter(Boolean);
   if (!ids.length) return false;
-  const { error } = await supabase.from('laundry_items')
-    .update({ archived_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-    .in('id', ids);
+  const { error } = await updateItemRows(ids, { archived_at: new Date().toISOString(), updated_at: new Date().toISOString() }, 'Archiving laundry');
   if (error) { console.error('[laundry] bulk archive failed', error); showToast('Could not archive items', 'error'); return false; }
   return true;
 };
@@ -369,9 +401,7 @@ export const archiveLaundryItems = async (itemIds) => {
 export const restoreLaundryItems = async (itemIds) => {
   const ids = (itemIds || []).filter(Boolean);
   if (!ids.length) return false;
-  const { error } = await supabase.from('laundry_items')
-    .update({ archived_at: null, updated_at: new Date().toISOString() })
-    .in('id', ids);
+  const { error } = await updateItemRows(ids, { archived_at: null, updated_at: new Date().toISOString() }, 'Restoring laundry');
   if (error) { console.error('[laundry] bulk restore failed', error); showToast('Could not restore items', 'error'); return false; }
   return true;
 };
@@ -380,10 +410,7 @@ export const restoreLaundryItems = async (itemIds) => {
 export const setLaundryItemsWardrobe = async (itemIds, wardrobeId) => {
   const ids = (itemIds || []).filter(Boolean);
   if (!ids.length) return false;
-  const { error } = await supabase
-    .from('laundry_items')
-    .update({ wardrobe_id: wardrobeId || null, updated_at: new Date().toISOString() })
-    .in('id', ids);
+  const { error } = await updateItemRows(ids, { wardrobe_id: wardrobeId || null, updated_at: new Date().toISOString() }, 'Moving laundry to a wardrobe');
   if (error) { console.error('[laundry] set wardrobe failed', error); showToast('Could not update wardrobe', 'error'); return false; }
   return true;
 };
@@ -495,14 +522,18 @@ export const createLaundryItem = async (itemData) => {
   const normalized = ['guest', 'crew', 'other'].includes((itemData?.ownerType || '').toLowerCase())
     ? itemData.ownerType.toLowerCase() : 'unknown';
   const ownerName = itemData?.ownerName?.trim() ? itemData.ownerName : 'Unknown';
-  const { data: authData } = await supabase.auth.getUser();
+  const authUser = storedSession()?.user; // no network — works offline
   const currentUser = getCurrentUser();
 
   // Upload any freshly-captured photos (data URLs) to the bucket first.
   const rawPhotos = Array.isArray(itemData?.photos) ? itemData.photos : (itemData?.photo ? [itemData.photo] : []);
   const storedPhotos = await uploadLaundryPhotos(tenantId, rawPhotos);
 
+  const nowIso = new Date().toISOString();
   const payload = {
+    id: newId(),
+    created_at: nowIso,
+    updated_at: nowIso,
     tenant_id: tenantId,
     owner_type: normalized,
     owner_name: ownerName,
@@ -530,19 +561,23 @@ export const createLaundryItem = async (itemData) => {
     details: (itemData?.details && typeof itemData.details === 'object') ? itemData.details : {},
     flag: itemData?.flag || null,
     flag_note: itemData?.flagNote || null,
-    created_by: authData?.user?.id || null,
+    created_by: authUser?.id || null,
     created_by_name: currentUser?.fullName || currentUser?.name || 'Unknown User',
   };
 
-  const { data, error } = await supabase.from('laundry_items').insert(payload).select('*').single();
-  if (error) {
+  // Offline: queued (after its photos) — the returned item is the local row.
+  let data;
+  try {
+    const res = await outbox.submit({
+      key: itemKey(payload.id), table: 'laundry_items', type: 'insert', row: payload, match: { id: payload.id },
+      returning: true, label: `Laundry item “${payload.description || 'garment'}”`,
+    });
+    data = res.data || payload;
+  } catch (error) {
     console.error('[laundry] create failed', error);
-    // Offline / server-unreachable: don't toast a failure — the caller queues it.
-    const offlineish = (typeof navigator !== 'undefined' && navigator.onLine === false)
-      || /fetch|network|Failed to fetch|timeout/i.test(error.message || '');
-    if (!offlineish) showToast('Failed to add laundry item. Please try again.', 'error');
-    const e = new Error(error.message || 'create failed');
-    e.code = offlineish ? 'OFFLINE' : 'CREATE_FAILED';
+    showToast('Failed to add laundry item. Please try again.', 'error');
+    const e = new Error(error?.message || 'create failed');
+    e.code = 'CREATE_FAILED';
     throw e;
   }
 
@@ -576,7 +611,7 @@ export const splitLaundryItem = async (sourceId, qty, overrides = {}) => {
 
   if (take >= srcQty) {
     const patch = setOverrides({ updated_at: new Date().toISOString() });
-    const { data, error } = await supabase.from('laundry_items').update(patch).eq('id', sourceId).select('*').single();
+    const { data, error } = await updateItemRow(sourceId, patch, 'Moving laundry');
     if (error) { console.error('[laundry] move failed', error); showToast('Could not move item', 'error'); return null; }
     return mapRow(data);
   }
@@ -596,25 +631,29 @@ export const splitLaundryItem = async (sourceId, qty, overrides = {}) => {
     stays_onboard: src.stays_onboard, details: newDetails, flag: src.flag, flag_note: src.flag_note,
     created_by: src.created_by, created_by_name: src.created_by_name,
   });
-  const { data: ins, error: e1 } = await supabase.from('laundry_items').insert(clone).select('*').single();
+  clone.id = newId();
+  clone.created_at = new Date().toISOString();
+  let ins = clone;
+  let e1 = null;
+  try {
+    const res = await outbox.submit({ key: itemKey(clone.id), table: 'laundry_items', type: 'insert', row: clone, match: { id: clone.id }, returning: true, label: 'Splitting laundry' });
+    ins = res.data || clone;
+  } catch (e) { e1 = e; }
   if (e1) { console.error('[laundry] split failed', e1); showToast('Could not split item', 'error'); return null; }
 
   const remain = srcQty - take;
   const srcDetails = { ...(src.details || {}) };
   if (remain > 1) srcDetails.quantity = remain; else delete srcDetails.quantity;
-  await supabase.from('laundry_items').update({ details: srcDetails, updated_at: new Date().toISOString() }).eq('id', sourceId);
+  await updateItemRow(sourceId, { details: srcDetails, updated_at: new Date().toISOString() }, 'Splitting laundry');
   return mapRow(ins);
 };
 
 export const updateLaundryStatus = async (itemId, newStatus) => {
   const patch = { status: newStatus, updated_at: new Date().toISOString() };
   if (newStatus === LaundryStatus.DELIVERED) patch.delivered_at = new Date().toISOString();
-  const { data, error } = await supabase.from('laundry_items').update(patch).eq('id', itemId).select('*').single();
+  const { data, error } = await updateItemRow(itemId, patch, 'A laundry status change');
   if (error) {
     console.error('[laundry] status update failed', error);
-    const offlineish = (typeof navigator !== 'undefined' && navigator.onLine === false)
-      || /fetch|network|Failed to fetch|timeout/i.test(error.message || '');
-    if (offlineish) { const e = new Error(error.message || 'offline'); e.code = 'OFFLINE'; throw e; }
     showToast('Could not update status', 'error');
     return null;
   }
@@ -662,7 +701,7 @@ export const updateLaundryItem = async (itemId, updates) => {
   Object.entries(up).forEach(([k, v]) => { if (map[k]) patch[map[k]] = v; });
   // Snapshot the row before the edit so we can log exactly what changed.
   const { data: before } = await supabase.from('laundry_items').select('*').eq('id', itemId).maybeSingle();
-  const { data, error } = await supabase.from('laundry_items').update(patch).eq('id', itemId).select('*').single();
+  const { data, error } = await updateItemRow(itemId, patch, 'A laundry edit');
   if (error) { console.error('[laundry] update failed', error); showToast('Could not update item', 'error'); return null; }
   const changes = before ? diffLaundryItem(before, data) : [];
   if (changes.length) logLaundryEvent(data.id, data.tenant_id, 'edited', changes);
@@ -677,7 +716,7 @@ export const addNoteToLaundryItem = async (itemId, note) => {
   const userName = currentUser?.fullName || currentUser?.name || 'Unknown User';
   const stamped = `[${new Date().toLocaleString('en-GB')}] ${userName}: ${note}`;
   const notes = existing?.notes ? `${existing.notes}\n${stamped}` : stamped;
-  const { data, error } = await supabase.from('laundry_items').update({ notes, updated_at: new Date().toISOString() }).eq('id', itemId).select('*').single();
+  const { data, error } = await updateItemRow(itemId, { notes, updated_at: new Date().toISOString() }, 'A laundry note');
   if (error) { console.error('[laundry] note update failed', error); return null; }
   showToast('Note added', 'success');
   return mapRow(data);
@@ -708,7 +747,9 @@ export const manualResetDay = async () => {
 export const resetDailyDelivered = async () => manualResetDay();
 
 export const deleteLaundryItem = async (itemId) => {
-  const { error } = await supabase.from('laundry_items').delete().eq('id', itemId);
+  let error = null;
+  try { await outbox.submit({ key: itemKey(itemId), table: 'laundry_items', type: 'delete', match: { id: itemId }, label: 'Deleting a laundry item' }); }
+  catch (e) { error = e; }
   if (error) { console.error('[laundry] delete failed', error); showToast('Could not delete item', 'error'); return false; }
   return true;
 };

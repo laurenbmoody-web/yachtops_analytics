@@ -8,17 +8,28 @@
 //   flush()     Replays saved ops (oldest first) when the link returns: on
 //               reconnect, app resume, sign-in and a timer while any wait.
 //
-// Ops carry a `key` (table + row identity); a newer op for the same key is
-// folded into the waiting one (combine()), so only the latest version of each
-// row is synced.
+// Ops carry a `key` (table + row identity). A newer op for the same row is
+// folded into the waiting one (combine()) only when that one is the last op in
+// line — otherwise it is queued after it, so the order of everything in
+// between is kept (pack a garment into a case created after it: the case must
+// reach the server before the packing). Several ops may wait for one row.
 // Ops are per user: only the signed-in user's ops are replayed or shown.
 // While waiting, pending ops are laid over every read of their table
 // (overlay.js), so the edit stays visible across reloads.
 //
 // Pure (storage, executor, clock injected) — tested in outbox.test.mjs.
 
+// A thrown error only means "offline" when it is a network failure; anything
+// else (a bad file, a bug) is permanent — retrying it forever would block
+// every op queued behind it.
+const isNetworkThrow = (e) => {
+  const err = e?.originalError || e;
+  return err?.name === 'TypeError' || err?.name === 'AbortError'
+    || /fetch|network|load failed|abort|timed? ?out|offline/i.test(String(err?.message || err));
+};
+
 const isTransient = (res) => {
-  if (res?.thrown) return true;                      // fetch threw: offline
+  if (res?.thrown) return isNetworkThrow(res.thrown);
   const e = res?.error;
   if (!e) return false;
   if (res.status >= 500 || res.status === 0) return true;
@@ -51,42 +62,52 @@ export function createOutbox({ store, execute, userId = () => null, now = () => 
   let dirty = false;     // ops changed while a flush was running
   let rerun = false;     // flush() asked for again while one was running
   let seq = 0;
+  // Stored ops are keyed by a unique op id (`id`); `key` is the row identity.
+  // Ops saved before ops had ids used the row key as their id.
   const ready = store.all().then((saved) => {
-    ops = saved.sort((a, b) => a.createdAt - b.createdAt || a.seq - b.seq);
+    ops = saved.map((o) => ({ ...o, id: o.id || o.key }))
+      .sort((a, b) => a.createdAt - b.createdAt || a.seq - b.seq);
     seq = ops.reduce((m, o) => Math.max(m, o.seq || 0), 0);
     onChange();
   });
 
   const mine = () => { const u = userId(); return ops.filter((o) => o.user === u); };
 
+  // Add an op, or replace one in place (same id).
   async function save(op) {
-    ops = ops.filter((o) => o.key !== op.key).concat(op);
+    const i = ops.findIndex((o) => o.id === op.id);
+    ops = i >= 0 ? ops.map((o, j) => (j === i ? op : o)) : ops.concat(op);
     if (flushing) dirty = true;
     await store.put(op);
     onChange();
   }
 
-  // Remove a synced/rejected op — unless a newer edit of the same row replaced
-  // it meanwhile (that one still has to go up).
+  // Remove a synced/rejected op — unless a newer edit was folded into it
+  // meanwhile (that version still has to go up).
   async function drop(op) {
-    const current = ops.find((o) => o.key === op.key);
+    const current = ops.find((o) => o.id === op.id);
     if (!current || current.seq !== op.seq) return;
-    ops = ops.filter((o) => o.key !== op.key);
-    await store.delete(op.key);
+    ops = ops.filter((o) => o.id !== op.id);
+    await store.delete(op.id);
     onChange();
   }
 
   async function submit(input) {
     await ready;
-    const op = { ...input, user: userId(), createdAt: now(), seq: ++seq };
-    // An older edit of the same row is still waiting: fold this one into it
-    // (or queue behind it) rather than racing it, so the server ends on the
-    // latest version.
-    const prev = ops.find((o) => o.key === op.key && o.user === op.user);
+    const n = ++seq;
+    const op = { ...input, id: `${input.key}#${n}`, user: userId(), createdAt: now(), seq: n };
+    // An older edit of the same row is still waiting: never race it. Fold
+    // into it when it is the last op in line; otherwise queue behind.
+    const queue = ops.filter((o) => o.user === op.user);
+    const prev = queue.filter((o) => o.key === op.key).pop();
     if (prev) {
-      const merged = combine(prev, op);
-      if (merged) await save(merged);
-      else await drop(prev); // created and deleted offline: nothing to send
+      if (prev === queue[queue.length - 1]) {
+        const merged = combine(prev, op);
+        if (merged) await save({ ...merged, id: prev.id });
+        else await drop(prev); // created and deleted offline: nothing to send
+      } else {
+        await save(op);
+      }
       flush();
       return { queued: true };
     }
@@ -97,7 +118,7 @@ export function createOutbox({ store, execute, userId = () => null, now = () => 
       await save(op);
       return { queued: true };
     }
-    throw res.error;
+    throw res.error || res.thrown;
   }
 
   // → true if it stopped because the link is still down.
@@ -109,7 +130,7 @@ export function createOutbox({ store, execute, userId = () => null, now = () => 
       if (!res?.error && !res?.thrown) { await drop(op); continue; }
       if (isTransient(res)) return true; // still offline — try again later
       await drop(op);
-      onRejected(op, res.error);
+      onRejected(op, res.error || { message: String(res.thrown?.message || res.thrown) });
     }
     return false;
   }

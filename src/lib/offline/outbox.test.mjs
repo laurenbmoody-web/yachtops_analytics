@@ -3,9 +3,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createOutbox, combine } from './outbox.js';
 
+// Keyed by op id, like the IndexedDB store.
 function memStore(initial = []) {
-  const map = new Map(initial.map((o) => [o.key, o]));
-  return { map, all: async () => [...map.values()], put: async (o) => { map.set(o.key, o); }, delete: async (k) => { map.delete(k); } };
+  const map = new Map(initial.map((o) => [o.id || o.key, o]));
+  return { map, all: async () => [...map.values()], put: async (o) => { map.set(o.id, o); }, delete: async (id) => { map.delete(id); } };
 }
 
 const OFFLINE = { error: { message: 'TypeError: Failed to fetch', details: '', code: '' }, status: 0 };
@@ -157,4 +158,52 @@ test('created then deleted offline: nothing is ever sent', async () => {
   state.net = 'online'; state.calls.length = 0;
   await box.flush();
   assert.deepEqual(state.calls, []);
+});
+
+test('an edit that depends on a later record is not folded ahead of it (FK order kept)', async () => {
+  const { box, state } = setup({ net: 'offline' });
+  const sent = [];
+  const box2 = createOutbox({
+    store: memStore(),
+    userId: () => 'u1',
+    execute: async (op) => { if (state.net === 'offline') return OFFLINE; sent.push(`${op.type} ${op.table} ${JSON.stringify(op.row || op.patch)}`); return { data: null }; },
+  });
+  void box;
+  await box2.submit({ key: 'laundry_items|i1', table: 'laundry_items', type: 'insert', row: { id: 'i1' }, match: { id: 'i1' } });
+  await box2.submit({ key: 'laundry_cases|c1', table: 'laundry_cases', type: 'insert', row: { id: 'c1' }, match: { id: 'c1' } });
+  await box2.submit({ key: 'laundry_items|i1', table: 'laundry_items', type: 'update', patch: { case_id: 'c1' }, match: { id: 'i1' } });
+  await box2.submit({ key: 'laundry_items|i1', table: 'laundry_items', type: 'update', patch: { status: 'Stored' }, match: { id: 'i1' } });
+  assert.equal(box2.pendingCount(), 3); // the two trailing updates folded together
+  state.net = 'online';
+  await box2.flush();
+  assert.deepEqual(sent, [
+    'insert laundry_items {"id":"i1"}',
+    'insert laundry_cases {"id":"c1"}',
+    'update laundry_items {"case_id":"c1","status":"Stored"}',
+  ]);
+});
+
+test('a non-network exception is a rejection, not "offline" — it never blocks the queue', async () => {
+  const sent = [];
+  let mode = 'offline';
+  const rejected = [];
+  const box = createOutbox({
+    store: memStore(),
+    userId: () => 'u1',
+    onRejected: (op, err) => rejected.push([op.key, err.message]),
+    execute: async (op) => {
+      if (mode === 'offline') throw new TypeError('Failed to fetch');
+      if (op.key === 'bad') throw new Error('InvalidCharacterError: atob');
+      sent.push(op.key);
+      return { data: null };
+    },
+  });
+  await box.submit({ key: 'bad', table: 't', type: 'insert', row: {} });
+  await box.submit({ key: 'good', table: 't', type: 'insert', row: {} });
+  assert.equal(box.pendingCount(), 2);
+  mode = 'online';
+  await box.flush();
+  assert.deepEqual(sent, ['good']);
+  assert.equal(box.pendingCount(), 0);
+  assert.equal(rejected[0][0], 'bad');
 });

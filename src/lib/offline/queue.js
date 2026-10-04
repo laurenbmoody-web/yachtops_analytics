@@ -35,3 +35,7 @@ if (typeof window !== 'undefined') {
   setInterval(kick, 30_000);
   outbox.ready.then(() => setTimeout(kick, 2000));
 }
+
+// A Storage file waiting in the outbox (type 'upload') → its data URL, so the
+// photo shows on the device before it has been uploaded.
+export const pendingUpload = (bucket, path) => outbox.pendingFor(`storage:${bucket}`).find((o) => o.path === path)?.dataUrl || null;

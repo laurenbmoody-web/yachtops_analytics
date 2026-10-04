@@ -4,8 +4,14 @@
 //
 // Backward-compatible: legacy items still hold base64 data URLs inline — those
 // pass through untouched, so nothing breaks while old photos age out.
+//
+// Offline: uploads go through the outbox (lib/offline/outbox.js, type
+// 'upload'). The object path is decided on the device and stored on the row at
+// once; the file is queued ahead of the row so it lands first, and until it
+// does, reads resolve the path to the photo kept on the device.
 
 import { supabase } from '../../../lib/supabaseClient';
+import { outbox, pendingUpload } from '../../../lib/offline/queue';
 
 const BUCKET = 'laundry-photos';
 const SIGN_TTL = 3600; // 1 hour
@@ -28,17 +34,9 @@ export function pathFromValue(v) {
 
 const rid = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now()}-${Math.floor(Math.random() * 1e9)}`);
 
-function dataUrlToBlob(dataUrl) {
-  const [meta, b64] = dataUrl.split(',');
-  const mime = (meta.match(/data:(.*?);/) || [])[1] || 'image/jpeg';
-  const bin = atob(b64);
-  const arr = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-  return new Blob([arr], { type: mime });
-}
-
 // Upload any data-URL entries to the bucket, return the stored value list
-// (paths for uploads, unchanged for anything already a path/url).
+// (paths for uploads, unchanged for anything already a path/url). With no
+// network each photo is queued, not dropped.
 export async function uploadLaundryPhotos(tenantId, values) {
   const normed = (values || []).map(pathFromValue).filter(Boolean);
   if (!tenantId) return normed.filter((v) => !isDataUrl(v));
@@ -46,13 +44,20 @@ export async function uploadLaundryPhotos(tenantId, values) {
   const out = [];
   for (const v of normed) {
     if (!isDataUrl(v)) { out.push(v); continue; }
+    const path = `${tenantId}/${folder}/${rid()}.jpg`;
     try {
-      const blob = dataUrlToBlob(v);
-      const path = `${tenantId}/${folder}/${rid()}.jpg`;
-      const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || 'image/jpeg', upsert: false });
-      if (error) { console.error('[laundry] photo upload failed', error); continue; }
+      await outbox.submit({
+        key: `storage:${BUCKET}|${path}`,
+        table: `storage:${BUCKET}`,
+        type: 'upload',
+        bucket: BUCKET,
+        path,
+        dataUrl: v,
+        contentType: (v.match(/^data:(.*?);/) || [])[1] || 'image/jpeg',
+        label: 'A laundry photo',
+      });
       out.push(path);
-    } catch (e) { console.error('[laundry] photo upload error', e); }
+    } catch (e) { console.error('[laundry] photo upload failed', e); }
   }
   return out;
 }
@@ -71,7 +76,9 @@ export async function signLaundryValues(values) {
   const toSign = [];
   for (const v of values || []) {
     if (!v) continue;
-    if (isStoredPath(v)) toSign.push(v);
+    const local = isStoredPath(v) ? pendingUpload(BUCKET, v) : null;
+    if (local) map.set(v, local);          // still waiting to upload
+    else if (isStoredPath(v)) toSign.push(v);
     else map.set(v, v); // data URL or already an http URL
   }
   const uniq = [...new Set(toSign)];

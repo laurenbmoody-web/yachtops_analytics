@@ -22,6 +22,9 @@ function openDb() {
         store.createIndex('at', 'at');
         store.createIndex('t', 't');
       }
+      // Records are keyed by their `id`… but version-2 stores were created
+      // keyed on `key`, so put() always writes `key` = the op id there (see
+      // outboxStore) and `rowKey` carries the row identity.
       if (!db.objectStoreNames.contains(OUTBOX)) db.createObjectStore(OUTBOX, { keyPath: 'key' });
     };
     req.onsuccess = () => resolve(req.result);
@@ -88,7 +91,11 @@ export const idbStore = {
 // exists nowhere else yet — never pruned, and not cleared on sign-out (they
 // sync when that person signs in again).
 export const outboxStore = {
-  all: () => run('readonly', (store) => store.getAll(), OUTBOX).then((r) => r || []).catch(() => []),
-  put: (op) => run('readwrite', (store) => store.put(op), OUTBOX).catch(() => {}),
-  delete: (key) => run('readwrite', (store) => store.delete(key), OUTBOX).catch(() => {}),
+  // In IndexedDB the record's primary key field is `key`; ops use `key` for the
+  // row identity, so store them as { ...op, key: op.id, rowKey: op.key }.
+  all: () => run('readonly', (store) => store.getAll(), OUTBOX)
+    .then((r) => (r || []).map((rec) => (rec.rowKey ? { ...rec, id: rec.key, key: rec.rowKey } : rec)))
+    .catch(() => []),
+  put: (op) => run('readwrite', (store) => store.put({ ...op, key: op.id, rowKey: op.key }), OUTBOX).catch(() => {}),
+  delete: (id) => run('readwrite', (store) => store.delete(id), OUTBOX).catch(() => {}),
 };

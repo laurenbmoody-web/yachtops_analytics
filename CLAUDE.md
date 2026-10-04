@@ -51,10 +51,14 @@ it, `window.location.origin` is `capacitor://localhost` / `https://localhost`, s
   immediately (real errors still throw), offline it queues, shows in every read of
   that table, and syncs later. Types: `insert` (`row` with a device id from
   `newId()` in `lib/offline/ids.js`), `upsert` (`row`, `onConflict`), `update`
-  (`patch`, `match`), `delete` (`match`); `returning: true` hands back the saved
-  row online. `key` = table + row identity — later edits of one row fold into one
-  write. References: hours of rest (`horWorkEntries.js`), jobs
-  (`team-jobs-management/utils/jobWrites.js`), defects (`defectsStorage.js`).
+  (`patch`, `match`), `delete` (`match`), `upload` (Storage: `bucket`, `path`,
+  `dataUrl` — decide the path on the device and store it on the row; queue the
+  upload first). `returning: true` hands back the saved row online. `key` = table +
+  row identity; edits of one row fold together while nothing else is queued after
+  it, otherwise they queue in order. `lib/offline/rowWrites.js` has `insertRow` /
+  `updateRow` / `updateWhere` helpers with the `{ data, error }` shape. References:
+  hours of rest (`horWorkEntries.js`), jobs (`team-jobs-management/utils/jobWrites.js`),
+  defects (`defectsStorage.js`), laundry (`laundryStorage.js`, `laundryPhotos.js`).
 
 Full detail: `docs/native-app.md`.
 

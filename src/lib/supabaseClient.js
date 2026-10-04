@@ -116,8 +116,28 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 //   { type: 'upsert', table, row, onConflict }
 //   { type: 'update', table, patch, match }
 //   { type: 'delete', table, match }
+//   { type: 'upload', bucket, path, dataUrl, contentType }   a Storage file
 // `returning: true` hands back the saved row (data) when it runs online.
+const dataUrlToBlob = (dataUrl) => {
+  const [meta, b64] = String(dataUrl).split(',');
+  const mime = (meta.match(/data:(.*?);/) || [])[1] || 'application/octet-stream';
+  const bin = atob(b64 || '');
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+};
 setOutboxExecutor(async (op) => {
+  if (op.type === 'upload') {
+    let blob;
+    try { blob = dataUrlToBlob(op.dataUrl); } catch (e) { return { error: { message: 'That photo could not be read', code: 'BAD_FILE' } }; }
+    const { error } = await supabase.storage.from(op.bucket).upload(op.path, blob, { contentType: op.contentType || blob.type, upsert: false });
+    if (!error) return { data: { path: op.path }, error: null };
+    // Replayed after a lost response: the file is already there.
+    if (String(error.statusCode || error.status) === '409' || /already exists|duplicate/i.test(error.message || '')) return { data: { path: op.path }, error: null };
+    // No HTTP status = the request never got an answer (offline).
+    if (!error.status) return { thrown: error };
+    return { error: { message: error.message, code: String(error.statusCode || error.status) }, status: Number(error.status) };
+  }
   const t = supabase.from(op.table);
   let q;
   if (op.type === 'insert') q = t.insert(op.row);
