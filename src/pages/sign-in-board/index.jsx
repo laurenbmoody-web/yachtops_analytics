@@ -7,6 +7,7 @@ import DoorScanModal from './components/DoorScanModal';
 import DeviceSetupModal from './components/DeviceSetupModal';
 import VisitorPassModal from './components/VisitorPassModal';
 import { decodeVisitorPass } from './utils/visitorPass';
+import { speakText } from './utils/speech';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
@@ -154,16 +155,7 @@ const SignInBoard = () => {
   // admin board (toggling many at once) isn't interrupted.
   const inDoorContext = kiosk || doorView === 'board';
   const toggleSpeak = () => setSpeakOn((on) => { const next = !on; try { localStorage.setItem('cargo_gangway_speak', next ? '1' : '0'); } catch { /* ignore */ } return next; });
-  const speak = (text) => {
-    try {
-      if (!speakOn) return;
-      if (!window.speechSynthesis) return;
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 1; u.pitch = 1;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(u);
-    } catch { /* ignore */ }
-  };
+  const speak = (text) => { if (speakOn) speakText(text); };
   const flashConfirm = (name, aboard) => {
     if (!inDoorContext) return;
     setConfirm({ name, aboard });
