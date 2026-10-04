@@ -1,5 +1,5 @@
 /* Gangway history — editorial list of movements + saved musters. */
-.ph { min-height: calc(100vh - 64px); background: #F8FAFC; color: #1C1B3A; padding: 26px clamp(20px, 3vw, 48px) 80px; font-family: 'Inter', system-ui, sans-serif; }
+.ph { min-height: calc(100vh - 64px); background: #F8FAFC; color: #1C1B3A; padding: 26px clamp(20px, 3vw, 48px) 80px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
 .ph-head { margin-bottom: 18px; }
 
 .ph-tabs { display: inline-flex; gap: 6px; background: #EEF0F4; padding: 4px; border-radius: 999px; margin-bottom: 20px; }
@@ -11,7 +11,7 @@
 
 /* Movements log */
 .ph-log { max-width: 760px; }
-.ph-day-h { font: 700 11px 'Inter', system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #8B8478; margin: 20px 0 6px; }
+.ph-day-h { font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #8B8478; margin: 20px 0 6px; }
 .ph-row { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px solid #F0F1F5; }
 .ph-ic { width: 32px; height: 32px; border-radius: 9px; background: #EEF0F4; color: #8B8478; display: grid; place-items: center; flex: none; }
 .ph-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
@@ -33,7 +33,7 @@
 .ph-mus-body { overflow-x: auto; border-top: 1px solid #F0F1F5; }
 .ph-mus-table { border-collapse: collapse; width: 100%; min-width: 420px; }
 .ph-mus-table th, .ph-mus-table td { padding: 9px 12px; text-align: center; border-bottom: 1px solid #F3F4F7; font-size: 13.5px; }
-.ph-mus-table thead th { position: sticky; top: 0; background: #FAFBFC; font: 700 11px 'Inter', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #8B8478; }
+.ph-mus-table thead th { position: sticky; top: 0; background: #FAFBFC; font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #8B8478; }
 .ph-mus-table td.nm, .ph-mus-table th:first-child { text-align: left; font-weight: 700; color: #1C1B3A; }
 .ph-mus-table td.on { color: #C65A1A; }
 .ph-mus-table tr.ashore td { color: #AEB4C2; }
