@@ -11,6 +11,7 @@ import { getStatusLabel, CREW_STATUSES } from '../../utils/crewStatus';
 import InviteCrewModal from './components/InviteCrewModal';
 import PendingInvitesSection from './components/PendingInvitesSection';
 import StatusChangeModal from './components/StatusChangeModal';
+import ArchiveCrewModal from './components/ArchiveCrewModal';
 import SendRosterInviteModal from './components/SendRosterInviteModal';
 import CrewMovements from './components/CrewMovements';
 import GuestBookExportModal from './components/GuestBookExportModal';
@@ -159,6 +160,9 @@ const CrewManagement = () => {
   const [error, setError] = useState(null);
   const timeoutRef = useRef(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState(null); // crew user being off-boarded
+  const [archiveSaving, setArchiveSaving] = useState(false);
+  const [openCardMenu, setOpenCardMenu] = useState(null);   // user id whose card ⋯ menu is open
   // Roster presentation: gallery (default) · console · hierarchy · calendar.
   const [rosterView, setRosterView] = useState('gallery');
   const [selectedUserId, setSelectedUserId] = useState(null); // console detail pane
@@ -210,6 +214,14 @@ const CrewManagement = () => {
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, [openMenu]);
+
+  // Close an open crew-card ⋯ menu when clicking anywhere else.
+  useEffect(() => {
+    if (!openCardMenu) return undefined;
+    const onDown = (e) => { if (!e.target.closest('.cm-gkebab-wrap')) setOpenCardMenu(null); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [openCardMenu]);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -457,6 +469,22 @@ const CrewManagement = () => {
         }
       }
 
+      // Past crew (archived view): attach when they left + why, from crew_employment.
+      if (archived && transformedData.length > 0) {
+        try {
+          const { data: emp } = await supabase
+            .from('crew_employment')
+            .select('user_id, end_date, reason_for_leaving')
+            .eq('tenant_id', activeTenantId)
+            .in('user_id', transformedData.map((m) => m.user_id).filter(Boolean));
+          const byUser = Object.fromEntries((emp || []).map((r) => [r.user_id, r]));
+          transformedData.forEach((m) => {
+            m.endDate = byUser[m.user_id]?.end_date || null;
+            m.reasonForLeaving = byUser[m.user_id]?.reason_for_leaving || null;
+          });
+        } catch (e) { /* leave blank */ }
+      }
+
       setUsers(transformedData);
     } catch (err) {
       console.error('[CREW] load failed', err);
@@ -670,60 +698,50 @@ const CrewManagement = () => {
     navigator?.clipboard?.writeText(link);
   };
 
-  const handleArchiveCrew = async (userId) => {
-    if (!window.confirm('Archive this crew member? They will no longer have access but their record will be preserved.')) {
-      return;
-    }
-
+  // Off-board: record the leaving date + reason on crew_employment, then archive
+  // (tenant_members.active = false). Their record stays under Past crew.
+  const handleArchiveCrew = async ({ endDate, reason, note }) => {
+    const target = archiveTarget;
+    if (!target || !activeTenantId) return;
+    const userId = target.id || target.user_id;
+    setArchiveSaving(true);
     try {
-      const { data: { user: authUser } } = await supabase?.auth?.getUser();
-      if (!authUser) {
-        throw new Error('Not authenticated');
-      }
-
-      // Get tenant_id from RPC public.get_my_context()
-      const { data: contextData, error: contextError } = await supabase?.rpc('get_my_context');
-
-      if (contextError) throw contextError;
-      if (!contextData || contextData?.length === 0) {
-        throw new Error('No active tenant found');
-      }
-
-      const tenantId = contextData?.[0]?.tenant_id;
-
-      console.log('ARCHIVE tenant_id', tenantId, 'user_id', userId);
+      // Leaving metadata — upsert so a member with no employment row still records it.
+      const { error: empErr } = await supabase
+        ?.from('crew_employment')
+        ?.upsert({
+          tenant_id: activeTenantId,
+          user_id: userId,
+          end_date: endDate || null,
+          reason_for_leaving: reason || null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'tenant_id,user_id' });
+      if (empErr) throw empErr;
 
       const { error: archiveError } = await supabase
         ?.from('tenant_members')
-        ?.update({ active: false })
-        ?.eq('tenant_id', tenantId)
+        ?.update({ active: false, archived_at: new Date().toISOString() })
+        ?.eq('tenant_id', activeTenantId)
         ?.eq('user_id', userId);
+      if (archiveError) throw archiveError;
 
-      if (archiveError) {
-        console.error('ARCHIVE Supabase error:', archiveError);
-        console.error('Full error object:', JSON.stringify(archiveError, null, 2));
-        throw archiveError;
-      }
-
-      console.log('ARCHIVE success - Crew member archived');
-
-      // Log crew removal to activity feed
-      const archivedMember = users?.find(u => u?.id === userId);
       logActivity({
         module: 'crew',
         action: 'CREW_REMOVED',
         entityType: 'crew_member',
         entityId: userId,
-        summary: `Crew member archived: ${archivedMember?.fullName || userId}`,
-        meta: { memberName: archivedMember?.fullName, memberId: userId }
+        summary: `Crew member archived: ${target.fullName || userId}${reason ? ` (${reason})` : ''}`,
+        meta: { memberName: target.fullName, memberId: userId, endDate, reason, note },
       });
 
-      // Reload users
-      fetchCrewData();
+      window.showToast?.(`${(target.fullName || 'Crew member').split(' ')[0]} moved to Past crew`, 'success');
+      setArchiveTarget(null);
+      fetchCrewData(showArchived);
     } catch (err) {
       console.error('ARCHIVE error:', err);
-      console.error('Full error object:', JSON.stringify(err, null, 2));
       alert(err?.message || 'Failed to archive crew member');
+    } finally {
+      setArchiveSaving(false);
     }
   };
 
@@ -793,16 +811,28 @@ const CrewManagement = () => {
   };
 
   const handleRestoreCrew = async (userId) => {
+    const member = users?.find((u) => (u.id || u.user_id) === userId);
     const { error } = await supabase
       ?.from('tenant_members')
-      ?.update({ active: true, status: 'active' })
+      ?.update({ active: true, status: 'active', archived_at: null })
       ?.eq('tenant_id', activeTenantId)
       ?.eq('user_id', userId);
     if (error) {
-      alert(error?.message || 'Failed to restore crew member');
+      alert(error?.message || 'Failed to reactivate crew member');
       return;
     }
-    fetchCrewData(true); // refresh archived list
+    // Clear the leaving date/reason so their employment reads active again (the
+    // activity log keeps the history).
+    await supabase?.from('crew_employment')
+      ?.update({ end_date: null, reason_for_leaving: null, updated_at: new Date().toISOString() })
+      ?.eq('tenant_id', activeTenantId)?.eq('user_id', userId);
+    logActivity({
+      module: 'crew', action: 'CREW_RESTORED', entityType: 'crew_member', entityId: userId,
+      summary: `Crew member reactivated: ${member?.fullName || userId}`,
+      meta: { memberName: member?.fullName, memberId: userId },
+    });
+    window.showToast?.(`${(member?.fullName || 'Crew member').split(' ')[0]} reactivated`, 'success');
+    fetchCrewData(showArchived);
   };
 
   // Get role title
@@ -987,42 +1017,80 @@ const CrewManagement = () => {
     const ten = tenure(since);
     const isAway = user?.status && user?.status !== 'active' && user?.status !== 'invited';
     const ret = returnByUser[user?.user_id];
+    const uid = user?.id || user?.user_id;
+    const menuOpen = openCardMenu === uid;
     return (
-      <div key={user?.id} className="cm-gcard" onClick={() => navigate(`/profile/${user?.id}`)}>
-        {comp && (
+      <div key={user?.id} className={`cm-gcard${showArchived ? ' is-archived' : ''}`} onClick={() => navigate(`/profile/${user?.id}`)}>
+        {!showArchived && comp && (
           <span className={`cm-gribbon ${comp.worst === 'expired' ? 'exp' : 'warn'}`}>
             {comp.expired ? `${comp.expired} expired` : `${comp.warning} expiring`}
           </span>
+        )}
+        {hasEditPermission && (
+          <div className="cm-gkebab-wrap">
+            <button type="button" className="cm-gkebab" aria-label="Crew actions"
+              onClick={(e) => { e.stopPropagation(); setOpenCardMenu(menuOpen ? null : uid); }}>
+              <Icon name="MoreVertical" size={16} />
+            </button>
+            {menuOpen && (
+              <div className="cm-gmenu" onClick={(e) => e.stopPropagation()}>
+                {showArchived ? (
+                  <button type="button" className="cm-gmenu-item" onClick={() => { setOpenCardMenu(null); handleRestoreCrew(uid); }}>
+                    <Icon name="RotateCcw" size={14} /> Reactivate crew
+                  </button>
+                ) : (
+                  <button type="button" className="cm-gmenu-item danger" onClick={() => { setOpenCardMenu(null); setArchiveTarget(user); }}>
+                    <Icon name="Archive" size={14} /> Archive / end contract
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         )}
         <Avatar user={user} className="cm-gph" />
         <div className="cm-gname">{user?.fullName}</div>
         <div className="cm-grole">{user?.roleTitle}</div>
         <div className="cm-gdept">{user?.department === '—' ? 'Unassigned' : user?.department}</div>
-        <button
-          className="cm-gstatus"
-          onClick={(e) => { e.stopPropagation(); if (hasEditPermission) setStatusChangeTarget({ userId: user?.id, currentStatus: user?.status, name: user?.fullName }); }}
-        >
-          <span className="cm-dot" style={{ background: statusColor(user?.status) }} />
-          {getStatusLabel(user?.status)}{isAway && ret ? ` · ${fmtDate(ret.date)}` : ''}
-        </button>
-        {user?.rosterOnly && (
-          <div className="cm-gnolog">
-            <span className="cm-nologin"><Icon name="KeyRound" size={10} /> No login</span>
-            {canInvite && (
-              <button
-                type="button"
-                className="cm-gnolog-act"
-                onClick={(e) => { e.stopPropagation(); setRosterInviteTarget(user); }}
-              >
-                Send invite
-              </button>
+        {showArchived ? (
+          <>
+            <div className="cm-gleft">
+              <span className="cm-gleft-lab">Left</span>
+              <span className="cm-gleft-val">{user?.endDate ? fmtDate(user.endDate) : '—'}</span>
+            </div>
+            {user?.reasonForLeaving && <div className="cm-greason">{user.reasonForLeaving}</div>}
+            <button type="button" className="cm-greactivate" onClick={(e) => { e.stopPropagation(); handleRestoreCrew(uid); }}>
+              <Icon name="RotateCcw" size={13} /> Reactivate
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              className="cm-gstatus"
+              onClick={(e) => { e.stopPropagation(); if (hasEditPermission) setStatusChangeTarget({ userId: user?.id, currentStatus: user?.status, name: user?.fullName }); }}
+            >
+              <span className="cm-dot" style={{ background: statusColor(user?.status) }} />
+              {getStatusLabel(user?.status)}{isAway && ret ? ` · ${fmtDate(ret.date)}` : ''}
+            </button>
+            {user?.rosterOnly && (
+              <div className="cm-gnolog">
+                <span className="cm-nologin"><Icon name="KeyRound" size={10} /> No login</span>
+                {canInvite && (
+                  <button
+                    type="button"
+                    className="cm-gnolog-act"
+                    onClick={(e) => { e.stopPropagation(); setRosterInviteTarget(user); }}
+                  >
+                    Send invite
+                  </button>
+                )}
+              </div>
             )}
-          </div>
+            <div className="cm-gmeta">
+              <div className="cm-gstat"><b>{ten || '—'}</b><span>Aboard</span></div>
+              <div className={`cm-gstat${comp ? ' warn' : ''}`}><b>{comp ? (comp.expired || comp.warning) : '✓'}</b><span>{comp ? (comp.expired ? 'Expired' : 'Expiring') : 'Docs'}</span></div>
+            </div>
+          </>
         )}
-        <div className="cm-gmeta">
-          <div className="cm-gstat"><b>{ten || '—'}</b><span>Aboard</span></div>
-          <div className={`cm-gstat${comp ? ' warn' : ''}`}><b>{comp ? (comp.expired || comp.warning) : '✓'}</b><span>{comp ? (comp.expired ? 'Expired' : 'Expiring') : 'Docs'}</span></div>
-        </div>
       </div>
     );
   };
@@ -2179,12 +2247,19 @@ const CrewManagement = () => {
               </div>
 
               {/* Gallery (B) */}
+              {rosterView === 'gallery' && showArchived && (
+                <div className="cm-pastcrew-head">
+                  <span className="cm-pastcrew-t">Past crew</span>
+                  <span className="cm-pastcrew-rule" />
+                  <span className="cm-pastcrew-sub">Archived · reactivate to bring them back</span>
+                </div>
+              )}
               {rosterView === 'gallery' && (
                 filteredAndSortedUsers?.length === 0 ? (
                   <div className="cm-empty">
                     <Icon name="Users" size={40} />
-                    <h3>No crew members found</h3>
-                    <p>{searchQuery || deptFilter || statusFilter || needsAttention ? 'Try adjusting your search or filters' : 'Start by inviting crew members'}</p>
+                    <h3>{showArchived ? 'No past crew' : 'No crew members found'}</h3>
+                    <p>{showArchived ? 'Archived crew will appear here.' : (searchQuery || deptFilter || statusFilter || needsAttention ? 'Try adjusting your search or filters' : 'Start by inviting crew members')}</p>
                   </div>
                 ) : (
                   <div className="cm-gallery">
@@ -2286,6 +2361,14 @@ const CrewManagement = () => {
         memberName={statusChangeTarget?.name}
         currentStatus={statusChangeTarget?.currentStatus}
         saving={statusChangeSaving}
+      />
+      {/* Archive / end-contract modal */}
+      <ArchiveCrewModal
+        isOpen={!!archiveTarget}
+        member={archiveTarget}
+        saving={archiveSaving}
+        onConfirm={handleArchiveCrew}
+        onClose={() => setArchiveTarget(null)}
       />
     </div>
   );

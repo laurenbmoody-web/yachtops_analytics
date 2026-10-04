@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
 import LogoSpinner from '../../components/LogoSpinner';
+import DoorScanModal from './components/DoorScanModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
@@ -49,7 +50,12 @@ const SignInBoard = () => {
   // Door-iPad flow: 'glance' (always-on standby) → tap → 'board' (stripped quick
   // sign-in) → 'muster' (emergency roll call). null = the normal full board.
   const [doorView, setDoorView] = useState(standbyParam ? 'glance' : null);
-  const [mustered, setMustered] = useState({}); // personKey -> true when accounted for
+  // Muster is a spreadsheet: people down the left, one column per roll call.
+  // rollMarks[rollId][personKey] = accounted-for in that roll call.
+  const [rolls, setRolls] = useState([{ id: 'r1', name: 'Roll call 1' }]);
+  const [activeRoll, setActiveRoll] = useState('r1');
+  const [rollMarks, setRollMarks] = useState({});
+  const [scanOpen, setScanOpen] = useState(false);
   const { session, activeTenantId } = useAuth();
   const meId = session?.user?.id;
   const now = useClock();
@@ -121,6 +127,20 @@ const SignInBoard = () => {
       setCrew((cur) => cur.map((x) => (x.userId === m.userId ? { ...x, status: m.status } : x)));
       showToast(/row-level|denied|policy/i.test(e?.message || '') ? 'This device can only sign the logged-in person in/out.' : 'Could not update — try again', 'error');
     } finally { mark(key, false); }
+  };
+
+  // A scanned gangway pass (`cargo-pass:<userId>`, or a bare id) flips that crew
+  // member's aboard/ashore status — the QR stand-in for the future NFC tap.
+  const handleScan = (raw) => {
+    setScanOpen(false);
+    const str = String(raw || '').trim();
+    const m = /^cargo-pass:(.+)$/i.exec(str);
+    const uid = (m ? m[1] : str).trim();
+    const member = crew.find((c) => c.userId === uid);
+    if (!member) { showToast('Pass not recognised for this vessel', 'error'); return; }
+    const next = flip(member.status);
+    toggleCrew(member);
+    showToast(`${member.name} — ${next === ABOARD ? 'On board' : 'Ashore'}`, 'success');
   };
 
   const toggleGuest = async (g) => {
@@ -201,8 +221,18 @@ const SignInBoard = () => {
     ...contractors.map((k) => ({ key: `k:${k.id}`, name: k.name, sub: k.company || 'Visitor', aboard: true })),
   ];
   const expected = musterRoster.filter((p) => p.aboard);
-  const musteredAboard = expected.filter((p) => mustered[p.key]).length;
-  const toggleMuster = (key) => setMustered((m) => { const n = { ...m }; if (n[key]) delete n[key]; else n[key] = true; return n; });
+  const markCell = (rollId, key) => setRollMarks((m) => {
+    const col = { ...(m[rollId] || {}) };
+    if (col[key]) delete col[key]; else col[key] = true;
+    return { ...m, [rollId]: col };
+  });
+  const rollCount = (rollId) => expected.filter((p) => rollMarks[rollId]?.[p.key]).length;
+  const addRoll = () => setRolls((rs) => {
+    const id = `r${Date.now().toString(36)}`;
+    setActiveRoll(id);
+    return [...rs, { id, name: `Roll call ${rs.length + 1}` }];
+  });
+  const resetMuster = () => setRollMarks({});
 
   // ── Standby glance (always-on door iPad) ───────────────────────────────────
   if (doorView === 'glance') {
@@ -233,41 +263,68 @@ const SignInBoard = () => {
     );
   }
 
-  // ── Muster (emergency roll call) ───────────────────────────────────────────
+  // ── Muster (emergency roll call — spreadsheet of people × roll calls) ───────
   if (doorView === 'muster') {
-    const allAccounted = expected.length > 0 && musteredAboard === expected.length;
+    const activeCount = rollCount(activeRoll);
+    const allAccounted = expected.length > 0 && activeCount === expected.length;
     return (
       <div className="sibm">
         <div className="sibm-top">
           <div className="sibm-head-l">
             <p className="sibm-eyebrow"><span className="dot">●</span> Muster · {vesselName || 'On board'}</p>
-            <h1 className="sibm-title">{musteredAboard} <span className="sibm-of">/ {expected.length}</span> accounted</h1>
+            <h1 className="sibm-title">{activeCount} <span className="sibm-of">/ {expected.length}</span> on {rolls.find((r) => r.id === activeRoll)?.name || 'this roll call'}</h1>
           </div>
           <div className="sibm-head-r">
             <span className={`sibm-status ${allAccounted ? 'ok' : 'warn'}`}>
-              {allAccounted ? 'All accounted for' : `${expected.length - musteredAboard} to find`}
+              {allAccounted ? 'All accounted for' : `${expected.length - activeCount} to find`}
             </span>
-            <button type="button" className="sibm-btn ghost" onClick={() => setMustered({})}>Reset</button>
+            <button type="button" className="sibm-btn ghost" onClick={resetMuster}>Reset</button>
             <button type="button" className="sibm-btn" onClick={() => setDoorView('board')}>Exit muster</button>
           </div>
         </div>
-        <div className="sibm-grid">
-          {musterRoster.map((p) => {
-            const done = !!mustered[p.key];
-            return (
-              <button key={p.key} type="button"
-                className={`sibm-cell${done ? ' done' : ''}${p.aboard ? '' : ' ashore'}`}
-                onClick={() => toggleMuster(p.key)}>
-                <span className="sibm-check">{done ? <Icon name="Check" size={18} /> : null}</span>
-                <span className="sibm-nm">
-                  <span className="sibm-person">{p.name}</span>
-                  <span className="sibm-sub">{p.aboard ? (p.sub || '') : 'Ashore'}</span>
-                </span>
-              </button>
-            );
-          })}
+
+        <div className="sibm-scroll">
+          <table className="sibm-table">
+            <thead>
+              <tr>
+                <th className="sibm-th-name">Crew &amp; guests</th>
+                {rolls.map((r) => (
+                  <th key={r.id}
+                    className={`sibm-th-roll${r.id === activeRoll ? ' active' : ''}`}
+                    onClick={() => setActiveRoll(r.id)}>
+                    <span className="sibm-th-roll-n">{r.name}</span>
+                    <span className="sibm-th-roll-c">{rollCount(r.id)} / {expected.length}</span>
+                  </th>
+                ))}
+                <th className="sibm-th-add">
+                  <button type="button" onClick={addRoll} title="Add another roll call" aria-label="Add roll call"><Icon name="Plus" size={18} /></button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {musterRoster.map((p) => (
+                <tr key={p.key} className={p.aboard ? '' : 'ashore'}>
+                  <th className="sibm-td-name" onClick={() => markCell(activeRoll, p.key)}>
+                    <span className="sibm-person">{p.name}</span>
+                    <span className="sibm-sub">{p.aboard ? (p.sub || '') : 'Ashore'}</span>
+                  </th>
+                  {rolls.map((r) => {
+                    const on = !!rollMarks[r.id]?.[p.key];
+                    return (
+                      <td key={r.id}
+                        className={`sibm-cellx${on ? ' on' : ''}${r.id === activeRoll ? ' activecol' : ''}`}
+                        onClick={() => markCell(r.id, p.key)}>
+                        <span className="sibm-tick">{on ? <Icon name="Check" size={18} /> : null}</span>
+                      </td>
+                    );
+                  })}
+                  <td className="sibm-td-add" />
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <footer className="sibm-foot">Tap each person once they’re at the muster station · ashore crew are shown greyed</footer>
+        <footer className="sibm-foot">Tap a name to mark it on the highlighted roll call · tap a cell to tick or untick it · tap a column header to switch roll call · <b>+</b> adds another</footer>
       </div>
     );
   }
@@ -285,6 +342,9 @@ const SignInBoard = () => {
             <span className="sibq-pob">{pob} aboard</span>
           </div>
           <div className="sibq-actions">
+            <button type="button" className="sibq-btn scan" onClick={() => setScanOpen(true)}>
+              <Icon name="QrCode" size={16} /> Scan pass
+            </button>
             <button type="button" className="sibq-btn muster" onClick={() => setDoorView('muster')}>
               <Icon name="AlertTriangle" size={16} /> Muster
             </button>
@@ -293,6 +353,7 @@ const SignInBoard = () => {
             </button>
           </div>
         </div>
+        {scanOpen && <DoorScanModal onClose={() => setScanOpen(false)} onDetect={handleScan} />}
         {loading ? (
           <div className="sib-loading"><LogoSpinner size={44} /></div>
         ) : (
@@ -333,6 +394,11 @@ const SignInBoard = () => {
             </button>
           )}
           <div className="sib-utilrow-r">
+            {!kiosk && (
+              <button type="button" className="sib-standby-btn" onClick={() => navigate('/door-pass')} title="Show my gangway QR pass">
+                <Icon name="QrCode" size={15} /><span className="lbl">My pass</span>
+              </button>
+            )}
             <button type="button" className="sib-standby-btn" onClick={() => setDoorView('glance')} title="Switch to the always-on door display">
               <Icon name="Monitor" size={15} /><span className="lbl">Standby</span>
             </button>
