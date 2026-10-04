@@ -77,7 +77,7 @@ const PresenceHistory = () => {
                     const meta = ev.meta || {};
                     // Visitors read as "Visitor · Company · Phone"; crew/guests show the device.
                     const sub = isVisitor
-                      ? ['Visitor', meta.company, meta.phone].filter(Boolean).join(' · ')
+                      ? ['Visitor', meta.company, meta.reason, meta.phone].filter(Boolean).join(' · ')
                       : `${SOURCE_LABEL[ev.source] || ev.source}${ev.actor_name && ev.actor_name !== ev.subject_name ? ` · by ${ev.actor_name}` : ''}`;
                     const dir = aboard ? 'On board'
                       : isVisitor ? (meta.leave === 'temporary' ? 'Stepped out' : 'Signed off')
