@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
+import Header from '../../components/navigation/Header';
 import LogoSpinner from '../../components/LogoSpinner';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
@@ -41,7 +42,11 @@ const SignInBoard = () => {
   // Kiosk mode = the locked door iPad (home-screen / Guided Access). It has no
   // personal dashboard to go back to, so hide the back link there. A crew member
   // who opens the board from their dashboard (plain /sign-in-board) keeps it.
-  const kiosk = searchParams.get('kiosk') === '1' || searchParams.get('mode') === 'kiosk';
+  // Standby = the always-on door iPad. It shows a calm glance screen and wakes to
+  // the interactive board on tap, returning to standby after a spell of no touches.
+  const standbyParam = searchParams.get('mode') === 'standby' || searchParams.get('standby') === '1';
+  const kiosk = searchParams.get('kiosk') === '1' || searchParams.get('mode') === 'kiosk' || standbyParam;
+  const [standby, setStandby] = useState(standbyParam);
   const { session, activeTenantId } = useAuth();
   const meId = session?.user?.id;
   const now = useClock();
@@ -53,6 +58,7 @@ const SignInBoard = () => {
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState({});
   const [tab, setTab] = useState('crew'); // crew | guests | visitors
+  const [imgErr, setImgErr] = useState({}); // card key -> true when its photo failed to load
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState('');
   const [addCompany, setAddCompany] = useState('');
@@ -85,6 +91,18 @@ const SignInBoard = () => {
     window.addEventListener('focus', load);
     return () => { clearInterval(pollRef.current); window.removeEventListener('focus', load); };
   }, [load]);
+
+  // After waking the door iPad to the board, drop back to standby once there's
+  // been no interaction for a while, so it's always ready at the gangway.
+  useEffect(() => {
+    if (!standbyParam || standby) return;
+    let t;
+    const reset = () => { clearTimeout(t); t = setTimeout(() => setStandby(true), 60000); };
+    const evs = ['pointerdown', 'keydown', 'touchstart'];
+    reset();
+    evs.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    return () => { clearTimeout(t); evs.forEach((e) => window.removeEventListener(e, reset)); };
+  }, [standbyParam, standby]);
 
   const mark = (key, on) => setPending((p) => { const n = { ...p }; if (on) n[key] = true; else delete n[key]; return n; });
 
@@ -145,7 +163,9 @@ const SignInBoard = () => {
     return (
       <button key={key} type="button" className={`sib-card ${on ? 'aboard' : 'ashore'}`} onClick={onClick} disabled={disabled} aria-pressed={on}>
         <span className="sib-av">
-          {opts.img ? <img src={opts.img} alt="" /> : <span className="sib-ini">{initials(name)}</span>}
+          {opts.img && !imgErr[key]
+            ? <img src={opts.img} alt="" onError={() => setImgErr((e) => ({ ...e, [key]: true }))} />
+            : <span className="sib-ini">{initials(name)}</span>}
         </span>
         <span className="sib-name">{name}</span>
         {sub && <span className="sib-dept">{sub}</span>}
@@ -166,8 +186,42 @@ const SignInBoard = () => {
     { id: 'visitors', label: 'Visitors', n: contractors.length },
   ];
 
+  const crewAshore = crew.length - crewAboard;
+  const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  // ── Standby (always-on door iPad) ──────────────────────────────────────────
+  if (standby) {
+    return (
+      <div className="sib-sb" onClick={() => setStandby(false)} role="button" tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setStandby(false); }}>
+        <div className="sib-sb-inner">
+          <p className="editorial-meta sib-sb-meta">
+            <span className="dot">●</span>
+            <span>On board</span>
+            <span className="bar" />
+            <span className="muted">{dateStr}</span>
+          </p>
+          <h1 className="sib-sb-vessel">{vesselName || 'On board'}<span className="period">.</span></h1>
+          <div className="sib-sb-clock">{timeStr}</div>
+          <div className="sib-sb-stats">
+            <div className="sib-sb-stat primary"><span className="n">{pob}</span><span className="l">Aboard</span></div>
+            <div className="sib-sb-stat"><span className="n">{crewAboard}</span><span className="l">Crew</span></div>
+            <div className="sib-sb-stat"><span className="n">{guestsOn}</span><span className="l">Guests</span></div>
+            <div className="sib-sb-stat"><span className="n">{contractors.length}</span><span className="l">Visitors</span></div>
+            {crewAshore > 0 && <div className="sib-sb-stat ashore"><span className="n">{crewAshore}</span><span className="l">Ashore</span></div>}
+          </div>
+        </div>
+        <div className="sib-sb-cta">
+          <span className="sib-sb-tap"><Icon name="Hand" size={16} /> Tap anywhere to sign in or out</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="sib">
+    <>
+      {!kiosk && <Header />}
+      <div className={`sib${kiosk ? '' : ' sib--nav'}`}>
       <header className="sib-top">
         <div className="sib-utilrow">
           {kiosk ? <span /> : (
@@ -175,9 +229,14 @@ const SignInBoard = () => {
               <Icon name="ArrowLeft" size={16} /> Back to dashboard
             </button>
           )}
-          <button type="button" className="sib-add-btn" onClick={() => setAddOpen(true)} aria-label="Add visitor">
-            <Icon name="Plus" size={18} /><span className="lbl">Visitor</span>
-          </button>
+          <div className="sib-utilrow-r">
+            <button type="button" className="sib-standby-btn" onClick={() => setStandby(true)} title="Switch to the always-on door display">
+              <Icon name="Monitor" size={15} /><span className="lbl">Standby</span>
+            </button>
+            <button type="button" className="sib-add-btn" onClick={() => setAddOpen(true)} aria-label="Add visitor">
+              <Icon name="Plus" size={18} /><span className="lbl">Visitor</span>
+            </button>
+          </div>
         </div>
         <div className="sib-titlerow">
           <div className="sib-brand">
@@ -270,7 +329,8 @@ const SignInBoard = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
 
