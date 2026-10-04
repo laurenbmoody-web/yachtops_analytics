@@ -424,3 +424,18 @@
 .sibm-btn.save { display: inline-flex; align-items: center; gap: 7px; background: #1E7F43; border-color: #1E7F43; color: #FFFFFF; }
 .sibm-btn.save:hover { background: #1A6E3A; }
 .sibm-btn.save:disabled { opacity: 0.6; cursor: default; }
+
+/* Kiosk confirmation flash — big "Welcome aboard, {name}" after a tap/scan. */
+.sib-confirm { position: fixed; inset: 0; z-index: 80; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; background: #F8FAFC; animation: sib-confirm-in 0.18s ease-out; cursor: pointer; }
+.sib-confirm.ashore { background: #FFF8F4; }
+.sib-confirm-ic { width: clamp(96px, 12vw, 140px); height: clamp(96px, 12vw, 140px); border-radius: 999px; display: grid; place-items: center; color: #FFFFFF; margin-bottom: 8px; }
+.sib-confirm.aboard .sib-confirm-ic { background: #1C1B3A; }
+.sib-confirm.ashore .sib-confirm-ic { background: #C65A1A; }
+.sib-confirm-lead { font: 700 clamp(13px, 1.6vw, 18px) 'Inter', system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #8B8478; margin: 0; }
+.sib-confirm-name { font-family: 'DM Serif Display', Georgia, serif; font-size: clamp(40px, 7vw, 92px); line-height: 1; color: #1C1B3A; margin: 0; }
+.sib-confirm-time { font: 600 clamp(16px, 2vw, 24px) 'Inter', system-ui, sans-serif; font-variant-numeric: tabular-nums; color: #6B7280; margin: 6px 0 0; }
+@keyframes sib-confirm-in { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+
+/* Icon-only quick-board button (speaker toggle). */
+.sibq-btn.icon { padding: 0; width: 48px; justify-content: center; }
+.sibq-btn.icon.on { border-color: #C65A1A; color: #C65A1A; }

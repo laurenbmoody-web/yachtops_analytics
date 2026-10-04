@@ -62,6 +62,9 @@ const SignInBoard = () => {
   const [musterSaved, setMusterSaved] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [deviceSetupOpen, setDeviceSetupOpen] = useState(false);
+  const [confirm, setConfirm] = useState(null); // { name, aboard } — kiosk confirmation flash
+  const [speakOn, setSpeakOn] = useState(() => { try { return localStorage.getItem('cargo_gangway_speak') === '1'; } catch { return false; } });
+  const confirmTimer = useRef(null);
   const { session, activeTenantId, hasCommandAccess } = useAuth();
   const isCommand = typeof hasCommandAccess === 'function' && hasCommandAccess();
   const meId = session?.user?.id;
@@ -123,13 +126,40 @@ const SignInBoard = () => {
 
   const mark = (key, on) => setPending((p) => { const n = { ...p }; if (on) n[key] = true; else delete n[key]; return n; });
 
+  // Kiosk confirmation flash — a big "Welcome aboard, {name}" after a tap/scan on
+  // the door board. Optionally spoken. Only shown in a door/kiosk context so the
+  // admin board (toggling many at once) isn't interrupted.
+  const inDoorContext = kiosk || doorView === 'board';
+  const toggleSpeak = () => setSpeakOn((on) => { const next = !on; try { localStorage.setItem('cargo_gangway_speak', next ? '1' : '0'); } catch { /* ignore */ } return next; });
+  const speak = (text) => {
+    try {
+      if (!speakOn) return;
+      if (!window.speechSynthesis) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 1; u.pitch = 1;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    } catch { /* ignore */ }
+  };
+  const flashConfirm = (name, aboard) => {
+    if (!inDoorContext) return;
+    setConfirm({ name, aboard });
+    speak(`${aboard ? 'Welcome aboard' : 'Safe trip ashore'}, ${name}`);
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    confirmTimer.current = setTimeout(() => setConfirm(null), 2800);
+  };
+  useEffect(() => () => { if (confirmTimer.current) clearTimeout(confirmTimer.current); }, []);
+
   const toggleCrew = async (m) => {
     const key = `c:${m.userId}`;
     if (pending[key]) return;
     const next = flip(m.status);
     setCrew((cur) => cur.map((x) => (x.userId === m.userId ? { ...x, status: next } : x)));
     mark(key, true);
-    try { await setPresence(activeTenantId, m.userId, next, meId, { source: kiosk ? 'entryway' : 'board', subjectName: m.name }); }
+    try {
+      await setPresence(activeTenantId, m.userId, next, meId, { source: kiosk ? 'entryway' : 'board', subjectName: m.name });
+      flashConfirm(m.name, next === ABOARD);
+    }
     catch (e) {
       setCrew((cur) => cur.map((x) => (x.userId === m.userId ? { ...x, status: m.status } : x)));
       showToast(/row-level|denied|policy/i.test(e?.message || '') ? 'This device can only sign the logged-in person in/out.' : 'Could not update — try again', 'error');
@@ -145,9 +175,7 @@ const SignInBoard = () => {
     const uid = (m ? m[1] : str).trim();
     const member = crew.find((c) => c.userId === uid);
     if (!member) { showToast('Pass not recognised for this vessel', 'error'); return; }
-    const next = flip(member.status);
-    toggleCrew(member);
-    showToast(`${member.name} — ${next === ABOARD ? 'On board' : 'Ashore'}`, 'success');
+    toggleCrew(member); // flips status + shows the confirmation flash
   };
 
   const toggleGuest = async (g) => {
@@ -224,6 +252,15 @@ const SignInBoard = () => {
 
   const crewAshore = crew.length - crewAboard;
   const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  const confirmFlash = confirm && (
+    <div className={`sib-confirm ${confirm.aboard ? 'aboard' : 'ashore'}`} onClick={() => setConfirm(null)}>
+      <div className="sib-confirm-ic"><Icon name={confirm.aboard ? 'Anchor' : 'LogOut'} size={54} /></div>
+      <p className="sib-confirm-lead">{confirm.aboard ? 'Welcome aboard' : 'Safe trip ashore'}</p>
+      <h2 className="sib-confirm-name">{confirm.name}</h2>
+      <p className="sib-confirm-time">{timeStr}</p>
+    </div>
+  );
 
   // Everyone the muster accounts for: all crew (aboard or ashore), plus guests
   // on board and signed-in visitors. `aboard` flags who is expected present.
@@ -381,6 +418,9 @@ const SignInBoard = () => {
             <span className="sibq-pob">{pob} aboard</span>
           </div>
           <div className="sibq-actions">
+            <button type="button" className={`sibq-btn icon${speakOn ? ' on' : ''}`} onClick={toggleSpeak} title={speakOn ? 'Spoken confirmation on' : 'Spoken confirmation off'} aria-label="Toggle spoken confirmation">
+              <Icon name={speakOn ? 'Volume2' : 'VolumeX'} size={16} />
+            </button>
             <button type="button" className="sibq-btn scan" onClick={() => setScanOpen(true)}>
               <Icon name="QrCode" size={16} /> Scan pass
             </button>
@@ -417,6 +457,7 @@ const SignInBoard = () => {
           </div>
         )}
         <footer className="sibq-foot">Tap your name to sign in or out</footer>
+        {confirmFlash}
       </div>
     );
   }
@@ -551,6 +592,7 @@ const SignInBoard = () => {
       {deviceSetupOpen && (
         <DeviceSetupModal tenantId={activeTenantId} crew={crew} onClose={() => setDeviceSetupOpen(false)} />
       )}
+      {confirmFlash}
       </div>
     </>
   );
