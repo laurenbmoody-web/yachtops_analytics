@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
 import LogoSpinner from '../../components/LogoSpinner';
+import DoorScanModal from './components/DoorScanModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
@@ -50,6 +51,7 @@ const SignInBoard = () => {
   // sign-in) → 'muster' (emergency roll call). null = the normal full board.
   const [doorView, setDoorView] = useState(standbyParam ? 'glance' : null);
   const [mustered, setMustered] = useState({}); // personKey -> true when accounted for
+  const [scanOpen, setScanOpen] = useState(false);
   const { session, activeTenantId } = useAuth();
   const meId = session?.user?.id;
   const now = useClock();
@@ -121,6 +123,20 @@ const SignInBoard = () => {
       setCrew((cur) => cur.map((x) => (x.userId === m.userId ? { ...x, status: m.status } : x)));
       showToast(/row-level|denied|policy/i.test(e?.message || '') ? 'This device can only sign the logged-in person in/out.' : 'Could not update — try again', 'error');
     } finally { mark(key, false); }
+  };
+
+  // A scanned gangway pass (`cargo-pass:<userId>`, or a bare id) flips that crew
+  // member's aboard/ashore status — the QR stand-in for the future NFC tap.
+  const handleScan = (raw) => {
+    setScanOpen(false);
+    const str = String(raw || '').trim();
+    const m = /^cargo-pass:(.+)$/i.exec(str);
+    const uid = (m ? m[1] : str).trim();
+    const member = crew.find((c) => c.userId === uid);
+    if (!member) { showToast('Pass not recognised for this vessel', 'error'); return; }
+    const next = flip(member.status);
+    toggleCrew(member);
+    showToast(`${member.name} — ${next === ABOARD ? 'On board' : 'Ashore'}`, 'success');
   };
 
   const toggleGuest = async (g) => {
@@ -285,6 +301,9 @@ const SignInBoard = () => {
             <span className="sibq-pob">{pob} aboard</span>
           </div>
           <div className="sibq-actions">
+            <button type="button" className="sibq-btn scan" onClick={() => setScanOpen(true)}>
+              <Icon name="QrCode" size={16} /> Scan pass
+            </button>
             <button type="button" className="sibq-btn muster" onClick={() => setDoorView('muster')}>
               <Icon name="AlertTriangle" size={16} /> Muster
             </button>
@@ -293,6 +312,7 @@ const SignInBoard = () => {
             </button>
           </div>
         </div>
+        {scanOpen && <DoorScanModal onClose={() => setScanOpen(false)} onDetect={handleScan} />}
         {loading ? (
           <div className="sib-loading"><LogoSpinner size={44} /></div>
         ) : (
@@ -333,6 +353,11 @@ const SignInBoard = () => {
             </button>
           )}
           <div className="sib-utilrow-r">
+            {!kiosk && (
+              <button type="button" className="sib-standby-btn" onClick={() => navigate('/door-pass')} title="Show my gangway QR pass">
+                <Icon name="QrCode" size={15} /><span className="lbl">My pass</span>
+              </button>
+            )}
             <button type="button" className="sib-standby-btn" onClick={() => setDoorView('glance')} title="Switch to the always-on door display">
               <Icon name="Monitor" size={15} /><span className="lbl">Standby</span>
             </button>
