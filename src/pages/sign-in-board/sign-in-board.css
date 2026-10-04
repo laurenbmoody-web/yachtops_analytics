@@ -496,3 +496,7 @@
 .sib-exp-in:hover { background: #B14E16; }
 .sib-exp-x { flex: none; width: 30px; height: 30px; border: 0; background: none; color: #AEB4C2; border-radius: 8px; cursor: pointer; display: grid; place-items: center; }
 .sib-exp-x:hover { background: #FBEFE9; color: #C65A1A; }
+
+/* Quick board — tabs + guest/visitor panes (reusing the full-board cards). */
+.sibq-tabs { margin: 0 clamp(18px, 3vw, 44px) 6px; }
+.sibq-pane { padding: 0 clamp(18px, 3vw, 44px) 24px; overflow-y: auto; }

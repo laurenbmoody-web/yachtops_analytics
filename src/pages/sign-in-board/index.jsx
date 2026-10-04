@@ -425,6 +425,157 @@ const SignInBoard = () => {
     finally { setMusterSaving(false); }
   };
 
+  // Panes + overlays shared between the full board and the stripped quick board,
+  // so visitors and guests can be managed from the door iPad too.
+  const guestsPane = guests.length === 0
+    ? <p className="sib-none">No guests on this trip.</p>
+    : <div className="sib-grid">{guests.map((g) => personCard({
+        key: `g:${g.id}`, on: g.onboard, name: g.name, sub: g.cabin || 'Guest',
+        backAt: g.returningAt, disabled: !!pending[`g:${g.id}`], onClick: () => toggleGuest(g),
+      }))}</div>;
+
+  const visitorsPane = (
+    <>
+      <div className="sib-grid">
+        {contractors.map((k) => {
+          const away = k.state === 'stepped_out';
+          const busyK = !!pending[`k:${k.id}`];
+          return (
+            <div key={`k:${k.id}`} className={`sib-vcard${away ? ' away' : ''}`}>
+              <span className="sib-av"><span className="sib-ini">{initials(k.name)}</span></span>
+              <span className="sib-name">{k.name}</span>
+              <span className="sib-dept">{k.company || 'Visitor'}</span>
+              {k.reason && <span className="sib-vreason">{k.reason}</span>}
+              {k.phone && <span className="sib-phone"><Icon name="Phone" size={11} /> {k.phone}</span>}
+              {away ? (
+                <button type="button" className="sib-vbtn return" disabled={busyK} onClick={() => returnVisitor(k)}>
+                  <Icon name="LogIn" size={14} /> Away — tap to return
+                </button>
+              ) : (
+                <button type="button" className="sib-vbtn leave" disabled={busyK} onClick={() => setLeaveVisitor(k)}>
+                  <Icon name="LogOut" size={14} /> Tap to leave
+                </button>
+              )}
+              <button type="button" className="sib-vpasslink" onClick={() => setPassVisitor(k)}>
+                <Icon name="QrCode" size={12} /> Pass
+              </button>
+            </div>
+          );
+        })}
+        <button type="button" className="sib-add" onClick={() => { setFromExpected(null); setAddOpen(true); }}>
+          <span className="sib-add-plus"><Icon name="Plus" size={22} /></span>
+          <span className="sib-add-label">Add visitor</span>
+        </button>
+      </div>
+      {expectedVisitors.length > 0 && (
+        <div className="sib-expected">
+          <p className="sib-expected-l">Expected</p>
+          <div className="sib-expected-list">
+            {expectedVisitors.map((x) => (
+              <div key={x.id} className="sib-exp-row">
+                <button type="button" className="sib-exp-main" onClick={() => arriveExpected(x)}>
+                  <span className="sib-exp-nm">{x.name}</span>
+                  <span className="sib-exp-sub">{[x.company, x.reason].filter(Boolean).join(' · ') || 'Visitor'}</span>
+                </button>
+                <button type="button" className="sib-exp-in" onClick={() => arriveExpected(x)}>Sign in</button>
+                <button type="button" className="sib-exp-x" onClick={() => cancelExpected(x.id).then(load)} title="Remove"><Icon name="X" size={14} /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  const overlays = (
+    <>
+      {leaveVisitor && (
+        <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setLeaveVisitor(null); }}>
+          <div className="sib-modal">
+            <div className="sib-modal-head">
+              <h4>{leaveVisitor.name} is leaving</h4>
+              <button type="button" className="sib-exit sm" onClick={() => setLeaveVisitor(null)} title="Close"><Icon name="X" size={16} /></button>
+            </div>
+            <p className="sib-leave-q">Stepping out for a bit, or done for the day?</p>
+            <div className="sib-leave-opts">
+              <button type="button" className="sib-leave-opt" onClick={() => stepOutVisitor(leaveVisitor)}>
+                <span className="sib-leave-ic temp"><Icon name="Coffee" size={20} /></span>
+                <span className="sib-leave-t">Stepping out</span>
+                <span className="sib-leave-s">Back later — stays on the board, one tap to return</span>
+              </button>
+              <button type="button" className="sib-leave-opt" onClick={() => signOffVisitor(leaveVisitor)}>
+                <span className="sib-leave-ic perm"><Icon name="LogOut" size={20} /></span>
+                <span className="sib-leave-t">Leaving for good</span>
+                <span className="sib-leave-s">Signs them off — removed from the board</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addOpen && (
+        <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) { setAddOpen(false); setFromExpected(null); } }}>
+          <div className="sib-modal">
+            <div className="sib-modal-head">
+              <h4>{fromExpected ? 'Sign in — induction' : 'Sign in a visitor'}</h4>
+              <button type="button" className="sib-exit sm" onClick={() => { setAddOpen(false); setFromExpected(null); }} title="Close"><Icon name="X" size={16} /></button>
+            </div>
+
+            {!fromExpected && recentVisitors.length > 0 && (
+              <div className="sib-recent">
+                <span className="sib-recent-l">Returning? Tap to sign back in</span>
+                <div className="sib-recent-list">
+                  {recentVisitors.map((v, i) => (
+                    <button key={i} type="button" className="sib-recent-chip" disabled={addBusy}
+                      onClick={() => signInVisitor(v.name, v.company, v.phone, { reason: v.reason, inducted: true })}>
+                      <span className="sib-recent-nm">{v.name}</span>
+                      {v.company && <span className="sib-recent-co">{v.company}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <label className="sib-field"><span>Name</span>
+              <input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Full name" autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
+            </label>
+            <label className="sib-field"><span>Contact number <em>for emergencies</em></span>
+              <input value={addPhone} onChange={(e) => onAddPhone(e.target.value)} placeholder="Mobile number" type="tel" inputMode="tel"
+                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
+            </label>
+            <label className="sib-field"><span>Company <em>optional</em></span>
+              <input value={addCompany} onChange={(e) => setAddCompany(e.target.value)} placeholder="e.g. AV Marine"
+                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
+            </label>
+            <label className="sib-field"><span>Reason for visit <em>optional</em></span>
+              <input value={addReason} onChange={(e) => setAddReason(e.target.value)} placeholder="e.g. Engine survey"
+                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
+            </label>
+            <button type="button" className={`sib-ack${addAck ? ' on' : ''}`} onClick={() => setAddAck((v) => !v)}>
+              <span className="sib-ack-box">{addAck && <Icon name="Check" size={13} />}</span>
+              <span className="sib-ack-t">Safety briefing given &amp; understood <em>required</em></span>
+            </button>
+            <div className="sib-modal-foot">
+              <button type="button" className="sib-btn ghost" onClick={() => { setAddOpen(false); setFromExpected(null); }}>Cancel</button>
+              {!fromExpected && (
+                <button type="button" className="sib-btn ghost" onClick={saveExpected} disabled={addBusy || !addName.trim()} title="Pre-register — sign in when they arrive">
+                  Expected
+                </button>
+              )}
+              <button type="button" className="sib-btn primary" onClick={submitContractor} disabled={addBusy || !addName.trim() || !addPhone.trim() || !addAck}>
+                Sign in
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {passVisitor && <VisitorPassModal visitor={passVisitor} onClose={() => setPassVisitor(null)} />}
+      {confirmFlash}
+    </>
+  );
+
   // ── Standby glance (always-on door iPad) ───────────────────────────────────
   if (doorView === 'glance') {
     return (
@@ -554,9 +705,17 @@ const SignInBoard = () => {
           </div>
         </div>
         {scanOpen && <DoorScanModal onClose={() => setScanOpen(false)} onDetect={handleScan} />}
+        <div className="sib-tabs sibq-tabs" role="tablist">
+          {tabs.map((t) => (
+            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id}
+              className={`sib-tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
+              {t.label} <span className="sib-tab-n">{t.n}</span>
+            </button>
+          ))}
+        </div>
         {loading ? (
           <div className="sib-loading"><LogoSpinner size={44} /></div>
-        ) : (
+        ) : tab === 'crew' ? (
           <div className="sibq-grid">
             {crew.map((m) => {
               const on = m.status === ABOARD;
@@ -576,9 +735,11 @@ const SignInBoard = () => {
               );
             })}
           </div>
+        ) : (
+          <div className="sibq-pane">{tab === 'guests' ? guestsPane : visitorsPane}</div>
         )}
-        <footer className="sibq-foot">Tap your name to sign in or out</footer>
-        {confirmFlash}
+        <footer className="sibq-foot">Tap your name to sign in or out · add visitors under Visitors</footer>
+        {overlays}
       </div>
     );
   }
@@ -657,156 +818,18 @@ const SignInBoard = () => {
                 img: m.avatarUrl, disabled: !!pending[`c:${m.userId}`], onClick: () => toggleCrew(m),
               }))}</div>)}
 
-          {tab === 'guests' && (guests.length === 0
-            ? <p className="sib-none">No guests on this trip.</p>
-            : <div className="sib-grid">{guests.map((g) => personCard({
-                key: `g:${g.id}`, on: g.onboard, name: g.name, sub: g.cabin || 'Guest',
-                backAt: g.returningAt, disabled: !!pending[`g:${g.id}`], onClick: () => toggleGuest(g),
-              }))}</div>)}
+          {tab === 'guests' && guestsPane}
 
-          {tab === 'visitors' && (
-            <div className="sib-grid">
-              {contractors.map((k) => {
-                const away = k.state === 'stepped_out';
-                const busyK = !!pending[`k:${k.id}`];
-                return (
-                  <div key={`k:${k.id}`} className={`sib-vcard${away ? ' away' : ''}`}>
-                    <span className="sib-av"><span className="sib-ini">{initials(k.name)}</span></span>
-                    <span className="sib-name">{k.name}</span>
-                    <span className="sib-dept">{k.company || 'Visitor'}</span>
-                    {k.reason && <span className="sib-vreason">{k.reason}</span>}
-                    {k.phone && <span className="sib-phone"><Icon name="Phone" size={11} /> {k.phone}</span>}
-                    {away ? (
-                      <button type="button" className="sib-vbtn return" disabled={busyK} onClick={() => returnVisitor(k)}>
-                        <Icon name="LogIn" size={14} /> Away — tap to return
-                      </button>
-                    ) : (
-                      <button type="button" className="sib-vbtn leave" disabled={busyK} onClick={() => setLeaveVisitor(k)}>
-                        <Icon name="LogOut" size={14} /> Tap to leave
-                      </button>
-                    )}
-                    <button type="button" className="sib-vpasslink" onClick={() => setPassVisitor(k)}>
-                      <Icon name="QrCode" size={12} /> Pass
-                    </button>
-                  </div>
-                );
-              })}
-              <button type="button" className="sib-add" onClick={() => { setFromExpected(null); setAddOpen(true); }}>
-                <span className="sib-add-plus"><Icon name="Plus" size={22} /></span>
-                <span className="sib-add-label">Add visitor</span>
-              </button>
-            </div>
-          )}
-
-          {tab === 'visitors' && expectedVisitors.length > 0 && (
-            <div className="sib-expected">
-              <p className="sib-expected-l">Expected</p>
-              <div className="sib-expected-list">
-                {expectedVisitors.map((x) => (
-                  <div key={x.id} className="sib-exp-row">
-                    <button type="button" className="sib-exp-main" onClick={() => arriveExpected(x)}>
-                      <span className="sib-exp-nm">{x.name}</span>
-                      <span className="sib-exp-sub">{[x.company, x.reason].filter(Boolean).join(' · ') || 'Visitor'}</span>
-                    </button>
-                    <button type="button" className="sib-exp-in" onClick={() => arriveExpected(x)}>Sign in</button>
-                    <button type="button" className="sib-exp-x" onClick={() => cancelExpected(x.id).then(load)} title="Remove"><Icon name="X" size={14} /></button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {tab === 'visitors' && visitorsPane}
         </div>
       )}
 
       <footer className="sib-foot">Tap crew or guests to sign in/out · tap a visitor to leave or return</footer>
 
-      {leaveVisitor && (
-        <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setLeaveVisitor(null); }}>
-          <div className="sib-modal">
-            <div className="sib-modal-head">
-              <h4>{leaveVisitor.name} is leaving</h4>
-              <button type="button" className="sib-exit sm" onClick={() => setLeaveVisitor(null)} title="Close"><Icon name="X" size={16} /></button>
-            </div>
-            <p className="sib-leave-q">Stepping out for a bit, or done for the day?</p>
-            <div className="sib-leave-opts">
-              <button type="button" className="sib-leave-opt" onClick={() => stepOutVisitor(leaveVisitor)}>
-                <span className="sib-leave-ic temp"><Icon name="Coffee" size={20} /></span>
-                <span className="sib-leave-t">Stepping out</span>
-                <span className="sib-leave-s">Back later — stays on the board, one tap to return</span>
-              </button>
-              <button type="button" className="sib-leave-opt" onClick={() => signOffVisitor(leaveVisitor)}>
-                <span className="sib-leave-ic perm"><Icon name="LogOut" size={20} /></span>
-                <span className="sib-leave-t">Leaving for good</span>
-                <span className="sib-leave-s">Signs them off — removed from the board</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {addOpen && (
-        <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) { setAddOpen(false); setFromExpected(null); } }}>
-          <div className="sib-modal">
-            <div className="sib-modal-head">
-              <h4>{fromExpected ? 'Sign in — induction' : 'Sign in a visitor'}</h4>
-              <button type="button" className="sib-exit sm" onClick={() => { setAddOpen(false); setFromExpected(null); }} title="Close"><Icon name="X" size={16} /></button>
-            </div>
-
-            {!fromExpected && recentVisitors.length > 0 && (
-              <div className="sib-recent">
-                <span className="sib-recent-l">Returning? Tap to sign back in</span>
-                <div className="sib-recent-list">
-                  {recentVisitors.map((v, i) => (
-                    <button key={i} type="button" className="sib-recent-chip" disabled={addBusy}
-                      onClick={() => signInVisitor(v.name, v.company, v.phone, { reason: v.reason, inducted: true })}>
-                      <span className="sib-recent-nm">{v.name}</span>
-                      {v.company && <span className="sib-recent-co">{v.company}</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <label className="sib-field"><span>Name</span>
-              <input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Full name" autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
-            </label>
-            <label className="sib-field"><span>Contact number <em>for emergencies</em></span>
-              <input value={addPhone} onChange={(e) => onAddPhone(e.target.value)} placeholder="Mobile number" type="tel" inputMode="tel"
-                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
-            </label>
-            <label className="sib-field"><span>Company <em>optional</em></span>
-              <input value={addCompany} onChange={(e) => setAddCompany(e.target.value)} placeholder="e.g. AV Marine"
-                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
-            </label>
-            <label className="sib-field"><span>Reason for visit <em>optional</em></span>
-              <input value={addReason} onChange={(e) => setAddReason(e.target.value)} placeholder="e.g. Engine survey"
-                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
-            </label>
-            <button type="button" className={`sib-ack${addAck ? ' on' : ''}`} onClick={() => setAddAck((v) => !v)}>
-              <span className="sib-ack-box">{addAck && <Icon name="Check" size={13} />}</span>
-              <span className="sib-ack-t">Safety briefing given &amp; understood <em>required</em></span>
-            </button>
-            <div className="sib-modal-foot">
-              <button type="button" className="sib-btn ghost" onClick={() => { setAddOpen(false); setFromExpected(null); }}>Cancel</button>
-              {!fromExpected && (
-                <button type="button" className="sib-btn ghost" onClick={saveExpected} disabled={addBusy || !addName.trim()} title="Pre-register — sign in when they arrive">
-                  Expected
-                </button>
-              )}
-              <button type="button" className="sib-btn primary" onClick={submitContractor} disabled={addBusy || !addName.trim() || !addPhone.trim() || !addAck}>
-                Sign in
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {deviceSetupOpen && (
         <DeviceSetupModal tenantId={activeTenantId} crew={crew} onClose={() => setDeviceSetupOpen(false)} />
       )}
-      {passVisitor && <VisitorPassModal visitor={passVisitor} onClose={() => setPassVisitor(null)} />}
-      {confirmFlash}
+      {overlays}
       </div>
     </>
   );
