@@ -9,10 +9,12 @@ import { newId } from './ids';
 
 const key = (table, id) => `${table}|${id}`;
 
-/** insert(row) — row gets a device id + timestamps if it lacks them. */
-export async function insertRow(table, row, label) {
+/** insert(row) — row gets a device id + timestamps if it lacks them.
+ *  opts.timestamps: false for tables without created_at / updated_at columns
+ *  (the database default then stamps it on sync). */
+export async function insertRow(table, row, label, { timestamps = true } = {}) {
   const nowIso = new Date().toISOString();
-  const full = { id: newId(), created_at: nowIso, updated_at: nowIso, ...row };
+  const full = { id: newId(), ...(timestamps ? { created_at: nowIso, updated_at: nowIso } : {}), ...row };
   try {
     const res = await outbox.submit({ key: key(table, full.id), table, type: 'insert', row: full, match: { id: full.id }, returning: true, label });
     return { data: res.data || full, error: null };

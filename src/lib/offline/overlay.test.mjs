@@ -86,6 +86,15 @@ test('pending stock changes add up on the item, by location id, then position + 
   assert.equal(out[1].quantity, 5);
   // No stock array: the plain quantity moves, never below zero.
   assert.equal(applyStockDelta({ id: 'x', quantity: 2, stock_locations: [] }, { p_delta: -3 }).quantity, 0);
-  // Unknown location: left alone (the server refuses it too).
+  // Unknown location: left alone (the server refuses it too)…
   assert.equal(applyStockDelta(row, { p_delta: 1, p_location_name: 'Nowhere' }), row);
+  // …unless it is a delivery to a new place (p_create); names match in any case.
+  const recv = applyStockDelta(row, { p_delta: 4, p_location_name: 'Wine Cellar', p_create: { locationName: 'Wine Cellar' } });
+  assert.deepEqual(recv.stock_locations.at(-1), { locationName: 'Wine Cellar', qty: 4 });
+  assert.equal(recv.quantity, 7);
+  assert.equal(applyStockDelta(recv, { p_delta: 1, p_location_name: 'wine cellar', p_create: { locationName: 'wine cellar' } }).stock_locations.length, 3);
+  // Unplaced stock (no location given): the totals only.
+  const unplaced = applyStockDelta(row, { p_delta: 2 });
+  assert.equal(unplaced.total_qty, 5);
+  assert.equal(unplaced.stock_locations, row.stock_locations);
 });

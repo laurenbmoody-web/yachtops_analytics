@@ -6,6 +6,7 @@
 
 import { supabase } from '../../../lib/supabaseClient';
 import { outbox } from '../../../lib/offline/queue';
+import { insertRow } from '../../../lib/offline/rowWrites';
 
 export const INVENTORY = 'inventory';
 export const EQUIPMENT = 'equipment';
@@ -496,7 +497,7 @@ const moveStockForLink = async ({ link, tenantId, userId, sign }) => {
   // The movements ledger is best-effort, the same way provisioning treats it:
   // a ledger failure must never leave the stock write half-done.
   try {
-    await supabase?.from('inventory_movements')?.insert({
+    await insertRow('inventory_movements', {
       tenant_id: tenantId,
       inventory_item_id: item?.id,
       qty_delta: applied,
@@ -506,7 +507,7 @@ const moveStockForLink = async ({ link, tenantId, userId, sign }) => {
         link?.size ? `size ${link.size}` : null,
       ]?.filter(Boolean)?.join(' — '),
       created_by: userId || null,
-    });
+    }, 'Stock movement', { timestamps: false });
   } catch (err) {
     console.warn('[jobLinks] movement ledger write failed (non-blocking):', err);
   }
@@ -681,7 +682,7 @@ export const adjustConsumedQty = async ({ link, tenantId, userId, newQty }) => {
   await writeItemStock(item, tenantId, { stock_locations, variants, total });
 
   try {
-    await supabase?.from('inventory_movements')?.insert({
+    await insertRow('inventory_movements', {
       tenant_id: tenantId,
       inventory_item_id: item?.id,
       qty_delta: applied,
@@ -691,7 +692,7 @@ export const adjustConsumedQty = async ({ link, tenantId, userId, newQty }) => {
         link?.size ? `size ${link.size}` : null,
       ]?.filter(Boolean)?.join(' — '),
       created_by: userId || null,
-    });
+    }, 'Stock movement', { timestamps: false });
   } catch (err) {
     console.warn('[jobLinks] movement ledger write failed (non-blocking):', err);
   }

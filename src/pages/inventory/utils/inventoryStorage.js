@@ -35,8 +35,11 @@ const writeItem = async (id, tenantId, patch, label = 'Inventory change') => {
  *   loc   — the stock location entry tapped (from item.stockLocations), or
  *           null for an item without locations
  *   index — its position in the item's stock locations
+ *   create — for a delivery: the new stock entry to add if the item isn't
+ *           stocked at `loc` yet ({ locationName, vesselLocationId })
+ * No loc and no create = unplaced stock (the totals only).
  */
-export const adjustItemStock = async (itemId, delta, { loc = null, index = null, name = '' } = {}) => {
+export const adjustItemStock = async (itemId, delta, { loc = null, index = null, name = '', create = null } = {}) => {
   try {
     if (!itemId || !delta) return false;
     const args = {
@@ -46,6 +49,7 @@ export const adjustItemStock = async (itemId, delta, { loc = null, index = null,
       p_location_index: loc ? index : null,
       p_location_name: loc ? (loc.locationName ?? loc.location_name ?? loc.name ?? '') : null,
       p_op_id: newId(),
+      p_create: create || null, // always sent: PostgREST resolves the function by its arguments
     };
     await outbox.submit({
       key: itemKey(itemId), table: ITEMS, type: 'rpc', fn: 'adjust_inventory_stock', args, match: { id: itemId },
