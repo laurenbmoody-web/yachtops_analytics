@@ -111,16 +111,25 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 // Offline writes (layer 2): the outbox replays queued ops through this client.
-// Ops are plain table writes: { type: 'upsert', table, row, onConflict } or
-// { type: 'delete', table, match }.
+// Ops are plain table writes:
+//   { type: 'insert', table, row }                    row carries its client id
+//   { type: 'upsert', table, row, onConflict }
+//   { type: 'update', table, patch, match }
+//   { type: 'delete', table, match }
+// `returning: true` hands back the saved row (data) when it runs online.
 setOutboxExecutor(async (op) => {
-  if (op.type === 'upsert') {
-    return supabase.from(op.table).upsert(op.row, op.onConflict ? { onConflict: op.onConflict } : undefined);
-  }
-  if (op.type === 'delete') {
-    return supabase.from(op.table).delete().match(op.match);
-  }
-  return { error: { message: `unknown outbox op ${op.type}`, code: 'OUTBOX' } };
+  const t = supabase.from(op.table);
+  let q;
+  if (op.type === 'insert') q = t.insert(op.row);
+  else if (op.type === 'upsert') q = t.upsert(op.row, op.onConflict ? { onConflict: op.onConflict } : undefined);
+  else if (op.type === 'update') q = t.update(op.patch).match(op.match);
+  else if (op.type === 'delete') q = t.delete().match(op.match);
+  else return { error: { message: `unknown outbox op ${op.type}`, code: 'OUTBOX' } };
+  if (op.returning) q = q.select();
+  const res = await q;
+  // An insert replayed after its response was lost already exists: done.
+  if (op.type === 'insert' && res.error?.code === '23505') return { data: op.row, error: null };
+  return { ...res, data: Array.isArray(res.data) ? (res.data[0] ?? null) : res.data };
 });
 
 // Saved reads are per user, but clear them on sign-out anyway so a shared

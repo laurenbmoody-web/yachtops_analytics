@@ -38,3 +38,22 @@ test('another vessel’s query is untouched', () => {
   const rows = [{ entry_date: '2026-10-03', work_segments: [1] }];
   assert.deepEqual(applyOverlay(url, rows, [upsert('2026-10-03', [9])]), rows);
 });
+
+const JOBS = 'https://p.supabase.co/rest/v1/team_jobs?select=id,title,status&tenant_id=eq.t1&status=in.(pending,in_progress)';
+
+test('update patches the matching row (only selected columns)', () => {
+  const rows = [{ id: 'j1', title: 'Wash tender', status: 'pending' }, { id: 'j2', title: 'Polish', status: 'pending' }];
+  const out = applyOverlay(JOBS, rows, [{ type: 'update', match: { id: 'j2', tenant_id: 't1' }, patch: { status: 'in_progress', updated_at: 'x' } }]);
+  assert.deepEqual(out, [{ id: 'j1', title: 'Wash tender', status: 'pending' }, { id: 'j2', title: 'Polish', status: 'in_progress' }]);
+});
+
+test('update that moves a row out of the filtered list removes it (job completed offline)', () => {
+  const rows = [{ id: 'j1', title: 'Wash tender', status: 'pending' }];
+  const out = applyOverlay(JOBS, rows, [{ type: 'update', match: { id: 'j1' }, patch: { status: 'completed' } }]);
+  assert.deepEqual(out, []);
+});
+
+test('insert adds a job created offline', () => {
+  const out = applyOverlay(JOBS, [], [{ type: 'insert', match: { id: 'j9' }, row: { id: 'j9', tenant_id: 't1', title: 'New', status: 'pending', created_by: 'u1' } }]);
+  assert.deepEqual(out, [{ id: 'j9', title: 'New', status: 'pending' }]);
+});

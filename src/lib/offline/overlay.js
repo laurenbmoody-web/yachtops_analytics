@@ -78,15 +78,28 @@ function sorter(url) {
   return (a, b) => (dir === 'desc' ? -1 : 1) * cmp(a?.[col], b?.[col]);
 }
 
-// ops: [{ type: 'upsert', row, match } | { type: 'delete', match }], oldest first.
+// ops (oldest first):
+//   { type: 'insert' | 'upsert', row, match }  → replace / add the row
+//   { type: 'update', patch, match }            → patch matching rows (a patch
+//                                                 can move a row out of the list)
+//   { type: 'delete', match }                   → remove it
 export function applyOverlay(url, rows, ops) {
   if (!Array.isArray(rows) || !ops?.length) return rows;
   const filters = parseFilters(url);
   const project = projector(url);
   let out = rows.slice();
   for (const op of ops) {
+    if (op.type === 'update') {
+      out = out.flatMap((r) => {
+        if (!sameKey(r, op.match, filters)) return [r];
+        const next = { ...r };
+        Object.keys(op.patch || {}).forEach((k) => { if (k in r || k in (op.match || {})) next[k] = op.patch[k]; });
+        return passes({ ...r, ...op.patch }, filters) ? [next] : [];
+      });
+      continue;
+    }
     out = out.filter((r) => !sameKey(r, op.match, filters));
-    if (op.type === 'upsert' && passes(op.row, filters)) out.push(project(op.row));
+    if ((op.type === 'upsert' || op.type === 'insert') && passes(op.row, filters)) out.push(project(op.row));
   }
   const sort = sorter(url);
   return sort ? out.sort(sort) : out;

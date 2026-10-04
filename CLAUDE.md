@@ -46,12 +46,15 @@ it, `window.location.origin` is `capacitor://localhost` / `https://localhost`, s
   those prefixes** (or add it to `WRITE_RPC` in `readCache.js`), or offline it would
   "succeed" from a stale copy.
 - **Offline writes go through the outbox** (`src/lib/offline/queue.js`): for a
-  workflow crew record at sea, write with `outbox.submit({ key, table, type:
-  'upsert'|'delete', row, onConflict, match, label })` instead of calling
-  `supabase.from(...).upsert/delete` directly — online it runs immediately (real
-  errors still throw), offline it queues, shows in every read of that table, and
-  syncs later. `key` = table + row identity (latest edit per key wins). Hours of
-  rest (`horWorkEntries.js`) is the reference.
+  workflow crew record at sea, write with `outbox.submit({ key, table, type, … ,
+  label })` instead of calling `supabase.from(...)` directly — online it runs
+  immediately (real errors still throw), offline it queues, shows in every read of
+  that table, and syncs later. Types: `insert` (`row` with a device id from
+  `newId()` in `lib/offline/ids.js`), `upsert` (`row`, `onConflict`), `update`
+  (`patch`, `match`), `delete` (`match`); `returning: true` hands back the saved
+  row online. `key` = table + row identity — later edits of one row fold into one
+  write. References: hours of rest (`horWorkEntries.js`), jobs
+  (`team-jobs-management/utils/jobWrites.js`), defects (`defectsStorage.js`).
 
 Full detail: `docs/native-app.md`.
 

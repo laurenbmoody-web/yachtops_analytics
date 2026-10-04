@@ -174,3 +174,24 @@ test('pending offline edits are laid over reads — network and saved copy alike
   const other = await wrap(async () => json([{ id: 1 }]))(`${BASE}/rest/v1/team_jobs?select=*`, { headers: auth() });
   assert.deepEqual(await other.json(), [{ id: 1 }]);
 });
+
+test('single-object reads get the overlay too — even a record that only exists offline', async () => {
+  const pending = [{ type: 'insert', match: { id: 'd9' }, row: { id: 'd9', tenant_id: 't1', title: 'Leak' } }];
+  const { wrap } = setup({ pendingFor: (t) => (t === 'defects' ? pending : []) });
+  const url = `${BASE}/rest/v1/defects?select=*&id=eq.d9&tenant_id=eq.t1`;
+  const single = { ...auth(), Accept: 'application/vnd.pgrst.object+json' };
+  const res = await wrap(async () => json({ code: 'PGRST116', message: '0 rows' }, 406))(url, { headers: single });
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { id: 'd9', tenant_id: 't1', title: 'Leak' });
+  const other = await wrap(async () => json({ code: 'PGRST116' }, 406))(`${BASE}/rest/v1/defects?select=*&id=eq.zz`, { headers: single });
+  assert.equal(other.status, 406);
+});
+
+test('offline with no saved copy: records made offline that belong in the query are still shown', async () => {
+  const pending = [{ type: 'insert', match: { id: 's1' }, row: { id: 's1', job_id: 'j9', tenant_id: 't1', text: 'Rinse', done: false } }];
+  const { wrap } = setup({ pendingFor: (t) => (t === 'job_steps' ? pending : []) });
+  const res = await wrap(offline)(`${BASE}/rest/v1/job_steps?select=id,text,done&job_id=eq.j9&tenant_id=eq.t1`, { headers: auth() });
+  assert.deepEqual(await res.json(), [{ id: 's1', text: 'Rinse', done: false }]);
+  // a query none of them belong to still fails like any offline read
+  await assert.rejects(wrap(offline)(`${BASE}/rest/v1/job_steps?select=*&job_id=eq.other`, { headers: auth() }));
+});

@@ -77,8 +77,11 @@ device" / "Syncing".
 |---|---|
 | Hours of rest — logging / clearing a day (`horWorkEntries.js`) | ✅ offline |
 | Hours of rest — submit month, breach reasons, sign-off | needs a connection |
-| Jobs & defects | next |
-| Laundry & wardrobe | planned |
+| Jobs — create, complete, status, edit, reject, notes, steps (`jobWrites.js`, `jobSteps.js`) | ✅ offline |
+| Defects — log (photos ride in the row), update, assign, claim, accept/decline, close/reopen, comments, history, promote to maintenance (`defectsStorage.js`) | ✅ offline |
+| Notifications raised offline (`dbNotifications.js`) | ✅ delivered on reconnect |
+| Defect quote approval decision (RPC) | needs a connection |
+| Laundry & wardrobe | next |
 | Inventory & provisioning | planned |
 
 ## Push

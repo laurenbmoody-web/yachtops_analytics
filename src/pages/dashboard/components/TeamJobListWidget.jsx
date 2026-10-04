@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useTenant } from '../../../contexts/TenantContext';
 import { supabase } from '../../../lib/supabaseClient';
 import './team-jobs-widget.css';
+import { updateJobRow } from '../../team-jobs-management/utils/jobWrites';
 
 const VISIBLE = 4; // shown in the quiet index, after the lead
 const pad2 = (n) => String(n).padStart(2, '0');
@@ -116,9 +117,10 @@ const TeamJobListWidget = () => {
     if (clearing) return;
     setClearing(id);
     try {
-      const { error: upErr } = await supabase.from('team_jobs')
-        .update({ status: 'completed', completed_at: new Date().toISOString(), completion_date: todayStr, completed_by: authUser.id })
-        .eq('id', id).eq('tenant_id', activeTenantId);
+      // Offline-capable: ticked at sea, synced when the link returns.
+      const { error: upErr } = await updateJobRow(id, activeTenantId,
+        { status: 'completed', completed_at: new Date().toISOString(), completion_date: todayStr, completed_by: authUser.id },
+        'Completing a job');
       if (upErr) throw upErr;
       setDoneToday((n) => n + 1);
       setTimeout(() => {

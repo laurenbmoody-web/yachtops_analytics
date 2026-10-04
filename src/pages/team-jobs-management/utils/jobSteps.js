@@ -5,7 +5,14 @@
 // state and localStorage, and fetchJobsFromSupabase reset them to [] on every
 // load, so they vanished for their author and never existed for the assignee.
 
+// Writes go through the offline outbox (lib/offline/outbox.js) so steps can be
+// added and ticked at sea; pending ones show in loadJobSteps until they sync.
+
 import { supabase } from '../../../lib/supabaseClient';
+import { outbox } from '../../../lib/offline/queue';
+import { newId } from '../../../lib/offline/ids';
+
+const stepKey = (id) => `job_steps|${id}`;
 
 const jobIdOf = (job) => job?.supabase_id || job?.id || null;
 
@@ -47,53 +54,43 @@ export const addJobStep = async ({ job, tenantId, text, userId, after = [] }) =>
 
   const lastPosition = (after || [])?.reduce((max, s) => Math.max(max, s?.position || 0), -1);
 
-  const { data, error } = await supabase
-    ?.from('job_steps')
-    ?.insert({
-      tenant_id: tenantId,
-      job_id: jobId,
-      text: clean,
-      position: lastPosition + 1,
-      created_by: userId || null,
-    })
-    ?.select('id, text, done, done_at, done_by, position')
-    ?.single();
-  if (error) throw error;
-
-  return {
-    id: data?.id,
-    text: data?.text || clean,
+  const id = newId();
+  const nowIso = new Date()?.toISOString();
+  const row = {
+    id,
+    tenant_id: tenantId,
+    job_id: jobId,
+    text: clean,
+    position: lastPosition + 1,
+    created_by: userId || null,
     done: false,
-    doneAt: null,
-    doneBy: null,
-    position: Number(data?.position) || lastPosition + 1,
+    created_at: nowIso,
+    updated_at: nowIso,
   };
+  await outbox.submit({ key: stepKey(id), table: 'job_steps', type: 'insert', row, match: { id }, label: 'A job step' });
+
+  return { id, text: clean, done: false, doneAt: null, doneBy: null, position: lastPosition + 1 };
 };
 
+const updateStep = (stepId, patch) => outbox.submit({
+  key: stepKey(stepId), table: 'job_steps', type: 'update', patch, match: { id: stepId }, label: 'A job step',
+});
+
 export const setJobStepDone = async ({ stepId, done, userId }) => {
-  const { error } = await supabase
-    ?.from('job_steps')
-    ?.update({
-      done: !!done,
-      done_at: done ? new Date()?.toISOString() : null,
-      done_by: done ? (userId || null) : null,
-      updated_at: new Date()?.toISOString(),
-    })
-    ?.eq('id', stepId);
-  if (error) throw error;
+  await updateStep(stepId, {
+    done: !!done,
+    done_at: done ? new Date()?.toISOString() : null,
+    done_by: done ? (userId || null) : null,
+    updated_at: new Date()?.toISOString(),
+  });
 };
 
 export const renameJobStep = async ({ stepId, text }) => {
   const clean = String(text || '')?.trim();
   if (!clean) return;
-  const { error } = await supabase
-    ?.from('job_steps')
-    ?.update({ text: clean, updated_at: new Date()?.toISOString() })
-    ?.eq('id', stepId);
-  if (error) throw error;
+  await updateStep(stepId, { text: clean, updated_at: new Date()?.toISOString() });
 };
 
 export const removeJobStep = async ({ stepId }) => {
-  const { error } = await supabase?.from('job_steps')?.delete()?.eq('id', stepId);
-  if (error) throw error;
+  await outbox.submit({ key: stepKey(stepId), table: 'job_steps', type: 'delete', match: { id: stepId }, label: 'Removing a job step' });
 };

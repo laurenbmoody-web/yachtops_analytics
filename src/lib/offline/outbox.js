@@ -8,8 +8,9 @@
 //   flush()     Replays saved ops (oldest first) when the link returns: on
 //               reconnect, app resume, sign-in and a timer while any wait.
 //
-// Ops carry a `key` (table + row identity); a newer op for the same key
-// replaces the older one, so only the latest version of each row is synced.
+// Ops carry a `key` (table + row identity); a newer op for the same key is
+// folded into the waiting one (combine()), so only the latest version of each
+// row is synced.
 // Ops are per user: only the signed-in user's ops are replayed or shown.
 // While waiting, pending ops are laid over every read of their table
 // (overlay.js), so the edit stays visible across reloads.
@@ -24,6 +25,25 @@ const isTransient = (res) => {
   if (!e.code && /fetch|network|load failed|abort|timed? ?out/i.test(`${e.message} ${e.details}`)) return true;
   return false;
 };
+
+// A newer op for a row that already has one waiting → the single op to keep
+// (null = nothing left to send). Ops: insert (new row, client id) · upsert ·
+// update (partial patch) · delete.
+export function combine(prev, next) {
+  const keep = { ...next, createdAt: prev.createdAt }; // keep its place in line
+  if (next.type === 'delete') {
+    // Never reached the server → cancel out entirely.
+    return prev.type === 'insert' ? null : keep;
+  }
+  if (next.type === 'update') {
+    if (prev.type === 'delete') return { ...prev, seq: next.seq };   // gone stays gone
+    if (prev.type === 'insert' || prev.type === 'upsert') {
+      return { ...prev, seq: next.seq, row: { ...prev.row, ...next.patch }, label: prev.label };
+    }
+    if (prev.type === 'update') return { ...keep, patch: { ...prev.patch, ...next.patch } };
+  }
+  return keep; // insert / upsert replace whatever was waiting
+}
 
 export function createOutbox({ store, execute, userId = () => null, now = () => Date.now(), onChange = () => {}, onRejected = () => {} }) {
   let ops = [];          // in-memory mirror of the store, oldest first
@@ -59,10 +79,14 @@ export function createOutbox({ store, execute, userId = () => null, now = () => 
   async function submit(input) {
     await ready;
     const op = { ...input, user: userId(), createdAt: now(), seq: ++seq };
-    // An older edit of the same row is still waiting: queue behind it rather
-    // than racing it, so the server ends on the latest version.
-    if (ops.some((o) => o.key === op.key && o.user === op.user)) {
-      await save(op);
+    // An older edit of the same row is still waiting: fold this one into it
+    // (or queue behind it) rather than racing it, so the server ends on the
+    // latest version.
+    const prev = ops.find((o) => o.key === op.key && o.user === op.user);
+    if (prev) {
+      const merged = combine(prev, op);
+      if (merged) await save(merged);
+      else await drop(prev); // created and deleted offline: nothing to send
       flush();
       return { queued: true };
     }
