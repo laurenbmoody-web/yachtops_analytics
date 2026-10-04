@@ -57,3 +57,12 @@ test('insert adds a job created offline', () => {
   const out = applyOverlay(JOBS, [], [{ type: 'insert', match: { id: 'j9' }, row: { id: 'j9', tenant_id: 't1', title: 'New', status: 'pending', created_by: 'u1' } }]);
   assert.deepEqual(out, [{ id: 'j9', title: 'New', status: 'pending' }]);
 });
+
+test('select=* read: an update adds columns the row did not have yet (packed into a case)', () => {
+  const url = 'https://p.supabase.co/rest/v1/laundry_items?select=*&tenant_id=eq.t1';
+  const out = applyOverlay(url, [], [
+    { type: 'insert', match: { id: 'i1' }, row: { id: 'i1', tenant_id: 't1', description: 'Shirt' } },
+    { type: 'update', match: { id: 'i1' }, patch: { case_id: 'c1' } },
+  ]);
+  assert.deepEqual(out, [{ id: 'i1', tenant_id: 't1', description: 'Shirt', case_id: 'c1' }]);
+});

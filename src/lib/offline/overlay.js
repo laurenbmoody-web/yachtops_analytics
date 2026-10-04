@@ -63,6 +63,15 @@ function sameKey(row, match, filters) {
   });
 }
 
+// Which columns a read returns: 'all' (select=* / none), a Set for a plain
+// list, or null when it has joins/aliases (then only patch what's there).
+function selection(url) {
+  const sel = new URL(url).searchParams.get('select');
+  if (!sel || sel === '*') return 'all';
+  if (/[():!]/.test(sel)) return null;
+  return new Set(sel.split(',').map((c) => c.trim()).filter(Boolean));
+}
+
 // Keep only the selected columns when the select list is a plain one.
 function projector(url) {
   const sel = new URL(url).searchParams.get('select');
@@ -87,13 +96,15 @@ export function applyOverlay(url, rows, ops) {
   if (!Array.isArray(rows) || !ops?.length) return rows;
   const filters = parseFilters(url);
   const project = projector(url);
+  const sel = selection(url);
+  const shows = (k, r) => sel === 'all' || (sel ? sel.has(k) : k in r);
   let out = rows.slice();
   for (const op of ops) {
     if (op.type === 'update') {
       out = out.flatMap((r) => {
         if (!sameKey(r, op.match, filters)) return [r];
         const next = { ...r };
-        Object.keys(op.patch || {}).forEach((k) => { if (k in r || k in (op.match || {})) next[k] = op.patch[k]; });
+        Object.keys(op.patch || {}).forEach((k) => { if (shows(k, r)) next[k] = op.patch[k]; });
         return passes({ ...r, ...op.patch }, filters) ? [next] : [];
       });
       continue;

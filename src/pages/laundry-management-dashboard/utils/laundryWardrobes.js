@@ -6,6 +6,8 @@
 import { supabase } from '../../../lib/supabaseClient';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { showToast } from '../../../utils/toast';
+import { insertRow, updateRow, updateWhere } from '../../../lib/offline/rowWrites';
+import { storedSession } from '../../../lib/offline/session';
 
 const getTenantId = async () => {
   try {
@@ -57,7 +59,7 @@ export const createWardrobe = async ({ name, location, locationId, scope, notes 
   const tenantId = await getTenantId();
   if (!tenantId) return null;
   const u = getCurrentUser();
-  const { data: auth } = await supabase.auth.getUser();
+  const auth = { user: storedSession()?.user }; // no network — works offline
   const payload = {
     tenant_id: tenantId,
     name: (name || '').trim() || 'New wardrobe',
@@ -68,25 +70,27 @@ export const createWardrobe = async ({ name, location, locationId, scope, notes 
     created_by: auth?.user?.id || null,
     created_by_name: u?.fullName || u?.name || null,
   };
-  const { data, error } = await supabase.from('laundry_wardrobes').insert(payload).select(SELECT).single();
+  // Offline-capable (lib/offline/rowWrites.js).
+  const { data, error } = await insertRow('laundry_wardrobes', payload, 'A laundry wardrobe');
   if (error) { console.error('[laundry-wardrobes] create failed', error); showToast('Could not create wardrobe', 'error'); return null; }
-  return mapWardrobe(data);
+  // Re-read with the location join (the write itself returns the bare row).
+  return (await getWardrobeById(data.id)) || mapWardrobe(data);
 };
 
 export const updateWardrobe = async (id, updates) => {
   const map = { name: 'name', location: 'location', locationId: 'location_id', scope: 'scope', notes: 'notes' };
   const patch = { updated_at: new Date().toISOString() };
   Object.entries(updates || {}).forEach(([k, v]) => { if (map[k]) patch[map[k]] = (typeof v === 'string' ? v.trim() : v) || null; });
-  const { data, error } = await supabase.from('laundry_wardrobes').update(patch).eq('id', id).select(SELECT).single();
+  const { data, error } = await updateRow('laundry_wardrobes', id, patch, 'A laundry wardrobe update');
   if (error) { console.error('[laundry-wardrobes] update failed', error); showToast('Could not update wardrobe', 'error'); return null; }
-  return mapWardrobe(data);
+  return (await getWardrobeById(id)) || mapWardrobe(data);
 };
 
 // Archive a wardrobe: clear the home off its items first (they become loose),
 // then archive the row.
 export const archiveWardrobe = async (id) => {
-  await supabase.from('laundry_items').update({ wardrobe_id: null }).eq('wardrobe_id', id);
-  const { error } = await supabase.from('laundry_wardrobes').update({ archived_at: new Date().toISOString() }).eq('id', id);
+  await updateWhere('laundry_items', { wardrobe_id: id }, { wardrobe_id: null }, 'Emptying a laundry wardrobe');
+  const { error } = await updateRow('laundry_wardrobes', id, { archived_at: new Date().toISOString() }, 'Removing a laundry wardrobe');
   if (error) { console.error('[laundry-wardrobes] archive failed', error); showToast('Could not remove wardrobe', 'error'); return false; }
   return true;
 };

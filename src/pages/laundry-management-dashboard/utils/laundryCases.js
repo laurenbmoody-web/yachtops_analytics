@@ -7,6 +7,8 @@ import { supabase } from '../../../lib/supabaseClient';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { showToast } from '../../../utils/toast';
 import { uploadLaundryPhotos } from './laundryPhotos';
+import { insertRow, updateRow, updateWhere } from '../../../lib/offline/rowWrites';
+import { storedSession } from '../../../lib/offline/session';
 
 const getTenantId = async () => {
   try {
@@ -65,7 +67,7 @@ export const createCase = async ({ name, destination, notes, ownerType, ownerGue
   const tenantId = await getTenantId();
   if (!tenantId) return null;
   const u = getCurrentUser();
-  const { data: auth } = await supabase.auth.getUser();
+  const auth = { user: storedSession()?.user }; // no network — works offline
   const payload = {
     tenant_id: tenantId,
     name: (name || '').trim() || 'New case',
@@ -78,7 +80,8 @@ export const createCase = async ({ name, destination, notes, ownerType, ownerGue
     created_by: auth?.user?.id || null,
     created_by_name: u?.fullName || u?.name || null,
   };
-  const { data, error } = await supabase.from('laundry_cases').insert(payload).select('*').single();
+  // Offline-capable (lib/offline/rowWrites.js).
+  const { data, error } = await insertRow('laundry_cases', payload, 'A laundry case');
   if (error) { console.error('[laundry-cases] create failed', error); showToast('Could not create case', 'error'); return null; }
   return mapCase(data);
 };
@@ -87,7 +90,7 @@ export const updateCase = async (id, updates) => {
   const map = { name: 'name', destination: 'destination', status: 'status', notes: 'notes', cabin: 'cabin', ownerType: 'owner_type', ownerGuestId: 'owner_guest_id', details: 'details' };
   const patch = { updated_at: new Date().toISOString() };
   Object.entries(updates || {}).forEach(([k, v]) => { if (map[k]) patch[map[k]] = (typeof v === 'string' ? v.trim() : v) || null; });
-  const { data, error } = await supabase.from('laundry_cases').update(patch).eq('id', id).select('*').single();
+  const { data, error } = await updateRow('laundry_cases', id, patch, 'A laundry case update');
   if (error) { console.error('[laundry-cases] update failed', error); showToast('Could not update case', 'error'); return null; }
   return mapCase(data);
 };
@@ -115,8 +118,8 @@ export const removeCasePhoto = async (id, kind, path, details = {}) => {
 // Archive a case: unpack its items first (SET NULL would do this on delete, but
 // archiving keeps the row) so the garments return to the loose list.
 export const archiveCase = async (id) => {
-  await supabase.from('laundry_items').update({ case_id: null }).eq('case_id', id);
-  const { error } = await supabase.from('laundry_cases').update({ archived_at: new Date().toISOString() }).eq('id', id);
+  await updateWhere('laundry_items', { case_id: id }, { case_id: null }, 'Emptying a laundry case');
+  const { error } = await updateRow('laundry_cases', id, { archived_at: new Date().toISOString() }, 'Removing a laundry case');
   if (error) { console.error('[laundry-cases] archive failed', error); showToast('Could not remove case', 'error'); return false; }
   return true;
 };

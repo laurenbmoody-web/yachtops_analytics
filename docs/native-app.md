@@ -81,8 +81,11 @@ device" / "Syncing".
 | Defects — log (photos ride in the row), update, assign, claim, accept/decline, close/reopen, comments, history, promote to maintenance (`defectsStorage.js`) | ✅ offline |
 | Notifications raised offline (`dbNotifications.js`) | ✅ delivered on reconnect |
 | Defect quote approval decision (RPC) | needs a connection |
-| Laundry & wardrobe | next |
-| Inventory & provisioning | planned |
+| Laundry — add (with photos), status, edit, notes, split/move, bulk deliver/archive/restore, delete (`laundryStorage.js`) | ✅ offline |
+| Laundry photos — queued uploads, shown from the device until uploaded (`laundryPhotos.js`) | ✅ offline |
+| Wardrobes & cases — create, edit, pack/unpack, case photos, remove (`laundryWardrobes.js`, `laundryCases.js`) | ✅ offline |
+| Laundry vessel settings, "reset day" (chief), case share links | needs a connection |
+| Inventory & provisioning | next |
 
 ## Push
 
