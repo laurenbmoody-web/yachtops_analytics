@@ -40,6 +40,11 @@ it, `window.location.origin` is `capacitor://localhost` / `https://localhost`, s
 - Downloads, `window.open`, `window.print` and relative `/api/` fetches are already
   handled globally by `src/lib/native/` — keep using the normal web patterns.
 - No purchase / billing UI in the app (`isNative()` hides it).
+- **Offline reads are automatic** (`src/lib/offline/`): every Supabase read is saved
+  on the device and served when the link is down. RPCs are treated as reads only if
+  named `get_* / fetch_* / list_* / is_* / my_*` — **never give a writing RPC one of
+  those prefixes** (or add it to `WRITE_RPC` in `readCache.js`), or offline it would
+  "succeed" from a stale copy.
 
 Full detail: `docs/native-app.md`.
 

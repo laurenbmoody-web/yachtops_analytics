@@ -6,6 +6,7 @@ import { RoleProvider } from "./contexts/RoleContext";
 import { BasketProvider } from "./contexts/BasketContext";
 import { useTripsMigration } from "./hooks/useTripsMigration";
 import FeedbackWidget from "./components/feedback/FeedbackWidget";
+import OfflineBar from "./components/offline/OfflineBar";
 import './utils/toast';
 import './lib/devGlobals';
 
@@ -31,6 +32,7 @@ function App() {
             <TripsMigrationRunner />
             <Routes />
             <FeedbackWidget />
+            <OfflineBar />
           </BasketProvider>
         </RoleProvider>
       </AuthProvider>

@@ -48,6 +48,24 @@ iOS keeps the web view inside the safe area natively
 Capacitor's SystemBars insets handling — so pages need no `env(safe-area-inset-*)`
 CSS.
 
+## Offline
+
+**Layer 1 — reads (done).** `src/lib/offline/` wraps the Supabase client's fetch:
+every read (PostgREST `GET`/`HEAD`, read-only RPCs, storage sign/list) is saved in
+IndexedDB per user, and served when the network fails, returns a gateway 5xx, or
+stalls for 6s on a slow link. A write to a table marks its saved reads stale (still
+shown offline, never for a merely slow link). An expired token offline is kept
+alive locally (`authFallback.js`) so crew stay signed in at sea. The pill at the
+bottom (`components/offline/OfflineBar.jsx`) says when data is from the device and
+how old it is. Saved reads are cleared on sign-out. Works on the web too.
+
+Limits: only screens opened online before have saved data; images not yet viewed
+won't load; saves fail offline (layer 2).
+
+**Layer 2 — recording work offline (next).** Hours of rest, jobs & defects,
+laundry & wardrobe, inventory & provisioning: queued writes with optimistic UI,
+photo uploads, sync and conflict handling.
+
 ## Push
 
 Every signed-in phone is enrolled (topic `general` → job reminders etc.); the

@@ -1,4 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
+import { createReadCache } from './offline/readCache';
+import { withOfflineAuth } from './offline/authFallback';
+import { idbStore } from './offline/idbStore';
+import { reportNetwork, isKnownOffline } from './offline/status';
 
 const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
@@ -63,6 +67,14 @@ const timeoutFetch = (input, init = {}) => {
   return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timer));
 };
 
+// Offline reads (layer 1): every read is saved on the device and served back
+// when the network is down or stalls — see lib/offline/readCache.js.
+const storedSession = () => {
+  try { return JSON.parse(window.localStorage.getItem('supabase.auth.token') || 'null'); } catch { return null; }
+};
+const storedUserId = () => storedSession()?.user?.id || null;
+const offlineReads = createReadCache({ store: idbStore, isOffline: isKnownOffline, report: reportNetwork, userId: storedUserId });
+
 // Singleton Supabase client with enhanced lock handling
 // CRITICAL: This client is created ONCE and reused everywhere
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -84,11 +96,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
   // Add global options for better error handling
   global: {
-    fetch: timeoutFetch,
+    // Offline: saved reads (layer 1) + a signed-in session that survives an
+    // expired token (lib/offline/authFallback.js).
+    fetch: withOfflineAuth(offlineReads(timeoutFetch), { getStoredSession: storedSession, report: reportNetwork }),
     headers: {
       'X-Client-Info': 'supabase-js-web'
     }
   }
+});
+
+// Saved reads are per user, but clear them on sign-out anyway so a shared
+// device keeps nothing of the last person's data.
+supabase.auth.onAuthStateChange((event) => {
+  if (event === 'SIGNED_OUT') idbStore.clear();
 });
 
 console.log('[SUPABASE] ✅ Singleton client initialized with lock bypass for browser stability');
