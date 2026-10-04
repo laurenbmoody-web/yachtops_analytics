@@ -419,3 +419,8 @@
 /* Scan-pass button on the quick board (navy, distinct from Muster). */
 .sibq-btn.scan { background: #1C1B3A; border-color: #1C1B3A; color: #FFFFFF; }
 .sibq-btn.scan:hover { background: #2A285A; color: #FFFFFF; }
+
+/* Save-to-log button in muster (green). */
+.sibm-btn.save { display: inline-flex; align-items: center; gap: 7px; background: #1E7F43; border-color: #1E7F43; color: #FFFFFF; }
+.sibm-btn.save:hover { background: #1A6E3A; }
+.sibm-btn.save:disabled { opacity: 0.6; cursor: default; }

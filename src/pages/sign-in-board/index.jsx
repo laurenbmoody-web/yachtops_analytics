@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
 import { fetchPresenceBoard, setPresence, ABOARD, flip } from '../../services/crewPresence';
+import { logPresenceEvent, saveMusterRecord } from '../../services/presenceLog';
 import {
   fetchGuestsOnBoard, setGuestOnBoard,
   fetchContractorsOnBoard, addContractor, signOutContractor,
@@ -47,6 +48,7 @@ const SignInBoard = () => {
   // the interactive board on tap, returning to standby after a spell of no touches.
   const standbyParam = searchParams.get('mode') === 'standby' || searchParams.get('standby') === '1';
   const kiosk = searchParams.get('kiosk') === '1' || searchParams.get('mode') === 'kiosk' || standbyParam;
+  const logSource = kiosk ? 'entryway' : 'board'; // where a logged event came from
   // Door-iPad flow: 'glance' (always-on standby) → tap → 'board' (stripped quick
   // sign-in) → 'muster' (emergency roll call). null = the normal full board.
   const [doorView, setDoorView] = useState(standbyParam ? 'glance' : null);
@@ -55,6 +57,8 @@ const SignInBoard = () => {
   const [rolls, setRolls] = useState([{ id: 'r1', name: 'Roll call 1' }]);
   const [activeRoll, setActiveRoll] = useState('r1');
   const [rollMarks, setRollMarks] = useState({});
+  const [musterSaving, setMusterSaving] = useState(false);
+  const [musterSaved, setMusterSaved] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const { session, activeTenantId } = useAuth();
   const meId = session?.user?.id;
@@ -122,7 +126,7 @@ const SignInBoard = () => {
     const next = flip(m.status);
     setCrew((cur) => cur.map((x) => (x.userId === m.userId ? { ...x, status: next } : x)));
     mark(key, true);
-    try { await setPresence(activeTenantId, m.userId, next, meId); }
+    try { await setPresence(activeTenantId, m.userId, next, meId, { source: kiosk ? 'entryway' : 'board', subjectName: m.name }); }
     catch (e) {
       setCrew((cur) => cur.map((x) => (x.userId === m.userId ? { ...x, status: m.status } : x)));
       showToast(/row-level|denied|policy/i.test(e?.message || '') ? 'This device can only sign the logged-in person in/out.' : 'Could not update — try again', 'error');
@@ -149,8 +153,10 @@ const SignInBoard = () => {
     const next = !g.onboard;
     setGuests((cur) => cur.map((x) => (x.id === g.id ? { ...x, onboard: next, returningAt: next ? null : x.returningAt } : x)));
     mark(key, true);
-    try { await setGuestOnBoard(g.id, next, meId); }
-    catch (e) {
+    try {
+      await setGuestOnBoard(g.id, next, meId);
+      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'guest', subjectId: g.id, subjectName: g.name, direction: next ? 'aboard' : 'ashore', actorUserId: meId, source: logSource });
+    } catch (e) {
       setGuests((cur) => cur.map((x) => (x.id === g.id ? { ...x, onboard: g.onboard } : x)));
       showToast(e.message || 'Could not update — try again', 'error');
     } finally { mark(key, false); }
@@ -161,8 +167,10 @@ const SignInBoard = () => {
     if (pending[key]) return;
     setContractors((cur) => cur.filter((x) => x.id !== k.id)); // optimistic remove
     mark(key, true);
-    try { await signOutContractor(k.id); }
-    catch (e) { showToast(e.message || 'Could not sign out — try again', 'error'); load(); }
+    try {
+      await signOutContractor(k.id);
+      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: k.id, subjectName: k.name, direction: 'ashore', actorUserId: meId, source: logSource });
+    } catch (e) { showToast(e.message || 'Could not sign out — try again', 'error'); load(); }
     finally { mark(key, false); }
   };
 
@@ -170,7 +178,8 @@ const SignInBoard = () => {
     if (!addName.trim() || !addPhone.trim()) return;
     setAddBusy(true);
     try {
-      await addContractor(activeTenantId, addName, addCompany, addPhone, meId);
+      const row = await addContractor(activeTenantId, addName, addCompany, addPhone, meId);
+      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: addName.trim(), direction: 'aboard', actorUserId: meId, source: logSource });
       setAddOpen(false); setAddName(''); setAddCompany(''); setAddPhone('');
       load();
     } catch (e) { showToast(e.message || 'Could not add visitor', 'error'); }
@@ -215,8 +224,16 @@ const SignInBoard = () => {
 
   // Everyone the muster accounts for: all crew (aboard or ashore), plus guests
   // on board and signed-in visitors. `aboard` flags who is expected present.
+  // Crew are ordered by department (Bridge, Engineering, Deck, Interior, Galley,
+  // then any others), then by name — the order used at a muster station.
+  const DEPT_ORDER = ['bridge', 'engineering', 'deck', 'interior', 'galley'];
+  const deptRank = (d) => { const i = DEPT_ORDER.indexOf(String(d || '').toLowerCase()); return i === -1 ? 99 : i; };
+  const crewByDept = [...crew].sort((a, b) =>
+    deptRank(a.department) - deptRank(b.department)
+    || String(a.department || '').localeCompare(String(b.department || ''))
+    || String(a.name || '').localeCompare(String(b.name || '')));
   const musterRoster = [
-    ...crew.map((m) => ({ key: `c:${m.userId}`, name: m.name, sub: m.department, aboard: m.status === ABOARD, img: m.avatarUrl })),
+    ...crewByDept.map((m) => ({ key: `c:${m.userId}`, name: m.name, sub: m.department, aboard: m.status === ABOARD, img: m.avatarUrl })),
     ...guests.filter((g) => g.onboard).map((g) => ({ key: `g:${g.id}`, name: g.name, sub: g.cabin || 'Guest', aboard: true })),
     ...contractors.map((k) => ({ key: `k:${k.id}`, name: k.name, sub: k.company || 'Visitor', aboard: true })),
   ];
@@ -232,7 +249,23 @@ const SignInBoard = () => {
     setActiveRoll(id);
     return [...rs, { id, name: `Roll call ${rs.length + 1}` }];
   });
-  const resetMuster = () => setRollMarks({});
+  const resetMuster = () => { setRollMarks({}); setMusterSaved(false); };
+  const saveMuster = async () => {
+    if (musterSaving) return;
+    setMusterSaving(true);
+    try {
+      const rollCalls = rolls.map((r) => ({
+        name: r.name,
+        count: rollCount(r.id),
+        marked: musterRoster.filter((p) => rollMarks[r.id]?.[p.key]).map((p) => p.name),
+      }));
+      const roster = musterRoster.map((p) => ({ key: p.key, name: p.name, sub: p.sub || '', aboard: p.aboard }));
+      await saveMusterRecord({ tenantId: activeTenantId, createdBy: meId, expected: expected.length, rollCalls, roster });
+      setMusterSaved(true);
+      showToast('Muster saved to history', 'success');
+    } catch (e) { showToast(e?.message || 'Could not save muster', 'error'); }
+    finally { setMusterSaving(false); }
+  };
 
   // ── Standby glance (always-on door iPad) ───────────────────────────────────
   if (doorView === 'glance') {
@@ -279,6 +312,9 @@ const SignInBoard = () => {
               {allAccounted ? 'All accounted for' : `${expected.length - activeCount} to find`}
             </span>
             <button type="button" className="sibm-btn ghost" onClick={resetMuster}>Reset</button>
+            <button type="button" className="sibm-btn save" onClick={saveMuster} disabled={musterSaving}>
+              <Icon name={musterSaved ? 'Check' : 'Save'} size={15} /> {musterSaving ? 'Saving…' : musterSaved ? 'Saved' : 'Save to log'}
+            </button>
             <button type="button" className="sibm-btn" onClick={() => setDoorView('board')}>Exit muster</button>
           </div>
         </div>
@@ -394,6 +430,11 @@ const SignInBoard = () => {
             </button>
           )}
           <div className="sib-utilrow-r">
+            {!kiosk && (
+              <button type="button" className="sib-standby-btn" onClick={() => navigate('/presence-history')} title="Sign in/out & muster history">
+                <Icon name="History" size={15} /><span className="lbl">History</span>
+              </button>
+            )}
             {!kiosk && (
               <button type="button" className="sib-standby-btn" onClick={() => navigate('/door-pass')} title="Show my gangway QR pass">
                 <Icon name="QrCode" size={15} /><span className="lbl">My pass</span>

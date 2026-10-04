@@ -8,6 +8,7 @@ import lazyWithRetry from './utils/lazyWithRetry';
 import Dashboard from './pages/dashboard';
 import SignInBoard from './pages/sign-in-board';
 import DoorPass from './pages/door-pass';
+import PresenceHistory from './pages/presence-history';
 import TeamJobsManagement from './pages/team-jobs-management';
 import Accounts from './pages/accounts';
 import DepartmentCards from './pages/accounts/department-cards';
@@ -1133,6 +1134,8 @@ const Routes = () => {
         <Route path="/sign-in-board" element={<ProtectedRoute><SignInBoard /></ProtectedRoute>} />
         {/* A crew member's personal gangway QR pass (interim before NFC/Wallet). */}
         <Route path="/door-pass" element={<ProtectedRoute><DoorPass /></ProtectedRoute>} />
+        {/* Gangway history — all sign in/out + saved musters. */}
+        <Route path="/presence-history" element={<ProtectedRoute><PresenceHistory /></ProtectedRoute>} />
         <Route path="/today" element={<ProtectedRoute><TodayDetailPage /></ProtectedRoute>} />
         
         {/* Activity Feed */}

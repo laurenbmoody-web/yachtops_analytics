@@ -47,7 +47,7 @@ const SignInOutWidget = () => {
     const prev = status;
     setStatus(next);
     setBusy(true);
-    try { await setPresence(activeTenantId, userId, next, userId); }
+    try { await setPresence(activeTenantId, userId, next, userId, { source: 'personal', subjectName: me.name }); }
     catch (e) { setStatus(prev); showToast(e.message || 'Could not update — try again', 'error'); }
     finally { setBusy(false); }
   };
