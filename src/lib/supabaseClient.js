@@ -138,6 +138,12 @@ setOutboxExecutor(async (op) => {
     if (!error.status) return { thrown: error };
     return { error: { message: error.message, code: String(error.statusCode || error.status) }, status: Number(error.status) };
   }
+  if (op.type === 'rpc') {
+    // Replays are safe only for functions that skip an op id already applied
+    // (adjust_inventory_stock's p_op_id).
+    const res = await supabase.rpc(op.fn, op.args);
+    return res;
+  }
   const t = supabase.from(op.table);
   let q;
   if (op.type === 'insert') q = t.insert(op.row);

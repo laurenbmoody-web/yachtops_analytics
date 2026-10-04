@@ -34,9 +34,29 @@
  */
 
 import { supabase } from '../../../lib/supabaseClient';
+import { outbox } from '../../../lib/offline/queue';
+import { newId } from '../../../lib/offline/ids';
+import { insertRow, updateRow } from '../../../lib/offline/rowWrites';
+import { adjustItemStock } from '../../inventory/utils/inventoryStorage';
 import { normalizeUnit, isBulkUnit } from '../../../data/unitGroups';
 import { sendNotification, NOTIFICATION_TYPES, SEVERITY } from '../../team-jobs-management/utils/notifications';
 import { loadTrips, findTripByAnyId } from '../../trips-management-dashboard/utils/tripStorage';
+
+// ── Offline-capable writes ──────────────────────────────────────────────────
+// Board and line edits, ticking items off, receiving a delivery and pushing it
+// into inventory go through the app-wide outbox (lib/offline): online they run
+// as before (a real rejection still throws); with no network they are saved on
+// the device, shown in every read, and synced later. Received stock is sent as
+// a change (adjust_inventory_stock), so it adds to whatever crew counted
+// meanwhile. Supplier orders, quotes, approvals, vendors and share links still
+// need a connection.
+const unwrap = ({ data, error }) => { if (error) throw error; return data; };
+// A read that failed only because the device is offline with no saved copy.
+const isOfflineError = (e) => !e?.code && /fetch|network|load failed|abort|offline/i.test(`${e?.message} ${e?.details}`);
+const rowOp = (table, id, op) => outbox.submit({ key: `${table}|${id}`, table, match: { id }, ...op });
+const updateLines = async (ids, patch, label) => {
+  for (const id of ids) await rowOp('provisioning_items', id, { type: 'update', patch, label });
+};
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -347,14 +367,7 @@ export const fetchListsForPicker = async (tenantId) => {
 
 export const createProvisioningList = async (listData) => {
   try {
-    const now = new Date().toISOString();
-    const { data, error } = await supabase
-      ?.from('provisioning_lists')
-      ?.insert([{ ...listData, created_at: now, updated_at: now }])
-      ?.select()
-      ?.single();
-    if (error) throw error;
-    return data;
+    return unwrap(await insertRow('provisioning_lists', listData, `New board ${listData?.title || ''}`.trim()));
   } catch (err) {
     console.error('[provisioningStorage] createProvisioningList error:', err);
     throw err;
@@ -363,14 +376,7 @@ export const createProvisioningList = async (listData) => {
 
 export const updateProvisioningList = async (listId, updates) => {
   try {
-    const { data, error } = await supabase
-      ?.from('provisioning_lists')
-      ?.update({ ...updates, updated_at: new Date().toISOString() })
-      ?.eq('id', listId)
-      ?.select()
-      ?.single();
-    if (error) throw error;
-    return data;
+    return unwrap(await updateRow('provisioning_lists', listId, { ...updates, updated_at: new Date().toISOString() }, 'Board edit'));
   } catch (err) {
     console.error('[provisioningStorage] updateProvisioningList error:', err);
     throw err;
@@ -523,12 +529,7 @@ export const fetchListItems = async (listId) => {
 
 export const updateProvisioningItem = async (itemId, updates) => {
   try {
-    const { data, error } = await supabase
-      ?.from('provisioning_items')
-      ?.update(updates)
-      ?.eq('id', itemId)
-      ?.select()
-      ?.single();
+    const { data, error } = await updateRow('provisioning_items', itemId, updates, `Edit ${updates?.name || 'line'}`);
     if (error) {
       console.error('[provisioningStorage] updateProvisioningItem error:', JSON.stringify(error), 'itemId:', itemId, 'updates:', updates);
       throw error;
@@ -558,12 +559,15 @@ export const setItemsSupplierProfile = async (itemIds, supplierProfileId, suppli
 
 export const upsertItems = async (items) => {
   try {
-    const { data, error } = await supabase
-      ?.from('provisioning_items')
-      ?.upsert(items, { onConflict: 'id' })
-      ?.select();
-    if (error) throw error;
-    return data || [];
+    // One op per line (a new line gets its device id here), so lines added
+    // offline appear on the board straight away and sync later.
+    const saved = [];
+    for (const item of items || []) {
+      const row = item?.id ? item : { id: newId(), ...item };
+      const res = await rowOp('provisioning_items', row.id, { type: 'upsert', row, onConflict: 'id', returning: true, label: `Line ${row.name || ''}`.trim() });
+      saved.push(res.data || row);
+    }
+    return saved;
   } catch (err) {
     console.error('[provisioningStorage] upsertItems error:', err);
     throw err;
@@ -614,11 +618,7 @@ export const applyQuotedPrices = async (updates) => {
 
 export const deleteProvisioningItem = async (itemId) => {
   try {
-    const { error } = await supabase
-      ?.from('provisioning_items')
-      ?.delete()
-      ?.eq('id', itemId);
-    if (error) throw error;
+    await rowOp('provisioning_items', itemId, { type: 'delete', label: 'Delete line' });
   } catch (err) {
     console.error('[provisioningStorage] deleteProvisioningItem error:', err);
     throw err;
@@ -631,11 +631,9 @@ export const deleteProvisioningItem = async (itemId) => {
 // local state.
 export const bulkDeleteProvisioningItems = async (itemIds) => {
   if (!Array.isArray(itemIds) || itemIds.length === 0) return;
-  const { error } = await supabase
-    ?.from('provisioning_items')
-    ?.delete()
-    ?.in('id', itemIds);
-  if (error) {
+  try {
+    for (const id of itemIds) await rowOp('provisioning_items', id, { type: 'delete', label: 'Delete line' });
+  } catch (error) {
     console.error('[provisioningStorage] bulkDeleteProvisioningItems error:', error);
     throw error;
   }
@@ -648,11 +646,9 @@ export const bulkDeleteProvisioningItems = async (itemIds) => {
 // the caller can pass '' to unassign.
 export const bulkUpdateItemDepartment = async (itemIds, department) => {
   if (!Array.isArray(itemIds) || itemIds.length === 0) return;
-  const { error } = await supabase
-    ?.from('provisioning_items')
-    ?.update({ department: department || '' })
-    ?.in('id', itemIds);
-  if (error) {
+  try {
+    await updateLines(itemIds, { department: department || '' }, 'Change department');
+  } catch (error) {
     console.error('[provisioningStorage] bulkUpdateItemDepartment error:', error);
     throw error;
   }
@@ -679,11 +675,9 @@ export const bulkUpdateItemDepartment = async (itemIds, department) => {
 export const bulkUpdateProvisioningItems = async (itemIds, fields) => {
   if (!Array.isArray(itemIds) || itemIds.length === 0) return;
   if (!fields || typeof fields !== 'object' || Object.keys(fields).length === 0) return;
-  const { error } = await supabase
-    ?.from('provisioning_items')
-    ?.update(fields)
-    ?.in('id', itemIds);
-  if (error) {
+  try {
+    await updateLines(itemIds, fields, 'Edit lines');
+  } catch (error) {
     console.error('[provisioningStorage] bulkUpdateProvisioningItems error:', error);
     throw error;
   }
@@ -727,13 +721,7 @@ export const updateItemStatus = async (itemId, status, quantityReceived, ledgerC
   try {
     const updates = { status };
     if (quantityReceived !== undefined) updates.quantity_received = quantityReceived;
-    const { data, error } = await supabase
-      ?.from('provisioning_items')
-      ?.update(updates)
-      ?.eq('id', itemId)
-      ?.select()
-      ?.single();
-    if (error) throw error;
+    const data = unwrap(await updateRow('provisioning_items', itemId, updates, `Mark ${status}`));
 
     // Write to ledger when marked received and caller supplies context
     if (status === 'received' && ledgerCtx?.tenantId && data) {
@@ -771,12 +759,7 @@ export const receiveItems = async (updates) => {
     updates.map(({ id, quantity_received, status, receive_batch_id }) => {
       const fields = { quantity_received, status };
       if (receive_batch_id != null) fields.receive_batch_id = receive_batch_id;
-      return supabase
-        ?.from('provisioning_items')
-        ?.update(fields)
-        ?.eq('id', id)
-        ?.select()
-        ?.single();
+      return updateRow('provisioning_items', id, fields, 'Receive line');
     })
   );
   const errors = results.filter(r => r.status === 'rejected' || r.value?.error);
@@ -979,13 +962,7 @@ export const fetchDeliveries = async (listId) => {
 
 export const createDelivery = async (deliveryData) => {
   try {
-    const { data, error } = await supabase
-      ?.from('provisioning_deliveries')
-      ?.insert([{ ...deliveryData, delivered_at: deliveryData.delivered_at || new Date().toISOString() }])
-      ?.select()
-      ?.single();
-    if (error) throw error;
-    return data;
+    return unwrap(await insertRow('provisioning_deliveries', { ...deliveryData, delivered_at: deliveryData.delivered_at || new Date().toISOString() }, 'Delivery', { timestamps: false }));
   } catch (err) {
     console.error('[provisioningStorage] createDelivery error:', err);
     throw err;
@@ -996,14 +973,7 @@ export const createDelivery = async (deliveryData) => {
 
 export const updateListStatus = async (listId, status) => {
   try {
-    const { data, error } = await supabase
-      ?.from('provisioning_lists')
-      ?.update({ status, updated_at: new Date().toISOString() })
-      ?.eq('id', listId)
-      ?.select()
-      ?.single();
-    if (error) throw error;
-    return data;
+    return unwrap(await updateRow('provisioning_lists', listId, { status, updated_at: new Date().toISOString() }, `Board ${status}`));
   } catch (err) {
     console.error('[provisioningStorage] updateListStatus error:', err);
     throw err;
@@ -1590,6 +1560,35 @@ export const findMatchingInventoryItem = async (provItem, tenantId) => {
  * Creates a new location entry if no matching one exists.
  * Also updates total_qty and last_provisioning_date.
  */
+// Add received stock at a named place as a change (adjust_inventory_stock):
+// found by name in any case, or added as a new stock entry (mapped to its
+// vessel location) if the item isn't stocked there yet. No name = unplaced.
+const addReceivedStock = async (item, inventoryItemId, tenantId, normName, qty) => {
+  if (!qty) return true;
+  if (!normName) return adjustItemStock(inventoryItemId, qty, { name: item?.name || 'Delivery' });
+  const locs = Array.isArray(item?.stock_locations) ? item.stock_locations : [];
+  const known = locs.find((l) => (l?.locationName || l?.name || '').toLowerCase() === normName.toLowerCase());
+  // Always say what to add if the place is gone or new by the time it syncs.
+  let create;
+  if (known) {
+    create = { locationName: normName, vesselLocationId: known.vesselLocationId || known.locationId || null };
+  } else {
+    const vlIdx = await buildVesselLocIndex(tenantId);
+    create = { locationName: normName, vesselLocationId: resolveVesselLocId(vlIdx, normName) };
+  }
+  return adjustItemStock(inventoryItemId, qty, { loc: { locationName: normName }, name: item?.name || 'Delivery', create });
+};
+
+// The non-stock side of a delivery: last_provisioning_date + any fill-ins.
+const stampProvisioned = (inventoryItemId, tenantId, patch) => outbox.submit({
+  key: `inventory_items|${inventoryItemId}`,
+  table: 'inventory_items',
+  type: 'update',
+  patch: { ...patch, last_provisioning_date: new Date().toISOString(), updated_at: new Date().toISOString() },
+  match: { id: inventoryItemId, tenant_id: tenantId },
+  label: 'Delivery received',
+});
+
 /**
  * Append rows to the inventory_movements ledger. Best-effort by design:
  * a ledger failure must never roll back or block the stock write itself,
@@ -1610,8 +1609,10 @@ export const logInventoryMovements = async ({ inventoryItemId, tenantId, movemen
     }));
   if (!rows.length || !inventoryItemId || !tenantId) return;
   try {
-    const { error } = await supabase?.from('inventory_movements')?.insert(rows);
-    if (error) throw error;
+    for (const row of rows) {
+      const { error } = await insertRow('inventory_movements', row, 'Stock movement', { timestamps: false });
+      if (error) throw error;
+    }
   } catch (err) {
     console.error('[provisioningStorage] logInventoryMovements error (non-blocking):', err.message);
   }
@@ -1648,35 +1649,12 @@ export const pushReceivedQtyToLocation = async ({ inventoryItemId, locationName,
       ?.eq('id', inventoryItemId)
       ?.eq('tenant_id', tenantId)
       ?.single();
-    if (fetchErr) throw fetchErr;
+    if (fetchErr && !isOfflineError(fetchErr)) throw fetchErr;
     if (isVariantItem(item)) { console.warn('[provisioningStorage] skipped flat push to size-tracked item', inventoryItemId); return 'variant'; }
 
-    let locs = Array.isArray(item?.stock_locations) ? [...item.stock_locations] : [];
     const normName = (locationName || '').trim();
-    const idx = locs.findIndex(l =>
-      (l?.locationName || l?.name || '').toLowerCase() === normName.toLowerCase()
-    );
-    if (idx >= 0) {
-      const existing = locs[idx];
-      locs[idx] = { ...existing, qty: (existing?.qty ?? existing?.quantity ?? 0) + qtyToAdd };
-    } else {
-      const vlIdx = await buildVesselLocIndex(tenantId);
-      locs.push({ locationName: normName, vesselLocationId: resolveVesselLocId(vlIdx, normName), qty: qtyToAdd });
-    }
-    const newTotal = locs.reduce((s, l) => s + (l?.qty ?? l?.quantity ?? 0), 0);
-
-    const { error: updateErr } = await supabase
-      ?.from('inventory_items')
-      ?.update({
-        stock_locations: locs,
-        total_qty: newTotal,
-        quantity: newTotal,
-        last_provisioning_date: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      ?.eq('id', inventoryItemId)
-      ?.eq('tenant_id', tenantId);
-    if (updateErr) throw updateErr;
+    if (!(await addReceivedStock(item, inventoryItemId, tenantId, normName, qtyToAdd))) return false;
+    await stampProvisioned(inventoryItemId, tenantId, {});
 
     await logInventoryMovements({
       inventoryItemId, tenantId, provisioningItemId, listId,
@@ -1708,9 +1686,7 @@ export const createInventoryItemFromProvItem = async ({ provItem, categoryPath, 
     const totalQty = storageLocations?.length > 0
       ? stockLocations.reduce((sum, l) => sum + (l.qty || 0), 0)
       : qty || 0;
-    const { data, error } = await supabase
-      ?.from('inventory_items')
-      ?.insert({
+    const { data, error } = await insertRow('inventory_items', {
         tenant_id: tenantId,
         created_by: userId || null,
         name: provItem?.name || '',
@@ -1730,17 +1706,12 @@ export const createInventoryItemFromProvItem = async ({ provItem, categoryPath, 
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         last_provisioning_date: new Date().toISOString(),
-      })
-      ?.select('id, name, cargo_item_id')
-      ?.single();
+      }, `Add ${provItem?.name || 'item'} to inventory`);
     if (error) throw error;
 
     // Link the provisioning item back to the new inventory item
     if (data?.id && provItem?.id && provItem?.list_id) {
-      await supabase
-        ?.from('provisioning_items')
-        ?.update({ inventory_item_id: data.id })
-        ?.eq('id', provItem.id);
+      await rowOp('provisioning_items', provItem.id, { type: 'update', patch: { inventory_item_id: data.id }, label: 'Link to inventory' });
     }
 
     if (data?.id && totalQty > 0) {
@@ -1778,54 +1749,34 @@ export const pushReceivedSplitsToInventory = async ({ inventoryItemId, splits, t
       ?.eq('id', inventoryItemId)
       ?.eq('tenant_id', tenantId)
       ?.single();
-    if (fetchErr) throw fetchErr;
+    if (fetchErr && !isOfflineError(fetchErr)) throw fetchErr;
     // Size-tracked items keep a per-size breakdown a flat add would corrupt.
+    // (Offline with no saved copy we can't tell: the server refuses it on sync.)
     if (isVariantItem(item)) { console.warn('[provisioningStorage] skipped flat push to size-tracked item', inventoryItemId); return 'variant'; }
 
-    let locs = Array.isArray(item?.stock_locations) ? [...item.stock_locations] : [];
-    let totalAdded = 0;
-    let vlIdx = null; // vessel-location index, fetched lazily only if a new location is created
-
+    // Each split is added as a change on the server's current stock (a split
+    // without a place adds to the total as unplaced stock).
     for (const split of activeSplits) {
-      const normName = (split.locationName || '').trim();
-      const addQty = parseFloat(split.addQty) || 0;
-      if (normName) {
-        const idx = locs.findIndex(l => (l?.locationName || l?.name || '').toLowerCase() === normName.toLowerCase());
-        if (idx >= 0) {
-          const existing = locs[idx];
-          locs[idx] = { ...existing, qty: (existing?.qty ?? existing?.quantity ?? 0) + addQty };
-        } else {
-          if (!vlIdx) vlIdx = await buildVesselLocIndex(tenantId);
-          locs.push({ locationName: normName, vesselLocationId: resolveVesselLocId(vlIdx, normName), qty: addQty });
-        }
-      }
-      totalAdded += addQty;
+      const ok = await addReceivedStock(item, inventoryItemId, tenantId, (split.locationName || '').trim(), parseFloat(split.addQty) || 0);
+      if (!ok) return false;
     }
 
     // Reconcile from the received line — non-destructively. `unit` here is the
     // STOCKING unit (the caller resolves a bulk line's inner unit, never the
     // 'case'); fill it only if missing/default. Fill a missing size. Stamp the
     // purchasing pack (purchase_unit + units_per_pack) if the item has none yet.
-    const newTotal = (item.total_qty ?? 0) + totalAdded;
-    const patch = {
-      stock_locations: locs,
-      total_qty: newTotal,
-      quantity: newTotal,
-      last_provisioning_date: new Date().toISOString(),
-    };
-    const inUnit = normalizeUnit(unit);
-    if (inUnit && (!item.unit || item.unit === 'each') && inUnit !== item.unit) patch.unit = inUnit;
-    if (size && !item.size) patch.size = size;
-    const inPurchase = normalizeUnit(purchaseUnit);
-    if (inPurchase && !item.purchase_unit) patch.purchase_unit = inPurchase;
-    if (Number(unitsPerPack) > 0 && !(Number(item.units_per_pack) > 0)) patch.units_per_pack = Number(unitsPerPack);
+    // (Only when the item could be read — "fill if missing" needs to know.)
+    const patch = {};
+    if (item) {
+      const inUnit = normalizeUnit(unit);
+      if (inUnit && (!item.unit || item.unit === 'each') && inUnit !== item.unit) patch.unit = inUnit;
+      if (size && !item.size) patch.size = size;
+      const inPurchase = normalizeUnit(purchaseUnit);
+      if (inPurchase && !item.purchase_unit) patch.purchase_unit = inPurchase;
+      if (Number(unitsPerPack) > 0 && !(Number(item.units_per_pack) > 0)) patch.units_per_pack = Number(unitsPerPack);
+    }
 
-    const { error: updateErr } = await supabase
-      ?.from('inventory_items')
-      ?.update(patch)
-      ?.eq('id', inventoryItemId)
-      ?.eq('tenant_id', tenantId);
-    if (updateErr) throw updateErr;
+    await stampProvisioned(inventoryItemId, tenantId, patch);
 
     await logInventoryMovements({
       inventoryItemId, tenantId, provisioningItemId, listId,
@@ -1939,11 +1890,9 @@ export const createDeliveryBatch = async ({ listId, tenantId, userId, supplierNa
   for (const [i, payload] of attempts.entries()) {
     try {
       console.log(`[createDeliveryBatch] attempt ${i + 1}:`, JSON.stringify(payload));
-      const { data, error } = await supabase
-        ?.from('provisioning_deliveries')
-        ?.insert(payload)
-        ?.select()
-        ?.single();
+      // Outbox: offline the batch is created on the device (with its id, so the
+      // received lines can point at it) and synced later.
+      const { data, error } = await insertRow('provisioning_deliveries', payload, `Delivery ${payload.supplier_name || ''}`.trim(), { timestamps: false });
       if (error) {
         console.error(`[createDeliveryBatch] attempt ${i + 1} error:`, error.code, error.message, error.details, error.hint);
         errors.push(`attempt ${i + 1}: [${error.code}] ${error.message}`);

@@ -2,6 +2,7 @@
 // attach to inventory_locations by TEXT (location + sub_location); nested
 // sub-paths use " > " separators. Reads only; member RLS covers crew.
 import { supabase } from '../../../lib/supabaseClient';
+import { updateRow } from '../../../lib/offline/rowWrites';
 
 const clean = (q) => q.replace(/[,%]/g, ' ').trim();
 
@@ -182,7 +183,7 @@ export async function setQuantityHere(itemId, loc, qty) {
       patch = { quantity: qty, total_qty: qty };
     }
   }
-  const { error: writeError } = await supabase.from('inventory_items').update(patch).eq('id', itemId);
+  const { error: writeError } = await updateRow('inventory_items', itemId, patch, 'Stock count'); // outbox: works offline
   if (writeError) {
     console.error('[inventory] qty write error:', writeError);
     return { error: writeError.message || 'Could not save the count.' };

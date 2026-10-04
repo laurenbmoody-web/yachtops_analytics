@@ -4,12 +4,63 @@ import { getCurrentUser } from '../../../utils/authStorage';
 import { logActivity, InventoryActions, resolveActorName } from '../../../utils/activityStorage';
 import { normalizeUnit } from '../../../data/unitGroups';
 import { findExistingItem } from '../../../utils/itemIdentity';
+import { outbox } from '../../../lib/offline/queue';
+import { newId } from '../../../lib/offline/ids';
 
 const getActiveTenantId = () =>
   localStorage.getItem('cargo_active_tenant_id') ||
   localStorage.getItem('activeTenantId') ||
   null;
 
+
+// ── Offline-capable item writes ──────────────────────────────────────────────
+// Item-level changes (add, edit, stock, move, appearance, delete/trash) go
+// through the app-wide outbox (lib/offline): online they run as before; with
+// no network they are saved on the device, shown in every read, and synced
+// later. Folder restructuring (rename / move / delete folders) still needs a
+// connection — it rewrites many rows by path.
+const ITEMS = 'inventory_items';
+const itemKey = (id) => `${ITEMS}|${id}`;
+
+/** update(patch) on one item (scoped to the vessel) → the saved row online, null offline. */
+const writeItem = async (id, tenantId, patch, label = 'Inventory change') => {
+  const res = await outbox.submit({ key: itemKey(id), table: ITEMS, type: 'update', patch, match: { id, tenant_id: tenantId }, returning: true, label });
+  return res;
+};
+
+/**
+ * Stock +/- as a change, not a new total: "+1 in the bar fridge". Applied on
+ * the server's current numbers (adjust_inventory_stock), so counts recorded
+ * offline on several phones add up instead of overwriting each other.
+ *   loc   — the stock location entry tapped (from item.stockLocations), or
+ *           null for an item without locations
+ *   index — its position in the item's stock locations
+ *   create — for a delivery: the new stock entry to add if the item isn't
+ *           stocked at `loc` yet ({ locationName, vesselLocationId })
+ * No loc and no create = unplaced stock (the totals only).
+ */
+export const adjustItemStock = async (itemId, delta, { loc = null, index = null, name = '', create = null } = {}) => {
+  try {
+    if (!itemId || !delta) return false;
+    const args = {
+      p_item_id: itemId,
+      p_delta: delta,
+      p_location_id: loc ? (loc.vesselLocationId || loc.locationId || null) : null,
+      p_location_index: loc ? index : null,
+      p_location_name: loc ? (loc.locationName ?? loc.location_name ?? loc.name ?? '') : null,
+      p_op_id: newId(),
+      p_create: create || null, // always sent: PostgREST resolves the function by its arguments
+    };
+    await outbox.submit({
+      key: itemKey(itemId), table: ITEMS, type: 'rpc', fn: 'adjust_inventory_stock', args, match: { id: itemId },
+      label: `${name || 'Stock'} ${delta > 0 ? '+' : ''}${delta}`,
+    });
+    return true;
+  } catch (err) {
+    console.error('[inventoryStorage] adjustItemStock error:', err?.message);
+    return false;
+  }
+};
 
 // Map DB row → JS object
 const rowToItem = (row) => {
@@ -596,13 +647,9 @@ export const duplicateItem = async (itemId) => {
       : row.stock_locations;
     seed.variants = Array.isArray(row.variants) ? row.variants.map((v) => ({ ...v, qty: 0 })) : row.variants;
 
-    const { data: inserted, error: insErr } = await supabase
-      ?.from('inventory_items')
-      ?.insert(seed)
-      ?.select('*')
-      ?.single();
-    if (insErr) { console.error('[inventoryStorage] duplicateItem insert error:', insErr?.message); return null; }
-    return rowToItem(inserted);
+    seed.id = newId();
+    const res = await outbox.submit({ key: itemKey(seed.id), table: ITEMS, type: 'insert', row: seed, match: { id: seed.id }, returning: true, label: `Copy of ${row.name || 'item'}` });
+    return rowToItem(res.data || seed);
   } catch (err) {
     console.error('[inventoryStorage] duplicateItem exception:', err?.message);
     return null;
@@ -662,37 +709,35 @@ export const saveItem = async (itemData, { dedupe = false, force = false } = {})
     let savedItem = null;
     if (isUpdate) {
       row.updated_by = supabaseUserId;
-      const { data, error } = await supabase
-        ?.from('inventory_items')
-        ?.update(row)
-        ?.eq('id', itemData?.id)
-        ?.eq('tenant_id', tenantId)
-        ?.select()
-        ?.maybeSingle();
-      if (error) { console.error('[inventoryStorage] saveItem update error:', error?.message); return false; }
-      if (!data) { console.error('[inventoryStorage] saveItem update error: no row matched id', itemData?.id); return false; }
-      savedItem = rowToItem(data);
+      row.updated_at = new Date().toISOString();
+      let res;
+      try { res = await writeItem(itemData?.id, tenantId, row, `Edit ${row.name || 'item'}`); } catch (error) {
+        console.error('[inventoryStorage] saveItem update error:', error?.message); return false;
+      }
+      if (!res.queued && !res.data) { console.error('[inventoryStorage] saveItem update error: no row matched id', itemData?.id); return false; }
+      savedItem = rowToItem(res.data || { id: itemData?.id, ...row });
     } else {
       row.created_by = supabaseUserId;
-      const { data, error } = await supabase
-        ?.from('inventory_items')
-        ?.insert(row)
-        ?.select()
-        ?.single();
-      if (error) { console.error('[inventoryStorage] saveItem insert error:', error?.message); return false; }
-      savedItem = rowToItem(data);
+      const nowIso = new Date().toISOString();
+      row.id = newId();
+      row.created_at = nowIso;
+      row.updated_at = nowIso;
+      let res;
+      try {
+        res = await outbox.submit({ key: itemKey(row.id), table: ITEMS, type: 'insert', row, match: { id: row.id }, returning: true, label: `Add ${row.name || 'item'}` });
+      } catch (error) {
+        console.error('[inventoryStorage] saveItem insert error:', error?.message); return false;
+      }
+      savedItem = rowToItem(res.data || row);
     }
     // Best-effort: write icon/color separately (columns may not exist on all DB instances)
     // Only update when these fields are explicitly provided — avoids clearing values set elsewhere
     if (savedItem?.id && (itemData?.icon != null || itemData?.color != null)) {
       try {
-        await supabase?.from('inventory_items')
-          ?.update({
-            icon: itemData?.icon || null,
-            color: itemData?.color || null,
-          })
-          ?.eq('id', savedItem.id)
-          ?.eq('tenant_id', tenantId);
+        await writeItem(savedItem.id, tenantId, {
+          icon: itemData?.icon || null,
+          color: itemData?.color || null,
+        });
       } catch (_) {}
     }
     // Best-effort: write the purchasing pack separately (columns are additive and
@@ -702,13 +747,10 @@ export const saveItem = async (itemData, { dedupe = false, force = false } = {})
       try {
         const pu = (itemData?.purchaseUnit || '').trim?.() || '';
         const upp = itemData?.unitsPerPack;
-        await supabase?.from('inventory_items')
-          ?.update({
-            purchase_unit: pu ? normalizeUnit(pu) : null,
-            units_per_pack: (upp === '' || upp == null) ? null : (Number(upp) || null),
-          })
-          ?.eq('id', savedItem.id)
-          ?.eq('tenant_id', tenantId);
+        await writeItem(savedItem.id, tenantId, {
+          purchase_unit: pu ? normalizeUnit(pu) : null,
+          units_per_pack: (upp === '' || upp == null) ? null : (Number(upp) || null),
+        });
       } catch (_) {}
     }
     // Log activity
@@ -741,12 +783,7 @@ export const deleteItem = async (itemId) => {
   try {
     const tenantId = getActiveTenantId();
     if (!tenantId) return false;
-    const { error } = await supabase
-      ?.from('inventory_items')
-      ?.delete()
-      ?.eq('id', itemId)
-      ?.eq('tenant_id', tenantId);
-    if (error) { console.error('[inventoryStorage] deleteItem error:', error?.message); return false; }
+    await outbox.submit({ key: itemKey(itemId), table: ITEMS, type: 'delete', match: { id: itemId, tenant_id: tenantId }, label: 'Delete item' });
     return true;
   } catch (err) {
     console.error('[inventoryStorage] deleteItem exception:', err?.message);
@@ -773,12 +810,9 @@ export const bulkDeleteItemsByIds = async (itemIds) => {
   try {
     const tenantId = getActiveTenantId();
     if (!tenantId || !itemIds?.length) return false;
-    const { error } = await supabase
-      ?.from('inventory_items')
-      ?.delete()
-      ?.in('id', itemIds)
-      ?.eq('tenant_id', tenantId);
-    if (error) { console.error('[inventoryStorage] bulkDeleteItemsByIds error:', error?.message); return false; }
+    for (const id of itemIds) {
+      await outbox.submit({ key: itemKey(id), table: ITEMS, type: 'delete', match: { id, tenant_id: tenantId }, label: 'Delete item' });
+    }
     return true;
   } catch (err) {
     console.error('[inventoryStorage] bulkDeleteItemsByIds exception:', err?.message);
@@ -793,12 +827,8 @@ export const bulkClearExpiry = async (itemIds) => {
   try {
     const tenantId = getActiveTenantId();
     if (!tenantId || !itemIds?.length) return false;
-    const { error } = await supabase
-      ?.from('inventory_items')
-      ?.update({ expiry_date: null, updated_at: new Date().toISOString() })
-      ?.in('id', itemIds)
-      ?.eq('tenant_id', tenantId);
-    if (error) { console.error('[inventoryStorage] bulkClearExpiry error:', error?.message); return false; }
+    const patch = { expiry_date: null, updated_at: new Date().toISOString() };
+    for (const id of itemIds) await writeItem(id, tenantId, patch, 'Clear expiry');
     return true;
   } catch (err) {
     console.error('[inventoryStorage] bulkClearExpiry exception:', err?.message);
@@ -815,17 +845,13 @@ export const setItemsAttentionHidden = async (items, hidden) => {
     const tenantId = getActiveTenantId();
     if (!tenantId || !items?.length) return false;
     const now = new Date().toISOString();
-    const results = await Promise.all(items.map((it) => {
+    for (const it of items) {
       const cf = { ...(it?.customFields || it?.custom_fields || {}) };
       if (hidden) cf.attention_hidden = true; else delete cf.attention_hidden;
       const payload = Object.keys(cf).length > 0 ? cf : null;
-      return supabase
-        ?.from('inventory_items')
-        ?.update({ custom_fields: payload, updated_at: now })
-        ?.eq('id', it?.id)
-        ?.eq('tenant_id', tenantId);
-    }));
-    return results.every((r) => !r?.error);
+      await writeItem(it?.id, tenantId, { custom_fields: payload, updated_at: now }, hidden ? 'Hide from attention' : 'Show in attention');
+    }
+    return true;
   } catch (err) {
     console.error('[inventoryStorage] setItemsAttentionHidden exception:', err?.message);
     return false;
@@ -841,12 +867,7 @@ export const bulkMoveItemsByIds = async (itemIds, newLocation, newSubLocation = 
       sub_location: newSubLocation || null,
       updated_at: new Date()?.toISOString(),
     };
-    const { error } = await supabase
-      ?.from('inventory_items')
-      ?.update(updatePayload)
-      ?.in('id', itemIds)
-      ?.eq('tenant_id', tenantId);
-    if (error) { console.error('[inventoryStorage] bulkMoveItemsByIds error:', error?.message); return false; }
+    for (const id of itemIds) await writeItem(id, tenantId, updatePayload, 'Move item');
     return true;
   } catch (err) {
     console.error('[inventoryStorage] bulkMoveItemsByIds exception:', err?.message);
@@ -878,8 +899,9 @@ export const adjustItemQuantity = async (itemId, delta) => {
   try {
     const item = await getItemById(itemId);
     if (!item) return false;
-    const newQty = Math.max(0, (item?.quantity || 0) + delta);
-    return await saveItem({ ...item, quantity: newQty, totalQty: newQty });
+    const locs = item?.stockLocations || [];
+    // One stock location holds the whole count: change it there.
+    return await adjustItemStock(itemId, delta, locs.length === 1 ? { loc: locs[0], index: 0, name: item?.name } : { name: item?.name });
   } catch (err) {
     console.error('[inventoryStorage] adjustItemQuantity exception:', err?.message);
     return false;
@@ -892,20 +914,12 @@ export const updateItemStockLocations = async (itemId, updatedLocations) => {
     const tenantId = getActiveTenantId();
     if (!tenantId || !itemId) return false;
     const totalQty = (updatedLocations || [])?.reduce((sum, loc) => sum + (loc?.qty || 0), 0);
-    const { error } = await supabase
-      ?.from('inventory_items')
-      ?.update({
-        stock_locations: updatedLocations || [],
-        quantity: totalQty,
-        total_qty: totalQty,
-        updated_at: new Date()?.toISOString(),
-      })
-      ?.eq('id', itemId)
-      ?.eq('tenant_id', tenantId);
-    if (error) {
-      console.error('[inventoryStorage] updateItemStockLocations error:', error?.message);
-      return false;
-    }
+    await writeItem(itemId, tenantId, {
+      stock_locations: updatedLocations || [],
+      quantity: totalQty,
+      total_qty: totalQty,
+      updated_at: new Date()?.toISOString(),
+    }, 'Stock count');
     return true;
   } catch (err) {
     console.error('[inventoryStorage] updateItemStockLocations exception:', err?.message);
@@ -917,12 +931,7 @@ export const updateItemAppearance = async (itemId, icon, color) => {
   try {
     const tenantId = getActiveTenantId();
     if (!tenantId || !itemId) return false;
-    const { error } = await supabase
-      ?.from('inventory_items')
-      ?.update({ icon: icon || null, color: color || null, updated_at: new Date()?.toISOString() })
-      ?.eq('id', itemId)
-      ?.eq('tenant_id', tenantId);
-    if (error) { console.error('[inventoryStorage] updateItemAppearance error:', error?.message); return false; }
+    await writeItem(itemId, tenantId, { icon: icon || null, color: color || null, updated_at: new Date()?.toISOString() }, 'Item appearance');
     return true;
   } catch (err) {
     console.error('[inventoryStorage] updateItemAppearance exception:', err?.message);
@@ -935,12 +944,7 @@ export const updatePartialBottle = async (itemId, fraction) => {
     const tenantId = getActiveTenantId();
     if (!tenantId || !itemId) return false;
     const value = fraction == null ? null : Math.max(0, Math.min(1, parseFloat(fraction)));
-    const { error } = await supabase
-      ?.from('inventory_items')
-      ?.update({ partial_bottle: value, updated_at: new Date()?.toISOString() })
-      ?.eq('id', itemId)
-      ?.eq('tenant_id', tenantId);
-    if (error) { console.error('[inventoryStorage] updatePartialBottle error:', error?.message); return false; }
+    await writeItem(itemId, tenantId, { partial_bottle: value, updated_at: new Date()?.toISOString() }, 'Partial bottle');
     return true;
   } catch (err) {
     console.error('[inventoryStorage] updatePartialBottle exception:', err?.message);
@@ -1764,6 +1768,50 @@ export const moveFolderToTrash = async (parentSegments, name, folderPath = null)
   }
 };
 
+// Full rows for the trash snapshot. Offline, that exact query may never have
+// been saved — fall back to the saved full inventory list (getAllItems).
+const readItemRows = async (tenantId, ids) => {
+  const { data } = await supabase?.from('inventory_items')?.select('*')?.eq('tenant_id', tenantId)?.in('id', ids);
+  if (data?.length) return data;
+  const { data: all } = await supabase?.from('inventory_items')?.select('*')?.eq('tenant_id', tenantId)?.order('created_at', { ascending: false });
+  return (all || []).filter((r) => ids.includes(r.id));
+};
+
+// Snapshot item rows into one inventory_trash record, then delete them — both
+// through the outbox, so trashing works offline (the snapshot comes from the
+// saved copy). → the trash record id, or null.
+const trashRows = async (tenantId, userId, rows, { folder_name, folder_path }) => {
+  const nowIso = new Date().toISOString();
+  const rec = {
+    id: newId(),
+    tenant_id: tenantId,
+    deleted_by: userId || null,
+    deleted_at: nowIso,
+    folder_name,
+    parent_segments: [],
+    folder_path,
+    item_count: rows.length,
+    folder_count: 0,
+    payload: { locations: [], items: rows },
+  };
+  try {
+    await outbox.submit({ key: `inventory_trash|${rec.id}`, table: 'inventory_trash', type: 'insert', row: rec, match: { id: rec.id }, label: `Trash ${folder_name}` });
+  } catch (error) {
+    console.error('[inventoryStorage] trash insert error:', error?.message);
+    return null;
+  }
+  try {
+    for (const row of rows) {
+      await outbox.submit({ key: itemKey(row.id), table: ITEMS, type: 'delete', match: { id: row.id, tenant_id: tenantId }, label: 'Delete item' });
+    }
+  } catch (error) {
+    console.error('[inventoryStorage] trash delete error:', error?.message);
+    await outbox.submit({ key: `inventory_trash|${rec.id}`, table: 'inventory_trash', type: 'delete', match: { id: rec.id } }).catch(() => {});
+    return null;
+  }
+  return rec.id;
+};
+
 /**
  * Delete a single item into the recoverable Trash. Snapshots the item row into
  * inventory_trash, then removes it. Returns the trash record id, or null.
@@ -1773,26 +1821,10 @@ export const moveItemToTrash = async (itemId) => {
     const tenantId = getActiveTenantId();
     if (!tenantId || !itemId) return null;
     const { data: { session } } = await supabase?.auth?.getSession();
-    const { data: row } = await supabase?.from('inventory_items')?.select('*')?.eq('id', itemId)?.eq('tenant_id', tenantId)?.single();
+    const [row] = await readItemRows(tenantId, [itemId]);
     if (!row) return null;
     const path = [row?.location, row?.sub_location]?.filter(Boolean)?.join(' › ');
-    const { data: rec, error } = await supabase
-      ?.from('inventory_trash')
-      ?.insert({
-        tenant_id: tenantId,
-        deleted_by: session?.user?.id || null,
-        folder_name: row?.name || 'Item',
-        parent_segments: [],
-        folder_path: path || null,
-        item_count: 1,
-        folder_count: 0,
-        payload: { locations: [], items: [row] },
-      })
-      ?.select('id')?.single();
-    if (error) { console.error('[inventoryStorage] moveItemToTrash insert error:', error?.message); return null; }
-    const ok = await deleteItem(itemId);
-    if (!ok) { await supabase?.from('inventory_trash')?.delete()?.eq('id', rec?.id); return null; }
-    return rec?.id || null;
+    return await trashRows(tenantId, session?.user?.id, [row], { folder_name: row?.name || 'Item', folder_path: path || null });
   } catch (err) {
     console.error('[inventoryStorage] moveItemToTrash exception:', err?.message);
     return null;
@@ -1805,25 +1837,9 @@ export const moveItemsToTrash = async (itemIds) => {
     const tenantId = getActiveTenantId();
     if (!tenantId || !itemIds?.length) return null;
     const { data: { session } } = await supabase?.auth?.getSession();
-    const { data: rows } = await supabase?.from('inventory_items')?.select('*')?.eq('tenant_id', tenantId)?.in('id', itemIds);
+    const rows = await readItemRows(tenantId, itemIds);
     if (!rows?.length) return null;
-    const { data: rec, error } = await supabase
-      ?.from('inventory_trash')
-      ?.insert({
-        tenant_id: tenantId,
-        deleted_by: session?.user?.id || null,
-        folder_name: `${rows?.length} items`,
-        parent_segments: [],
-        folder_path: rows?.[0]?.location || null,
-        item_count: rows?.length,
-        folder_count: 0,
-        payload: { locations: [], items: rows },
-      })
-      ?.select('id')?.single();
-    if (error) { console.error('[inventoryStorage] moveItemsToTrash insert error:', error?.message); return null; }
-    const ok = await bulkDeleteItemsByIds(itemIds);
-    if (!ok) { await supabase?.from('inventory_trash')?.delete()?.eq('id', rec?.id); return null; }
-    return rec?.id || null;
+    return await trashRows(tenantId, session?.user?.id, rows, { folder_name: `${rows?.length} items`, folder_path: rows?.[0]?.location || null });
   } catch (err) {
     console.error('[inventoryStorage] moveItemsToTrash exception:', err?.message);
     return null;

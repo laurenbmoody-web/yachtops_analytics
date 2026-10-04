@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { insertRow, updateRow } from '../../../lib/offline/rowWrites';
 import ModalShell from '../../../components/ui/ModalShell';
 import Icon from '../../../components/AppIcon';
 import { supabase } from '../../../lib/supabaseClient';
@@ -433,7 +434,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   };
   const photoErrText = (err) => (err?.message === 'bad-format'
     ? 'Couldn’t read that image — try a JPG or PNG.'
-    : `Upload failed — ${err?.message || 'try again.'}`);
+    : /fetch|network|load failed|offline/i.test(String(err?.message))
+      ? 'Photos need a connection — save the item now and add the photo later.'
+      : `Upload failed — ${err?.message || 'try again.'}`);
 
   const uploadPhoto = async (file) => {
     if (!file) return;
@@ -661,8 +664,9 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
       // final save), keep updating that same row instead of inserting again.
       const existingId = isEdit ? item.id : savedId;
       let res;
-      if (existingId) res = await supabase.from('inventory_items').update(payload).eq('id', existingId).eq('tenant_id', tenantId).select('id').single();
-      else res = await supabase.from('inventory_items').insert(payload).select('id').single();
+      // Through the outbox: saved on the device and synced later when offline.
+      if (existingId) res = await updateRow('inventory_items', existingId, { ...payload, updated_at: new Date().toISOString() }, `Edit ${payload.name || 'item'}`);
+      else res = await insertRow('inventory_items', payload, `Add ${payload.name || 'item'}`);
       if (res.error) throw res.error;
       const newId = res.data?.id || existingId || null;
       if (!isEdit && newId) setSavedId(newId);

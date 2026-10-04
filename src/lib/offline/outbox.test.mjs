@@ -207,3 +207,24 @@ test('a non-network exception is a rejection, not "offline" — it never blocks 
   assert.equal(box.pendingCount(), 0);
   assert.equal(rejected[0][0], 'bad');
 });
+
+test('rpc ops (stock +/-) are never folded: every change is sent, in order', async () => {
+  const sent = [];
+  let mode = 'offline';
+  const box = createOutbox({
+    store: memStore(),
+    userId: () => 'u1',
+    execute: async (op) => { if (mode === 'offline') return OFFLINE; sent.push(`${op.type} ${op.args?.p_delta ?? JSON.stringify(op.patch)}`); return { data: null }; },
+  });
+  const k = 'inventory_items|i1';
+  const stock = (d) => ({ key: k, table: 'inventory_items', type: 'rpc', fn: 'adjust_inventory_stock', args: { p_item_id: 'i1', p_delta: d }, match: { id: 'i1' } });
+  await box.submit(stock(1));
+  await box.submit(stock(1));
+  await box.submit({ key: k, table: 'inventory_items', type: 'update', patch: { notes: 'a' }, match: { id: 'i1' } });
+  await box.submit({ key: k, table: 'inventory_items', type: 'update', patch: { icon: 'b' }, match: { id: 'i1' } });
+  await box.submit(stock(-1));
+  assert.equal(box.pendingCount(), 4);
+  mode = 'online';
+  await box.flush();
+  assert.deepEqual(sent, ['rpc 1', 'rpc 1', 'update {"notes":"a","icon":"b"}', 'rpc -1']);
+});

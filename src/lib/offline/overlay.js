@@ -9,6 +9,13 @@
 //
 // Pure — unit-tested in overlay.test.mjs.
 
+import { applyStockDelta } from './stockDelta.js';
+
+// How an `rpc` op shows on reads of its table, by function name.
+const RPC_VIEW = {
+  adjust_inventory_stock: applyStockDelta,
+};
+
 const RESERVED = new Set(['select', 'order', 'limit', 'offset', 'on_conflict', 'columns']);
 
 function parseFilters(url) {
@@ -92,6 +99,7 @@ function sorter(url) {
 //   { type: 'update', patch, match }            → patch matching rows (a patch
 //                                                 can move a row out of the list)
 //   { type: 'delete', match }                   → remove it
+//   { type: 'rpc', fn, args, match }            → RPC_VIEW[fn] on matching rows
 export function applyOverlay(url, rows, ops) {
   if (!Array.isArray(rows) || !ops?.length) return rows;
   const filters = parseFilters(url);
@@ -100,6 +108,11 @@ export function applyOverlay(url, rows, ops) {
   const shows = (k, r) => sel === 'all' || (sel ? sel.has(k) : k in r);
   let out = rows.slice();
   for (const op of ops) {
+    if (op.type === 'rpc') {
+      const view = RPC_VIEW[op.fn];
+      if (view && op.match) out = out.map((r) => (sameKey(r, op.match, filters) ? view(r, op.args) : r));
+      continue;
+    }
     if (op.type === 'update') {
       out = out.flatMap((r) => {
         if (!sameKey(r, op.match, filters)) return [r];
