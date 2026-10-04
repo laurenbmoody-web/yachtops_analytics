@@ -460,3 +460,13 @@
 .sib-leave-ic.perm { background: #C65A1A; }
 .sib-leave-t { font: 700 15px 'Inter', system-ui, sans-serif; color: #1C1B3A; }
 .sib-leave-s { font-size: 12px; color: #8B8478; }
+
+/* Returning-visitor quick list in the Add panel. */
+.sib-recent { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #F0F1F5; }
+.sib-recent-l { display: block; font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 8px; }
+.sib-recent-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.sib-recent-chip { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 14px; border-radius: 12px; border: 1px solid #E5E7EB; background: #FFFFFF; cursor: pointer; text-align: left; }
+.sib-recent-chip:hover { border-color: #C65A1A; background: #FBEFE9; }
+.sib-recent-chip:disabled { opacity: 0.6; cursor: default; }
+.sib-recent-nm { font: 700 13.5px 'Inter', system-ui, sans-serif; color: #1C1B3A; }
+.sib-recent-co { font: 600 10px 'Inter', system-ui, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; color: #8B8478; }
