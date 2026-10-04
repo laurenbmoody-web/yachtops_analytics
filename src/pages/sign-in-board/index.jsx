@@ -46,7 +46,10 @@ const SignInBoard = () => {
   // the interactive board on tap, returning to standby after a spell of no touches.
   const standbyParam = searchParams.get('mode') === 'standby' || searchParams.get('standby') === '1';
   const kiosk = searchParams.get('kiosk') === '1' || searchParams.get('mode') === 'kiosk' || standbyParam;
-  const [standby, setStandby] = useState(standbyParam);
+  // Door-iPad flow: 'glance' (always-on standby) → tap → 'board' (stripped quick
+  // sign-in) → 'muster' (emergency roll call). null = the normal full board.
+  const [doorView, setDoorView] = useState(standbyParam ? 'glance' : null);
+  const [mustered, setMustered] = useState({}); // personKey -> true when accounted for
   const { session, activeTenantId } = useAuth();
   const meId = session?.user?.id;
   const now = useClock();
@@ -92,17 +95,18 @@ const SignInBoard = () => {
     return () => { clearInterval(pollRef.current); window.removeEventListener('focus', load); };
   }, [load]);
 
-  // After waking the door iPad to the board, drop back to standby once there's
-  // been no interaction for a while, so it's always ready at the gangway.
+  // After waking the door iPad to the quick board, drop back to the standby
+  // glance once there's been no interaction for a while, so it's always ready at
+  // the gangway. Muster is never auto-dismissed — an emergency roll call stays up.
   useEffect(() => {
-    if (!standbyParam || standby) return;
+    if (doorView !== 'board') return;
     let t;
-    const reset = () => { clearTimeout(t); t = setTimeout(() => setStandby(true), 60000); };
+    const reset = () => { clearTimeout(t); t = setTimeout(() => setDoorView('glance'), 60000); };
     const evs = ['pointerdown', 'keydown', 'touchstart'];
     reset();
     evs.forEach((e) => window.addEventListener(e, reset, { passive: true }));
     return () => { clearTimeout(t); evs.forEach((e) => window.removeEventListener(e, reset)); };
-  }, [standbyParam, standby]);
+  }, [doorView]);
 
   const mark = (key, on) => setPending((p) => { const n = { ...p }; if (on) n[key] = true; else delete n[key]; return n; });
 
@@ -189,11 +193,22 @@ const SignInBoard = () => {
   const crewAshore = crew.length - crewAboard;
   const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 
-  // ── Standby (always-on door iPad) ──────────────────────────────────────────
-  if (standby) {
+  // Everyone the muster accounts for: all crew (aboard or ashore), plus guests
+  // on board and signed-in visitors. `aboard` flags who is expected present.
+  const musterRoster = [
+    ...crew.map((m) => ({ key: `c:${m.userId}`, name: m.name, sub: m.department, aboard: m.status === ABOARD, img: m.avatarUrl })),
+    ...guests.filter((g) => g.onboard).map((g) => ({ key: `g:${g.id}`, name: g.name, sub: g.cabin || 'Guest', aboard: true })),
+    ...contractors.map((k) => ({ key: `k:${k.id}`, name: k.name, sub: k.company || 'Visitor', aboard: true })),
+  ];
+  const expected = musterRoster.filter((p) => p.aboard);
+  const musteredAboard = expected.filter((p) => mustered[p.key]).length;
+  const toggleMuster = (key) => setMustered((m) => { const n = { ...m }; if (n[key]) delete n[key]; else n[key] = true; return n; });
+
+  // ── Standby glance (always-on door iPad) ───────────────────────────────────
+  if (doorView === 'glance') {
     return (
-      <div className="sib-sb" onClick={() => setStandby(false)} role="button" tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setStandby(false); }}>
+      <div className="sib-sb" onClick={() => setDoorView('board')} role="button" tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setDoorView('board'); }}>
         <div className="sib-sb-inner">
           <p className="editorial-meta sib-sb-meta">
             <span className="dot">●</span>
@@ -218,6 +233,94 @@ const SignInBoard = () => {
     );
   }
 
+  // ── Muster (emergency roll call) ───────────────────────────────────────────
+  if (doorView === 'muster') {
+    const allAccounted = expected.length > 0 && musteredAboard === expected.length;
+    return (
+      <div className="sibm">
+        <div className="sibm-top">
+          <div className="sibm-head-l">
+            <p className="sibm-eyebrow"><span className="dot">●</span> Muster · {vesselName || 'On board'}</p>
+            <h1 className="sibm-title">{musteredAboard} <span className="sibm-of">/ {expected.length}</span> accounted</h1>
+          </div>
+          <div className="sibm-head-r">
+            <span className={`sibm-status ${allAccounted ? 'ok' : 'warn'}`}>
+              {allAccounted ? 'All accounted for' : `${expected.length - musteredAboard} to find`}
+            </span>
+            <button type="button" className="sibm-btn ghost" onClick={() => setMustered({})}>Reset</button>
+            <button type="button" className="sibm-btn" onClick={() => setDoorView('board')}>Exit muster</button>
+          </div>
+        </div>
+        <div className="sibm-grid">
+          {musterRoster.map((p) => {
+            const done = !!mustered[p.key];
+            return (
+              <button key={p.key} type="button"
+                className={`sibm-cell${done ? ' done' : ''}${p.aboard ? '' : ' ashore'}`}
+                onClick={() => toggleMuster(p.key)}>
+                <span className="sibm-check">{done ? <Icon name="Check" size={18} /> : null}</span>
+                <span className="sibm-nm">
+                  <span className="sibm-person">{p.name}</span>
+                  <span className="sibm-sub">{p.aboard ? (p.sub || '') : 'Ashore'}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <footer className="sibm-foot">Tap each person once they’re at the muster station · ashore crew are shown greyed</footer>
+      </div>
+    );
+  }
+
+  // ── Quick board (woken from standby — tap your name to flip your status) ─────
+  if (doorView === 'board') {
+    return (
+      <div className="sibq">
+        <div className="sibq-top">
+          <div className="sibq-brand">
+            <span className="sibq-vessel">{vesselName || 'On board'}</span>
+            <span className="sibq-dot">·</span>
+            <span className="sibq-clock">{timeStr}</span>
+            <span className="sibq-dot">·</span>
+            <span className="sibq-pob">{pob} aboard</span>
+          </div>
+          <div className="sibq-actions">
+            <button type="button" className="sibq-btn muster" onClick={() => setDoorView('muster')}>
+              <Icon name="AlertTriangle" size={16} /> Muster
+            </button>
+            <button type="button" className="sibq-btn" onClick={() => setDoorView('glance')}>
+              <Icon name="Monitor" size={15} /> Standby
+            </button>
+          </div>
+        </div>
+        {loading ? (
+          <div className="sib-loading"><LogoSpinner size={44} /></div>
+        ) : (
+          <div className="sibq-grid">
+            {crew.map((m) => {
+              const on = m.status === ABOARD;
+              const key = `c:${m.userId}`;
+              return (
+                <button key={key} type="button" className={`sibq-tile ${on ? 'aboard' : 'ashore'}`}
+                  onClick={() => toggleCrew(m)} disabled={!!pending[key]} aria-pressed={on}>
+                  <span className="sibq-av">
+                    {m.avatarUrl && !imgErr[key]
+                      ? <img src={m.avatarUrl} alt="" onError={() => setImgErr((e) => ({ ...e, [key]: true }))} />
+                      : <span className="sibq-ini">{initials(m.name)}</span>}
+                  </span>
+                  <span className="sibq-name">{m.name}</span>
+                  {m.department && <span className="sibq-dept">{m.department}</span>}
+                  <span className={`sibq-chip ${on ? 'aboard' : 'ashore'}`}>{on ? 'On board' : 'Ashore'}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <footer className="sibq-foot">Tap your name to sign in or out</footer>
+      </div>
+    );
+  }
+
   return (
     <>
       {!kiosk && <Header />}
@@ -230,7 +333,7 @@ const SignInBoard = () => {
             </button>
           )}
           <div className="sib-utilrow-r">
-            <button type="button" className="sib-standby-btn" onClick={() => setStandby(true)} title="Switch to the always-on door display">
+            <button type="button" className="sib-standby-btn" onClick={() => setDoorView('glance')} title="Switch to the always-on door display">
               <Icon name="Monitor" size={15} /><span className="lbl">Standby</span>
             </button>
             <button type="button" className="sib-add-btn" onClick={() => setAddOpen(true)} aria-label="Add visitor">
