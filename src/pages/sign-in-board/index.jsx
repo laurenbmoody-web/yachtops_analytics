@@ -14,6 +14,7 @@ import { exportMusterPdf } from './utils/musterPdf';
 import {
   fetchGuestsOnBoard, setGuestOnBoard,
   fetchContractorsOnBoard, addContractor, signOutContractor,
+  stepOutContractor, returnContractor,
 } from '../../services/personsOnBoard';
 import '../../styles/editorial.css';
 import './sign-in-board.css';
@@ -64,6 +65,7 @@ const SignInBoard = () => {
   const [scanOpen, setScanOpen] = useState(false);
   const [deviceSetupOpen, setDeviceSetupOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // { name, aboard } — kiosk confirmation flash
+  const [leaveVisitor, setLeaveVisitor] = useState(null); // visitor the "leaving?" popover is open for
   const [speakOn, setSpeakOn] = useState(() => { try { return localStorage.getItem('cargo_gangway_speak') === '1'; } catch { return false; } });
   const confirmTimer = useRef(null);
   const { session, activeTenantId, hasCommandAccess } = useAuth();
@@ -194,15 +196,45 @@ const SignInBoard = () => {
     } finally { mark(key, false); }
   };
 
-  const signOut = async (k) => {
+  const visitorMeta = (k) => ({ company: k.company || '', phone: k.phone || '' });
+
+  // Permanent sign-off — visitor leaves for good and drops off the board.
+  const signOffVisitor = async (k) => {
     const key = `k:${k.id}`;
     if (pending[key]) return;
+    setLeaveVisitor(null);
     setContractors((cur) => cur.filter((x) => x.id !== k.id)); // optimistic remove
     mark(key, true);
     try {
       await signOutContractor(k.id);
-      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: k.id, subjectName: k.name, direction: 'ashore', actorUserId: meId, source: logSource });
+      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: k.id, subjectName: k.name, direction: 'ashore', actorUserId: meId, source: logSource, meta: { ...visitorMeta(k), leave: 'permanent' } });
     } catch (e) { showToast(e.message || 'Could not sign out — try again', 'error'); load(); }
+    finally { mark(key, false); }
+  };
+
+  // Temporary — stepping out (lunch). Stays on the board, greyed, "tap to return".
+  const stepOutVisitor = async (k) => {
+    const key = `k:${k.id}`;
+    if (pending[key]) return;
+    setLeaveVisitor(null);
+    setContractors((cur) => cur.map((x) => (x.id === k.id ? { ...x, state: 'stepped_out' } : x)));
+    mark(key, true);
+    try {
+      await stepOutContractor(k.id);
+      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: k.id, subjectName: k.name, direction: 'ashore', actorUserId: meId, source: logSource, meta: { ...visitorMeta(k), leave: 'temporary' } });
+    } catch (e) { setContractors((cur) => cur.map((x) => (x.id === k.id ? { ...x, state: 'onboard' } : x))); showToast(e.message || 'Could not update — try again', 'error'); }
+    finally { mark(key, false); }
+  };
+
+  const returnVisitor = async (k) => {
+    const key = `k:${k.id}`;
+    if (pending[key]) return;
+    setContractors((cur) => cur.map((x) => (x.id === k.id ? { ...x, state: 'onboard' } : x)));
+    mark(key, true);
+    try {
+      await returnContractor(k.id);
+      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: k.id, subjectName: k.name, direction: 'aboard', actorUserId: meId, source: logSource, meta: visitorMeta(k) });
+    } catch (e) { setContractors((cur) => cur.map((x) => (x.id === k.id ? { ...x, state: 'stepped_out' } : x))); showToast(e.message || 'Could not update — try again', 'error'); }
     finally { mark(key, false); }
   };
 
@@ -211,7 +243,7 @@ const SignInBoard = () => {
     setAddBusy(true);
     try {
       const row = await addContractor(activeTenantId, addName, addCompany, addPhone, meId);
-      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: addName.trim(), direction: 'aboard', actorUserId: meId, source: logSource });
+      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: addName.trim(), direction: 'aboard', actorUserId: meId, source: logSource, meta: { company: addCompany.trim(), phone: addPhone.trim() } });
       setAddOpen(false); setAddName(''); setAddCompany(''); setAddPhone('');
       load();
     } catch (e) { showToast(e.message || 'Could not add visitor', 'error'); }
@@ -220,7 +252,8 @@ const SignInBoard = () => {
 
   const crewAboard = crew.filter((c) => c.status === ABOARD).length;
   const guestsOn = guests.filter((g) => g.onboard).length;
-  const pob = crewAboard + guestsOn + contractors.length;
+  const visitorsOnboard = contractors.filter((k) => k.state !== 'stepped_out').length;
+  const pob = crewAboard + guestsOn + visitorsOnboard;
   const dateStr = now.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long' });
 
   const personCard = (opts) => {
@@ -276,7 +309,7 @@ const SignInBoard = () => {
   const musterRoster = [
     ...crewByDept.map((m) => ({ key: `c:${m.userId}`, name: m.name, sub: m.department, aboard: m.status === ABOARD, img: m.avatarUrl })),
     ...guests.filter((g) => g.onboard).map((g) => ({ key: `g:${g.id}`, name: g.name, sub: g.cabin || 'Guest', aboard: true })),
-    ...contractors.map((k) => ({ key: `k:${k.id}`, name: k.name, sub: k.company || 'Visitor', aboard: true })),
+    ...contractors.map((k) => ({ key: `k:${k.id}`, name: k.name, sub: k.company || 'Visitor', aboard: k.state !== 'stepped_out' })),
   ];
   const expected = musterRoster.filter((p) => p.aboard);
   const markCell = (rollId, key) => {
@@ -331,7 +364,7 @@ const SignInBoard = () => {
             <div className="sib-sb-stat primary"><span className="n">{pob}</span><span className="l">Aboard</span></div>
             <div className="sib-sb-stat"><span className="n">{crewAboard}</span><span className="l">Crew</span></div>
             <div className="sib-sb-stat"><span className="n">{guestsOn}</span><span className="l">Guests</span></div>
-            <div className="sib-sb-stat"><span className="n">{contractors.length}</span><span className="l">Visitors</span></div>
+            <div className="sib-sb-stat"><span className="n">{visitorsOnboard}</span><span className="l">Visitors</span></div>
             {crewAshore > 0 && <div className="sib-sb-stat ashore"><span className="n">{crewAshore}</span><span className="l">Ashore</span></div>}
           </div>
         </div>
@@ -514,7 +547,7 @@ const SignInBoard = () => {
               <span className="bar" />
               <span className="muted">{pob} aboard</span>
               <span className="bar" />
-              <span className="muted">{crewAboard} crew · {guestsOn} guests · {contractors.length} visitors</span>
+              <span className="muted">{crewAboard} crew · {guestsOn} guests · {visitorsOnboard} visitors</span>
             </p>
             <h1 className="sib-title">{vesselName || 'On board'}<span className="period">.</span></h1>
           </div>
@@ -554,10 +587,27 @@ const SignInBoard = () => {
 
           {tab === 'visitors' && (
             <div className="sib-grid">
-              {contractors.map((k) => personCard({
-                key: `k:${k.id}`, on: true, name: k.name, sub: k.company || 'Visitor', sub2: k.phone,
-                disabled: !!pending[`k:${k.id}`], onClick: () => signOut(k),
-              }))}
+              {contractors.map((k) => {
+                const away = k.state === 'stepped_out';
+                const busyK = !!pending[`k:${k.id}`];
+                return (
+                  <div key={`k:${k.id}`} className={`sib-vcard${away ? ' away' : ''}`}>
+                    <span className="sib-av"><span className="sib-ini">{initials(k.name)}</span></span>
+                    <span className="sib-name">{k.name}</span>
+                    <span className="sib-dept">{k.company || 'Visitor'}</span>
+                    {k.phone && <span className="sib-phone"><Icon name="Phone" size={11} /> {k.phone}</span>}
+                    {away ? (
+                      <button type="button" className="sib-vbtn return" disabled={busyK} onClick={() => returnVisitor(k)}>
+                        <Icon name="LogIn" size={14} /> Away — tap to return
+                      </button>
+                    ) : (
+                      <button type="button" className="sib-vbtn leave" disabled={busyK} onClick={() => setLeaveVisitor(k)}>
+                        <Icon name="LogOut" size={14} /> Tap to leave
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
               <button type="button" className="sib-add" onClick={() => setAddOpen(true)}>
                 <span className="sib-add-plus"><Icon name="Plus" size={22} /></span>
                 <span className="sib-add-label">Add visitor</span>
@@ -567,7 +617,31 @@ const SignInBoard = () => {
         </div>
       )}
 
-      <footer className="sib-foot">Tap crew or guests to sign in/out · tap a visitor to sign them off</footer>
+      <footer className="sib-foot">Tap crew or guests to sign in/out · tap a visitor to leave or return</footer>
+
+      {leaveVisitor && (
+        <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setLeaveVisitor(null); }}>
+          <div className="sib-modal">
+            <div className="sib-modal-head">
+              <h4>{leaveVisitor.name} is leaving</h4>
+              <button type="button" className="sib-exit sm" onClick={() => setLeaveVisitor(null)} title="Close"><Icon name="X" size={16} /></button>
+            </div>
+            <p className="sib-leave-q">Stepping out for a bit, or done for the day?</p>
+            <div className="sib-leave-opts">
+              <button type="button" className="sib-leave-opt" onClick={() => stepOutVisitor(leaveVisitor)}>
+                <span className="sib-leave-ic temp"><Icon name="Coffee" size={20} /></span>
+                <span className="sib-leave-t">Stepping out</span>
+                <span className="sib-leave-s">Back later — stays on the board, one tap to return</span>
+              </button>
+              <button type="button" className="sib-leave-opt" onClick={() => signOffVisitor(leaveVisitor)}>
+                <span className="sib-leave-ic perm"><Icon name="LogOut" size={20} /></span>
+                <span className="sib-leave-t">Leaving for good</span>
+                <span className="sib-leave-s">Signs them off — removed from the board</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {addOpen && (
         <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setAddOpen(false); }}>

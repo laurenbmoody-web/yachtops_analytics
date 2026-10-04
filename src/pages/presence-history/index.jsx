@@ -73,14 +73,23 @@ const PresenceHistory = () => {
                   <h2 className="ph-day-h">{g.day}</h2>
                   {g.items.map((ev) => {
                     const aboard = ev.direction === 'aboard';
+                    const isVisitor = ev.subject_type === 'visitor';
+                    const meta = ev.meta || {};
+                    // Visitors read as "Visitor · Company · Phone"; crew/guests show the device.
+                    const sub = isVisitor
+                      ? ['Visitor', meta.company, meta.phone].filter(Boolean).join(' · ')
+                      : `${SOURCE_LABEL[ev.source] || ev.source}${ev.actor_name && ev.actor_name !== ev.subject_name ? ` · by ${ev.actor_name}` : ''}`;
+                    const dir = aboard ? 'On board'
+                      : isVisitor ? (meta.leave === 'temporary' ? 'Stepped out' : 'Signed off')
+                      : 'Ashore';
                     return (
                       <div key={ev.id} className="ph-row">
                         <span className="ph-ic"><Icon name={SUBJECT_ICON[ev.subject_type] || 'UserRound'} size={15} /></span>
                         <span className="ph-who">
                           <span className="ph-name">{ev.subject_name || 'Someone'}</span>
-                          <span className="ph-src">{SOURCE_LABEL[ev.source] || ev.source}{ev.actor_name && ev.actor_name !== ev.subject_name ? ` · by ${ev.actor_name}` : ''}</span>
+                          <span className="ph-src">{sub}</span>
                         </span>
-                        <span className={`ph-dir ${aboard ? 'in' : 'out'}`}>{aboard ? 'On board' : 'Ashore'}</span>
+                        <span className={`ph-dir ${aboard ? 'in' : 'out'}`}>{dir}</span>
                         <span className="ph-time">{hhmm(ev.created_at)}</span>
                       </div>
                     );
