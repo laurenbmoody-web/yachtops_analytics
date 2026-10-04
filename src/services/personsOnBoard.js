@@ -64,12 +64,55 @@ export async function fetchContractorsOnBoard(tenantId) {
   if (!tenantId) return [];
   const { data, error } = await supabase
     ?.from('contractor_visits')
-    ?.select('id, name, company, phone, signed_in_at, status')
+    ?.select('id, name, company, phone, reason, signed_in_at, status')
     ?.eq('tenant_id', tenantId)
     ?.in('status', ['onboard', 'stepped_out'])
     ?.order('signed_in_at', { ascending: true });
   if (error) { console.error('[pob] contractors fetch failed', error); return []; }
   return (data || []).map((k) => ({ ...k, state: k.status || 'onboard' }));
+}
+
+// ── Expected visitors (pre-registered for planned work) ─────────────────────
+export async function fetchExpectedVisitors(tenantId) {
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    ?.from('contractor_visits')
+    ?.select('id, name, company, phone, reason, created_at')
+    ?.eq('tenant_id', tenantId)?.eq('status', 'expected')?.order('created_at', { ascending: true });
+  if (error) { console.error('[pob] expected fetch failed', error); return []; }
+  return data || [];
+}
+
+export async function addExpectedVisitor(tenantId, { name, company, phone, reason }, createdBy) {
+  if (!tenantId || !name?.trim()) throw new Error('Name is required');
+  const { data, error } = await supabase
+    ?.from('contractor_visits')
+    ?.insert({
+      tenant_id: tenantId, name: name.trim(), company: company?.trim() || null, phone: phone?.trim() || null,
+      reason: reason?.trim() || null, status: 'expected', created_by: createdBy || null,
+    })?.select()?.single();
+  if (error) throw error;
+  return data;
+}
+
+// Turn an expected entry into an on-board visit (on arrival), carrying induction.
+export async function activateExpected(id, { inducted, reason } = {}) {
+  if (!id) return null;
+  const now = new Date().toISOString();
+  const patch = { status: 'onboard', signed_in_at: now, updated_at: now };
+  if (inducted) { patch.inducted = true; patch.inducted_at = now; }
+  if (reason != null) patch.reason = reason.trim() || null;
+  const { data, error } = await supabase?.from('contractor_visits')?.update(patch)?.eq('id', id)?.select()?.single();
+  if (error) throw error;
+  return data;
+}
+
+// Cancel an expected entry (status 'ashore' drops it off the expected list).
+export async function cancelExpected(id) {
+  if (!id) return;
+  const { error } = await supabase
+    ?.from('contractor_visits')?.update({ status: 'ashore', updated_at: new Date().toISOString() })?.eq('id', id);
+  if (error) throw error;
 }
 
 // Temporarily step a visitor out (keeps the visit open — they can tap back in
@@ -96,7 +139,7 @@ export async function fetchRecentVisitors(tenantId, { limit = 8 } = {}) {
   if (!tenantId) return [];
   const { data, error } = await supabase
     ?.from('contractor_visits')
-    ?.select('name, company, phone, signed_in_at, status')
+    ?.select('name, company, phone, reason, inducted, signed_in_at, status')
     ?.eq('tenant_id', tenantId)
     ?.order('signed_in_at', { ascending: false })
     ?.limit(120);
@@ -110,14 +153,16 @@ export async function fetchRecentVisitors(tenantId, { limit = 8 } = {}) {
     if (['onboard', 'stepped_out'].includes(r.status)) { present.add(key); continue; }
     if (seen.has(key) || present.has(key)) continue;
     seen.add(key);
-    out.push({ name: r.name, company: r.company || '', phone: r.phone || '', lastSeen: r.signed_in_at });
+    out.push({ name: r.name, company: r.company || '', phone: r.phone || '', reason: r.reason || '', inducted: !!r.inducted, lastSeen: r.signed_in_at });
     if (out.length >= limit) break;
   }
   return out;
 }
 
-export async function addContractor(tenantId, name, company, phone, createdBy) {
+export async function addContractor(tenantId, name, company, phone, createdBy, opts = {}) {
   if (!tenantId || !name?.trim()) throw new Error('Name is required');
+  const now = new Date().toISOString();
+  const inducted = !!opts.inducted;
   const { data, error } = await supabase
     ?.from('contractor_visits')
     ?.insert({
@@ -125,8 +170,11 @@ export async function addContractor(tenantId, name, company, phone, createdBy) {
       name: name.trim(),
       company: company?.trim() || null,
       phone: phone?.trim() || null,
+      reason: opts.reason?.trim() || null,
+      inducted,
+      inducted_at: inducted ? now : null,
       status: 'onboard',
-      signed_in_at: new Date().toISOString(),
+      signed_in_at: now,
       created_by: createdBy || null,
     })
     ?.select()

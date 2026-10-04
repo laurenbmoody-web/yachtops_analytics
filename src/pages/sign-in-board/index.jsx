@@ -5,6 +5,8 @@ import Header from '../../components/navigation/Header';
 import LogoSpinner from '../../components/LogoSpinner';
 import DoorScanModal from './components/DoorScanModal';
 import DeviceSetupModal from './components/DeviceSetupModal';
+import VisitorPassModal from './components/VisitorPassModal';
+import { decodeVisitorPass } from './utils/visitorPass';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
@@ -15,6 +17,7 @@ import {
   fetchGuestsOnBoard, setGuestOnBoard,
   fetchContractorsOnBoard, addContractor, signOutContractor,
   stepOutContractor, returnContractor, fetchRecentVisitors,
+  fetchExpectedVisitors, addExpectedVisitor, activateExpected, cancelExpected,
 } from '../../services/personsOnBoard';
 import '../../styles/editorial.css';
 import './sign-in-board.css';
@@ -66,7 +69,7 @@ const SignInBoard = () => {
   const [deviceSetupOpen, setDeviceSetupOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // { name, aboard } — kiosk confirmation flash
   const [leaveVisitor, setLeaveVisitor] = useState(null); // visitor the "leaving?" popover is open for
-  const [speakOn, setSpeakOn] = useState(() => { try { return localStorage.getItem('cargo_gangway_speak') === '1'; } catch { return false; } });
+  const [passVisitor, setPassVisitor] = useState(null); // visitor whose QR pass is being shown
   const confirmTimer = useRef(null);
   const { session, activeTenantId, hasCommandAccess } = useAuth();
   const isCommand = typeof hasCommandAccess === 'function' && hasCommandAccess();
@@ -86,16 +89,22 @@ const SignInBoard = () => {
   const [addCompany, setAddCompany] = useState('');
   const [addPhone, setAddPhone] = useState('');
   const [addBusy, setAddBusy] = useState(false);
+  const [addReason, setAddReason] = useState('');
+  const [addAck, setAddAck] = useState(false);
   const [recentVisitors, setRecentVisitors] = useState([]);
+  const [expectedVisitors, setExpectedVisitors] = useState([]); // pre-registered expected visitors
+  const [fromExpected, setFromExpected] = useState(null); // expected id being signed in
   const pollRef = useRef(null);
 
   // Load recent (not-present) visitors when the Add panel opens, for one-tap return.
   useEffect(() => {
     if (!addOpen || !activeTenantId) return;
+    setAddAck(false);
+    if (!fromExpected) setAddReason('');
     let alive = true;
     fetchRecentVisitors(activeTenantId).then((v) => { if (alive) setRecentVisitors(v); });
     return () => { alive = false; };
-  }, [addOpen, activeTenantId]);
+  }, [addOpen, activeTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!activeTenantId) return;
@@ -106,12 +115,13 @@ const SignInBoard = () => {
   const load = useCallback(async () => {
     if (!activeTenantId) { setLoading(false); return; }
     try {
-      const [c, g, k] = await Promise.all([
+      const [c, g, k, ex] = await Promise.all([
         fetchPresenceBoard(activeTenantId),
         fetchGuestsOnBoard(activeTenantId),
         fetchContractorsOnBoard(activeTenantId),
+        fetchExpectedVisitors(activeTenantId),
       ]);
-      setCrew(c); setGuests(g); setContractors(k);
+      setCrew(c); setGuests(g); setContractors(k); setExpectedVisitors(ex);
     } catch { /* keep last-known board on a transient failure */ }
     finally { setLoading(false); }
   }, [activeTenantId]);
@@ -142,21 +152,9 @@ const SignInBoard = () => {
   // the door board. Optionally spoken. Only shown in a door/kiosk context so the
   // admin board (toggling many at once) isn't interrupted.
   const inDoorContext = kiosk || doorView === 'board';
-  const toggleSpeak = () => setSpeakOn((on) => { const next = !on; try { localStorage.setItem('cargo_gangway_speak', next ? '1' : '0'); } catch { /* ignore */ } return next; });
-  const speak = (text) => {
-    try {
-      if (!speakOn) return;
-      if (!window.speechSynthesis) return;
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 1; u.pitch = 1;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(u);
-    } catch { /* ignore */ }
-  };
   const flashConfirm = (name, aboard) => {
     if (!inDoorContext) return;
     setConfirm({ name, aboard });
-    speak(`${aboard ? 'Welcome aboard' : 'Safe trip ashore'}, ${name}`);
     if (confirmTimer.current) clearTimeout(confirmTimer.current);
     confirmTimer.current = setTimeout(() => setConfirm(null), 2800);
   };
@@ -183,6 +181,20 @@ const SignInBoard = () => {
   const handleScan = (raw) => {
     setScanOpen(false);
     const str = String(raw || '').trim();
+    // Visitor pass → sign in / return (self-contained, no lookup needed).
+    const vm = /^cargo-visitor:(.+)$/i.exec(str);
+    if (vm) {
+      const v = decodeVisitorPass(vm[1]);
+      if (!v?.name || !v?.phone) { showToast('Visitor pass not recognised', 'error'); return; }
+      const existing = contractors.find((k) => norm(k.phone) === norm(v.phone));
+      if (existing) {
+        if (existing.state === 'stepped_out') { returnVisitor(existing); flashConfirm(v.name, true); }
+        else showToast(`${v.name} is already on board — tap their card to leave`, 'info');
+      } else {
+        signInVisitor(v.name, v.company, v.phone, { inducted: true });
+      }
+      return;
+    }
     const m = /^cargo-pass:(.+)$/i.exec(str);
     const uid = (m ? m[1] : str).trim();
     const member = crew.find((c) => c.userId === uid);
@@ -247,21 +259,60 @@ const SignInBoard = () => {
     finally { mark(key, false); }
   };
 
-  const signInVisitor = async (name, company, phone) => {
+  const signInVisitor = async (name, company, phone, opts = {}) => {
     const nm = String(name || '').trim();
     const ph = String(phone || '').trim();
     if (!nm || !ph || addBusy) return;
+    const reason = String(opts.reason || '').trim();
     setAddBusy(true);
     try {
-      const row = await addContractor(activeTenantId, nm, company, ph, meId);
-      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: nm, direction: 'aboard', actorUserId: meId, source: logSource, meta: { company: String(company || '').trim(), phone: ph } });
+      const row = await addContractor(activeTenantId, nm, company, ph, meId, { reason, inducted: !!opts.inducted });
+      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: nm, direction: 'aboard', actorUserId: meId, source: logSource, meta: { company: String(company || '').trim(), phone: ph, reason } });
       flashConfirm(nm, true);
-      setAddOpen(false); setAddName(''); setAddCompany(''); setAddPhone('');
+      setAddOpen(false); setAddName(''); setAddCompany(''); setAddPhone(''); setAddReason(''); setAddAck(false);
       load();
     } catch (e) { showToast(e.message || 'Could not add visitor', 'error'); }
     finally { setAddBusy(false); }
   };
-  const submitContractor = () => signInVisitor(addName, addCompany, addPhone);
+  // Manual new visitor — needs the safety-briefing acknowledgment. If arriving
+  // from a pre-registered "expected" entry, activate that row instead of a new one.
+  const submitContractor = async () => {
+    if (!addAck) return;
+    if (fromExpected) {
+      if (addBusy) return;
+      setAddBusy(true);
+      try {
+        const row = await activateExpected(fromExpected, { inducted: true, reason: addReason });
+        logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: addName.trim(), direction: 'aboard', actorUserId: meId, source: logSource, meta: { company: addCompany.trim(), phone: addPhone.trim(), reason: addReason.trim() } });
+        flashConfirm(addName.trim(), true);
+        setAddOpen(false); setFromExpected(null); setAddName(''); setAddCompany(''); setAddPhone(''); setAddReason(''); setAddAck(false);
+        load();
+      } catch (e) { showToast(e.message || 'Could not sign in', 'error'); }
+      finally { setAddBusy(false); }
+      return;
+    }
+    signInVisitor(addName, addCompany, addPhone, { reason: addReason, inducted: true });
+  };
+
+  // Pre-register an expected visitor (planned work) — no sign-in, no ack yet.
+  const saveExpected = async () => {
+    if (!addName.trim() || addBusy) return;
+    setAddBusy(true);
+    try {
+      await addExpectedVisitor(activeTenantId, { name: addName, company: addCompany, phone: addPhone, reason: addReason }, meId);
+      setAddOpen(false); setFromExpected(null); setAddName(''); setAddCompany(''); setAddPhone(''); setAddReason(''); setAddAck(false);
+      showToast('Added to expected', 'success');
+      load();
+    } catch (e) { showToast(e.message || 'Could not save', 'error'); }
+    finally { setAddBusy(false); }
+  };
+
+  // Tap an expected visitor to sign them in — prefill the induction panel.
+  const arriveExpected = (x) => {
+    setFromExpected(x.id);
+    setAddName(x.name || ''); setAddCompany(x.company || ''); setAddPhone(x.phone || ''); setAddReason(x.reason || ''); setAddAck(false);
+    setAddOpen(true);
+  };
 
   // Prefill from a recent visitor when the typed phone matches one.
   const norm = (s) => String(s || '').replace(/\s+/g, '');
@@ -368,6 +419,157 @@ const SignInBoard = () => {
     } catch (e) { showToast(e?.message || 'Could not save muster', 'error'); }
     finally { setMusterSaving(false); }
   };
+
+  // Panes + overlays shared between the full board and the stripped quick board,
+  // so visitors and guests can be managed from the door iPad too.
+  const guestsPane = guests.length === 0
+    ? <p className="sib-none">No guests on this trip.</p>
+    : <div className="sib-grid">{guests.map((g) => personCard({
+        key: `g:${g.id}`, on: g.onboard, name: g.name, sub: g.cabin || 'Guest',
+        backAt: g.returningAt, disabled: !!pending[`g:${g.id}`], onClick: () => toggleGuest(g),
+      }))}</div>;
+
+  const visitorsPane = (
+    <>
+      <div className="sib-grid">
+        {contractors.map((k) => {
+          const away = k.state === 'stepped_out';
+          const busyK = !!pending[`k:${k.id}`];
+          return (
+            <div key={`k:${k.id}`} className={`sib-vcard${away ? ' away' : ''}`}>
+              <span className="sib-av"><span className="sib-ini">{initials(k.name)}</span></span>
+              <span className="sib-name">{k.name}</span>
+              <span className="sib-dept">{k.company || 'Visitor'}</span>
+              {k.reason && <span className="sib-vreason">{k.reason}</span>}
+              {k.phone && <span className="sib-phone"><Icon name="Phone" size={11} /> {k.phone}</span>}
+              {away ? (
+                <button type="button" className="sib-vbtn return" disabled={busyK} onClick={() => returnVisitor(k)}>
+                  <Icon name="LogIn" size={14} /> Away — tap to return
+                </button>
+              ) : (
+                <button type="button" className="sib-vbtn leave" disabled={busyK} onClick={() => setLeaveVisitor(k)}>
+                  <Icon name="LogOut" size={14} /> Tap to leave
+                </button>
+              )}
+              <button type="button" className="sib-vpasslink" onClick={() => setPassVisitor(k)}>
+                <Icon name="QrCode" size={12} /> Pass
+              </button>
+            </div>
+          );
+        })}
+        <button type="button" className="sib-add" onClick={() => { setFromExpected(null); setAddOpen(true); }}>
+          <span className="sib-add-plus"><Icon name="Plus" size={22} /></span>
+          <span className="sib-add-label">Add visitor</span>
+        </button>
+      </div>
+      {expectedVisitors.length > 0 && (
+        <div className="sib-expected">
+          <p className="sib-expected-l">Expected</p>
+          <div className="sib-expected-list">
+            {expectedVisitors.map((x) => (
+              <div key={x.id} className="sib-exp-row">
+                <button type="button" className="sib-exp-main" onClick={() => arriveExpected(x)}>
+                  <span className="sib-exp-nm">{x.name}</span>
+                  <span className="sib-exp-sub">{[x.company, x.reason].filter(Boolean).join(' · ') || 'Visitor'}</span>
+                </button>
+                <button type="button" className="sib-exp-in" onClick={() => arriveExpected(x)}>Sign in</button>
+                <button type="button" className="sib-exp-x" onClick={() => cancelExpected(x.id).then(load)} title="Remove"><Icon name="X" size={14} /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  const overlays = (
+    <>
+      {leaveVisitor && (
+        <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setLeaveVisitor(null); }}>
+          <div className="sib-modal">
+            <div className="sib-modal-head">
+              <h4>{leaveVisitor.name} is leaving</h4>
+              <button type="button" className="sib-exit sm" onClick={() => setLeaveVisitor(null)} title="Close"><Icon name="X" size={16} /></button>
+            </div>
+            <p className="sib-leave-q">Stepping out for a bit, or done for the day?</p>
+            <div className="sib-leave-opts">
+              <button type="button" className="sib-leave-opt" onClick={() => stepOutVisitor(leaveVisitor)}>
+                <span className="sib-leave-ic temp"><Icon name="Coffee" size={20} /></span>
+                <span className="sib-leave-t">Stepping out</span>
+                <span className="sib-leave-s">Back later — stays on the board, one tap to return</span>
+              </button>
+              <button type="button" className="sib-leave-opt" onClick={() => signOffVisitor(leaveVisitor)}>
+                <span className="sib-leave-ic perm"><Icon name="LogOut" size={20} /></span>
+                <span className="sib-leave-t">Leaving for good</span>
+                <span className="sib-leave-s">Signs them off — removed from the board</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addOpen && (
+        <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) { setAddOpen(false); setFromExpected(null); } }}>
+          <div className="sib-modal">
+            <div className="sib-modal-head">
+              <h4>{fromExpected ? 'Sign in — induction' : 'Sign in a visitor'}</h4>
+              <button type="button" className="sib-exit sm" onClick={() => { setAddOpen(false); setFromExpected(null); }} title="Close"><Icon name="X" size={16} /></button>
+            </div>
+
+            {!fromExpected && recentVisitors.length > 0 && (
+              <div className="sib-recent">
+                <span className="sib-recent-l">Returning? Tap to sign back in</span>
+                <div className="sib-recent-list">
+                  {recentVisitors.map((v, i) => (
+                    <button key={i} type="button" className="sib-recent-chip" disabled={addBusy}
+                      onClick={() => signInVisitor(v.name, v.company, v.phone, { reason: v.reason, inducted: true })}>
+                      <span className="sib-recent-nm">{v.name}</span>
+                      {v.company && <span className="sib-recent-co">{v.company}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <label className="sib-field"><span>Name</span>
+              <input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Full name" autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
+            </label>
+            <label className="sib-field"><span>Contact number <em>for emergencies</em></span>
+              <input value={addPhone} onChange={(e) => onAddPhone(e.target.value)} placeholder="Mobile number" type="tel" inputMode="tel"
+                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
+            </label>
+            <label className="sib-field"><span>Company <em>optional</em></span>
+              <input value={addCompany} onChange={(e) => setAddCompany(e.target.value)} placeholder="e.g. AV Marine"
+                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
+            </label>
+            <label className="sib-field"><span>Reason for visit <em>optional</em></span>
+              <input value={addReason} onChange={(e) => setAddReason(e.target.value)} placeholder="e.g. Engine survey"
+                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
+            </label>
+            <button type="button" className={`sib-ack${addAck ? ' on' : ''}`} onClick={() => setAddAck((v) => !v)}>
+              <span className="sib-ack-box">{addAck && <Icon name="Check" size={13} />}</span>
+              <span className="sib-ack-t">Safety briefing given &amp; understood <em>required</em></span>
+            </button>
+            <div className="sib-modal-foot">
+              <button type="button" className="sib-btn ghost" onClick={() => { setAddOpen(false); setFromExpected(null); }}>Cancel</button>
+              {!fromExpected && (
+                <button type="button" className="sib-btn ghost" onClick={saveExpected} disabled={addBusy || !addName.trim()} title="Pre-register — sign in when they arrive">
+                  Expected
+                </button>
+              )}
+              <button type="button" className="sib-btn primary" onClick={submitContractor} disabled={addBusy || !addName.trim() || !addPhone.trim() || !addAck}>
+                Sign in
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {passVisitor && <VisitorPassModal visitor={passVisitor} onClose={() => setPassVisitor(null)} />}
+      {confirmFlash}
+    </>
+  );
 
   // ── Standby glance (always-on door iPad) ───────────────────────────────────
   if (doorView === 'glance') {
@@ -476,16 +678,14 @@ const SignInBoard = () => {
       <div className="sibq">
         <div className="sibq-top">
           <div className="sibq-brand">
-            <span className="sibq-vessel">{vesselName || 'On board'}</span>
-            <span className="sibq-dot">·</span>
-            <span className="sibq-clock">{timeStr}</span>
-            <span className="sibq-dot">·</span>
-            <span className="sibq-pob">{pob} aboard</span>
+            <p className="editorial-meta">
+              <span className="dot">●</span><span>Gangway</span>
+              <span className="bar" /><span className="muted">{timeStr}</span>
+              <span className="bar" /><span className="muted">{pob} aboard</span>
+            </p>
+            <h1 className="editorial-greeting sibq-greeting">{vesselName || 'On board'}<span className="period">,</span> <em>aboard</em><span className="period">.</span></h1>
           </div>
           <div className="sibq-actions">
-            <button type="button" className={`sibq-btn icon${speakOn ? ' on' : ''}`} onClick={toggleSpeak} title={speakOn ? 'Spoken confirmation on' : 'Spoken confirmation off'} aria-label="Toggle spoken confirmation">
-              <Icon name={speakOn ? 'Volume2' : 'VolumeX'} size={16} />
-            </button>
             <button type="button" className="sibq-btn scan" onClick={() => setScanOpen(true)}>
               <Icon name="QrCode" size={16} /> Scan pass
             </button>
@@ -498,9 +698,17 @@ const SignInBoard = () => {
           </div>
         </div>
         {scanOpen && <DoorScanModal onClose={() => setScanOpen(false)} onDetect={handleScan} />}
+        <div className="sib-tabs sibq-tabs" role="tablist">
+          {tabs.map((t) => (
+            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id}
+              className={`sib-tab ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
+              {t.label} <span className="sib-tab-n">{t.n}</span>
+            </button>
+          ))}
+        </div>
         {loading ? (
           <div className="sib-loading"><LogoSpinner size={44} /></div>
-        ) : (
+        ) : tab === 'crew' ? (
           <div className="sibq-grid">
             {crew.map((m) => {
               const on = m.status === ABOARD;
@@ -520,9 +728,11 @@ const SignInBoard = () => {
               );
             })}
           </div>
+        ) : (
+          <div className="sibq-pane">{tab === 'guests' ? guestsPane : visitorsPane}</div>
         )}
-        <footer className="sibq-foot">Tap your name to sign in or out</footer>
-        {confirmFlash}
+        <footer className="sibq-foot">Tap your name to sign in or out · add visitors under Visitors</footer>
+        {overlays}
       </div>
     );
   }
@@ -557,7 +767,7 @@ const SignInBoard = () => {
             <button type="button" className="sib-standby-btn" onClick={() => setDoorView('glance')} title="Switch to the always-on door display">
               <Icon name="Monitor" size={15} /><span className="lbl">Standby</span>
             </button>
-            <button type="button" className="sib-add-btn" onClick={() => setAddOpen(true)} aria-label="Add visitor">
+            <button type="button" className="sib-add-btn" onClick={() => { setFromExpected(null); setAddOpen(true); }} aria-label="Add visitor">
               <Icon name="Plus" size={18} /><span className="lbl">Visitor</span>
             </button>
           </div>
@@ -601,120 +811,18 @@ const SignInBoard = () => {
                 img: m.avatarUrl, disabled: !!pending[`c:${m.userId}`], onClick: () => toggleCrew(m),
               }))}</div>)}
 
-          {tab === 'guests' && (guests.length === 0
-            ? <p className="sib-none">No guests on this trip.</p>
-            : <div className="sib-grid">{guests.map((g) => personCard({
-                key: `g:${g.id}`, on: g.onboard, name: g.name, sub: g.cabin || 'Guest',
-                backAt: g.returningAt, disabled: !!pending[`g:${g.id}`], onClick: () => toggleGuest(g),
-              }))}</div>)}
+          {tab === 'guests' && guestsPane}
 
-          {tab === 'visitors' && (
-            <div className="sib-grid">
-              {contractors.map((k) => {
-                const away = k.state === 'stepped_out';
-                const busyK = !!pending[`k:${k.id}`];
-                return (
-                  <div key={`k:${k.id}`} className={`sib-vcard${away ? ' away' : ''}`}>
-                    <span className="sib-av"><span className="sib-ini">{initials(k.name)}</span></span>
-                    <span className="sib-name">{k.name}</span>
-                    <span className="sib-dept">{k.company || 'Visitor'}</span>
-                    {k.phone && <span className="sib-phone"><Icon name="Phone" size={11} /> {k.phone}</span>}
-                    {away ? (
-                      <button type="button" className="sib-vbtn return" disabled={busyK} onClick={() => returnVisitor(k)}>
-                        <Icon name="LogIn" size={14} /> Away — tap to return
-                      </button>
-                    ) : (
-                      <button type="button" className="sib-vbtn leave" disabled={busyK} onClick={() => setLeaveVisitor(k)}>
-                        <Icon name="LogOut" size={14} /> Tap to leave
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-              <button type="button" className="sib-add" onClick={() => setAddOpen(true)}>
-                <span className="sib-add-plus"><Icon name="Plus" size={22} /></span>
-                <span className="sib-add-label">Add visitor</span>
-              </button>
-            </div>
-          )}
+          {tab === 'visitors' && visitorsPane}
         </div>
       )}
 
       <footer className="sib-foot">Tap crew or guests to sign in/out · tap a visitor to leave or return</footer>
 
-      {leaveVisitor && (
-        <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setLeaveVisitor(null); }}>
-          <div className="sib-modal">
-            <div className="sib-modal-head">
-              <h4>{leaveVisitor.name} is leaving</h4>
-              <button type="button" className="sib-exit sm" onClick={() => setLeaveVisitor(null)} title="Close"><Icon name="X" size={16} /></button>
-            </div>
-            <p className="sib-leave-q">Stepping out for a bit, or done for the day?</p>
-            <div className="sib-leave-opts">
-              <button type="button" className="sib-leave-opt" onClick={() => stepOutVisitor(leaveVisitor)}>
-                <span className="sib-leave-ic temp"><Icon name="Coffee" size={20} /></span>
-                <span className="sib-leave-t">Stepping out</span>
-                <span className="sib-leave-s">Back later — stays on the board, one tap to return</span>
-              </button>
-              <button type="button" className="sib-leave-opt" onClick={() => signOffVisitor(leaveVisitor)}>
-                <span className="sib-leave-ic perm"><Icon name="LogOut" size={20} /></span>
-                <span className="sib-leave-t">Leaving for good</span>
-                <span className="sib-leave-s">Signs them off — removed from the board</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {addOpen && (
-        <div className="sib-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setAddOpen(false); }}>
-          <div className="sib-modal">
-            <div className="sib-modal-head">
-              <h4>Sign in a visitor</h4>
-              <button type="button" className="sib-exit sm" onClick={() => setAddOpen(false)} title="Close"><Icon name="X" size={16} /></button>
-            </div>
-
-            {recentVisitors.length > 0 && (
-              <div className="sib-recent">
-                <span className="sib-recent-l">Returning? Tap to sign back in</span>
-                <div className="sib-recent-list">
-                  {recentVisitors.map((v, i) => (
-                    <button key={i} type="button" className="sib-recent-chip" disabled={addBusy}
-                      onClick={() => signInVisitor(v.name, v.company, v.phone)}>
-                      <span className="sib-recent-nm">{v.name}</span>
-                      {v.company && <span className="sib-recent-co">{v.company}</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <label className="sib-field"><span>Name</span>
-              <input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Full name" autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
-            </label>
-            <label className="sib-field"><span>Contact number <em>for emergencies</em></span>
-              <input value={addPhone} onChange={(e) => onAddPhone(e.target.value)} placeholder="Mobile number" type="tel" inputMode="tel"
-                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
-            </label>
-            <label className="sib-field"><span>Company <em>optional</em></span>
-              <input value={addCompany} onChange={(e) => setAddCompany(e.target.value)} placeholder="e.g. AV Marine"
-                onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
-            </label>
-            <div className="sib-modal-foot">
-              <button type="button" className="sib-btn ghost" onClick={() => setAddOpen(false)}>Cancel</button>
-              <button type="button" className="sib-btn primary" onClick={submitContractor} disabled={addBusy || !addName.trim() || !addPhone.trim()}>
-                Sign in
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {deviceSetupOpen && (
         <DeviceSetupModal tenantId={activeTenantId} crew={crew} onClose={() => setDeviceSetupOpen(false)} />
       )}
-      {confirmFlash}
+      {overlays}
       </div>
     </>
   );
