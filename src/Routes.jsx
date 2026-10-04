@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { BrowserRouter, Routes as RouterRoutes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import NativeBridge from './lib/native/NativeBridge';
 import ScrollToTop from 'components/ScrollToTop';
 import ErrorBoundary from 'components/ErrorBoundary';
 import LogoSpinner from './components/LogoSpinner';
@@ -1054,6 +1055,7 @@ const Routes = () => {
     <BrowserRouter>
       <ErrorBoundary>
       <InviteHashRedirectGuard />
+      <NativeBridge />
       <RouteChangeLogger />
       <ScrollToTop />
       <RouterRoutes>

@@ -16,10 +16,10 @@
 //   { test_user_id: '<uuid>' }   → DRY: one sample push to that user's
 //                                  devices, nothing marked.
 //
-// Secrets (already set for laundry-push):
-//   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
+// Secrets: see _shared/push.ts (shared with laundry-push) — web, iOS and
+// Android devices are all reached through it.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import * as webpush from 'jsr:@negrel/webpush';
+import { createPusher } from '../_shared/push.ts';
 
 declare const Deno: {
   serve: (handler: (req: Request) => Promise<Response>) => void;
@@ -28,9 +28,6 @@ declare const Deno: {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const VAPID_PUBLIC = Deno.env.get('VAPID_PUBLIC_KEY') || '';
-const VAPID_PRIVATE = Deno.env.get('VAPID_PRIVATE_KEY') || '';
-const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT') || 'mailto:ops@cargo.app';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -38,34 +35,13 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-function b64urlToBytes(s: string): Uint8Array {
-  const pad = '='.repeat((4 - (s.length % 4)) % 4);
-  const b64 = (s + pad).replace(/-/g, '+').replace(/_/g, '/');
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-const bytesToB64url = (b: Uint8Array) =>
-  btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-
-// Raw base64url VAPID keys → the JWK pair @negrel/webpush expects.
-function vapidJwks() {
-  const pub = b64urlToBytes(VAPID_PUBLIC); // 0x04 || x(32) || y(32)
-  const x = bytesToB64url(pub.slice(1, 33));
-  const y = bytesToB64url(pub.slice(33, 65));
-  return {
-    publicKey: { kty: 'EC', crv: 'P-256', x, y, ext: true, key_ops: ['verify'] } as JsonWebKey,
-    privateKey: { kty: 'EC', crv: 'P-256', x, y, d: VAPID_PRIVATE, ext: true, key_ops: ['sign'] } as JsonWebKey,
-  };
-}
-
 type Msg = { title: string; body: string; url: string };
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
-  if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
-    return new Response(JSON.stringify({ ok: false, error: 'VAPID keys not configured' }), {
+  const pusher = await createPusher();
+  if (!pusher.configured) {
+    return new Response(JSON.stringify({ ok: false, error: 'No push channel configured (VAPID / APNs / FCM)' }), {
       status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
     });
   }
@@ -125,11 +101,6 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  const appServer = await webpush.ApplicationServer.new({
-    contactInformation: VAPID_SUBJECT,
-    vapidKeys: await webpush.importVapidKeys(vapidJwks(), { extractable: false }),
-  });
-
   let sent = 0;
   let pruned = 0;
   const marked: string[] = [];
@@ -139,24 +110,16 @@ Deno.serve(async (req: Request) => {
     // phone that took laundry alerts is the same phone.
     const { data: subs } = await sb
       .from('push_subscriptions')
-      .select('endpoint, p256dh, auth')
+      .select('endpoint, p256dh, auth, platform')
       .eq('user_id', userId);
 
     for (const s of subs || []) {
-      const subscription = { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } };
-      try {
-        const subscriber = appServer.subscribe(subscription as unknown as PushSubscriptionJSON);
-        await subscriber.pushTextMessage(JSON.stringify(msg), {});
-        sent += 1;
-      } catch (err) {
-        // 404/410 → the subscription is dead; drop it so the list stays clean
-        const status = (err as { statusCode?: number })?.statusCode;
-        if (status === 404 || status === 410) {
-          await sb.from('push_subscriptions').delete().eq('endpoint', s.endpoint);
-          pruned += 1;
-        } else {
-          console.error('[job-reminder-push] send failed', err);
-        }
+      const result = await pusher.send(s, msg);
+      if (result === 'sent') sent += 1;
+      // The device is no longer registered; drop it so the list stays clean.
+      if (result === 'gone') {
+        await sb.from('push_subscriptions').delete().eq('endpoint', s.endpoint);
+        pruned += 1;
       }
     }
 

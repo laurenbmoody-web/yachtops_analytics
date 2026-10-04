@@ -1,3 +1,4 @@
+import { publicOrigin } from '../../lib/native/platform';
 import { supabase } from '../../lib/supabaseClient';
 
 // 32-char base64url capability token for the no-login driver link.
@@ -57,4 +58,4 @@ export const fetchLatestDriverPing = async (orderId) => {
 
 // The public driver-follow / capture link for an order token.
 export const driverLinkForToken = (token) =>
-  `${window.location.origin}/drive/${token}`;
+  `${publicOrigin()}/drive/${token}`;

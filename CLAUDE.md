@@ -30,6 +30,19 @@ Two things you must NOT conflate with it:
 
 Full detail and the "which model for which question" table: `docs/inventory-location-model.md`.
 
+## Native app rule — the web app also runs inside iOS / Android (Capacitor)
+
+The same build ships as the Cargo app (`ios/`, `android/`, `src/lib/native/`). Inside
+it, `window.location.origin` is `capacitor://localhost` / `https://localhost`, so:
+- **Any URL that leaves the device** (share/invite links, QR codes, auth `redirectTo`,
+  email links) must use `publicOrigin()` from `src/lib/native/platform.js` — never
+  `window.location.origin`.
+- Downloads, `window.open`, `window.print` and relative `/api/` fetches are already
+  handled globally by `src/lib/native/` — keep using the normal web patterns.
+- No purchase / billing UI in the app (`isNative()` hides it).
+
+Full detail: `docs/native-app.md`.
+
 ## Migrations rule — no clashing version timestamps
 
 Two migration files sharing the same 14-digit version prefix break `supabase db

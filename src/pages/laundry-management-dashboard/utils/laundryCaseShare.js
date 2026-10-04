@@ -3,10 +3,11 @@
 // surname, and sees the case contents. All access goes through the two
 // SECURITY DEFINER RPCs — the shares table is never read directly by the guest.
 
+import { publicOrigin } from '../../../lib/native/platform';
 import { supabase } from '../../../lib/supabaseClient';
 
 export const shareUrlFor = (token) => {
-  const origin = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+  const origin = publicOrigin();
   return `${origin}/case/${token}`;
 };
 

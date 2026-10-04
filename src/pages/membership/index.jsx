@@ -7,6 +7,7 @@ import { getMyContext } from '../../utils/authHelpers';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import './membership.css';
+import { isNative } from '../../lib/native/platform';
 
 // ─── Plan reference data ─────────────────────────────────────────────────────
 // Pricing is by vessel length. Every crew member and app user is included —
@@ -245,8 +246,19 @@ const Membership = () => {
             </ul>
           </div>
 
+          {/* ── iOS / Android app: no purchase or billing flows in-app (App Store /
+              Play rules) — subscriptions are bought and managed on the web. ── */}
+          {isVesselAdmin && isNative() && (
+            <div className="mem-card">
+              <div className="mem-caps">Billing</div>
+              <p className="mem-sec-desc" style={{ margin: '6px 0 0' }}>
+                Plan changes, payment and invoices are managed from Cargo on the web. Every crew member and app user is included in the vessel’s plan.
+              </p>
+            </div>
+          )}
+
           {/* ── Choose a plan — vessel admin, not yet on a paid plan ── */}
-          {isVesselAdmin && !isPaid && (
+          {isVesselAdmin && !isPaid && !isNative() && (
             <div className="mem-card">
               <div className="mem-choose-head">
                 <div className="mem-caps">{plan.tier ? 'Change your plan' : 'Choose your plan'}</div>
@@ -286,7 +298,7 @@ const Membership = () => {
           )}
 
           {/* ── Billing — admin on a paid plan ── */}
-          {isVesselAdmin && isPaid && (
+          {isVesselAdmin && isPaid && !isNative() && (
             <div className="mem-card">
               <div className="mem-caps">Billing</div>
               <p className="mem-sec-desc">

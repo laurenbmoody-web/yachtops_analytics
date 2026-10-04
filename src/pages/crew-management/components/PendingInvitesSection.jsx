@@ -1,3 +1,4 @@
+import { publicOrigin } from '../../../lib/native/platform';
 import React, { useState, useEffect } from 'react';
 import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
@@ -87,7 +88,7 @@ const PendingInvitesSection = ({ refreshTrigger, canInvite, onInviteClick }) => 
   };
 
   const handleCopyLink = (token) => {
-    const baseUrl = window?.location?.origin;
+    const baseUrl = publicOrigin();
     const link = `${baseUrl}/invite-accept?token=${token}`;
     navigator?.clipboard?.writeText(link);
     showToast('Invite link copied', 'success');

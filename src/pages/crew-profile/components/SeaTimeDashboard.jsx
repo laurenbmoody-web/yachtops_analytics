@@ -1,3 +1,4 @@
+import { publicOrigin } from '../../../lib/native/platform';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 
 import { createPortal } from 'react-dom';
@@ -734,7 +735,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
         token = data?.token;
       } catch (e) { console.error(e); flash('Could not create the signing link'); return; }
       if (!token) { flash('Could not create the signing link'); return; }
-      const link = `${window.location.origin}/sea-service/sign/${token}`;
+      const link = `${publicOrigin()}/sea-service/sign/${token}`;
       if (email) {
         supabase.functions.invoke('send-sea-service-signature-request', {
           body: { token, captainEmail: email, captainName: v.captainName, seafarerName: seafarer.fullName, vesselName: v.name, dayCount: v.days },

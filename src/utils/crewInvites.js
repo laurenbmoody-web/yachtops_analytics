@@ -1,3 +1,4 @@
+import { publicOrigin } from '../lib/native/platform';
 import { supabase } from '../lib/supabaseClient';
 
 function generateToken() {
@@ -101,7 +102,7 @@ export async function createCrewInvite({
       return { data: null, inviteLink: null, error: insertError };
     }
 
-    const inviteLink = `${window.location.origin}/invite-accept?token=${token}`;
+    const inviteLink = `${publicOrigin()}/invite-accept?token=${token}`;
     return { data, inviteLink, error: null };
   } catch (err) {
     return { data: null, inviteLink: null, error: err };

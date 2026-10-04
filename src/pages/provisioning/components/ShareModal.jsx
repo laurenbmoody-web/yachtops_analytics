@@ -1,3 +1,4 @@
+import { publicOrigin } from '../../../lib/native/platform';
 import React, { useState, useEffect, useRef } from 'react';
 import { dateLocale } from '../../../utils/dateFormat';
 import Icon from '../../../components/AppIcon';
@@ -70,7 +71,7 @@ const Avatar = ({ name, email, url, size = 32 }) => {
 // ── Share-link row ────────────────────────────────────────────────────────────
 const ShareLinkRow = ({ share, onRevoke }) => {
   const [copied, setCopied] = useState(false);
-  const url = `${window.location.origin}/provisioning/shared/${share.token}`;
+  const url = `${publicOrigin()}/provisioning/shared/${share.token}`;
   const copy = () => navigator.clipboard?.writeText(url).then(() => {
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   });
@@ -239,7 +240,7 @@ const ShareModal = ({ list, crewMembers, currentUserId, onClose }) => {
     const link = await createShareLink(list.id, newLinkPerm, currentUserId);
     if (link) {
       setShareLinks(prev => [link, ...prev]);
-      const url = `${window.location.origin}/provisioning/shared/${link.token}`;
+      const url = `${publicOrigin()}/provisioning/shared/${link.token}`;
       navigator.clipboard?.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2500); });
     }
     setCreating(false);

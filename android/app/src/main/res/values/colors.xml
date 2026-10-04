@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="cargo_navy">#1C1B3A</color>
+    <color name="cargo_accent">#C65A1A</color>
+    <color name="cargo_canvas">#F8FAFC</color>
+</resources>

@@ -4,14 +4,20 @@
 //
 // The VAPID PUBLIC key is safe to ship in the client; the matching PRIVATE key
 // lives only as a server secret (never in the repo).
+//
+// In the iOS / Android app there is no service worker; the phone is already
+// enrolled at sign-in (lib/native/push.js, APNs / FCM), so this switch only
+// moves that device on/off the 'laundry' topic.
 
 import { supabase } from '../../../lib/supabaseClient';
+import { isNative } from '../../../lib/native/platform';
+import { isNativeLaundryPush, setNativeLaundryPush } from '../../../lib/native/push';
 
 const VAPID_PUBLIC_KEY = 'BHlm_g_nx6ciCFdicN33Z0wTdjsNgvtzA-wOMCLLSyZGebS8Jvt1bpbj7UBqsZIhIn2AzF--b2Ft3adBL3WPRNs';
 const SW_URL = '/push-sw.js';
 
-export const pushSupported = () => typeof navigator !== 'undefined'
-  && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+export const pushSupported = () => isNative() || (typeof navigator !== 'undefined'
+  && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window);
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -36,6 +42,7 @@ async function registration() {
 
 // Is this device currently subscribed (permission granted + a live push sub)?
 export async function isPushEnabled() {
+  if (isNative()) return isNativeLaundryPush();
   if (!pushSupported() || Notification.permission !== 'granted') return false;
   try {
     const reg = await navigator.serviceWorker.getRegistration(SW_URL);
@@ -47,6 +54,7 @@ export async function isPushEnabled() {
 
 // Turn alerts on for this device. Returns { ok, reason }.
 export async function enablePush() {
+  if (isNative()) return setNativeLaundryPush(true);
   if (!pushSupported()) return { ok: false, reason: 'unsupported' };
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return { ok: false, reason: permission === 'denied' ? 'denied' : 'dismissed' };
@@ -79,6 +87,7 @@ export async function enablePush() {
 
 // Turn alerts off for this device.
 export async function disablePush() {
+  if (isNative()) return setNativeLaundryPush(false);
   try {
     const reg = await navigator.serviceWorker.getRegistration(SW_URL);
     const sub = reg && await reg.pushManager.getSubscription();

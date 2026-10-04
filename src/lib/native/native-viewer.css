@@ -1,0 +1,70 @@
+/* In-app viewer sheet — what window.open('') becomes in the iOS / Android app
+   (lib/native/windows.js). Full-screen, since it stands in for a browser tab. */
+
+.nv-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  background: #FFFFFF;
+  font-family: 'Inter', system-ui, sans-serif;
+  animation: nv-rise 180ms ease-out;
+}
+
+@keyframes nv-rise {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.nv-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #F8FAFC;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.nv-title {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 17px;
+  color: #1C1B3A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nv-btn {
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font: 600 13px 'Inter', system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.nv-ghost {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  color: #1C1B3A;
+}
+
+.nv-primary {
+  background: #C65A1A;
+  border: 1px solid #C65A1A;
+  color: #FFFFFF;
+}
+
+.nv-primary:active { background: #B14E16; }
+
+.nv-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #FFFFFF;
+}

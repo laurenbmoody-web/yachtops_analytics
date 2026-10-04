@@ -34,6 +34,7 @@ import { computeProfileCompletion } from './utils/profileCompletion';
 import { getStatusLabel, getStatusBadgeClasses, getStatusDotClass } from '../../utils/crewStatus';
 import { showToast } from '../../utils/toast';
 import { pushSupported, isPushEnabled, enablePush, disablePush } from '../laundry-management-dashboard/utils/pushSetup';
+import { isNative } from '../../lib/native/platform';
 import { addWorkEntries, getComplianceStatus, getMonthCalendarData, detectBreaches, calculateLatestLongestStretch, getCrewWorkEntries, deleteWorkEntriesForDate, runAllHORTests, confirmMonth, getMonthStatus, isMonthEditable, detectBreachedDatesAfterSave, hasBreachNoteForDate, syncRotaBaselineEntries, setHorDbContext, hydrateActualsForMonth } from './utils/horStorage';
 import { fetchWorkEntriesForMonth } from './utils/horWorkEntries';
 import { fetchRotaBaselineForMonth } from './utils/horBaseline';
@@ -312,7 +313,7 @@ const CrewProfile = () => {
       } else {
         const r = await enablePush();
         if (r.ok) { setLaundryPush((s) => ({ ...s, on: true })); showToast('Laundry alerts on for this device', 'success'); }
-        else if (r.reason === 'denied') showToast('Notifications are blocked — enable them in your browser settings', 'error');
+        else if (r.reason === 'denied') showToast(isNative() ? 'Notifications are off for Cargo — turn them on in your phone’s Settings' : 'Notifications are blocked — enable them in your browser settings', 'error');
         else if (r.reason === 'unsupported') showToast('This device doesn’t support push. On iPhone, add Cargo to your Home Screen first.', 'error');
         else if (r.reason === 'no_session') showToast('Couldn’t confirm your vessel — try again once signed in', 'error');
         else if (r.reason !== 'dismissed') showToast('Couldn’t enable alerts. Please try again.', 'error');

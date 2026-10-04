@@ -1,3 +1,4 @@
+import { publicOrigin } from '../../lib/native/platform';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
@@ -30,8 +31,8 @@ const ForgotPasswordRequest = () => {
     }
 
     try {
-      // Use window.location.origin for redirectTo URL
-      const redirectTo = `${window.location?.origin}/reset-password`;
+      // Public origin (not location.origin) so the email link also works from the app
+      const redirectTo = `${publicOrigin()}/reset-password`;
 
       console.log('Sending password reset email with redirectTo:', redirectTo);
 
