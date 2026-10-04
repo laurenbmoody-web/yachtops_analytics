@@ -1,6 +1,6 @@
 // Network pill — bottom centre, only when something is off: offline / slow
-// link (with how old the shown data is), and a short "Back online" when the
-// link returns. Driven by lib/offline/status.js.
+// link (with how old the shown data is), offline changes waiting to sync, and
+// a short "Back online" when the link returns. Driven by lib/offline/status.js.
 
 import React, { useEffect, useState } from 'react';
 import { getNetworkStatus, subscribeNetworkStatus } from '../../lib/offline/status';
@@ -33,19 +33,24 @@ const OfflineBar = () => {
     return () => clearTimeout(t);
   }, [status.reconnectedAt]);
 
-  const { mode, dataAt, reconnectedAt } = status;
+  const { mode, dataAt, reconnectedAt, pending } = status;
+  const changes = `${pending} change${pending === 1 ? '' : 's'}`;
   let label = null;
   let detail = null;
   let tone = 'off';
 
   if (mode === 'offline') {
     label = 'Offline';
-    detail = dataAt
-      ? `showing data saved ${savedAt(dataAt)} · changes can’t be saved yet`
-      : 'changes can’t be saved until you’re back online';
+    if (pending) detail = `${changes} saved on this device · will sync when back online`;
+    else if (dataAt) detail = `showing data saved ${savedAt(dataAt)}`;
+    else detail = 'showing saved data where available';
   } else if (mode === 'slow') {
     label = 'Slow connection';
-    if (dataAt) detail = `showing data saved ${savedAt(dataAt)}`;
+    if (pending) detail = `syncing ${changes}`;
+    else if (dataAt) detail = `showing data saved ${savedAt(dataAt)}`;
+  } else if (pending) {
+    label = 'Syncing';
+    detail = `${changes} made offline`;
   } else if (reconnectedAt && Date.now() - reconnectedAt < BACK_ONLINE_MS) {
     label = 'Back online';
     tone = 'on';

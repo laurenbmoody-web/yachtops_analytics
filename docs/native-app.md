@@ -62,9 +62,24 @@ how old it is. Saved reads are cleared on sign-out. Works on the web too.
 Limits: only screens opened online before have saved data; images not yet viewed
 won't load; saves fail offline (layer 2).
 
-**Layer 2 — recording work offline (next).** Hours of rest, jobs & defects,
-laundry & wardrobe, inventory & provisioning: queued writes with optimistic UI,
-photo uploads, sync and conflict handling.
+**Layer 2 — recording work offline.** `outbox.js` (+ `queue.js`) is a persistent
+outbox of table writes. Online a write runs immediately and a real rejection still
+throws; with no network it is saved on the device and the save counts as done. The
+latest edit per row (`key`) wins. Pending edits are laid over every read of their
+table (`overlay.js`, matched on the query's filters), so they stay visible across
+reloads and aren't "reverted" by older saved copies. Sync runs on reconnect, app
+resume, a successful request, and every 30s while anything waits; a change the
+server rejects on sync (e.g. a month locked meanwhile) is dropped with a toast.
+Ops are per user and survive sign-out. The pill shows "N changes saved on this
+device" / "Syncing".
+
+| Workflow | Status |
+|---|---|
+| Hours of rest — logging / clearing a day (`horWorkEntries.js`) | ✅ offline |
+| Hours of rest — submit month, breach reasons, sign-off | needs a connection |
+| Jobs & defects | next |
+| Laundry & wardrobe | planned |
+| Inventory & provisioning | planned |
 
 ## Push
 
