@@ -10,6 +10,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
 import { fetchPresenceBoard, setPresence, ABOARD, flip } from '../../services/crewPresence';
 import { logPresenceEvent, saveMusterRecord } from '../../services/presenceLog';
+import { exportMusterPdf } from './utils/musterPdf';
 import {
   fetchGuestsOnBoard, setGuestOnBoard,
   fetchContractorsOnBoard, addContractor, signOutContractor,
@@ -55,7 +56,7 @@ const SignInBoard = () => {
   const [doorView, setDoorView] = useState(standbyParam ? 'glance' : null);
   // Muster is a spreadsheet: people down the left, one column per roll call.
   // rollMarks[rollId][personKey] = accounted-for in that roll call.
-  const [rolls, setRolls] = useState([{ id: 'r1', name: 'Roll call 1' }]);
+  const [rolls, setRolls] = useState([{ id: 'r1', name: 'Roll call 1', startedAt: null }]);
   const [activeRoll, setActiveRoll] = useState('r1');
   const [rollMarks, setRollMarks] = useState({});
   const [musterSaving, setMusterSaving] = useState(false);
@@ -278,16 +279,20 @@ const SignInBoard = () => {
     ...contractors.map((k) => ({ key: `k:${k.id}`, name: k.name, sub: k.company || 'Visitor', aboard: true })),
   ];
   const expected = musterRoster.filter((p) => p.aboard);
-  const markCell = (rollId, key) => setRollMarks((m) => {
-    const col = { ...(m[rollId] || {}) };
-    if (col[key]) delete col[key]; else col[key] = true;
-    return { ...m, [rollId]: col };
-  });
+  const markCell = (rollId, key) => {
+    setRollMarks((m) => {
+      const col = { ...(m[rollId] || {}) };
+      if (col[key]) delete col[key]; else col[key] = true;
+      return { ...m, [rollId]: col };
+    });
+    // Stamp when this roll call was first taken.
+    setRolls((rs) => rs.map((r) => (r.id === rollId && !r.startedAt ? { ...r, startedAt: new Date().toISOString() } : r)));
+  };
   const rollCount = (rollId) => expected.filter((p) => rollMarks[rollId]?.[p.key]).length;
   const addRoll = () => setRolls((rs) => {
     const id = `r${Date.now().toString(36)}`;
     setActiveRoll(id);
-    return [...rs, { id, name: `Roll call ${rs.length + 1}` }];
+    return [...rs, { id, name: `Roll call ${rs.length + 1}`, startedAt: null }];
   });
   const resetMuster = () => { setRollMarks({}); setMusterSaved(false); };
   const saveMuster = async () => {
@@ -296,6 +301,7 @@ const SignInBoard = () => {
     try {
       const rollCalls = rolls.map((r) => ({
         name: r.name,
+        at: r.startedAt || null,
         count: rollCount(r.id),
         marked: musterRoster.filter((p) => rollMarks[r.id]?.[p.key]).map((p) => p.name),
       }));
@@ -352,6 +358,9 @@ const SignInBoard = () => {
               {allAccounted ? 'All accounted for' : `${expected.length - activeCount} to find`}
             </span>
             <button type="button" className="sibm-btn ghost" onClick={resetMuster}>Reset</button>
+            <button type="button" className="sibm-btn ghost" onClick={() => exportMusterPdf({ vesselName, rolls, rollMarks, roster: musterRoster, expectedCount: expected.length })}>
+              <Icon name="FileDown" size={15} /> PDF
+            </button>
             <button type="button" className="sibm-btn save" onClick={saveMuster} disabled={musterSaving}>
               <Icon name={musterSaved ? 'Check' : 'Save'} size={15} /> {musterSaving ? 'Saving…' : musterSaved ? 'Saved' : 'Save to log'}
             </button>
@@ -369,7 +378,7 @@ const SignInBoard = () => {
                     className={`sibm-th-roll${r.id === activeRoll ? ' active' : ''}`}
                     onClick={() => setActiveRoll(r.id)}>
                     <span className="sibm-th-roll-n">{r.name}</span>
-                    <span className="sibm-th-roll-c">{rollCount(r.id)} / {expected.length}</span>
+                    <span className="sibm-th-roll-c">{rollCount(r.id)} / {expected.length}{r.startedAt ? ` · ${hhmm(r.startedAt)}` : ''}</span>
                   </th>
                 ))}
                 <th className="sibm-th-add">

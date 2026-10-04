@@ -103,7 +103,7 @@ const PresenceHistory = () => {
                         <span className="ph-mus-sub">{rc.length} roll call{rc.length === 1 ? '' : 's'} · {m.expected ?? '—'} expected{m.created_by_name ? ` · ${m.created_by_name}` : ''}</span>
                       </span>
                       <span className="ph-mus-counts">
-                        {rc.map((r, i) => <span key={i} className="ph-mus-chip">{r.name}: {r.count}/{m.expected ?? '—'}</span>)}
+                        {rc.map((r, i) => <span key={i} className="ph-mus-chip">{r.name}: {r.count}/{m.expected ?? '—'}{r.at ? ` · ${hhmm(r.at)}` : ''}</span>)}
                         <Icon name={open ? 'ChevronUp' : 'ChevronDown'} size={16} />
                       </span>
                     </button>
