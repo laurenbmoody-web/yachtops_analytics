@@ -89,6 +89,33 @@ export async function returnContractor(id) {
   if (error) throw error;
 }
 
+// Recently-seen visitors who are NOT currently present — for one-tap re-sign-in
+// so a returning contractor never re-types their details. De-duplicated by phone
+// (falling back to name), keeping each person's most recent visit.
+export async function fetchRecentVisitors(tenantId, { limit = 8 } = {}) {
+  if (!tenantId) return [];
+  const { data, error } = await supabase
+    ?.from('contractor_visits')
+    ?.select('name, company, phone, signed_in_at, status')
+    ?.eq('tenant_id', tenantId)
+    ?.order('signed_in_at', { ascending: false })
+    ?.limit(120);
+  if (error) { console.error('[pob] recent visitors fetch failed', error); return []; }
+  const present = new Set();
+  const seen = new Set();
+  const out = [];
+  for (const r of data || []) {
+    const key = String(r.phone || r.name || '').trim().toLowerCase();
+    if (!key) continue;
+    if (['onboard', 'stepped_out'].includes(r.status)) { present.add(key); continue; }
+    if (seen.has(key) || present.has(key)) continue;
+    seen.add(key);
+    out.push({ name: r.name, company: r.company || '', phone: r.phone || '', lastSeen: r.signed_in_at });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 export async function addContractor(tenantId, name, company, phone, createdBy) {
   if (!tenantId || !name?.trim()) throw new Error('Name is required');
   const { data, error } = await supabase

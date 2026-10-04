@@ -14,7 +14,7 @@ import { exportMusterPdf } from './utils/musterPdf';
 import {
   fetchGuestsOnBoard, setGuestOnBoard,
   fetchContractorsOnBoard, addContractor, signOutContractor,
-  stepOutContractor, returnContractor,
+  stepOutContractor, returnContractor, fetchRecentVisitors,
 } from '../../services/personsOnBoard';
 import '../../styles/editorial.css';
 import './sign-in-board.css';
@@ -86,7 +86,16 @@ const SignInBoard = () => {
   const [addCompany, setAddCompany] = useState('');
   const [addPhone, setAddPhone] = useState('');
   const [addBusy, setAddBusy] = useState(false);
+  const [recentVisitors, setRecentVisitors] = useState([]);
   const pollRef = useRef(null);
+
+  // Load recent (not-present) visitors when the Add panel opens, for one-tap return.
+  useEffect(() => {
+    if (!addOpen || !activeTenantId) return;
+    let alive = true;
+    fetchRecentVisitors(activeTenantId).then((v) => { if (alive) setRecentVisitors(v); });
+    return () => { alive = false; };
+  }, [addOpen, activeTenantId]);
 
   useEffect(() => {
     if (!activeTenantId) return;
@@ -238,16 +247,30 @@ const SignInBoard = () => {
     finally { mark(key, false); }
   };
 
-  const submitContractor = async () => {
-    if (!addName.trim() || !addPhone.trim()) return;
+  const signInVisitor = async (name, company, phone) => {
+    const nm = String(name || '').trim();
+    const ph = String(phone || '').trim();
+    if (!nm || !ph || addBusy) return;
     setAddBusy(true);
     try {
-      const row = await addContractor(activeTenantId, addName, addCompany, addPhone, meId);
-      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: addName.trim(), direction: 'aboard', actorUserId: meId, source: logSource, meta: { company: addCompany.trim(), phone: addPhone.trim() } });
+      const row = await addContractor(activeTenantId, nm, company, ph, meId);
+      logPresenceEvent({ tenantId: activeTenantId, subjectType: 'visitor', subjectId: row?.id, subjectName: nm, direction: 'aboard', actorUserId: meId, source: logSource, meta: { company: String(company || '').trim(), phone: ph } });
+      flashConfirm(nm, true);
       setAddOpen(false); setAddName(''); setAddCompany(''); setAddPhone('');
       load();
     } catch (e) { showToast(e.message || 'Could not add visitor', 'error'); }
     finally { setAddBusy(false); }
+  };
+  const submitContractor = () => signInVisitor(addName, addCompany, addPhone);
+
+  // Prefill from a recent visitor when the typed phone matches one.
+  const norm = (s) => String(s || '').replace(/\s+/g, '');
+  const onAddPhone = (val) => {
+    setAddPhone(val);
+    if (norm(val).length >= 6) {
+      const match = recentVisitors.find((v) => v.phone && norm(v.phone) === norm(val));
+      if (match) { if (!addName.trim()) setAddName(match.name); if (!addCompany.trim() && match.company) setAddCompany(match.company); }
+    }
   };
 
   const crewAboard = crew.filter((c) => c.status === ABOARD).length;
@@ -650,12 +673,28 @@ const SignInBoard = () => {
               <h4>Sign in a visitor</h4>
               <button type="button" className="sib-exit sm" onClick={() => setAddOpen(false)} title="Close"><Icon name="X" size={16} /></button>
             </div>
+
+            {recentVisitors.length > 0 && (
+              <div className="sib-recent">
+                <span className="sib-recent-l">Returning? Tap to sign back in</span>
+                <div className="sib-recent-list">
+                  {recentVisitors.map((v, i) => (
+                    <button key={i} type="button" className="sib-recent-chip" disabled={addBusy}
+                      onClick={() => signInVisitor(v.name, v.company, v.phone)}>
+                      <span className="sib-recent-nm">{v.name}</span>
+                      {v.company && <span className="sib-recent-co">{v.company}</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <label className="sib-field"><span>Name</span>
               <input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="Full name" autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
             </label>
             <label className="sib-field"><span>Contact number <em>for emergencies</em></span>
-              <input value={addPhone} onChange={(e) => setAddPhone(e.target.value)} placeholder="Mobile number" type="tel" inputMode="tel"
+              <input value={addPhone} onChange={(e) => onAddPhone(e.target.value)} placeholder="Mobile number" type="tel" inputMode="tel"
                 onKeyDown={(e) => { if (e.key === 'Enter') submitContractor(); }} />
             </label>
             <label className="sib-field"><span>Company <em>optional</em></span>
