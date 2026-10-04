@@ -4,10 +4,10 @@
   width: 100%; max-width: 440px; max-height: 88vh; display: flex; flex-direction: column;
   background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); overflow: hidden;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 .dsu-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px 20px 12px; border-bottom: 1px solid #F0F1F5; }
-.dsu-eyebrow { font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0; }
+.dsu-eyebrow { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0; }
 .dsu-eyebrow::first-letter { color: #C65A1A; }
 .dsu-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: #1C1B3A; margin: 3px 0 0; line-height: 1.1; }
 .dsu-x { width: 32px; height: 32px; border: 0; background: none; border-radius: 9px; color: #8B8478; cursor: pointer; display: grid; place-items: center; }
@@ -26,11 +26,11 @@
 .dsu-tip { display: flex; gap: 9px; margin: 12px 0 0; padding: 12px 13px; border-radius: 12px; background: #FBEFE9; border: 1px solid #F3D9CB; font-size: 12.5px; line-height: 1.5; color: #6B4A38; }
 .dsu-tip svg { color: #C65A1A; flex: none; margin-top: 1px; }
 .dsu-tip b { color: #1C1B3A; }
-.dsu-link { display: inline-block; margin-top: 6px; border: 0; background: none; padding: 0; color: #C65A1A; font: 700 12.5px 'Inter', system-ui, sans-serif; cursor: pointer; }
+.dsu-link { display: inline-block; margin-top: 6px; border: 0; background: none; padding: 0; color: #C65A1A; font: 700 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer; }
 .dsu-link:hover { color: #B14E16; text-decoration: underline; }
 
 .dsu-url { margin: 14px 0 0; padding: 13px; border: 1px solid #EEF0F4; border-radius: 12px; background: #FAFAF8; }
-.dsu-url-l { display: block; font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 7px; }
+.dsu-url-l { display: block; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 7px; }
 .dsu-url-row { display: flex; gap: 8px; }
 .dsu-url-in { flex: 1; min-width: 0; border: 1px solid #E5E7EB; border-radius: 10px; padding: 9px 11px; font-size: 12.5px; color: #1C1B3A; background: #FFFFFF; }
 .dsu-url-in:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
@@ -38,14 +38,14 @@
 .dsu-copy:hover { background: #2A285A; }
 .dsu-url-tip { display: block; margin-top: 7px; font-size: 11.5px; color: #8B8478; }
 
-.dsu-list-l { margin: 18px 0 6px; font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.dsu-list-l { margin: 18px 0 6px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .dsu-list { display: flex; flex-direction: column; }
 .dsu-empty { padding: 14px 2px; text-align: center; color: #8B8478; font-size: 13px; }
 .dsu-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 4px; border-bottom: 1px solid #F0F1F5; }
 .dsu-row:last-child { border-bottom: none; }
 .dsu-row-nm { display: flex; flex-direction: column; min-width: 0; }
 .dsu-person { font-weight: 700; font-size: 14px; color: #1C1B3A; }
-.dsu-dept { font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.dsu-dept { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .dsu-toggle { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #E5E7EB; background: #FFFFFF; color: #1C1B3A; border-radius: 999px; padding: 8px 15px; font-weight: 700; font-size: 12.5px; cursor: pointer; }
 .dsu-toggle:hover { border-color: #C65A1A; color: #C65A1A; }
 .dsu-toggle.on { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }

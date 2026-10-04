@@ -7,7 +7,6 @@ import DoorScanModal from './components/DoorScanModal';
 import DeviceSetupModal from './components/DeviceSetupModal';
 import VisitorPassModal from './components/VisitorPassModal';
 import { decodeVisitorPass } from './utils/visitorPass';
-import { speakText } from './utils/speech';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
@@ -71,7 +70,6 @@ const SignInBoard = () => {
   const [confirm, setConfirm] = useState(null); // { name, aboard } — kiosk confirmation flash
   const [leaveVisitor, setLeaveVisitor] = useState(null); // visitor the "leaving?" popover is open for
   const [passVisitor, setPassVisitor] = useState(null); // visitor whose QR pass is being shown
-  const [speakOn, setSpeakOn] = useState(() => { try { return localStorage.getItem('cargo_gangway_speak') === '1'; } catch { return false; } });
   const confirmTimer = useRef(null);
   const { session, activeTenantId, hasCommandAccess } = useAuth();
   const isCommand = typeof hasCommandAccess === 'function' && hasCommandAccess();
@@ -154,12 +152,9 @@ const SignInBoard = () => {
   // the door board. Optionally spoken. Only shown in a door/kiosk context so the
   // admin board (toggling many at once) isn't interrupted.
   const inDoorContext = kiosk || doorView === 'board';
-  const toggleSpeak = () => setSpeakOn((on) => { const next = !on; try { localStorage.setItem('cargo_gangway_speak', next ? '1' : '0'); } catch { /* ignore */ } return next; });
-  const speak = (text) => { if (speakOn) speakText(text); };
   const flashConfirm = (name, aboard) => {
     if (!inDoorContext) return;
     setConfirm({ name, aboard });
-    speak(`${aboard ? 'Welcome aboard' : 'Safe trip ashore'}, ${name}`);
     if (confirmTimer.current) clearTimeout(confirmTimer.current);
     confirmTimer.current = setTimeout(() => setConfirm(null), 2800);
   };
@@ -683,16 +678,14 @@ const SignInBoard = () => {
       <div className="sibq">
         <div className="sibq-top">
           <div className="sibq-brand">
-            <span className="sibq-vessel">{vesselName || 'On board'}</span>
-            <span className="sibq-dot">·</span>
-            <span className="sibq-clock">{timeStr}</span>
-            <span className="sibq-dot">·</span>
-            <span className="sibq-pob">{pob} aboard</span>
+            <p className="editorial-meta">
+              <span className="dot">●</span><span>Gangway</span>
+              <span className="bar" /><span className="muted">{timeStr}</span>
+              <span className="bar" /><span className="muted">{pob} aboard</span>
+            </p>
+            <h1 className="editorial-greeting sibq-greeting">{vesselName || 'On board'}<span className="period">,</span> <em>aboard</em><span className="period">.</span></h1>
           </div>
           <div className="sibq-actions">
-            <button type="button" className={`sibq-btn icon${speakOn ? ' on' : ''}`} onClick={toggleSpeak} title={speakOn ? 'Spoken confirmation on' : 'Spoken confirmation off'} aria-label="Toggle spoken confirmation">
-              <Icon name={speakOn ? 'Volume2' : 'VolumeX'} size={16} />
-            </button>
             <button type="button" className="sibq-btn scan" onClick={() => setScanOpen(true)}>
               <Icon name="QrCode" size={16} /> Scan pass
             </button>
