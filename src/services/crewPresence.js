@@ -2,6 +2,7 @@
 // Backed by public.crew_presence, one row per (tenant, crew). Deliberately separate
 // from the leave/rotation status system. A missing row means aboard (the default).
 import { supabase } from '../lib/supabaseClient';
+import { logPresenceEvent } from './presenceLog';
 
 export const ABOARD = 'aboard';
 export const ASHORE = 'ashore';
@@ -61,7 +62,7 @@ export async function fetchMyPresence(tenantId, userId) {
 
 // Set (upsert) a crew member's presence. `changedBy` is the actor (self on a
 // personal toggle, the shared-device account on the board).
-export async function setPresence(tenantId, userId, status, changedBy) {
+export async function setPresence(tenantId, userId, status, changedBy, meta = {}) {
   if (!tenantId || !userId) throw new Error('Missing tenant or user');
   const now = new Date().toISOString();
   const { error } = await supabase
@@ -71,4 +72,11 @@ export async function setPresence(tenantId, userId, status, changedBy) {
       { onConflict: 'tenant_id,user_id' },
     );
   if (error) throw error;
+  // Append to the history trail (fire-and-forget). `source` distinguishes a
+  // personal device from the entry-door iPad; names are passed by the caller.
+  logPresenceEvent({
+    tenantId, subjectType: 'crew', subjectId: userId, subjectName: meta.subjectName,
+    direction: status, actorUserId: changedBy || userId, actorName: meta.actorName,
+    source: meta.source || 'app',
+  });
 }
