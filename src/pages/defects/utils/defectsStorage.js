@@ -16,6 +16,8 @@
 // awaiting + passing `actor`.
 
 import { supabase } from '../../../lib/supabaseClient';
+import { outbox } from '../../../lib/offline/queue';
+import { newId } from '../../../lib/offline/ids';
 import { logActivity, DefectActions } from '../../../utils/activityStorage';
 import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-management-settings/utils/locationsHierarchyStorage';
 import {
@@ -199,18 +201,59 @@ const fromRow = (r) => {
   };
 };
 
+// ── Offline-capable writes (lib/offline/outbox.js) ───────────────────────────
+// Defects are logged and worked at sea, so every write goes through the outbox:
+// online it runs immediately (a real rejection still comes back as `error`);
+// with no network it is saved on the device, shows in every read of defects,
+// and syncs when the link returns.
+
+// update(...).eq(id).eq(tenant).select('*').single() — same { data, error }
+// contract. Offline, `data` is the saved row with the pending edit applied.
+const updateDefectRow = async (defectId, patch, actor, label = 'A defect update') => {
+  try {
+    const res = await outbox.submit({
+      key: `defects|${defectId}`,
+      table: 'defects',
+      type: 'update',
+      patch,
+      match: { id: defectId, tenant_id: actor.tenantId },
+      returning: true,
+      label,
+    });
+    if (!res.queued) {
+      // Online and nothing came back: no row was updated (RLS / wrong id) —
+      // an error, as .single() reported before.
+      return res.data ? { data: res.data, error: null } : { data: null, error: { message: 'Defect was not updated' } };
+    }
+    const { data, error } = await supabase?.from('defects')?.select('*')?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.maybeSingle();
+    return { data, error: data ? null : (error || { message: 'Defect not found' }) };
+  } catch (error) {
+    return { data: null, error };
+  }
+};
+
 // Write an audit-trail row (best-effort; never blocks the primary write).
 const logEvent = async (actor, defectId, type, summary, meta = {}) => {
   if (!actor?.tenantId || !defectId) return;
-  await supabase?.from('defect_events')?.insert({
-    defect_id: defectId,
-    tenant_id: actor.tenantId,
-    type,
-    actor_id: actor.userId || null,
-    actor_name: actor.userName || null,
-    summary: summary || null,
-    meta,
-  });
+  const id = newId();
+  await outbox.submit({
+    key: `defect_events|${id}`,
+    table: 'defect_events',
+    type: 'insert',
+    row: {
+      id,
+      defect_id: defectId,
+      tenant_id: actor.tenantId,
+      type,
+      actor_id: actor.userId || null,
+      actor_name: actor.userName || null,
+      summary: summary || null,
+      meta,
+      created_at: new Date().toISOString(),
+    },
+    match: { id },
+    label: 'A defect history entry',
+  }).catch(() => {});
 };
 
 // ── Create ───────────────────────────────────────────────────────────────────
@@ -255,7 +298,12 @@ export const createDefect = async (defectData, actor) => {
   const kind = defectData?.assigneeKind || (assignedTo ? 'user' : 'unassigned');
   const teamDeptId = kind === 'team' ? (defectData?.assignedTeamDepartmentId || targetDeptId) : null;
 
+  // Client id + timestamps so a defect logged offline is complete at once.
+  const nowIso = new Date().toISOString();
   const insertRow = {
+    id: newId(),
+    created_at: nowIso,
+    updated_at: nowIso,
     tenant_id: actor.tenantId,
     title: defectData?.title?.trim(),
     description: defectData?.description?.trim() || '',
@@ -294,9 +342,17 @@ export const createDefect = async (defectData, actor) => {
     notify_user_ids: Array.isArray(defectData?.notifyUsers) ? defectData.notifyUsers : [],
   };
 
-  const { data, error } = await supabase?.from('defects')?.insert(insertRow)?.select('*')?.single();
-  if (error) throw error;
-  const defect = fromRow(data);
+  // Offline: queued — the returned defect is the local row (no server seq yet).
+  const res = await outbox.submit({
+    key: `defects|${insertRow.id}`,
+    table: 'defects',
+    type: 'insert',
+    row: insertRow,
+    match: { id: insertRow.id },
+    returning: true,
+    label: `Defect “${insertRow.title}”`,
+  });
+  const defect = fromRow(res.data || insertRow);
 
   await logEvent(actor, defect.id, 'created', requiresPending ? `Awaiting acceptance: ${defect.title}` : `Logged: ${defect.title}`, {
     priority: defect.priority, location: locationPathLabel,
@@ -421,11 +477,10 @@ export const requestQuoteApproval = async (defectId, actor, amountLabel = null) 
   if (!defectId || !actor?.tenantId) return null;
   const before = await getDefectById(defectId, actor);
   if (!before) return null;
-  const { data, error } = await supabase
-    ?.from('defects')?.update({
+  const { data, error } = await updateDefectRow(defectId, {
       quote_approval_status: 'pending',
       quote_approved_by: null, quote_approved_by_name: null, quote_approved_at: null, quote_approval_note: null,
-    })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+    }, actor);
   if (error) { console.warn('[defects] requestQuoteApproval', error); return null; }
   await logEvent(actor, defectId, 'approval_requested', `Quote sign-off requested${amountLabel ? ` (${amountLabel})` : ''}`);
   await notifyChiefsQuoteApproval(actor, before.departmentId, before.title, defectId, amountLabel);
@@ -461,8 +516,7 @@ export const assignDefect = async (defectId, assignment, actor) => {
     assigned_team_name: kind === 'team' ? (assignment?.teamName || null) : null,
     claimed_by: null, claimed_by_name: null, claimed_at: null,
   };
-  const { data, error } = await supabase
-    ?.from('defects')?.update(patch)?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  const { data, error } = await updateDefectRow(defectId, patch, actor);
   if (error) { console.warn('[defects] assignDefect', error); return null; }
   const after = fromRow(data);
   if (kind === 'user' && assignment?.userId) {
@@ -484,7 +538,7 @@ export const claimDefect = async (defectId, actor) => {
   if (!defectId || !actor?.tenantId || !actor?.userId) return null;
   const before = await getDefectById(defectId, actor);
   if (!before) return null;
-  const { data, error } = await supabase?.from('defects')?.update({
+  const { data, error } = await updateDefectRow(defectId, {
     assignee_kind: 'user',
     assigned_to: actor.userId,
     assigned_to_name: actor.userName || null,
@@ -492,7 +546,7 @@ export const claimDefect = async (defectId, actor) => {
     claimed_by_name: actor.userName || null,
     claimed_at: new Date().toISOString(),
     status: before.status === DefectStatus.NEW ? DefectStatus.ASSIGNED : before.status,
-  })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  }, actor);
   if (error) { console.warn('[defects] claimDefect', error); return null; }
   await logEvent(actor, defectId, 'claimed', `${actor.userName || 'A crew member'} claimed it`);
   return fromRow(data);
@@ -565,8 +619,7 @@ export const updateDefect = async (defectId, updates, actor) => {
   });
   if (updates?.status === DefectStatus.CLOSED && !before.closedAt) patch.closed_at = new Date().toISOString();
 
-  const { data, error } = await supabase
-    ?.from('defects')?.update(patch)?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  const { data, error } = await updateDefectRow(defectId, patch, actor);
   if (error) { console.warn('[defects] updateDefect', error); return null; }
   const after = fromRow(data);
 
@@ -598,12 +651,23 @@ export const updateDefect = async (defectId, updates, actor) => {
 // ── Comments / photos ─────────────────────────────────────────────────────────
 export const addDefectComment = async (defectId, text, actor) => {
   if (!defectId || !text?.trim() || !actor?.tenantId) return null;
-  const { error } = await supabase?.from('defect_comments')?.insert({
-    defect_id: defectId, tenant_id: actor.tenantId, user_id: actor.userId || null,
-    user_name: actor.userName || null, body: text.trim(),
-  });
+  const commentId = newId();
+  let error = null;
+  try {
+    await outbox.submit({
+      key: `defect_comments|${commentId}`,
+      table: 'defect_comments',
+      type: 'insert',
+      row: {
+        id: commentId, defect_id: defectId, tenant_id: actor.tenantId, user_id: actor.userId || null,
+        user_name: actor.userName || null, body: text.trim(), created_at: new Date().toISOString(),
+      },
+      match: { id: commentId },
+      label: 'A defect comment',
+    });
+  } catch (e) { error = e; }
   if (error) { console.warn('[defects] addDefectComment', error); return null; }
-  await supabase?.from('defects')?.update({ updated_at: new Date().toISOString() })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId);
+  await updateDefectRow(defectId, { updated_at: new Date().toISOString() }, actor);
   await logEvent(actor, defectId, 'comment', 'Added a comment');
   return getDefectById(defectId, actor);
 };
@@ -615,7 +679,7 @@ export const addDefectPhoto = async (defectId, photoDataUrlOrPath, actor) => {
   // Store the raw data-url/path string so the carousel (which renders
   // photos[i] directly as an <img src>) works for every photo.
   const photos = [...(current.photos || []), photoDataUrlOrPath];
-  const { error } = await supabase?.from('defects')?.update({ photos })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId);
+  const { error } = await updateDefectRow(defectId, { photos }, actor);
   if (error) { console.warn('[defects] addDefectPhoto', error); return null; }
   await logEvent(actor, defectId, 'photo', 'Added a photo');
   return getDefectById(defectId, actor);
@@ -639,10 +703,10 @@ export const acceptDefect = async (defectId, notes = '', actor) => {
   if (!defectId || !actor?.tenantId) return null;
   const before = await getDefectById(defectId, actor);
   if (!before) return null;
-  const { data, error } = await supabase?.from('defects')?.update({
+  const { data, error } = await updateDefectRow(defectId, {
     status: DefectStatus.NEW, decided_by: actor.userId || null, decided_at: new Date().toISOString(),
     decision_notes: notes || null, pending_for_department: null,
-  })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  }, actor);
   if (error) { console.warn('[defects] acceptDefect', error); return null; }
   await logEvent(actor, defectId, 'accepted', `Accepted: ${before.title}`, { notes });
   if (before.createdByUserId) await notifySenderAccepted(actor, before.createdByUserId, before.title, defectId);
@@ -653,10 +717,10 @@ export const declineDefect = async (defectId, reason, actor) => {
   if (!defectId || !actor?.tenantId) return null;
   const before = await getDefectById(defectId, actor);
   if (!before) return null;
-  const { data, error } = await supabase?.from('defects')?.update({
+  const { data, error } = await updateDefectRow(defectId, {
     status: DefectStatus.DECLINED, decided_by: actor.userId || null, decided_at: new Date().toISOString(),
     decision_notes: reason || null, pending_for_department: null,
-  })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  }, actor);
   if (error) { console.warn('[defects] declineDefect', error); return null; }
   await logEvent(actor, defectId, 'declined', `Declined: ${before.title}`, { reason });
   if (before.createdByUserId) await notifySenderDeclined(actor, before.createdByUserId, before.title, defectId, reason);
@@ -667,7 +731,10 @@ export const deletePendingDefect = async (defectId, actor) => {
   if (!defectId || !actor?.tenantId) return null;
   const before = await getDefectById(defectId, actor);
   if (!before || before.createdByUserId !== actor.userId || before.status !== DefectStatus.PENDING_ACCEPTANCE) return null;
-  const { error } = await supabase?.from('defects')?.delete()?.eq('id', defectId)?.eq('tenant_id', actor.tenantId);
+  let error = null;
+  try {
+    await outbox.submit({ key: `defects|${defectId}`, table: 'defects', type: 'delete', match: { id: defectId, tenant_id: actor.tenantId }, label: 'Deleting a defect' });
+  } catch (e) { error = e; }
   if (error) { console.warn('[defects] deletePendingDefect', error); return null; }
   return { id: defectId, deleted: true };
 };
@@ -676,9 +743,9 @@ export const archiveDeclinedDefect = async (defectId, actor) => {
   if (!defectId || !actor?.tenantId) return null;
   const before = await getDefectById(defectId, actor);
   if (!before || before.createdByUserId !== actor.userId || before.status !== DefectStatus.DECLINED) return null;
-  const { data, error } = await supabase?.from('defects')?.update({
+  const { data, error } = await updateDefectRow(defectId, {
     is_archived_by_sender: true, archived_at: new Date().toISOString(),
-  })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  }, actor);
   if (error) { console.warn('[defects] archiveDeclinedDefect', error); return null; }
   return fromRow(data);
 };
@@ -695,11 +762,11 @@ export const closeDefectWithNotes = async (defectId, closeNotes, closePhoto = nu
   if (!defectId || !actor?.tenantId) return null;
   const before = await getDefectById(defectId, actor);
   if (!before) return null;
-  const { data, error } = await supabase?.from('defects')?.update({
+  const { data, error } = await updateDefectRow(defectId, {
     status: DefectStatus.CLOSED, closed_at: new Date().toISOString(),
     closed_by: actor.userId || null, closed_by_name: actor.userName || null,
     closed_notes: closeNotes || null, closed_photo: closePhoto || null,
-  })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  }, actor);
   if (error) { console.warn('[defects] closeDefect', error); return null; }
   await logEvent(actor, defectId, 'closed', `Closed: ${before.title}`, { hasPhoto: !!closePhoto });
   return fromRow(data);
@@ -709,11 +776,11 @@ export const reopenDefect = async (defectId, reopenNotes, actor) => {
   if (!defectId || !actor?.tenantId) return null;
   const before = await getDefectById(defectId, actor);
   if (!before) return null;
-  const { data, error } = await supabase?.from('defects')?.update({
+  const { data, error } = await updateDefectRow(defectId, {
     status: DefectStatus.REOPENED, reopened_at: new Date().toISOString(),
     reopened_by: actor.userId || null, reopened_by_name: actor.userName || null,
     reopened_notes: reopenNotes || null,
-  })?.eq('id', defectId)?.eq('tenant_id', actor.tenantId)?.select('*')?.single();
+  }, actor);
   if (error) { console.warn('[defects] reopenDefect', error); return null; }
   await logEvent(actor, defectId, 'reopened', `Re-opened: ${before.title}`, { notes: reopenNotes });
   return fromRow(data);

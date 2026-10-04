@@ -79,27 +79,46 @@ export function createReadCache({ store, now = () => Date.now(), stallMs = STALL
     headers: { ...entry.headers, 'x-cargo-cached-at': String(entry.at) },
   });
 
-  // Lay pending offline edits over a table read (JSON array bodies only).
-  async function withPending(res, table, url) {
+  // Lay pending offline edits over a table read. Array bodies, and the bare
+  // object a .single() read asks for — including the "no such row" (406) a
+  // record created offline gets until it syncs.
+  async function withPending(res, table, url, accept) {
     const ops = table ? pendingFor(table) : [];
-    if (!ops.length || !res.ok) return res;
+    if (!ops.length) return res;
+    const single = /vnd\.pgrst\.object/.test(accept || '');
+    if (!res.ok && !(single && res.status === 406)) return res;
     try {
-      const rows = JSON.parse(await res.clone().text());
-      if (!Array.isArray(rows)) return res;
+      const body = res.ok ? JSON.parse(await res.clone().text()) : null;
       const headers = {};
       res.headers.forEach((v, k) => { headers[k] = v; });
-      return new Response(JSON.stringify(applyOverlay(url, rows, ops)), { status: res.status, headers });
+      if (Array.isArray(body)) {
+        return new Response(JSON.stringify(applyOverlay(url, body, ops)), { status: res.status, headers });
+      }
+      if (!single) return res;
+      const out = applyOverlay(url, body ? [body] : [], ops);
+      if (!out.length) return res;
+      return new Response(JSON.stringify(out[0]), { status: 200, headers: { ...headers, 'content-type': 'application/vnd.pgrst.object+json' } });
     } catch { return res; }
   }
 
   return function wrap(baseFetch) {
     const cachedFetch = coreFetch(baseFetch);
     return async function overlaidFetch(input, init = {}) {
-      const res = await cachedFetch(input, init);
       const method = (init.method || (typeof input === 'object' && input?.method) || 'GET').toUpperCase();
-      if (method !== 'GET') return res;
       const url = typeof input === 'string' ? input : input?.url || String(input);
-      return withPending(res, classify(url, method).table, url);
+      const accept = readHeaders(input, init).get('accept');
+      let res;
+      try {
+        res = await cachedFetch(input, init);
+      } catch (e) {
+        // Offline, nothing saved for this query — but if records made offline
+        // belong in it (the steps of a job created at sea), show those.
+        const ops = method === 'GET' ? pendingFor(classify(url, method).table) : [];
+        if (!ops.length || !applyOverlay(url, [], ops).length) throw e;
+        res = new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } });
+      }
+      if (method !== 'GET') return res;
+      return withPending(res, classify(url, method).table, url, accept);
     };
   };
 

@@ -14,6 +14,7 @@ import { normalizeTier, canAssignTo } from '../utils/tierPermissions';
 import ModalShell from '../../../components/ui/ModalShell';
 import '../job-modals.css';
 import '../../duty-sets-rotation-management/duty-sets.css';
+import { insertJobRow } from '../utils/jobWrites';
 // Helper to normalize department names for comparison
 const normalizeDept = (dept) => {
   return dept?.toUpperCase()?.trim() || '';
@@ -547,7 +548,8 @@ const ComprehensiveJobModal = ({ boards, selectedDate, defaultBoardId, onClose, 
       const assignedTo = finalAssignees?.[0] || null;
 
       // ── Add this block: Insert job into Supabase ──
-      const { data: insertedJob, error: insertError } = await supabase?.from('team_jobs')?.insert({
+      // Offline-capable (utils/jobWrites.js): device-made id, syncs later.
+      const { data: insertedJob, error: insertError } = await insertJobRow({
           tenant_id: activeTenantId,
           title: formData?.title?.trim(),
           description: formData?.description?.trim() || null,
@@ -562,7 +564,7 @@ const ComprehensiveJobModal = ({ boards, selectedDate, defaultBoardId, onClose, 
           target_department_id: isCrossDept ? finalDeptId : null,
           cross_dept_status: isCrossDept ? 'PENDING_ACCEPTANCE' : 'NONE',
           metadata: []
-        })?.select()?.single();
+        });
 
       if (insertError) {
         throw new Error(insertError?.message || 'Failed to create job');

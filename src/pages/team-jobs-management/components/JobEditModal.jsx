@@ -11,6 +11,7 @@ import { TIER_RANK, normalizeTier, canAssignTo } from '../utils/tierPermissions'
 import SearchableAssigneeDropdown from './SearchableAssigneeDropdown';
 import '../job-modals.css';
 import '../../duty-sets-rotation-management/duty-sets.css';
+import { updateJobRow, insertJobNote } from '../utils/jobWrites';
 
 /**
  * Determine if the current user can FULLY edit this job.
@@ -344,7 +345,7 @@ const JobEditModal = ({
       const supabaseId = job?.supabase_id || (job?.id?.includes('-') && !job?.id?.startsWith('card-') ? job?.id : null);
 
       if (supabaseId && activeTenantId) {
-        const { error: updateError } = await supabase?.from('team_jobs')?.update({
+        const { error: updateError } = await updateJobRow(supabaseId, activeTenantId, {
           title: title?.trim(),
           description: description?.trim() || null,
           priority,
@@ -363,13 +364,13 @@ const JobEditModal = ({
           attachments: attachments,
           metadata: updatedMeta,
           updated_at: new Date()?.toISOString(),
-        })?.eq('id', supabaseId)?.eq('tenant_id', activeTenantId);
+        }, 'A job edit');
         if (updateError) throw new Error(updateError.message);
       }
 
       // Add comment if provided
       if (newComment?.trim() && supabaseId && activeTenantId) {
-        await supabase?.from('job_notes')?.insert({
+        await insertJobNote({
           tenant_id: activeTenantId,
           job_id: supabaseId,
           note: newComment?.trim(),
@@ -418,13 +419,13 @@ const JobEditModal = ({
       const updatedMeta = [...existingMeta, commentEntry];
       const supabaseId = job?.supabase_id || (job?.id?.includes('-') && !job?.id?.startsWith('card-') ? job?.id : null);
       if (supabaseId && activeTenantId) {
-        await supabase?.from('job_notes')?.insert({
+        await insertJobNote({
           tenant_id: activeTenantId,
           job_id: supabaseId,
           note: newComment?.trim(),
           created_by: userId,
         });
-        await supabase?.from('team_jobs')?.update({ metadata: updatedMeta, updated_at: new Date()?.toISOString() })?.eq('id', supabaseId)?.eq('tenant_id', activeTenantId);
+        await updateJobRow(supabaseId, activeTenantId, { metadata: updatedMeta, updated_at: new Date()?.toISOString() }, 'A job edit');
       }
       onSaved({ ...job, metadata: updatedMeta });
       setNewComment('');
@@ -473,12 +474,12 @@ const JobEditModal = ({
       };
 
       if (supabaseId && activeTenantId) {
-        const { error: updateError } = await supabase?.from('team_jobs')?.update(updatePayload)?.eq('id', supabaseId)?.eq('tenant_id', activeTenantId);
+        const { error: updateError } = await updateJobRow(supabaseId, activeTenantId, updatePayload, 'A job edit');
         if (updateError) throw new Error(updateError.message);
       }
 
       if (newComment?.trim() && supabaseId && activeTenantId) {
-        await supabase?.from('job_notes')?.insert({
+        await insertJobNote({
           tenant_id: activeTenantId,
           job_id: supabaseId,
           note: newComment?.trim(),

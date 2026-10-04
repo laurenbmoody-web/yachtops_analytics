@@ -14,6 +14,8 @@
 // (20260611120000_notifications_owner_rls).
 
 import { supabase } from './supabaseClient';
+import { outbox } from './offline/queue';
+import { newId } from './offline/ids';
 
 function mapRow(r) {
   // DB severity is stored upper- or lower-case across callers; normalise to
@@ -94,14 +96,25 @@ export async function deleteDbNotification(id) {
 // Write a notification for a user (server-backed, cross-device).
 export async function sendDbNotification(userId, { type, title, message, actionUrl, severity = 'info' }) {
   if (!userId) return;
-  await supabase.from('notifications').insert({
-    user_id: userId,
-    type,
-    title,
-    message,
-    severity,
-    action_url: actionUrl || null,
-    read: false,
-    created_at: new Date().toISOString(),
-  }).then(() => {}).catch(() => {});
+  // Through the offline outbox: a notification raised at sea (a defect logged,
+  // a job assigned) is delivered when the link returns instead of being lost.
+  const id = newId();
+  await outbox.submit({
+    key: `notifications|${id}`,
+    table: 'notifications',
+    type: 'insert',
+    row: {
+      id,
+      user_id: userId,
+      type,
+      title,
+      message,
+      severity,
+      action_url: actionUrl || null,
+      read: false,
+      created_at: new Date().toISOString(),
+    },
+    match: { id },
+    label: 'A notification',
+  }).catch(() => {});
 }

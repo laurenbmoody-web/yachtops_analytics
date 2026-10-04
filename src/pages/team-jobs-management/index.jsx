@@ -52,6 +52,7 @@ import { normalizeTier, isCommand, isChief, isHod, isCrew, isViewOnly, isOwnDepa
 import { showToast } from '../../utils/toast';
 
 import ModalShell from '../../components/ui/ModalShell';
+import { insertJobRow, updateJobRow } from './utils/jobWrites';
 const DEFAULT_SORT = 'due-asc';
 
 // Is there room beside a focused board for the job detail to dock into?
@@ -881,8 +882,9 @@ const TeamJobsManagement = () => {
     if (departmentId && isValidUUID(departmentId)) insertPayload.department_id = departmentId;
     if (boardId && isValidUUID(boardId)) insertPayload.board_id = boardId;
 
-    const { data: insertedJob, error: insertError } = await supabase
-      ?.from('team_jobs')?.insert(insertPayload)?.select('id')?.single();
+    // Offline-capable (utils/jobWrites.js): the id is made on the device, so a
+    // job added at sea is complete at once and syncs when the link returns.
+    const { data: insertedJob, error: insertError } = await insertJobRow(insertPayload);
     if (insertError) {
       applyCards(prev => prev?.filter(c => c?.id !== optimisticId));
       throw new Error(insertError?.message || 'That did not save. Try again.');
@@ -1645,8 +1647,7 @@ const TeamJobsManagement = () => {
         if (departmentId && isValidUUID(departmentId)) insertPayload.department_id = departmentId;
         if (taskData?.dueDate) insertPayload.due_date = taskData?.dueDate;
 
-        const { data: insertedJob, error: insertError } = await supabase
-          ?.from('team_jobs')?.insert(insertPayload)?.select('id')?.single();
+        const { data: insertedJob, error: insertError } = await insertJobRow(insertPayload);
         if (insertError) {
           console.warn('[handleCreateTask] Supabase insert error:', insertError);
           // Keep optimistic card but mark it as local-only
@@ -1744,13 +1745,14 @@ const TeamJobsManagement = () => {
     const supabaseId = job?.supabase_id || (job?.id?.includes('-') && !job?.id?.startsWith('card-') ? job?.id : null);
     if (supabaseId && activeTenantId) {
       try {
-        await supabase?.from('team_jobs')?.update({
+        const { error } = await updateJobRow(supabaseId, activeTenantId, {
           status: newStatus,
           completed_at: newStatus === 'completed' ? completedAt : null,
           completed_by: newStatus === 'completed' ? userId : null,
           completion_date: newStatus === 'completed' ? completedAt?.split('T')?.[0] : null,
           updated_at: new Date()?.toISOString(),
-        })?.eq('id', supabaseId)?.eq('tenant_id', activeTenantId);
+        }, 'Completing a job');
+        if (error) console.warn('Failed to sync completion to Supabase:', error);
       } catch (err) {
         console.warn('Failed to sync completion to Supabase:', err);
       }
@@ -1801,13 +1803,13 @@ const TeamJobsManagement = () => {
     if (supabaseId && activeTenantId) {
       const completedAt = new Date()?.toISOString();
       const userId = currentUserId || completedBy;
-      supabase?.from('team_jobs')?.update({
+      updateJobRow(supabaseId, activeTenantId, {
         status: 'completed',
         completed_at: completedAt,
         completed_by: userId,
         completion_date: completedAt?.split('T')?.[0],
         updated_at: new Date()?.toISOString(),
-      })?.eq('id', supabaseId)?.eq('tenant_id', activeTenantId)
+      }, 'Completing a job')
         ?.then(({ error }) => {
           if (error) console.warn('[TeamJobs] Failed to sync completion to Supabase:', error);
         });
@@ -1912,9 +1914,7 @@ const TeamJobsManagement = () => {
     if (Object.keys(row)?.length === 1) return; // nothing but the timestamp
 
     try {
-      const { error } = await supabase
-        ?.from('team_jobs')?.update(row)
-        ?.eq('id', supabaseId)?.eq('tenant_id', activeTenantId);
+      const { error } = await updateJobRow(supabaseId, activeTenantId, row, 'A job edit');
       if (error) throw error;
     } catch (err) {
       console.warn('[TeamJobs] Failed to save job change:', err);
@@ -2563,10 +2563,10 @@ const TeamJobsManagement = () => {
     // Persist rejection to Supabase if possible
     const supabaseId = card?.supabase_id || (card?.id?.includes('-') && !card?.id?.startsWith('card-') ? card?.id : null);
     if (supabaseId && activeTenantId) {
-      supabase?.from('team_jobs')?.update({
+      updateJobRow(supabaseId, activeTenantId, {
         status: 'rejected',
         updated_at: new Date()?.toISOString(),
-      })?.eq('id', supabaseId)?.eq('tenant_id', activeTenantId)?.then(({ error }) => {
+      }, 'Rejecting a job')?.then(({ error }) => {
         if (error) console.warn('[TeamJobs] Failed to persist rejection:', error);
       });
     }

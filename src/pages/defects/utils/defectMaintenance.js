@@ -2,7 +2,10 @@
 // becomes preventive upkeep on the team-jobs board, tagged back to the defect.
 // team_jobs has no storage layer of its own, so this is a single tenant-scoped
 // insert (mirroring the app's inline creates) plus the two-way link + an event.
-import { supabase } from '../../../lib/supabaseClient';
+// All three writes go through the offline outbox, so it works at sea too.
+import { outbox } from '../../../lib/offline/queue';
+import { newId } from '../../../lib/offline/ids';
+import { insertJobRow } from '../../team-jobs-management/utils/jobWrites';
 
 export const RECURRENCE_OPTIONS = [
   { value: 'monthly', label: 'Every month' },
@@ -17,7 +20,7 @@ export const promoteDefectToMaintenance = async (defect, { title, dueDate, recur
   if (!defect?.id || !actor?.tenantId) throw new Error('Missing defect context.');
   const rec = recurrence && recurrence !== 'none' ? recurrence : null;
 
-  const { data: job, error } = await supabase.from('team_jobs').insert({
+  const { data: job, error } = await insertJobRow({
     tenant_id: actor.tenantId,
     title: (title || defect.title || 'Planned maintenance').trim(),
     description: defect.description || null,
@@ -33,19 +36,32 @@ export const promoteDefectToMaintenance = async (defect, { title, dueDate, recur
     source_defect_id: defect.id,
     recurrence: rec,
     metadata: [],
-  }).select('id, title, due_date, recurrence').single();
+  });
   if (error || !job) throw error || new Error('Could not create the maintenance job.');
 
   // Two-way link + audit on the defect.
-  await supabase.from('defects')
-    .update({ promoted_job_id: job.id, updated_at: new Date().toISOString() })
-    .eq('id', defect.id).eq('tenant_id', actor.tenantId);
-  await supabase.from('defect_events').insert({
-    defect_id: defect.id, tenant_id: actor.tenantId, type: 'promoted_to_job',
-    actor_id: actor.userId || null, actor_name: actor.userName || null,
-    summary: `Planned maintenance created${rec ? ` — repeats ${rec}` : ''}`,
-    meta: { job_id: job.id },
-  }).then(() => {}, () => {});
+  await outbox.submit({
+    key: `defects|${defect.id}`,
+    table: 'defects',
+    type: 'update',
+    patch: { promoted_job_id: job.id, updated_at: new Date().toISOString() },
+    match: { id: defect.id, tenant_id: actor.tenantId },
+    label: 'Linking a defect to its maintenance job',
+  });
+  const eventId = newId();
+  await outbox.submit({
+    key: `defect_events|${eventId}`,
+    table: 'defect_events',
+    type: 'insert',
+    row: {
+      id: eventId, defect_id: defect.id, tenant_id: actor.tenantId, type: 'promoted_to_job',
+      actor_id: actor.userId || null, actor_name: actor.userName || null,
+      summary: `Planned maintenance created${rec ? ` — repeats ${rec}` : ''}`,
+      meta: { job_id: job.id }, created_at: new Date().toISOString(),
+    },
+    match: { id: eventId },
+    label: 'A defect history entry',
+  }).catch(() => {});
 
   return job;
 };

@@ -1,7 +1,7 @@
 // node --test src/lib/offline/outbox.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createOutbox } from './outbox.js';
+import { createOutbox, combine } from './outbox.js';
 
 function memStore(initial = []) {
   const map = new Map(initial.map((o) => [o.key, o]));
@@ -131,4 +131,30 @@ test('an edit made while that day is syncing is not lost', async () => {
   await box.flush();
   assert.deepEqual(sent, [[1], [9]]);
   assert.equal(box.pendingCount(), 0);
+});
+
+test('combine: offline edits of one row fold into one op', () => {
+  const ins = { key: 'k', type: 'insert', row: { id: 'j1', title: 'A', status: 'pending' }, createdAt: 1, seq: 1, label: 'New job' };
+  const up1 = { key: 'k', type: 'update', patch: { status: 'in_progress' }, match: { id: 'j1' }, createdAt: 2, seq: 2 };
+  const up2 = { key: 'k', type: 'update', patch: { status: 'completed', completed_by: 'u1' }, match: { id: 'j1' }, createdAt: 3, seq: 3 };
+  const del = { key: 'k', type: 'delete', match: { id: 'j1' }, createdAt: 4, seq: 4 };
+  const a = combine(ins, up1);
+  assert.equal(a.type, 'insert');
+  assert.deepEqual(a.row, { id: 'j1', title: 'A', status: 'in_progress' });
+  assert.equal(a.createdAt, 1);
+  assert.deepEqual(combine(up1, up2).patch, { status: 'completed', completed_by: 'u1' });
+  assert.equal(combine(ins, del), null);                 // never reached the server
+  assert.equal(combine(up1, del).type, 'delete');
+  assert.equal(combine(del, up1).type, 'delete');        // gone stays gone
+});
+
+test('created then deleted offline: nothing is ever sent', async () => {
+  const { box, state } = setup({ net: 'offline' });
+  await box.submit({ key: 'team_jobs|j1', table: 'team_jobs', type: 'insert', row: { id: 'j1' }, match: { id: 'j1' } });
+  await box.submit({ key: 'team_jobs|j1', table: 'team_jobs', type: 'update', patch: { status: 'completed' }, match: { id: 'j1' } });
+  await box.submit({ key: 'team_jobs|j1', table: 'team_jobs', type: 'delete', match: { id: 'j1' } });
+  assert.equal(box.pendingCount(), 0);
+  state.net = 'online'; state.calls.length = 0;
+  await box.flush();
+  assert.deepEqual(state.calls, []);
 });
