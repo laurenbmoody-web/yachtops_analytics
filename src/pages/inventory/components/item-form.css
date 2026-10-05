@@ -188,7 +188,11 @@
 
 /* unified size × location matrix — open, hairline-ruled (no enclosing box) */
 .itf-mtxwrap{overflow-x:auto;margin-top:2px;}
-.itf-mtx{display:grid;min-width:100%;font-variant-numeric:tabular-nums;}
+/* align-content:start + max-content rows keep the table packed at its natural
+   height — without them, if the grid is ever handed more height than its rows
+   need (a tall modal / flex ancestor), the default stretch spreads the rows
+   apart into big empty gaps. */
+.itf-mtx{display:grid;min-width:100%;align-content:start;grid-auto-rows:max-content;font-variant-numeric:tabular-nums;}
 .itf-mtx > *{display:flex;align-items:center;padding:8px 7px;min-width:0;}
 .itf-mh{background:none;}
 /* editable size header — looks like a field so it clearly invites typing */
