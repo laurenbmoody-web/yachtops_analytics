@@ -1136,3 +1136,8 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
   .lmk-bar i { animation: none; }
   .lmk-spark { clip-path: none; animation: none; }
 }
+
+/* Phone width: the header actions wrap instead of pushing the page wide. */
+@media (max-width: 640px) {
+  .lm-actions { flex-wrap: wrap; }
+}

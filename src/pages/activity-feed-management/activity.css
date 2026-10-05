@@ -1,0 +1,53 @@
+/* Activity feed — editorial Cargo page (af-*). Full-width wrap on the cool
+   canvas, tracked-caps filter labels over rounded pills, hairline rows. */
+.af-page { min-height: 100vh; background: #F8FAFC; }
+.af-wrap { max-width: none; width: 100%; padding: 26px 40px 80px; font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
+.af-back { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 500; color: #6B7280; margin-bottom: 22px; }
+.af-back:hover { color: #1C1B3A; }
+
+.af-filters { margin-top: 26px; padding-bottom: 18px; border-bottom: 1px solid #E5E7EB; display: flex; flex-wrap: wrap; gap: 18px 36px; }
+.af-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.af-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
+.af-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.af-pill { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; border: 1px solid #E5E7EB; background: #FFFFFF; color: #1C1B3A; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: border-color 0.14s, background 0.14s, color 0.14s; white-space: nowrap; }
+.af-pill:hover { border-color: #C9CDD6; }
+.af-pill.on { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+.af-foot { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.af-count { font-size: 12.5px; color: #6B7280; }
+.af-count b { color: #1C1B3A; font-weight: 700; }
+.af-faint { color: #AEB4C2; }
+.af-toggle { display: inline-flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 600; color: #1C1B3A; cursor: pointer; }
+.af-switch { position: relative; width: 38px; height: 22px; border-radius: 999px; border: 0; background: #E5E7EB; cursor: pointer; transition: background 0.15s; }
+.af-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 999px; background: #FFFFFF; box-shadow: 0 1px 3px rgba(28,27,58,0.25); transition: transform 0.15s; }
+.af-switch.on { background: #C65A1A; }
+.af-switch.on::after { transform: translateX(16px); }
+
+.af-feed { margin-top: 6px; }
+.af-row { display: flex; gap: 14px; padding: 16px 0; border-bottom: 1px solid #F0F1F5; cursor: pointer; }
+.af-row:hover .af-summary { color: #C65A1A; }
+.af-ico { flex: 0 0 auto; width: 36px; height: 36px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: #FFFFFF; border: 1px solid #E5E7EB; color: #6B7280; }
+.af-ico.tone-success { color: #3F7A52; }
+.af-ico.tone-error { color: #B42318; }
+.af-ico.tone-primary { color: #1C1B3A; }
+.af-ico.tone-warning { color: #C65A1A; background: #FBEFE9; border-color: #F3D9CB; }
+.af-body { flex: 1; min-width: 0; }
+.af-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.af-summary { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.4; color: #1C1B3A; overflow-wrap: anywhere; transition: color 0.12s; }
+.af-when { flex: 0 0 auto; font-size: 12px; color: #8B8478; white-space: nowrap; padding-top: 2px; }
+.af-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.af-tag { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: #FFFFFF; border: 1px solid #EEF0F4; color: #6B7280; text-transform: capitalize; }
+.af-tag.accent { background: #FBEFE9; border-color: #FBEFE9; color: #C65A1A; }
+.af-open { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; border: 0; background: none; padding: 3px 0; font: inherit; font-size: 12px; font-weight: 700; color: #C65A1A; cursor: pointer; }
+.af-open:hover { color: #B14E16; }
+.af-meta { margin: 6px 0 0; font-size: 12px; color: #8B8478; }
+.af-empty { padding: 56px 0; text-align: center; color: #8B8478; }
+.af-empty h3 { margin: 12px 0 4px; font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-weight: 400; font-size: 22px; color: #1C1B3A; }
+.af-empty p { margin: 0; font-size: 13px; }
+.af-more { display: block; margin: 22px auto 0; padding: 10px 18px; border-radius: 10px; border: 1px solid #E5E7EB; background: #FFFFFF; color: #1C1B3A; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.af-more:hover { border-color: #C9CDD6; }
+
+@media (max-width: 640px) {
+  .af-wrap { padding: 20px 16px 64px; }
+  .af-top { flex-direction: column; gap: 2px; }
+  .af-when { padding-top: 0; }
+}

@@ -557,3 +557,12 @@ a.cm-cal-name:hover { color: #C65A1A; }
   .cm-page { padding: 20px 16px 60px; }
   .cm-console { grid-template-columns: 1fr; height: auto; }
 }
+
+/* Phone width: header actions drop under the headline and wrap; the view
+   switcher scrolls sideways rather than widening the page. */
+@media (max-width: 640px) {
+  .cm-titlerow { flex-wrap: wrap; gap: 12px; }
+  .cm-actions { flex: 1 1 100%; flex-wrap: wrap; }
+  .cm-views { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .cm-views::-webkit-scrollbar { display: none; }
+}
