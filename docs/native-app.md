@@ -131,5 +131,10 @@ login for app review. In-app account deletion already exists (Settings →
 - Android shows the launcher icon as the notification status-bar icon; add a white
   monochrome `ic_stat_cargo` drawable and point
   `com.google.firebase.messaging.default_notification_icon` at it.
-- Go through every screen at phone width: wide editorial tables, drawers and
-  modals are the likeliest to need mobile layout work.
+- Phone-width pass done for the 35 crew screens (390px, iPhone 13): page header
+  action rows wrap, wide tables scroll inside their own box, the provisioning
+  board's action rail becomes a row, and the receive / laundry-log / snag-report
+  modals reflow. The feedback bubble becomes a small edge tab on phones (and
+  hides behind `aria-modal` dialogs). In the app, fields no longer zoom the page
+  when tapped (`maximum-scale=1`, app only — the web keeps pinch-zoom).
+  New screens: check them at 390px wide — nothing may push the page sideways.

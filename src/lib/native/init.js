@@ -13,6 +13,11 @@ export function initNative() {
   const root = document.documentElement;
   root.classList.add('cap-native', `cap-${nativePlatform()}`);
 
+  // iOS zooms the page into any field with text under 16px when it is tapped
+  // and leaves it zoomed. In the app, stop that (the web keeps pinch-zoom).
+  const viewport = document.querySelector('meta[name="viewport"]');
+  if (viewport) viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0');
+
   installFileShims();
   installWindowShims();
   installFetchShim();
