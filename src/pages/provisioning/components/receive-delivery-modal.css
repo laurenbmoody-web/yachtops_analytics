@@ -1265,3 +1265,27 @@
 .rdm-btn-quiet:hover:not(:disabled) { color: var(--d-orange); }
 
 .rdm-btn-sm { padding: 5px 10px; font-size: 11.5px; }
+
+/* ── Phone width ─────────────────────────────────────────────
+   Header: title block above the step pills. Item rows: two lines —
+   name + received qty, then ordered + status — instead of five narrow
+   columns that wrap the name word by word. */
+@media (max-width: 640px) {
+  .rdm-header { flex-wrap: wrap; gap: 12px; }
+  .rdm-title-block { flex: 1 1 100%; order: -1; }
+  .rdm-stepper { flex-wrap: wrap; gap: 6px; }
+  .rdm-step { padding: 5px 10px; font-size: 11px; }
+  .rdm-step-connector { display: none; }
+  .rdm-item-list-header { display: none; }
+  .rdm-item-row {
+    grid-template-columns: 20px 1fr 84px;
+    grid-template-areas: "chk text qty" "chk ordered status";
+    row-gap: 6px;
+  }
+  .rdm-item-row > .rdm-item-checkbox { grid-area: chk; align-self: start; margin-top: 2px; }
+  .rdm-item-row > .rdm-item-text { grid-area: text; }
+  .rdm-item-row > .rdm-item-qty-input { grid-area: qty; }
+  .rdm-item-row > .rdm-item-ordered { grid-area: ordered; margin: 0; justify-self: start; text-align: left; font-family: inherit; }
+  .rdm-item-row > .rdm-item-ordered::before { content: 'Ordered '; font-size: 10px; color: var(--d-muted-soft); }
+  .rdm-item-row > .rdm-item-status { grid-area: status; justify-self: end; }
+}

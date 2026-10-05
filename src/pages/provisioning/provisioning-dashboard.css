@@ -1214,3 +1214,12 @@
 @media (prefers-reduced-motion: reduce) {
   .pv-supplier-pulse { animation: none; }
 }
+
+/* Phone width: the right-rail action stack becomes a left-aligned row of
+   pills under the headline, wrapping as needed. */
+@media (max-width: 640px) {
+  .editorial-page.pv-dashboard .p-header-row .cargo-ribbon-vertical { align-self: stretch; }
+  .cargo-ribbon-vertical { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 6px; min-width: 0; max-width: none; margin-top: 12px; }
+  .cargo-ribbon-vertical .cargo-ribbon-group { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; gap: 6px; width: 100%; }
+  .cargo-ribbon-vertical .cargo-ribbon-btn { width: auto; }
+}

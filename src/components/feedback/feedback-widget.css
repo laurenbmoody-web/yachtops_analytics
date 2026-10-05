@@ -199,3 +199,17 @@ body.dashboard-editing .fbw-root { display: none; }
 }
 .fbw-done p { margin: 0 0 16px; font-size: 14px; color: #1C1B3A; }
 .fbw-done-actions { display: flex; gap: 10px; justify-content: center; }
+
+/* Out of the way while a dialog is open (any that declares itself modal). */
+body:has([aria-modal="true"]) .fbw-root { display: none; }
+
+/* Phone width: modal footers and save bars sit at the bottom of the screen,
+   so the bubble becomes a small tab tucked against the right edge, mid-way
+   down, where it can't cover a primary button. */
+@media (max-width: 640px) {
+  .fbw-root { right: 0; bottom: auto; top: 58%; }
+  .fbw-tab { width: 32px; height: 40px; border-radius: 12px 0 0 12px; box-shadow: 0 6px 16px -8px rgba(198, 90, 26, 0.55); }
+  .fbw-tab svg { width: 16px; height: 16px; }
+  /* The composer itself still opens bottom-right. */
+  .fbw-root:has(.fbw-panel) { top: auto; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+}

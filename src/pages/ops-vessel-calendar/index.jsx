@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import '../../styles/editorial.css';
 import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
@@ -65,43 +66,41 @@ const OpsVesselCalendar = () => {
   return (
     <div className="min-h-screen bg-background transition-colors duration-300">
       <Header />
-      <main className="p-6 max-w-[1800px] mx-auto">
-        {/* Page Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <Icon name="Calendar" size={28} className="text-primary" />
-            <div>
-              <h1 className="text-3xl font-semibold text-foreground mb-2">Vessel Calendar</h1>
-              <p className="text-sm text-muted-foreground">
-                Operational events and vessel scheduling
-              </p>
+      <main style={{ padding: '26px clamp(16px, 4vw, 40px) 80px', background: '#F8FAFC', minHeight: '100vh' }}>
+        {/* Page Header — canonical editorial pair; actions wrap on phones. */}
+        <div className="mb-6">
+          <p className="editorial-meta">
+            <span className="dot">●</span>CALENDAR<span className="bar" /><span className="muted">OPERATIONS</span><span className="bar" /><span className="muted">{events?.length || 0} EVENTS</span>
+          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="editorial-greeting">VESSEL<span className="period">,</span> <em>on schedule</em><span className="period">.</span></h1>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Department Scope Chip (Command Only) */}
+              {isCommandRole(currentUser || authUser) && (
+                <label className="inline-flex items-center gap-2" style={{ padding: '8px 14px', background: '#FFFFFF', border: '1px solid #E5E7EB', borderRadius: 999 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#8B8478' }}>Department</span>
+                  <select
+                    value={departmentScope}
+                    onChange={(e) => handleDepartmentScopeChange(e?.target?.value)}
+                    style={{ fontSize: 13, fontWeight: 600, color: '#1C1B3A', background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer' }}
+                  >
+                    {DEPARTMENT_OPTIONS?.map(option => (
+                      <option key={option?.value} value={option?.value}>
+                        {option?.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <button
+                onClick={() => setShowAddEventModal(true)}
+                className="inline-flex items-center gap-2 font-semibold text-white"
+                style={{ padding: '10px 16px', background: '#C65A1A', borderRadius: 10, fontSize: 13 }}
+              >
+                <Icon name="Plus" size={16} />
+                Add event
+              </button>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Department Scope Chip (Command Only) */}
-            {isCommandRole(currentUser || authUser) && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
-                <span className="text-sm font-medium text-muted-foreground">Department:</span>
-                <select
-                  value={departmentScope}
-                  onChange={(e) => handleDepartmentScopeChange(e?.target?.value)}
-                  className="text-sm font-medium text-foreground bg-transparent border-none outline-none cursor-pointer"
-                >
-                  {DEPARTMENT_OPTIONS?.map(option => (
-                    <option key={option?.value} value={option?.value}>
-                      {option?.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <button
-              onClick={() => setShowAddEventModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-smooth font-medium"
-            >
-              <Icon name="Plus" size={18} />
-              Add Event
-            </button>
           </div>
         </div>
 

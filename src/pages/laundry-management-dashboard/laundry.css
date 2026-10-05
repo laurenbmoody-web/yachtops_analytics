@@ -1136,3 +1136,16 @@ select.alm-field { appearance: none; -webkit-appearance: none; cursor: pointer; 
   .lmk-bar i { animation: none; }
   .lmk-spark { clip-path: none; animation: none; }
 }
+
+/* Phone width: the header actions wrap instead of pushing the page wide;
+   in the log modal the owner switch shares the width evenly and the footer
+   keeps both buttons on one row (Cancel above). */
+@media (max-width: 640px) {
+  .lm-actions { flex-wrap: wrap; }
+  .alm-seg { display: flex; width: 100%; }
+  .alm-seg-btn { flex: 1 1 0; justify-content: center; padding: 9px 8px; }
+  .alm-foot { padding: 14px 16px; flex-wrap: wrap; }
+  .alm-foot-actions { flex: 1 1 100%; }
+  .alm-foot-actions .alm-btn { flex: 1 1 0; justify-content: center; white-space: nowrap; padding-left: 10px; padding-right: 10px; }
+  .alm-foot .alm-linkbtn { order: 1; }
+}

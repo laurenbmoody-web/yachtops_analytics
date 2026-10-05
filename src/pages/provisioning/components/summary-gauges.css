@@ -147,3 +147,9 @@
   font-size: 10px;
   color: var(--d-muted-soft);
 }
+
+/* Phone width: the three gauges stack instead of squeezing past the edge. */
+@media (max-width: 640px) {
+  .sg-grid { grid-template-columns: 1fr; gap: 10px; }
+  .sg-card, .sg-card.is-text-only { padding: 16px; }
+}

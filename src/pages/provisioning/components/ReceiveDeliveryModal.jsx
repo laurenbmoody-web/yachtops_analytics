@@ -461,8 +461,8 @@ const ReceiveStep = ({
           board toggle is replaced by a tier-count summary — the list is no
           longer grouped by supplier, so the toggle would be meaningless.
           The crew gets at-a-glance counts of what the doc covered instead. */}
-      <div className="rdm-section" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        <p className="rdm-section-sub" style={{ flex: 1, margin: 0 }}>Tick each item received and enter the quantity.</p>
+      <div className="rdm-section" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <p className="rdm-section-sub" style={{ flex: '1 1 220px', margin: 0 }}>Tick each item received and enter the quantity.</p>
         {frozenOrder ? (
           <p className="rdm-tier-summary">
             <strong>{frozenOrder.confirmed.length}</strong> confirmed

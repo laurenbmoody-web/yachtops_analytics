@@ -493,3 +493,11 @@
 /* Quick board — tabs + guest/visitor panes (reusing the full-board cards). */
 .sibq-tabs { margin: 4px clamp(18px, 3vw, 44px) clamp(18px, 2vw, 24px); }
 .sibq-pane { padding: 0 clamp(18px, 3vw, 44px) 24px; overflow-y: auto; }
+
+/* Phone width: the utility buttons go icon-only (titles still name them). */
+@media (max-width: 640px) {
+  .sib-utilrow-r { gap: 6px; }
+  .sib-standby-btn { padding: 0 12px; }
+  .sib-standby-btn .lbl { display: none; }
+  .sib-add-btn .lbl { display: none; }
+}

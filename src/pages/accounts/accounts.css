@@ -462,3 +462,9 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
   .ca-tag, .ca-acur { display: none; }
   .ca-abal { margin-left: auto; font-size: 17px; white-space: nowrap; }
 }
+
+/* Phone width: header actions drop under the headline and wrap. */
+@media (max-width: 640px) {
+  .ca-titlerow { flex-wrap: wrap; gap: 12px; }
+  .ca-head-act { flex: 1 1 100%; flex-wrap: wrap; padding-top: 0; }
+}
