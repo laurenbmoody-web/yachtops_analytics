@@ -276,7 +276,7 @@
 
 /* handover dialog */
 .mv-ovl { position: fixed; inset: 0; background: rgba(28,27,58,0.28); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-.mv-dlg { background: #fff; border-radius: 14px; padding: 22px; width: 400px; box-shadow: 0 30px 70px -20px rgba(28,27,58,0.5); }
+.mv-dlg { background: #fff; border-radius: 14px; padding: 22px; width: 400px; max-width: calc(100vw - 32px); box-shadow: 0 30px 70px -20px rgba(28,27,58,0.5); }
 .mv-dlg h3 { font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 18px; margin: 0 0 8px; }
 .mv-dlg p { font-size: 13px; color: #6B7280; line-height: 1.5; margin: 0 0 16px; }
 .mv-dlg .act { display: flex; flex-wrap: wrap; gap: 8px; }
