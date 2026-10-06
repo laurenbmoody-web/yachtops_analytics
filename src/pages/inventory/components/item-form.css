@@ -67,7 +67,10 @@
 
 /* quick-add lane */
 .itf-quicklead{font-size:12.5px;color:var(--muted);margin:0 0 16px;}
-.itf-quickess{display:grid;grid-template-columns:1fr 116px;gap:12px;margin-top:16px;}
+.itf-quickess{display:grid;grid-template-columns:1fr 116px;gap:12px;margin-top:16px;align-items:start;}
+/* Definite height stops WebKit stretching the location picker (a grid item)
+   into a tall grey box; the folder picker, which is in normal flow, is fine. */
+.itf-quickess .itf-pick{height:46px;}
 .itf-quickmore{margin-top:18px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;border:1px dashed #E0DCD3;border-radius:11px;background:#FDFCFB;color:var(--g);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
 .itf-quickmore:hover{border-color:var(--g);background:#FBEFE9;}
 .itf-quickmore .plus{display:inline-flex;width:18px;height:18px;border-radius:50%;background:var(--tint,#FBEFE9);align-items:center;justify-content:center;font-size:13px;}
@@ -198,9 +201,10 @@
    bug Chromium never shows. min-height:0 + align-self:start keep each cell its
    natural single-line height. */
 .itf-mtx > *{display:flex;align-items:center;align-self:start;min-height:0;padding:8px 7px;min-width:0;}
-/* Belt-and-braces hard cap so the location button can never grow past a single
-   row, whatever the layout engine does with it. */
-.itf-mtx .itf-mloc{max-height:46px;overflow:hidden;}
+/* A definite height is the one thing WebKit won't override: it stops the
+   location <button> grid item stretching (and, unlike max-height, keeps the
+   label laid out and visible rather than clipped). */
+.itf-mtx .itf-mloc{height:38px;}
 /* iOS/WKWebView gives <button>/<input> native control styling (a grey rounded
    box) and lets them ignore align-self; strip the native appearance so our own
    borders / backgrounds define the look. */
