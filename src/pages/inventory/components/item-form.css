@@ -193,7 +193,10 @@
    need (a tall modal / flex ancestor), the default stretch spreads the rows
    apart into big empty gaps. */
 .itf-mtx{display:grid;min-width:100%;align-content:start;grid-auto-rows:max-content;font-variant-numeric:tabular-nums;}
-.itf-mtx > *{display:flex;align-items:center;padding:8px 7px;min-width:0;}
+/* align-self:start keeps each cell its natural (single-line) height instead of
+   stretching to fill a tall row — so the location cell can never balloon into a
+   tall grey box. */
+.itf-mtx > *{display:flex;align-items:center;align-self:start;padding:8px 7px;min-width:0;}
 .itf-mh{background:none;}
 /* editable size header — looks like a field so it clearly invites typing */
 .itf-mh.sz{justify-content:center;position:relative;padding:5px 3px;}
@@ -209,7 +212,7 @@
 .itf-mh.add button:hover{background:#FBEFE9;border-color:var(--g);}
 .itf-mh.tot{justify-content:center;font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);}
 .itf-mloc{border-top:1px solid var(--hair);gap:6px;cursor:pointer;background:none;border-left:0;border-right:0;border-bottom:0;font-family:inherit;text-align:left;}
-.itf-mloc .nm{font-size:12.5px;font-weight:600;color:var(--ink);white-space:normal;line-height:1.2;word-break:break-word;}
+.itf-mloc .nm{font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
 .itf-mloc .nm.ph{color:var(--faint);font-weight:500;}
 .itf-mloc .rm{margin-left:auto;color:var(--faint);cursor:pointer;font-size:11px;flex:0 0 auto;padding-left:4px;}
 .itf-mloc .rm:hover{color:var(--g);}
