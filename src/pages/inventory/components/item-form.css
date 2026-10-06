@@ -197,6 +197,11 @@
    stretching to fill a tall row — so the location cell can never balloon into a
    tall grey box. */
 .itf-mtx > *{display:flex;align-items:center;align-self:start;padding:8px 7px;min-width:0;}
+/* iOS/WKWebView gives <button>/<input> native control styling (a grey rounded
+   box) and lets them ignore align-self, so the location button stretched into a
+   tall grey box in the native app. Strip the native appearance; our own borders
+   / backgrounds define the look. */
+.itf-mtx button,.itf-mtx input{-webkit-appearance:none;appearance:none;}
 .itf-mh{background:none;}
 /* editable size header — looks like a field so it clearly invites typing */
 .itf-mh.sz{justify-content:center;position:relative;padding:5px 3px;}
