@@ -190,9 +190,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [vesselLocations, setVesselLocations] = useState([]);
   const [locTarget, setLocTarget] = useState(null); // {kind:'uni',idx}
-  // TEMP DIAGNOSTIC — only renders when something in the stock/quick grid is
-  // abnormally tall (the WebKit balloon bug). Self-gating: invisible once fixed.
-  const [gridDbg, setGridDbg] = useState('');
   const [unit, setUnit] = useState(item?.unit || 'each');
   // No editor for `size` — kept only to preserve an existing item's size on edit.
   const [size] = useState(item?.size || '');
@@ -331,31 +328,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     return formats.filter((f) => String(f).trim());
   }, [profile, formats, sizeList, sizeOn]);
   const cols = profile === 'uniform' ? activeSizes : formats;
-  // TEMP DIAGNOSTIC effect — measure the stock/quick grids and surface any
-  // abnormally tall element (the WebKit balloon). Remove once root cause fixed.
-  useEffect(() => {
-    let alive = true;
-    const scan = () => {
-      if (!alive) return;
-      const nm = (el) => `${el.tagName.toLowerCase()}${(el.getAttribute('class') || '').split(/\s+/).filter(Boolean).slice(0, 2).map((c) => '.' + c).join('')}`;
-      const bg = (el) => { const c = getComputedStyle(el).backgroundColor; return (!c || c === 'rgba(0, 0, 0, 0)' || c === 'transparent') ? '-' : c.replace(/\s/g, ''); };
-      const loc = document.querySelector('.itf-mloc') || document.querySelector('.itf-quickess .itf-pick');
-      let out = '';
-      if (loc) {
-        const b = loc.getBoundingClientRect();
-        out = `BTN ${nm(loc)} ${Math.round(b.height)}h bg=${bg(loc)} :: `;
-        out += Array.from(loc.querySelectorAll('*')).slice(0, 5).map((el) => {
-          const r = el.getBoundingClientRect();
-          const t = (el.textContent || '').trim().slice(0, 10);
-          return `${nm(el)} ${Math.round(r.height)}h bg=${bg(el)}${t ? ' "' + t + '"' : ''}`;
-        }).join(' / ');
-      }
-      setGridDbg(out);
-    };
-    const t1 = setTimeout(scan, 400);
-    const t2 = setTimeout(scan, 1300);
-    return () => { alive = false; clearTimeout(t1); clearTimeout(t2); };
-  }, [showFull, open.stock, uniLocs.length, cols.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const multiSize = profile !== 'uniform' && activeSizes.length > 0;
   const variantMode = profile === 'uniform' || multiSize;
   const cell = (loc, s) => Number(matrix[`${loc}||${s}`]) || 0;
@@ -776,11 +748,6 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         <div className="itf-title">Inventory<span className="pd">,</span> <em>{isEdit ? 'edit' : 'add'}</em><span className="pd">.</span></div>
         <button className="itf-x" onClick={onClose} aria-label="Close"><Icon name="X" size={20} /></button>
       </div>
-      {gridDbg && (
-        <div style={{ margin: '8px 16px 0', padding: '8px 10px', background: '#1C1B3A', color: '#fff', borderRadius: 8, fontSize: 11, lineHeight: 1.35, fontFamily: 'monospace', wordBreak: 'break-word' }}>
-          ⚠︎ tall: {gridDbg}
-        </div>
-      )}
 
       {!showFull ? (
       <div className="itf-body itf-quickbody">

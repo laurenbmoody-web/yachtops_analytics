@@ -1,5 +1,8 @@
 /* Gangway history — editorial list of movements + saved musters. */
-.ph { min-height: calc(100vh - 64px); background: #F8FAFC; color: #1C1B3A; padding: 26px clamp(20px, 3vw, 48px) 80px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+/* Scoped root class — NOT a bare `.ph`: that collides with the generic `ph`
+   (placeholder) class used elsewhere (e.g. the inventory location picker),
+   leaking min-height:100vh + a grey background onto those elements. */
+.ph-page { min-height: calc(100vh - 64px); background: #F8FAFC; color: #1C1B3A; padding: 26px clamp(20px, 3vw, 48px) 80px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
 .ph-head { margin-bottom: 18px; }
 
 .ph-tabs { display: inline-flex; gap: 6px; background: #EEF0F4; padding: 4px; border-radius: 999px; margin-bottom: 20px; }

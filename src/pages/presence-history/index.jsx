@@ -48,7 +48,7 @@ const PresenceHistory = () => {
   return (
     <>
       <Header />
-      <div className="ph">
+      <div className="ph-page">
         <header className="ph-head">
           <p className="editorial-meta">
             <span className="dot">●</span><span>Gangway</span>
