@@ -13,6 +13,7 @@ import { useTenant } from '../../../contexts/TenantContext';
 import { loadOnboardCrew } from '../utils/onboardCrew';
 import { getGuestLaundryNotes } from '../utils/laundryPrefs';
 import { readCareLabel } from '../utils/careLabel';
+import { parseGarmentPhotos } from '../utils/garmentAi';
 import ModalShell from '../../../components/ui/ModalShell';
 
 const availableTags = availableLaundryTags;
@@ -315,20 +316,57 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
   const handlePhotoUpload = async (e) => {
     const files = Array.from(e?.target?.files || []);
     if (fileInputRef?.current) fileInputRef.current.value = ''; // allow re-capturing the same shot
+    const added = [];
     for (const file of files) {
       if (!file?.type?.startsWith('image/')) { showToast('Please select an image file', 'error'); continue; }
       if (file?.size > 5 * 1024 * 1024) { showToast('Image size must be less than 5MB', 'error'); continue; }
       try {
         const dataUrl = await readAsDataUrl(file);
         const compressed = await compressImageForStorage(dataUrl);
+        added.push(compressed);
         setFormData((prev) => ({ ...prev, photos: [...(prev.photos || []), compressed] }));
       } catch (err) {
         console.error('Error processing image:', err);
         showToast('Failed to process image. Please try a smaller file.', 'error');
       }
     }
+    // Snap → read: let the AI fill description / colour / care tags from the new
+    // photos (never overwriting what's already typed). Manual flow is unaffected.
+    if (added.length) autofillFromPhotos(added);
   };
   const handleRemovePhoto = (idx) => setFormData((prev) => ({ ...prev, photos: (prev.photos || []).filter((_, i) => i !== idx) }));
+
+  // Read the item photo(s) and pre-fill any fields the crew hasn't set — so all
+  // the interior adds by hand is the crew/guest + any specials. Fails soft.
+  const [aiBusy, setAiBusy] = useState(false);
+  const autofillFromPhotos = async (imgsIn) => {
+    const imgs = (imgsIn && imgsIn.length ? imgsIn : (formData.photos || [])).filter((s) => typeof s === 'string' && s.startsWith('data:'));
+    if (!imgs.length || aiBusy) return;
+    setAiBusy(true);
+    try {
+      const f = await parseGarmentPhotos(imgs, { careTags: availableLaundryTags });
+      let filled = 0;
+      setFormData((prev) => {
+        const next = { ...prev };
+        const composed = [f.colour, f.material, f.type || f.name].filter(Boolean).join(' ').trim();
+        const desc = (f.description || composed || '').trim();
+        if (!String(prev.description || '').trim() && desc) { next.description = desc; filled += 1; }
+        if (!String(prev.colour || '').trim() && f.colour) { next.colour = f.colour; filled += 1; }
+        if (Array.isArray(f.care) && f.care.length) {
+          const before = (prev.tags || []).length;
+          next.tags = [...new Set([...(prev.tags || []), ...f.care])];
+          if (next.tags.length > before) filled += 1;
+        }
+        return next;
+      });
+      if (f && (f.description || f.colour || f.type || f.name)) setDescOpen(true);
+      showToast(filled ? 'Filled from the photo — please review' : 'Couldn’t read details — add them by hand', filled ? 'success' : 'info');
+    } catch (err) {
+      console.error('[laundry] photo autofill failed', err);
+    } finally {
+      setAiBusy(false);
+    }
+  };
 
   const handleToggleTag = (tag) => setFormData((prev) => ({
     ...prev, tags: prev?.tags?.includes(tag) ? prev?.tags?.filter((t) => t !== tag) : [...prev?.tags, tag],
@@ -496,6 +534,37 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
               <span className={`alm-switch sm${isUrgent ? ' on' : ''}`} />
             </button>
           </div>
+        </div>
+
+        {/* Photo-first — snap the item and let the AI read it. Fills the
+            description, colour and care tags so the interior only adds the
+            crew/guest and any specials. */}
+        <div className="alm-section">
+          <input ref={fileInputRef} type="file" accept="image/*" capture="environment" multiple onChange={handlePhotoUpload} className="hidden" />
+          {(formData.photos || []).length === 0 ? (
+            <button type="button" className="alm-photohero" onClick={() => fileInputRef?.current?.click()} disabled={aiBusy}>
+              <span className="alm-photohero-ic"><Icon name={aiBusy ? 'Loader' : 'Camera'} size={26} /></span>
+              <span className="alm-photohero-t">{aiBusy ? 'Reading the photo…' : 'Snap the item'}</span>
+              <span className="alm-photohero-sub">AI fills the description, colour &amp; care — you just add the owner &amp; any specials</span>
+            </button>
+          ) : (
+            <>
+              <div className="alm-photos">
+                {(formData.photos || []).map((src, idx) => (
+                  <div className="alm-thumb" key={idx}>
+                    <img src={src} alt={`Item ${idx + 1}`} decoding="async" />
+                    <button type="button" className="alm-thumb-x" onClick={() => handleRemovePhoto(idx)} aria-label="Remove photo"><Icon name="X" size={12} /></button>
+                  </div>
+                ))}
+                <button type="button" className="alm-add" onClick={() => fileInputRef?.current?.click()}>
+                  <Icon name="Camera" size={18} /> More
+                </button>
+              </div>
+              <button type="button" className="alm-rescan" onClick={() => autofillFromPhotos()} disabled={aiBusy}>
+                <Icon name="Sparkles" size={13} /> {aiBusy ? 'Reading the photo…' : 'Fill details from photo'}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Description — voice-first (Atelier hero). The mic is the easiest,
@@ -725,22 +794,6 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
           />
         </div>
 
-        {/* Photos */}
-        <div className="alm-section" style={{ marginBottom: 0 }}>
-          <label className="alm-label">Photos <span className="alm-opt">optional</span></label>
-          <input ref={fileInputRef} type="file" accept="image/*" capture="environment" multiple onChange={handlePhotoUpload} className="hidden" />
-          <div className="alm-photos">
-            {(formData.photos || []).map((src, idx) => (
-              <div className="alm-thumb" key={idx}>
-                <img src={src} alt={`Laundry item ${idx + 1}`} decoding="async" />
-                <button type="button" className="alm-thumb-x" onClick={() => handleRemovePhoto(idx)} aria-label="Remove photo"><Icon name="X" size={12} /></button>
-              </div>
-            ))}
-            <button type="button" className="alm-add" onClick={() => fileInputRef?.current?.click()}>
-              <Icon name="Camera" size={18} /> {(formData.photos || []).length ? 'More' : 'Photo'}
-            </button>
-          </div>
-        </div>
       </div>
 
       <div className="alm-foot">
