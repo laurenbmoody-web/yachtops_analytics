@@ -337,17 +337,18 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
     let alive = true;
     const scan = () => {
       if (!alive) return;
-      const hits = [];
+      const nm = (el) => `${el.tagName.toLowerCase()}${(el.getAttribute('class') || '').split(/\s+/).filter(Boolean).slice(0, 2).map((c) => '.' + c).join('')}`;
+      let out = '';
       document.querySelectorAll('.itf-mtx, .itf-quickess').forEach((g) => {
         g.querySelectorAll('*').forEach((el) => {
-          const h = el.offsetHeight;
-          if (h > 120) {
-            const cls = (el.getAttribute('class') || '').split(/\s+/).filter(Boolean).slice(0, 2).join('.');
-            hits.push(`${el.tagName.toLowerCase()}${cls ? '.' + cls : ''}=${Math.round(h)}x${Math.round(el.offsetWidth)}`);
-          }
+          if (out || el.offsetHeight <= 120) return;
+          const cs = getComputedStyle(el);
+          const p = el.parentElement;
+          const pcs = p ? getComputedStyle(p) : null;
+          out = `${nm(el)} ${Math.round(el.offsetHeight)}x${Math.round(el.offsetWidth)} ws=${cs.whiteSpace} d=${cs.display} h=${cs.height} mh=${cs.maxHeight} as=${cs.alignSelf} | P ${p ? nm(p) : '-'} ${p ? Math.round(p.offsetHeight) : 0}px d=${pcs ? pcs.display : '-'} ai=${pcs ? pcs.alignItems : '-'}`;
         });
       });
-      setGridDbg(hits.slice(0, 6).join('  |  '));
+      setGridDbg(out);
     };
     const t1 = setTimeout(scan, 400);
     const t2 = setTimeout(scan, 1300);
