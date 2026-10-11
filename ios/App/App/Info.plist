@@ -70,8 +70,10 @@
 	<string>Cargo lets you attach photos and documents from your library.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Cargo saves exported labels and QR codes to your photo library when you ask it to.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Cargo uses your location to show the local weather on your Today view. It is not stored.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Cargo records audio only when you capture a video attachment.</string>
+	<string>Cargo uses the microphone when you record a voice note (e.g. dictating a laundry item or feedback) or a video attachment.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
