@@ -43,7 +43,7 @@ export const TOUR_STEPS = [
     target: 'widget-signInOut',
     audience: 'all',
     title: 'Sign on and off',
-    body: 'Tap this when you step aboard and when you leave — it’s what the bridge reads to know who is on board.',
+    body: 'Set yourself Aboard or Ashore as you come and go — it’s what fills the crew sign-in board.',
   },
   {
     key: 'teamJobs',
@@ -60,11 +60,14 @@ export const TOUR_STEPS = [
     body: 'Fill this in daily — it’s the record that gets checked, and catching up a fortnight later never goes well.',
   },
   {
+    // Copy here must match AlertsDrawer's TAB_DEFS — Notifications, Reviews,
+    // Activity. An earlier version of this caption promised handovers, which the
+    // drawer has never had. Check the component before rewording.
     key: 'inbox',
     target: 'inbox',
     audience: 'all',
     title: 'Where you get told things',
-    body: 'Handovers, approvals and anything waiting on you. The number is how many things want an answer.',
+    body: 'Notifications first, then anything waiting on your review, then the last day of activity on board.',
   },
   {
     key: 'search',
@@ -78,7 +81,7 @@ export const TOUR_STEPS = [
     target: 'profile',
     audience: 'all',
     title: 'You, and your papers',
-    body: 'Your certificates and documents live behind here. Keep the expiry dates straight and nobody has to chase you.',
+    body: 'Your profile and settings live here — certificates and documents included, so keep the expiry dates straight.',
   },
   {
     key: 'customise',
