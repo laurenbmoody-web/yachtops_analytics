@@ -7,7 +7,8 @@ name: iOS → TestFlight
 # Signing is automatic: Xcode creates / renews the distribution certificate
 # and App Store provisioning profile with the App Store Connect API key — no
 # Mac, no certificates to manage, no registered test devices needed (the
-# archive signs as "Apple Distribution", not development). One repo secret is needed:
+# archive is ad-hoc signed; the export re-signs it for the App Store). One repo
+# secret is needed:
 #   ASC_KEY_P8  the whole contents of the App Store Connect API key (.p8)
 # The key's ID and issuer below are identifiers, not secrets. If Apple ever
 # refuses to create the certificate ("cloud signing permission"), make a new
@@ -61,7 +62,10 @@ jobs:
         run: npx vite build
       - run: npx cap sync ios
 
-      - name: Archive (signed in the cloud)
+      # 1. Archive with a local ad-hoc signature: the entitlements (push,
+      #    universal links) are embedded, but no Apple certificate is needed,
+      #    so no development profile — and no registered test device.
+      - name: Archive
         run: |
           xcodebuild \
             -project ios/App/App.xcodeproj \
@@ -69,18 +73,19 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="-" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
             MARKETING_VERSION="${{ inputs.version || '1.0' }}" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             archive
 
-      - name: Export and upload to App Store Connect
+      # 2. Export for the App Store: Xcode re-signs with the cloud-managed
+      #    distribution certificate and an App Store profile it creates with
+      #    the API key.
+      - name: Export for the App Store (cloud signing)
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -88,7 +93,7 @@ jobs:
           <plist version="1.0">
           <dict>
             <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>upload</string>
+            <key>destination</key><string>export</string>
             <key>teamID</key><string>${APPLE_TEAM_ID}</string>
             <key>signingStyle</key><string>automatic</string>
             <key>uploadSymbols</key><true/>
@@ -104,6 +109,28 @@ jobs:
             -authenticationKeyPath "$ASC_KEY_PATH" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          ls -la "$RUNNER_TEMP/export"
+
+      # 3. Refuse to upload an app that lost its push / universal-link rights.
+      - name: Check the signed app's entitlements
+        run: |
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa | head -1)
+          mkdir -p "$RUNNER_TEMP/ipa" && cd "$RUNNER_TEMP/ipa" && unzip -q "$IPA"
+          APP=$(ls -d Payload/*.app | head -1)
+          codesign -d --entitlements :- "$APP" > ents.plist 2>/dev/null
+          cat ents.plist
+          grep -q "<key>aps-environment</key>" ents.plist || { echo "::error::Signed app has no push entitlement"; exit 1; }
+          grep -A1 "<key>aps-environment</key>" ents.plist | grep -q production || { echo "::error::Push entitlement is not production"; exit 1; }
+          grep -q "associated-domains" ents.plist || { echo "::error::Signed app has no associated-domains entitlement"; exit 1; }
+          echo "IPA_PATH=$IPA" >> "$GITHUB_ENV"
+
+      # 4. Upload.
+      - name: Upload to App Store Connect
+        run: |
+          mkdir -p "$HOME/private_keys"
+          cp "$ASC_KEY_PATH" "$HOME/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          xcrun altool --upload-app -f "$IPA_PATH" -t ios \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
 
       - name: Done
         run: |
