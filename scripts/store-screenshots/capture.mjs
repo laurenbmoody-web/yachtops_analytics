@@ -51,6 +51,17 @@ for (const [device, vp] of Object.entries(DEVICES)) {
     for (const c of s.clicks || []) {
       try { await page.locator(c).first().click({ timeout: 4000 }); await page.waitForTimeout(1500); } catch { console.log('  click miss', c); }
     }
+    if (s.reveal) {
+      // Scroll a sideways board so the column titled `reveal` comes first.
+      await page.evaluate((title) => {
+        const h = [...document.querySelectorAll('h2')].find((e) => e.textContent.trim() === title);
+        const col = h?.closest('.tj-col-head')?.parentElement || h;
+        let sc = col?.parentElement;
+        while (sc && sc.scrollWidth <= sc.clientWidth) sc = sc.parentElement;
+        if (sc && col) sc.scrollLeft = col.getBoundingClientRect().left - sc.getBoundingClientRect().left + sc.scrollLeft - 16;
+      }, s.reveal);
+      await page.waitForTimeout(600);
+    }
     const scroll = s.scroll?.[device] ?? 0;
     if (scroll) { await page.mouse.wheel(0, scroll); await page.waitForTimeout(1000); }
     await page.addStyleTag({ content: '.fbw-root,[class*="feedback-widget"]{display:none!important} *{caret-color:transparent!important}' });
