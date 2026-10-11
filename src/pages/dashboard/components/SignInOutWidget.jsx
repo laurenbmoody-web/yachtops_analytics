@@ -55,7 +55,7 @@ const SignInOutWidget = () => {
   const aboard = status === ABOARD;
 
   return (
-    <div className="ce-card sio rounded-xl">
+    <div className="ce-card sio rounded-xl" data-tour="widget-signInOut">
       <div className="sio-top">
         <span className="sio-eyebrow">On board</span>
         {canOpenBoard && (

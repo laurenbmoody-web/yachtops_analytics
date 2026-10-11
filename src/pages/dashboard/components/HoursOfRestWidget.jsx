@@ -334,7 +334,7 @@ const HoursOfRestWidget = () => {
   );
 
   return (
-    <div className="ce-card rw rounded-xl p-5">
+    <div className="ce-card rw rounded-xl p-5" data-tour="widget-hoursOfRest">
       <div className="rw-head">
         <span className="rw-title">Hours of Rest</span>
         <button type="button" className="rw-link" onClick={() => navigate('/my-profile?tab=hor')}>

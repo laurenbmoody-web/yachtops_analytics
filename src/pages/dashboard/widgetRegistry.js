@@ -6,6 +6,14 @@ export const WIDGET_PERMISSIONS = {
 
 // Master widget catalogue
 export const WIDGET_META = {
+  // Setup tasks sits top-left and removes itself once there is nothing left to
+  // do, so it never becomes dead furniture on an established vessel.
+  setupTasks: {
+    id: 'setupTasks',
+    title: 'Setting up',
+    allowedTiers: WIDGET_PERMISSIONS.ALL,
+    defaultColumn: 'left',
+  },
   signInOut: {
     id: 'signInOut',
     title: 'On board',
@@ -111,7 +119,7 @@ export const WIDGET_META = {
 };
 
 export const DEFAULT_LAYOUT = {
-  left:   ['signInOut', 'teamJobs', 'rota', 'hoursOfRest', 'todaySnapshot', 'recentActivity'],
+  left:   ['setupTasks', 'signInOut', 'teamJobs', 'rota', 'hoursOfRest', 'todaySnapshot', 'recentActivity'],
   center: ['vesselStatus', 'vesselView', 'laundry', 'quickActions', 'pantry'],
   right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth', 'vesselDocRenewals', 'provisioning'],
 };

@@ -39,17 +39,3 @@ export const ONBOARDING_TASKS = [
   // Future:
   // { key: 'watch_schedule', label: 'Watch schedule', title: 'Set up the watch schedule', icon: Clock, href: '/watch', isDone: (ctx) => !!ctx.watchScheduleSet },
 ];
-
-export function getNextTask(ctx, tenant) {
-  const dismissed = new Set(tenant?.dismissed_tasks ?? []);
-  return ONBOARDING_TASKS.find(
-    (t) => !t.isDone(ctx) && !dismissed.has(t.key)
-  );
-}
-
-export function getCurrentStep(currentTask) {
-  const total = ONBOARDING_TASKS.length;
-  if (!currentTask) return { step: total, total };
-  const idx = ONBOARDING_TASKS.findIndex((t) => t.key === currentTask.key);
-  return { step: idx + 1, total };
-}

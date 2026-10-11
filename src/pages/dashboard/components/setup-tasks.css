@@ -1,0 +1,138 @@
+/* SetupTasksWidget — what's left before the vessel is set up.
+   Card frame comes from .ce-card / .ce-title / .ce-status; this adds the rows.
+   Colours resolve from the shared --d-* tokens — no private palette. */
+
+.st-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.st-count {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--d-border-soft);
+  color: var(--d-muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.st-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.st-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 0;
+  min-width: 0;
+  border-top: 1px solid var(--d-border-soft);
+}
+.st-row:first-child { border-top: 0; }
+
+/* The crew variant is one tappable row, so the whole thing is the link. */
+.st-row-link {
+  text-decoration: none;
+  border-top: 0;
+  margin-top: 4px;
+}
+.st-row-link:hover .st-go { color: var(--d-orange); }
+
+.st-ic {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--d-bg);
+  border: 1px solid var(--d-border-soft);
+  color: var(--d-navy);
+}
+.st-ic-done {
+  background: var(--d-success-soft);
+  border-color: transparent;
+  color: var(--d-success);
+}
+
+.st-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.st-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--d-navy-deep);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.st-sub {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--d-muted);
+}
+
+.st-done .st-name {
+  color: var(--d-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--d-muted-soft);
+}
+
+.st-go {
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--d-orange);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.st-go:hover { color: #B14E16; }
+
+.st-skip {
+  flex: 0 0 auto;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--d-muted-soft);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.st-skip:hover { color: var(--d-muted); text-decoration: underline; }
+
+.st-skipped {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--d-border);
+}
+
+.st-skipped-h {
+  margin: 0 0 2px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--d-muted-soft);
+}
+
+.st-row-quiet {
+  border-top: 0;
+  padding: 7px 0;
+}
+.st-row-quiet .st-name {
+  font-weight: 500;
+  color: var(--d-muted);
+}
