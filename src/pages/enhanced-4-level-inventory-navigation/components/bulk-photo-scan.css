@@ -67,6 +67,23 @@
 .bps-row-x{background:none;border:0;color:var(--faint);cursor:pointer;padding:4px;flex:none;border-radius:8px;}
 .bps-row-x:hover{color:var(--red);background:var(--soft);}
 
+/* Bulk action bar — applies a folder / box to every ticked row at once. */
+.bps-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 22px 2px;padding:9px 12px;background:#FBF4EF;border:1px solid #F0D9C9;border-radius:12px;}
+.bps-bulk-lbl{font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;color:var(--terra);margin-right:2px;}
+.bps-bulk-btn{display:inline-flex;align-items:center;gap:6px;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--ink);background:#fff;border:1px solid #E8DBD1;border-radius:999px;padding:6px 12px;cursor:pointer;}
+.bps-bulk-btn:hover{border-color:var(--terra);color:var(--terra);}
+.bps-bulk-btn svg{color:var(--terra);}
+
+/* Tap-to-pick field (folder / box) — replaces the old free-type folder input. */
+.bps-pick{position:relative;display:flex;align-items:center;gap:7px;width:100%;flex:1;min-width:0;font-family:inherit;font-size:13px;color:var(--ink);text-align:left;background:var(--soft);border:1px solid #E5E7EB;border-radius:9px;padding:7px 10px;cursor:pointer;transition:border-color .12s,box-shadow .12s;}
+.bps-pick:hover{border-color:var(--terra);}
+.bps-pick:focus-visible{outline:none;border-color:var(--terra);box-shadow:0 0 0 3px #FAECE7;}
+.bps-pick.empty .bps-pick-val{color:var(--faint);}
+.bps-pick-ic{color:var(--faint);flex:none;}
+.bps-pick-val{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bps-pick-x{flex:none;color:var(--faint);font-size:12px;line-height:1;padding:2px 5px;border-radius:6px;}
+.bps-pick-x:hover{color:var(--red);background:#fff;}
+
 /* Footer */
 .bps-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-top:1px solid var(--hair);margin-top:auto;}
 .bps-foot-note{font-size:12px;color:var(--muted);}
