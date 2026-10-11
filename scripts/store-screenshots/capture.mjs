@@ -42,6 +42,10 @@ for (const [device, vp] of Object.entries(DEVICES)) {
     localStorage.setItem('cargo_inventory_tile_zoom', String(zoom));
   }, { zoom: vp.tileZoom });
 
+  // Freeze the clock on the demo's "today" (data is seeded relative to it), so
+  // dates, "due today" and the sign-in board's time read naturally.
+  await page.clock.setFixedTime(new Date(process.env.CLOCK || '2026-10-11T20:15:00+02:00'));
+
   for (const s of SHOTS) {
     if (only.length && !only.includes(s.name)) continue;
     offline = false;

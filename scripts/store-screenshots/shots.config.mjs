@@ -51,6 +51,9 @@ export const FILM_SHOTS = [
   { name: '09_report_defect', route: '/defects', clicks: ['button:has-text("Report defect")'] },
   { name: '10_defect_saved', route: '/defects', clicks: ['text=Split seam'] },
   { name: '11_sign_ashore', route: '/sign-in-board' },
+  // Tap James ashore for the end frame, then tap him back aboard.
+  { name: '12_signed_ashore', route: '/sign-in-board', clicks: ['.sib-card:has-text("James Whitfield")'] },
+  { name: '13_restore_aboard', route: '/sign-in-board', clicks: ['.sib-card.ashore:has-text("James Whitfield")'] },
 ];
 
 // The white Cargo wordmark used on the framed images (navy artwork, whitened).
