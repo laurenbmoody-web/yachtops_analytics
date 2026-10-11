@@ -21,8 +21,12 @@ const FIELD = '#FAFAF8';
 // Drill-down picker over the inventory folder tree. onSelect receives
 // { path: string[], displayPath: 'Dept > Sub' }. Shared by the inventory add/edit
 // modal and the vessel-map "add item" flow so both file items the same way.
-const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated }) => {
-  const [pathSegments, setPathSegments] = useState([]);
+const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated, rootSegments = [] }) => {
+  // When `rootSegments` is given the picker is scoped to that branch (e.g. a
+  // single department): it opens inside it, can't navigate above it, and never
+  // offers "select the department itself". Default [] = the full tree.
+  const floor = rootSegments.length;
+  const [pathSegments, setPathSegments] = useState(rootSegments);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [createError, setCreateError] = useState('');
@@ -34,7 +38,9 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated }) => 
 
   const currentFolders = getSubFoldersFromTree(localTree, pathSegments);
   const currentPath = buildFolderPath(pathSegments);
-  const atRoot = pathSegments.length === 0;
+  const atRoot = pathSegments.length <= floor;
+  const atTopLevel = atRoot && !floor; // genuinely at the department list
+  const createLabel = atTopLevel ? 'department' : 'sub-folder';
   const hasSubFolders = (folderName) => {
     const childKey = pathKey([...pathSegments, folderName]);
     return (localTree?.[childKey]?.subFolders?.length || 0) > 0;
@@ -45,7 +51,7 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated }) => 
     setCreatingFolder(false); setNewFolderName(''); setCreateError('');
   };
   const handleBack = () => {
-    setPathSegments((prev) => prev?.slice(0, -1));
+    setPathSegments((prev) => (prev.length > floor ? prev?.slice(0, -1) : prev));
     setCreatingFolder(false); setNewFolderName(''); setCreateError('');
   };
   const handleSelectCurrent = () => {
@@ -111,7 +117,7 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated }) => 
 
       {/* Section label */}
       <div style={{ padding: '12px 18px 4px', flexShrink: 0 }}>
-        <span style={label}>{atRoot ? 'Departments' : 'Sub-folders'}</span>
+        <span style={label}>{atTopLevel ? 'Departments' : 'Sub-folders'}</span>
       </div>
 
       {/* List */}
@@ -146,7 +152,7 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated }) => 
         {creatingFolder ? (
           <div style={{ margin: '10px 6px 2px', padding: 12, background: FIELD, borderRadius: 12, border: `1px solid #ECEAE3` }}>
             <p style={{ fontSize: 11.5, color: MUTED, margin: '0 0 8px' }}>
-              New folder {atRoot ? 'at top level (department)' : `inside “${pathSegments?.[pathSegments?.length - 1]}”`}
+              New folder {atTopLevel ? 'at top level (department)' : `inside “${pathSegments?.[pathSegments?.length - 1]}”`}
             </p>
             <div style={{ display: 'flex', gap: 7 }}>
               <input
@@ -168,7 +174,7 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated }) => 
             onClick={() => setCreatingFolder(true)}
             style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '10px 6px 0', width: 'calc(100% - 12px)', fontSize: 13.5, fontWeight: 600, color: TERRA, background: 'none', border: `1px dashed ${TERRA}55`, borderRadius: 12, padding: '11px 12px', cursor: 'pointer' }}
           >
-            <Icon name="FolderPlus" size={16} /> Create new {atRoot ? 'department' : 'sub-folder'} here
+            <Icon name="FolderPlus" size={16} /> Create new {createLabel} here
           </button>
         )}
       </div>

@@ -5,7 +5,10 @@ import { supabase } from '../../../lib/supabaseClient';
 import { detectInventoryItems } from '../../inventory/utils/itemVisionAi';
 import { findProductImage } from '../../inventory/utils/productImageSearch';
 import { pdfToPageBlobs } from '../../inventory/utils/pdfPages';
-import { getSubfolderPaths, resolveOrCreateFolderPath, saveItem } from '../../inventory/utils/inventoryStorage';
+import { getSubfolderPaths, getFolderTree, resolveOrCreateFolderPath, saveItem } from '../../inventory/utils/inventoryStorage';
+import InventoryFolderPicker from '../../inventory/components/InventoryFolderPicker';
+import { LocationPicker } from '../../inventory/components/AddEditItemModal';
+import { mintItemCode } from '../../inventory/utils/itemQr';
 import './bulk-photo-scan.css';
 
 // Concurrency for the per-photo vision calls — kept modest so a big batch
@@ -64,6 +67,33 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
   const fileInputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
 
+  // Folder picker (drill-down tree) + box/location picker, reused from the
+  // normal Add-item flow. `*PickerFor` holds a row id, or 'bulk' to apply the
+  // choice to every ticked row at once, or null when closed.
+  const [folderTree, setFolderTree] = useState({});
+  const [vesselLocations, setVesselLocations] = useState([]);
+  const [folderPickerFor, setFolderPickerFor] = useState(null);
+  const [locPickerFor, setLocPickerFor] = useState(null);
+
+  const reloadVesselLocations = useCallback(async () => {
+    try {
+      const { data: ctx } = await supabase.rpc('get_my_context');
+      const tid = ctx?.[0]?.tenant_id;
+      if (!tid) return;
+      const { data } = await supabase.from('vessel_locations')
+        .select('id, name, level, parent_id').eq('tenant_id', tid).eq('is_archived', false)
+        .order('sort_order', { ascending: true }).order('name', { ascending: true });
+      if (data) setVesselLocations(data);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try { const tree = await getFolderTree(); setFolderTree(tree || {}); } catch { /* ignore */ }
+      await reloadVesselLocations();
+    })();
+  }, [reloadVesselLocations]);
+
   // Existing sub-folders to prefer / offer in the folder field.
   useEffect(() => {
     let alive = true;
@@ -88,6 +118,8 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
     name: '',
     quantity: 1,
     folder: currentPath || '',
+    locId: '',
+    locName: '',
     confidence: '',
     description: '',
     imageUrl: '',
@@ -127,6 +159,24 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
     if (gone?.preview && !rest.some((r) => r.preview === gone.preview)) URL.revokeObjectURL(gone.preview);
     return rest;
   });
+
+  // Apply a folder / box choice to one row (by id) or to every ticked row ('bulk').
+  const applyToTarget = (target, patch) => setRows((prev) => prev.map((r) => (
+    (target === 'bulk' ? r.include : r.id === target) ? { ...r, ...patch } : r
+  )));
+
+  // Mint a QR code no other item is already using (tenant-scoped) — the barcode
+  // field is the registry, same as the normal Add-item flow, so each scanned
+  // item has a working QR in its view-item panel.
+  const mintUniqueCode = async (tenant) => {
+    for (let i = 0; i < 6; i += 1) {
+      const code = mintItemCode();
+      if (!tenant) return code;
+      const { data } = await supabase.from('inventory_items').select('id').eq('tenant_id', tenant).eq('barcode', code).limit(1);
+      if (!data || !data.length) return code;
+    }
+    return mintItemCode();
+  };
 
   // Build one row per detected item from a just-analysed photo row. All rows
   // from the same photo share its preview + uploaded source image. An empty
@@ -193,17 +243,29 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
   const save = async () => {
     if (!includable.length) return;
     setPhase('saving');
+    let tenant;
+    try { const { data: ctx } = await supabase.rpc('get_my_context'); tenant = ctx?.[0]?.tenant_id; } catch { /* offline */ }
     let saved = 0; const failures = [];
     for (const row of includable) {
       try {
         const segments = [departmentName, ...row.folder.split(' > ').map((s) => s.trim()).filter(Boolean)];
         await resolveOrCreateFolderPath(segments);
+        const qty = Number(row.quantity) || 1;
+        const code = await mintUniqueCode(tenant);
+        // Put it in a box: a vessel-location stock entry carries the full qty, so
+        // the item shows up when the inventory is filtered to that box.
+        const stockLocations = row.locId
+          ? [{ locationId: row.locId, vesselLocationId: row.locId, locationName: row.locName || '', qty }]
+          : undefined;
         await saveItem({
           name: row.name.trim(),
           location: departmentName,
           subLocation: row.folder.trim(),
-          quantity: Number(row.quantity) || 1,
+          quantity: qty,
+          totalQty: qty,
+          barcode: code,
           imageUrl: row.imageUrl || '',
+          ...(stockLocations ? { stockLocations } : {}),
         });
         saved += 1;
       } catch (err) {
@@ -289,7 +351,18 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
         {/* REVIEW */}
         {phase === 'review' && (
           <>
-            <p className="bps-review-lead">Check each item and its folder, then save. Edit anything the scan got wrong; untick to skip.</p>
+            <p className="bps-review-lead">Check each item, set its folder &amp; box, then save. Edit anything the scan got wrong; untick to skip.</p>
+            {rows.some((r) => r.include) && (
+              <div className="bps-bulk">
+                <span className="bps-bulk-lbl">{rows.filter((r) => r.include).length} ticked</span>
+                <button type="button" className="bps-bulk-btn" onClick={() => setFolderPickerFor('bulk')}>
+                  <Icon name="Folder" size={13} /> Set folder
+                </button>
+                <button type="button" className="bps-bulk-btn" onClick={() => setLocPickerFor('bulk')}>
+                  <Icon name="Package" size={13} /> Put in box
+                </button>
+              </div>
+            )}
             <div className="bps-rows">
               {rows.map((r) => (
                 <div key={r.id} className={`bps-row${r.include ? '' : ' skipped'}`}>
@@ -336,24 +409,25 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
                           onChange={(e) => patchRow(r.id, { quantity: e.target.value })}
                         />
                       </div>
-                      <div className="bps-folder">
-                        <Icon name="Folder" size={13} className="bps-folder-ic" />
-                        <input
-                          className="bps-input" list="bps-folder-list" value={r.folder} placeholder="Choose folder"
-                          onChange={(e) => patchRow(r.id, { folder: e.target.value })}
-                        />
+                      <button type="button" className={`bps-pick${r.folder ? '' : ' empty'}`} onClick={() => setFolderPickerFor(r.id)}>
+                        <Icon name="Folder" size={13} className="bps-pick-ic" />
+                        <span className="bps-pick-val">{r.folder || 'Choose folder'}</span>
                         {isNewFolder(r) && <span className="bps-new-tag">new</span>}
-                      </div>
+                      </button>
                     </div>
+                    <button type="button" className={`bps-pick${r.locId ? '' : ' empty'}`} onClick={() => setLocPickerFor(r.id)}>
+                      <Icon name="Package" size={13} className="bps-pick-ic" />
+                      <span className="bps-pick-val">{r.locName || 'No box / location'}</span>
+                      {r.locId && (
+                        <span className="bps-pick-x" role="button" tabIndex={0} aria-label="Remove box"
+                          onClick={(e) => { e.stopPropagation(); patchRow(r.id, { locId: '', locName: '' }); }}>✕</span>
+                      )}
+                    </button>
                   </div>
                   <button type="button" className="bps-row-x" onClick={() => removeRow(r.id)} aria-label="Remove"><Icon name="Trash2" size={15} /></button>
                 </div>
               ))}
             </div>
-            <datalist id="bps-folder-list">
-              {folders.map((f) => <option key={f} value={f} />)}
-            </datalist>
-
             <div className="bps-foot">
               <div className="bps-foot-note">{includable.length} of {rows.length} will be added</div>
               <div className="bps-foot-actions">
@@ -385,6 +459,35 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
           </div>
         )}
       </div>
+
+      {/* Folder picker — scoped to this department, reused from the normal flow. */}
+      {folderPickerFor && (
+        <InventoryFolderPicker
+          tree={folderTree}
+          rootSegments={[departmentName]}
+          onFolderCreated={(t) => setFolderTree(t)}
+          onClose={() => setFolderPickerFor(null)}
+          onSelect={({ path }) => {
+            const sub = (path || []).slice(1).map((s) => String(s).trim()).filter(Boolean).join(' > ');
+            applyToTarget(folderPickerFor, { folder: sub });
+            setFolderPickerFor(null);
+          }}
+        />
+      )}
+
+      {/* Box / stow-location picker — same component as the Add-item form. */}
+      {locPickerFor && (
+        <LocationPicker
+          vesselLocations={vesselLocations}
+          selectedId={(locPickerFor !== 'bulk' && rows.find((r) => r.id === locPickerFor)?.locId) || ''}
+          onReload={reloadVesselLocations}
+          onClose={() => setLocPickerFor(null)}
+          onSelect={({ id, label }) => {
+            applyToTarget(locPickerFor, { locId: id, locName: label });
+            setLocPickerFor(null);
+          }}
+        />
+      )}
     </ModalShell>
   );
 };
