@@ -1,0 +1,82 @@
+name: App Store screenshots
+
+# Signs in to the app as the App Review demo captain (M/Y Aurora), captures
+# each store screen at Apple's iPhone 6.9" and iPad 13" sizes, frames them in
+# a device body with a caption, and commits the results to the
+# `store-screenshots` branch (iphone/, ipad/, raw/, contact-sheet.png).
+# Screens and captions: scripts/store-screenshots/shots.config.mjs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      password:
+        description: 'Demo account password (appreview@example.com)'
+        required: true
+      only:
+        description: 'Only these shots, comma-separated (e.g. 6_inventory). Blank = all.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: app-store-screenshots
+  cancel-in-progress: true
+
+env:
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://gwexbrbasfysbheeklyq.supabase.co' }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3ZXhicmJhc2Z5c2JoZWVrbHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNTc5NDksImV4cCI6MjA4NDgzMzk0OX0.dfUXJ2ZepeZ4bNSKGjhoxwI-FgXMSU-lF465eGlWQ5M' }}
+  NODE_OPTIONS: --max_old_space_size=6144
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Mask the password in logs
+        run: echo "::add-mask::${{ inputs.password }}"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm install --no-save --no-audit --no-fund playwright
+      - run: npx playwright install --with-deps chromium
+      - name: Build web app
+        run: npx vite build
+      - name: Serve it
+        run: |
+          npx vite preview --port 4173 --strictPort > preview.log 2>&1 &
+          npx --yes wait-on -t 60000 http://localhost:4173
+      - name: Capture
+        env:
+          BASE_URL: http://localhost:4173
+          DEMO_EMAIL: appreview@example.com
+          DEMO_PASSWORD: ${{ inputs.password }}
+          ONLY: ${{ inputs.only }}
+          OUT: ${{ runner.temp }}/shots
+        run: node scripts/store-screenshots/capture.mjs
+      - name: Contact sheet of product photos
+        env:
+          DEMO_EMAIL: appreview@example.com
+          DEMO_PASSWORD: ${{ inputs.password }}
+          OUT: ${{ runner.temp }}/shots
+        run: node scripts/store-screenshots/contact.mjs
+      - name: Frame
+        env:
+          OUT: ${{ runner.temp }}/shots
+        run: node scripts/store-screenshots/compose.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: store-screenshots
+          path: ${{ runner.temp }}/shots
+      - name: Commit to the store-screenshots branch
+        run: |
+          cd "$RUNNER_TEMP/shots"
+          git init -q -b store-screenshots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898237+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -qm "App Store screenshots (run ${{ github.run_number }})"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" store-screenshots
