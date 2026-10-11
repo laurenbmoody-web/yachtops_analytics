@@ -10,18 +10,24 @@ const CAPTAIN = 'dece0000-0000-4000-8000-000000000101';
 const CHARTER_LIST = 'dece0000-0000-4000-8000-000000000301';
 
 export const SHOTS = [
-  { name: '1_dashboard', route: '/dashboard', scroll: { iphone: 430 },
+  { name: '1_dashboard', route: '/dashboard', scroll: { iphone: 600 },
     eyebrow: 'The whole boat', title: 'Run the boat,', em: 'from your pocket.' },
-  { name: '2_jobs', route: '/team-jobs-management', offline: true,
+  { name: '2_jobs', route: '/team-jobs-management', offline: true, reveal: 'My jobs',
     eyebrow: 'Works offline', title: 'At sea,', em: 'still working.' },
   { name: '3_hor', route: `/profile/${CAPTAIN}`, clicks: ['text=Hours of Rest (HOR)'], scroll: { iphone: 1900, ipad: 1300 },
     eyebrow: 'Hours of rest', title: 'Rest hours,', em: 'inspection-ready.' },
-  { name: '4_defects', route: '/defects', scroll: { iphone: 1350 },
+  { name: '4_defects', route: '/defects', scroll: { iphone: 1650 },
     eyebrow: 'Defects', title: 'Every defect,', em: 'tracked to fixed.' },
-  { name: '5_laundry', route: '/laundry-management-dashboard',
+  { name: '5_laundry', route: '/laundry-management-dashboard', scroll: { iphone: 560 },
     eyebrow: 'Laundry', title: 'From the wash,', em: 'to the wardrobe.' },
-  { name: '6_inventory', route: '/inventory/location/Interior/Glassware',
+  { name: '6_inventory', route: '/inventory/location/Interior/Glassware', clicks: ['button[title="Grid view"]'],
     eyebrow: 'Inventory', title: 'Every glass,', em: 'accounted for.' },
   { name: '7_board', route: `/provisioning/${CHARTER_LIST}`, scroll: { iphone: 420 },
     eyebrow: 'Provisioning', title: 'Order it,', em: 'receive it.' },
 ];
+
+// The white Cargo wordmark used on the framed images (navy artwork, whitened).
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+const logoPath = process.env.LOGO || fileURLToPath(new URL('../../public/cargo-wordmark.png', import.meta.url));
+export const LOGO = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;

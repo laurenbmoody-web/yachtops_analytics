@@ -56,11 +56,12 @@ jobs:
         run: npx vite build
       - name: Serve it
         run: |
-          npx vite preview --port 4173 --strictPort > preview.log 2>&1 &
-          npx --yes wait-on -t 60000 http://localhost:4173
+          npx vite preview --host 127.0.0.1 --port 4173 --strictPort > preview.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:4173/ >/dev/null && exit 0; sleep 1; done
+          cat preview.log; exit 1
       - name: Capture
         env:
-          BASE_URL: http://localhost:4173
+          BASE_URL: http://127.0.0.1:4173
           DEMO_EMAIL: appreview@example.com
           DEMO_PASSWORD: ${{ inputs.password || secrets.DEMO_PASSWORD }}
           ONLY: ${{ inputs.only || '' }}
@@ -76,6 +77,10 @@ jobs:
         env:
           OUT: ${{ runner.temp }}/shots
         run: node scripts/store-screenshots/compose.mjs
+      - name: Product page header + search results image
+        env:
+          OUT: ${{ runner.temp }}/shots
+        run: node scripts/store-screenshots/hero.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: store-screenshots
