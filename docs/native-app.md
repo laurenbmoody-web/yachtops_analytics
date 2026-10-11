@@ -101,15 +101,26 @@ phone. Delivery: `supabase/functions/_shared/push.ts`, used by `laundry-push` an
 
 ## One-time setup (accounts, keys, signing)
 
-**Apple**
-1. Apple Developer Program membership.
-2. Register App ID `uk.co.cargotechnology.app` with Push Notifications and
-   Associated Domains.
-3. Replace `APPLE_TEAM_ID` in `public/.well-known/apple-app-site-association` with
-   the 10-character Team ID; set the team in Xcode (Signing & Capabilities).
-4. Create an APNs auth key (.p8). Supabase → Edge Functions → Secrets:
-   `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (the .p8 file contents),
-   optionally `APNS_BUNDLE_ID`.
+**Apple** (Team ID `7MNK7XQ3A8`, already in the Xcode project and
+`apple-app-site-association`)
+1. Apple Developer Program membership. ✅
+2. App ID `uk.co.cargotechnology.app` with Push Notifications and Associated
+   Domains (developer.apple.com → Identifiers).
+3. The app in App Store Connect (Apps → + → New App, that bundle ID).
+4. App Store Connect API key (Users and Access → Integrations → App Store Connect
+   API, role App Manager — Admin if cloud signing is refused). Its Key ID and
+   Issuer ID are in `.github/workflows/ios-testflight.yml`; the `.p8` contents go
+   in the repo secret `ASC_KEY_P8`.
+5. APNs key (Keys → + → APNs → Configure: Sandbox & Production, Team Scoped).
+   Supabase → Edge Functions → Secrets: `APNS_KEY_ID`, `APNS_TEAM_ID`
+   (`7MNK7XQ3A8`), `APNS_PRIVATE_KEY` (the .p8 contents), optionally
+   `APNS_BUNDLE_ID`.
+
+**Shipping to TestFlight**: GitHub → Actions → "iOS → TestFlight" → Run workflow
+(optionally set the version, e.g. `1.0`; the build number is the run number).
+It builds, signs in the cloud with the API key, and uploads. The build appears in
+App Store Connect → TestFlight after Apple's processing (10–30 min); add testers
+there.
 
 **Android / Firebase**
 1. Google Play Console account.

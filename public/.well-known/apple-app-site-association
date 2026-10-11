@@ -2,7 +2,7 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["APPLE_TEAM_ID.uk.co.cargotechnology.app"],
+        "appIDs": ["7MNK7XQ3A8.uk.co.cargotechnology.app"],
         "components": [
           { "/": "/", "exclude": true, "comment": "marketing site stays in the browser" },
           { "/": "/product", "exclude": true },

@@ -1,0 +1,109 @@
+name: iOS → TestFlight
+
+# Builds the Cargo iOS app, signs it in the cloud and uploads it to App Store
+# Connect, where it appears in TestFlight once Apple has processed it (10–30
+# min). Run it from GitHub → Actions → "iOS → TestFlight" → Run workflow.
+#
+# Signing is automatic: Xcode creates / renews the distribution certificate
+# and provisioning profile with the App Store Connect API key — no Mac, no
+# certificates to manage. One repo secret is needed:
+#   ASC_KEY_P8  the whole contents of the App Store Connect API key (.p8)
+# The key's ID and issuer below are identifiers, not secrets. If Apple ever
+# refuses to create the certificate ("cloud signing permission"), make a new
+# API key with the Admin role and update ASC_KEY_ID + ASC_KEY_P8.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version shown in the App Store (e.g. 1.0). Build number is automatic.'
+        required: false
+        default: '1.0'
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+env:
+  APPLE_TEAM_ID: 7MNK7XQ3A8
+  ASC_ISSUER_ID: d7e85dec-1def-4611-a887-f6b973c58934
+  ASC_KEY_ID: NGM5H4NW3Y
+  # The web app's public Supabase values (the same ones every browser gets).
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://gwexbrbasfysbheeklyq.supabase.co' }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3ZXhicmJhc2Z5c2JoZWVrbHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNTc5NDksImV4cCI6MjA4NDgzMzk0OX0.dfUXJ2ZepeZ4bNSKGjhoxwI-FgXMSU-lF465eGlWQ5M' }}
+  NODE_OPTIONS: --max_old_space_size=6144
+
+jobs:
+  testflight:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the API key secret is set
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          if [ -z "$ASC_KEY_P8" ]; then
+            echo "::error::Add the App Store Connect API key (.p8 contents) as the repo secret ASC_KEY_P8."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8"
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - name: Build web app
+        run: npx vite build
+      - run: npx cap sync ios
+
+      - name: Archive (signed in the cloud)
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            MARKETING_VERSION="${{ inputs.version || '1.0' }}" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            archive
+
+      - name: Export and upload to App Store Connect
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Done
+        run: |
+          echo "Uploaded build ${{ github.run_number }} (version ${{ inputs.version || '1.0' }})."
+          echo "It appears in App Store Connect → TestFlight once Apple has processed it (10–30 min)."
