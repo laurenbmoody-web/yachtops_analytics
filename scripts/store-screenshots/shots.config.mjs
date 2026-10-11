@@ -24,6 +24,16 @@ export const SHOTS = [
     eyebrow: 'Inventory', title: 'Every glass,', em: 'accounted for.' },
   { name: '7_board', route: `/provisioning/${CHARTER_LIST}`, scroll: { iphone: 420 },
     eyebrow: 'Provisioning', title: 'Order it,', em: 'receive it.' },
+  { name: '8_cabins', route: '/crew-management', clicks: ['button.cm-view:has-text("Movements")', 'button:has-text("Cabins")'],
+    eyebrow: 'Crew & cabins', title: 'Every berth,', em: 'allocated.' },
+  { name: '9_profile', route: `/profile/${CAPTAIN}`,
+    eyebrow: 'Crew profiles', title: 'Your crew,', em: 'in one place.' },
+  { name: '10_rota', route: '/crew',
+    eyebrow: 'Rota', title: 'Watches set,', em: 'rest protected.' },
+  { name: '11_locations', route: '/locations-settings',
+    eyebrow: 'Vessel locations', title: 'Every deck,', em: 'mapped.' },
+  { name: '12_dutysets', route: '/duty-sets-rotation-management',
+    eyebrow: 'Duty sets', title: 'Who does what,', em: 'every day.' },
 ];
 
 // The white Cargo wordmark used on the framed images (navy artwork, whitened).
