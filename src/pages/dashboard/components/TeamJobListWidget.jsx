@@ -158,7 +158,7 @@ const TeamJobListWidget = () => {
   );
 
   return (
-    <div className="ce-card rounded-xl p-5">
+    <div className="ce-card rounded-xl p-5" data-tour="widget-teamJobs">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="ce-title">{view === 'crew' ? 'My jobs' : 'Team jobs'}</h3>

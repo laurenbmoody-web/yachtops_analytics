@@ -1,0 +1,230 @@
+/* GuidedTour — the dashboard's in-place tour.
+   Scoped under .gt-* because the layer is portaled to <body>, outside the page
+   tree. Editorial palette only: navy ink, terracotta accent, maritime white. */
+
+.gt-root {
+  position: fixed;
+  inset: 0;
+  /* The app's z-scale lives in tailwind.css (--z-nav: 200, --z-overlay: 1000,
+     --z-toast: 2000). Overlay is the right rung: above the fixed nav, so the dim
+     covers the header and the ring can point at the bell, but below toasts, so a
+     "saved" message during the tour is still readable. */
+  z-index: var(--z-overlay, 1000);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Catches every click so the highlighted control can't be used to navigate away
+   mid-tour. Sits under the visuals, which are all pointer-events:none. */
+.gt-block {
+  position: absolute;
+  inset: 0;
+  cursor: default;
+}
+
+/* The dim is the SHADOW of this element, so the element itself is the clear hole.
+   One node instead of four panels, and the hole gets a radius for free. */
+.gt-hole {
+  position: fixed;
+  border-radius: 12px;
+  box-shadow: 0 0 0 9999px rgba(26, 29, 63, 0.58);
+  pointer-events: none;
+  transition: top 0.22s ease, left 0.22s ease, width 0.22s ease, height 0.22s ease;
+}
+
+.gt-ring {
+  position: fixed;
+  border-radius: 12px;
+  border: 2px solid #C65A1A;
+  pointer-events: none;
+  animation: gt-pulse 1.9s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+  transition: top 0.22s ease, left 0.22s ease, width 0.22s ease, height 0.22s ease;
+}
+
+@keyframes gt-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(198, 90, 26, 0.5); }
+  70%  { box-shadow: 0 0 0 13px rgba(198, 90, 26, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(198, 90, 26, 0); }
+}
+
+/* ── the tip ───────────────────────────────────────────────────────────────── */
+
+.gt-tip {
+  position: fixed;
+  width: 320px;
+  box-sizing: border-box;
+  padding: 15px 17px 16px;
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 14px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  pointer-events: none;
+  transition: top 0.22s ease, left 0.22s ease, opacity 0.18s ease;
+}
+
+/* Held invisible until the tip's height has been measured and the side chosen —
+   otherwise the first paint lands in the wrong place and visibly snaps. */
+.gt-tip[data-ready='n'] { opacity: 0; }
+.gt-tip[data-ready='y'] { opacity: 1; }
+
+.gt-arrow {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  background: #FFFFFF;
+  border-left: 1px solid #ECEAE3;
+  border-top: 1px solid #ECEAE3;
+  transform: translateX(-50%) rotate(45deg);
+}
+.gt-tip[data-side='below'] .gt-arrow { top: -6px; }
+.gt-tip[data-side='above'] .gt-arrow {
+  bottom: -6px;
+  transform: translateX(-50%) rotate(225deg);
+}
+
+.gt-eyebrow {
+  margin: 0 0 7px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+}
+
+.gt-title {
+  margin: 0 0 5px;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: #1C1B3A;
+}
+
+.gt-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #6B7280;
+}
+
+/* ── the dock ──────────────────────────────────────────────────────────────── */
+
+.gt-dock {
+  position: fixed;
+  left: 24px;
+  bottom: 24px;
+  width: 268px;
+  padding: 11px 13px 12px;
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 14px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+}
+
+.gt-progress {
+  height: 3px;
+  border-radius: 999px;
+  background: #F0F1F5;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.gt-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #C65A1A;
+  transition: width 0.26s ease;
+}
+
+.gt-dock-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gt-dock-count {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #AEB4C2;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.gt-dock-btns {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.gt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 13px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.gt-primary {
+  background: #C65A1A;
+  border: 1px solid #C65A1A;
+  color: #FFFFFF;
+}
+.gt-primary:hover { background: #B14E16; border-color: #B14E16; }
+
+.gt-ghost {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  color: #6B7280;
+}
+.gt-ghost:hover { border-color: #C8CBDA; color: #1C1B3A; }
+
+.gt-dock-skip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 9px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-size: 11.5px;
+  color: #AEB4C2;
+  cursor: pointer;
+}
+.gt-dock-skip:hover { color: #6B7280; }
+
+/* Skip is its own line under the buttons — at 268px wide it would otherwise
+   squeeze Next. */
+.gt-dock-row { flex-wrap: wrap; }
+.gt-dock-skip { flex-basis: 100%; }
+
+/* ── small screens ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 520px) {
+  .gt-tip {
+    width: auto;
+    left: 12px !important;
+    right: 12px;
+  }
+  .gt-arrow { display: none; }
+  .gt-dock {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    bottom: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gt-ring { animation: none; box-shadow: 0 0 0 4px rgba(198, 90, 26, 0.28); }
+  .gt-hole, .gt-ring, .gt-tip, .gt-progress span { transition: none; }
+}

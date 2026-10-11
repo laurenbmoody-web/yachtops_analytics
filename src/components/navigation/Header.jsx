@@ -647,7 +647,12 @@ const Header = () => {
           {!unberthed && (
             <>
               <div className="text-muted-foreground text-xl">|</div>
-              <VesselSwitcher />
+              {/* data-tour: anchor for the dashboard's guided tour (see
+                  services/guidedTour.js). Kept on a wrapper so restyling the
+                  switcher itself can't detach the tour step. */}
+              <span data-tour="vessel" className="inline-flex items-center">
+                <VesselSwitcher />
+              </span>
             </>
           )}
         </div>
@@ -657,7 +662,7 @@ const Header = () => {
             bell/avatar don't get shoved off-screen. */}
         <div className={`flex-1 flex justify-center px-8 nav-search-wrap${mobileSearchOpen ? ' open' : ''}`}>
           {!unberthed && (
-          <div className="relative w-full max-w-md nav-search" ref={searchRef}>
+          <div className="relative w-full max-w-md nav-search" ref={searchRef} data-tour="search">
             <Icon
               name="Search"
               size={18}
@@ -773,6 +778,7 @@ const Header = () => {
               <button
                 onClick={() => { setAlertsTab('notifications'); setAlertsOpen(true); }}
                 className="relative p-2 hover:bg-muted rounded-lg transition-smooth"
+                data-tour="inbox"
                 title="Inbox — notifications, reviews & activity"
                 aria-label={alertCount > 0 ? `Inbox — ${alertCount} pending` : 'Inbox'}
               >
@@ -806,6 +812,7 @@ const Header = () => {
           <button
             onClick={() => navigate('/settings')}
             className="hidden sm:block p-2 hover:bg-muted rounded-lg transition-smooth"
+            data-tour="settings"
             title="Settings"
             aria-label="Settings"
           >
@@ -818,6 +825,7 @@ const Header = () => {
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
               className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg transition-smooth"
+              data-tour="profile"
             >
               <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold text-sm overflow-hidden">
                 {profileData?.avatar_url ? (
