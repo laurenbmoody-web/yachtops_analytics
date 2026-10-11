@@ -6,12 +6,17 @@ name: App Store screenshots
 # `store-screenshots` branch (iphone/, ipad/, raw/, contact-sheet.png).
 # Screens and captions: scripts/store-screenshots/shots.config.mjs.
 
+# The demo password comes from the dispatch input, else the repo secret
+# DEMO_PASSWORD (which also lets a push of screenshot changes re-run it).
 on:
+  push:
+    branches: ['claude/**']
+    paths: ['scripts/store-screenshots/**', '.github/workflows/app-store-screenshots.yml']
   workflow_dispatch:
     inputs:
       password:
-        description: 'Demo account password (appreview@example.com)'
-        required: true
+        description: 'Demo account password (appreview@example.com). Blank = the DEMO_PASSWORD secret.'
+        required: false
       only:
         description: 'Only these shots, comma-separated (e.g. 6_inventory). Blank = all.'
         required: false
@@ -34,8 +39,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: Mask the password in logs
-        run: echo "::add-mask::${{ inputs.password }}"
+      - name: Demo password
+        env:
+          PW: ${{ inputs.password || secrets.DEMO_PASSWORD }}
+        run: |
+          if [ -z "$PW" ]; then echo "::error::Add the repo secret DEMO_PASSWORD (or enter the password when running)."; exit 1; fi
+          echo "::add-mask::$PW"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -53,14 +62,14 @@ jobs:
         env:
           BASE_URL: http://localhost:4173
           DEMO_EMAIL: appreview@example.com
-          DEMO_PASSWORD: ${{ inputs.password }}
-          ONLY: ${{ inputs.only }}
+          DEMO_PASSWORD: ${{ inputs.password || secrets.DEMO_PASSWORD }}
+          ONLY: ${{ inputs.only || '' }}
           OUT: ${{ runner.temp }}/shots
         run: node scripts/store-screenshots/capture.mjs
       - name: Contact sheet of product photos
         env:
           DEMO_EMAIL: appreview@example.com
-          DEMO_PASSWORD: ${{ inputs.password }}
+          DEMO_PASSWORD: ${{ inputs.password || secrets.DEMO_PASSWORD }}
           OUT: ${{ runner.temp }}/shots
         run: node scripts/store-screenshots/contact.mjs
       - name: Frame
