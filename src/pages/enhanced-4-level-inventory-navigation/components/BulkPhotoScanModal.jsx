@@ -117,6 +117,7 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
     status: 'pending', // pending | ready | error
     name: '',
     quantity: 1,
+    dept: departmentName,
     folder: currentPath || '',
     locId: '',
     locName: '',
@@ -126,7 +127,7 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
     imageSource: '', // '' | 'source' | 'web' | 'none'
     imgStatus: '',   // '' | 'searching' | 'done'
     include: true,
-  }), [currentPath]);
+  }), [currentPath, departmentName]);
 
   // Accept photos, order screenshots AND PDF packing lists. Each PDF page is
   // rasterised to an image and scanned like a photo.
@@ -248,7 +249,8 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
     let saved = 0; const failures = [];
     for (const row of includable) {
       try {
-        const segments = [departmentName, ...row.folder.split(' > ').map((s) => s.trim()).filter(Boolean)];
+        const dept = (row.dept || departmentName).trim();
+        const segments = [dept, ...row.folder.split(' > ').map((s) => s.trim()).filter(Boolean)];
         await resolveOrCreateFolderPath(segments);
         const qty = Number(row.quantity) || 1;
         const code = await mintUniqueCode(tenant);
@@ -259,7 +261,7 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
           : undefined;
         await saveItem({
           name: row.name.trim(),
-          location: departmentName,
+          location: dept,
           subLocation: row.folder.trim(),
           quantity: qty,
           totalQty: qty,
@@ -411,8 +413,8 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
                       </div>
                       <button type="button" className={`bps-pick${r.folder ? '' : ' empty'}`} onClick={() => setFolderPickerFor(r.id)}>
                         <Icon name="Folder" size={13} className="bps-pick-ic" />
-                        <span className="bps-pick-val">{r.folder || 'Choose folder'}</span>
-                        {isNewFolder(r) && <span className="bps-new-tag">new</span>}
+                        <span className="bps-pick-val">{r.folder ? ((r.dept && r.dept !== departmentName) ? `${r.dept} › ${r.folder}` : r.folder) : 'Choose folder'}</span>
+                        {isNewFolder(r) && (!r.dept || r.dept === departmentName) && <span className="bps-new-tag">new</span>}
                       </button>
                     </div>
                     <button type="button" className={`bps-pick${r.locId ? '' : ' empty'}`} onClick={() => setLocPickerFor(r.id)}>
@@ -464,12 +466,16 @@ const BulkPhotoScanModal = ({ departmentName, currentPath = '', onClose, onDone 
       {folderPickerFor && (
         <InventoryFolderPicker
           tree={folderTree}
-          rootSegments={[departmentName]}
+          // Opens inside the row's department (convenient), but with no floor so
+          // you can navigate back up to the department list and re-parent.
+          initialPath={[(folderPickerFor !== 'bulk' && rows.find((r) => r.id === folderPickerFor)?.dept) || departmentName]}
           onFolderCreated={(t) => setFolderTree(t)}
           onClose={() => setFolderPickerFor(null)}
           onSelect={({ path }) => {
-            const sub = (path || []).slice(1).map((s) => String(s).trim()).filter(Boolean).join(' > ');
-            applyToTarget(folderPickerFor, { folder: sub });
+            const segs = (path || []).map((s) => String(s).trim()).filter(Boolean);
+            const dept = segs[0] || departmentName;
+            const folder = segs.slice(1).join(' > ');
+            applyToTarget(folderPickerFor, { dept, folder });
             setFolderPickerFor(null);
           }}
         />

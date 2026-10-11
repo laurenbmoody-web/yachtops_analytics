@@ -21,12 +21,13 @@ const FIELD = '#FAFAF8';
 // Drill-down picker over the inventory folder tree. onSelect receives
 // { path: string[], displayPath: 'Dept > Sub' }. Shared by the inventory add/edit
 // modal and the vessel-map "add item" flow so both file items the same way.
-const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated, rootSegments = [] }) => {
-  // When `rootSegments` is given the picker is scoped to that branch (e.g. a
-  // single department): it opens inside it, can't navigate above it, and never
-  // offers "select the department itself". Default [] = the full tree.
+const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated, rootSegments = [], initialPath }) => {
+  // `rootSegments` is the floor: the picker can't navigate above it (default [] =
+  // the full tree, back to the department list). `initialPath` is where it OPENS
+  // (default = the floor) — pass it to open inside a branch while still allowing
+  // back-navigation up to the floor.
   const floor = rootSegments.length;
-  const [pathSegments, setPathSegments] = useState(rootSegments);
+  const [pathSegments, setPathSegments] = useState(initialPath && initialPath.length ? initialPath : rootSegments);
   const [creatingFolder, setCreatingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [createError, setCreateError] = useState('');
