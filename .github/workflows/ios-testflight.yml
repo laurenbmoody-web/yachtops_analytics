@@ -11,8 +11,9 @@ name: iOS → TestFlight
 # secret is needed:
 #   ASC_KEY_P8  the whole contents of the App Store Connect API key (.p8)
 # The key's ID and issuer below are identifiers, not secrets. If Apple ever
-# refuses to create the certificate ("cloud signing permission"), make a new
-# API key with the Admin role and update ASC_KEY_ID + ASC_KEY_P8.
+# refuses to create the certificate ("Cloud signing permission error"), the key
+# needs the Admin role: make an Admin key and set the repo secrets ASC_KEY_P8 +
+# ASC_KEY_ID (the secret overrides the default ID below).
 
 on:
   workflow_dispatch:
@@ -28,8 +29,8 @@ concurrency:
 
 env:
   APPLE_TEAM_ID: 7MNK7XQ3A8
-  ASC_ISSUER_ID: d7e85dec-1def-4611-a887-f6b973c58934
-  ASC_KEY_ID: NGM5H4NW3Y
+  ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID || 'd7e85dec-1def-4611-a887-f6b973c58934' }}
+  ASC_KEY_ID: ${{ secrets.ASC_KEY_ID || 'NGM5H4NW3Y' }}
   # The web app's public Supabase values (the same ones every browser gets).
   VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://gwexbrbasfysbheeklyq.supabase.co' }}
   VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd3ZXhicmJhc2Z5c2JoZWVrbHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyNTc5NDksImV4cCI6MjA4NDgzMzk0OX0.dfUXJ2ZepeZ4bNSKGjhoxwI-FgXMSU-lF465eGlWQ5M' }}
