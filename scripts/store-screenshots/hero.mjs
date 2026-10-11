@@ -5,6 +5,7 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
+import { LOGO } from './shots.config.mjs';
 
 const OUT = path.resolve(process.env.OUT || 'store-screenshots');
 const FONTS = 'https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@600;700&display=swap';
@@ -26,6 +27,7 @@ function page(W, H, { capTop, h1, eb, phones }) {
 body{width:${W}px;height:${H}px;overflow:hidden;position:relative;font-family:'Inter',sans-serif;
   background:#1C1B3A;background-image:radial-gradient(${W * 0.55}px ${H * 0.7}px at 50% 75%,#2E2D58 0%,#1C1B3A 72%)}
 .cap{position:absolute;left:0;right:0;top:${capTop}px;text-align:center}
+.logo{height:${eb * 2.1}px;filter:brightness(0) invert(1);display:block;margin:0 auto ${eb * 0.9}px}
 .eb{color:#E0864F;font-weight:700;font-size:${eb}px;letter-spacing:${eb * 0.22}px;text-transform:uppercase}
 .eb:before{content:'●';margin-right:${eb * 0.45}px;font-size:.8em}
 h1{margin-top:${eb * 0.7}px;color:#fff;font-family:'DM Serif Display',Georgia,serif;font-weight:400;font-size:${h1}px;line-height:1.04;letter-spacing:-1px}
@@ -37,7 +39,7 @@ h1 em{color:#E0864F}
 .sb{background:#fff;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-family:-apple-system,'Inter',sans-serif}
 .bat{border:3px solid rgba(0,0,0,.45);border-radius:8px;background:linear-gradient(90deg,#000 75%,transparent 75%) content-box;padding:3px}
 </style></head><body>
-<div class="cap"><div class="eb">Cargo · Superyacht operations</div><h1>Run the boat, <em>from your pocket.</em></h1></div>
+<div class="cap"><img class="logo" src="${LOGO}"><div class="eb">Superyacht operations</div><h1>Run the boat, <em>from your pocket.</em></h1></div>
 ${phones.join('')}
 </body></html>`;
 }
@@ -56,10 +58,10 @@ fs.mkdirSync(path.join(OUT, 'promo'), { recursive: true });
 const jobs = [
   // Header: the App Store lays the icon, name and Get button over the bottom,
   // and crops the sides on narrow screens — keep the caption high and central.
-  ['header', 3840, 1646, { capTop: 150, eb: 52, h1: 170,
-    phones: fan(3840, 610, 620, ['5_laundry', '4_defects', '1_dashboard', '6_inventory', '7_board'], 660) }],
-  ['search', 3840, 2560, { capTop: 210, eb: 64, h1: 210,
-    phones: fan(3840, 860, 1000, ['4_defects', '1_dashboard', '6_inventory'], 1080) }],
+  ['header', 3840, 1646, { capTop: 90, eb: 46, h1: 160,
+    phones: fan(3840, 700, 600, ['5_laundry', '4_defects', '1_dashboard', '6_inventory', '7_board'], 660) }],
+  ['search', 3840, 2560, { capTop: 170, eb: 58, h1: 200,
+    phones: fan(3840, 960, 960, ['4_defects', '1_dashboard', '6_inventory'], 1080) }],
 ];
 for (const [name, W, H, opts] of jobs) {
   const p = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });

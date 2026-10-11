@@ -20,8 +20,14 @@ export const SHOTS = [
     eyebrow: 'Defects', title: 'Every defect,', em: 'tracked to fixed.' },
   { name: '5_laundry', route: '/laundry-management-dashboard',
     eyebrow: 'Laundry', title: 'From the wash,', em: 'to the wardrobe.' },
-  { name: '6_inventory', route: '/inventory/location/Interior/Glassware',
+  { name: '6_inventory', route: '/inventory/location/Interior/Glassware', clicks: ['button[title="Grid view"]'],
     eyebrow: 'Inventory', title: 'Every glass,', em: 'accounted for.' },
   { name: '7_board', route: `/provisioning/${CHARTER_LIST}`, scroll: { iphone: 420 },
     eyebrow: 'Provisioning', title: 'Order it,', em: 'receive it.' },
 ];
+
+// The white Cargo wordmark used on the framed images (navy artwork, whitened).
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+const logoPath = process.env.LOGO || fileURLToPath(new URL('../../public/cargo-wordmark.png', import.meta.url));
+export const LOGO = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;

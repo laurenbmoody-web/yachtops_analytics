@@ -3,7 +3,7 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
-import { SHOTS, DEVICES } from './shots.config.mjs';
+import { SHOTS, DEVICES, LOGO } from './shots.config.mjs';
 
 const OUT = path.resolve(process.env.OUT || 'store-screenshots');
 const FONTS = 'https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@600;700&display=swap';
@@ -29,7 +29,8 @@ function html(device, s, img) {
 body{width:${W}px;height:${H}px;overflow:hidden;background:#1C1B3A;
   background-image:radial-gradient(1200px 900px at 50% ${top + 300}px, #2A2950 0%, #1C1B3A 70%);
   font-family:'Inter',system-ui,sans-serif;position:relative}
-.cap{position:absolute;left:0;right:0;top:${phone ? 170 : 150}px;text-align:center;padding:0 80px}
+.cap{position:absolute;left:0;right:0;top:${phone ? 110 : 90}px;text-align:center;padding:0 80px}
+.logo{height:${phone ? 62 : 58}px;filter:brightness(0) invert(1);margin-bottom:${phone ? 56 : 44}px}
 .eb{color:#E0864F;font-weight:700;font-size:${phone ? 40 : 38}px;letter-spacing:${phone ? 8 : 9}px;text-transform:uppercase}
 .eb:before{content:'●';margin-right:18px;font-size:.8em}
 h1{margin-top:${phone ? 34 : 28}px;color:#fff;font-family:'DM Serif Display',Georgia,serif;font-weight:400;
@@ -47,7 +48,7 @@ h1 em{color:#E0864F;font-style:italic;${phone ? 'display:block;' : ''}}
 .bat:after{content:'';display:block;height:100%;width:80%;background:#000;border-radius:${phone ? 4 : 2}px}
 ${phone ? `.island{position:absolute;top:${bezel + 34}px;left:50%;transform:translateX(-50%);width:300px;height:88px;border-radius:44px;background:#000;z-index:2}` : `.cam{position:absolute;top:${bezel / 2 - 5}px;left:50%;width:10px;height:10px;border-radius:50%;background:#26253A;transform:translateX(-50%)}`}
 </style></head><body>
-<div class="cap"><div class="eb">${s.eyebrow}</div><h1>${s.title} <em>${s.em}</em></h1></div>
+<div class="cap"><img class="logo" src="${LOGO}"><div class="eb">${s.eyebrow}</div><h1>${s.title} <em>${s.em}</em></h1></div>
 <div class="dev">${phone ? '<div class="island"></div>' : '<div class="cam"></div>'}<div class="scr"><div class="sb"><span>9:41</span><i>${sig}${wifi}<span class="bat"></span></i></div><img src="data:image/png;base64,${img}"></div></div>
 </body></html>`;
 }
