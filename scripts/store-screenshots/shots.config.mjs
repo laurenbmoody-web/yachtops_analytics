@@ -32,7 +32,7 @@ export const SHOTS = [
     eyebrow: 'Rota', title: 'Watches set,', em: 'rest protected.' },
   { name: '11_locations', route: '/locations-settings',
     eyebrow: 'Vessel locations', title: 'Every deck,', em: 'mapped.' },
-  { name: '12_dutysets', route: '/duty-sets-rotation-management',
+  { name: '12_dutysets', route: '/duty-sets-rotation-management', clicks: ['button.dsr-tool', '.dsr-menu .dsr-menuitem:has-text("Interior")', '.dsr-tab:has-text("Rotation calendar")'],
     eyebrow: 'Duty sets', title: 'Who does what,', em: 'every day.' },
 ];
 
