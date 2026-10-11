@@ -81,33 +81,38 @@ const ReportDefectModal = ({ onClose, onSuccess }) => {
   }, [userDepartmentNormalized]);
   
   useEffect(() => {
-    const allDecks = getAllDecks(false);
-    setDecks(allDecks);
+    // The location lookups are async — await them, or the selects try to
+    // .map() a Promise and the whole modal crashes.
+    let live = true;
+    getAllDecks(false).then((allDecks) => { if (live) setDecks(Array.isArray(allDecks) ? allDecks : []); });
     
     // Load defect types
     const types = loadAllTypes();
     setDefectTypes(types);
+    return () => { live = false; };
   }, []);
   
   useEffect(() => {
+    let live = true;
     if (formData?.locationDeckId) {
-      const deckZones = getZonesByDeck(formData?.locationDeckId, false);
-      setZones(deckZones);
+      getZonesByDeck(formData?.locationDeckId, false).then((deckZones) => { if (live) setZones(Array.isArray(deckZones) ? deckZones : []); });
       setFormData(prev => ({ ...prev, locationZoneId: '', locationSpaceId: '' }));
     } else {
       setZones([]);
       setSpaces([]);
     }
+    return () => { live = false; };
   }, [formData?.locationDeckId]);
   
   useEffect(() => {
+    let live = true;
     if (formData?.locationZoneId) {
-      const zoneSpaces = getSpacesByZone(formData?.locationZoneId, false);
-      setSpaces(zoneSpaces);
+      getSpacesByZone(formData?.locationZoneId, false).then((zoneSpaces) => { if (live) setSpaces(Array.isArray(zoneSpaces) ? zoneSpaces : []); });
       setFormData(prev => ({ ...prev, locationSpaceId: '' }));
     } else {
       setSpaces([]);
     }
+    return () => { live = false; };
   }, [formData?.locationZoneId]);
   
   const handlePhotoUpload = (e) => {

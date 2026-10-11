@@ -67,6 +67,14 @@ jobs:
           ONLY: ${{ inputs.only || '' }}
           OUT: ${{ runner.temp }}/shots
         run: node scripts/store-screenshots/capture.mjs
+      - name: Capture product-film screens
+        env:
+          BASE_URL: http://127.0.0.1:4173
+          DEMO_EMAIL: appreview@example.com
+          DEMO_PASSWORD: ${{ inputs.password || secrets.DEMO_PASSWORD }}
+          OUT: ${{ runner.temp }}/shots
+          SET: film
+        run: node scripts/store-screenshots/capture.mjs
       - name: Contact sheet of product photos
         env:
           DEMO_EMAIL: appreview@example.com
