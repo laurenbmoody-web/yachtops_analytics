@@ -36,6 +36,23 @@ export const SHOTS = [
     eyebrow: 'Duty sets', title: 'Who does what,', em: 'every day.' },
 ];
 
+// Clean, unframed screens for the "One day. All connected." product film —
+// one jacket (Musto Sardinia 2.0, True Navy) followed from job to sign-ashore.
+const UNIFORM_ORDER = 'dece0000-0000-4000-8000-000000000303';
+export const FILM_SHOTS = [
+  { name: '01_jobs', route: '/team-jobs-management', reveal: 'My jobs' },
+  { name: '02_job_open', route: '/team-jobs-management', reveal: 'My jobs', clicks: ['text=Receive crew uniforms'] },
+  { name: '03_order', route: `/provisioning/${UNIFORM_ORDER}` },
+  { name: '04_receive', route: `/provisioning/${UNIFORM_ORDER}`, clicks: ['button:has-text("Receive Items")'] },
+  { name: '05_packing_import', route: '/inventory/location/Interior/Uniforms', clicks: ['button[title^="Add items by photo"]'] },
+  { name: '06_inventory', route: '/inventory/location/Interior/Uniforms', clicks: ['button[title="Grid view"]'] },
+  { name: '07_laundry', route: '/laundry-management-dashboard', scroll: { iphone: 560 } },
+  { name: '08_laundry_item', route: '/laundry-management-dashboard', scroll: { iphone: 560 }, clicks: ['text=Musto Sardinia 2.0 Jacket — True Navy'] },
+  { name: '09_report_defect', route: '/defects', clicks: ['button:has-text("Report defect")'] },
+  { name: '10_defect_saved', route: '/defects', clicks: ['text=Split seam'] },
+  { name: '11_sign_ashore', route: '/sign-in-board' },
+];
+
 // The white Cargo wordmark used on the framed images (navy artwork, whitened).
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';

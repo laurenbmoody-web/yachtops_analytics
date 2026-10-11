@@ -6,7 +6,12 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
-import { SHOTS, DEVICES } from './shots.config.mjs';
+import { SHOTS as STORE_SHOTS, FILM_SHOTS, DEVICES as ALL_DEVICES } from './shots.config.mjs';
+
+// SET=film captures the product-film screens (iPhone only) as raw/film_*.png.
+const FILM = process.env.SET === 'film';
+const SHOTS = FILM ? FILM_SHOTS : STORE_SHOTS;
+const DEVICES = FILM ? { iphone: ALL_DEVICES.iphone } : ALL_DEVICES;
 
 const BASE = process.env.BASE_URL || 'http://localhost:4173';
 const OUT = process.env.OUT || 'store-screenshots';
@@ -65,9 +70,9 @@ for (const [device, vp] of Object.entries(DEVICES)) {
     const scroll = s.scroll?.[device] ?? 0;
     if (scroll) { await page.mouse.wheel(0, scroll); await page.waitForTimeout(1000); }
     await page.addStyleTag({ content: '.fbw-root,[class*="feedback-widget"]{display:none!important} *{caret-color:transparent!important}' });
-    await page.screenshot({ path: path.join(OUT, 'raw', `${device}_${s.name}.png`) });
+    await page.screenshot({ path: path.join(OUT, 'raw', `${FILM ? 'film' : device}_${s.name}.png`) });
     // A tall capture too, so scroll offsets can be tuned without guessing.
-    await page.screenshot({ path: path.join(OUT, 'raw', `${device}_${s.name}_full.png`), fullPage: true });
+    await page.screenshot({ path: path.join(OUT, 'raw', `${FILM ? 'film' : device}_${s.name}_full.png`), fullPage: true });
     console.log(device, s.name, new URL(page.url()).pathname);
   }
 
