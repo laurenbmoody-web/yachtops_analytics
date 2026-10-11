@@ -8,4 +8,5 @@ them, and commits the results to the `store-screenshots` branch:
 
 - `iphone/`, `ipad/` — upload-ready framed PNGs
 - `raw/` — the bare captures (plus `_full` tall versions for tuning scroll)
+- `promo/header.jpg` (3840×1646) and `promo/search.jpg` (3840×2560) — product page header and search results image
 - `contact-sheet.png` — every product photo on the demo vessel

@@ -77,6 +77,10 @@ jobs:
         env:
           OUT: ${{ runner.temp }}/shots
         run: node scripts/store-screenshots/compose.mjs
+      - name: Product page header + search results image
+        env:
+          OUT: ${{ runner.temp }}/shots
+        run: node scripts/store-screenshots/hero.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: store-screenshots
