@@ -5,8 +5,9 @@ name: iOS → TestFlight
 # min). Run it from GitHub → Actions → "iOS → TestFlight" → Run workflow.
 #
 # Signing is automatic: Xcode creates / renews the distribution certificate
-# and provisioning profile with the App Store Connect API key — no Mac, no
-# certificates to manage. One repo secret is needed:
+# and App Store provisioning profile with the App Store Connect API key — no
+# Mac, no certificates to manage, no registered test devices needed (the
+# archive signs as "Apple Distribution", not development). One repo secret is needed:
 #   ASC_KEY_P8  the whole contents of the App Store Connect API key (.p8)
 # The key's ID and issuer below are identifiers, not secrets. If Apple ever
 # refuses to create the certificate ("cloud signing permission"), make a new
@@ -74,6 +75,7 @@ jobs:
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE=Automatic \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
             MARKETING_VERSION="${{ inputs.version || '1.0' }}" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             archive
