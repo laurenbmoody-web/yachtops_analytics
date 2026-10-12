@@ -82,11 +82,11 @@ export default function SetLocationModal({ tenantId, count, vesselLocations = []
                 onClick={() => setSelected({ id: n.id, name: n.name })}>
                 <span className="slm-radio">{on && <Icon name="Check" size={11} />}</span>
                 <span className="slm-name">{n.name}</span>
-                {kids > 0 && (
-                  <button className="slm-into" onClick={(e) => { e.stopPropagation(); setBrowse([...browse, n.id]); setSelected(null); }} title="Open">
-                    <span>{kids}</span><Icon name="ChevronRight" size={15} />
-                  </button>
-                )}
+                {/* Open any location (even empty) to choose or create a box inside it. */}
+                <button className="slm-into" onClick={(e) => { e.stopPropagation(); setBrowse([...browse, n.id]); setSelected(null); }}
+                  title="Open — choose or add a box inside" aria-label={`Open ${n.name}`}>
+                  {kids > 0 && <span>{kids}</span>}<Icon name="ChevronRight" size={15} />
+                </button>
               </div>
             );
           })}
