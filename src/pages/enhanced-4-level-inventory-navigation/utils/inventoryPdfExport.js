@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { isInternalCfKey, cfDisplayValue, buildBondedSummary } from './bondedStores';
+import { isInternalCfKey, cfDisplayValue, buildBondedSummary, bondedArticle } from './bondedStores';
 
 /** Extract last path segment from a location string */
 const lastSegment = (str) => {
@@ -136,7 +136,8 @@ const buildDetails = (item) => {
   const bonded = cf?.bonded;
   if (bonded && typeof bonded === 'object') {
     if (bonded.abv !== '' && bonded.abv != null) push('ABV', `${bonded.abv}%`);
-    if (bonded.kind) push('Type', formatAttrKey(bonded.kind));
+    // Type from the name-based classifier, not the unreliable stored kind.
+    push('Type', bondedArticle(item));
   }
   // Standard optional attributes.
   push('Supplier', item?.supplier);
@@ -501,7 +502,7 @@ export const exportInventoryToPDF = async ({
     autoTable(doc, {
       startY: y,
       head: [['Name of article', 'Quantity (units)', 'Lines', 'Location(s) on board']],
-      body: summary.rows.map((r) => [r.article, String(r.qty), String(r.lines), r.locations.join(', ')]),
+      body: summary.rows.map((r) => [r.article, String(r.qty), String(r.lines), r.locations.join(', ') || '—']),
       foot: [['TOTAL', String(summary.totalQty), String(summary.totalLines), '']],
       margin: { left: margin, right: margin },
       styles: {

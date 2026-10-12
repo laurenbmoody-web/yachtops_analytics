@@ -447,7 +447,7 @@ const buildBondedSheet = (worksheet, summary) => {
 
   summary.rows.forEach((r, rowIdx) => {
     const isAltRow = rowIdx % 2 === 1;
-    const excelRow = worksheet?.addRow({ a: r.article, q: Number(r.qty), l: Number(r.lines), loc: r.locations.join(', ') });
+    const excelRow = worksheet?.addRow({ a: r.article, q: Number(r.qty), l: Number(r.lines), loc: r.locations.join(', ') || '—' });
     excelRow.height = 16;
     applyDataCell(excelRow?.getCell(1), { bold: true, fill: isAltRow ? 'FFF8FAFC' : 'FFFFFFFF', align: 'left' });
     applyDataCell(excelRow?.getCell(2), { bold: true, fill: isAltRow ? 'FFE8EEF4' : 'FFF1F5F9', align: 'center' });
