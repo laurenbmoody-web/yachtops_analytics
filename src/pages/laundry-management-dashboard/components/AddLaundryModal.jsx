@@ -69,6 +69,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
     tags: [...(editItem.tags || [])],
     priority: editItem.priority || LaundryPriority?.NORMAL,
     neededBy: isoToLocalInput(editItem.neededBy),
+    details: (editItem.details && typeof editItem.details === 'object') ? { ...editItem.details } : {},
   } : {
     ownerType: OwnerType?.GUEST,
     photos: [],
@@ -85,6 +86,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
     tags: [],
     priority: LaundryPriority?.NORMAL,
     neededBy: '',
+    details: {},
   }));
 
   const [customTag, setCustomTag] = useState('');
@@ -362,12 +364,18 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
       let filled = 0;
       setFormData((prev) => {
         const next = { ...prev };
-        const desc = (f.description || [f.colour, f.material].filter(Boolean).join(' ')).trim();
+        // A full, human description: brand + colour + type, with the size appended
+        // so the label detail isn't lost. Falls back to the model's own line.
+        const core = [f.brand, f.colour, f.type].filter(Boolean).join(' ').trim() || String(f.description || '').trim();
+        const desc = core + (f.size && !core.toLowerCase().includes(String(f.size).toLowerCase()) ? ` · ${f.size}` : '');
         if (!String(prev.description || '').trim() && desc) { next.description = desc; filled += 1; }
         if (!String(prev.colour || '').trim() && f.colour) { next.colour = f.colour; filled += 1; }
-        if (f.material && !String(prev.notes || '').toLowerCase().includes(f.material.toLowerCase())) {
-          next.notes = [prev.notes, f.material].filter(Boolean).join(' · ');
-        }
+        // Keep brand / size / material / sku on the item record (merge, keep typed).
+        const d = { ...(prev.details || {}) };
+        [['brand', f.brand], ['size', f.size], ['material', f.material], ['sku', f.sku]].forEach(([k, v]) => {
+          if (v && !String(d[k] || '').trim()) { d[k] = v; filled += 1; }
+        });
+        next.details = d;
         if (Array.isArray(f.tags) && f.tags.length) {
           const before = (prev.tags || []).length;
           next.tags = [...new Set([...(prev.tags || []), ...f.tags])];
@@ -375,7 +383,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
         }
         return next;
       });
-      if (f.description || f.colour) setDescOpen(true);
+      if (f.description || f.colour || f.brand) setDescOpen(true);
       showToast(filled ? 'Filled from the photo — please review' : 'Couldn’t read details — add them by hand', filled ? 'success' : 'info');
     } catch (err) {
       console.error('[laundry] photo autofill failed', err);
@@ -432,6 +440,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
         priority: formData?.priority,
         tags: formData?.tags,
         notes: formData?.notes,
+        details: (formData?.details && typeof formData.details === 'object') ? formData.details : {},
         neededBy: formData?.neededBy ? new Date(formData.neededBy).toISOString() : null,
       };
       let saved;
@@ -455,7 +464,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
         // blank only the per-item fields so the next piece is quick to log.
         // Refresh the list without closing the modal (onSuccess would unmount it).
         setAddedCount((c) => c + 1);
-        setFormData((prev) => ({ ...prev, description: '', colour: '', tags: [], photos: [] }));
+        setFormData((prev) => ({ ...prev, description: '', colour: '', tags: [], photos: [], details: {} }));
         setCareResult(null); setCareError(''); setErrors({});
         onSaved?.(saved);
       } else {

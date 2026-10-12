@@ -7,20 +7,27 @@ import { parseDocument } from '../../../services/documentParser';
 import { availableLaundryTags } from './laundryStorage';
 
 const PROMPT = `You are cataloguing ONE laundry item for a superyacht interior from a photo.
-It could be a garment, towel, bed linen, or similar. Read any visible brand or care label.
+It could be a garment, towel, bed linen, or similar. LOOK CLOSELY at EVERY visible
+label — the neck/brand label AND the care label — and read the printed text, don't
+just describe the shape and colour.
 
 Return ONLY valid JSON (no markdown, no commentary) in this exact shape:
 {
-  "description": "a short title a laundry list would use, e.g. 'Men's white linen shirt' or 'Navy bath towel'",
-  "colour": "the main colour in one or two words, e.g. 'White', else ''",
-  "material": "fibre composition if printed on a label, e.g. '100% linen', else ''",
+  "type": "the item in a word or two, e.g. 'T-shirt', 'Polo shirt', 'Bath towel'",
+  "brand": "the maker printed on the label, e.g. 'Decathlon', 'Musto'; '' if none visible",
+  "colour": "the main colour in one or two words, e.g. 'Black'",
+  "size": "the size EXACTLY as printed on the label, e.g. 'L', 'M', 'UK 10', '32/34', 'XL'; '' if not visible",
+  "material": "fibre composition from the label, e.g. '100% cotton'; '' if not visible",
+  "sku": "a style/reference/barcode code if printed (long alphanumeric), NOT the size; '' if none",
+  "description": "one natural line a laundry list would use, INCLUDING the brand and colour if known, e.g. 'Decathlon black cotton T-shirt'",
   "tags": ["care actions required, from EXACTLY these keys: ${availableLaundryTags.join(', ')}"]
 }
 
 Rules:
+- Read the label text for brand, size and fibre — these are the details the crew most need. If a label is visible but blurry, give your best reading rather than leaving it blank.
 - Only include a care tag the photo clearly supports (a care label, or an obviously delicate / hand-wash item). If unsure, return [].
-- Use '' for any text field you cannot determine. Do not guess wildly.
-- If the image clearly isn't a laundry item, return {"description":"","colour":"","material":"","tags":[]}.`;
+- Use '' / [] for anything you genuinely cannot see. Do not invent a brand or size that isn't shown.
+- If the image clearly isn't a laundry item, return all fields empty.`;
 
 export async function readLaundryItem(file) {
   if (!file) throw new Error('No photo provided.');
@@ -34,9 +41,13 @@ export async function readLaundryItem(file) {
   const known = new Set(availableLaundryTags);
   const str = (v) => (typeof v === 'string' ? v.trim() : '');
   return {
-    description: str(data.description),
+    type: str(data.type),
+    brand: str(data.brand),
     colour: str(data.colour),
+    size: str(data.size),
     material: str(data.material),
+    sku: str(data.sku),
+    description: str(data.description),
     tags: [...new Set((Array.isArray(data.tags) ? data.tags : []).filter((t) => known.has(t)))],
   };
 }
