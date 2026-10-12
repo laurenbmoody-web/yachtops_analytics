@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { isInternalCfKey, cfDisplayValue, buildBondedSummary } from './bondedStores';
 
 /** Extract last path segment from a location string */
 const lastSegment = (str) => {
@@ -119,14 +120,24 @@ const buildDetails = (item) => {
 
   // Colour first (comes from a dedicated column or a custom field).
   push('Colour', item?.color || cf?.colour || cf?.color);
-  // Remaining custom fields (skip colour + size-related + "used", handled elsewhere).
+  // Remaining custom fields (skip colour + size-related + "used" + internal
+  // plumbing like profile/bonded/variantKind, and any object value that would
+  // otherwise render as "[object Object]").
   Object.keys(cf || {})?.forEach((k) => {
     const kl = k?.toLowerCase();
     if (kl === 'colour' || kl === 'color') return;
     if (SIZE_LIKE_KEY?.test(k)) return;
+    if (isInternalCfKey(k)) return;
     if (['used', 'used_quantity', 'usedqty', 'used_qty']?.includes(kl?.replace(/\s/g, '_'))) return;
-    push(formatAttrKey(k), cf?.[k]);
+    const dv = cfDisplayValue(cf?.[k]);
+    if (dv) push(formatAttrKey(k), dv);
   });
+  // Bonded / duty-free specifics, surfaced cleanly rather than as an object.
+  const bonded = cf?.bonded;
+  if (bonded && typeof bonded === 'object') {
+    if (bonded.abv !== '' && bonded.abv != null) push('ABV', `${bonded.abv}%`);
+    if (bonded.kind) push('Type', formatAttrKey(bonded.kind));
+  }
   // Standard optional attributes.
   push('Supplier', item?.supplier);
   push('Unit', item?.unit);
@@ -463,6 +474,62 @@ export const exportInventoryToPDF = async ({
     return drawTotalsLine(allItems, currentY, 'OVERALL SUMMARY', true);
   };
 
+  // ── Bonded stores summary (FAL 3) ────────────────────────────────────────
+  // Alcohol & tobacco grouped by article type, ordered highest→lowest quantity,
+  // on its own page — the shape a Ship's Stores Declaration needs.
+  const drawBondedSummary = (summary) => {
+    doc?.addPage();
+    doc?.setFillColor(...primaryColor);
+    doc?.rect(0, 0, pageWidth, 22, 'F');
+    doc?.setTextColor(255, 255, 255);
+    doc?.setFontSize(15);
+    doc?.setFont('helvetica', 'bold');
+    doc?.text('BONDED STORES SUMMARY', margin, 14);
+    doc?.setFontSize(8);
+    doc?.setFont('helvetica', 'normal');
+    doc?.setTextColor(200, 210, 230);
+    doc?.text('Duty-free alcohol & tobacco — for Ship’s Stores Declaration (FAL 3)', pageWidth - margin, 14, { align: 'right' });
+
+    let y = 30;
+    doc?.setTextColor(...primaryColor);
+    doc?.setFontSize(9);
+    doc?.setFont('helvetica', 'normal');
+    doc?.text('Articles ordered by quantity, highest first.', margin, y);
+    y += 5;
+
+    const locCol = pageWidth - margin * 2 - 70 - 36 - 24;
+    autoTable(doc, {
+      startY: y,
+      head: [['Name of article', 'Quantity (units)', 'Lines', 'Location(s) on board']],
+      body: summary.rows.map((r) => [r.article, String(r.qty), String(r.lines), r.locations.join(', ')]),
+      foot: [['TOTAL', String(summary.totalQty), String(summary.totalLines), '']],
+      margin: { left: margin, right: margin },
+      styles: {
+        fontSize: 9,
+        cellPadding: { top: 2.4, right: 3, bottom: 2.4, left: 3 },
+        overflow: 'linebreak',
+        valign: 'middle',
+        textColor: [40, 40, 40],
+        lineColor: borderGray,
+        lineWidth: 0.1,
+      },
+      headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+      footStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+      alternateRowStyles: { fillColor: lightGray },
+      columnStyles: {
+        0: { cellWidth: 70, fontStyle: 'bold' },
+        1: { cellWidth: 36, halign: 'right', fontStyle: 'bold' },
+        2: { cellWidth: 24, halign: 'right' },
+        3: { cellWidth: locCol },
+      },
+      didDrawPage: () => {
+        doc?.setFontSize(7);
+        doc?.setTextColor(160, 160, 160);
+        doc?.text('Cargo — Bonded Stores Summary', margin, pageHeight - 6);
+      },
+    });
+  };
+
   // ── Dispatch by scope ────────────────────────────────────────────────────
   if (scope === 'entire' && allFoldersMeta && allFoldersMeta?.length > 0) {
     let finalY = renderGroupedSections(allFoldersMeta, yPos);
@@ -521,6 +588,10 @@ export const exportInventoryToPDF = async ({
     let finalY = renderTable(items || [], yPos);
     drawTotalsLine(items || [], finalY, 'TOTALS', true);
   }
+
+  // ── Bonded stores summary (appended when alcohol/tobacco is in scope) ─────
+  const bondedSummary = buildBondedSummary(allExportItems);
+  if (bondedSummary.rows.length) drawBondedSummary(bondedSummary);
 
   // ── Save ─────────────────────────────────────────────────────────────────
   const filename = `inventory-export-${now?.toISOString()?.slice(0, 10)}.pdf`;

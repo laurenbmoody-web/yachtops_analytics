@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import FileSaver from 'file-saver';
+import { isInternalCfKey, cfDisplayValue, buildBondedSummary } from './bondedStores';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -156,6 +157,7 @@ const buildFolderSheet = (worksheet, items, includeImages, allLocationCols) => {
   items?.forEach(item => {
     const cf = item?.customFields || item?.custom_fields || {};
     Object.keys(cf)?.forEach(k => {
+      if (isInternalCfKey(k)) return; // internal plumbing (profile, bonded, …)
       if (!customFieldKeys?.includes(k)) customFieldKeys?.push(k);
     });
   });
@@ -280,10 +282,11 @@ const buildFolderSheet = (worksheet, items, includeImages, allLocationCols) => {
         const qty = getQtyForLocation(item, h);
         return qty === 0 ? '' : qty;
       }
-      // Custom field columns — find matching key
+      // Custom field columns — find matching key (object values are skipped so
+      // nothing ever renders as "[object Object]").
       const matchingKey = customFieldKeys?.find(k => toLabel(k) === h);
       if (matchingKey !== undefined) {
-        return cf?.[matchingKey] != null ? String(cf?.[matchingKey]) : '';
+        return cfDisplayValue(cf?.[matchingKey]);
       }
       return '';
     });
@@ -427,6 +430,36 @@ const buildSummarySheet = (worksheet, folderGroups, allItems) => {
   });
 };
 
+// ─── Build bonded stores (FAL 3) sheet ────────────────────────────────────────
+// Alcohol & tobacco grouped by article type, ordered highest→lowest quantity —
+// the shape a UK NMSW FAL 3 Ship's Stores Declaration expects.
+const buildBondedSheet = (worksheet, summary) => {
+  worksheet.columns = [
+    { header: 'Name of article', key: 'a', width: 28 },
+    { header: 'Quantity (units)', key: 'q', width: 16 },
+    { header: 'Lines', key: 'l', width: 10 },
+    { header: 'Location(s) on board', key: 'loc', width: 46 },
+  ];
+
+  const headerRow = worksheet?.getRow(1);
+  applyHeaderRow(headerRow, 4);
+  worksheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 1, topLeftCell: 'A2', activeCell: 'A2' }];
+
+  summary.rows.forEach((r, rowIdx) => {
+    const isAltRow = rowIdx % 2 === 1;
+    const excelRow = worksheet?.addRow({ a: r.article, q: Number(r.qty), l: Number(r.lines), loc: r.locations.join(', ') });
+    excelRow.height = 16;
+    applyDataCell(excelRow?.getCell(1), { bold: true, fill: isAltRow ? 'FFF8FAFC' : 'FFFFFFFF', align: 'left' });
+    applyDataCell(excelRow?.getCell(2), { bold: true, fill: isAltRow ? 'FFE8EEF4' : 'FFF1F5F9', align: 'center' });
+    applyDataCell(excelRow?.getCell(3), { fill: isAltRow ? 'FFF8FAFC' : 'FFFFFFFF', align: 'center' });
+    applyDataCell(excelRow?.getCell(4), { fill: isAltRow ? 'FFF8FAFC' : 'FFFFFFFF', align: 'left' });
+  });
+
+  const totalsRow = worksheet?.addRow({ a: 'TOTAL', q: Number(summary.totalQty), l: Number(summary.totalLines), loc: '' });
+  totalsRow.height = 16;
+  [1, 2, 3, 4].forEach((c) => applyDataCell(totalsRow?.getCell(c), { bold: true, fill: 'FFE2E8F0', align: c === 1 ? 'left' : 'center' }));
+};
+
 // ─── Build export info sheet ──────────────────────────────────────────────────
 
 const buildExportInfoSheet = (worksheet, scope, folderPath, items, includeImages, exportedBy) => {
@@ -487,6 +520,14 @@ export const exportInventoryToXLSX = async ({ items, scope, folderPath, includeI
   const summarySheetName = uniqueSheetName('Inventory Summary', usedSheetNames);
   const summaryWs = workbook?.addWorksheet(summarySheetName);
   buildSummarySheet(summaryWs, folderGroups, items);
+
+  // 1b. Bonded Stores (FAL 3) sheet — only when alcohol/tobacco is in scope.
+  const bondedSummary = buildBondedSummary(items);
+  if (bondedSummary.rows.length) {
+    const bondedName = uniqueSheetName('Bonded Stores (FAL 3)', usedSheetNames);
+    const bondedWs = workbook?.addWorksheet(bondedName);
+    buildBondedSheet(bondedWs, bondedSummary);
+  }
 
   // 2. Per-folder sheets
   if (folderNames?.length === 1) {
