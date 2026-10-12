@@ -53,31 +53,57 @@ export const isBondedStore = (item) => {
   return ALCOHOL_PATH_KW.some((k) => path.includes(k));
 };
 
+// The stored bonded.kind is an unreliable signal — the item form defaults it to
+// "wine", so most spirits carry kind:"wine". So we classify from the PRODUCT
+// NAME / BRAND first (strong, accurate signals), ordered so the more specific
+// categories win (champagne before wine, spirits/liqueurs/fortified before wine).
+const ARTICLE_RX = [
+  ['Champagne & Sparkling', /\b(champagne|prosecco|cava|cr[eé]mant|spumante|sparkling|brut|mo[eë]t|veuve|bollinger|dom\s*p[eé]rignon|lanson|taittinger|laurent[\s-]?perrier|mumm|pol\s*roger|ruinart|perrier[\s-]?jou[eë]t)\b/i],
+  ['Beer', /\b(beer|lager|ale|ipa|stout|pilsner|peroni|heineken|corona|budweiser|guinness|carlsberg|estrella|birra|moretti|asahi)\b/i],
+  ['Cider', /\b(cider|cidre)\b/i],
+  ['Liqueurs', /\b(liqueur|baileys|cointreau|amaretto|disaronno|kahl[uú]a|limoncello|triple\s*sec|grand\s*marnier|chambord|drambuie|frangelico|sambuca|campari|aperol|chartreuse|st[\s-]?germain|midori|malibu|j[aä]germeister|southern\s*comfort|pimm)\b/i],
+  ['Fortified wine', /\b(port|sherry|vermouth|madeira|marsala|martini\s*(bianco|rosso|extra\s*dry|fiero)|noilly\s*prat|dubonnet|lillet|pineau)\b/i],
+  ['Spirits', /\b(whisky|whiskey|bourbon|scotch|\brye\b|vodka|\bgin\b|\brum\b|tequila|mezcal|cognac|brandy|armagnac|grappa|pisco|aquavit|absinthe|calvados|glenfiddich|glenlivet|glenmorangie|macallan|balvenie|lagavulin|laphroaig|talisker|dalmore|highland\s*park|hennessy|courvoisier|r[eé]my\s*martin|martell|bombay|tanqueray|hendrick|beefeater|sipsmith|absolut|smirnoff|grey\s*goose|belvedere|ciroc|bacardi|havana|captain\s*morgan|kraken|patr[oó]n|don\s*julio|jose\s*cuervo|johnnie\s*walker|chivas|jameson|jack\s*daniel|jim\s*beam|maker'?s\s*mark|woodford|botanist|monkey\s*47|roku|nikka|hibiki|yamazaki)\b/i],
+  ['Wine', /\b(wine|merlot|cabernet|sauvignon\s*blanc|sauvignon|chardonnay|pinot\s*(noir|grigio|gris)|rioja|ros[eé]|shiraz|syrah|malbec|grenache|tempranillo|zinfandel|sangiovese|nebbiolo|chablis|bordeaux|burgundy|sancerre|chianti|barolo|ch[aâ]teau|domaine|viognier|gew[uü]rztraminer|riesling|vino)\b/i],
+  ['Tobacco', /\b(tobacco|cigarette|rolling\s*tobacco)\b/i],
+  ['Cigars', /\b(cigar|cohiba|montecristo|romeo\s*y\s*julieta|partag[aá]s|davidoff)\b/i],
+];
+
+// Folder-leaf words → category, used only when the name gives no signal.
+const FOLDER_RX = [
+  ['Champagne & Sparkling', /champagne|sparkling/i],
+  ['Spirits', /spirit/i],
+  ['Wine', /\bwine\b/i],
+  ['Beer', /beer/i],
+  ['Liqueurs', /liqueur/i],
+  ['Tobacco', /tobacco/i],
+  ['Cigars', /cigar/i],
+];
+
 const KIND_LABEL = {
   spirit: 'Spirits', spirits: 'Spirits', vodka: 'Spirits', gin: 'Spirits', whisky: 'Spirits', whiskey: 'Spirits', rum: 'Spirits', tequila: 'Spirits', brandy: 'Spirits', cognac: 'Spirits',
-  wine: 'Wine', wines: 'Wine', red: 'Wine', white: 'Wine', rose: 'Wine', 'rosé': 'Wine',
   champagne: 'Champagne & Sparkling', sparkling: 'Champagne & Sparkling', prosecco: 'Champagne & Sparkling', cava: 'Champagne & Sparkling',
   beer: 'Beer', beers: 'Beer', ale: 'Beer', lager: 'Beer', cider: 'Cider',
   liqueur: 'Liqueurs', liqueurs: 'Liqueurs', aperitif: 'Liqueurs', digestif: 'Liqueurs',
   fortified: 'Fortified wine', port: 'Fortified wine', sherry: 'Fortified wine', vermouth: 'Fortified wine',
   tobacco: 'Tobacco', cigarette: 'Tobacco', cigarettes: 'Tobacco', cigar: 'Cigars', cigars: 'Cigars',
+  // NB: 'wine' deliberately omitted — too often a wrong default on spirits.
 };
 
-// The FAL 3 "Name of article" bucket for a bonded item: its bonded kind, else a
-// keyword in the item/folder name, else the folder leaf, else "Other stores".
+// The FAL 3 "Name of article" bucket for a bonded item. Name/brand first (most
+// reliable), then the stored kind (minus the unreliable "wine" default), then
+// the folder leaf word, else "Other stores".
 export const bondedArticle = (item) => {
-  const c = cf(item);
-  const kind = String(c?.bonded?.kind || '').toLowerCase().trim();
+  const hay = `${item?.name || ''} ${item?.brand || ''}`.toLowerCase();
+  for (const [label, rx] of ARTICLE_RX) if (rx.test(hay)) return label;
+  const kind = String(cf(item)?.bonded?.kind || '').toLowerCase().trim();
   if (kind && KIND_LABEL[kind]) return KIND_LABEL[kind];
-  if (kind) return kind.charAt(0).toUpperCase() + kind.slice(1);
-  // Keyword match on the name / folder path.
-  const hay = `${item?.name || ''} ${item?.subLocation || ''} ${item?.location || ''}`.toLowerCase();
-  for (const [kw, label] of Object.entries(KIND_LABEL)) {
-    if (hay.includes(kw)) return label;
-  }
-  return lastSegment(item?.subLocation || item?.location || '') || 'Other stores';
+  const folder = lastSegment(item?.subLocation || item?.location || '');
+  for (const [label, rx] of FOLDER_RX) if (rx.test(folder)) return label;
+  return 'Other stores';
 };
 
+// PHYSICAL stow locations only (vessel/deck locations) — never folder names.
 const locNames = (item) => {
   const locs = item?.stockLocations || [];
   return locs.map((l) => lastSegment(l?.locationName || l?.location_name || l?.location || l?.name || '')).filter(Boolean);
@@ -98,12 +124,9 @@ export const buildBondedSummary = (items) => {
     const entry = byArticle.get(article) || { article, qty: 0, lines: 0, locations: new Set() };
     entry.qty += qty;
     entry.lines += 1;
-    const names = locNames(item);
-    if (names.length) names.forEach((n) => entry.locations.add(n));
-    else {
-      const folder = lastSegment(item?.subLocation || item?.location || '');
-      if (folder) entry.locations.add(folder);
-    }
+    // Physical boat locations only — if an item has no stow location assigned it
+    // contributes none (the group shows "—" rather than a folder name).
+    locNames(item).forEach((n) => entry.locations.add(n));
     byArticle.set(article, entry);
   }
   const rows = Array.from(byArticle.values())
