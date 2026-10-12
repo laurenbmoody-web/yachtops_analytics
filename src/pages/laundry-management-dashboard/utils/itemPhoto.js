@@ -3,7 +3,8 @@
 // vision path (documentParser → gpt-4o via the chat Lambda), the same one the
 // care-label reader uses, rather than a separate edge function.
 
-import { parseDocument } from '../../../services/documentParser';
+import { fileToBase64DataUri } from '../../../services/documentParser';
+import { getChatCompletion } from '../../../services/aiIntegrations/chatCompletion';
 import { availableLaundryTags } from './laundryStorage';
 
 const PROMPT = `You are cataloguing ONE laundry item for a superyacht interior from a photo.
@@ -29,9 +30,24 @@ Rules:
 - Use '' / [] for anything you genuinely cannot see. Do not invent a brand or size that isn't shown.
 - If the image clearly isn't a laundry item, return all fields empty.`;
 
-export async function readLaundryItem(file) {
-  if (!file) throw new Error('No photo provided.');
-  const raw = await parseDocument(file, PROMPT);
+// Accepts one File or several (e.g. the item + a close-up of the label) and reads
+// them together, at high detail and temperature 0 for reliable label extraction.
+export async function readLaundryItem(filesOrFile) {
+  const files = (Array.isArray(filesOrFile) ? filesOrFile : [filesOrFile]).filter(Boolean).slice(0, 4);
+  if (!files.length) throw new Error('No photo provided.');
+  const uris = await Promise.all(files.map((f) => fileToBase64DataUri(f).catch(() => '')));
+  const imageBlocks = uris
+    .filter((u) => typeof u === 'string' && u.startsWith('data:image/'))
+    .map((url) => ({ type: 'image_url', image_url: { url, detail: 'high' } }));
+  if (!imageBlocks.length) throw new Error('No readable image.');
+
+  const messages = [
+    { role: 'system', content: 'You are a precise visual cataloguer. Read printed label text exactly as shown; return only the requested JSON.' },
+    { role: 'user', content: [{ type: 'text', text: PROMPT }, ...imageBlocks] },
+  ];
+  const resp = await getChatCompletion('OPEN_AI', 'gpt-4o', messages, { temperature: 0, max_completion_tokens: 700 });
+  const raw = resp?.choices?.[0]?.message?.content;
+  if (!raw) throw new Error('No content returned.');
   const cleaned = String(raw || '').replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');

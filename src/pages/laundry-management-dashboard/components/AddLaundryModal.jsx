@@ -317,12 +317,12 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
   const handlePhotoUpload = async (e) => {
     const files = Array.from(e?.target?.files || []);
     if (fileInputRef?.current) fileInputRef.current.value = ''; // allow re-capturing the same shot
-    let firstFile = null;
+    const addedFiles = [];
     for (const file of files) {
       if (!file?.type?.startsWith('image/')) { showToast('Please select an image file', 'error'); continue; }
       if (file?.size > 5 * 1024 * 1024) { showToast('Image size must be less than 5MB', 'error'); continue; }
       try {
-        if (!firstFile) firstFile = file;
+        addedFiles.push(file);
         const dataUrl = await readAsDataUrl(file);
         const compressed = await compressImageForStorage(dataUrl);
         setFormData((prev) => ({ ...prev, photos: [...(prev.photos || []), compressed] }));
@@ -331,9 +331,10 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
         showToast('Failed to process image. Please try a smaller file.', 'error');
       }
     }
-    // Snap → read: let the AI fill description / colour / care tags from the new
-    // photo (never overwriting what's already typed). Manual flow is unaffected.
-    if (firstFile) autofillFromPhoto(firstFile);
+    // Snap → read: let the AI fill description / colour / care tags from ALL the
+    // new photos (e.g. the item plus a close-up of the label), never overwriting
+    // what's already typed. Manual flow is unaffected.
+    if (addedFiles.length) autofillFromPhoto(addedFiles);
   };
   const handleRemovePhoto = (idx) => setFormData((prev) => ({ ...prev, photos: (prev.photos || []).filter((_, i) => i !== idx) }));
 
@@ -351,16 +352,18 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
   // Read the item photo and pre-fill any fields the crew hasn't set — so all the
   // interior adds by hand is the owner + any specials. Fails soft to manual.
   const [aiBusy, setAiBusy] = useState(false);
-  const autofillFromPhoto = async (fileOrNull) => {
-    let file = fileOrNull;
-    if (!file) {
-      const first = (formData.photos || []).find((s) => typeof s === 'string' && s.startsWith('data:'));
-      if (first) { try { file = dataUrlToFile(first); } catch { /* ignore */ } }
+  const autofillFromPhoto = async (filesOrNull) => {
+    let files = Array.isArray(filesOrNull) ? filesOrNull : (filesOrNull ? [filesOrNull] : []);
+    if (!files.length) {
+      files = (formData.photos || [])
+        .filter((s) => typeof s === 'string' && s.startsWith('data:'))
+        .map((s) => { try { return dataUrlToFile(s); } catch { return null; } })
+        .filter(Boolean);
     }
-    if (!file || aiBusy) return;
+    if (!files.length || aiBusy) return;
     setAiBusy(true);
     try {
-      const f = await readLaundryItem(file);
+      const f = await readLaundryItem(files);
       let filled = 0;
       setFormData((prev) => {
         const next = { ...prev };
@@ -562,7 +565,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
             <button type="button" className="alm-photohero" onClick={() => fileInputRef?.current?.click()} disabled={aiBusy}>
               <span className="alm-photohero-ic"><Icon name={aiBusy ? 'Loader' : 'Camera'} size={26} /></span>
               <span className="alm-photohero-t">{aiBusy ? 'Reading the photo…' : 'Snap the item'}</span>
-              <span className="alm-photohero-sub">AI fills the description, colour &amp; care — you just add the owner &amp; any specials</span>
+              <span className="alm-photohero-sub">AI fills the description, colour, brand &amp; size — include the care/brand label for best results, then just add the owner &amp; any specials</span>
             </button>
           ) : (
             <>
