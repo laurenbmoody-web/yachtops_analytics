@@ -61,3 +61,5 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 const logoPath = process.env.LOGO || fileURLToPath(new URL('../../public/cargo-wordmark.png', import.meta.url));
 export const LOGO = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;
+const markPath = process.env.MARK || fileURLToPath(new URL('../../public/cargo-mark.png', import.meta.url));
+export const MARK = `data:image/png;base64,${fs.readFileSync(markPath).toString('base64')}`;
