@@ -5,7 +5,7 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
-import { LOGO } from './shots.config.mjs';
+import { LOGO, MARK } from './shots.config.mjs';
 
 const OUT = path.resolve(process.env.OUT || 'store-screenshots');
 const FONTS = 'https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@600;700&display=swap';
@@ -21,7 +21,7 @@ function phone(name, w, x, y, rot = 0) {
   <img src="data:image/png;base64,${raw(name)}"></div></div>`;
 }
 
-function page(W, H, { capTop, h1, eb, phones }) {
+function page(W, H, { capTop, h1, eb, phones, h1text }) {
   return `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${FONTS}"><style>
 *{margin:0;box-sizing:border-box}
 body{width:${W}px;height:${H}px;overflow:hidden;position:relative;font-family:'Inter',sans-serif;
@@ -39,7 +39,7 @@ h1 em{color:#E0864F}
 .sb{background:#fff;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-family:-apple-system,'Inter',sans-serif}
 .bat{border:3px solid rgba(0,0,0,.45);border-radius:8px;background:linear-gradient(90deg,#000 75%,transparent 75%) content-box;padding:3px}
 </style></head><body>
-<div class="cap"><img class="logo" src="${LOGO}"><div class="eb">Superyacht operations</div><h1>Run the boat, <em>from your pocket.</em></h1></div>
+<div class="cap"><img class="logo" src="${LOGO}"><div class="eb">Superyacht crew &amp; operations</div><h1>${h1text || 'Run the boat, <em>from your pocket.</em>'}</h1></div>
 ${phones.join('')}
 </body></html>`;
 }
@@ -55,17 +55,39 @@ const fan = (W, top, w, names, gap) => {
 
 const browser = await chromium.launch();
 fs.mkdirSync(path.join(OUT, 'promo'), { recursive: true });
+// Header (Apple asset best practices): one clear idea, brand-led, focal point
+// centred so any device crop keeps it, a short phrase at most, no UI. The App
+// Store lays the icon card over the lower part, so the logo sits above centre.
+function header(W, H) {
+  return `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="${FONTS}"><style>
+*{margin:0;box-sizing:border-box}
+body{width:${W}px;height:${H}px;overflow:hidden;position:relative;background:#1C1B3A;
+  background-image:radial-gradient(${W * 0.42}px ${H * 0.75}px at 50% 42%,#2B2A55 0%,#1C1B3A 62%,#141331 100%)}
+.glow{position:absolute;left:50%;top:${H * 0.62}px;width:${W * 0.5}px;height:2px;transform:translateX(-50%);
+  background:linear-gradient(90deg,transparent,rgba(224,134,79,.75),transparent)}
+.mark{position:absolute;left:50%;top:50%;width:${H * 1.35}px;height:${H * 1.35}px;transform:translate(-50%,-50%);
+  opacity:.045;filter:brightness(0) invert(1)}
+.c{position:absolute;left:0;right:0;top:${H * 0.27}px;text-align:center}
+.logo{height:${H * 0.105}px;filter:brightness(0) invert(1)}
+.line{margin-top:${H * 0.075}px;color:#fff;font-family:'DM Serif Display',Georgia,serif;font-size:${H * 0.075}px;letter-spacing:.5px}
+.line em{color:#E0864F}
+</style></head><body>
+<div class="c"><img class="logo" src="${LOGO}"><div class="line">Run the boat, <em>from your pocket.</em></div></div>
+<div class="glow"></div>
+</body></html>`;
+}
+
 const jobs = [
   // Header: the App Store lays the icon, name and Get button over the bottom,
   // and crops the sides on narrow screens — keep the caption high and central.
-  ['header', 3840, 1646, { capTop: 90, eb: 46, h1: 160,
-    phones: fan(3840, 700, 600, ['5_laundry', '4_defects', '1_dashboard', '6_inventory', '7_board'], 660) }],
-  ['search', 3840, 2560, { capTop: 170, eb: 58, h1: 200,
-    phones: fan(3840, 960, 960, ['4_defects', '1_dashboard', '6_inventory'], 1080) }],
+  ['search', 3840, 2560, { capTop: 190, eb: 54, h1: 150,
+    h1text: 'Jobs, inventory, laundry &amp; rest — <em>one app.</em>',
+    phones: fan(3840, 960, 960, ['5_laundry', '1_dashboard', '6_inventory'], 1080) }],
 ];
+jobs.unshift(['header', 3840, 1646, null]);
 for (const [name, W, H, opts] of jobs) {
   const p = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
-  await p.setContent(page(W, H, opts), { waitUntil: 'networkidle' });
+  await p.setContent(opts ? page(W, H, opts) : header(W, H), { waitUntil: 'networkidle' });
   await p.evaluate(() => document.fonts.ready);
   await p.screenshot({ path: path.join(OUT, 'promo', `${name}.jpg`), type: 'jpeg', quality: 92 });
   await p.close();
