@@ -35,12 +35,27 @@ const TICK_MS = 450;
 // an unattended screen doesn't sit on somebody's name.
 const CONFIRM_TIMEOUT_MS = 12000;
 
+// The "you've just signed" screen holds longer than the confirm, because it is
+// something to READ rather than answer — and it returns to standby, since the
+// honest outcome is that nothing needs doing.
+const RECENT_TIMEOUT_MS = 20000;
+
+// "a moment ago" is useless when it was four minutes ago; say which.
+const sinceLabel = (at) => {
+  if (!at) return 'just now';
+  const secs = Math.max(0, Math.round((Date.now() - at) / 1000));
+  if (secs < 20) return 'seconds ago';
+  if (secs < 90) return 'about a minute ago';
+  return `${Math.round(secs / 60)} minutes ago`;
+};
+
 export default function FaceDoorView({
   tenantId, crew = [], seen = {}, onActed, onConfirm, onFallback, vesselName,
 }) {
   const [phase, setPhase] = useState('starting'); // starting → looking → found | error
   const [hint, setHint] = useState('Starting the camera…');
   const [found, setFound] = useState(null);       // { member, question, next }
+  const [recent, setRecent] = useState(null);     // { member, at } — just signed
   const [err, setErr] = useState('');
   const [errKind, setErrKind] = useState('camera'); // 'camera' | 'lookup' | 'model'
 
@@ -51,10 +66,12 @@ export default function FaceDoorView({
   const startedRef = useRef(0);
   const deadRef = useRef(false);
   const confirmTimer = useRef(null);
+  const recentTimer = useRef(null);
 
   const stop = useCallback(() => {
     if (tickRef.current) { clearTimeout(tickRef.current); tickRef.current = null; }
     if (confirmTimer.current) { clearTimeout(confirmTimer.current); confirmTimer.current = null; }
+    if (recentTimer.current) { clearTimeout(recentTimer.current); recentTimer.current = null; }
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
   }, []);
@@ -113,11 +130,28 @@ export default function FaceDoorView({
 
         if (out.action === 'ambiguous') { bail('ambiguous'); return; }
         if (out.action === 'flip') {
-          onActed?.(out.userId, Date.now());
+          // NB: the cooldown is NOT started here. It starts when the flip is
+          // actually confirmed — otherwise a wrong match that the crew member
+          // rejects with "Not me" would leave a 20-second block on whoever was
+          // mistakenly recognised, and they'd be the next one standing there.
           propose(out.userId, out.name);
           return;
         }
-        setHint(out.cooling ? 'Just signed you — tap your name if that was wrong' : 'Hold still…');
+        if (out.action === 'recent') {
+          // Stop sampling. The previous version set a hint here and kept
+          // looping, so the next frame replaced it ~450ms later and nobody ever
+          // read it. This is a screen that stays until it is answered.
+          if (tickRef.current) { clearTimeout(tickRef.current); tickRef.current = null; }
+          const member = crew.find((c) => c.userId === out.userId);
+          setRecent({
+            member: { ...(member || {}), userId: out.userId, name: member?.name || out.name },
+            at: out.at,
+          });
+          setPhase('recent');
+          recentTimer.current = setTimeout(() => bail('done'), RECENT_TIMEOUT_MS);
+          return;
+        }
+        setHint('Hold still…');
       } catch {
         if (!deadRef.current) {
           setErrKind('model');
@@ -169,6 +203,10 @@ export default function FaceDoorView({
     if (!found) return;
     deadRef.current = true;
     stop();
+    // Now it has happened, so now the cooldown starts — covering both the
+    // ordinary path and a deliberate "sign anyway" off the already-signed
+    // screen, which should also restart the clock.
+    onActed?.(found.member.userId, Date.now());
     onConfirm?.(found.member);
   };
 
@@ -178,7 +216,7 @@ export default function FaceDoorView({
         <video ref={videoRef} className="fd-video" playsInline muted autoPlay />
         <div className="fd-veil" />
 
-        {phase !== 'found' && phase !== 'error' && (
+        {phase !== 'found' && phase !== 'error' && phase !== 'recent' && (
           <span className="fd-oval" aria-hidden="true" />
         )}
 
@@ -219,6 +257,36 @@ export default function FaceDoorView({
           </div>
         )}
 
+        {/* ── recognised, but we flipped them moments ago ─────────────────── */}
+        {phase === 'recent' && recent && (
+          <div className="fd-centre">
+            <div className="fd-badge fd-info"><Icon name="Check" size={18} /></div>
+            <p className="fd-eyebrow">Already done</p>
+            <h1 className="fd-name">{recent.member.name}</h1>
+            {/* Say what the status IS, not what it was — this screen exists so
+                nobody walks away with the wrong idea about it. */}
+            <h2 className="fd-q">
+              You signed {recent.member.status === 'aboard' ? 'aboard' : 'ashore'} {sinceLabel(recent.at)}.
+              Nothing has changed.
+            </h2>
+            <div className="fd-actions">
+              <button type="button" className="fd-btn fd-yes" onClick={() => bail('done')}>
+                <Check size={20} /> That’s right
+              </button>
+              <button
+                type="button"
+                className="fd-btn fd-no"
+                onClick={() => {
+                  if (recentTimer.current) { clearTimeout(recentTimer.current); recentTimer.current = null; }
+                  propose(recent.member.userId, recent.member.name);
+                }}
+              >
+                Sign {recent.member.status === 'aboard' ? 'ashore' : 'aboard'} anyway
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── no camera / no model / no connection ────────────────────────── */}
         {phase === 'error' && (
           <div className="fd-centre">
@@ -238,7 +306,7 @@ export default function FaceDoorView({
         )}
 
         {/* The way out is always on screen, never behind a menu. */}
-        {phase !== 'error' && (
+        {phase !== 'error' && phase !== 'recent' && (
           <button type="button" className="fd-escape" onClick={() => bail('manual')}>
             <Users size={16} /> Tap your name instead
           </button>

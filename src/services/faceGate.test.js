@@ -137,11 +137,20 @@ test('ambiguity short-circuits the whole gate', () => {
   assert.deepEqual(run(Array(6).fill(amb)), Array(6).fill('ambiguous'));
 });
 
-test('someone already flipped is left alone even when recognised perfectly', () => {
+test('someone already flipped is told so, by name, rather than silently ignored', () => {
+  // The crew member is standing at the iPad. "Nothing happened" has to be said
+  // out loud, or they walk off believing their status changed.
   const now = 500_000;
   const seen = noteActed({}, 'u1', now);
   const actions = run(Array(STABLE_FRAMES + 3).fill(row()), { seen, now });
   assert.ok(!actions.includes('flip'), 'should not re-flip during the cooldown');
+  assert.ok(actions.includes('recent'), 'should surface a recent-sign-in state');
+
+  const s = step({ row: row(), tracker: { userId: 'u1', hits: STABLE_FRAMES - 1 }, seen, now });
+  assert.equal(s.action, 'recent');
+  assert.equal(s.userId, 'u1');
+  assert.equal(s.name, 'Ana Reyes', 'must be able to name them on screen');
+  assert.equal(s.at, now, 'and say when');
 });
 
 test('an empty camera just waits', () => {

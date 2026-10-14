@@ -83,6 +83,7 @@
   backdrop-filter: blur(6px);
 }
 .fd-badge.fd-bad { background: rgba(163, 45, 45, 0.3); }
+.fd-badge.fd-info { background: rgba(63, 122, 82, 0.34); }
 
 .fd-spin { animation: fd-rot 0.9s linear infinite; }
 @keyframes fd-rot { to { transform: rotate(360deg); } }

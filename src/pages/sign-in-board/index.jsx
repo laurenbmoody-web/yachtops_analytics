@@ -78,6 +78,10 @@ const SignInBoard = () => {
   // someone back and forth. A ref, because it must survive leaving the view.
   const faceSeen = useRef({});
   const [faceBusy, setFaceBusy] = useState(false);
+  // Why the camera handed over. Dropping someone on the tile board with no
+  // explanation is how a crew member walks away believing their status changed
+  // when nothing happened — so every silent exit now says so.
+  const [faceNotice, setFaceNotice] = useState('');
 
   // Command turns face sign-in on for the vessel. Crew still enrol themselves
   // one by one from Settings → Privacy, so switching this on doesn't enrol
@@ -203,6 +207,7 @@ const SignInBoard = () => {
     mark(key, true);
     try {
       await setPresence(activeTenantId, m.userId, next, meId, { source: kiosk ? 'entryway' : 'board', subjectName: m.name });
+      setFaceNotice('');
       flashConfirm(m.name, next === ABOARD);
     }
     catch (e) {
@@ -676,7 +681,19 @@ const SignInBoard = () => {
           seen={faceSeen.current}
           onActed={(userId, at) => { faceSeen.current = noteActed(faceSeen.current, userId, at); }}
           onConfirm={(member) => { toggleCrew(member); setDoorView('glance'); }}
-          onFallback={() => setDoorView('board')}
+          onFallback={(reason) => {
+            // 'done' is the only outcome where nothing needs saying: the crew
+            // member read the "already signed" screen and agreed with it.
+            if (reason === 'done') { setFaceNotice(''); setDoorView('glance'); return; }
+            setFaceNotice({
+              timeout: 'Not recognised — tap your name to sign in or out.',
+              'confirm-timeout': 'Nothing changed — tap your name to sign in or out.',
+              ambiguous: 'Couldn’t tell who that was — tap your name instead.',
+              'not-me': 'Tap your name to sign in or out.',
+              error: 'Face sign-in isn’t available — tap your name instead.',
+            }[reason] || '');
+            setDoorView('board');
+          }}
         />
         {/* The page's own welcome flash — same one the tiles use, so a face
             sign-in looks identical to a tap and survives the switch back to
@@ -787,6 +804,15 @@ const SignInBoard = () => {
           </div>
         </div>
         {scanOpen && <DoorScanModal onClose={() => setScanOpen(false)} onDetect={handleScan} />}
+        {faceNotice && (
+          <div className="sibq-facenote" role="status">
+            <Icon name="Info" size={16} />
+            <span>{faceNotice}</span>
+            <button type="button" onClick={() => setFaceNotice('')} aria-label="Dismiss">
+              <Icon name="X" size={14} />
+            </button>
+          </div>
+        )}
         <div className="sib-tabs sibq-tabs" role="tablist">
           {tabs.map((t) => (
             <button key={t.id} type="button" role="tab" aria-selected={tab === t.id}
