@@ -42,6 +42,7 @@ export default function FaceDoorView({
   const [hint, setHint] = useState('Starting the camera…');
   const [found, setFound] = useState(null);       // { member, question, next }
   const [err, setErr] = useState('');
+  const [errKind, setErrKind] = useState('camera'); // 'camera' | 'lookup' | 'model'
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -100,7 +101,12 @@ export default function FaceDoorView({
         // A face worth asking about — one matcher call, templates stay server-side.
         const { data: row, error } = await matchFace(tenantId, res.descriptor);
         if (deadRef.current) return;
-        if (error) { setErr('Can’t reach the vessel’s records — tap your name instead.'); setPhase('error'); return; }
+        if (error) {
+          setErrKind('lookup');
+          setErr('The vessel’s records didn’t answer, so nobody can be recognised right now.');
+          setPhase('error');
+          return;
+        }
 
         const out = step({ row, tracker: trackerRef.current, seen, now: Date.now() });
         trackerRef.current = out.tracker;
@@ -113,7 +119,11 @@ export default function FaceDoorView({
         }
         setHint(out.cooling ? 'Just signed you — tap your name if that was wrong' : 'Hold still…');
       } catch {
-        if (!deadRef.current) { setErr('The face model could not load on this device.'); setPhase('error'); }
+        if (!deadRef.current) {
+          setErrKind('model');
+          setErr('The face model could not load on this device.');
+          setPhase('error');
+        }
         return;
       }
       tick();
@@ -144,6 +154,7 @@ export default function FaceDoorView({
         if (cancelled) return;
         // A kiosk with no camera permission should not be a dead end — the tiles
         // are right there.
+        setErrKind('camera');
         setErr(e?.name === 'NotAllowedError'
           ? 'This iPad hasn’t been given camera permission.'
           : 'No camera available on this device.');
@@ -212,7 +223,11 @@ export default function FaceDoorView({
         {phase === 'error' && (
           <div className="fd-centre">
             <div className="fd-badge fd-bad"><Icon name="AlertTriangle" size={18} /></div>
-            <h1 className="fd-h">Can’t use the camera</h1>
+            <h1 className="fd-h">{{
+              camera: 'Can’t use the camera',
+              lookup: 'Can’t check who you are',
+              model: 'Face sign-in isn’t available',
+            }[errKind] || 'Face sign-in isn’t available'}</h1>
             <p className="fd-sub">{err}</p>
             <div className="fd-actions">
               <button type="button" className="fd-btn fd-yes" onClick={() => bail('error')}>

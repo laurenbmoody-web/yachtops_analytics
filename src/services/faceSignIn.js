@@ -9,6 +9,7 @@
 // read is only whether you are enrolled, and when you consented.
 
 import { supabase } from '../lib/supabaseClient';
+import { MATCH_DISTANCE } from './faceGate';
 
 // Bump when the consent wording below materially changes, so it stays possible to
 // tell who agreed to what. Stored on every enrolment row.
@@ -157,8 +158,17 @@ export async function matchFace(tenantId, descriptor, maxDistance) {
   if (!tenantId || !Array.isArray(descriptor) || descriptor.length !== 128) {
     return { data: null, error: null };
   }
-  const args = { p_tenant: tenantId, p_descriptor: descriptor };
-  if (typeof maxDistance === 'number') args.p_max_distance = maxDistance;
+  // ALWAYS send all three arguments. PostgREST resolves an RPC by the set of
+  // argument names in the body, and omitting p_max_distance to lean on the SQL
+  // default got a flat 404 on the iPad — the function exists, but not under the
+  // name/arity pair that was asked for. Sending it explicitly also makes
+  // faceGate the single source of the threshold, instead of having one value in
+  // JS and another as a SQL default that could drift from it.
+  const args = {
+    p_tenant: tenantId,
+    p_descriptor: descriptor,
+    p_max_distance: typeof maxDistance === 'number' ? maxDistance : MATCH_DISTANCE,
+  };
 
   const { data, error } = await supabase.rpc('match_face', args);
   if (error) return { data: null, error };
