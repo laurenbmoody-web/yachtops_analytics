@@ -10,6 +10,8 @@ import { useTenant } from '../../contexts/TenantContext';
 import { supabase } from '../../lib/supabaseClient';
 import { applyReduceMotion, applyTextSize, applyFocusRings, applyUnderlineLinks, applyReduceTransparency } from '../../utils/a11y';
 import JSZip from 'jszip';
+import FaceEnrolModal from '../../components/face/FaceEnrolModal';
+import { getMyEnrolment, deleteFaceEnrolment } from '../../services/faceSignIn';
 import './settings.css';
 
 // ── Preference persistence (instant, silent save to localStorage) ────────────
@@ -166,6 +168,20 @@ const SettingsPage = () => {
   const navigate = useNavigate();
   const { session, loading: authLoading, isVesselAdmin } = useAuth();
   const { activeTenantId } = useTenant();
+
+  const loadFace = useCallback(async () => {
+    if (!activeTenantId) { setFace({ enrolled: false, captures: 0, consentAt: null }); return; }
+    const { data } = await getMyEnrolment(activeTenantId);
+    setFace(data);
+  }, [activeTenantId]);
+  useEffect(() => { loadFace(); }, [loadFace]);
+
+  const removeFace = async () => {
+    setFaceBusy(true);
+    const { error } = await deleteFaceEnrolment(activeTenantId);
+    setFaceBusy(false);
+    if (!error) loadFace();
+  };
   const currentUser = getCurrentUser();
 
   const handleSignOut = async () => {
@@ -183,6 +199,12 @@ const SettingsPage = () => {
     try { localStorage.setItem('set-nav-collapsed', next ? '1' : '0'); } catch { /* ignore */ }
     return next;
   });
+  // Face sign-in enrolment — lives under Privacy because it is the crew
+  // member's own biometric data, and the only person who can enrol it is them.
+  const [face, setFace] = useState({ enrolled: false, captures: 0, consentAt: null });
+  const [faceOpen, setFaceOpen] = useState(false);
+  const [faceBusy, setFaceBusy] = useState(false);
+
   const [prefs, setPrefs] = useState(() => Object.fromEntries(Object.keys(PREF_DEFAULTS).map(n => [n, readPref(n)])));
   const [timezone, setTimezone] = useState(localStorage.getItem('userTimezone') || 'UTC');
   const [tzOpen, setTzOpen] = useState(false);
@@ -1056,6 +1078,33 @@ const SettingsPage = () => {
               </>
             )}
 
+            {activeTenantId && (
+              <>
+                <Caps>Face sign-in</Caps>
+                <Group>
+                  <div className="set-r">
+                    <RMain
+                      label="Sign in at the gangway with your face"
+                      desc={face.enrolled
+                        ? `Enrolled${face.consentAt ? ` on ${new Date(face.consentAt).toLocaleDateString('en-GB')}` : ''} — ${face.captures} capture${face.captures === 1 ? '' : 's'}. The board recognises you and asks you to confirm before changing your status. A face template is stored, never a photograph.`
+                        : 'Optional. Stores a mathematical description of your face — 128 numbers, not a photograph — so the gangway board can flip your aboard/ashore status without you finding your name in a list. Tapping your name always works instead.'}
+                    />
+                    {face.enrolled ? (
+                      <>
+                        <span className="set-vis you">You only</span>
+                        <button className="set-btn" onClick={() => setFaceOpen(true)} disabled={faceBusy}>Redo</button>
+                        <button className="set-btn set-btn-danger" onClick={removeFace} disabled={faceBusy}>
+                          {faceBusy ? 'Removing…' : 'Remove'}
+                        </button>
+                      </>
+                    ) : (
+                      <button className="set-btn" onClick={() => setFaceOpen(true)}>Set up</button>
+                    )}
+                  </div>
+                </Group>
+              </>
+            )}
+
             <Caps>Your data</Caps>
             <Group>
               <div className="set-r">
@@ -1383,6 +1432,14 @@ const SettingsPage = () => {
             )}
           </div>
         </div>
+      )}
+
+      {faceOpen && (
+        <FaceEnrolModal
+          tenantId={activeTenantId}
+          onClose={() => { setFaceOpen(false); loadFace(); }}
+          onEnrolled={() => loadFace()}
+        />
       )}
     </>
   );

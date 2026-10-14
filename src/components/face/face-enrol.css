@@ -1,0 +1,227 @@
+/* Face enrolment modal. Portaled to <body>, so everything is scoped under fe-*.
+   Editorial system: navy ink, terracotta accent, maritime white, no warm fills. */
+
+.fe-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay, 1000);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(26, 29, 63, 0.5);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.fe-panel {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 24px;
+  background: #FFFFFF;
+  border: 1px solid #ECEAE3;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+}
+
+.fe-x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  color: #AEB4C2;
+  cursor: pointer;
+}
+.fe-x:hover { background: #FAFAF8; color: #1C1B3A; }
+
+.fe-ic {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  background: #FBEFE9;
+  color: #C65A1A;
+}
+.fe-ic.fe-ok { background: #EAF4EC; color: #3F7A52; }
+
+.fe-h {
+  margin: 0 0 6px;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: #1C1B3A;
+}
+
+.fe-sub {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #6B7280;
+}
+
+/* ── consent ───────────────────────────────────────────────────────────────── */
+
+.fe-points {
+  margin: 10px 0 18px;
+  padding: 0;
+  list-style: none;
+}
+.fe-points li {
+  position: relative;
+  padding: 0 0 0 18px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #6B7280;
+}
+.fe-points li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: #C65A1A;
+}
+
+.fe-agree {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  background: #FAFAF8;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #1C1B3A;
+  cursor: pointer;
+}
+.fe-agree input {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  accent-color: #C65A1A;
+  cursor: pointer;
+}
+
+/* ── capture ───────────────────────────────────────────────────────────────── */
+
+.fe-stage {
+  position: relative;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #1C1B3A;
+  aspect-ratio: 4 / 3;
+}
+
+.fe-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* Mirrored so moving left looks like moving left. The model reads the
+     un-mirrored frame, so this is cosmetic only. */
+  transform: scaleX(-1);
+}
+
+/* A soft oval to stand in, rather than a hard crop. */
+.fe-oval {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 54%;
+  height: 78%;
+  transform: translate(-50%, -50%);
+  border: 2px dashed rgba(255, 255, 255, 0.55);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.fe-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.fe-dots span {
+  width: 24px;
+  height: 4px;
+  border-radius: 999px;
+  background: #EEF0F4;
+  transition: background 0.2s ease;
+}
+.fe-dots span.on { background: #C65A1A; }
+
+.fe-err {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #FCEBEB;
+  color: #A32D2D;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* ── shared ────────────────────────────────────────────────────────────────── */
+
+.fe-centre { text-align: center; }
+.fe-centre .fe-ic { margin: 0 auto 14px; }
+
+.fe-spin { color: #C65A1A; animation: fe-rot 0.9s linear infinite; }
+@keyframes fe-rot { to { transform: rotate(360deg); } }
+
+.fe-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.fe-centre .fe-actions { justify-content: center; }
+
+.fe-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.fe-primary {
+  background: #C65A1A;
+  border: 1px solid #C65A1A;
+  color: #FFFFFF;
+}
+.fe-primary:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }
+.fe-primary:disabled { background: #E5E7EB; border-color: #E5E7EB; color: #AEB4C2; cursor: not-allowed; }
+
+.fe-ghost {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  color: #6B7280;
+}
+.fe-ghost:hover { border-color: #C8CBDA; color: #1C1B3A; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fe-spin { animation: none; }
+  .fe-dots span { transition: none; }
+}
