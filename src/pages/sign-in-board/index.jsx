@@ -4,6 +4,7 @@ import Icon from '../../components/AppIcon';
 import Header from '../../components/navigation/Header';
 import LogoSpinner from '../../components/LogoSpinner';
 import DoorScanModal from './components/DoorScanModal';
+import FaceDoorView from './components/FaceDoorView';
 import DeviceSetupModal from './components/DeviceSetupModal';
 import VisitorPassModal from './components/VisitorPassModal';
 import SafetyBriefingModal from './components/SafetyBriefingModal';
@@ -12,6 +13,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { showToast } from '../../utils/toast';
 import { fetchPresenceBoard, setPresence, ABOARD, flip } from '../../services/crewPresence';
+import { isFaceSignInEnabled, setFaceSignInEnabled } from '../../services/faceSignIn';
+import { noteActed } from '../../services/faceGate';
 import { logPresenceEvent, saveMusterRecord } from '../../services/presenceLog';
 import { exportMusterPdf } from './utils/musterPdf';
 import {
@@ -68,6 +71,29 @@ const SignInBoard = () => {
   const [musterSaving, setMusterSaving] = useState(false);
   const [musterSaved, setMusterSaved] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
+  // Face sign-in is off until a vessel opts in, so the standby tap behaves
+  // exactly as it does today for everyone else.
+  const [faceOn, setFaceOn] = useState(false);
+  // Who was flipped by face recently, so standing near the iPad can't toggle
+  // someone back and forth. A ref, because it must survive leaving the view.
+  const faceSeen = useRef({});
+  const [faceBusy, setFaceBusy] = useState(false);
+
+  // Command turns face sign-in on for the vessel. Crew still enrol themselves
+  // one by one from Settings → Privacy, so switching this on doesn't enrol
+  // anybody — it only decides whether the standby tap offers the camera.
+  const toggleFaceSignIn = async () => {
+    if (faceBusy) return;
+    setFaceBusy(true);
+    const next = !faceOn;
+    const { error } = await setFaceSignInEnabled(activeTenantId, next);
+    setFaceBusy(false);
+    if (error) { showToast('Could not change that — try again', 'error'); return; }
+    setFaceOn(next);
+    showToast(next
+      ? 'Face sign-in on. Crew enrol themselves in Settings → Privacy & data.'
+      : 'Face sign-in off. The board asks for a name tap as before.', 'success');
+  };
   const [deviceSetupOpen, setDeviceSetupOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // { name, aboard } — kiosk confirmation flash
   const [leaveVisitor, setLeaveVisitor] = useState(null); // visitor the "leaving?" popover is open for
@@ -107,6 +133,13 @@ const SignInBoard = () => {
     fetchRecentVisitors(activeTenantId).then((v) => { if (alive) setRecentVisitors(v); });
     return () => { alive = false; };
   }, [addOpen, activeTenantId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!activeTenantId) return;
+    let alive = true;
+    isFaceSignInEnabled(activeTenantId).then(({ data }) => { if (alive) setFaceOn(!!data); });
+    return () => { alive = false; };
+  }, [activeTenantId]);
 
   useEffect(() => {
     if (!activeTenantId) return;
@@ -153,7 +186,7 @@ const SignInBoard = () => {
   // Kiosk confirmation flash — a big "Welcome aboard, {name}" after a tap/scan on
   // the door board. Optionally spoken. Only shown in a door/kiosk context so the
   // admin board (toggling many at once) isn't interrupted.
-  const inDoorContext = kiosk || doorView === 'board';
+  const inDoorContext = kiosk || doorView === 'board' || doorView === 'face';
   const flashConfirm = (name, aboard) => {
     if (!inDoorContext) return;
     setConfirm({ name, aboard });
@@ -600,8 +633,8 @@ const SignInBoard = () => {
   // ── Standby glance (always-on door iPad) ───────────────────────────────────
   if (doorView === 'glance') {
     return (
-      <div className="sib-sb" onClick={() => setDoorView('board')} role="button" tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setDoorView('board'); }}>
+      <div className="sib-sb" onClick={() => setDoorView(faceOn ? 'face' : 'board')} role="button" tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setDoorView(faceOn ? 'face' : 'board'); }}>
         <div className="sib-sb-inner">
           <p className="editorial-meta sib-sb-meta">
             <span className="dot">●</span>
@@ -620,9 +653,36 @@ const SignInBoard = () => {
           </div>
         </div>
         <div className="sib-sb-cta">
-          <span className="sib-sb-tap"><Icon name="Hand" size={16} /> Tap anywhere to sign in or out</span>
+          <span className="sib-sb-tap">
+            <Icon name={faceOn ? 'Camera' : 'Hand'} size={16} />
+            {faceOn ? ' Tap anywhere, then look at the camera' : ' Tap anywhere to sign in or out'}
+          </span>
         </div>
       </div>
+    );
+  }
+
+  // ── Face (camera first, tiles as the automatic fallback) ───────────────────
+  // Reached by tapping standby on a vessel that has opted in. Every exit from
+  // here lands on the tile board, so a camera that can't place someone — or an
+  // iPad with no camera permission at all — is never a dead end.
+  if (doorView === 'face') {
+    return (
+      <>
+        <FaceDoorView
+          tenantId={activeTenantId}
+          crew={crew}
+          vesselName={vesselName}
+          seen={faceSeen.current}
+          onActed={(userId, at) => { faceSeen.current = noteActed(faceSeen.current, userId, at); }}
+          onConfirm={(member) => { toggleCrew(member); setDoorView('glance'); }}
+          onFallback={() => setDoorView('board')}
+        />
+        {/* The page's own welcome flash — same one the tiles use, so a face
+            sign-in looks identical to a tap and survives the switch back to
+            standby after the confirm. */}
+        {confirmFlash}
+      </>
     );
   }
 
@@ -781,6 +841,21 @@ const SignInBoard = () => {
             {!kiosk && isCommand && (
               <button type="button" className="sib-standby-btn" onClick={() => setDeviceSetupOpen(true)} title="Set up the entry-door iPad">
                 <Icon name="Tablet" size={15} /><span className="lbl">Device</span>
+              </button>
+            )}
+            {!kiosk && isCommand && (
+              <button
+                type="button"
+                className={`sib-standby-btn${faceOn ? ' on' : ''}`}
+                onClick={toggleFaceSignIn}
+                disabled={faceBusy}
+                aria-pressed={faceOn}
+                title={faceOn
+                  ? 'Face sign-in is on — tapping standby opens the camera. Tap to turn off.'
+                  : 'Face sign-in is off. Tap to let crew who have enrolled be recognised at the door.'}
+              >
+                <Icon name={faceOn ? 'ScanFace' : 'Camera'} size={15} />
+                <span className="lbl">Face {faceOn ? 'on' : 'off'}</span>
               </button>
             )}
             {!kiosk && (

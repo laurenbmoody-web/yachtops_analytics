@@ -1,0 +1,205 @@
+/* The gangway camera view — full-bleed on a wall-mounted iPad.
+   Everything scoped under fd-*. Big type and big targets: this is read and
+   tapped at arm's length, often by someone carrying something. */
+
+.fd-root {
+  position: fixed;
+  inset: 0;
+  background: #1C1B3A;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.fd-stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.fd-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Mirrored so stepping left looks like stepping left. The model reads the
+     un-mirrored frame, so this is cosmetic. */
+  transform: scaleX(-1);
+}
+
+/* The camera is context, not the content — darkened so the type carries. */
+.fd-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(28, 27, 58, 0.18) 0%, rgba(28, 27, 58, 0.72) 68%),
+    linear-gradient(to bottom, rgba(28, 27, 58, 0.45), rgba(28, 27, 58, 0.78));
+}
+
+.fd-oval {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  width: min(38vh, 300px);
+  height: min(52vh, 400px);
+  transform: translate(-50%, -50%);
+  border: 2px dashed rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.fd-top {
+  position: absolute;
+  top: 26px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* editorial-meta renders navy by default; on this dark ground it needs lifting. */
+.fd-meta,
+.fd-meta .muted { color: rgba(255, 255, 255, 0.72) !important; }
+.fd-meta .dot { color: #E8793A !important; }
+.fd-meta .bar { background: rgba(255, 255, 255, 0.3) !important; }
+
+.fd-centre {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px 90px;
+  text-align: center;
+}
+
+.fd-badge {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+  backdrop-filter: blur(6px);
+}
+.fd-badge.fd-bad { background: rgba(163, 45, 45, 0.3); }
+
+.fd-spin { animation: fd-rot 0.9s linear infinite; }
+@keyframes fd-rot { to { transform: rotate(360deg); } }
+
+.fd-h {
+  margin: 0 0 8px;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: clamp(26px, 4.4vw, 40px);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.12;
+  color: #FFFFFF;
+}
+
+.fd-sub {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+/* ── recognised ────────────────────────────────────────────────────────────── */
+
+.fd-eyebrow {
+  margin: 0 0 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.fd-name {
+  margin: 0 0 4px;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: clamp(38px, 7vw, 76px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.04;
+  color: #FFFFFF;
+}
+
+.fd-q {
+  margin: 0 0 30px;
+  font-size: clamp(17px, 2.4vw, 24px);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.fd-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+  max-width: 420px;
+}
+
+.fd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  /* A thumb's worth of target, for someone holding a bag of provisions. */
+  min-height: 64px;
+  padding: 0 26px;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+.fd-yes {
+  background: #C65A1A;
+  border: 1px solid #C65A1A;
+  color: #FFFFFF;
+}
+.fd-yes:hover, .fd-yes:active { background: #B14E16; border-color: #B14E16; }
+
+.fd-no {
+  min-height: 52px;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  color: #FFFFFF;
+}
+.fd-no:hover, .fd-no:active { background: rgba(255, 255, 255, 0.18); }
+
+/* ── the way out, always visible ───────────────────────────────────────────── */
+
+.fd-escape {
+  position: absolute;
+  bottom: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: #FFFFFF;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+.fd-escape:hover, .fd-escape:active { background: rgba(255, 255, 255, 0.2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fd-spin { animation: none; }
+  .fd-btn, .fd-escape { transition: none; }
+}
