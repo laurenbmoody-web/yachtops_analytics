@@ -111,6 +111,10 @@ export const shouldGiveUp = (startedAt, now, { timeoutMs = LOOK_TIMEOUT_MS } = {
 // Returns { action, tracker, ... }:
 //   'flip'      — act on userId/name (the caller then shows the confirm)
 //   'ambiguous' — two enrolled faces too alike; ask them to tap instead
+//   'recent'    — recognised, but we flipped them moments ago. Its own action
+//                 rather than a flavour of 'wait', because the crew member is
+//                 standing there and needs TELLING that nothing changed; a hint
+//                 that the next frame overwrites is worse than no hint.
 //   'wait'      — keep looking
 export const step = ({ row, tracker, seen, now, opts = {} }) => {
   const decision = decide(row, opts);
@@ -122,9 +126,17 @@ export const step = ({ row, tracker, seen, now, opts = {} }) => {
   const fed = feed(tracker, decision, opts);
   if (!fed.fire) return { action: 'wait', tracker: fed.tracker };
 
-  // Confident and stable — but did we just do them?
+  // Confident and stable — but did we just do them? Carry who it was and when,
+  // so the screen can say "you signed ashore a moment ago" by name instead of
+  // silently declining to act.
   if (isCoolingDown(seen?.[decision.userId], now, opts)) {
-    return { action: 'wait', tracker: fed.tracker, cooling: true };
+    return {
+      action: 'recent',
+      tracker: fed.tracker,
+      userId: decision.userId,
+      name: decision.name,
+      at: seen?.[decision.userId] ?? null,
+    };
   }
 
   return {

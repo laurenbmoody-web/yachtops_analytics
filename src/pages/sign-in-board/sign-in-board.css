@@ -299,6 +299,23 @@
 .sib-standby-btn.on { border-color: #C65A1A; background: #FBEFE9; color: #C65A1A; }
 .sib-standby-btn:disabled { opacity: 0.55; cursor: default; }
 
+/* Why the camera handed over — shown on arrival at the tile board so nobody
+   mistakes a silent fallback for a completed sign-in. */
+.sibq-facenote {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 14px; padding: 12px 14px;
+  background: #FBEFE9; border: 1px solid #F0D4C2; border-radius: 12px;
+  color: #8A3D10; font-family: 'Inter', system-ui, sans-serif; font-size: 15px;
+}
+.sibq-facenote svg { flex: 0 0 auto; }
+.sibq-facenote span { flex: 1; }
+.sibq-facenote button {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 30px; height: 30px; padding: 0; cursor: pointer;
+  background: none; border: 0; border-radius: 8px; color: #B06A3C;
+}
+.sibq-facenote button:hover { background: rgba(198, 90, 26, 0.12); color: #8A3D10; }
+
 /* ── Quick board (woken from standby) ──────────────────────────────────────
    Stripped sign-in: no nav, no meta, no pills — big tiles, tap to flip. */
 .sibq {
