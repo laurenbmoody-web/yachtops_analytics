@@ -294,6 +294,10 @@
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 .sib-standby-btn:hover { border-color: #C65A1A; color: #C65A1A; }
+/* Switched-on state for the face sign-in toggle — terracotta as an accent on a
+   tinted pill, never a saturated fill. */
+.sib-standby-btn.on { border-color: #C65A1A; background: #FBEFE9; color: #C65A1A; }
+.sib-standby-btn:disabled { opacity: 0.55; cursor: default; }
 
 /* ── Quick board (woken from standby) ──────────────────────────────────────
    Stripped sign-in: no nav, no meta, no pills — big tiles, tap to flip. */
