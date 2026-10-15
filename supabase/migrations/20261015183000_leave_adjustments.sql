@@ -92,19 +92,27 @@ create index if not exists crew_leave_adjustments_lookup
 
 alter table public.crew_leave_adjustments enable row level security;
 
+-- Each policy is dropped first because Postgres has no CREATE POLICY IF NOT
+-- EXISTS: without the guard this migration aborts the moment a policy is
+-- already present, which is what happens whenever the schema was applied ahead
+-- of the deploy. Every other statement here is already idempotent.
+
 -- A crew member can see every adjustment made to their own leave. That is
 -- deliberate: these change what they are owed, so finding out about one after
 -- the fact would be worse than the correction itself.
+drop policy if exists crew_leave_adj_select on public.crew_leave_adjustments;
 create policy crew_leave_adj_select on public.crew_leave_adjustments
   for select using (
     user_id = auth.uid() or public.is_tenant_command(tenant_id)
   );
 
 -- Only Command writes. Leave adjustments have a payroll consequence.
+drop policy if exists crew_leave_adj_insert on public.crew_leave_adjustments;
 create policy crew_leave_adj_insert on public.crew_leave_adjustments
   for insert with check (public.is_tenant_command(tenant_id));
 
 -- No UPDATE policy — the ledger is append-only, so a mistake is corrected by
 -- posting the opposite entry rather than quietly rewriting history.
+drop policy if exists crew_leave_adj_delete on public.crew_leave_adjustments;
 create policy crew_leave_adj_delete on public.crew_leave_adjustments
   for delete using (public.is_tenant_command(tenant_id));
