@@ -1,0 +1,120 @@
+/* Leave balance card — sits inside the Employment group on the crew profile.
+   Editorial system: navy ink, terracotta accent, soft field background. */
+
+.lv-card {
+  margin-top: 14px;
+  padding: 16px 18px;
+  background: #FAFAF8;
+  border: 1px solid #EEF0F4;
+  border-radius: 12px;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.lv-card.lv-quiet {
+  color: #8B8478;
+  font-size: 13px;
+}
+
+.lv-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.lv-title {
+  margin: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+}
+
+.lv-asof {
+  font-size: 11px;
+  color: #AEB4C2;
+  font-variant-numeric: tabular-nums;
+}
+
+.lv-figs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lv-fig {
+  padding: 11px 12px;
+  background: #FFFFFF;
+  border: 1px solid #F0F1F5;
+  border-radius: 10px;
+  min-width: 0;
+}
+
+.lv-fig b {
+  display: block;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.3px;
+  color: #1C1B3A;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Overdrawn is the one state that earns a colour. */
+.lv-fig b[data-neg='y'] { color: #A32D2D; }
+
+.lv-fig em {
+  display: block;
+  margin-top: 5px;
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: #8B8478;
+}
+
+.lv-rem { border-color: #E6E2D8; background: #FFFDF9; }
+
+.lv-basis {
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #6B7280;
+}
+
+.lv-note {
+  margin: 7px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #8B8478;
+}
+
+.lv-none {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #6B7280;
+}
+
+.lv-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: #FBEFE9;
+  border-radius: 10px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #8A3D10;
+}
+.lv-warn svg { flex: 0 0 auto; margin-top: 1px; }
+
+@media (max-width: 560px) {
+  .lv-figs { grid-template-columns: minmax(0, 1fr); }
+}
