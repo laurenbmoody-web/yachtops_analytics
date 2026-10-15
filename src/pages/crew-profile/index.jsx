@@ -4203,7 +4203,11 @@ const canEdit = isOwnProfile || isVesselAdmin || currentUserPermissionTier === '
                 </div>
                 {/* Derived from the entitlement / rotation above plus the status
                     log — read-only, so it stays out of the edit grid. */}
-                <LeaveBalanceCard tenantId={activeTenantId} userId={crewId} />
+                {/* canEditCompensation is COMMAND-only and at component scope — the same
+                    gate the Salary group uses, which is the right analogue:
+                    adjusting leave has a payroll consequence, and it matches the
+                    insert policy on crew_leave_adjustments. */}
+                <LeaveBalanceCard tenantId={activeTenantId} userId={crewId} canAdjust={canEditCompensation} />
               </div>
 
               {compForm !== null && (

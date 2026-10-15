@@ -4,6 +4,7 @@ import {
   parseRotation, rotationAnnualDays, annualEntitlement, basisLabel,
   daysBetweenInclusive, accruedDays, takenDays, computeLeaveBalance,
   toHalfDays, formatDays,
+  normalisePolicy, leaveYears, adjustmentsInWindow,
   MLC_MIN_DAYS_PER_MONTH, MLC_MIN_DAYS_PER_YEAR, DAYS_PER_YEAR,
 } from './leaveBalance.js';
 
@@ -318,6 +319,177 @@ test('it says where the status log starts, so a short log is visible', () => {
   });
   assert.equal(r.historyFrom, '2026-05-01');
   assert.equal(r.historyStartsLate, true, 'two years of service are not covered by the log');
+});
+
+// ── policy, leave years, carry-over ──────────────────────────────────────────
+
+test('the default policy is one continuous period and forfeits nothing', () => {
+  // This default is load-bearing: forfeiting accrued leave because a vessel
+  // never configured anything would be the worst failure this feature could have.
+  assert.deepEqual(normalisePolicy(), { anchor: 'none', carryOverMaxDays: null });
+  assert.deepEqual(normalisePolicy({}), { anchor: 'none', carryOverMaxDays: null });
+  assert.deepEqual(normalisePolicy({ anchor: 'nonsense' }), { anchor: 'none', carryOverMaxDays: null });
+});
+
+test('a cap without a leave year is meaningless and is dropped', () => {
+  assert.equal(normalisePolicy({ anchor: 'none', carryOverMaxDays: 10 }).carryOverMaxDays, null);
+  assert.equal(normalisePolicy({ anchor: 'contract', carryOverMaxDays: 10 }).carryOverMaxDays, 10);
+  assert.equal(normalisePolicy({ anchor: 'contract', carryOverMaxDays: -5 }).carryOverMaxDays, null);
+  assert.equal(normalisePolicy({ anchor: 'contract', carryOverMaxDays: 0 }).carryOverMaxDays, 0,
+    'zero is a real policy — carry nothing over');
+});
+
+test('leave years split on the anchor the vessel chose', () => {
+  assert.deepEqual(leaveYears('2024-04-22', '2026-10-15', 'none'),
+    [{ from: '2024-04-22', to: '2026-10-15', closed: false }]);
+
+  const byContract = leaveYears('2024-04-22', '2026-10-15', 'contract');
+  assert.equal(byContract.length, 3);
+  assert.deepEqual(byContract[0], { from: '2024-04-22', to: '2025-04-21', closed: true });
+  assert.equal(byContract[2].closed, false, 'the current year is still open');
+
+  const byCalendar = leaveYears('2024-04-22', '2026-10-15', 'calendar');
+  assert.deepEqual(byCalendar[0], { from: '2024-04-22', to: '2024-12-31', closed: true });
+  assert.deepEqual(byCalendar[1], { from: '2025-01-01', to: '2025-12-31', closed: true });
+});
+
+test('a 29 February anniversary does not roll into March', () => {
+  const ys = leaveYears('2024-02-29', '2025-06-01', 'contract');
+  assert.equal(ys[0].to, '2025-02-27', 'year one ends the day before the clamped anniversary');
+  assert.equal(ys[1].from, '2025-02-28');
+});
+
+test('adjustments land in a window by effective date', () => {
+  const adj = [
+    { days: 5, effective_date: '2026-01-10' },
+    { days: -2, effective_date: '2026-06-01' },
+    { days: 99, effective_date: '2027-01-01' },
+  ];
+  assert.equal(adjustmentsInWindow(adj, '2026-01-01', '2026-12-31'), 3);
+  assert.equal(adjustmentsInWindow(adj, '2026-01-01', '2026-01-31'), 5);
+  assert.equal(adjustmentsInWindow([], '2026-01-01', '2026-12-31'), 0);
+  assert.equal(adjustmentsInWindow(null, '2026-01-01', '2026-12-31'), 0);
+  assert.equal(adjustmentsInWindow([{ days: 'x', effective_date: '2026-02-01' }], '2026-01-01', '2026-12-31'), 0);
+});
+
+// ── adjustments through the balance ──────────────────────────────────────────
+
+test('a positive adjustment adds days, a negative one takes them away', () => {
+  const base = { employment: { start_date: '2026-01-01', leave_entitlement_days: 36 }, asOf: '2026-12-31' };
+  const plain = computeLeaveBalance({ ...base, changes: [] });
+  near(plain.remaining, 36);
+
+  const granted = computeLeaveBalance({
+    ...base, changes: [], adjustments: [{ days: 4, effective_date: '2026-03-01', kind: 'granted' }],
+  });
+  near(granted.remaining, 40);
+  near(granted.adjustments, 4);
+
+  const bought = computeLeaveBalance({
+    ...base, changes: [], adjustments: [{ days: -10, effective_date: '2026-03-01', kind: 'bought_out' }],
+  });
+  near(bought.remaining, 26);
+});
+
+test('an opening balance brought in from elsewhere shows up', () => {
+  const r = computeLeaveBalance({
+    employment: { start_date: '2026-01-01', leave_entitlement_days: 36 },
+    changes: [],
+    adjustments: [{ days: 12, effective_date: '2026-01-01', kind: 'opening_balance' }],
+    asOf: '2026-12-31',
+  });
+  near(r.remaining, 48);
+});
+
+// ── carry-over ───────────────────────────────────────────────────────────────
+
+const twoYears = {
+  employment: { start_date: '2025-01-01', leave_entitlement_days: 30 },
+  changes: [],
+  asOf: '2026-12-31',
+};
+
+test('with no cap, everything carries into the next year', () => {
+  const r = computeLeaveBalance({ ...twoYears, policy: { anchor: 'calendar' } });
+  assert.equal(r.years.length, 2);
+  near(r.years[0].closing, 30);
+  near(r.opening, 30, 0.2);
+  near(r.remaining, 60, 0.2);
+  assert.equal(r.forfeited, 0);
+});
+
+test('a cap forfeits the excess at the year end, and says how much', () => {
+  const r = computeLeaveBalance({
+    ...twoYears, policy: { anchor: 'calendar', carryOverMaxDays: 5 },
+  });
+  near(r.opening, 5, 0.2, 'only the cap carried in');
+  near(r.forfeited, 25, 0.2);
+  near(r.remaining, 35, 0.2);
+});
+
+test('a zero cap carries nothing but still does not touch the current year', () => {
+  const r = computeLeaveBalance({
+    ...twoYears, policy: { anchor: 'calendar', carryOverMaxDays: 0 },
+  });
+  near(r.opening, 0);
+  near(r.remaining, 30, 0.2);
+  near(r.forfeited, 30, 0.2);
+});
+
+test('the OPEN year is never forfeited, however big it gets', () => {
+  // Forfeiture happens at a year end. Trimming the year someone is currently in
+  // would delete leave they still have every right to take.
+  const r = computeLeaveBalance({
+    employment: { start_date: '2026-01-01', leave_entitlement_days: 300 },
+    changes: [],
+    policy: { anchor: 'calendar', carryOverMaxDays: 5 },
+    asOf: '2026-12-30',
+  });
+  assert.equal(r.years.length, 1);
+  assert.equal(r.years[0].closed, false);
+  assert.equal(r.forfeited, 0);
+  near(r.remaining, 299.2, 1);
+});
+
+test('a debt carries in full — a cap never forgives overdrawn leave', () => {
+  const r = computeLeaveBalance({
+    employment: { start_date: '2025-01-01', leave_entitlement_days: 30 },
+    // 60 days off in year one against 30 accrued.
+    changes: [ch('2025-02-01', 'on_leave'), ch('2025-04-02', 'active')],
+    policy: { anchor: 'calendar', carryOverMaxDays: 5 },
+    asOf: '2026-12-31',
+  });
+  assert.ok(r.years[0].closing < 0, 'year one ended in debt');
+  near(r.years[0].carried, r.years[0].closing, 0.001, 'carried unchanged');
+  assert.equal(r.forfeited, 0);
+});
+
+test('a leave year reports this year separately from the lifetime', () => {
+  const r = computeLeaveBalance({
+    employment: { start_date: '2025-01-01', leave_entitlement_days: 30 },
+    changes: [
+      ch('2025-03-01', 'on_leave'), ch('2025-03-11', 'active'),  // 10 in 2025
+      ch('2026-03-01', 'on_leave'), ch('2026-03-05', 'active'),  // 4 in 2026
+    ],
+    policy: { anchor: 'calendar' },
+    asOf: '2026-12-31',
+  });
+  assert.equal(r.taken, 4, 'this leave year');
+  assert.equal(r.lifetime.taken, 14, 'since the contract started');
+  assert.equal(r.yearFrom, '2026-01-01');
+});
+
+test('turning a leave year on cannot change a balance that had no cap', () => {
+  // Same inputs, anchor on vs off, no cap: the totals must agree, because
+  // nothing is being thrown away.
+  const base = {
+    employment: { start_date: '2025-01-01', leave_entitlement_days: 30 },
+    changes: [ch('2025-03-01', 'on_leave'), ch('2025-03-11', 'active')],
+    asOf: '2026-12-31',
+  };
+  const off = computeLeaveBalance({ ...base });
+  const on = computeLeaveBalance({ ...base, policy: { anchor: 'calendar' } });
+  near(on.remaining, off.remaining, 0.001);
 });
 
 // ── presentation ─────────────────────────────────────────────────────────────
