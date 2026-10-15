@@ -173,51 +173,142 @@ export const takenDays = (changes = [], { startIso, asOfIso, isRotational = fals
   return out;
 };
 
+// ── leave years and carry-over ───────────────────────────────────────────────
+//
+// A leave year only exists if a vessel asks for one. The default anchor is
+// 'none', which is one continuous period from the contract start — exactly how
+// the balance behaved before this existed. That default is deliberate and
+// important: forfeiting someone's accrued leave because of an unconfigured
+// setting would be the worst possible failure of this feature.
+
+export const DEFAULT_LEAVE_POLICY = { anchor: 'none', carryOverMaxDays: null };
+
+export const normalisePolicy = (policy = {}) => {
+  const anchor = ['none', 'contract', 'calendar'].includes(policy?.anchor) ? policy.anchor : 'none';
+  const raw = Number(policy?.carryOverMaxDays);
+  return {
+    anchor,
+    // A cap only means anything alongside a leave year, and a negative cap is
+    // nonsense — both collapse to "no limit".
+    carryOverMaxDays: anchor !== 'none' && Number.isFinite(raw) && raw >= 0 ? raw : null,
+  };
+};
+
+const addYears = (iso, n) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  // Clamp 29 Feb to the 28th in a non-leap year rather than rolling into March.
+  const target = new Date(Date.UTC(y + n, m - 1, d));
+  if (target.getUTCMonth() !== m - 1) target.setUTCDate(0);
+  return dayKey(target);
+};
+
+const dayBefore = (iso) => dayKey(new Date(toUtc(iso).getTime() - DAY_MS));
+
+// The leave-year windows covering [start, asOf], oldest first, each
+// { from, to, closed }. With anchor 'none' that is a single open window.
+export const leaveYears = (startIso, asOfIso, anchor) => {
+  if (anchor === 'none' || !startIso || !asOfIso) {
+    return [{ from: startIso, to: asOfIso, closed: false }];
+  }
+  // Where the first boundary falls: the contract anniversary, or 1 January.
+  let edge = anchor === 'calendar'
+    ? `${Number(startIso.slice(0, 4)) + 1}-01-01`
+    : addYears(startIso, 1);
+
+  const out = [];
+  let from = startIso;
+  while (edge <= asOfIso) {
+    out.push({ from, to: dayBefore(edge), closed: true });
+    from = edge;
+    edge = anchor === 'calendar' ? `${Number(edge.slice(0, 4)) + 1}-01-01` : addYears(edge, 1);
+  }
+  out.push({ from, to: asOfIso, closed: false });
+  return out;
+};
+
+// Signed adjustment days falling inside a window.
+export const adjustmentsInWindow = (adjustments = [], fromIso, toIso) =>
+  (adjustments || []).reduce((sum, a) => {
+    if (!a || !a.effective_date) return sum;
+    const d = String(a.effective_date).slice(0, 10);
+    if (d < fromIso || d > toIso) return sum;
+    const n = Number(a.days);
+    return Number.isFinite(n) ? sum + n : sum;
+  }, 0);
+
 // ── the whole balance ────────────────────────────────────────────────────────
 
 // Returns everything the card needs, including why it can't answer when it
 // can't. `reason` is the one field the UI must check first.
-export const computeLeaveBalance = ({ employment, changes = [], asOf } = {}) => {
+//
+// `adjustments` are signed day counts from crew_leave_adjustments — positive
+// grants days, negative removes them — landed in a leave year by effective_date.
+// `policy` is the vessel's leave year and carry-over cap; omitted, it is one
+// continuous period with nothing forfeited.
+export const computeLeaveBalance = ({
+  employment, changes = [], adjustments = [], policy, asOf,
+} = {}) => {
   const asOfIso = String(asOf || new Date().toISOString()).slice(0, 10);
   const ent = annualEntitlement(employment || {});
+  const pol = normalisePolicy(policy);
   const startIso = employment?.start_date ? String(employment.start_date).slice(0, 10) : null;
 
-  if (!startIso) {
-    return {
-      ok: false,
-      reason: 'no-start-date',
-      ...ent,
-      asOf: asOfIso,
-      servedDays: 0, accrued: 0, taken: 0, remaining: 0,
-      onLeave: 0, rotational: 0, notCounted: 0, byStatus: {},
-    };
-  }
+  const blank = {
+    ...ent,
+    policy: pol,
+    asOf: asOfIso,
+    servedDays: 0,
+    opening: 0, accrued: 0, taken: 0, adjustments: 0, remaining: 0,
+    forfeited: 0, years: [],
+    onLeave: 0, rotational: 0, notCounted: 0, byStatus: {},
+    lifetime: { taken: 0, onLeave: 0, rotational: 0, notCounted: 0 },
+    overdrawn: false, banked: false, historyFrom: null, historyStartsLate: false,
+  };
+
+  if (!startIso) return { ok: false, reason: 'no-start-date', ...blank };
   if (toUtc(startIso) > toUtc(asOfIso)) {
-    return {
-      ok: false,
-      reason: 'not-started',
-      ...ent,
-      asOf: asOfIso, startDate: startIso,
-      servedDays: 0, accrued: 0, taken: 0, remaining: 0,
-      onLeave: 0, rotational: 0, notCounted: 0, byStatus: {},
-    };
+    return { ok: false, reason: 'not-started', ...blank, startDate: startIso };
   }
 
-  const servedDays = daysBetweenInclusive(startIso, asOfIso);
-  const accrued = accruedDays(startIso, asOfIso, ent.annualDays);
-  const t = takenDays(changes, { startIso, asOfIso, isRotational: ent.isRotational });
-  const remaining = accrued - t.taken;
+  // Walk the leave years in order, carrying a (possibly capped) closing balance
+  // into the next. With anchor 'none' this is a single open window and the loop
+  // runs once, which is why the default behaves exactly as it did before.
+  const windows = leaveYears(startIso, asOfIso, pol.anchor);
+  const years = [];
+  let opening = 0;
+  let forfeited = 0;
 
-  // The balance is only as good as the status log, and on real data that bites:
-  // a crew member on a 3:3 rotation since April 2024 with nothing logged shows
-  // 453 days accrued and none taken. Arithmetically right, practically useless.
-  // So say when a balance has banked more than a full year, which in practice
-  // means leave was taken without the status being changed in Cargo. The caller
-  // shows a caution rather than presenting the figure as settled.
+  windows.forEach((w) => {
+    const accrued = accruedDays(w.from, w.to, ent.annualDays);
+    const t = takenDays(changes, { startIso: w.from, asOfIso: w.to, isRotational: ent.isRotational });
+    const adj = adjustmentsInWindow(adjustments, w.from, w.to);
+    const closing = opening + accrued + adj - t.taken;
+
+    // Forfeiture only ever applies to a year that has actually ENDED, and only
+    // when a vessel set a cap. A debt always carries in full — capping a
+    // negative balance would quietly forgive leave someone has overdrawn.
+    let carried = closing;
+    if (w.closed && pol.carryOverMaxDays !== null && closing > pol.carryOverMaxDays) {
+      carried = pol.carryOverMaxDays;
+      forfeited += closing - carried;
+    }
+
+    years.push({
+      from: w.from, to: w.to, closed: w.closed,
+      opening, accrued, taken: t.taken, adjustments: adj, closing, carried,
+      forfeited: closing - carried,
+    });
+    if (w.closed) opening = carried;
+  });
+
+  const cur = years[years.length - 1];
+  const life = takenDays(changes, { startIso, asOfIso, isRotational: ent.isRotational });
+  const curAway = takenDays(changes, {
+    startIso: cur.from, asOfIso: cur.to, isRotational: ent.isRotational,
+  });
+
+  const remaining = cur.closing;
   const banked = remaining > ent.annualDays;
-
-  // When the status log starts long after the contract did, everything before
-  // it is invisible to the count — worth showing alongside the number.
   const firstChange = (changes || [])
     .filter((c) => c && c.changed_at)
     .map((c) => String(c.changed_at).slice(0, 10))
@@ -227,24 +318,35 @@ export const computeLeaveBalance = ({ employment, changes = [], asOf } = {}) => 
     ok: true,
     reason: null,
     ...ent,
+    policy: pol,
     asOf: asOfIso,
     startDate: startIso,
-    servedDays,
-    accrued,
-    taken: t.taken,
-    // Can go negative — someone who has taken more than they've accrued is a
-    // real and important state, so it is shown rather than clamped to zero.
+    servedDays: daysBetweenInclusive(startIso, asOfIso),
+
+    // The current leave year (or the whole service, with anchor 'none').
+    yearFrom: cur.from,
+    yearTo: cur.to,
+    opening: cur.opening,
+    accrued: cur.accrued,
+    taken: cur.taken,
+    adjustments: cur.adjustments,
     remaining,
     overdrawn: remaining < 0,
+    forfeited,
+    years,
+
+    onLeave: curAway.onLeave,
+    rotational: curAway.rotational,
+    notCounted: curAway.notCounted,
+    byStatus: curAway.byStatus,
+    lifetime: {
+      taken: life.taken, onLeave: life.onLeave,
+      rotational: life.rotational, notCounted: life.notCounted,
+    },
+
     banked,
     historyFrom: firstChange,
-    // True when the log cannot possibly cover the service — the figure is a
-    // lower bound on leave taken, not a settled balance.
     historyStartsLate: !!(firstChange && firstChange > startIso),
-    onLeave: t.onLeave,
-    rotational: t.rotational,
-    notCounted: t.notCounted,
-    byStatus: t.byStatus,
   };
 };
 
