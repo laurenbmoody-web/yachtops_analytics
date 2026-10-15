@@ -8,6 +8,7 @@ import Select from '../../components/ui/Select';
 import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
 import QuickEntryModal from './components/QuickEntryModal';
+import LeaveBalanceCard from './components/LeaveBalanceCard';
 import BreachNotesModal from './components/BreachNotesModal';
 import HORHybridLog from './components/HORHybridLog';
 import StatusHistoryTab from './components/StatusHistoryTab';
@@ -4200,6 +4201,9 @@ const canEdit = isOwnProfile || isVesselAdmin || currentUserPermissionTier === '
                     <input className="cp-inline-box" type="number" min="0" placeholder="/ days" value={empForm.leave_entitlement_days ?? ''} onChange={(e) => setE('leave_entitlement_days', e.target.value)} />)}
                   {fld('Notice period', empForm.notice_period, txt('notice_period', 'e.g. 1 month'))}
                 </div>
+                {/* Derived from the entitlement / rotation above plus the status
+                    log — read-only, so it stays out of the edit grid. */}
+                <LeaveBalanceCard tenantId={activeTenantId} userId={crewId} />
               </div>
 
               {compForm !== null && (
