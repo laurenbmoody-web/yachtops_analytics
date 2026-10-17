@@ -273,6 +273,13 @@
 }
 .sib-sb-stat.primary .n { color: #C65A1A; }
 .sib-sb-stat.ashore .n { color: #8B8478; }
+.sib-sb-exit {
+  position: absolute; top: calc(env(safe-area-inset-top, 0px) + 16px); right: 16px;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 999px; border: 1px solid #E5E7EB; background: #FFFFFF;
+  font: 600 13px 'Inter', system-ui, sans-serif; color: #6B7280; cursor: pointer;
+}
+.sib-sb-exit:hover { color: #1C1B3A; border-color: #AEB4C2; }
 .sib-sb-cta { position: absolute; bottom: clamp(22px, 4vw, 48px); left: 0; right: 0; display: flex; justify-content: center; }
 .sib-sb-tap {
   display: inline-flex; align-items: center; gap: 8px;
@@ -521,4 +528,7 @@
   .sib-standby-btn { padding: 0 12px; }
   .sib-standby-btn .lbl { display: none; }
   .sib-add-btn .lbl { display: none; }
+  .sibq-top { padding-top: calc(env(safe-area-inset-top, 0px) + 14px); }
+  .sibq-actions { flex-wrap: wrap; gap: 8px; flex: 1 1 100%; }
+  .sibq-btn { height: 40px; padding: 0 12px; font-size: 13px; }
 }

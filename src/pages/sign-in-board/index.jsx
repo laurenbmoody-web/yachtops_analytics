@@ -128,6 +128,9 @@ const SignInBoard = () => {
   const [expectedVisitors, setExpectedVisitors] = useState([]); // pre-registered expected visitors
   const [fromExpected, setFromExpected] = useState(null); // expected id being signed in
   const pollRef = useRef(null);
+  // Taps made on this device, kept briefly so a board refresh that was already
+  // in flight (poll, focus) can't put back the old status and count.
+  const localFlips = useRef({});
 
   // Load recent (not-present) visitors when the Add panel opens, for one-tap return.
   useEffect(() => {
@@ -160,7 +163,12 @@ const SignInBoard = () => {
         fetchContractorsOnBoard(activeTenantId),
         fetchExpectedVisitors(activeTenantId),
       ]);
-      setCrew(c); setGuests(g); setContractors(k); setExpectedVisitors(ex);
+      const fresh = Date.now() - 30000;
+      setCrew(c.map((m) => {
+        const f = localFlips.current[m.userId];
+        return f && f.at > fresh ? { ...m, status: f.status } : m;
+      }));
+      setGuests(g); setContractors(k); setExpectedVisitors(ex);
     } catch { /* keep last-known board on a transient failure */ }
     finally { setLoading(false); }
   }, [activeTenantId]);
@@ -204,13 +212,16 @@ const SignInBoard = () => {
     if (pending[key]) return;
     const next = flip(m.status);
     setCrew((cur) => cur.map((x) => (x.userId === m.userId ? { ...x, status: next } : x)));
+    localFlips.current[m.userId] = { status: next, at: Date.now() };
     mark(key, true);
     try {
       await setPresence(activeTenantId, m.userId, next, meId, { source: kiosk ? 'entryway' : 'board', subjectName: m.name });
       setFaceNotice('');
       flashConfirm(m.name, next === ABOARD);
+      load();
     }
     catch (e) {
+      delete localFlips.current[m.userId];
       setCrew((cur) => cur.map((x) => (x.userId === m.userId ? { ...x, status: m.status } : x)));
       showToast(/row-level|denied|policy/i.test(e?.message || '') ? 'This device can only sign the logged-in person in/out.' : 'Could not update — try again', 'error');
     } finally { mark(key, false); }
@@ -657,6 +668,11 @@ const SignInBoard = () => {
             {crewAshore > 0 && <div className="sib-sb-stat ashore"><span className="n">{crewAshore}</span><span className="l">Ashore</span></div>}
           </div>
         </div>
+        {!kiosk && (
+          <button type="button" className="sib-sb-exit" onClick={(e) => { e.stopPropagation(); setDoorView(null); }}>
+            <Icon name="X" size={15} /> Exit standby
+          </button>
+        )}
         <div className="sib-sb-cta">
           <span className="sib-sb-tap">
             <Icon name={faceOn ? 'Camera' : 'Hand'} size={16} />
@@ -801,6 +817,11 @@ const SignInBoard = () => {
             <button type="button" className="sibq-btn" onClick={() => setDoorView('glance')}>
               <Icon name="Monitor" size={15} /> Standby
             </button>
+            {!kiosk && (
+              <button type="button" className="sibq-btn" onClick={() => setDoorView(null)}>
+                <Icon name="X" size={15} /> Exit
+              </button>
+            )}
           </div>
         </div>
         {scanOpen && <DoorScanModal onClose={() => setScanOpen(false)} onDetect={handleScan} />}
