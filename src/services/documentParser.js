@@ -1,6 +1,6 @@
 /**
  * Document Parser Service
- * Uses OpenAI (via AWS Lambda) to extract structured data from uploaded documents.
+ * Uses Claude (via the ai-chat edge function) to extract structured data from uploaded documents.
  * Supports PDFs, images, and text-based files.
  *
  * Usage:
@@ -9,8 +9,8 @@
 
 import { getChatCompletion } from './aiIntegrations/chatCompletion';
 
-const PROVIDER = 'OPEN_AI';
-const MODEL = 'gpt-4o'; // gpt-4o supports multimodal (text + vision + PDF)
+const PROVIDER = 'ANTHROPIC'; // ignored by ai-chat; kept for the call signature
+const MODEL = 'claude'; // ignored by ai-chat; kept for the call signature
 
 /**
  * Convert a File object to a base64 data URI.
@@ -27,13 +27,46 @@ export async function fileToBase64DataUri(file) {
 }
 
 /**
+ * Pull the JSON out of a model reply. Strips ``` fences and any sentence the
+ * model adds before or after the object/array, so JSON.parse sees only JSON.
+ * @param {string} raw
+ * @returns {string}
+ */
+export function extractJsonText(raw) {
+  const text = String(raw || '').replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
+  const start = text.search(/[[{]/);
+  if (start < 0) return text;
+  // Walk to the bracket that closes the first object/array, ignoring brackets
+  // inside strings, so a trailing note like "see {x}" can't break the parse.
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{' || ch === '[') depth += 1;
+    else if (ch === '}' || ch === ']') {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return text.slice(start);
+}
+
+/**
  * Generic document parser.
- * Sends a file + instruction prompt to OpenAI and returns the raw text response.
+ * Sends a file + instruction prompt to the AI and returns the raw text response.
  *
  * @param {File} file - The document file to parse
  * @param {string} prompt - Instruction for what to extract
- * @param {object} [options] - Optional OpenAI parameters
- * @returns {Promise<string>} Raw text response from OpenAI
+ * @param {object} [options] - Optional model parameters
+ * @returns {Promise<string>} Raw text response from the AI
  */
 export async function parseDocument(file, prompt, options = {}) {
   if (!file) throw new Error('No file provided for parsing');
@@ -75,7 +108,7 @@ export async function parseDocument(file, prompt, options = {}) {
 
   // getChatCompletion returns the full SDK response object
   const content = response?.choices?.[0]?.message?.content;
-  if (!content) throw new Error('No content returned from OpenAI');
+  if (!content) throw new Error('No content returned from the AI');
   return content;
 }
 
@@ -103,14 +136,14 @@ Return ONLY valid JSON array, no markdown, no explanation. Example:
   const rawText = await parseDocument(file, prompt);
 
   // Strip markdown code fences if present
-  const cleaned = rawText?.replace(/```json\n?/gi, '')?.replace(/```\n?/g, '')?.trim();
+  const cleaned = extractJsonText(rawText);
 
   try {
     const parsed = JSON.parse(cleaned);
     if (!Array.isArray(parsed)) throw new Error('Expected JSON array');
     return parsed;
   } catch {
-    throw new Error(`Failed to parse OpenAI response as JSON. Raw response: ${rawText.slice(0, 200)}`);
+    throw new Error(`Failed to parse AI response as JSON. Raw response: ${rawText.slice(0, 200)}`);
   }
 }
 
@@ -138,7 +171,7 @@ Return an object with:
 Return ONLY valid JSON, no markdown, no explanation.`;
 
   const rawText = await parseDocument(file, prompt);
-  const cleaned = rawText?.replace(/```json\n?/gi, '')?.replace(/```\n?/g, '')?.trim();
+  const cleaned = extractJsonText(rawText);
 
   try {
     return JSON.parse(cleaned);
@@ -169,7 +202,7 @@ Return an object with:
 Return ONLY valid JSON, no markdown, no explanation.`;
 
   const rawText = await parseDocument(file, prompt);
-  const cleaned = rawText?.replace(/```json\n?/gi, '')?.replace(/```\n?/g, '')?.trim();
+  const cleaned = extractJsonText(rawText);
 
   try {
     return JSON.parse(cleaned);
@@ -239,7 +272,7 @@ RULES — follow exactly:
 Return ONLY valid JSON, no markdown, no explanation.`;
 
   const rawText = await parseDocument(file, prompt);
-  const cleaned = rawText?.replace(/```json\n?/gi, '')?.replace(/```\n?/g, '')?.trim();
+  const cleaned = extractJsonText(rawText);
 
   let parsed;
   try {

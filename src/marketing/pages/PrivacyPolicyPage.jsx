@@ -66,9 +66,8 @@ const EXTENSION_PERMISSIONS = [
 const SERVICE_PROVIDERS = [
   { name: 'Supabase', role: 'Database, sign-in and file storage', data: 'All account and vessel data. Hosted in the EU (Ireland).' },
   { name: 'Netlify', role: 'Hosting the app and some server functions', data: 'Requests to the app, including IP address; data passed to the functions listed below.' },
-  { name: 'Anthropic', role: 'AI reading of documents and photos, drafting and insights', data: 'Crew documents (passports, IDs, visas, medical and STCW certificates), contracts, receipts, delivery notes, supplier certificates, inventory and garment photos, guest preferences and allergies, hours-of-rest summaries, messages you ask it to turn into quotes.' },
-  { name: 'OpenAI', role: 'AI reading of inventory imports, receipts and laundry photos', data: 'Inventory import files, receipts, and laundry item photos and care labels.' },
-  { name: 'Amazon Web Services', role: 'Relaying some AI requests to OpenAI', data: 'Receipts and laundry photos on their way to OpenAI. Nothing is stored.' },
+  { name: 'Anthropic', role: 'AI reading of documents and photos, drafting and insights', data: 'Crew documents (passports, IDs, visas, medical and STCW certificates), contracts, receipts, delivery notes, supplier certificates, inventory, garment and laundry photos and care labels, guest preferences and allergies, hours-of-rest summaries, messages you ask it to turn into quotes.' },
+  { name: 'OpenAI', role: 'AI reading of inventory imports', data: 'Inventory import files you upload.' },
   { name: 'Microsoft Azure', role: 'Document reading (Document Intelligence) and invoice parsing', data: 'Delivery notes, receipts, supplier invoices and price lists.' },
   { name: 'fal.ai', role: 'Image processing', data: 'Uniform and garment photos (background removal) and deck plans, only when you use those tools.' },
   { name: 'PDFShift', role: 'Creating PDF documents', data: 'Orders, invoices, receipts and delivery notes, including names, addresses and signatures.' },
@@ -244,7 +243,7 @@ const PrivacyPolicyPage = () => {
         <h3 className="mkt-archivo" style={h3Style}>International transfers</h3>
         <p className="mkt-dmsans" style={bodyStyle}>
           Our main database is in the EU. Several providers above, including Anthropic,
-          OpenAI, Amazon Web Services, Stripe, Plaid, Resend, Netlify and Google, are based in or process data in
+          OpenAI, Stripe, Plaid, Resend, Netlify and Google, are based in or process data in
           the United States. Where data leaves the UK or EEA we rely on the UK–US data bridge
           where the provider is certified, or on the standard contractual clauses approved
           for UK and EU transfers.
