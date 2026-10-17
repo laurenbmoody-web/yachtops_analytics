@@ -3,6 +3,8 @@ import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 
 import ModalShell from '../../../components/ui/ModalShell';
+import { exportInventoryTemplate } from '../utils/inventoryTemplateExport';
+import { showToast } from '../../../utils/toast';
 // ─── Build a nested tree structure from the flat folderTree map ───────────────
 function buildNestedTree(folderTree, allItems) {
   // Build item count map: fullPath -> count
@@ -227,6 +229,22 @@ const ExportInventoryModal = ({
   const [selectedKeys, setSelectedKeys] = useState(new Set());
   const [expandedKeys, setExpandedKeys] = useState(new Set());
   const [folderSearch, setFolderSearch] = useState('');
+  const [templateBusy, setTemplateBusy] = useState(false);
+
+  // Build & download a blank import template (empty, with this vessel's folders
+  // and storage locations baked in as reference tabs + drop-downs).
+  const handleDownloadTemplate = async () => {
+    if (templateBusy) return;
+    setTemplateBusy(true);
+    try {
+      await exportInventoryTemplate();
+      showToast('Blank template downloaded', 'success');
+    } catch (e) {
+      showToast(e?.message || 'Could not build the template', 'error');
+    } finally {
+      setTemplateBusy(false);
+    }
+  };
 
   // Build nested tree
   const nestedTree = useMemo(() => buildNestedTree(folderTree, allItems), [folderTree, allItems]);
@@ -577,6 +595,27 @@ const ExportInventoryModal = ({
                 includeImages ? 'translate-x-5' : 'translate-x-0'
               }`}
             />
+          </button>
+        </div>
+
+        {/* Blank template — start a list from scratch */}
+        <div className="flex items-center justify-between px-4 py-3 bg-[#FAFAF8] rounded-xl border border-dashed border-[#E5E7EB]">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-[#F1F5F9] flex items-center justify-center flex-shrink-0">
+              <Icon name="FileSpreadsheet" size={16} className="text-[#8B8478]" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-[#1C1B3A]">Blank template</p>
+              <p className="text-xs text-[#8B8478]">Empty sheet with your folders &amp; locations — fill in offline, then import</p>
+            </div>
+          </div>
+          <button
+            onClick={handleDownloadTemplate}
+            disabled={templateBusy}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[#C65A1A] bg-white border border-[#E5E7EB] rounded-xl hover:border-[#C65A1A] transition-colors disabled:opacity-60 flex-shrink-0"
+          >
+            {templateBusy ? <LogoSpinner size={14} /> : <Icon name="Download" size={14} />}
+            {templateBusy ? 'Building…' : 'Download'}
           </button>
         </div>
       </div>
