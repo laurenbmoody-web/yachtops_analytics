@@ -144,7 +144,33 @@ const Wheel = ({ items, value, onChange }) => {
   );
 };
 
+// Phone / touch: the 48-cell paint bar is too small to drag on, so "Enter
+// times" (the day builder) is the default way in when a day is opened.
+const PHONE_MQ = '(max-width: 768px), (pointer: coarse)';
+const useIsPhone = () => {
+  const [isPhone, setIsPhone] = useState(() => {
+    try { return window.matchMedia(PHONE_MQ).matches; } catch { return false; }
+  });
+  useEffect(() => {
+    let mq;
+    try { mq = window.matchMedia(PHONE_MQ); } catch { return undefined; }
+    const onChange = (e) => setIsPhone(e.matches);
+    if (mq.addEventListener) mq.addEventListener('change', onChange); else mq.addListener(onChange);
+    return () => { if (mq.removeEventListener) mq.removeEventListener('change', onChange); else mq.removeListener(onChange); };
+  }, []);
+  return isPhone;
+};
+
+// Existing segments → day-builder rows (so editing on phone starts from what's
+// already logged / rostered, not a blank 08:00–12:00).
+const segsToRows = (segs, types) => segmentsToTypedBlocks(segs, types).map((b) => ({
+  type: b.type || 'duty',
+  sH: Math.floor(b.s), sM: b.s % 1 ? 30 : 0,
+  eH: Math.floor(b.e), eM: b.e % 1 ? 30 : 0,
+}));
+
 const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthChange, onChanged, readOnly = false }) => {
+  const isPhone = useIsPhone();
   const [selectedDate, setSelectedDate] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [brush, setBrush] = useState('duty');
@@ -158,6 +184,11 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
   const [draftSegs, setDraftSegs] = useState(() => new Set());
   const [draftTypes, setDraftTypes] = useState({});
   const painting = useRef(false);
+  const lastPainted = useRef(-1);
+  // True when the builder was pre-filled with the day's existing segments —
+  // saving then replaces the day (so removing a row removes that time) rather
+  // than merging onto it.
+  const replaceOnSave = useRef(false);
   const dirty = useRef(false);
   const draftRef = useRef({ segs: new Set(), types: {} });
   const rowRefs = useRef({});
@@ -215,6 +246,8 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     dirty.current = false;
     const el = rowRefs.current[selectedDate];
     if (el?.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    // Phone: open straight into "Enter times", pre-filled with the day.
+    if (isPhone && !readOnly) openBuilder(segsByDate[selectedDate] || [], typesByDate[selectedDate] || {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
@@ -285,6 +318,56 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     });
   };
 
+  // Open the day builder. With `segs` it pre-fills from those segments and the
+  // save replaces the day; without, it starts with one blank 08:00–12:00 row
+  // that merges onto the day (the original desktop behaviour).
+  function openBuilder(segs, types) {
+    const pre = segs ? segsToRows(segs, types) : [];
+    replaceOnSave.current = !!segs;
+    setRows(pre.length ? pre : [{ type: brush, sH: 8, sM: 0, eH: 12, eM: 0 }]);
+    setActiveRow(0);
+    setActiveField('start');
+    setShowApply(false);
+    setSavingTpl(false);
+    setShowWheel(true);
+  }
+
+  // Touch drag-painting: pointer events + elementFromPoint, so a finger can
+  // sweep across the bar (mouse keeps the per-cell handlers below).
+  const segFromPoint = (x, y) => {
+    const el = document.elementFromPoint(x, y);
+    const v = el?.getAttribute?.('data-seg');
+    return v == null ? -1 : Number(v);
+  };
+  const onPaintPointerDown = (e) => {
+    if (e.pointerType === 'mouse' || readOnly) return;
+    const i = segFromPoint(e.clientX, e.clientY);
+    if (i < 0) return;
+    e.preventDefault(); // suppress the compat mousedown that would re-paint
+    painting.current = true;
+    lastPainted.current = i;
+    applyBrush(i);
+  };
+  const onPaintPointerMove = (e) => {
+    if (e.pointerType === 'mouse' || !painting.current) return;
+    const i = segFromPoint(e.clientX, e.clientY);
+    if (i < 0 || i === lastPainted.current) return;
+    // Fill any cells skipped by a fast swipe.
+    const from = lastPainted.current;
+    if (from >= 0) {
+      const step = i > from ? 1 : -1;
+      for (let k = from + step; k !== i; k += step) applyBrush(k);
+    }
+    lastPainted.current = i;
+    applyBrush(i);
+  };
+  const onPaintPointerUp = (e) => {
+    if (e.pointerType === 'mouse') return;
+    painting.current = false;
+    lastPainted.current = -1;
+    if (dirty.current) { dirty.current = false; persistDraft(); }
+  };
+
   // Day-builder helpers — segment index from a row's start/end.
   const rowStartSeg = (r) => r.sH * 2 + (r.sM >= 30 ? 1 : 0);
   const rowEndSeg = (r) => Math.min(SEG_PER_DAY, r.eH * 2 + (r.eM >= 30 ? 1 : 0));
@@ -314,8 +397,8 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     if (!rows.length || rows.some((r) => rowEndSeg(r) <= rowStartSeg(r))) {
       showToast('Each segment needs an end after its start', 'error'); return;
     }
-    const segs = new Set(draftSegs);
-    const types = { ...draftTypes };
+    const segs = replaceOnSave.current ? new Set() : new Set(draftSegs);
+    const types = replaceOnSave.current ? {} : { ...draftTypes };
     rows.forEach((r) => {
       const s = rowStartSeg(r);
       const e = rowEndSeg(r);
@@ -327,7 +410,8 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
     addWorkEntries(crewId, [{ date: selectedDate, workSegments: Array.from(segs).sort((a, b) => a - b), segmentTypes: types, source: 'edited' }]);
     afterSave();
     setShowWheel(false);
-    showToast(rows.length === 1 ? 'Added 1 segment' : `Added ${rows.length} segments`, 'success');
+    if (replaceOnSave.current) showToast('Day saved', 'success');
+    else showToast(rows.length === 1 ? 'Added 1 segment' : `Added ${rows.length} segments`, 'success');
   };
 
   const clearDay = () => {
@@ -464,13 +548,21 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
           </span>
         </div>
 
-        <div className="cp-paint" onMouseLeave={() => { painting.current = false; }}>
+        <div
+          className="cp-paint"
+          onMouseLeave={() => { painting.current = false; }}
+          onPointerDown={onPaintPointerDown}
+          onPointerMove={onPaintPointerMove}
+          onPointerUp={onPaintPointerUp}
+          onPointerCancel={onPaintPointerUp}
+        >
           {Array.from({ length: SEG_PER_DAY }).map((_, i) => {
             const onCell = draftSegs.has(i);
             const t = onCell ? (draftTypes[i] || draftTypes[String(i)] || 'duty') : null;
             return (
               <div
                 key={i}
+                data-seg={i}
                 className={`cp-paint-c${onCell ? ' on' : ''}`}
                 style={onCell ? { background: TYPE_COLOR[t] } : undefined}
                 onMouseDown={() => { painting.current = true; applyBrush(i); }}
@@ -485,7 +577,7 @@ const HORHybridLog = ({ crewId, calendarData = [], monthName, todayStr, onMonthC
           {isRota && <button type="button" className="cp-preset act" onClick={logAsRostered}>✓ Log as rostered</button>}
           <button type="button" className="cp-preset" onClick={clearDay}>Clear (off)</button>
           {cd.source === 'actual' && <button type="button" className="cp-preset" onClick={resetToBaseline}>Reset to rota</button>}
-          <button type="button" className="cp-preset" onClick={() => { setShowWheel((v) => !v); setRows([{ type: brush, sH: 8, sM: 0, eH: 12, eM: 0 }]); setActiveRow(0); setActiveField('start'); setShowApply(false); setSavingTpl(false); }}>Enter times ▾</button>
+          <button type="button" className="cp-preset" onClick={() => { if (showWheel) { setShowWheel(false); return; } if (isPhone) openBuilder(Array.from(draftSegs), draftTypes); else openBuilder(); }}>Enter times ▾</button>
           <button type="button" className="cp-preset" onClick={() => { setShowApply((v) => !v); setSavingTpl(false); setShowWheel(false); }}>Apply template ▾</button>
           <button type="button" className="cp-preset act" onClick={() => { setSavingTpl((v) => !v); setShowApply(false); setShowWheel(false); }}>+ Add template</button>
         </div>

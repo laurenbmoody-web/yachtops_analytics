@@ -1,6 +1,6 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { getRoleDisplayName, getContrastText } from '../../crew-rota/crewDisplay';
+import { getRoleDisplayName, getContrastText, getShortName } from '../../crew-rota/crewDisplay';
 import { renderStateOf, sortWithinDept, orderDepartments } from '../../crew-rota/crewOrder';
 
 // currentStatus → section. null history falls back to on-vessel
@@ -139,9 +139,9 @@ function RestLine({ crew, mode, statusLabel }) {
   const { rest24h, pastWeek, mlcWarning } = crew;
   return (
     <div className={`rota-nm-rest${mlcWarning ? ' w' : ''}`}>
-      Rest <b>{rest24h || '—'}</b>
+      <span className="rota-rest-lbl">Rest </span><b>{rest24h || '—'}</b>
       <span className="rota-pipe">·</span>
-      <b>{pastWeek || '—'}</b> / 77h
+      <b>{pastWeek || '—'}</b><span className="rota-rest-max"> / 77h</span>
     </div>
   );
 }
@@ -232,8 +232,11 @@ function CrewRow({
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onCrewClick(crew); }
         } : undefined}
       >
-        <div className="rota-nm-line">
-          <span className="rota-nm-name">{crew.name}</span>
+        <div className="rota-nm-line" title={[crew.name, getRoleDisplayName(crew.role)].filter(Boolean).join(' · ')}>
+          <span className="rota-nm-name">
+            <span className="rota-nm-full">{crew.name}</span>
+            <span className="rota-nm-short">{getShortName(crew.name)}</span>
+          </span>
           <span className="rota-dot" />
           <span className="rota-role">{getRoleDisplayName(crew.role)}</span>
           {isWarning && <MlcTriangle />}
@@ -432,6 +435,34 @@ export default function RotaTodayGrid({
   }, [setDrag]);
 
   const onCellKey = useCallback((cm, i) => { onPaint?.(cm, i, i); }, [onPaint]);
+
+  // Now-line vs sticky crew column: when the timeline is scrolled sideways
+  // the line would slide in behind the name column and peek through the
+  // gaps between rows / beside badges. Hide it whenever its x position is
+  // inside the (sticky) name column. Direct DOM write — no re-render on scroll.
+  const wrapRef = useRef(null);
+  const innerRef = useRef(null);
+  const nowLineRef = useRef(null);
+  const syncNowLine = useCallback(() => {
+    const wrap = wrapRef.current;
+    const inner = innerRef.current;
+    const line = nowLineRef.current;
+    if (!wrap || !inner || !line) return;
+    const nmW = parseFloat(getComputedStyle(inner).getPropertyValue('--rota-nm-w')) || 220;
+    const hidden = line.offsetLeft - wrap.scrollLeft < nmW;
+    line.style.visibility = hidden ? 'hidden' : '';
+  }, []);
+  useLayoutEffect(() => { syncNowLine(); });
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return undefined;
+    wrap.addEventListener('scroll', syncNowLine, { passive: true });
+    window.addEventListener('resize', syncNowLine);
+    return () => {
+      wrap.removeEventListener('scroll', syncNowLine);
+      window.removeEventListener('resize', syncNowLine);
+    };
+  }, [syncNowLine]);
   const currentSlot = showNow ? nowSlot(now, gridStartHour) : null;
   const currentHour = showNow ? now.getHours() : -1;
 
@@ -496,9 +527,10 @@ export default function RotaTodayGrid({
     : null;
 
   return (
-    <div className="rota-grid-wrap">
+    <div className="rota-grid-wrap" ref={wrapRef}>
       <div
         className="rota-grid-inner"
+        ref={innerRef}
         style={innerStyle}
         onPointerUp={editMode ? endDrag : undefined}
         onPointerLeave={editMode ? cancelDrag : undefined}
@@ -534,7 +566,7 @@ export default function RotaTodayGrid({
           onCrewClick={onCrewClick}
         />
         <TotalsRow crew={onVessel} gridStartHour={gridStartHour} />
-        {nowLineStyle && <div className="rota-now-line" style={nowLineStyle} />}
+        {nowLineStyle && <div className="rota-now-line" ref={nowLineRef} style={nowLineStyle} />}
       </div>
     </div>
   );

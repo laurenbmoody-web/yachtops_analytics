@@ -1267,7 +1267,7 @@ body.crew-profile-editorial {
   height: 38px;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid #d8d4c8;
+  border: 1px solid #E5E7EB;
   /* Vertical hairlines every 30 min (one per cell, 48 lines across).
      Heavier line every 2h so the user can roughly pin time visually
      even without the hover indicator. */
@@ -1276,18 +1276,24 @@ body.crew-profile-editorial {
       to right,
       transparent 0,
       transparent calc((100% - 0.5px) / 48),
-      #e3dfd2 calc((100% - 0.5px) / 48),
-      #e3dfd2 calc(100% / 48)
+      #EEF0F4 calc((100% - 0.5px) / 48),
+      #EEF0F4 calc(100% / 48)
     ),
     repeating-linear-gradient(
       to right,
       transparent 0,
       transparent calc((100% - 1px) / 12),
-      #c6bfa9 calc((100% - 1px) / 12),
-      #c6bfa9 calc(100% / 12)
+      #D9DCE3 calc((100% - 1px) / 12),
+      #D9DCE3 calc(100% / 12)
     ),
-    #F4F2EC;
+    #FAFAF8;
   user-select: none;
+  -webkit-user-select: none;
+  /* Finger drags paint instead of scrolling the page (pointer handlers). */
+  touch-action: none;
+}
+@media (max-width: 768px), (pointer: coarse) {
+  .crew-profile-page .cp-paint { height: 52px; border-radius: 10px; }
 }
 .crew-profile-page .cp-paint-c {
   flex: 1;
@@ -1882,4 +1888,48 @@ body.crew-profile-editorial {
   .crew-profile-page .act-col-res > * { animation: none; }
   .crew-profile-page .act-kpibar i { transition: none; }
   .crew-profile-page .act-mcell { transition: none; }
+}
+
+/* ── Phone / narrow: compact header + collapsible section rail ─────────────
+   Below 1024px the rail stacks above the content, so it becomes a one-line
+   "current section" strip that expands on tap (default collapsed). On phone
+   the identity header tightens so the selected tab is visible without
+   scrolling past a large profile block. */
+.crew-profile-page .cp-rail-strip {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 6px; border: 0; background: transparent; cursor: pointer;
+  color: #C65A1A; text-align: left; font-family: 'Inter', system-ui, sans-serif;
+}
+.crew-profile-page .cp-rail-strip-lbl {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #8B8478; flex: 0 0 auto;
+}
+.crew-profile-page .cp-rail-strip-cur {
+  font-size: 14px; font-weight: 700; color: #1C1B3A;
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.crew-profile-page .cp-rail-strip-tog {
+  display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
+  font-size: 12px; font-weight: 600; color: #C65A1A;
+  padding: 5px 10px; border-radius: 999px; background: #FBEFE9;
+}
+.crew-profile-page .cp-rail-box.narrow { padding: 8px 10px; }
+.crew-profile-page .cp-rail-box.narrow.open .cp-rail-strip {
+  border-bottom: 1px solid #F0F1F5; padding-bottom: 10px; margin-bottom: 4px;
+}
+@media (max-width: 1023px) {
+  .crew-profile-page .cp-navgrid { gap: 16px; }
+}
+@media (max-width: 768px) {
+  .crew-profile-page .cp-head { margin-bottom: 16px; }
+  .crew-profile-page .cp-head-row { flex-wrap: wrap; gap: 12px; }
+  .crew-profile-page .cp-head-id { gap: 14px; align-items: center; min-width: 0; }
+  .crew-profile-page .cp-avatar-ring,
+  .crew-profile-page .cp-avatar-ring-svg { width: 72px; height: 72px; }
+  .crew-profile-page .cp-avatar-photo { width: 60px; height: 60px; }
+  .crew-profile-page .cp-avatar-photo span { font-size: 18px; }
+  .crew-profile-page .cp-avatar-hint { display: none; }
+  .crew-profile-page .cp-head .editorial-greeting { font-size: 28px; line-height: 1.05; margin-bottom: 6px; }
+  .crew-profile-page .cp-head .editorial-meta { flex-wrap: wrap; row-gap: 2px; }
+  .crew-profile-page .cp-completion-row { margin-top: 6px; }
 }

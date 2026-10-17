@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { DEPT_ORDER, MlcTriangle } from '../trip-detail-view-with-guest-allocation/sections/SectionCrew';
 import { ON_DUTY_TYPES, assessMlc, workEntriesToShifts, mergeLoggedOverPlan } from './restHours';
-import { getContrastText, getRoleDisplayName } from './crewDisplay';
+import { getContrastText, getRoleDisplayName, getShortName } from './crewDisplay';
 import { MONTH_SHORT, MONTH_NAMES } from './MonthCalendar';
 
 // Crew × 7-day operational matrix for the rota page's Week view.
@@ -342,8 +342,11 @@ export default function CrewWeekMatrix({
                 {members.map((c) => (
                   <div key={c.id} className="cw-row">
                     <div className="cw-nm">
-                      <div className="cw-nm-line">
-                        <span className="cw-nm-name">{c.name}</span>
+                      <div className="cw-nm-line" title={[c.name, getRoleDisplayName(c.role)].filter(Boolean).join(' · ')}>
+                        <span className="cw-nm-name">
+                          <span className="cw-nm-full">{c.name}</span>
+                          <span className="cw-nm-short">{getShortName(c.name)}</span>
+                        </span>
                         <span className="cw-dot" />
                         <span className="cw-role" title={c.role || ''}>
                           {getRoleDisplayName(c.role)}

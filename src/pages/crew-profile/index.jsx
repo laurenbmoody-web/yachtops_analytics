@@ -254,6 +254,21 @@ const CrewProfile = () => {
     try { localStorage.setItem('cp-nav-collapsed', next ? '1' : '0'); } catch { /* ignore */ }
     return next;
   });
+  // Phone / narrow tablet: the left rail stacks above the content, so it
+  // collapses into a compact "current section" strip that expands on tap
+  // (default collapsed) instead of a full list the user must scroll past.
+  const NARROW_RAIL_MQ = '(max-width: 1023px)';
+  const [railNarrow, setRailNarrow] = useState(() => {
+    try { return window.matchMedia(NARROW_RAIL_MQ).matches; } catch { return false; }
+  });
+  const [railOpen, setRailOpen] = useState(false);
+  useEffect(() => {
+    let mq;
+    try { mq = window.matchMedia(NARROW_RAIL_MQ); } catch { return undefined; }
+    const onChange = (e) => setRailNarrow(e.matches);
+    if (mq.addEventListener) mq.addEventListener('change', onChange); else mq.addListener(onChange);
+    return () => { if (mq.removeEventListener) mq.removeEventListener('change', onChange); else mq.removeListener(onChange); };
+  }, []);
   const [formData, setFormData] = useState({});
   const [sameAsEmergency, setSameAsEmergency] = useState(false);
   const [showSecondEmergency, setShowSecondEmergency] = useState(false);
@@ -1422,9 +1437,9 @@ const canEdit = isOwnProfile || isVesselAdmin || currentUserPermissionTier === '
     const ringOffset = RING_C * (1 - ringPct / 100);
 
     return (
-      <div className="mb-8">
-        <div className="flex items-start justify-between gap-6">
-          <div className="flex items-start gap-6">
+      <div className="cp-head mb-8">
+        <div className="cp-head-row flex items-start justify-between gap-6">
+          <div className="cp-head-id flex items-start gap-6">
             {/* Profile Photo — clickable upload, wrapped in the completion ring */}
             <div className="flex flex-col items-center gap-2 cp-avatar-col" ref={completionRef}>
               <div className="cp-avatar-ring">
@@ -1480,7 +1495,7 @@ const canEdit = isOwnProfile || isVesselAdmin || currentUserPermissionTier === '
                 )}
               </div>
               {canEdit && (
-                <p className="text-xs text-muted-foreground text-center max-w-[100px]">
+                <p className="cp-avatar-hint text-xs text-muted-foreground text-center max-w-[100px]">
                   Click to upload photo
                 </p>
               )}
@@ -4529,9 +4544,31 @@ const canEdit = isOwnProfile || isVesselAdmin || currentUserPermissionTier === '
           <div className={`cp-navgrid${navCollapsed ? ' collapsed' : ''}`}>
             {/* Left Navigation — grouped editorial rail (flat, no 3D edge),
                 collapsible. self-start so the rail hugs its own content. */}
-            <div className={`cp-flatcard p-3 self-start cp-rail-box${navCollapsed ? ' collapsed' : ''}`}>
-              <button type="button" className="cp-rail-edge" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'} />
-              <nav>
+            <div className={`cp-flatcard p-3 self-start cp-rail-box${navCollapsed && !railNarrow ? ' collapsed' : ''}${railNarrow ? ' narrow' : ''}${railNarrow && railOpen ? ' open' : ''}`}>
+              {railNarrow ? (() => {
+                const current = navigationSections.find((s) => s.key === activeSection);
+                return (
+                  <button
+                    type="button"
+                    className="cp-rail-strip"
+                    onClick={() => setRailOpen((o) => !o)}
+                    aria-expanded={railOpen}
+                    aria-controls="cp-rail-nav"
+                  >
+                    <span className="cp-rail-strip-lbl">Section</span>
+                    {current && <Icon name={current.icon} size={16} />}
+                    <span className="cp-rail-strip-cur">{current?.label || 'Choose a section'}</span>
+                    <span className="cp-rail-strip-tog">
+                      {railOpen ? 'Hide' : 'All sections'}
+                      <Icon name={railOpen ? 'ChevronUp' : 'ChevronDown'} size={14} />
+                    </span>
+                  </button>
+                );
+              })() : (
+                <button type="button" className="cp-rail-edge" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'} />
+              )}
+              {(!railNarrow || railOpen) && (
+              <nav id="cp-rail-nav">
                 {navGroups.map((group, gi) => {
                   // Drop a group entirely when none of its sections are visible
                   // (e.g. the Activity group off a vessel) so no orphan header shows.
@@ -4550,9 +4587,10 @@ const canEdit = isOwnProfile || isVesselAdmin || currentUserPermissionTier === '
                           onClick={() => {
                             setActiveSection(section.key);
                             setIsEditing(false);
+                            setRailOpen(false);
                           }}
                           className={`cp-nav-it${isActive ? ' active' : ''}`}
-                          title={navCollapsed ? section.label : undefined}
+                          title={navCollapsed && !railNarrow ? section.label : undefined}
                         >
                           <Icon name={section.icon} size={18} />
                           <span className="leading-tight break-words">{section.label}</span>
@@ -4563,6 +4601,7 @@ const canEdit = isOwnProfile || isVesselAdmin || currentUserPermissionTier === '
                   );
                 })}
               </nav>
+              )}
             </div>
 
             {/* Main Content */}
