@@ -34,6 +34,7 @@ import BarcodeScanModal from '../inventory/components/BarcodeScanModal';
 import SortableWidget from './components/SortableWidget';
 import DashboardEditBar from './components/DashboardEditBar';
 import ProvisioningWidget from './components/ProvisioningWidget';
+import DefectsWidget from './components/DefectsWidget';
 import PantryWidget from './components/PantryWidget';
 import FridgeTempWidget from './components/FridgeTempWidget';
 import SetupTasksWidget from './components/SetupTasksWidget';
@@ -362,6 +363,8 @@ const Dashboard = () => {
         return <VesselDocRenewalsWidget />;
       case 'provisioning':
         return <ProvisioningWidget />;
+      case 'defects':
+        return <DefectsWidget />;
       case 'pantry':
         return <PantryWidget />;
       case 'fridgeTemps':

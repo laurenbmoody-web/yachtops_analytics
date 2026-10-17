@@ -92,6 +92,12 @@ export const WIDGET_META = {
     allowedTiers: WIDGET_PERMISSIONS.ALL,
     defaultColumn: 'right',
   },
+  defects: {
+    id: 'defects',
+    title: 'Defects',
+    allowedTiers: WIDGET_PERMISSIONS.ALL,
+    defaultColumn: 'center',
+  },
   provisioning: {
     id: 'provisioning',
     title: 'Provisioning',
@@ -120,6 +126,6 @@ export const WIDGET_META = {
 
 export const DEFAULT_LAYOUT = {
   left:   ['setupTasks', 'signInOut', 'teamJobs', 'rota', 'hoursOfRest', 'todaySnapshot', 'recentActivity'],
-  center: ['vesselStatus', 'vesselView', 'laundry', 'quickActions', 'pantry'],
+  center: ['vesselStatus', 'vesselView', 'laundry', 'defects', 'quickActions', 'pantry'],
   right:  ['charterAccounts', 'ownerAccounts', 'inventoryHealth', 'vesselDocRenewals', 'provisioning'],
 };

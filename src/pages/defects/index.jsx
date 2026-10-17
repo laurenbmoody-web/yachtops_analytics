@@ -7,7 +7,7 @@ import { hasCommandAccess, hasChiefAccess, hasHODAccess } from '../../utils/auth
 import { getAllDefects, DefectStatus, DefectPriority, DefectDepartment, getOpenDefectsCount, getOverdueDefectsCount, getCriticalDefectsCount, getPendingDefectsForChief, acceptDefect, declineDefect, getSentByYouDefects, deletePendingDefect, archiveDeclinedDefect, normalizeDept, importLegacyDefects } from './utils/defectsStorage';
 import { useDefectActor } from './utils/useDefectActor';
 import { loadAllTypes } from './utils/defectTypeTaxonomy';
-import ReportDefectModal from './components/ReportDefectModal';
+import QuickAddDefectModal from './components/QuickAddDefectModal';
 import ViewDefectModal from './components/ViewDefectModal';
 import SnagReportModal from './components/SnagReportModal';
 import CharterReadinessBanner from './components/CharterReadinessBanner';
@@ -360,7 +360,7 @@ const DefectsDashboard = () => {
       </div>
 
       {/* Modals */}
-      {showReportModal && <ReportDefectModal onClose={() => setShowReportModal(false)} onSuccess={handleReportSuccess} />}
+      {showReportModal && <QuickAddDefectModal onClose={() => setShowReportModal(false)} onSuccess={handleReportSuccess} />}
       {showViewModal && selectedDefectId && (
         <ViewDefectModal defectId={selectedDefectId} onClose={handleCloseViewModal} onUpdate={loadDefects} />
       )}
