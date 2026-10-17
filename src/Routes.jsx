@@ -1062,6 +1062,10 @@ const Routes = () => {
       <AccessGuard />
       <RouteChangeLogger />
       <ScrollToTop />
+      {/* Lazily loaded pages (lazyWithRetry) suspend while their code
+          downloads; without a boundary here React throws #426 when one is
+          opened from a tap (e.g. the menu). */}
+      <React.Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><LogoSpinner size={40} /></div>}>
       <RouterRoutes>
         {/* Marketing Routes */}
         <Route path="/" element={<HomePage />} />
@@ -1386,6 +1390,7 @@ const Routes = () => {
         {/* Catch-all Fallback Route - Must be LAST */}
         <Route path="*" element={<NotFound />} />
       </RouterRoutes>
+      </React.Suspense>
       </ErrorBoundary>
     </BrowserRouter>
   );
