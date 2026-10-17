@@ -1,8 +1,8 @@
 // Care-label assistant — snap a garment care label and have the AI explain
 // it in plain English and suggest care tags. Reuses the app's proven vision
-// path (documentParser → gpt-4o via the chat Lambda).
+// path (documentParser → the ai-chat edge function, Claude).
 
-import { parseDocument } from '../../../services/documentParser';
+import { parseDocument, extractJsonText } from '../../../services/documentParser';
 import { availableLaundryTags } from './laundryStorage';
 
 const PROMPT = `You are a laundry care expert working in a superyacht interior.
@@ -30,7 +30,7 @@ If the image is not a care label, return {"summary":"That doesn't look like a ca
 export async function readCareLabel(file) {
   if (!file) throw new Error('No photo provided.');
   const raw = await parseDocument(file, PROMPT);
-  const cleaned = String(raw || '').replace(/```json\n?/gi, '').replace(/```\n?/g, '').trim();
+  const cleaned = extractJsonText(raw);
   let data;
   try { data = JSON.parse(cleaned); } catch { throw new Error('Could not read the label — try a clearer, closer photo.'); }
   const known = new Set(availableLaundryTags);
