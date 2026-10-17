@@ -53,7 +53,7 @@ jobs:
 
           if echo "$CHANGED_DIRS" | grep -qx '_shared'; then
             echo "Shared code changed → deploying ALL functions"
-            supabase functions deploy --project-ref "$PROJECT_ID"
+            supabase functions deploy --use-api --project-ref "$PROJECT_ID"
             exit 0
           fi
 
@@ -70,5 +70,7 @@ jobs:
               continue
             fi
             echo "── Deploying $fn"
-            supabase functions deploy "$fn" --project-ref "$PROJECT_ID"
+            # --use-api bundles on Supabase's side: no Docker image pull, which
+            # failed on 2026-10-17 with "toomanyrequests: Data limit exceeded".
+            supabase functions deploy "$fn" --use-api --project-ref "$PROJECT_ID"
           done

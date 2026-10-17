@@ -9,6 +9,8 @@
 // is pushed once (pushed_at), and only while it is fresh, so a caller can't
 // use this to send arbitrary messages.
 //
+// Pushes open /cargo/security (Cargo internal → Security alerts).
+//
 // Secrets: see _shared/push.ts (VAPID_* for web, APNS_* for iOS,
 // FCM_SERVICE_ACCOUNT for Android).
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
