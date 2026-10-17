@@ -1126,7 +1126,9 @@
   bottom: 0;
   width: 1.5px;
   background: #C65A1A;
-  z-index: 3;
+  /* Below every sticky name-column layer (z 2–5) so it can never paint
+     over crew names; RotaTodayGrid also hides it once it scrolls under. */
+  z-index: 1;
   pointer-events: none;
   opacity: 0.5;
 }
@@ -4347,3 +4349,80 @@
 .cov-btn.primary:disabled { opacity: 0.4; cursor: default; }
 .cov-btn.ghost { background: transparent; color: #1C1B3A; }
 .cov-btn.ghost:hover { background: #FAFAF7; }
+
+/* ============================================================
+   Compact name labels — full "Name · Role" on wide screens, the
+   short "J. Whitfield" variant only on phones (see below).
+   ============================================================ */
+.rota-nm-short,
+.cw-nm-short { display: none; }
+
+/* ============================================================
+   Phone (≤640px) — day grid + week matrix
+   Narrow sticky crew column (short name, no role) so the timeline
+   gets the screen; tighter cells; name column stays opaque and on
+   top of everything that scrolls beneath it.
+   ============================================================ */
+@media (max-width: 640px) {
+  /* Day grid. !important beats the adaptive inline --rota-nm-w the
+     component sets from the longest name; the now-line maths reads the
+     same var so it stays aligned. */
+  .rota-grid-inner {
+    --rota-nm-w: 116px !important;
+    min-width: 900px;
+  }
+  .rota-hour-spacer { padding: 0 8px; }
+  .rota-nm {
+    padding: 8px 8px;
+    height: 48px;
+    box-shadow: 0 2px 0 #FFFFFF;
+  }
+  .rota-c { height: 48px; }
+  .rota-nm-full,
+  .rota-dot,
+  .rota-role { display: none; }
+  .rota-nm-short { display: inline; }
+  .rota-nm-line { overflow: hidden; }
+  .rota-nm-name {
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .rota-nm-rest { font-size: 10px; white-space: nowrap; }
+  .rota-rest-lbl,
+  .rota-rest-max { display: none; }
+  .rota-pipe { margin: 0 3px; }
+  .rota-totals-label { padding: 4px 8px; font-size: 10px; }
+  .rota-dept-badge { margin-left: 8px; }
+
+  /* Week matrix. Var set on the card so the absolutely-positioned left
+     chevron and the grid columns agree. */
+  .cw-card { --cw-nm-w: 112px; }
+  .cw-grid-inner { min-width: 640px; }
+  .cw-head-spacer { padding: 0 8px; }
+  .cw-nm {
+    padding: 8px 8px;
+    min-height: 48px;
+    box-shadow: 0 2px 0 #FFFFFF;
+  }
+  .cw-nm-full,
+  .cw-dot,
+  .cw-role { display: none; }
+  .cw-nm-short { display: inline; }
+  .cw-nm-line { overflow: hidden; }
+  .cw-nm-name {
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .cw-day-head { padding: 2px 2px 4px; }
+  .cw-day-head-num { font-size: 16px; }
+  .cw-c {
+    min-height: 48px;
+    padding: 6px 6px;
+  }
+  .cw-c-ranges { font-size: 11px; }
+  .cw-c-meta { font-size: 9px; gap: 4px; }
+}

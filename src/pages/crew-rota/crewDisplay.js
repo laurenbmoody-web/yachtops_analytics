@@ -157,3 +157,12 @@ export function getContrastText(hex) {
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return luminance > 0.5 ? '#000' : '#fff';
 }
+
+// Compact crew label for narrow (phone) name columns: first initial +
+// surname, e.g. "James Whitfield" → "J. Whitfield". Single-word names
+// pass through unchanged.
+export function getShortName(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return parts[0] || '';
+  return `${parts[0].charAt(0).toUpperCase()}. ${parts[parts.length - 1]}`;
+}
