@@ -877,7 +877,10 @@ const TeamJobsManagement = () => {
 
     const insertPayload = {
       tenant_id: activeTenantId, title, created_by: userId,
-      status: 'pending', assigned_to: assignedTo, priority: null, is_private: isPrivate
+      status: 'pending', assigned_to: assignedTo, priority: null, is_private: isPrivate,
+      // A private job must say whose it is (check_private_job_visibility), or
+      // the insert is refused — every crew quick-add was failing on this.
+      visible_to_user_id: isPrivate ? userId : null
     };
     if (departmentId && isValidUUID(departmentId)) insertPayload.department_id = departmentId;
     if (boardId && isValidUUID(boardId)) insertPayload.board_id = boardId;
@@ -1646,6 +1649,8 @@ const TeamJobsManagement = () => {
         if (boardId && isValidUUID(boardId)) insertPayload.board_id = boardId;
         if (departmentId && isValidUUID(departmentId)) insertPayload.department_id = departmentId;
         if (taskData?.dueDate) insertPayload.due_date = taskData?.dueDate;
+        // Private jobs must name their owner (check_private_job_visibility).
+        if (insertPayload.is_private) insertPayload.visible_to_user_id = userId;
 
         const { data: insertedJob, error: insertError } = await insertJobRow(insertPayload);
         if (insertError) {
