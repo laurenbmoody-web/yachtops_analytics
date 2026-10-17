@@ -338,7 +338,11 @@ const itemToRow = (item, tenantId) => ({
   l2_name: item?.l2Name || null,
   l3_name: item?.l3Name || null,
   l4_name: item?.l4Name || null,
-  usage_department: item?.usageDepartment || 'INTERIOR',
+  // Derived in the database from the item's root folder, by the
+  // inventory_items_sync_usage_department trigger — RLS gates reads on it, and
+  // the folder is the authority for which department owns an item. Sending it
+  // from here is pointless (the trigger overwrites it) and defaulting it to
+  // 'INTERIOR', as this did, labelled the whole fleet's stock as Interior's.
   stock_locations: item?.stockLocations || [],
   par_level: item?.parLevel ?? null,
   reorder_point: item?.reorderPoint ?? null,
@@ -763,7 +767,10 @@ export const saveItem = async (itemData, { dedupe = false, force = false } = {})
         actorName: actorDisplay,
         actorDepartment: currentUser?.department || 'UNKNOWN',
         actorRoleTier: currentUser?.tier || 'CREW',
-        departmentScope: savedItem?.usageDepartment || 'INTERIOR',
+        // usage_department is derived from the folder and is null for folders
+        // that are not departments (Archive, Unfiled). Say so rather than
+        // stamping 'INTERIOR' on it — this is an audit trail.
+        departmentScope: savedItem?.usageDepartment || 'UNRESTRICTED',
         module: 'inventory',
         action: isUpdate ? InventoryActions?.ITEM_UPDATED : InventoryActions?.ITEM_CREATED,
         entityType: 'inventoryItem',

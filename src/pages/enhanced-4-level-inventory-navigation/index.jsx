@@ -3101,9 +3101,15 @@ const LocationFirstInventory = () => {
         });
 
         // Command, Chief and Bridge see the lot; everyone else gets their own
-        // department. HOD and Crew were two identical branches, so they are one.
+        // department, plus any root folder that is not a department at all
+        // (Archive, Unfiled) — items there are unrestricted in RLS, so hiding
+        // the folder would leave them readable but unreachable. HOD and Crew
+        // were two identical branches, so they are one.
         if (!seesEveryDepartment) {
-          rootFolders = visibleRootFolders(rootFolders, { department: userDepartment });
+          rootFolders = visibleRootFolders(rootFolders, {
+            department: userDepartment,
+            departments: deptSource,
+          });
         }
 
         // Ensure any location present in actual items is surfaced as a root folder,

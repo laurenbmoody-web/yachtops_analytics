@@ -45,13 +45,28 @@ export const hasWholeVesselInventory = ({ tier, department } = {}) =>
 // deliberate and matches the behaviour this replaced: a half-loaded profile must
 // not briefly hand someone the whole vessel. Failing closed shows an empty grid,
 // which is recoverable; failing open is a privilege leak that nobody sees.
-export const visibleRootFolders = (folders, { tier, department } = {}) => {
+//
+// `departments` is the vessel's department names. Pass it and a root folder that
+// is NOT a department (Archive, Unfiled, anything hand-made) is shown to
+// everyone, because the items in it derive a null usage_department and RLS
+// treats those as unrestricted — see inventory_department_for_location in SQL.
+// Leave it out and only the member's own department folder is offered, which is
+// narrower than RLS allows and so still safe.
+export const visibleRootFolders = (folders, { tier, department, departments } = {}) => {
   const list = (Array.isArray(folders) ? folders : []).filter(Boolean);
   if (hasWholeVesselInventory({ tier, department })) return list;
 
   const dept = norm(department);
   if (!dept) return [];
-  return list.filter((folder) => norm(folder) === dept);
+
+  const deptNames = (Array.isArray(departments) ? departments : [])
+    .filter(Boolean)
+    .map(norm);
+  const isDepartmentFolder = (folder) => deptNames.includes(norm(folder));
+
+  return list.filter(
+    (folder) => norm(folder) === dept || (deptNames.length > 0 && !isDepartmentFolder(folder)),
+  );
 };
 
 // For the one-line explanation the page shows when the grid is scoped.
