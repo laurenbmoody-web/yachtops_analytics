@@ -8,6 +8,7 @@ private let cargoCanvas = UIColor(red: 0xF8 / 255.0, green: 0xFA / 255.0, blue: 
 class MainViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(CargoPrintPlugin())
+        bridge?.registerPluginInstance(CargoGuardPlugin())
     }
 
     override func viewDidLoad() {

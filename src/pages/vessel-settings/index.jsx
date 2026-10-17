@@ -15,6 +15,7 @@ import LocationsManagementSettings from '../locations-management-settings';
 
 import RoleManagement from '../crew-management/components/RoleManagement';
 import CharterBillingSettings from './components/CharterBillingSettings';
+import AccessSecuritySettings from './components/AccessSecuritySettings';
 import { useAuth } from '../../contexts/AuthContext';
 import { logActivity } from '../../utils/activityStorage';
 import '../../styles/editorial.css';
@@ -548,6 +549,7 @@ const VesselSettings = () => {
     { id: 'role-management', label: 'Role Management', icon: 'Users' },
     { id: 'provisioning-approval', label: 'Provisioning Approval', icon: 'CheckCircle' },
     { id: 'charter-billing', label: 'Charter Billing', icon: 'Receipt' },
+    { id: 'access-security', label: 'Access & Security', icon: 'ShieldCheck' },
   ];
 
   const renderContent = () => {
@@ -581,6 +583,10 @@ const VesselSettings = () => {
     } else if (activeSection === 'charter-billing') {
       return (
         <CharterBillingSettings canEdit={canEdit} />
+      );
+    } else if (activeSection === 'access-security') {
+      return (
+        <AccessSecuritySettings tenantId={vesselData?.id} canEdit={canEdit} />
       );
     }
   };

@@ -1,0 +1,45 @@
+/* Beta terms gate — full-screen, above everything, editorial system. */
+.ag-overlay {
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(28, 27, 58, 0.45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.ag-panel {
+  width: 100%; max-width: 560px; max-height: 100%;
+  display: flex; flex-direction: column;
+  background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  padding: 22px 22px 18px;
+  font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A;
+}
+.ag-caps {
+  margin: 0; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #C65A1A;
+}
+.ag-title {
+  margin: 6px 0 12px; font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 26px; font-weight: 400; line-height: 1.15;
+}
+.ag-body {
+  flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  border-top: 1px solid #F0F1F5; border-bottom: 1px solid #F0F1F5; padding: 12px 2px;
+}
+.ag-intro { margin: 0 0 12px; font-size: 14px; line-height: 1.5; color: #1C1B3A; }
+.ag-sec { padding: 10px 0; border-top: 1px solid #F0F1F5; }
+.ag-sec h2 {
+  margin: 0 0 6px; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
+}
+.ag-sec p { margin: 0 0 6px; font-size: 13px; line-height: 1.5; color: #4B5060; }
+.ag-err { margin: 10px 0 0; font-size: 13px; color: #B23B2E; }
+.ag-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+.ag-btn {
+  height: 42px; padding: 0 18px; border-radius: 10px; font: 600 14px 'Inter', system-ui, sans-serif; cursor: pointer;
+}
+.ag-btn.primary { background: #C65A1A; color: #FFFFFF; border: 1px solid #C65A1A; }
+.ag-btn.primary:hover { background: #B14E16; }
+.ag-btn.ghost { background: #FFFFFF; color: #1C1B3A; border: 1px solid #E5E7EB; }
+.ag-btn:disabled { opacity: 0.6; cursor: default; }
+@media (max-width: 480px) {
+  .ag-actions .ag-btn { flex: 1 1 100%; }
+  .ag-actions .ag-btn.primary { order: -1; }
+}
