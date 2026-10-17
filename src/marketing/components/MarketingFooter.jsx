@@ -18,6 +18,7 @@ const COLUMNS = [
       { label: 'FAQ', href: '/faq' },
       { label: 'Contact', href: '/contact' },
       { label: 'Privacy Policy', href: '/privacy' },
+      { label: 'Terms of Service', href: '/terms' },
     ],
   },
   {
@@ -124,8 +125,10 @@ const MarketingFooter = () => (
         className="flex flex-col sm:flex-row justify-between items-center gap-3"
         style={{ marginTop: 48, paddingTop: 20, borderTop: '1px solid #E2E8F0' }}
       >
-        <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 12, color: '#64748B' }}>
-          &copy; {new Date().getFullYear()} Cargo. All rights reserved.
+        <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 12, color: '#64748B', lineHeight: 1.6 }}>
+          &copy; {new Date().getFullYear()} Cargo Technology Ltd. All rights reserved.
+          <br />
+          Registered in England and Wales, company no. 17525300. Registered office: 71-75 Shelton Street, Covent Garden, London, WC2H 9JQ.
         </p>
         <p className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 12, color: '#64748B' }}>
           Built for real yacht operations.
