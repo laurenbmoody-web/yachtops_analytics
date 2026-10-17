@@ -8,7 +8,7 @@ class ErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
-    return { hasError: true };
+    return { hasError: true, message: String(error?.message || error || '').slice(0, 300) };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -33,6 +33,12 @@ class ErrorBoundary extends React.Component {
             <div className="flex flex-col gap-1 text-center">
               <h1 className="text-2xl font-medium text-neutral-800">Something went wrong</h1>
               <p className="text-neutral-600 text-base w w-8/12 mx-auto">We encountered an unexpected error while processing your request.</p>
+              {/* The actual error, small, so a screenshot of this screen says what broke. */}
+              {this.state?.message && (
+                <p className="text-neutral-400 text-xs mt-3 break-words" style={{ fontFamily: 'ui-monospace, Menlo, monospace' }}>
+                  {window.location.pathname} · {this.state.message}
+                </p>
+              )}
             </div>
             <div className="flex justify-center items-center mt-6">
               <button
