@@ -8,7 +8,8 @@ export const BETA_TERMS_VERSION = '2026-10-17';
 export const BETA_TERMS_TITLE = 'Cargo beta tester terms';
 
 export const BETA_TERMS_INTRO =
-  'You are using a pre-release (beta) version of Cargo, provided by Cargo Technology ("we", "us"). '
+  'You are using a pre-release (beta) version of Cargo, provided by Cargo Technology Ltd, a company registered '
+  + 'in England and Wales with company number 17525300 ("we", "us"). '
   + 'Please read these terms. By tapping "I agree" you accept them for as long as you use the beta.';
 
 export const BETA_TERMS_SECTIONS = [
@@ -37,7 +38,7 @@ export const BETA_TERMS_SECTIONS = [
   {
     h: 'Monitoring',
     p: [
-      'To protect the beta, the app records sign-ins (time, device and approximate location from your IP address) and when a screenshot or screen recording is taken in the app. Your vessel’s Command team and Cargo Technology can see this activity.',
+      'To protect the beta, the app records sign-ins (time, device and approximate location from your IP address) and when a screenshot or screen recording is taken in the app. Your vessel’s Command team and Cargo Technology Ltd can see this activity.',
     ],
   },
   {

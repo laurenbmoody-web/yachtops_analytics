@@ -7,8 +7,9 @@ on what device (`terms_acceptances`). Change both together and bump
 `BETA_TERMS_VERSION` so everyone re-accepts.
 
 Points for the solicitor to check:
-- Entity name: "Cargo Technology". Use the registered company name and number.
-- Governing law: England and Wales assumed.
+- Entity: Cargo Technology Ltd, company number 17525300 (Companies House,
+  England and Wales). Add the registered office address if wanted.
+- Governing law: England and Wales.
 - Whether click-through acceptance is enough, or testers outside the vessel
   (e.g. management companies) should sign a separate NDA.
 - The monitoring paragraph against UK GDPR transparency. The Privacy Policy
@@ -20,7 +21,8 @@ Points for the solicitor to check:
 ## Cargo beta tester terms
 
 You are using a pre-release (beta) version of Cargo, provided by Cargo
-Technology ("we", "us"). Please read these terms. By tapping "I agree" you
+Technology Ltd, a company registered in England and Wales with company number
+17525300 ("we", "us"). Please read these terms. By tapping "I agree" you
 accept them for as long as you use the beta.
 
 ### 1. Confidentiality
@@ -51,7 +53,7 @@ and sign out older devices.
 4.1 To protect the beta, the app records sign-ins (time, device and
 approximate location from your IP address) and when a screenshot or screen
 recording is taken in the app. Your vessel's Command team and Cargo
-Technology can see this activity.
+Technology Ltd can see this activity.
 
 ### 5. Feedback
 5.1 We may use any ideas, suggestions and feedback you give us about Cargo
