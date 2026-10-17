@@ -8,6 +8,7 @@ import Icon from '../../components/AppIcon';
 import LogoSpinner from '../../components/LogoSpinner';
 import { getAllItems, getItemsByLocation, getItemCountByLocation, deleteItem, saveItem, getFolderTree, createFolder, renameFolderInDB, deleteFolderFromDB, migrateLocalStorageFolderTree, moveFolderInDB, ensureDepartmentFolders, updateFolderVisibility, archiveFolder, duplicateFolder, moveFolderToTrash, moveItemToTrash, moveItemsToTrash, restoreFromTrash, listTrash, purgeTrashRecord, emptyTrash, updateItemStockLocations, adjustItemStock, bulkDeleteItemsByIds, bulkMoveItemsByIds, updateFolderAppearance, updateItemAppearance, updatePartialBottle } from '../inventory/utils/inventoryStorage';
 import { getCurrentUser, DEPARTMENTS } from '../../utils/authStorage';
+import { isWholeVesselDepartment, visibleRootFolders } from '../../services/inventoryScope';
 import { isDevMode } from '../../utils/devMode';
 import { useAuth } from '../../contexts/AuthContext';
 import ItemFormModal from '../inventory/components/ItemFormModal';
@@ -2825,6 +2826,17 @@ const LocationFirstInventory = () => {
   const isHOD     = !isCommand && !isChief && (ctxIsHOD || (bootstrapComplete && (tenantRole?.toUpperCase() === 'HOD')));
   const userDepartment = currentUser?.department || '';
 
+  // Who sees every department's folders rather than just their own. Command and
+  // Chief always have; Bridge joins them by DEPARTMENT rather than tier, because
+  // the bridge team's gear (LSA/FFE, medical, charts) lives under Deck and
+  // Medical, not under a folder called Bridge.
+  //
+  // The rule itself lives in src/services/inventoryScope.js and is mirrored by
+  // public.can_reach_inventory in RLS. Keep the three in step: if this is wider
+  // than RLS the folders open empty, and if RLS is wider crew never see stock
+  // they are entitled to.
+  const seesEveryDepartment = isCommand || isChief || isWholeVesselDepartment(userDepartment);
+
   // Managing items (move / duplicate) is for Command, Chief and HOD only.
   const canManageItems = isCommand || isChief || isHOD;
   // Deleting stock is a routine task open to every crew tier (crew included),
@@ -3088,20 +3100,10 @@ const LocationFirstInventory = () => {
           }
         });
 
-        if (!isCommand) {
-          if (isChief) {
-            // Chief sees all folders
-          } else if (isHOD) {
-            rootFolders = rootFolders?.filter(f =>
-              f?.toUpperCase() === userDepartment?.toUpperCase() ||
-              f?.toLowerCase() === userDepartment?.toLowerCase()
-            );
-          } else {
-            rootFolders = rootFolders?.filter(f =>
-              f?.toUpperCase() === userDepartment?.toUpperCase() ||
-              f?.toLowerCase() === userDepartment?.toLowerCase()
-            );
-          }
+        // Command, Chief and Bridge see the lot; everyone else gets their own
+        // department. HOD and Crew were two identical branches, so they are one.
+        if (!seesEveryDepartment) {
+          rootFolders = visibleRootFolders(rootFolders, { department: userDepartment });
         }
 
         // Ensure any location present in actual items is surfaced as a root folder,
@@ -3326,7 +3328,7 @@ const LocationFirstInventory = () => {
     } finally {
       setPageLoading(false);
     }
-  }, [pathSegments?.join('/'), isRoot, isCommand, isChief, isHOD, userDepartment, ctxActiveTenantId, bootstrapComplete]);
+  }, [pathSegments?.join('/'), isRoot, isCommand, isChief, isHOD, seesEveryDepartment, userDepartment, ctxActiveTenantId, bootstrapComplete]);
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => {
