@@ -937,6 +937,7 @@ const Header = () => {
                         label: 'Cargo internal',
                         items: [
                           { show: isPlatformAdmin, icon: 'ShieldCheck', label: 'Certificates', path: '/cargo/certifications', onClick: () => handleNavigation('/cargo/certifications', 'Certificates') },
+                          { show: isPlatformAdmin, icon: 'ShieldAlert', label: 'Security alerts', path: '/cargo/security', onClick: () => handleNavigation('/cargo/security', 'Security alerts') },
                         ],
                       },
                     ];

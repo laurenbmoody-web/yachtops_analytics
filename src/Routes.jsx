@@ -135,6 +135,7 @@ const SupplierRadar      = lazyWithRetry(() => import('./pages/supplier-portal/v
 const SupplierMessages   = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierMessages'));
 const SupplierReturns    = lazyWithRetry(() => import('./pages/supplier-portal/views/SupplierReturns'));
 const CertReviewConsole  = lazyWithRetry(() => import('./pages/cargo-console/CertReviewConsole'));
+const SecurityAlertsConsole = lazyWithRetry(() => import('./pages/cargo-console/SecurityAlertsConsole'));
 import TripItineraryTimeline from './pages/trip-itinerary-timeline/index';
 import InviteAcceptPage from './pages/invite-accept';
 import ForgotPasswordRequest from './pages/forgot-password-request';
@@ -1130,6 +1131,7 @@ const Routes = () => {
         {/* Protected Routes */}
         {/* Cargo internal console — platform-admin gated in-page (no tenant needed) */}
         <Route path="/cargo/certifications" element={<ProtectedRoute requiresTenant={false}><CertReviewConsole /></ProtectedRoute>} />
+        <Route path="/cargo/security" element={<ProtectedRoute requiresTenant={false}><SecurityAlertsConsole /></ProtectedRoute>} />
 
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/safe-dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
