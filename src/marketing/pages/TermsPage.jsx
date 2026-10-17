@@ -7,7 +7,14 @@ import useScrollAnimations from '../../hooks/useScrollAnimations';
 // structure of PrivacyPolicyPage. This is the agreement that governs use of the
 // Cargo service; it should be reviewed by legal counsel before launch.
 
-const LAST_UPDATED = '14/07/2026';
+const LAST_UPDATED = '17/10/2026';
+
+// The company behind Cargo. Keep in sync with PrivacyPolicyPage and MarketingFooter.
+const COMPANY = {
+  name: 'Cargo Technology Ltd',
+  number: '17525300',
+  office: '71-75 Shelton Street, Covent Garden, London, WC2H 9JQ, United Kingdom',
+};
 
 const sectionLabel = {
   fontWeight: 600, fontSize: 9, letterSpacing: '0.22em', textTransform: 'uppercase',
@@ -51,7 +58,7 @@ const TermsPage = () => {
             Terms of Service
           </h1>
           <p data-animate-hero="fade-up" data-delay="0.24" className="mkt-dmsans" style={{ fontWeight: 400, fontSize: 15, color: '#64748B', maxWidth: 560, margin: '0 auto', lineHeight: 1.7 }}>
-            The agreement between you and Cargo for use of the Cargo web application.
+            The agreement between you and Cargo Technology Ltd for use of the Cargo web application and apps.
           </p>
           <p data-animate-hero="fade-up" data-delay="0.3" className="mkt-dmsans" style={{ fontWeight: 500, fontSize: 12, color: '#94A3B8', marginTop: 14 }}>
             Last updated: {LAST_UPDATED}
@@ -61,9 +68,11 @@ const TermsPage = () => {
 
       <Section id="agreement" label="01" title="Agreement to these terms">
         <p className="mkt-dmsans" style={bodyStyle}>
-          These Terms of Service ("Terms") are a legal agreement between you and Cargo
-          ("Cargo", "we", "us") governing your access to and use of the Cargo web
-          application and related services (together, the "Service"). By creating an
+          These Terms of Service ("Terms") are a legal agreement between you and{' '}
+          <strong>{COMPANY.name}</strong>, a company registered in England and Wales (company
+          number {COMPANY.number}) whose registered office is at {COMPANY.office} ("Cargo",
+          "we", "us"). They govern your access to and use of the Cargo web application, the
+          Cargo apps and related services (together, the "Service"). By creating an
           account, joining a vessel, or otherwise using the Service, you agree to these
           Terms. If you are using the Service on behalf of a vessel, company, or other
           organisation, you confirm that you are authorised to accept these Terms on its
@@ -111,7 +120,41 @@ const TermsPage = () => {
         </ul>
       </Section>
 
-      <Section id="acceptable-use" label="05" title="Acceptable use">
+      <Section id="data-processing" label="05" title="Data processing terms">
+        <p className="mkt-dmsans" style={bodyStyle}>
+          This section applies when a vessel uses the Service to keep records about other
+          people, such as its crew, guests and suppliers. For that data the vessel (or the
+          company that owns or manages it) is the controller and Cargo is its processor. This
+          section is the data processing agreement required by Article 28 of the UK GDPR
+          and, where it applies, the EU GDPR.
+        </p>
+        <h3 className="mkt-archivo" style={h3Style}>The processing</h3>
+        <ul style={listStyle}>
+          <li className="mkt-dmsans" style={listItemStyle}><strong>Purpose and duration</strong> — providing the Service to the vessel for as long as it subscribes, and for the deletion period below.</li>
+          <li className="mkt-dmsans" style={listItemStyle}><strong>People concerned</strong> — the vessel’s crew, guests, owners’ representatives, suppliers and other contacts.</li>
+          <li className="mkt-dmsans" style={listItemStyle}><strong>Types of data</strong> — those described in our <Link to="/privacy" style={linkStyle}>Privacy Policy</Link>, including health information, identity documents, bank details and, where the vessel enables face sign-in, face templates.</li>
+        </ul>
+        <h3 className="mkt-archivo" style={h3Style}>What we commit to</h3>
+        <ul style={listStyle}>
+          <li className="mkt-dmsans" style={listItemStyle}>We process the vessel’s personal data only on its documented instructions. These Terms and the vessel’s use of the Service are those instructions. If the law requires us to do otherwise, we will tell the vessel first unless the law forbids it.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>Everyone at Cargo with access to the data is bound by confidentiality.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>We keep appropriate security measures in place, including encryption in transit, database-level separation between vessels, and role-based access within each vessel.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>The vessel authorises us to use the service providers listed in our Privacy Policy as sub-processors. We bind each one to data protection terms at least as protective as these. We will give at least 30 days’ notice before adding or replacing a sub-processor that receives the vessel’s personal data. If the vessel objects on reasonable data protection grounds, it may end its subscription and receive a refund of any fees paid for the period after it ends.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>We help the vessel respond to requests from people exercising their data protection rights, and with its security, breach notification and data protection impact assessment obligations.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>We tell the vessel without undue delay after becoming aware of a personal data breach affecting its data, with the information it needs to meet its own obligations.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>When the vessel’s subscription ends, it can export its data. We delete the vessel’s personal data within 90 days, unless the law requires us to keep it.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>We make available the information needed to show we meet these obligations, and allow reasonable audits. Audits start with a written questionnaire, happen at most once a year unless a regulator requires otherwise, and need 30 days’ notice.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>Where the vessel’s personal data is transferred outside the UK or EEA, we use the safeguards described in our Privacy Policy.</li>
+        </ul>
+        <h3 className="mkt-archivo" style={h3Style}>What the vessel commits to</h3>
+        <ul style={listStyle}>
+          <li className="mkt-dmsans" style={listItemStyle}>It has a lawful basis for the personal data it records in Cargo, and tells its crew and guests how their data is used.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>For health information and other special-category data, it has a valid condition under data protection law, such as the person’s explicit consent.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>If it enables face sign-in, it offers crew another way to sign in and does not require enrolment.</li>
+        </ul>
+      </Section>
+
+      <Section id="acceptable-use" label="06" title="Acceptable use">
         <p className="mkt-dmsans" style={bodyStyle}>You agree not to:</p>
         <ul style={listStyle}>
           <li className="mkt-dmsans" style={listItemStyle}>use the Service unlawfully, or to store or share content you have no right to;</li>
@@ -122,25 +165,25 @@ const TermsPage = () => {
         </ul>
       </Section>
 
-      <Section id="billing" label="06" title="Subscriptions, billing &amp; cancellation">
+      <Section id="billing" label="07" title="Subscriptions, billing &amp; cancellation">
         <ul style={listStyle}>
           <li className="mkt-dmsans" style={listItemStyle}>Paid subscriptions are billed in advance on a recurring basis through our payment processor, Stripe. Card details go directly to Stripe and never touch our servers.</li>
-          <li className="mkt-dmsans" style={listItemStyle}>Fees are charged to the vessel's billing account. Subscriptions renew automatically until cancelled.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>Fees are charged per vessel at the rates on our <Link to="/pricing" style={linkStyle}>Pricing</Link> page, to the vessel's billing account. Subscriptions renew automatically until cancelled.</li>
           <li className="mkt-dmsans" style={listItemStyle}>You can cancel at any time; cancellation takes effect at the end of the current billing period, and the Service remains available until then.</li>
           <li className="mkt-dmsans" style={listItemStyle}>Except where required by law, fees already paid are non-refundable. We will give reasonable notice of any change to fees.</li>
         </ul>
       </Section>
 
-      <Section id="ip" label="07" title="Intellectual property">
+      <Section id="ip" label="08" title="Intellectual property">
         <p className="mkt-dmsans" style={bodyStyle}>
-          The Service, including its software, design, and branding, is owned by Cargo and
+          The Service, including its software, design, and branding, is owned by {COMPANY.name} and
           protected by intellectual-property laws. We grant you a limited, non-exclusive,
           non-transferable right to use the Service in accordance with these Terms. These
           Terms do not transfer any ownership in the Service to you.
         </p>
       </Section>
 
-      <Section id="availability" label="08" title="Availability &amp; changes">
+      <Section id="availability" label="09" title="Availability &amp; changes">
         <p className="mkt-dmsans" style={bodyStyle}>
           We work to keep the Service available and reliable, but we do not guarantee
           uninterrupted or error-free operation. We may perform maintenance, update
@@ -150,7 +193,7 @@ const TermsPage = () => {
         </p>
       </Section>
 
-      <Section id="liability" label="09" title="Disclaimers &amp; limitation of liability">
+      <Section id="liability" label="10" title="Disclaimers &amp; limitation of liability">
         <p className="mkt-dmsans" style={bodyStyle}>
           The Service is provided "as is" and "as available". To the fullest extent
           permitted by law, we exclude all implied warranties. Cargo helps you manage
@@ -167,7 +210,7 @@ const TermsPage = () => {
         </p>
       </Section>
 
-      <Section id="termination" label="10" title="Suspension &amp; termination">
+      <Section id="termination" label="11" title="Suspension &amp; termination">
         <p className="mkt-dmsans" style={bodyStyle}>
           You may stop using the Service and close your account at any time from Settings.
           We may suspend or terminate access if you breach these Terms, if required by law,
@@ -182,7 +225,7 @@ const TermsPage = () => {
         </p>
       </Section>
 
-      <Section id="governing-law" label="11" title="Governing law">
+      <Section id="governing-law" label="12" title="Governing law">
         <p className="mkt-dmsans" style={bodyStyle}>
           These Terms are governed by the laws of England and Wales, and the courts of
           England and Wales have exclusive jurisdiction over any dispute, unless mandatory
@@ -190,7 +233,7 @@ const TermsPage = () => {
         </p>
       </Section>
 
-      <Section id="changes" label="12" title="Changes to these terms">
+      <Section id="changes" label="13" title="Changes to these terms">
         <p className="mkt-dmsans" style={bodyStyle}>
           We may update these Terms from time to time. If we make material changes, we will
           update this page and the "Last updated" date above, and, where appropriate, notify
