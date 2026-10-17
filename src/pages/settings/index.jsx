@@ -800,6 +800,35 @@ const SettingsPage = () => {
     catch { return null; }
   })();
 
+  // Delete account — shown under Account (where people look for it) and
+  // again under Privacy & data.
+  const deleteAccountGroup = (
+    <>
+      <Caps>Delete account</Caps>
+      <Group>
+        {delOpen ? (
+          <div className="set-r set-stack">
+            <RMain danger label="Delete account" desc="This permanently erases your Cargo account and personal data — profile, documents, personal details and sea service. It can’t be undone. A vessel may still hold compliance records it’s legally required to keep." />
+            <form className="set-loginform" onSubmit={(e) => { e.preventDefault(); deleteAccount(); }}>
+              <input className="set-field" placeholder="Type DELETE to confirm" autoFocus value={delConfirm}
+                onChange={(e) => { setDelConfirm(e.target.value); if (delMsg) setDelMsg(null); }} />
+              <div className="set-emailrow">
+                <button type="submit" className="set-btn set-btn-danger" disabled={delBusy}>{delBusy ? 'Deleting…' : 'Delete my account'}</button>
+                <button type="button" className="set-btn" onClick={() => { setDelOpen(false); setDelConfirm(''); setDelMsg(null); }} disabled={delBusy}>Cancel</button>
+              </div>
+              {delMsg && <span className="set-savenote" style={{ color: '#B23B2E' }}>{delMsg.m}</span>}
+            </form>
+          </div>
+        ) : (
+          <div className="set-r">
+            <RMain danger label="Delete account" desc="Permanently erase your Cargo account and personal data." />
+            <button className="set-btn set-btn-danger" onClick={() => { setDelOpen(true); setDelConfirm(''); setDelMsg(null); }}>Delete</button>
+          </div>
+        )}
+      </Group>
+    </>
+  );
+
   const renderContent = () => {
     switch (activeSection) {
       case 'account':
@@ -1058,6 +1087,8 @@ const SettingsPage = () => {
                 <button className="set-btn" onClick={handleSignOut}>Sign out</button>
               </div>
             </Group>
+
+            {deleteAccountGroup}
           </>
         );
 
@@ -1137,28 +1168,7 @@ const SettingsPage = () => {
               </div>
             </Group>
 
-            <Caps>Account</Caps>
-            <Group>
-              {delOpen ? (
-                <div className="set-r set-stack">
-                  <RMain danger label="Delete account" desc="This permanently erases your Cargo account and personal data — profile, documents, personal details and sea service. It can’t be undone. A vessel may still hold compliance records it’s legally required to keep." />
-                  <form className="set-loginform" onSubmit={(e) => { e.preventDefault(); deleteAccount(); }}>
-                    <input className="set-field" placeholder="Type DELETE to confirm" autoFocus value={delConfirm}
-                      onChange={(e) => { setDelConfirm(e.target.value); if (delMsg) setDelMsg(null); }} />
-                    <div className="set-emailrow">
-                      <button type="submit" className="set-btn set-btn-danger" disabled={delBusy}>{delBusy ? 'Deleting…' : 'Delete my account'}</button>
-                      <button type="button" className="set-btn" onClick={() => { setDelOpen(false); setDelConfirm(''); setDelMsg(null); }} disabled={delBusy}>Cancel</button>
-                    </div>
-                    {delMsg && <span className="set-savenote" style={{ color: '#B23B2E' }}>{delMsg.m}</span>}
-                  </form>
-                </div>
-              ) : (
-                <div className="set-r">
-                  <RMain danger label="Delete account" desc="Permanently erase your Cargo account and personal data." />
-                  <button className="set-btn set-btn-danger" onClick={() => { setDelOpen(true); setDelConfirm(''); setDelMsg(null); }}>Delete</button>
-                </div>
-              )}
-            </Group>
+            {deleteAccountGroup}
           </>
         );
 
