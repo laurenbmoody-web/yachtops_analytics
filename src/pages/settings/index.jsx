@@ -553,13 +553,21 @@ const SettingsPage = () => {
     setDelBusy(true); setDelMsg(null);
     try {
       const { data, error } = await supabase.functions.invoke('delete-my-account', { body: { confirm: true } });
-      if (error || data?.error) throw new Error(data?.error || error?.message || 'failed');
+      if (error || data?.error) {
+        // Non-2xx responses arrive as a FunctionsHttpError; the reason code is in its body.
+        let reason = data?.error;
+        try { reason = reason || (await error?.context?.json?.())?.error; } catch { /* no body */ }
+        throw new Error(reason || error?.message || 'failed');
+      }
       try { await supabase.auth.signOut(); } catch { /* already gone */ }
       try { localStorage.clear(); } catch { /* ignore */ }
       window.location.href = '/login-authentication';
     } catch (e) {
       console.warn('[settings] delete account failed', e);
-      setDelMsg({ t: 'err', m: 'Could not delete your account. Please try again.' });
+      const m = /last_command/.test(String(e?.message || ''))
+        ? 'You’re the last Command on a vessel. Transfer command before deleting your account.'
+        : 'Could not delete your account. Please try again.';
+      setDelMsg({ t: 'err', m });
       setDelBusy(false);
     }
   };
