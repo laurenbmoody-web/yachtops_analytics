@@ -7,6 +7,7 @@ import { installWindowShims } from './windows';
 import { installFetchShim } from './net';
 import { detachNativePush } from './push';
 import { supabase } from '../supabaseClient';
+import { installKeyboardRoom } from './keyboard';
 
 export function initNative() {
   if (!isNative()) return;
@@ -18,14 +19,7 @@ export function initNative() {
   const viewport = document.querySelector('meta[name="viewport"]');
   if (viewport) viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0');
 
-  // When the keyboard opens, keep the field being typed into in view. The web
-  // view itself shrinks above the keyboard (Keyboard.resize = native), and this
-  // scrolls the focused field into the space that is left.
-  document.addEventListener('focusin', (e) => {
-    const el = e.target;
-    if (!el || !el.matches?.('input, textarea, select, [contenteditable="true"]')) return;
-    setTimeout(() => { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* ignore */ } }, 350);
-  });
+  installKeyboardRoom();
 
   installFileShims();
   installWindowShims();
