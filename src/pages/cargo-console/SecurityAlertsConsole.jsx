@@ -4,6 +4,7 @@ import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { supabase } from '../../lib/supabaseClient';
 import { amIPlatformAdmin } from './utils';
+import { alertPushSupported, enableAlertsOnThisDevice } from '../../lib/security/alertPush';
 import '../../styles/editorial.css';
 import './security-console.css';
 
@@ -23,6 +24,16 @@ const REASON = {
   screenshots: { label: 'Screenshots', icon: 'Camera' },
   too_many_devices: { label: 'Device limit hit', icon: 'Smartphone' },
   many_devices: { label: 'Possible shared account', icon: 'Users' },
+  test: { label: 'Test alert', icon: 'Send' },
+};
+
+const DEVICE_MSG = {
+  denied: 'Notifications are blocked for this site/app — allow them in your browser or iPhone settings, then try again.',
+  dismissed: 'Notifications weren’t allowed. Tap the button again and choose Allow.',
+  unsupported: 'This browser can’t receive notifications. On iPhone, use the Cargo app.',
+  no_session: 'Sign in again, then try.',
+  save_failed: 'Couldn’t save this device — try again.',
+  register_failed: 'This phone couldn’t register for notifications — try again.',
 };
 
 const SecurityAlertsConsole = () => {
@@ -32,6 +43,15 @@ const SecurityAlertsConsole = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [vessel, setVessel] = useState('all');
+  const [recips, setRecips] = useState([]);
+  const [email, setEmail] = useState('');
+  const [note, setNote] = useState(null); // { t: 'ok'|'err', m }
+  const [busy, setBusy] = useState('');
+
+  const loadRecips = useCallback(async () => {
+    const { data } = await supabase.rpc('list_security_alert_recipients');
+    setRecips(data || []);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true); setError('');
@@ -39,8 +59,42 @@ const SecurityAlertsConsole = () => {
     if (err) setError(err.message || 'Couldn’t load alerts.');
     setRows(data || []);
     setLoading(false);
+    loadRecips();
     supabase.rpc('mark_security_alerts_seen').then(() => {}, () => {});
-  }, []);
+  }, [loadRecips]);
+
+  const run = async (key, fn) => {
+    setBusy(key); setNote(null);
+    try { await fn(); } catch (e) { setNote({ t: 'err', m: e?.message || 'Something failed — try again.' }); }
+    setBusy('');
+  };
+  const thisDevice = () => run('device', async () => {
+    const r = await enableAlertsOnThisDevice();
+    setNote(r?.ok ? { t: 'ok', m: 'This device will get security alerts. Send a test to check.' } : { t: 'err', m: DEVICE_MSG[r?.reason] || 'Couldn’t set up this device.' });
+    loadRecips();
+  });
+  const sendTest = () => run('test', async () => {
+    const { error: err } = await supabase.rpc('send_test_security_alert');
+    if (err) throw err;
+    setNote({ t: 'ok', m: 'Test alert sent — it should arrive on every device below within a few seconds.' });
+    setTimeout(load, 1500);
+  });
+  const addRecip = (e) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    run('add', async () => {
+      const { error: err } = await supabase.rpc('add_security_alert_recipient', { p_email: email.trim() });
+      if (err) throw err;
+      setEmail('');
+      setNote({ t: 'ok', m: 'Added. Devices signed in to that account now get alerts (no console access).' });
+      loadRecips();
+    });
+  };
+  const removeRecip = (uid) => run(`rm-${uid}`, async () => {
+    const { error: err } = await supabase.rpc('remove_security_alert_recipient', { p_user: uid });
+    if (err) throw err;
+    loadRecips();
+  });
 
   useEffect(() => {
     amIPlatformAdmin().then((ok) => { setAllowed(ok); if (ok) load(); else setLoading(false); });
@@ -74,6 +128,40 @@ const SecurityAlertsConsole = () => {
             <p className="sc-empty">This page is for the Cargo team only.</p>
           ) : (
             <>
+              <section className="sc-devices">
+                <p className="sc-caps">Where alerts are pushed</p>
+                <div className="sc-actions">
+                  {alertPushSupported() && (
+                    <button type="button" className="sc-btn primary" onClick={thisDevice} disabled={!!busy}>
+                      <Icon name="BellRing" size={15} color="#FFFFFF" /> {busy === 'device' ? 'Setting up…' : 'Get alerts on this device'}
+                    </button>
+                  )}
+                  <button type="button" className="sc-btn" onClick={sendTest} disabled={!!busy}>
+                    <Icon name="Send" size={15} /> {busy === 'test' ? 'Sending…' : 'Send test alert'}
+                  </button>
+                </div>
+                {note && <p className={`sc-note ${note.t}`}>{note.m}</p>}
+                <ul className="sc-recips">
+                  {recips.map((r) => (
+                    <li key={r.user_id}>
+                      <div className="sc-main">
+                        <p className="sc-t">{r.email}<span className="sc-vessel">{r.kind === 'admin' ? 'Console admin' : 'Alerts only'}</span></p>
+                        <p className="sc-m">{r.devices ? `${r.devices} device${r.devices === 1 ? '' : 's'} enrolled` : 'No device enrolled yet — sign in on the device and allow notifications'}</p>
+                      </div>
+                      {r.kind !== 'admin' && (
+                        <button type="button" className="sc-link" onClick={() => removeRecip(r.user_id)} disabled={!!busy}>Remove</button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <form className="sc-add" onSubmit={addRecip}>
+                  <input className="sc-input" type="email" placeholder="Add an account's email (alerts only, no console)" value={email}
+                    onChange={(e) => setEmail(e.target.value)} />
+                  <button type="submit" className="sc-btn" disabled={!!busy || !email.trim()}>Add</button>
+                </form>
+              </section>
+
+              <p className="sc-caps sc-h">Alerts</p>
               {vessels.length > 1 && (
                 <div className="sc-tabs">
                   <button type="button" className={vessel === 'all' ? 'on' : ''} onClick={() => setVessel('all')}>All vessels</button>
