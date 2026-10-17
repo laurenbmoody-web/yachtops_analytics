@@ -1,8 +1,8 @@
 // Supabase Edge Function: security-alert-push
 //
 // Pushes a new security alert (public.security_alerts) to the Cargo console
-// admins' devices — the people on public.platform_admins — never to a
-// vessel's crew. Called by the security_events trigger
+// admins' devices (public.platform_admins) and to alert-only accounts
+// (public.security_alert_recipients) — never to a vessel's crew as such. Called by the security_events trigger
 // (public.security_event_alert) via pg_net with { alert_id }.
 //
 // Only the alert id is accepted: the text comes from the database, each alert
@@ -62,13 +62,14 @@ Deno.serve(async (req: Request) => {
   const pusher = await createPusher();
   if (!pusher.configured) return json({ ok: false, error: 'No push channel configured' }, 500);
 
-  // Cargo console admins → their user ids → every device they have enrolled.
+  // Cargo console admins + alert-only accounts → every device they have enrolled.
   const { data: admins } = await sb.from('platform_admins').select('email');
   const emails = (admins || []).map((a) => String(a.email || '').toLowerCase()).filter(Boolean);
-  if (!emails.length) return json({ ok: true, sent: 0, reason: 'no admins' });
-  const { data: profs } = await sb.from('profiles').select('id, email');
-  const ids = (profs || []).filter((p) => emails.includes(String(p.email || '').toLowerCase())).map((p) => p.id);
-  if (!ids.length) return json({ ok: true, sent: 0, reason: 'no admin profiles' });
+  const { data: allProfs } = emails.length ? await sb.from('profiles').select('id, email') : { data: [] };
+  const profs = (allProfs || []).filter((p) => emails.includes(String(p.email || '').toLowerCase()));
+  const { data: extra } = await sb.from('security_alert_recipients').select('user_id').is('removed_at', null);
+  const ids = [...new Set([...profs.map((p) => p.id), ...(extra || []).map((r) => r.user_id)])];
+  if (!ids.length) return json({ ok: true, sent: 0, reason: 'no recipients' });
 
   const { data: subs } = await sb.from('push_subscriptions')
     .select('endpoint, p256dh, auth, platform').in('user_id', ids);

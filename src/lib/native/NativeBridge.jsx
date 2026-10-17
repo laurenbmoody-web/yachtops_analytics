@@ -16,7 +16,7 @@ import { supabase } from '../supabaseClient';
 import { showToast } from '../../utils/toast';
 import { isNative, nativePlatform } from './platform';
 import { setNativeNavigate } from './windows';
-import { ensureNativePush, listenForNativePush } from './push';
+import { ensureNativePush, hasNativePushToken, listenForNativePush } from './push';
 
 // https://host/path?q#h or cargo://path?q#h → '/path?q#h'
 function appPath(raw) {
@@ -83,6 +83,11 @@ const NativeBridge = () => {
     // Push enrolment follows the session — once per signed-in user per launch
     // (supabase re-emits SIGNED_IN on resume).
     let enrolledFor = null;
+    // If that enrolment didn't stick (no token saved — e.g. the vessel context
+    // wasn't ready yet), try again whenever the app comes back to the front.
+    handles.push(App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive && enrolledFor && !hasNativePushToken()) ensureNativePush();
+    }));
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       const uid = session?.user?.id || null;
       if (event === 'SIGNED_OUT') enrolledFor = null;

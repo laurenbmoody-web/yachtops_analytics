@@ -21,9 +21,23 @@ const CHANNEL_ID = 'cargo_default'; // matches the FCM default channel in Androi
 const read = (k) => { try { return window.localStorage.getItem(k); } catch { return null; } };
 const write = (k, v) => { try { v ? window.localStorage.setItem(k, v) : window.localStorage.removeItem(k); } catch { /* noop */ } };
 
-async function tenantId() {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The vessel this device belongs to. Right after a sign-in the context can
+// still be settling, so retry briefly, then fall back to any active
+// membership. A device with no vessel is still saved (tenant_id is optional),
+// so it gets the alerts addressed to the person.
+async function tenantId(userId) {
+  for (let i = 0; i < 4; i += 1) {
+    try {
+      const { data } = await supabase.rpc('get_my_context');
+      if (data?.[0]?.tenant_id) return data[0].tenant_id;
+    } catch { /* retry */ }
+    await sleep(1500);
+  }
   try {
-    const { data } = await supabase.rpc('get_my_context');
+    const { data } = await supabase.from('tenant_members').select('tenant_id')
+      .eq('user_id', userId).eq('active', true).limit(1);
     return data?.[0]?.tenant_id || null;
   } catch { return null; }
 }
@@ -51,8 +65,8 @@ function registerForToken() {
 async function saveToken(token, topic) {
   const { data: authData } = await supabase.auth.getUser();
   const userId = authData?.user?.id;
-  const tid = await tenantId();
-  if (!userId || !tid) return { ok: false, reason: 'no_session' };
+  if (!userId) return { ok: false, reason: 'no_session' };
+  const tid = await tenantId(userId);
   const { error } = await supabase.from('push_subscriptions').upsert({
     tenant_id: tid,
     user_id: userId,
@@ -73,10 +87,11 @@ async function saveToken(token, topic) {
 
 // Enrol (or refresh) this device for the signed-in user. Called on every
 // sign-in / launch: tokens rotate (reinstall, OS restore, FCM refresh), so
-// the current one is always re-saved. Asks for permission once, ever.
-export async function ensureNativePush({ topic } = {}) {
+// the current one is always re-saved. Asks for permission once, ever —
+// unless `prompt` (an explicit tap, e.g. "Get alerts on this device").
+export async function ensureNativePush({ topic, prompt = false } = {}) {
   try {
-    const receive = await permission(!read(ASKED_KEY));
+    const receive = await permission(prompt || !read(ASKED_KEY));
     if (receive !== 'granted') return { ok: false, reason: receive === 'denied' ? 'denied' : 'dismissed' };
     if (nativePlatform() === 'android') {
       await PushNotifications.createChannel({ id: CHANNEL_ID, name: 'Cargo', importance: 4, visibility: 1 }).catch(() => {});
@@ -87,6 +102,9 @@ export async function ensureNativePush({ topic } = {}) {
     return { ok: false, reason: 'register_failed' };
   }
 }
+
+// Has this device a saved push token for the signed-in user?
+export const hasNativePushToken = () => !!read(TOKEN_KEY);
 
 // Sign-out: detach this phone from the account so the next person to sign in
 // on it doesn't get the previous user's alerts. Must run while still signed in
