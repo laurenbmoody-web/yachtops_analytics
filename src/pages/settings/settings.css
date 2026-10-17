@@ -177,4 +177,21 @@ body.settings-editorial {
 .settings-page .set-loading { display: flex; align-items: center; justify-content: center; padding: 90px 0; }
 .settings-page .set-spinner { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #E6E8EF; border-bottom-color: #C65A1A; animation: set-spin 0.8s linear infinite; }
 @keyframes set-spin { to { transform: rotate(360deg); } }
+/* Phone / narrow tablet: the rail stacks above the content as a one-line
+   "current section" strip; it no longer sticks, so content can't scroll under it. */
+.settings-page .set-rail.narrow { position: static; padding: 8px 10px; }
+.settings-page .set-rail-strip {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px; border: 0; background: transparent; cursor: pointer; text-align: left;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+.settings-page .set-rail-strip-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; flex: 0 0 auto; }
+.settings-page .set-rail-strip-cur { font-size: 14px; font-weight: 700; color: #1C1B3A; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-page .set-rail-strip-tog {
+  display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
+  font-size: 12px; font-weight: 600; color: #C65A1A; padding: 5px 10px; border-radius: 999px; background: #FBEFE9;
+}
+.settings-page .set-rail.narrow.open .set-rail-strip { border-bottom: 1px solid #F0F1F5; padding-bottom: 10px; margin-bottom: 4px; }
+@media (max-width: 980px) { .settings-page .set-layout { gap: 16px; } }
+
 @media (prefers-reduced-motion: reduce) { .settings-page .set-spinner { animation: none; } .settings-page .set-knob { transition: none; } }

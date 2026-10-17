@@ -199,6 +199,19 @@ const SettingsPage = () => {
     try { localStorage.setItem('set-nav-collapsed', next ? '1' : '0'); } catch { /* ignore */ }
     return next;
   });
+  // Phone / narrow tablet: the rail stacks above the content, so it folds into
+  // a "current section" strip that opens on tap (same as the crew profile).
+  const [railNarrow, setRailNarrow] = useState(() => {
+    try { return window.matchMedia('(max-width: 980px)').matches; } catch { return false; }
+  });
+  const [railOpen, setRailOpen] = useState(false);
+  useEffect(() => {
+    let mq;
+    try { mq = window.matchMedia('(max-width: 980px)'); } catch { return undefined; }
+    const onChange = (e) => setRailNarrow(e.matches);
+    if (mq.addEventListener) mq.addEventListener('change', onChange); else mq.addListener(onChange);
+    return () => { if (mq.removeEventListener) mq.removeEventListener('change', onChange); else mq.removeListener(onChange); };
+  }, []);
   // Face sign-in enrolment — lives under Privacy because it is the crew
   // member's own biometric data, and the only person who can enrol it is them.
   const [face, setFace] = useState({ enrolled: false, captures: 0, consentAt: null });
@@ -1349,14 +1362,30 @@ const SettingsPage = () => {
           </button>
           <div className={`set-layout${navCollapsed ? ' collapsed' : ''}`}>
             {/* Rail — boxed grouped nav (crew-profile flatcard style), collapsible */}
-            <aside className={`set-rail${navCollapsed ? ' collapsed' : ''}`}>
-              <button type="button" className="set-rail-edge" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'} />
-              <nav>
+            <aside className={`set-rail${navCollapsed && !railNarrow ? ' collapsed' : ''}${railNarrow ? ' narrow' : ''}${railNarrow && railOpen ? ' open' : ''}`}>
+              {railNarrow ? (() => {
+                const current = NAV.flatMap((g) => g.items).find((i) => i.id === activeSection);
+                return (
+                  <button type="button" className="set-rail-strip" onClick={() => setRailOpen((o) => !o)} aria-expanded={railOpen} aria-controls="set-rail-nav">
+                    <span className="set-rail-strip-lbl">Section</span>
+                    {current && <Icon name={current.icon} size={16} color="#C65A1A" />}
+                    <span className="set-rail-strip-cur">{current?.label || 'Choose a section'}</span>
+                    <span className="set-rail-strip-tog">
+                      {railOpen ? 'Hide' : 'All sections'}
+                      <Icon name={railOpen ? 'ChevronUp' : 'ChevronDown'} size={14} />
+                    </span>
+                  </button>
+                );
+              })() : (
+                <button type="button" className="set-rail-edge" onClick={toggleNav} aria-label={navCollapsed ? 'Expand navigation' : 'Collapse navigation'} title={navCollapsed ? 'Expand' : 'Collapse'} />
+              )}
+              {(!railNarrow || railOpen) && (
+              <nav id="set-rail-nav">
                 {NAV.map((group, gi) => (
                   <React.Fragment key={group.grp}>
                     <div className={`set-nav-grp${gi === 0 ? ' first' : ''}`}>{group.grp}</div>
                     {group.items.map(item => (
-                      <button key={item.id} className={`set-nav-it${activeSection === item.id ? ' active' : ''}`} onClick={() => setActiveSection(item.id)} title={navCollapsed ? item.label : undefined}>
+                      <button key={item.id} className={`set-nav-it${activeSection === item.id ? ' active' : ''}`} onClick={() => { setActiveSection(item.id); setRailOpen(false); }} title={navCollapsed && !railNarrow ? item.label : undefined}>
                         <Icon name={item.icon} size={18} color={activeSection === item.id ? '#C65A1A' : '#8B8478'} />
                         <span>{item.label}</span>
                       </button>
@@ -1376,6 +1405,7 @@ const SettingsPage = () => {
                   </>
                 )}
               </nav>
+              )}
             </aside>
 
             {/* Content */}
