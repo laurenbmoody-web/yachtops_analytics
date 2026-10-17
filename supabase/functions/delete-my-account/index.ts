@@ -2,10 +2,14 @@
 //
 // Irreversibly erases the caller's Cargo account:
 //   1. Verifies the caller's JWT (they can only delete themselves).
-//   2. Best-effort removes their uploaded document files from storage.
-//   3. Wipes their personal data across every user-owned table + profile row
+//   2. Refuses if they're the last Command on an active vessel (the vessel
+//      would be left with nobody able to run it) — transfer command first.
+//   3. Removes every personal file they own (admin_user_storage_paths: avatar,
+//      crew documents, captain credentials, sea-service testimonials, feedback
+//      voice notes). Best-effort, so a storage hiccup never blocks erasure.
+//   4. Wipes their personal data across every user-owned table + profile row
 //      (admin_wipe_user, service role — drift-proof sweep).
-//   4. Deletes the auth user, which revokes every session.
+//   5. Deletes the auth user, which revokes every session.
 //
 // A vessel may still lawfully retain compliance records it controls; those are
 // the vessel's, not part of this personal account, and are unaffected.
@@ -27,7 +31,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const DOC_BUCKET = 'crew-documents';
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -56,24 +59,43 @@ Deno.serve(async (req: Request) => {
     try { body = await req.json(); } catch { /* no body */ }
     if (body?.confirm !== true) return json({ error: 'confirmation required' }, 400);
 
-    // 1. Remove uploaded document files (best-effort; path is `${uid}/…`).
+    // 1. Refuse if this would leave a vessel with no Command.
+    const { data: blocker, error: blockErr } = await admin.rpc('admin_account_deletion_blocker', { p_uid: uid });
+    if (blockErr) {
+      console.error('[delete-my-account] blocker check failed:', blockErr);
+      return json({ error: 'data erasure failed' }, 500);
+    }
+    if (blocker) return json({ error: blocker }, 409);
+
+    // 2. Remove every personal file (best-effort). Paths come from the DB so
+    //    files outside `${uid}/…` (testimonials, feedback audio) are caught too.
     try {
-      const { data: listed } = await admin.storage.from(DOC_BUCKET).list(uid, { limit: 1000 });
-      if (listed && listed.length) {
-        await admin.storage.from(DOC_BUCKET).remove(listed.map((f) => `${uid}/${f.name}`));
+      const { data: files, error: filesErr } = await admin.rpc('admin_user_storage_paths', { p_uid: uid });
+      if (filesErr) throw filesErr;
+      const byBucket = new Map<string, string[]>();
+      for (const f of (files || []) as { bucket: string; path: string }[]) {
+        if (!f?.bucket || !f?.path) continue;
+        if (!byBucket.has(f.bucket)) byBucket.set(f.bucket, []);
+        byBucket.get(f.bucket)!.push(f.path);
+      }
+      for (const [bucket, paths] of byBucket) {
+        for (let i = 0; i < paths.length; i += 100) {
+          const { error } = await admin.storage.from(bucket).remove(paths.slice(i, i + 100));
+          if (error) console.warn(`[delete-my-account] ${bucket} cleanup partial:`, error);
+        }
       }
     } catch (e) {
       console.warn('[delete-my-account] storage cleanup skipped:', e);
     }
 
-    // 2. Wipe personal data across every user-owned table + the profile row.
+    // 3. Wipe personal data across every user-owned table + the profile row.
     const { error: wipeErr } = await admin.rpc('admin_wipe_user', { p_uid: uid });
     if (wipeErr) {
       console.error('[delete-my-account] wipe failed:', wipeErr);
       return json({ error: 'data erasure failed' }, 500);
     }
 
-    // 3. Delete the auth user (revokes all sessions).
+    // 4. Delete the auth user (revokes all sessions).
     const { error: delErr } = await admin.auth.admin.deleteUser(uid);
     if (delErr) {
       console.error('[delete-my-account] auth delete failed:', delErr);
