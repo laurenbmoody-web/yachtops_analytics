@@ -153,6 +153,7 @@ import GuestHistoryPage from './pages/pantry/stubs/GuestHistoryPage';
 import TodayDetailPage from './pages/today-detail/index';
 import VesselMapPage from './pages/vessel-map';
 import NotFound from './pages/NotFound';
+import VesselAccessGate from './components/billing/VesselAccessGate';
 
 // DEV_MODE constant for debugging
 const DEV_MODE = import.meta.env?.DEV;
@@ -586,7 +587,7 @@ const ProtectedRoute = ({ children, requiresTenant = true, requiredRoles = null,
   }
   
   // Session valid, tenant context available, and permissions OK - render protected content
-  return children;
+  return requiresTenant ? <VesselAccessGate>{children}</VesselAccessGate> : children;
 };
 
 // COMMAND-only Route wrapper
@@ -744,7 +745,7 @@ const CommandRoute = ({ children }) => {
     );
   }
   
-  return children;
+  return <VesselAccessGate>{children}</VesselAccessGate>;
 };
 
 // COMMAND/CHIEF Route wrapper
@@ -902,7 +903,7 @@ const CommandChiefRoute = ({ children }) => {
     );
   }
   
-  return children;
+  return <VesselAccessGate>{children}</VesselAccessGate>;
 };
 
 // Route wrapper that allows access if the user is the vessel admin OR
@@ -980,7 +981,7 @@ const VesselAdminRoute = ({ children, allowedTiers = ['COMMAND', 'CHIEF'] }) => 
     );
   }
 
-  return children;
+  return <VesselAccessGate>{children}</VesselAccessGate>;
 };
 
 // My Profile redirect component with profile creation
