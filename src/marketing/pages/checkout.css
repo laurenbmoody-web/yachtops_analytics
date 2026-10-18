@@ -1,0 +1,173 @@
+/* Website checkout — editorial (Cargo) system. Scoped ck-*. */
+
+.ck-page {
+  max-width: none;
+  width: 100%;
+  padding: 104px 40px 88px;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #1C1B3A;
+  background: #F8FAFC;
+}
+.ck-empty { text-align: center; color: #6B7280; }
+
+.ck-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #695880;
+  text-decoration: none;
+}
+.ck-back::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-left: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  margin-right: 2px;
+}
+.ck-back:hover { color: #1C1B3A; }
+
+.ck-lede { font-size: 15px; line-height: 1.6; color: #6B7280; max-width: 640px; margin: 0 0 28px; }
+
+.ck-banner {
+  background: #FBEFD9;
+  border: 1px solid #F0DCB0;
+  color: #8A5A12;
+  border-radius: 12px;
+  padding: 12px 15px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  max-width: 900px;
+}
+
+.ck-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.ck-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 28px 30px;
+  overflow: hidden;
+}
+.ck-card.is-current::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: #C65A1A;
+}
+
+.ck-caps {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+}
+.ck-vessel {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 28px;
+  line-height: 1.1;
+  color: #1C1B3A;
+  margin-top: 6px;
+}
+.ck-sub { font-size: 13px; color: #8B8478; margin-top: 4px; }
+.ck-hr { height: 1px; background: #F0F1F5; border: none; margin: 22px 0; }
+
+.ck-plan-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.ck-plan-name {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #1C1B3A;
+}
+.ck-plan-name .dash { color: #AEB4C2; margin: 0 2px; }
+.ck-toggle {
+  display: inline-flex;
+  background: #FAFAF8;
+  border: 1px solid #E5E7EB;
+  border-radius: 999px;
+  padding: 3px;
+}
+.ck-toggle button {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 5px 16px;
+  background: transparent;
+  color: #8B8478;
+}
+.ck-toggle button.on { background: #C65A1A; color: #fff; }
+
+.ck-price { margin-top: 14px; display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
+.ck-price strong { font-size: 36px; font-weight: 600; letter-spacing: -0.8px; color: #1C1B3A; }
+.ck-price .per { font-size: 14px; color: #8B8478; }
+
+.ck-inc { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
+.ck-inc li { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; line-height: 1.5; color: #4B4B63; }
+.ck-tick {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 999px;
+  background: #FBEFE9;
+  color: #C65A1A;
+  display: grid;
+  place-items: center;
+}
+
+.ck-error {
+  margin-top: 16px;
+  background: #FBE4DC;
+  border: 1px solid #F2C9BB;
+  color: #9A2B12;
+  border-radius: 10px;
+  padding: 10px 13px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ck-pay {
+  margin-top: 18px;
+  width: 100%;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #fff;
+  background: #C65A1A;
+  border: none;
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background 120ms;
+}
+.ck-pay:hover:not(:disabled) { background: #B14E16; }
+.ck-pay:disabled { background: #D9C2B4; cursor: default; }
+.ck-secure { font-size: 12px; color: #AEB4C2; text-align: center; margin: 10px 0 0; line-height: 1.5; }
+
+@media (max-width: 900px) {
+  .ck-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .ck-page { padding: 88px 16px 64px; }
+  .ck-card { padding: 22px 18px; }
+}

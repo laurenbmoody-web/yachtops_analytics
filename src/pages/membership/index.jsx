@@ -8,6 +8,7 @@ import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import './membership.css';
 import { isNative } from '../../lib/native/platform';
+import TermsAcceptance, { isTermsAcceptanceValid } from '../../components/billing/TermsAcceptance';
 
 // ─── Plan reference data ─────────────────────────────────────────────────────
 // Pricing is by vessel length. Every crew member and app user is included —
@@ -65,6 +66,9 @@ const Membership = () => {
   const [selPeriod, setSelPeriod] = useState('monthly');
   const [upgradeBusy, setUpgradeBusy] = useState(false);
   const [banner, setBanner] = useState(null); // { tone, text }
+  // Terms acceptance before payment (company billed + tick box).
+  const [terms, setTerms] = useState({ legalName: '', country: '', accepted: false });
+  const [agreement, setAgreement] = useState(null); // { at, by, company }
 
   // Returning from Stripe checkout (success / cancel).
   useEffect(() => {
@@ -91,6 +95,15 @@ const Membership = () => {
         periodEnd: data?.current_period_end || null,
         cancelAtEnd: data?.cancel_at_period_end || false,
       });
+      // Terms acceptance fields — read separately so the plan still loads if
+      // these columns aren't there yet.
+      const { data: ta } = await supabase.from('tenants')
+        .select('customer_legal_name, customer_country, terms_accepted_at, terms_accepted_by_name')
+        .eq('id', tid).maybeSingle();
+      setTerms((t) => ({ ...t, legalName: ta?.customer_legal_name || '', country: ta?.customer_country || '' }));
+      if (ta?.terms_accepted_at) {
+        setAgreement({ at: ta.terms_accepted_at, by: ta.terms_accepted_by_name || '', company: ta.customer_legal_name || '' });
+      }
     } catch (e) {
       console.error('[membership] load failed', e);
     } finally {
@@ -123,7 +136,7 @@ const Membership = () => {
 
   // Start a Stripe Checkout to move this vessel onto a paid plan.
   const startUpgrade = async () => {
-    if (upgradeBusy) return;
+    if (upgradeBusy || !isTermsAcceptanceValid(terms)) return;
     setUpgradeBusy(true); setPortalMsg('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -131,10 +144,17 @@ const Membership = () => {
       const res = await fetch('/api/create-upgrade-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token || ''}` },
-        body: JSON.stringify({ tenant_id: tenantId, tier: selTier, billing_period: selPeriod }),
+        body: JSON.stringify({
+          tenant_id: tenantId,
+          tier: selTier,
+          billing_period: selPeriod,
+          accept_terms: terms.accepted === true,
+          customer: { legal_name: terms.legalName, country: terms.country },
+        }),
       });
       const data = await res.json().catch(() => null);
       if (data?.error === 'already_active') { setBanner({ tone: 'warn', text: 'You’re already on a paid plan — use Manage billing to change it.' }); return; }
+      if (res.status === 400 && data?.error) { setBanner({ tone: 'warn', text: data.error }); return; }
       if (!res.ok || !data?.url) throw new Error(data?.error || 'failed');
       window.location.href = data.url;
     } catch (e) {
@@ -288,11 +308,15 @@ const Membership = () => {
                   );
                 })}
               </div>
-              <button type="button" className="mem-checkout-btn" onClick={startUpgrade} disabled={upgradeBusy}>
+              <hr className="mem-card-hr" />
+              <TermsAcceptance value={terms} onChange={(patch) => setTerms((t) => ({ ...t, ...patch }))} disabled={upgradeBusy} />
+              <button type="button" className="mem-checkout-btn" onClick={startUpgrade} disabled={upgradeBusy || !isTermsAcceptanceValid(terms)}>
                 {upgradeBusy ? 'Starting secure checkout…' : `Continue to payment${selPeriod === 'annual' ? ' · billed annually' : ''}`}
               </button>
               <p className="mem-secure">
-                Secure checkout powered by Stripe. Cancel anytime. The exact total (incl. any annual discount) is shown before you pay.
+                {isTermsAcceptanceValid(terms)
+                  ? 'Secure checkout powered by Stripe. Cancel anytime. The exact total (incl. any annual discount) is shown before you pay.'
+                  : 'Add the company the vessel is billed to and accept the Terms to continue.'}
               </p>
             </div>
           )}
@@ -313,6 +337,14 @@ const Membership = () => {
                 </button>
               </div>
               {portalMsg && <p className="mem-note">{portalMsg}</p>}
+              {agreement && (
+                <p className="mem-terms-note">
+                  Terms of Service (incl. data processing terms) accepted {fmtDate(agreement.at)}
+                  {agreement.by ? ` by ${agreement.by}` : ''}
+                  {agreement.company ? ` on behalf of ${agreement.company}` : ''}.{' '}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer">Read the Terms</a>
+                </p>
+              )}
             </div>
           )}
 

@@ -28,6 +28,9 @@ const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const SITE_URL = process.env.SITE_URL || process.env.URL || 'https://cargotechnology.netlify.app';
+const { linkAgreementToTenant } = require('../lib/agreements');
+const linkAgreement = (sessionId, tenantId, userId) =>
+  linkAgreementToTenant({ supabaseUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY, sessionId, tenantId, userId });
 
 // Map a Stripe price back to our plan_tier + billing_period so a plan change
 // (upgrade/downgrade) syncs onto the tenant. Primary match is the configured
@@ -493,6 +496,7 @@ async function handleCheckoutCompleted(session) {
       const b = await res.text();
       throw new Error(`[checkout] upgrade patch failed for tenant ${tId}: ${res.status} ${b.slice(0, 200)}`);
     }
+    await linkAgreement(session.id, tId, null);
     console.log(`[checkout] upgraded tenant ${tId} → ${session.metadata?.pricing_tier} (${session.metadata?.billing_period})`);
     return;
   }
@@ -575,6 +579,7 @@ async function handleCheckoutCompleted(session) {
         console.error(`[checkout] retry vessel row creation failed (non-fatal): ${vesselErr?.message || vesselErr}`);
       }
       await markRegistrationConverted(registration.id, existingTenant.id);
+      await linkAgreement(session.id, existingTenant.id, userId);
     } catch (err) {
       console.error(`[checkout] retry reconciliation failed: ${err?.message || err}`);
       throw err;
@@ -634,6 +639,9 @@ async function handleCheckoutCompleted(session) {
 
   // 5. Mark the registration row converted
   await markRegistrationConverted(registration.id, tenant.id);
+
+  // 6. Link the Terms acceptance recorded at checkout to the new tenant.
+  await linkAgreement(session.id, tenant.id, userId);
 
   console.log(`[checkout] provisioned tenant ${tenant.id} for registration ${registration.id} — invite sent to ${registration.contact_email}`);
 }
