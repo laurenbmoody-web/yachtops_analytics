@@ -13,6 +13,7 @@ import JSZip from 'jszip';
 import FaceEnrolModal from '../../components/face/FaceEnrolModal';
 import { getMyEnrolment, deleteFaceEnrolment } from '../../services/faceSignIn';
 import './settings.css';
+import { fetchVesselAccess } from '../../lib/vesselAccess';
 
 // ── Preference persistence (instant, silent save to localStorage) ────────────
 const PREF_DEFAULTS = {
@@ -727,7 +728,8 @@ const SettingsPage = () => {
         if (tid) {
           const { data: tn } = await supabase.from('tenants').select('name, plan_tier, subscription_status, cancel_at_period_end').eq('id', tid).single();
           if (tn?.name) tenant = tn.name;
-          if (!cancelled) setPlanInfo({ tier: tn?.plan_tier || null, status: tn?.subscription_status || null, cancelAtEnd: tn?.cancel_at_period_end || false });
+          const acc = await fetchVesselAccess(tid);
+          if (!cancelled) setPlanInfo({ tier: tn?.plan_tier || null, status: tn?.subscription_status || null, cancelAtEnd: tn?.cancel_at_period_end || false, complimentary: acc.complimentary, ended: acc.ended });
         }
         if (uid && tid) {
           const { data: ne } = await supabase.from('crew_notification_emails').select('email').eq('user_id', uid).eq('tenant_id', tid).maybeSingle();
@@ -762,6 +764,8 @@ const SettingsPage = () => {
   const PLAN_TIER_LABELS = { under_40m: 'Under 40m', '40_80m': '40 – 80m', over_80m: 'Over 80m' };
   const planTierLabel = planInfo.tier ? (PLAN_TIER_LABELS[planInfo.tier] || planInfo.tier) : '';
   const planChip = (() => {
+    if (planInfo.complimentary) return { cls: 'ok', label: 'Complimentary' };
+    if (planInfo.ended) return { cls: 'off', label: 'Ended' };
     if (planInfo.cancelAtEnd && planInfo.status === 'active') return { cls: 'warn', label: 'Cancelling' };
     switch (planInfo.status) {
       case 'active': return { cls: 'ok', label: 'Active' };
@@ -1186,7 +1190,7 @@ const SettingsPage = () => {
             <SectionHead title={<>Membership, <em>billing</em></>} sub="What your vessel's on, what it includes, and the billing behind it." />
             <Group>
               {activeTenantId ? (
-                <RowNav label="Current plan" desc={planTierLabel ? `Cargo — ${planTierLabel}` : 'Cargo — active membership'} chip={<span className={`set-chip ${planChip.cls}`}>{planChip.label}</span>} onClick={() => navigate('/membership')} />
+                <RowNav label="Current plan" desc={planInfo.complimentary ? 'Cargo — complimentary' : planTierLabel ? `Cargo — ${planTierLabel}` : 'Cargo — active membership'} chip={<span className={`set-chip ${planChip.cls}`}>{planChip.label}</span>} onClick={() => navigate('/membership')} />
               ) : (
                 <div className="set-r">
                   <RMain label="Current plan" desc="You’re not on a vessel — your account and personal record travel with you until you join one." />

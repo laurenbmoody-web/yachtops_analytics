@@ -9,6 +9,7 @@ import Icon from '../../components/AppIcon';
 import './membership.css';
 import { isNative } from '../../lib/native/platform';
 import TermsAcceptance, { isTermsAcceptanceValid } from '../../components/billing/TermsAcceptance';
+import { fetchVesselAccess, exportVesselData } from '../../lib/vesselAccess';
 
 // ─── Plan reference data ─────────────────────────────────────────────────────
 // Pricing is by vessel length. Every crew member and app user is included —
@@ -69,6 +70,9 @@ const Membership = () => {
   // Terms acceptance before payment (company billed + tick box).
   const [terms, setTerms] = useState({ legalName: '', country: '', accepted: false });
   const [agreement, setAgreement] = useState(null); // { at, by, company }
+  const [access, setAccess] = useState({ ended: false, complimentary: false }); // lifecycle
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportMsg, setExportMsg] = useState('');
 
   // Returning from Stripe checkout (success / cancel).
   useEffect(() => {
@@ -104,6 +108,7 @@ const Membership = () => {
       if (ta?.terms_accepted_at) {
         setAgreement({ at: ta.terms_accepted_at, by: ta.terms_accepted_by_name || '', company: ta.customer_legal_name || '' });
       }
+      setAccess(await fetchVesselAccess(tid, { fresh: true }));
     } catch (e) {
       console.error('[membership] load failed', e);
     } finally {
@@ -131,6 +136,20 @@ const Membership = () => {
       setPortalMsg('Couldn’t open billing just now — please try again.');
     } finally {
       setPortalBusy(false);
+    }
+  };
+
+  // Download everything the vessel holds (Command only).
+  const doExport = async () => {
+    if (exportBusy) return;
+    setExportBusy(true); setExportMsg('');
+    try {
+      await exportVesselData(tenantId);
+      setExportMsg('Export downloaded. File links inside it work for 7 days.');
+    } catch (e) {
+      setExportMsg(e?.message || 'Export failed — please try again.');
+    } finally {
+      setExportBusy(false);
     }
   };
 
@@ -227,13 +246,17 @@ const Membership = () => {
 
         <div className="mem-grid">
           {/* ── Plan card — the active subscription, shown "selected" ── */}
-          <div className={`mem-card${isPaid ? ' is-current' : ''}`}>
+          <div className={`mem-card${isPaid || access.complimentary ? ' is-current' : ''}`}>
             <div className="mem-card-top">
               <div>
                 <div className="mem-plan-name">
-                  {tierInfo ? <>Cargo <span className="dash">·</span> {tierInfo.label}</> : <>Cargo <span className="dash">·</span> Free trial</>}
+                  {access.complimentary
+                    ? <>Cargo <span className="dash">·</span> Complimentary</>
+                    : tierInfo ? <>Cargo <span className="dash">·</span> {tierInfo.label}</> : <>Cargo <span className="dash">·</span> Free trial</>}
                 </div>
-                {tierInfo ? (
+                {access.complimentary ? (
+                  <div className="mem-price"><span className="per">Full access, provided by Cargo at no charge.</span></div>
+                ) : tierInfo ? (
                   <>
                     <div className="mem-price">
                       <strong>£{displayPrice.toLocaleString('en-GB')}</strong><span className="per">{perLabel}</span>
@@ -244,8 +267,18 @@ const Membership = () => {
                   <div className="mem-price"><span className="per">No paid plan yet.</span></div>
                 )}
               </div>
-              <span className="mem-status" style={{ background: cardPill.bg, color: cardPill.fg }}>{cardPill.label}</span>
+              {access.complimentary
+                ? <span className="mem-status" style={{ background: '#E7F2EA', color: '#3F7A52' }}>Complimentary</span>
+                : <span className="mem-status" style={{ background: cardPill.bg, color: cardPill.fg }}>{cardPill.label}</span>}
             </div>
+
+            {access.ended && (
+              <div className="mem-cancel-note">
+                The plan ended{access.endedAt ? ` on ${fmtDate(access.endedAt)}` : ''}, so the vessel’s pages are closed.
+                Its records are kept until {access.deleteOn ? fmtDate(access.deleteOn) : '90 days after the plan ended'}, then permanently deleted.
+                {isVesselAdmin ? ' Resubscribe below to restore everything, or export the data first.' : ' Ask your vessel admin to renew.'}
+              </div>
+            )}
 
             {cancelling && (
               <div className="mem-cancel-note">
@@ -278,7 +311,7 @@ const Membership = () => {
           )}
 
           {/* ── Choose a plan — vessel admin, not yet on a paid plan ── */}
-          {isVesselAdmin && !isPaid && !isNative() && (
+          {isVesselAdmin && !isPaid && !access.complimentary && !isNative() && (
             <div className="mem-card">
               <div className="mem-choose-head">
                 <div className="mem-caps">{plan.tier ? 'Change your plan' : 'Choose your plan'}</div>
@@ -345,6 +378,23 @@ const Membership = () => {
                   <a href="/terms" target="_blank" rel="noopener noreferrer">Read the Terms</a>
                 </p>
               )}
+            </div>
+          )}
+
+          {/* ── Vessel data — Command can export everything the vessel holds ── */}
+          {isVesselAdmin && !access.deleted && (
+            <div className="mem-card">
+              <div className="mem-caps">Vessel data</div>
+              <p className="mem-sec-desc">
+                Download everything {plan.vessel || 'the vessel'} holds in Cargo as one file — all its records, plus links to its files (valid for 7 days).
+                {access.ended ? ' Do this before the data is deleted.' : ''}
+              </p>
+              <div className="mem-actions">
+                <button type="button" className="mem-btn mem-btn-ghost-ink" onClick={doExport} disabled={exportBusy}>
+                  {exportBusy ? 'Preparing export…' : 'Export vessel data'}
+                </button>
+              </div>
+              {exportMsg && <p className="mem-note">{exportMsg}</p>}
             </div>
           )}
 

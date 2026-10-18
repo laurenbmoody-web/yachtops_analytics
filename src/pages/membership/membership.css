@@ -215,6 +215,8 @@
 .mem-btn-primary:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }
 .mem-btn-ghost { color: #9A2B12; background: #fff; border-color: #E8E6DF; }
 .mem-btn-ghost:hover:not(:disabled) { border-color: #D9B7AD; }
+.mem-btn-ghost-ink { color: #1C1B3A; background: #fff; border-color: #E5E7EB; }
+.mem-btn-ghost-ink:hover:not(:disabled) { border-color: #C9CDD6; }
 .mem-note { font-size: 13px; color: #8B8478; margin-top: 14px; line-height: 1.5; max-width: 560px; }
 
 /* ── Plan chooser (trial → paid) ───────────────────────────────────── */
