@@ -1,0 +1,68 @@
+/* Terms acceptance before payment — editorial (Cargo) system. Scoped ta-*. */
+
+.ta-wrap { font-family: 'Inter', system-ui, sans-serif; text-align: left; }
+
+.ta-caps {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #8B8478;
+}
+.ta-req { color: #C65A1A; margin-left: 6px; }
+.ta-desc { font-size: 13px; line-height: 1.55; color: #6B7280; margin: 6px 0 14px; max-width: 560px; }
+
+.ta-fields { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
+.ta-field { display: flex; flex-direction: column; gap: 6px; }
+.ta-label { font-size: 12px; font-weight: 600; color: #1C1B3A; }
+.ta-field input {
+  font: inherit;
+  font-size: 14px;
+  color: #1C1B3A;
+  background: #FAFAF8;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 11px 13px;
+  outline: none;
+  transition: border-color 120ms, box-shadow 120ms, background 120ms;
+}
+.ta-field input::placeholder { color: #AEB4C2; }
+.ta-field input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+
+.ta-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1.5px solid #ECEAE3;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms;
+}
+.ta-check.on { border-color: #C65A1A; background: #FBEFE9; }
+.ta-check input { position: absolute; opacity: 0; width: 0; height: 0; }
+.ta-box {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 6px;
+  border: 2px solid #CBC9C0;
+  background: #fff;
+  color: transparent;
+  display: grid;
+  place-items: center;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.ta-check.on .ta-box { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.ta-check input:focus-visible + .ta-box { box-shadow: 0 0 0 3px #FAECE7; }
+.ta-text { font-size: 13.5px; line-height: 1.55; color: #4B4B63; }
+.ta-text b { color: #1C1B3A; font-weight: 600; }
+.ta-text a { color: #C65A1A; text-decoration: underline; text-underline-offset: 2px; }
+.ta-text a:hover { color: #B14E16; }
+
+@media (max-width: 640px) {
+  .ta-fields { grid-template-columns: 1fr; }
+}

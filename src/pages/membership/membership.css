@@ -292,6 +292,18 @@
 .mem-checkout-btn:disabled { opacity: 0.7; cursor: default; }
 .mem-secure { font-size: 12px; color: #AEB4C2; text-align: center; margin: 10px 0 0; line-height: 1.5; }
 
+.mem-checkout-btn:disabled { background: #D9C2B4; }
+.mem-terms-note {
+  margin: 18px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #F0F1F5;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #8B8478;
+  max-width: 640px;
+}
+.mem-terms-note a { color: #C65A1A; text-underline-offset: 2px; }
+
 .mem-banner {
   border-radius: 12px;
   padding: 12px 15px;

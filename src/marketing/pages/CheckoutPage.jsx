@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import MarketingLayout from '../MarketingLayout';
 import useScrollAnimations from '../../hooks/useScrollAnimations';
+import TermsAcceptance, { isTermsAcceptanceValid } from '../../components/billing/TermsAcceptance';
+import '../../styles/editorial.css';
+import './checkout.css';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
@@ -42,55 +45,10 @@ const INCLUDED = [
 
 /* ─── Small primitives ──────────────────────────────────────────────────── */
 
-const PrimaryBtn = ({ onClick, disabled, children }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    className="mkt-archivo transition-colors duration-150"
-    style={{
-      fontWeight: 900,
-      fontSize: 11,
-      letterSpacing: '0.06em',
-      textTransform: 'uppercase',
-      color: 'white',
-      backgroundColor: disabled ? '#94A3B8' : '#1E3A5F',
-      border: 'none',
-      borderRadius: 50,
-      padding: '14px 32px',
-      cursor: disabled ? 'not-allowed' : 'pointer',
-      width: '100%',
-      marginTop: 8,
-    }}
-    onMouseEnter={(e) => {
-      if (!disabled) e.currentTarget.style.backgroundColor = '#141D2E';
-    }}
-    onMouseLeave={(e) => {
-      if (!disabled) e.currentTarget.style.backgroundColor = '#1E3A5F';
-    }}
-  >
-    {children}
-  </button>
-);
-
-const Check = () => (
-  <span
-    className="flex-shrink-0 flex items-center justify-center"
-    style={{
-      width: 20,
-      height: 20,
-      backgroundColor: '#F0F7FF',
-      borderRadius: '50%',
-      marginTop: 1,
-    }}
-  >
+const Tick = () => (
+  <span className="ck-tick" aria-hidden="true">
     <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-      <path
-        d="M2 6l3 3 5-5"
-        stroke="#4A90E2"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   </span>
 );
@@ -121,6 +79,8 @@ const CheckoutPage = () => {
   const [billingPeriod, setBillingPeriod] = useState('monthly');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  // Who the vessel is billed to + the Terms tick box (recorded server-side).
+  const [terms, setTerms] = useState({ legalName: '', country: '', accepted: false });
 
   // If the user landed here by URL (no state), bounce them back to /pricing
   // — we can't create a checkout session without the registration id. Using
@@ -141,23 +101,9 @@ const CheckoutPage = () => {
     // than render NaN prices. Push back to /pricing to re-verify.
     return (
       <MarketingLayout>
-        <section style={{ padding: '96px 32px', textAlign: 'center' }}>
-          <p className="mkt-dmsans" style={{ color: '#64748B', marginBottom: 16 }}>
-            We couldn't load your plan. Please start from the pricing page.
-          </p>
-          <Link
-            to="/pricing"
-            className="mkt-archivo"
-            style={{
-              color: '#1E3A5F',
-              fontWeight: 700,
-              fontSize: 11,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-            }}
-          >
-            ← Back to Pricing
-          </Link>
+        <section className="ck-page ck-empty">
+          <p>We couldn’t load your plan. Please start from the pricing page.</p>
+          <Link to="/pricing" className="ck-back">Back to pricing</Link>
         </section>
       </MarketingLayout>
     );
@@ -165,8 +111,10 @@ const CheckoutPage = () => {
 
   const price = billingPeriod === 'annual' ? tier.annual : tier.monthly;
   const priceSuffix = billingPeriod === 'annual' ? '/year' : '/month';
+  const ready = isTermsAcceptanceValid(terms);
 
   const handleSubmit = async () => {
+    if (!ready) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -178,13 +126,15 @@ const CheckoutPage = () => {
           billing_period: billingPeriod,
           contact: contact || undefined,
           will_be_admin: willBeAdmin !== false, // default true if unset
+          accept_terms: terms.accepted === true,
+          customer: { legal_name: terms.legalName, country: terms.country },
         }),
       });
       const data = await res.json();
       if (!res.ok || !data?.url) {
         setError(
           data?.error ||
-            'We couldn\u2019t start checkout. Please try again, or contact support if it keeps happening.'
+            'We couldn’t start checkout. Please try again, or contact support if it keeps happening.'
         );
         setSubmitting(false);
         return;
@@ -200,269 +150,93 @@ const CheckoutPage = () => {
     }
   };
 
+  const vesselBits = [
+    verifiedVessel?.loa_metres ? `${verifiedVessel.loa_metres}m` : null,
+    verifiedVessel?.type || null,
+    verifiedVessel?.flag || null,
+  ].filter(Boolean);
+
   return (
     <MarketingLayout>
-      <section style={{ paddingTop: 96, paddingBottom: 80 }}>
-        <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 24px' }}>
-          <p
-            className="mkt-archivo"
-            style={{
-              fontWeight: 600,
-              fontSize: 9,
-              letterSpacing: '0.22em',
-              textTransform: 'uppercase',
-              color: '#4A90E2',
-              marginBottom: 10,
-            }}
-          >
-            Checkout
-          </p>
-          <h1
-            className="mkt-archivo"
-            style={{
-              fontWeight: 900,
-              fontSize: 32,
-              textTransform: 'uppercase',
-              color: '#1E3A5F',
-              lineHeight: 1.05,
-              marginBottom: 12,
-            }}
-          >
-            Start your Cargo subscription
-          </h1>
-          <p
-            className="mkt-dmsans"
-            style={{
-              fontWeight: 400,
-              fontSize: 15,
-              color: '#64748B',
-              lineHeight: 1.7,
-              marginBottom: 32,
-            }}
-          >
-            Confirm your plan and billing period. You'll be redirected to Stripe to enter
-            payment details, and we'll send you a magic link to set up your account the
-            moment payment clears.
-          </p>
+      <section className="ck-page">
+        <Link to="/pricing" className="ck-back">Back to pricing</Link>
 
-          {cancelled && (
-            <div
-              style={{
-                background: '#FFFBEB',
-                border: '1px solid #FDE68A',
-                borderRadius: 10,
-                padding: '14px 18px',
-                marginBottom: 24,
-              }}
-            >
-              <p className="mkt-dmsans" style={{ fontSize: 13, color: '#92400E', lineHeight: 1.5 }}>
-                You cancelled the Stripe checkout. No charge was made — when you're ready,
-                confirm your plan below to try again.
-              </p>
-            </div>
-          )}
+        <p className="editorial-meta">
+          <span className="dot">●</span>
+          <span>Checkout</span>
+          <span className="bar" />
+          <span className="muted">{verifiedVessel?.name || 'Your vessel'}</span>
+          <span className="bar" />
+          <span className="muted">{tier.label}</span>
+        </p>
+        <h1 className="editorial-greeting">
+          Subscription<span className="period">,</span> <em>almost there</em><span className="period">.</span>
+        </h1>
+        <p className="ck-lede">
+          Confirm your plan and who it’s billed to. You’ll enter payment details securely with Stripe, and we’ll
+          email you a link to set up your account as soon as payment clears.
+        </p>
 
+        {cancelled && (
+          <div className="ck-banner">
+            You cancelled the Stripe checkout. No charge was made — confirm your plan below whenever you’re ready.
+          </div>
+        )}
+
+        <div className="ck-grid">
           {/* ── Plan summary ── */}
-          <div
-            className="bg-white rounded-xl"
-            style={{
-              border: '2px solid #1E3A5F',
-              padding: 28,
-              marginBottom: 20,
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 4,
-                background: 'linear-gradient(90deg, #4A90E2, #1E3A5F)',
-              }}
-            />
-            <p
-              className="mkt-archivo"
-              style={{
-                fontWeight: 600,
-                fontSize: 9,
-                letterSpacing: '0.22em',
-                textTransform: 'uppercase',
-                color: '#4A90E2',
-                marginBottom: 6,
-                marginTop: 8,
-              }}
-            >
-              Your vessel
-            </p>
-            <p
-              className="mkt-archivo"
-              style={{ fontWeight: 900, fontSize: 22, color: '#1E3A5F', marginBottom: 2 }}
-            >
-              {verifiedVessel?.name || 'Your vessel'}
-            </p>
-            {verifiedVessel?.loa_metres && (
-              <p
-                className="mkt-dmsans"
-                style={{ fontSize: 13, color: '#94A3B8', marginBottom: 20 }}
-              >
-                {verifiedVessel.loa_metres}m
-                {verifiedVessel.type ? ` · ${verifiedVessel.type}` : ''}
-                {verifiedVessel.flag ? ` · ${verifiedVessel.flag}` : ''}
-              </p>
-            )}
+          <div className="ck-card is-current">
+            <div className="ck-caps">Your vessel</div>
+            <div className="ck-vessel">{verifiedVessel?.name || 'Your vessel'}</div>
+            {vesselBits.length > 0 && <div className="ck-sub">{vesselBits.join(' · ')}</div>}
 
-            <hr style={{ border: 'none', borderTop: '1px solid #E2E8F0', margin: '0 0 20px' }} />
+            <hr className="ck-hr" />
 
-            <p
-              className="mkt-archivo"
-              style={{
-                fontWeight: 600,
-                fontSize: 9,
-                letterSpacing: '0.22em',
-                textTransform: 'uppercase',
-                color: '#4A90E2',
-                marginBottom: 6,
-              }}
-            >
-              Your plan
-            </p>
-            <p
-              className="mkt-archivo"
-              style={{ fontWeight: 900, fontSize: 22, color: '#1E3A5F', marginBottom: 2 }}
-            >
-              {tier.label}
-            </p>
-            <p
-              className="mkt-archivo"
-              style={{ fontWeight: 900, fontSize: 40, color: '#1E3A5F', marginBottom: 2 }}
-            >
-              £{price}
-              <span
-                className="mkt-dmsans"
-                style={{ fontSize: 16, fontWeight: 600, color: '#94A3B8' }}
-              >
-                {priceSuffix}
-              </span>
-            </p>
-            <p className="mkt-dmsans" style={{ fontSize: 13, color: '#94A3B8', marginBottom: 20 }}>
-              per vessel · every module included
-            </p>
-
-            {/* Billing toggle */}
-            <div
-              style={{
-                display: 'flex',
-                gap: 8,
-                background: '#F0F7FF',
-                padding: 4,
-                borderRadius: 50,
-                marginBottom: 20,
-              }}
-            >
-              {['monthly', 'annual'].map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setBillingPeriod(p)}
-                  className="mkt-archivo"
-                  style={{
-                    flex: 1,
-                    padding: '10px 16px',
-                    borderRadius: 50,
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: 900,
-                    fontSize: 10,
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    color: billingPeriod === p ? 'white' : '#1E3A5F',
-                    backgroundColor: billingPeriod === p ? '#1E3A5F' : 'transparent',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {p === 'monthly' ? 'Monthly' : 'Annual · 2 months free'}
-                </button>
-              ))}
-            </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid #E2E8F0', margin: '0 0 20px' }} />
-
-            <div style={{ textAlign: 'left' }}>
-              {INCLUDED.map((f) => (
-                <div
-                  key={f}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
-                    marginBottom: 10,
-                  }}
-                >
-                  <Check />
-                  <span
-                    className="mkt-dmsans"
-                    style={{ fontWeight: 400, fontSize: 13, color: '#475569', lineHeight: 1.5 }}
-                  >
-                    {f}
-                  </span>
-                </div>
-              ))}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginTop: 14 }}>
-                <Check />
-                <span
-                  className="mkt-dmsans"
-                  style={{ fontWeight: 400, fontSize: 13, color: '#475569', lineHeight: 1.5 }}
-                >
-                  {tier.support}
-                </span>
+            <div className="ck-plan-head">
+              <div>
+                <div className="ck-caps">Your plan</div>
+                <div className="ck-plan-name">Cargo <span className="dash">·</span> {tier.label}</div>
+              </div>
+              <div className="ck-toggle" role="group" aria-label="Billing period">
+                {[['monthly', 'Monthly'], ['annual', 'Annual']].map(([p, l]) => (
+                  <button key={p} type="button" className={billingPeriod === p ? 'on' : ''} onClick={() => setBillingPeriod(p)}>{l}</button>
+                ))}
               </div>
             </div>
+            <div className="ck-price">
+              <strong>£{price.toLocaleString('en-GB')}</strong><span className="per">{priceSuffix}</span>
+            </div>
+            <div className="ck-sub">
+              {billingPeriod === 'annual' ? 'Two months free vs paying monthly · ' : ''}per vessel · every module included
+            </div>
+
+            <hr className="ck-hr" />
+
+            <div className="ck-caps">What’s included</div>
+            <ul className="ck-inc">
+              {INCLUDED.map((f) => <li key={f}><Tick />{f}</li>)}
+              <li><Tick />{tier.support}</li>
+            </ul>
           </div>
 
-          {error && (
-            <div
-              style={{
-                background: '#FEF2F2',
-                border: '1px solid #FECACA',
-                borderRadius: 10,
-                padding: '12px 16px',
-                marginBottom: 12,
-              }}
-            >
-              <p className="mkt-dmsans" style={{ fontSize: 13, color: '#DC2626', lineHeight: 1.5 }}>
-                {error}
-              </p>
-            </div>
-          )}
+          {/* ── Billed to + Terms + pay ── */}
+          <div className="ck-card">
+            <TermsAcceptance
+              value={terms}
+              onChange={(patch) => setTerms((t) => ({ ...t, ...patch }))}
+              disabled={submitting}
+            />
 
-          <PrimaryBtn onClick={handleSubmit} disabled={submitting}>
-            {submitting ? 'Redirecting to Stripe…' : `Start subscription · £${price}${priceSuffix}`}
-          </PrimaryBtn>
+            {error && <div className="ck-error">{error}</div>}
 
-          <p
-            className="mkt-dmsans"
-            style={{
-              textAlign: 'center',
-              fontSize: 12,
-              color: '#94A3B8',
-              marginTop: 14,
-              lineHeight: 1.6,
-            }}
-          >
-            Secure checkout powered by Stripe. Cancel anytime. You'll get a magic-link email
-            to set up your account as soon as payment is confirmed.
-          </p>
-
-          <div style={{ textAlign: 'center', marginTop: 24 }}>
-            <Link
-              to="/pricing"
-              className="mkt-dmsans"
-              style={{ fontSize: 13, color: '#94A3B8', textDecoration: 'none' }}
-            >
-              ← Back to pricing
-            </Link>
+            <button type="button" className="ck-pay" onClick={handleSubmit} disabled={submitting || !ready}>
+              {submitting ? 'Redirecting to Stripe…' : `Start subscription · £${price.toLocaleString('en-GB')}${priceSuffix}`}
+            </button>
+            <p className="ck-secure">
+              {ready
+                ? 'Secure checkout powered by Stripe. Renews automatically · cancel anytime from Cargo.'
+                : 'Add the company the vessel is billed to and accept the Terms to continue.'}
+            </p>
           </div>
         </div>
       </section>

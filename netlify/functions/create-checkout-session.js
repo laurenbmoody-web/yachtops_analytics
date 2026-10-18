@@ -9,7 +9,12 @@
 //   billing_period: 'monthly' | 'annual',
 //   contact?: { name?, role?, email?, phone? }  // optional — patched onto the
 //                                                  registration row before checkout
+//   accept_terms: true,                           // the Terms tick box (required)
+//   customer: { legal_name, country }              // who the vessel is billed to
 // }
+//
+// The acceptance is recorded in customer_agreements before the customer is
+// sent to Stripe; stripe-webhook links it to the tenant once payment clears.
 //
 // Environment variables required:
 //   STRIPE_SECRET_KEY
@@ -27,6 +32,7 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const SITE_URL = process.env.SITE_URL || process.env.URL || 'https://cargotechnology.netlify.app';
+const { readAcceptance, requestMeta, recordAgreement } = require('../lib/agreements');
 
 // Price ID map: { tier: { monthly, annual } }
 const PRICE_IDS = {
@@ -165,6 +171,10 @@ exports.handler = async (event) => {
   if (!['monthly', 'annual'].includes(billing_period)) {
     return { statusCode: 400, body: JSON.stringify({ error: 'billing_period must be monthly or annual' }) };
   }
+  const acceptance = readAcceptance(body);
+  if (!acceptance.ok) {
+    return { statusCode: 400, body: JSON.stringify({ error: acceptance.error }) };
+  }
 
   try {
     // 1. Load the registration row
@@ -250,12 +260,34 @@ exports.handler = async (event) => {
       'metadata[billing_period]': billing_period,
       'metadata[contact_name]': registration.contact_name || '',
       'metadata[contact_role]': registration.contact_role || '',
+      'metadata[customer_legal_name]': acceptance.customer.legalName,
       // Locked design 2026-04-14 — "will you be the vessel admin?" Y/N.
       // Default true if the caller didn't send it (older clients).
       'metadata[will_be_admin]': will_be_admin === false ? 'false' : 'true',
       'subscription_data[metadata][vessel_registration_id]': registration.id,
       'subscription_data[metadata][imo]': registration.imo_number || '',
       'subscription_data[metadata][will_be_admin]': will_be_admin === false ? 'false' : 'true',
+    });
+
+    // 7. Record the Terms acceptance. No record → no payment.
+    const meta = requestMeta(event);
+    await recordAgreement({
+      supabaseUrl: SUPABASE_URL,
+      serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+      row: {
+        vessel_registration_id: registration.id,
+        source: 'website_checkout',
+        customer_legal_name: acceptance.customer.legalName,
+        customer_country: acceptance.customer.country,
+        accepted_by_name: registration.contact_name || null,
+        accepted_by_email: registration.contact_email || null,
+        accepted_by_role: registration.contact_role || null,
+        plan_tier: registration.pricing_tier,
+        billing_period,
+        stripe_checkout_session_id: session.id,
+        ip_address: meta.ip,
+        user_agent: meta.userAgent,
+      },
     });
 
     return {

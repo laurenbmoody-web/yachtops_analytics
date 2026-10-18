@@ -365,7 +365,13 @@ const VesselSignupFlowStep1 = () => {
           )}
         </div>
 
-        <p className="vs-footer">By creating an account, you agree to Cargo's terms of service</p>
+        <p className="vs-footer">
+          By creating an account, you agree to Cargo’s{' '}
+          <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#C65A1A', textDecoration: 'underline' }}>Terms of Service</a>
+          {' '}and{' '}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#C65A1A', textDecoration: 'underline' }}>Privacy Policy</a>.
+          {' '}The company paying for Cargo accepts the Terms when it chooses a plan.
+        </p>
       </div>
     </div>
   );

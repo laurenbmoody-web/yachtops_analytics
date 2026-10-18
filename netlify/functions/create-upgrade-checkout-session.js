@@ -8,7 +8,11 @@
 //
 // Input (POST, Authorization: Bearer <supabase access token>):
 //   { tenant_id: string, tier: 'under_40m'|'40_80m'|'over_80m',
-//     billing_period: 'monthly'|'annual' }
+//     billing_period: 'monthly'|'annual',
+//     accept_terms: true, customer: { legal_name, country } }
+//
+// The Terms acceptance is recorded in customer_agreements before the admin is
+// sent to Stripe; stripe-webhook copies it onto the tenant once payment clears.
 //
 // Env: STRIPE_SECRET_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SITE_URL,
 //      STRIPE_PRICE_* (same six price IDs as create-checkout-session)
@@ -17,6 +21,7 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const SITE_URL = process.env.SITE_URL || process.env.URL || 'https://cargotechnology.netlify.app';
+const { readAcceptance, requestMeta, recordAgreement } = require('../lib/agreements');
 
 const PRICE_IDS = {
   under_40m: {
@@ -97,6 +102,8 @@ exports.handler = async (event) => {
   if (!tenant_id) return { statusCode: 400, body: JSON.stringify({ error: 'tenant_id is required' }) };
   if (!PRICE_IDS[tier]) return { statusCode: 400, body: JSON.stringify({ error: 'Unknown plan tier' }) };
   if (!['monthly', 'annual'].includes(billing_period)) return { statusCode: 400, body: JSON.stringify({ error: 'billing_period must be monthly or annual' }) };
+  const acceptance = readAcceptance(body);
+  if (!acceptance.ok) return { statusCode: 400, body: JSON.stringify({ error: acceptance.error }) };
 
   try {
     const user = await getUserFromToken(token);
@@ -129,6 +136,7 @@ exports.handler = async (event) => {
       'metadata[tenant_id]': tenant_id,
       'metadata[pricing_tier]': tier,
       'metadata[billing_period]': billing_period,
+      'metadata[customer_legal_name]': acceptance.customer.legalName,
       'subscription_data[metadata][upgrade]': '1',
       'subscription_data[metadata][tenant_id]': tenant_id,
     };
@@ -138,6 +146,28 @@ exports.handler = async (event) => {
     else if (user?.email) params.customer_email = user.email;
 
     const session = await stripeCreateCheckoutSession(params);
+
+    // Record the Terms acceptance. No record → no payment.
+    const meta = requestMeta(event);
+    await recordAgreement({
+      supabaseUrl: SUPABASE_URL,
+      serviceKey: SUPABASE_SERVICE_ROLE_KEY,
+      row: {
+        tenant_id,
+        source: 'app_upgrade',
+        customer_legal_name: acceptance.customer.legalName,
+        customer_country: acceptance.customer.country,
+        accepted_by_user_id: uid,
+        accepted_by_name: user?.user_metadata?.full_name || user?.user_metadata?.name || null,
+        accepted_by_email: user?.email || null,
+        plan_tier: tier,
+        billing_period,
+        stripe_checkout_session_id: session.id,
+        ip_address: meta.ip,
+        user_agent: meta.userAgent,
+      },
+    });
+
     return { statusCode: 200, body: JSON.stringify({ url: session.url, id: session.id }) };
   } catch (err) {
     console.error('create-upgrade-checkout-session error:', err?.message || err);
