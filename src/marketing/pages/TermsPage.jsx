@@ -7,7 +7,9 @@ import useScrollAnimations from '../../hooks/useScrollAnimations';
 // structure of PrivacyPolicyPage. This is the agreement that governs use of the
 // Cargo service; it should be reviewed by legal counsel before launch.
 
-const LAST_UPDATED = '17/10/2026';
+// Keep TERMS_VERSION in netlify/lib/agreements.js in step with this date —
+// checkout records which version each customer accepted.
+const LAST_UPDATED = '18/10/2026';
 
 // The company behind Cargo. Keep in sync with PrivacyPolicyPage and MarketingFooter.
 const COMPANY = {
@@ -77,6 +79,14 @@ const TermsPage = () => {
           Terms. If you are using the Service on behalf of a vessel, company, or other
           organisation, you confirm that you are authorised to accept these Terms on its
           behalf.
+        </p>
+        <p className="mkt-dmsans" style={bodyStyle}>
+          A vessel's subscription is held by the company named when the plan is bought — at
+          checkout or on a signed order form — usually the company that owns or manages the
+          vessel (the "Customer"). The Customer accepts these Terms for the vessel and is
+          responsible for the people it authorises to use the Service, and for paying the
+          vessel's fees. If the Customer and Cargo sign an order form, it forms part of these
+          Terms and, where the two conflict, the order form takes priority for that vessel.
         </p>
         <p className="mkt-dmsans" style={bodyStyle}>
           If you do not agree to these Terms, do not use the Service.
@@ -170,7 +180,10 @@ const TermsPage = () => {
           <li className="mkt-dmsans" style={listItemStyle}>Paid subscriptions are billed in advance on a recurring basis through our payment processor, Stripe. Card details go directly to Stripe and never touch our servers.</li>
           <li className="mkt-dmsans" style={listItemStyle}>Fees are charged per vessel at the rates on our <Link to="/pricing" style={linkStyle}>Pricing</Link> page, to the vessel's billing account. Subscriptions renew automatically until cancelled.</li>
           <li className="mkt-dmsans" style={listItemStyle}>You can cancel at any time; cancellation takes effect at the end of the current billing period, and the Service remains available until then.</li>
-          <li className="mkt-dmsans" style={listItemStyle}>Except where required by law, fees already paid are non-refundable. We will give reasonable notice of any change to fees.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>Except where required by law, fees already paid are non-refundable.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>Fees exclude VAT and any other taxes, which are added where they apply.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>We will give at least 30 days' written notice of any change to the fees for an existing subscription. The new fee applies from the first billing period that starts after the notice period ends, and you can cancel before then.</li>
+          <li className="mkt-dmsans" style={listItemStyle}>If a payment fails, we will let you know. If it is still unpaid 14 days after that notice, we may suspend the vessel's access until it is paid. The vessel's data is not deleted while access is suspended.</li>
         </ul>
       </Section>
 
@@ -235,10 +248,13 @@ const TermsPage = () => {
 
       <Section id="changes" label="13" title="Changes to these terms">
         <p className="mkt-dmsans" style={bodyStyle}>
-          We may update these Terms from time to time. If we make material changes, we will
-          update this page and the "Last updated" date above, and, where appropriate, notify
-          you in the Service. Continuing to use the Service after changes take effect means
-          you accept the updated Terms.
+          We may update these Terms from time to time, and will update this page and the
+          "Last updated" date above when we do. If a change is material and adversely affects
+          a paying Customer, we will give at least 30 days' notice by email or in the Service,
+          and it takes effect from the Customer's next renewal after that notice. If the
+          Customer does not accept the change, it can cancel before then. Other changes take
+          effect when published, and continuing to use the Service after that means you
+          accept them.
         </p>
         <p className="mkt-dmsans" style={{ ...bodyStyle, marginBottom: 0 }}>
           Questions about these Terms? <Link to="/contact" style={linkStyle}>Get in touch</Link> or

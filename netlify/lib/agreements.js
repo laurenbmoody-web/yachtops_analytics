@@ -6,7 +6,7 @@
 // (src/marketing/pages/TermsPage.jsx). Bump it whenever the Terms change, so
 // each acceptance records exactly which version was agreed to.
 
-const TERMS_VERSION = '2026-10-17';
+const TERMS_VERSION = '2026-10-18';
 
 const clean = (v, max) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, max) : '');
 
