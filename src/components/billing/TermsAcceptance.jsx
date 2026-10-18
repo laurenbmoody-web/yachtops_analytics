@@ -19,11 +19,12 @@ const TermsAcceptance = ({ value, onChange, disabled = false }) => {
     <div className="ta-wrap">
       <div className="ta-caps">Billed to <span className="ta-req">required</span></div>
       <p className="ta-desc">
-        The company that owns or manages the vessel and pays for Cargo. It becomes the customer under the Terms.
+        The company the vessel is billed to — usually the yacht’s owning or management company. Not sure? It’s
+        the name on the yacht’s invoices, or ask your captain. This company becomes the customer under the Terms.
       </p>
       <div className="ta-fields">
         <label className="ta-field">
-          <span className="ta-label">Company name</span>
+          <span className="ta-label">Owning or management company</span>
           <input
             type="text"
             value={v.legalName || ''}
@@ -63,7 +64,7 @@ const TermsAcceptance = ({ value, onChange, disabled = false }) => {
         <span className="ta-text">
           I agree to the{' '}
           <a href="/terms" target="_blank" rel="noopener noreferrer">Cargo Terms of Service</a>, including the data
-          processing terms, on behalf of <b>{company || 'the company above'}</b>, and confirm I’m authorised to do so.
+          processing terms, on behalf of <b>{company || 'the company above'}</b>, and confirm I’m authorised to sign the vessel up.
           Our <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a> explains how we handle
           personal data.
         </span>
