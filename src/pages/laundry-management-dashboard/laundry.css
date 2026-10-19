@@ -339,13 +339,19 @@
   box-shadow: 0 40px 90px -28px rgba(28, 27, 58, 0.34);
   width: min(560px, calc(100vw - 32px));
   max-height: 90vh;
-  overflow-y: auto;
+  max-height: 90dvh;
+  /* Flex column: the body is the only scroller, so the header and footer stay
+     pinned without position:sticky (which drifts over the body on iOS once the
+     keyboard opens). */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A;
 }
 /* Atelier head — centred serif display over a soft terracotta wash */
 .alm-head {
-  position: sticky; top: 0; z-index: 3;
+  flex: 0 0 auto; z-index: 3;
   padding: 28px 34px 22px; border-bottom: 1px solid #F0F1F5;
   text-align: center; border-radius: 22px 22px 0 0;
   background:
@@ -365,11 +371,12 @@
   color: #8B8478; cursor: pointer; transition: background 0.14s, color 0.14s;
 }
 .alm-x:hover { background: #F4F6FA; color: #C65A1A; }
-.alm-body { padding: 26px 34px; }
+.alm-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 26px 34px; }
 .alm-foot {
-  position: sticky; bottom: 0; background: #FBFCFE; border-top: 1px solid #F0F1F5;
+  flex: 0 0 auto; background: #FBFCFE; border-top: 1px solid #F0F1F5;
   padding: 18px 34px; display: flex; align-items: center; justify-content: flex-end; gap: 12px;
   border-radius: 0 0 22px 22px;
+  padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
 }
 
 .alm-q { font-size: 14px; color: #4B4A66; margin: 0 0 16px; }
