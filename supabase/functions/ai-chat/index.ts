@@ -37,7 +37,10 @@ const corsHeaders = {
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY') || '';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-6'; // same vision model as parse-garment-photos
+// Sonnet 4.5 — strong vision for reading brand/care/size labels off photos.
+// Must be a real, dated model id; a bare "claude-sonnet-4-6" 404s at the API
+// and surfaces to users as "couldn't read the photo".
+const MODEL = 'claude-sonnet-4-5-20250929';
 const MAX_TOKENS_CAP = 8192;
 
 function json(payload: unknown, status = 200): Response {

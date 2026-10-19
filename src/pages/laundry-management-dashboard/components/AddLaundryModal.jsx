@@ -273,7 +273,11 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
   const getFilteredCrew = () => {
     const q = crewSearchQuery?.toLowerCase()?.trim();
     if (!q) return activeCrew;
-    return activeCrew?.filter((c) => c?.fullName?.toLowerCase()?.includes(q) || (c?.roleTitle || '').toLowerCase().includes(q));
+    return activeCrew?.filter((c) =>
+      c?.fullName?.toLowerCase()?.includes(q)
+      || (c?.roleTitle || '').toLowerCase().includes(q)
+      || (c?.laundryNumber || '').toLowerCase().includes(q)
+    );
   };
   const filteredLocations = useMemo(() => {
     const q = locationQuery?.toLowerCase()?.trim();
@@ -706,7 +710,7 @@ const AddLaundryModal = ({ onClose, onSuccess, onSaved, editItem }) => {
                       <button key={crew?.id} type="button" className="alm-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => handleCrewSelect(crew)}>
                         <span style={{ minWidth: 0 }}>
                           <span className="alm-combo-name">{crew?.fullName}</span>
-                          {(crew?.roleTitle || crew?.cabin) && <span className="alm-combo-meta">{[crew?.roleTitle, crew?.cabin].filter(Boolean).join(' · ')}</span>}
+                          {(crew?.roleTitle || crew?.cabin || crew?.laundryNumber) && <span className="alm-combo-meta">{[crew?.roleTitle, crew?.cabin, crew?.laundryNumber && `No. ${crew.laundryNumber}`].filter(Boolean).join(' · ')}</span>}
                         </span>
                         <span className="alm-combo-active">Aboard</span>
                       </button>
