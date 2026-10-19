@@ -1,0 +1,218 @@
+[
+ {
+  "n": 1,
+  "id": "6fb562aa-dfb9-4f94-8d08-de8d3be7f49d",
+  "name": "Carafe L Inku",
+  "sub_location": "Glassware"
+ },
+ {
+  "n": 2,
+  "id": "389e08aa-f716-43ae-a8b7-1b149da7abf0",
+  "name": "Champagne Coupe Inku",
+  "sub_location": "Glassware"
+ },
+ {
+  "n": 3,
+  "id": "b26e6906-0dd2-45fa-91ae-053cb8498feb",
+  "name": "Glass Inku",
+  "sub_location": "Glassware"
+ },
+ {
+  "n": 4,
+  "id": "fe98ba91-bedc-4666-97a9-94d5130fccc9",
+  "name": "Longdrink Inku",
+  "sub_location": "Glassware"
+ },
+ {
+  "n": 5,
+  "id": "88915fd2-94fb-46a3-9ecd-5e2c0a296e29",
+  "name": "Red Wine Glass Inku",
+  "sub_location": "Glassware"
+ },
+ {
+  "n": 6,
+  "id": "2154e063-c699-4a7b-af87-5bc2be27c528",
+  "name": "Red Wine Glass Nido",
+  "sub_location": "Glassware"
+ },
+ {
+  "n": 7,
+  "id": "a6bfe320-f631-40eb-a54c-055477715d9f",
+  "name": "Tumbler L Inku",
+  "sub_location": "Glassware"
+ },
+ {
+  "n": 8,
+  "id": "1112312e-5d6c-417a-bc5f-f3db59742821",
+  "name": "Tumbler S Inku",
+  "sub_location": "Glassware"
+ },
+ {
+  "n": 9,
+  "id": "c32f9921-85cb-444e-b850-3b5f6a4c5c1d",
+  "name": "Water Glass Nido",
+  "sub_location": "Glassware"
+ },
+ {
+  "n": 10,
+  "id": "19375161-8ca1-4893-89a9-f4a995c795cd",
+  "name": "White Wine Glass Nido",
+  "sub_location": "Glassware"
+ },
+ {
+  "n": 11,
+  "id": "f8327496-cefe-43f4-ad4e-4b51d60230b7",
+  "name": "A. DE FUSSIGNY",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 12,
+  "id": "a234aac5-ba5f-406a-9f21-b5bf96a04991",
+  "name": "Bombay Sapphire",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 13,
+  "id": "514aab9f-cdf7-4fe9-be00-a7e92fddc308",
+  "name": "Campari",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 14,
+  "id": "8a3d53a7-96ff-467e-8f66-c9d6c4e88f91",
+  "name": "Chartreuse",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 15,
+  "id": "3eda3032-f2ab-4af5-8122-2776a1c359ed",
+  "name": "Chivas Regal",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 16,
+  "id": "2ec8f215-ad14-4964-b8e5-b24408e2c8c1",
+  "name": "Clas Azul Tequila",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 17,
+  "id": "752e23a1-2d3f-47fa-afa9-2e98e7b91d4c",
+  "name": "Courvoisier VSOP Fine Cognac",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 18,
+  "id": "23c76455-f84a-4f04-87fb-ade28037aaf0",
+  "name": "Dimple Golden Selection",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 19,
+  "id": "3e224f65-dd24-4e5d-92af-18601a706374",
+  "name": "Drambuie",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 20,
+  "id": "6d388f25-d063-49d1-be44-d3df82fbb7ff",
+  "name": "Glenfiddich 18 year",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 21,
+  "id": "d9bef812-a70e-4a8b-8ada-ed15e19b9b90",
+  "name": "Glenfiddich cask collection",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 22,
+  "id": "90631f6d-1a38-4000-b6d3-10a057293cad",
+  "name": "Gold Label Reserve",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 23,
+  "id": "f5d0478b-f607-40dc-b38f-ccb3a607a206",
+  "name": "Johnnie Walker Double Black Whisky",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 24,
+  "id": "46e7637d-156f-48df-91bb-91eb4a2aca6f",
+  "name": "Martini Bianco",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 25,
+  "id": "e98fd409-f977-42b0-8a94-04fc1a556d8a",
+  "name": "Ouzo",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 26,
+  "id": "f7c61249-bf9a-4fad-b643-8114c553df04",
+  "name": "Pimms",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 27,
+  "id": "28926ad3-b893-4ec1-bfd9-e8f5edd7b5aa",
+  "name": "Single Malt Yoichi",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 28,
+  "id": "a3c3ece0-d98f-4f98-aa5b-e5ce5e8a6648",
+  "name": "Skinos Marina",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 29,
+  "id": "69fe0a2e-1af1-492f-b1b1-29c98af447c0",
+  "name": "The Botanist islay dry gin",
+  "sub_location": "Spirits"
+ },
+ {
+  "n": 30,
+  "id": "7feef767-e614-4d62-8bb6-6024fc39a5c2",
+  "name": "Crew beanie — Navy",
+  "sub_location": "Uniforms"
+ },
+ {
+  "n": 31,
+  "id": "c272738c-403a-48c1-9f87-c4252e7a0026",
+  "name": "Microfleece Falco — Navy (Mens)",
+  "sub_location": "Uniforms"
+ },
+ {
+  "n": 32,
+  "id": "d60c3f1f-725b-4cac-be00-3c2fc8b144f2",
+  "name": "Microfleece Maureen — Navy (Ladies)",
+  "sub_location": "Uniforms"
+ },
+ {
+  "n": 33,
+  "id": "6b636148-a89a-4d6f-9e47-768b05217fe4",
+  "name": "Musto Sardinia 2.0 Jacket — True Navy (Ladies)",
+  "sub_location": "Uniforms"
+ },
+ {
+  "n": 34,
+  "id": "58dc4231-a37f-4c62-9d70-210cb90a5d6a",
+  "name": "Musto Sardinia 2.0 Jacket — True Navy (Mens)",
+  "sub_location": "Uniforms"
+ },
+ {
+  "n": 35,
+  "id": "145e8294-29fe-469d-9b10-4b07f4a71bc6",
+  "name": "Soft tee — White (Ladies)",
+  "sub_location": "Uniforms"
+ },
+ {
+  "n": 36,
+  "id": "ea03d048-462e-4433-9a81-169d9757d74d",
+  "name": "Soft tee — White (Mens)",
+  "sub_location": "Uniforms"
+ }
+]
