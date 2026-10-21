@@ -8,13 +8,14 @@ import useScrollAnimations from '../../hooks/useScrollAnimations';
 // must stay in-depth and accurate to the shipped manifest
 // (pya-autofill-extension/manifest.json). It also covers the Cargo web app.
 
-const LAST_UPDATED = '17/10/2026';
+const LAST_UPDATED = '21/10/2026';
 
 // The company behind Cargo. Keep in sync with TermsPage and MarketingFooter.
 const COMPANY = {
   name: 'Cargo Technology Ltd',
   number: '17525300',
   office: '71-75 Shelton Street, Covent Garden, London, WC2H 9JQ, United Kingdom',
+  ico: 'ZC277729',
 };
 
 const sectionLabel = {
@@ -147,7 +148,8 @@ const PrivacyPolicyPage = () => {
         <p className="mkt-dmsans" style={bodyStyle}>
           Cargo is run by <strong>{COMPANY.name}</strong>, a company registered in England
           and Wales (company number {COMPANY.number}). Our registered office is {COMPANY.office}.
-          In this policy "Cargo", "we" and "us" mean {COMPANY.name}.
+          We are registered with the UK Information Commissioner’s Office as a data controller
+          (registration number {COMPANY.ico}). In this policy "Cargo", "we" and "us" mean {COMPANY.name}.
         </p>
         <p className="mkt-dmsans" style={bodyStyle}>
           Cargo is an operational platform for professional yacht crews, available at
