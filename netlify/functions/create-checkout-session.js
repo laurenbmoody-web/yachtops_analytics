@@ -26,12 +26,12 @@
 //   STRIPE_PRICE_40_80M_ANNUAL
 //   STRIPE_PRICE_OVER_80M_MONTHLY
 //   STRIPE_PRICE_OVER_80M_ANNUAL
-//   SITE_URL (e.g. https://cargotechnology.netlify.app) — used for success/cancel URLs
+//   SITE_URL (e.g. https://cargotechnology.co.uk) — used for success/cancel URLs
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const SITE_URL = process.env.SITE_URL || process.env.URL || 'https://cargotechnology.netlify.app';
+const SITE_URL = process.env.SITE_URL || process.env.URL || 'https://cargotechnology.co.uk';
 const { readAcceptance, requestMeta, recordAgreement } = require('../lib/agreements');
 
 // Price ID map: { tier: { monthly, annual } }

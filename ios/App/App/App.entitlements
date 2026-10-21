@@ -6,10 +6,11 @@
 	     TestFlight / App Store; "development" is for debug builds. -->
 	<key>aps-environment</key>
 	<string>development</string>
-	<!-- Universal links: https://cargotechnology.netlify.app/... opens the app.
+	<!-- Universal links: https://cargotechnology.co.uk/... (and the old netlify.app address) opens the app.
 	     Pairs with public/.well-known/apple-app-site-association. -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
+		<string>applinks:cargotechnology.co.uk</string>
 		<string>applinks:cargotechnology.netlify.app</string>
 	</array>
 </dict>

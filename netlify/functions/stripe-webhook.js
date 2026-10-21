@@ -15,7 +15,7 @@
 //   STRIPE_WEBHOOK_SECRET        — whsec_... from Stripe Dashboard → Webhooks
 //   SUPABASE_URL (or VITE_SUPABASE_URL)
 //   SUPABASE_SERVICE_ROLE_KEY    — service role key (admin access)
-//   SITE_URL                     — e.g. https://cargotechnology.netlify.app
+//   SITE_URL                     — e.g. https://cargotechnology.co.uk
 //
 // Netlify note: this function must receive the raw request body for signature
 // verification. Netlify forwards the body as a string in event.body which
@@ -27,7 +27,7 @@ const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const SITE_URL = process.env.SITE_URL || process.env.URL || 'https://cargotechnology.netlify.app';
+const SITE_URL = process.env.SITE_URL || process.env.URL || 'https://cargotechnology.co.uk';
 const { linkAgreementToTenant } = require('../lib/agreements');
 const linkAgreement = (sessionId, tenantId, userId) =>
   linkAgreementToTenant({ supabaseUrl: SUPABASE_URL, serviceKey: SUPABASE_SERVICE_ROLE_KEY, sessionId, tenantId, userId });

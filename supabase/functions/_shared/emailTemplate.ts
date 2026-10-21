@@ -34,7 +34,7 @@ const BORDER     = '#E5DFD4';
 // inline SVG and blocks unknown MIME types). Path mirrors the assets the
 // public site already serves, so no new file needed.
 const WORDMARK_URL =
-  'https://cargotechnology.netlify.app/assets/images/cargo_merged_originalmark_syne800_true.png';
+  'https://cargotechnology.co.uk/assets/images/cargo_merged_originalmark_syne800_true.png';
 
 const SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 const SERIF = "Georgia, 'Times New Roman', serif";

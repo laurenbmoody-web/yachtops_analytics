@@ -24,7 +24,7 @@
 //   RESEND_API_KEY
 //   SUPABASE_URL                 (auto-populated by Supabase Edge runtime)
 //   SUPABASE_SERVICE_ROLE_KEY    (auto-populated)
-//   SITE_URL                     (optional — defaults to cargotechnology.netlify.app)
+//   SITE_URL                     (optional — defaults to cargotechnology.co.uk)
 //
 // Request body:
 //   { taskId: uuid }   // the supplier_return_tasks row id
@@ -43,7 +43,7 @@ const corsHeaders = {
 const RESEND_API_KEY            = Deno.env.get('RESEND_API_KEY') || '';
 const SUPABASE_URL              = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const SITE_URL                  = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
+const SITE_URL                  = Deno.env.get('SITE_URL') || 'https://cargotechnology.co.uk';
 
 // ─── Inlined from _shared/emailTemplate.ts ──────────────────────────────────
 // The Supabase dashboard "Deploy updates" button can't resolve `_shared/`
@@ -77,7 +77,7 @@ const MUTED_TEXT = '#6B6F7B';
 const BORDER     = '#E5DFD4';
 
 const WORDMARK_URL =
-  'https://cargotechnology.netlify.app/assets/images/cargo_merged_originalmark_syne800_true.png';
+  'https://cargotechnology.co.uk/assets/images/cargo_merged_originalmark_syne800_true.png';
 
 const SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 const SERIF = "Georgia, 'Times New Roman', serif";

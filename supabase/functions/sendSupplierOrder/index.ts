@@ -15,7 +15,7 @@
 //
 // Env vars required:
 //   RESEND_API_KEY
-//   SITE_URL  (optional — defaults to https://cargotechnology.netlify.app)
+//   SITE_URL  (optional — defaults to https://cargotechnology.co.uk)
 //
 // Request body:
 //   {
@@ -48,7 +48,7 @@ const corsHeaders = {
 };
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
-const SITE_URL       = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
+const SITE_URL       = Deno.env.get('SITE_URL') || 'https://cargotechnology.co.uk';
 
 // ─── Inlined from _shared/emailTemplate.ts ──────────────────────────────────
 // The Supabase dashboard "Deploy updates" button can't resolve `_shared/`
@@ -75,7 +75,7 @@ const MUTED_TEXT = '#6B6F7B';
 const BORDER     = '#E5DFD4';
 
 const WORDMARK_URL =
-  'https://cargotechnology.netlify.app/assets/images/cargo_merged_originalmark_syne800_true.png';
+  'https://cargotechnology.co.uk/assets/images/cargo_merged_originalmark_syne800_true.png';
 
 const SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 const SERIF = "Georgia, 'Times New Roman', serif";
@@ -355,7 +355,7 @@ Deno.serve(async (req: Request) => {
       ctaLabel: 'View & confirm order',
       ctaUrl: confirmUrl,
       secondaryText: `Or paste this link into your browser: ${confirmUrl}`,
-      footerNote: `Questions? Reply to this email — it goes directly to ${senderName || 'the chief stew'}. Cargo can also host your supplier profile, free — visit cargotechnology.netlify.app to learn more.`,
+      footerNote: `Questions? Reply to this email — it goes directly to ${senderName || 'the chief stew'}. Cargo can also host your supplier profile, free — visit cargotechnology.co.uk to learn more.`,
     };
 
     subject = [`${vesselName} needs to confirm an order`, subjectTail].filter(Boolean).join(' · ');

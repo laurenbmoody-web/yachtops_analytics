@@ -38,7 +38,7 @@ const RESEND_API_KEY           = Deno.env.get('RESEND_API_KEY') || '';
 const SUPABASE_URL             = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_KEY     = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const CERT_REVIEW_RECIPIENTS   = Deno.env.get('CERT_REVIEW_RECIPIENTS') || 'certs@cargotechnology.co.uk';
-const SITE_URL                 = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
+const SITE_URL                 = Deno.env.get('SITE_URL') || 'https://cargotechnology.co.uk';
 const FROM                     = 'Cargo Certifications <certs@cargotechnology.co.uk>';
 
 const restHeaders = {

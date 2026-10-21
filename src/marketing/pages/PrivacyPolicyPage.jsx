@@ -151,7 +151,7 @@ const PrivacyPolicyPage = () => {
         </p>
         <p className="mkt-dmsans" style={bodyStyle}>
           Cargo is an operational platform for professional yacht crews, available at
-          cargotechnology.netlify.app and in the Cargo app for iPhone, iPad and Android. We
+          cargotechnology.co.uk and in the Cargo app for iPhone, iPad and Android. We
           also publish the <strong>Cargo → PYA Autofill</strong> browser extension, which helps
           crew fill the PYA Sea Service Testimonial (SST) form from a record they have
           prepared in Cargo.

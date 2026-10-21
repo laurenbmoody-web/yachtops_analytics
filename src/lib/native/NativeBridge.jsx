@@ -1,7 +1,7 @@
 // Router-aware glue for the iOS / Android app. Renders nothing; mounted once
 // inside <BrowserRouter> and inert on the web.
 //
-//  • Universal / app links (https://cargotechnology.netlify.app/…) and
+//  • Universal / app links (https://cargotechnology.co.uk/…) and
 //    cargo://… open the matching screen — including Supabase auth links
 //    (password reset, invite, email change), whose tokens arrive in the URL.
 //  • A tap on a push notification opens the screen it points at.

@@ -7,7 +7,7 @@ One codebase: every web feature ships to the app too. The native projects live i
 | | |
 |---|---|
 | Bundle / package id | `uk.co.cargotechnology.app` |
-| Public site (links, QR codes, auth emails) | `https://cargotechnology.netlify.app` (`VITE_PUBLIC_APP_URL` overrides) |
+| Public site (links, QR codes, auth emails) | `https://cargotechnology.co.uk` (`VITE_PUBLIC_APP_URL` overrides) |
 | Universal / app links | `public/.well-known/apple-app-site-association`, `public/.well-known/assetlinks.json` |
 | Icons & splash source | `resources/logo.png` → `npx capacitor-assets generate --assetPath resources …` |
 
