@@ -22,7 +22,7 @@ const EB_BASE = 'https://api.enablebanking.com';
 const APP_ID = Deno.env.get('ENABLEBANKING_APP_ID') || '';
 const PRIVATE_KEY = Deno.env.get('ENABLEBANKING_PRIVATE_KEY') || '';
 const REDIRECT_URL = Deno.env.get('ACCOUNTS_REDIRECT_URL')
-  || 'https://cargotechnology.netlify.app/accounts/connect/callback';
+  || 'https://cargotechnology.co.uk/accounts/connect/callback';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',

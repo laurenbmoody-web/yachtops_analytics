@@ -40,7 +40,7 @@ const SIGNED_URL_TTL_SECONDS  = 600;
 const BUCKET                  = 'supplier-documents';
 
 const CARGO_WORDMARK_URL =
-  'https://cargotechnology.netlify.app/assets/images/cargo_merged_originalmark_syne800_true.png';
+  'https://cargotechnology.co.uk/assets/images/cargo_merged_originalmark_syne800_true.png';
 
 const restHeaders = {
   apikey: SUPABASE_SERVICE_KEY,

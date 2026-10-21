@@ -187,7 +187,7 @@ function buildEmailHtml(b: any): string {
                 <td width="4%"></td>
                 <td width="48%" style="padding-left:16px">
                   ${b.confirmationToken ? `
-                  <a href="https://cargotechnology.netlify.app/return-confirm?token=${b.confirmationToken}"
+                  <a href="https://cargotechnology.co.uk/return-confirm?token=${b.confirmationToken}"
                      style="display:inline-block;padding:12px 24px;background:#059669;color:#FFFFFF;font-size:13px;font-weight:600;text-decoration:none;border-radius:8px;margin-bottom:6px">
                     Confirm Receipt &amp; Sign
                   </a>

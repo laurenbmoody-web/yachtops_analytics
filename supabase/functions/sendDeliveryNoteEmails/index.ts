@@ -44,7 +44,7 @@
 // === Env ===
 //   SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY
-//   SITE_URL                       (defaults to https://cargotechnology.netlify.app)
+//   SITE_URL                       (defaults to https://cargotechnology.co.uk)
 //   RESEND_API_KEY
 //
 // === Body ===
@@ -77,12 +77,12 @@ const corsHeaders = {
 
 const SUPABASE_URL          = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const SITE_URL              = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
+const SITE_URL              = Deno.env.get('SITE_URL') || 'https://cargotechnology.co.uk';
 const RESEND_API_KEY        = Deno.env.get('RESEND_API_KEY') || '';
 
 const FROM_EMAIL = 'Cargo Deliveries <deliveries@cargotechnology.co.uk>';
 const CARGO_WORDMARK_URL =
-  'https://cargotechnology.netlify.app/assets/images/cargo_merged_originalmark_syne800_true.png';
+  'https://cargotechnology.co.uk/assets/images/cargo_merged_originalmark_syne800_true.png';
 
 // Idempotency window: refuse sends within this many ms of the previous
 // emailed_at unless force=true. 30 minutes per spec.

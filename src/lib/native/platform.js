@@ -11,7 +11,7 @@ export const nativePlatform = () => Capacitor.getPlatform(); // 'ios' | 'android
 // capacitor://localhost (iOS) or https://localhost (Android) — useless in a
 // link someone else opens, a QR code, or an auth email. Anything that leaves
 // the device must be built from publicOrigin(), never location.origin.
-const PUBLIC_APP_URL = (import.meta.env?.VITE_PUBLIC_APP_URL || 'https://cargotechnology.netlify.app').replace(/\/+$/, '');
+const PUBLIC_APP_URL = (import.meta.env?.VITE_PUBLIC_APP_URL || 'https://cargotechnology.co.uk').replace(/\/+$/, '');
 
 export function publicOrigin() {
   if (typeof window === 'undefined' || !window.location) return PUBLIC_APP_URL;

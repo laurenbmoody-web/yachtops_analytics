@@ -12,7 +12,7 @@
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const SITE_URL = process.env.SITE_URL || process.env.URL || 'https://cargotechnology.netlify.app';
+const SITE_URL = process.env.SITE_URL || process.env.URL || 'https://cargotechnology.co.uk';
 
 const CHIEF_PLUS = ['CHIEF', 'COMMAND'];
 

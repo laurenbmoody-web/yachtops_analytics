@@ -8,7 +8,7 @@
 //   RESEND_API_KEY
 //   SUPABASE_URL             (auto-injected by Supabase runtime)
 //   SUPABASE_SERVICE_ROLE_KEY (auto-injected by Supabase runtime)
-//   SITE_URL                 (optional — defaults to https://cargotechnology.netlify.app)
+//   SITE_URL                 (optional — defaults to https://cargotechnology.co.uk)
 //
 // ⚠ SITE_URL flag: if not set in Supabase Edge Function secrets per environment,
 //   invite links in preview/staging deploys will point to the production URL.
@@ -21,7 +21,7 @@ declare const Deno: {
 const RESEND_API_KEY          = Deno.env.get('RESEND_API_KEY') || '';
 const SUPABASE_URL            = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const SITE_URL                = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
+const SITE_URL                = Deno.env.get('SITE_URL') || 'https://cargotechnology.co.uk';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

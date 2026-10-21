@@ -6,7 +6,7 @@
 //
 // Env vars required:
 //   RESEND_API_KEY
-//   SITE_URL  (optional — defaults to https://cargotechnology.netlify.app)
+//   SITE_URL  (optional — defaults to https://cargotechnology.co.uk)
 
 import { renderCargoEmail, renderCargoEmailText } from '../_shared/emailTemplate.ts';
 
@@ -22,7 +22,7 @@ const corsHeaders = {
 };
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
-const SITE_URL = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
+const SITE_URL = Deno.env.get('SITE_URL') || 'https://cargotechnology.co.uk';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });

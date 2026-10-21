@@ -19,12 +19,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- App links: https://cargotechnology.netlify.app/... opens the app.
+            <!-- App links: https://cargotechnology.co.uk/... (and the old netlify.app address) opens the app.
                  Verified against public/.well-known/assetlinks.json. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="cargotechnology.co.uk" />
                 <data android:scheme="https" android:host="cargotechnology.netlify.app" />
             </intent-filter>
 

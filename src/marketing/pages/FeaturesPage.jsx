@@ -115,7 +115,7 @@ const CrewMockup = () => (
         color: 'rgba(255,255,255,0.4)',
         letterSpacing: '0.01em',
       }}>
-        cargotechnology.netlify.app/crew/duty-sets
+        cargotechnology.co.uk/crew/duty-sets
       </div>
     </div>
 
@@ -431,7 +431,7 @@ const GuestMockup = () => (
         color: 'rgba(255,255,255,0.4)',
         letterSpacing: '0.01em',
       }}>
-        cargotechnology.netlify.app/guests/john-doe/preferences
+        cargotechnology.co.uk/guests/john-doe/preferences
       </div>
     </div>
 
@@ -736,7 +736,7 @@ const InventoryMockup = () => (
         color: 'rgba(255,255,255,0.4)',
         letterSpacing: '0.01em',
       }}>
-        cargotechnology.netlify.app/inventory
+        cargotechnology.co.uk/inventory
       </div>
     </div>
 
@@ -966,7 +966,7 @@ const JobsMockup = () => (
         color: 'rgba(255,255,255,0.4)',
         letterSpacing: '0.01em',
       }}>
-        cargotechnology.netlify.app/jobs
+        cargotechnology.co.uk/jobs
       </div>
     </div>
 

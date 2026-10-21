@@ -6,7 +6,7 @@
 //
 // Env vars required:
 //   RESEND_API_KEY
-//   SITE_URL                         (optional — defaults to https://cargotechnology.netlify.app)
+//   SITE_URL                         (optional — defaults to https://cargotechnology.co.uk)
 //   SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY  (only used as a fallback when
 //     the caller doesn't pass supplierName / fromName in the body)
 //
@@ -25,7 +25,7 @@ const corsHeaders = {
 };
 
 const RESEND_API_KEY            = Deno.env.get('RESEND_API_KEY') || '';
-const SITE_URL                  = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
+const SITE_URL                  = Deno.env.get('SITE_URL') || 'https://cargotechnology.co.uk';
 const SUPABASE_URL              = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
@@ -54,7 +54,7 @@ const MUTED_TEXT = '#6B6F7B';
 const BORDER     = '#E5DFD4';
 
 const WORDMARK_URL =
-  'https://cargotechnology.netlify.app/assets/images/cargo_merged_originalmark_syne800_true.png';
+  'https://cargotechnology.co.uk/assets/images/cargo_merged_originalmark_syne800_true.png';
 
 const SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 const SERIF = "Georgia, 'Times New Roman', serif";

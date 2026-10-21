@@ -30,7 +30,7 @@
 //   PDFSHIFT_API_KEY
 //   SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY
-//   SITE_URL                    (optional; defaults to cargotechnology.netlify.app)
+//   SITE_URL                    (optional; defaults to cargotechnology.co.uk)
 //
 // Body: { orderId: uuid }
 // Response: { pdf_path, signing_token, signed_url, expires_at, generated_at }
@@ -49,13 +49,13 @@ const corsHeaders = {
 const PDFSHIFT_API_KEY        = Deno.env.get('PDFSHIFT_API_KEY') || '';
 const SUPABASE_URL            = Deno.env.get('SUPABASE_URL') || '';
 const SUPABASE_SERVICE_KEY    = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const SITE_URL                = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
+const SITE_URL                = Deno.env.get('SITE_URL') || 'https://cargotechnology.co.uk';
 const PDFSHIFT_ENDPOINT       = 'https://api.pdfshift.io/v3/convert/pdf';
 const SIGNED_URL_TTL_SECONDS  = 600;
 const BUCKET                  = 'supplier-documents';
 
 const CARGO_WORDMARK_URL =
-  'https://cargotechnology.netlify.app/assets/images/cargo_merged_originalmark_syne800_true.png';
+  'https://cargotechnology.co.uk/assets/images/cargo_merged_originalmark_syne800_true.png';
 
 const restHeaders = {
   apikey: SUPABASE_SERVICE_KEY,

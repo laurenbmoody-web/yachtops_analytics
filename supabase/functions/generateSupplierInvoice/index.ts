@@ -125,7 +125,7 @@ interface InvoiceRenderInput {
 }
 
 const CARGO_WORDMARK_URL =
-  'https://cargotechnology.netlify.app/assets/images/cargo_merged_originalmark_syne800_true.png';
+  'https://cargotechnology.co.uk/assets/images/cargo_merged_originalmark_syne800_true.png';
 
 function escapeHtml(s: string): string {
   return String(s ?? '')

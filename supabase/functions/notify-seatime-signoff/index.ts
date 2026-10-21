@@ -30,7 +30,7 @@ const corsHeaders = {
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') || '';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const SITE_URL = Deno.env.get('SITE_URL') || 'https://cargotechnology.netlify.app';
+const SITE_URL = Deno.env.get('SITE_URL') || 'https://cargotechnology.co.uk';
 
 const NAVY = '#1C1B3A', CREAM_BG = '#F4F1EC', WHITE = '#FFFFFF', BORDER = '#E2DDD4';
 const DARK_TEXT = '#1C1B3A', MUTED_TEXT = '#8B8478', TERRA = '#C65A1A';

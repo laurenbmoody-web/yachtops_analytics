@@ -3,7 +3,7 @@
 _Last updated: 2026-07-07_
 
 > **Canonical version:** the hosted policy at
-> **https://cargotechnology.netlify.app/privacy** (the URL on the Chrome Web
+> **https://cargotechnology.co.uk/privacy** (the URL on the Chrome Web
 > Store listing). This file is a summary kept in the repo for convenience —
 > if they ever differ, the hosted page wins. The page source lives at
 > `src/marketing/pages/PrivacyPolicyPage.jsx`; update both together.
