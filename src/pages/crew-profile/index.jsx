@@ -770,19 +770,22 @@ const CrewProfile = () => {
   const handleSave = async () => {
     if (!crewMember) return;
 
-    // Permission check: only allow editing own profile or if Command role
+    // Permission check: own profile, a vessel admin, or an effective-COMMAND
+    // member (honouring a permission_tier_override) may edit. Mirrors `canEdit`
+    // and the profiles RLS — NOT the old hardcoded role-NAME allowlist, which
+    // wrongly blocked e.g. a "Chief Stewardess" (COMMAND tier) because the role
+    // name isn't literally "CHIEF".
     const currentUserId = session?.user?.id;
     const isOwnProfile = currentUserId === crewId;
-    const role = tenantMemberRole?.toUpperCase();
-    const isCommandRole = role === 'CAPTAIN' || role === 'PURSER' || role === 'ADMIN' || role === 'CHIEF';
+    const mayEdit = isOwnProfile || isVesselAdmin || currentUserPermissionTier === 'COMMAND';
 
-    if (!isOwnProfile && !isCommandRole) {
+    if (!mayEdit) {
       console.error('PROFILE SAVE: Permission denied', {
         currentUserId,
         crewId,
-        role,
+        tier: currentUserPermissionTier,
         isOwnProfile,
-        isCommandRole
+        isVesselAdmin,
       });
       showToast('You do not have permission to edit this profile', 'error');
       return;
@@ -792,8 +795,8 @@ const CrewProfile = () => {
       crewId,
       currentUserId,
       isOwnProfile,
-      role,
-      isCommandRole
+      tier: currentUserPermissionTier,
+      isVesselAdmin,
     });
 
     try {
