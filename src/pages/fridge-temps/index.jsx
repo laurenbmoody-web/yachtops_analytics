@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/AppIcon';
@@ -39,6 +39,49 @@ const rangeLabel = (f) => {
   return `${f?.safe_min ?? '−∞'}–${f?.safe_max ?? '∞'}°C`;
 };
 const tempState = (r) => (r == null ? 'na' : r.in_range === false ? 'out' : r.in_range ? 'in' : 'na');
+
+// Shared dropdown behaviour (close on outside-click / Escape) — mirrors the
+// laundry Filters/Sort menus so the page uses a styled menu, not a native select.
+const useMenu = () => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  return [open, setOpen, ref];
+};
+
+// A Cargo-styled dropdown: a button + a popover of options (no native <select>).
+const Dropdown = ({ buttonClass = 'ftp-menubtn', leadingIcon, label, items, value, onSelect, align = 'left' }) => {
+  const [open, setOpen, ref] = useMenu();
+  return (
+    <div className="ftp-menu" ref={ref}>
+      <button type="button" className={`${buttonClass}${open ? ' open' : ''}`} onClick={() => setOpen((o) => !o)}>
+        {leadingIcon && <Icon name={leadingIcon} size={15} />}
+        <span className="ftp-menubtn-val">{label}</span>
+        <Icon name="ChevronDown" size={14} className="chev" />
+      </button>
+      {open && (
+        <div className={`ftp-pop${align === 'right' ? ' right' : ''}`}>
+          {items.map((it) => (
+            <button key={it.value} type="button"
+              className={`ftp-opt${it.value === value ? ' sel' : ''}`}
+              onClick={() => { onSelect(it.value); setOpen(false); }}>
+              {it.icon && <Icon name={it.icon} size={14} />}
+              <span className="ftp-opt-l">{it.label}</span>
+              {it.value === value && <Icon name="Check" size={14} className="ftp-opt-tick" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ── Log-a-reading modal ─────────────────────────────────────────────────────
 const LogModal = ({ fridge, tenantId, userId, onClose, onSaved }) => {
@@ -424,6 +467,15 @@ const FridgeTempsPage = () => {
               </h1>
             </div>
             <div className="ftp-actions">
+              {!manageMode && fridges.length > 0 && (
+                <Dropdown
+                  buttonClass="ftp-menubtn prim"
+                  leadingIcon="Plus"
+                  label="Log reading"
+                  items={fridges.map((f) => ({ value: f.id, label: f.name + (f.kind === 'freezer' ? ' (freezer)' : ''), icon: f.kind === 'freezer' ? 'Snowflake' : 'Refrigerator' }))}
+                  onSelect={(id) => setLogTarget(fridges.find((f) => f.id === id))}
+                />
+              )}
               <button className="ftp-btn ghost" onClick={() => setShowScan(true)}><Icon name="ScanLine" size={15} /> Scan</button>
               <button className="ftp-btn ghost" onClick={doExport} disabled={exporting}>
                 <Icon name="FileDown" size={15} /> {exporting ? 'Exporting…' : 'Export PDF'}
@@ -536,10 +588,15 @@ const FridgeTempsPage = () => {
           <section className="ftp-section">
             <div className="ftp-loghead">
               <p className="ftp-label">Temperature log</p>
-              <select className="ftp-input ftp-filter" value={filterFridge} onChange={(e) => setFilterFridge(e.target.value)}>
-                <option value="all">All appliances</option>
-                {fridges.map((f) => <option key={f.id} value={f.id}>{f.name}{f.kind === 'freezer' ? ' (freezer)' : ''}</option>)}
-              </select>
+              <Dropdown
+                buttonClass="ftp-menubtn"
+                leadingIcon="Filter"
+                label={filterFridge === 'all' ? 'All appliances' : (() => { const f = fridges.find((x) => x.id === filterFridge); return f ? f.name + (f.kind === 'freezer' ? ' (freezer)' : '') : 'All appliances'; })()}
+                value={filterFridge}
+                align="right"
+                items={[{ value: 'all', label: 'All appliances' }, ...fridges.map((f) => ({ value: f.id, label: f.name + (f.kind === 'freezer' ? ' (freezer)' : '') }))]}
+                onSelect={setFilterFridge}
+              />
             </div>
             {loading ? (
               <div className="ftp-skel" />

@@ -5,9 +5,11 @@
    Reuses the ft-* modal classes from the dashboard widget.
    ============================================================ */
 .ftp-root { min-height: 100vh; background: #F8FAFC; }
+/* The Cargo <Header /> renders its own 64px spacer, so the page only needs the
+   editorial top gap (matches .lm-page in the laundry dashboard). */
 .ftp-page {
   min-height: calc(100vh - 64px);
-  padding: 92px 40px 80px;
+  padding: 26px 40px 80px;
   box-sizing: border-box;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #1C1B3A;
@@ -105,10 +107,43 @@
 }
 .ftp-iconbtn:hover { border-color: #C65A1A; color: #C65A1A; }
 
+/* ── Cargo-styled dropdown menu (mirrors laundry lmf) ── */
+.ftp-menu { position: relative; }
+.ftp-menubtn {
+  display: inline-flex; align-items: center; gap: 7px; height: 42px; padding: 0 13px;
+  border: 1px solid #E5E7EB; border-radius: 10px; background: #fff;
+  font: 500 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.ftp-menubtn:hover { border-color: #C65A1A; }
+.ftp-menubtn .chev { color: #7C7E9B; transition: transform .15s; flex: none; }
+.ftp-menubtn.open .chev { transform: rotate(180deg); }
+.ftp-menubtn.prim { background: #C65A1A; border-color: #C65A1A; color: #fff; }
+.ftp-menubtn.prim:hover { background: #B14E16; border-color: #B14E16; }
+.ftp-menubtn.prim .chev { color: #F5D9C9; }
+.ftp-menubtn-val { white-space: nowrap; }
+.ftp-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; min-width: 220px;
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 12px;
+  box-shadow: 0 20px 44px -18px rgba(28,27,58,.22); padding: 6px;
+  display: flex; flex-direction: column; gap: 2px; max-height: 70vh; overflow-y: auto;
+}
+.ftp-pop.right { left: auto; right: 0; }
+.ftp-opt {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 9px 11px; border: none; background: none; border-radius: 8px; cursor: pointer;
+  font: 500 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
+}
+.ftp-opt:hover { background: #F4F6FA; }
+.ftp-opt.sel { color: #C65A1A; font-weight: 600; }
+.ftp-opt svg { color: #8B8478; flex: none; }
+.ftp-opt.sel svg { color: #C65A1A; }
+.ftp-opt-l { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ftp-opt-tick { color: #C65A1A; }
+
 /* ── log ── */
 .ftp-loghead { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
 .ftp-loghead .ftp-label { margin: 0; }
-.ftp-filter { width: auto; min-width: 190px; }
 .ftp-log { border: 1px solid #EEF0F4; border-radius: 12px; overflow: hidden; background: #fff; }
 .ftp-logrow {
   display: grid;
