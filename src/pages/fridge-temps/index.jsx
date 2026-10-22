@@ -262,6 +262,33 @@ const AddFridgeModal = ({ tenantId, nextSort, onClose, onSaved }) => {
   );
 };
 
+// Tiny temperature sparkline for an appliance — last readings oldest→newest,
+// with a faint safe-range band so a drift toward the edge is visible.
+const MiniSpark = ({ temps, safeMin, safeMax }) => {
+  const vals = (temps || []).filter((v) => v != null);
+  if (vals.length < 2) return <span className="ftp-sparkna">—</span>;
+  const lo = Math.min(...vals, safeMin ?? Infinity);
+  const hi = Math.max(...vals, safeMax ?? -Infinity);
+  const span = hi - lo || 1;
+  const W = 108, H = 30, pad = 3;
+  const x = (i) => pad + (i / (vals.length - 1)) * (W - pad * 2);
+  const y = (v) => pad + (1 - (v - lo) / span) * (H - pad * 2);
+  const line = vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' L');
+  const bandTop = safeMax != null ? y(Math.min(safeMax, hi)) : pad;
+  const bandBot = safeMin != null ? y(Math.max(safeMin, lo)) : H - pad;
+  const last = vals[vals.length - 1];
+  const dot = safeMin != null && safeMax != null && (last < safeMin || last > safeMax);
+  return (
+    <svg className="ftp-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+      {safeMin != null && safeMax != null && (
+        <rect x="0" y={bandTop} width={W} height={Math.max(0, bandBot - bandTop)} fill="#2F855A" fillOpacity="0.08" />
+      )}
+      <path d={`M${line}`} fill="none" stroke={dot ? '#B42318' : '#2F855A'} strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+      <circle cx={x(vals.length - 1)} cy={y(last)} r="2.1" fill={dot ? '#B42318' : '#2F855A'} />
+    </svg>
+  );
+};
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 const FridgeTempsPage = () => {
   const navigate = useNavigate();
@@ -303,6 +330,20 @@ const FridgeTempsPage = () => {
     for (const r of history) if (!m[r.fridge_id]) m[r.fridge_id] = r;
     return m;
   }, [history]);
+
+  // last ~14 typed temps per fridge, oldest→newest, for the sparkline
+  const recentByFridge = useMemo(() => {
+    const m = {};
+    for (const r of history) {
+      if (r.temp_c == null) continue;
+      (m[r.fridge_id] ||= []).push(Number(r.temp_c)); // newest-first
+    }
+    Object.keys(m).forEach((k) => { m[k] = m[k].slice(0, 14).reverse(); });
+    return m;
+  }, [history]);
+
+  const fridgeCount = fridges.filter((f) => f.kind !== 'freezer').length;
+  const freezerCount = fridges.filter((f) => f.kind === 'freezer').length;
 
   const weekStart = useMemo(() => startOfWeek().toISOString(), []);
   const loggedThisWeek = useMemo(() => {
@@ -399,6 +440,37 @@ const FridgeTempsPage = () => {
             </div>
           </div>
 
+          {/* ── KPI strip ── */}
+          <div className="ftp-kpi">
+            <div className="ftp-kcell">
+              <span className="ftp-kl">This week</span>
+              <span className="ftp-knum">{loading ? '—' : `${doneCount}/${fridges.length}`}</span>
+              <div className="ftp-kbar">
+                <i style={{ flex: Math.max(doneCount, 0.0001), background: '#2F7D5A' }} />
+                <i style={{ flex: Math.max(fridges.length - doneCount, 0.0001), background: '#E7E9EF' }} />
+              </div>
+              <span className="ftp-ksub">{doneCount} logged · {Math.max(fridges.length - doneCount, 0)} due</span>
+            </div>
+            <div className="ftp-kcell">
+              <span className="ftp-kl">Compliance</span>
+              <div className="ftp-krow">
+                <span className={`ftp-knum ${breaches ? 'red' : ''}`}>{loading ? '—' : breaches === 0 ? 'All clear' : breaches}</span>
+                {!loading && (
+                  <span className={`ftp-ktag ${breaches ? 'red' : 'green'}`}>
+                    <Icon name={breaches ? 'AlertTriangle' : 'ShieldCheck'} size={11} />
+                    {breaches ? 'out of range' : 'in range'}
+                  </span>
+                )}
+              </div>
+              <span className="ftp-ksub">{history.length} readings on record</span>
+            </div>
+            <div className="ftp-kcell">
+              <span className="ftp-kl">Fleet</span>
+              <span className="ftp-knum">{loading ? '—' : fridges.length}</span>
+              <span className="ftp-ksub">{fridgeCount} fridge{fridgeCount !== 1 ? 's' : ''} · {freezerCount} freezer{freezerCount !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+
           {/* ── Appliance board ── */}
           <section className="ftp-section">
             <p className="ftp-label">Appliances</p>
@@ -440,6 +512,9 @@ const FridgeTempsPage = () => {
                           {f.kind === 'freezer' ? 'Freezer' : 'Fridge'} · safe {rangeLabel(f)}
                           {f.location ? ` · ${f.location}` : ''}
                         </span>
+                      </div>
+                      <div className="ftp-atrend" title="Recent readings">
+                        <MiniSpark temps={recentByFridge[f.id]} safeMin={f.safe_min} safeMax={f.safe_max} />
                       </div>
                       <div className="ftp-alast">
                         <span className={`ftp-atemp ${st}`}>{last ? (last.temp_c == null ? (last.photo_url ? '📷' : '—') : `${last.temp_c}°`) : '—'}</span>

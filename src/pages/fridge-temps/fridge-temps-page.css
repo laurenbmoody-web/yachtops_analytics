@@ -46,12 +46,30 @@
 .ftp-empty { color: #6B7280; font-size: 13.5px; padding: 8px 0 18px; }
 .ftp-skel { height: 160px; border-radius: 12px; background: linear-gradient(90deg,#F1F5F9,#F8FAFC,#F1F5F9); }
 
+/* ── KPI strip (mirrors the laundry lmk strip) ── */
+.ftp-kpi { display: flex; background: #fff; border: 1px solid #EEF0F4; border-radius: 13px; margin: 0 0 26px; overflow: hidden; }
+.ftp-kcell { flex: 1; padding: 15px 20px; display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.ftp-kcell + .ftp-kcell { border-left: 1px solid #EEF0F4; }
+.ftp-kl { font: 700 9.5px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: .11em; text-transform: uppercase; color: #8B8478; }
+.ftp-krow { display: flex; align-items: center; gap: 10px; }
+.ftp-knum { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 28px; line-height: 1; letter-spacing: -.5px; color: #1C1B3A; font-variant-numeric: tabular-nums; }
+.ftp-knum.red { color: #C24632; }
+.ftp-ksub { font-size: 11px; color: #AEB4C2; }
+.ftp-kbar { height: 6px; border-radius: 999px; overflow: hidden; display: flex; gap: 2px; }
+.ftp-kbar i { height: 100%; border-radius: 999px; }
+.ftp-ktag { display: inline-flex; align-items: center; gap: 4px; font: 700 10px 'Plus Jakarta Sans', system-ui, sans-serif; border-radius: 999px; padding: 3px 8px; flex: none; }
+.ftp-ktag.green { color: #2F7D5A; background: #E7F2EC; }
+.ftp-ktag.red { color: #C24632; background: #FBECE8; }
+
 /* ── appliance board ── */
 .ftp-board { display: flex; flex-direction: column; }
 .ftp-arow {
-  display: grid; grid-template-columns: 34px minmax(0,1fr) auto auto auto; align-items: center; gap: 16px;
-  padding: 14px 6px; border-bottom: 1px solid #F0F1F5;
+  display: grid; grid-template-columns: 38px minmax(0,1fr) 120px auto auto auto; align-items: center; gap: 18px;
+  padding: 15px 6px; border-bottom: 1px solid #F0F1F5;
 }
+.ftp-atrend { width: 120px; height: 30px; }
+.ftp-spark { width: 100%; height: 30px; display: block; }
+.ftp-sparkna { color: #D4D8E0; font-size: 12px; }
 .ftp-arow.breach { background: #FDF5F3; margin: 0 -10px; padding: 14px 16px; border-radius: 10px; border-bottom-color: transparent; }
 .ftp-aicon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: #F2F4F8; color: #6B7280; }
 .ftp-arow.breach .ftp-aicon { background: #FBE3DF; color: #B42318; }
@@ -128,8 +146,11 @@
 
 @media (max-width: 860px) {
   .ftp-page { padding: 84px 16px 60px; }
-  .ftp-arow { grid-template-columns: 30px minmax(0,1fr) auto; }
-  .ftp-alast, .ftp-badge { display: none; }
+  .ftp-arow { grid-template-columns: 30px minmax(0,1fr) auto; gap: 12px; }
+  .ftp-alast, .ftp-badge, .ftp-atrend { display: none; }
+  .ftp-kpi { flex-wrap: wrap; }
+  .ftp-kcell { flex: 1 1 100%; }
+  .ftp-kcell + .ftp-kcell { border-left: none; border-top: 1px solid #EEF0F4; }
   .ftp-loghd { display: none; }
   .ftp-logrow {
     grid-template-columns: 1fr 1fr; gap: 4px 12px; padding: 12px 14px;
