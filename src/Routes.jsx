@@ -152,6 +152,7 @@ import InventoryWeeklyPage from './pages/pantry/stubs/InventoryWeeklyPage';
 import GuestHistoryPage from './pages/pantry/stubs/GuestHistoryPage';
 import TodayDetailPage from './pages/today-detail/index';
 import VesselMapPage from './pages/vessel-map';
+import FridgeTempsPage from './pages/fridge-temps';
 import NotFound from './pages/NotFound';
 import VesselAccessGate from './components/billing/VesselAccessGate';
 
@@ -1229,6 +1230,7 @@ const Routes = () => {
         <Route path="/month-end" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><MonthEnd /></ProtectedRoute>} />
         <Route path="/vessel-documents" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><VesselDocuments /></ProtectedRoute>} />
         <Route path="/vessel/map" element={<ProtectedRoute><VesselMapPage /></ProtectedRoute>} />
+        <Route path="/fridge-temps" element={<ProtectedRoute><FridgeTempsPage /></ProtectedRoute>} />
         {/* Scan management now lives on the Location Management surface; keep the
             old URL working by redirecting it there. */}
         <Route path="/vessel/map/manage" element={<Navigate to="/settings/vessel?section=location-management" replace />} />

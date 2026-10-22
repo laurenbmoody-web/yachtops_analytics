@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import Icon from '../../../components/AppIcon';
 import { useAuth } from '../../../contexts/AuthContext';
 import { showToast } from '../../../utils/toast';
@@ -227,6 +228,7 @@ const ManageModal = ({ tenantId, onClose, onSaved }) => {
 
 // ── Widget ────────────────────────────────────────────────────────────────────
 const FridgeTempWidget = () => {
+  const navigate = useNavigate();
   const { session, activeTenantId, hasCommandAccess, hasChiefAccess } = useAuth();
   const userId = session?.user?.id;
   const canManage = (typeof hasCommandAccess === 'function' && hasCommandAccess())
@@ -276,11 +278,12 @@ const FridgeTempWidget = () => {
   return (
     <div className="ce-card ft-card rounded-xl">
       <div className="ft-top">
-        <div>
+        <button type="button" className="ft-openpage" onClick={() => navigate('/fridge-temps')} title="Open full page">
           <p className="ft-eyebrow">● Fridge temps · this week</p>
           <p className="ft-count">{loading ? '—' : `${doneCount}/${total} logged`}</p>
-        </div>
+        </button>
         <div className="ft-top-actions">
+          <button className="ft-chip" onClick={() => navigate('/fridge-temps')} title="Open full page"><Icon name="Maximize2" size={14} /></button>
           <button className="ft-chip" onClick={() => setShowScan(true)} title="Scan a fridge label"><Icon name="ScanLine" size={14} /></button>
           <button className="ft-chip" onClick={() => setShowHistory(true)} title="History &amp; export"><Icon name="History" size={14} /></button>
           {canManage && <button className="ft-chip" onClick={() => setShowManage(true)} title="Manage fridges"><Icon name="Settings2" size={14} /></button>}

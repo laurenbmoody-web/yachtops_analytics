@@ -25,12 +25,18 @@ const rangeText = (min, max) => {
   return `${min ?? '−∞'} to ${max ?? '∞'} °C`;
 };
 
+// Full weekday + date, e.g. "Thursday 23 October 2026" — for the per-day bands.
+const dayHeading = (iso) => {
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+};
+
 export async function exportFridgeTempsPdf(tenantId) {
   const [{ data: vessel }, logs] = await Promise.all([
     supabase?.from('vessels')
-      ?.select('name, flag, port_of_registry, imo_number, official_number, call_sign, mmsi, company_name')
+      ?.select('name, flag, port_of_registry, imo_number, official_number, call_sign, mmsi, company_name, vessel_type_label, gt, loa_m')
       ?.eq('tenant_id', tenantId)?.maybeSingle(),
-    fetchHistory(tenantId, { limit: 2000 }),
+    fetchHistory(tenantId, { limit: 5000 }),
   ]);
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -38,33 +44,45 @@ export async function exportFridgeTempsPdf(tenantId) {
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 14;
 
+  const vesselName = vessel?.name || vessel?.company_name || '—';
+
   // ── Header band ────────────────────────────────────────────────────────────
   doc.setFillColor(...NAVY);
-  doc.rect(0, 0, pageWidth, 26, 'F');
+  doc.rect(0, 0, pageWidth, 28, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.text('FRIDGE TEMPERATURE LOG', margin, 12);
+  doc.setFontSize(17);
+  doc.text('FRIDGE TEMPERATURE LOG', margin, 13);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(200, 205, 220);
-  doc.text(vessel?.name ? `MY ${vessel.name}` : 'Vessel', margin, 19);
+  doc.setFontSize(10);
+  doc.setTextColor(205, 210, 225);
+  const subtitle = vessel?.name
+    ? `MY ${vessel.name}${vessel?.vessel_type_label ? ` · ${vessel.vessel_type_label}` : ''}`
+    : (vessel?.company_name || 'Vessel');
+  doc.text(subtitle, margin, 21);
 
   const now = new Date();
-  doc.text(`Exported: ${ddmmyyyy(now.toISOString())} ${hhmm(now.toISOString())}`, pageWidth - margin, 12, { align: 'right' });
-  doc.text(`${logs.length} reading${logs.length !== 1 ? 's' : ''}`, pageWidth - margin, 19, { align: 'right' });
+  doc.setFontSize(9);
+  doc.text(`Exported ${ddmmyyyy(now.toISOString())} ${hhmm(now.toISOString())}`, pageWidth - margin, 13, { align: 'right' });
+  doc.text(`${logs.length} reading${logs.length !== 1 ? 's' : ''}`, pageWidth - margin, 21, { align: 'right' });
 
-  // ── Vessel details strip ────────────────────────────────────────────────────
-  let y = 34;
+  // ── Vessel identity strip (only the fields that are filled in) ──────────────
+  let y = 37;
   const details = [
-    ['Vessel', vessel?.name || '—'],
-    ['IMO', vessel?.imo_number || '—'],
-    ['Flag', vessel?.flag || '—'],
-    ['Port of Registry', vessel?.port_of_registry || '—'],
-    ['Official No.', vessel?.official_number || '—'],
-    ['Call sign', vessel?.call_sign || '—'],
-  ];
-  doc.setFontSize(8);
+    ['Vessel', vessel?.name],
+    ['Type', vessel?.vessel_type_label],
+    ['Flag', vessel?.flag],
+    ['IMO', vessel?.imo_number],
+    ['Port of Registry', vessel?.port_of_registry],
+    ['Official No.', vessel?.official_number],
+    ['Call sign', vessel?.call_sign],
+    ['MMSI', vessel?.mmsi],
+    ['Company', vessel?.company_name],
+  ].filter(([, v]) => v != null && String(v).trim() !== '');
+  // Always lead with the vessel/company name even when registration isn't filled.
+  if (!details.length) details.push(['Vessel', vesselName]);
+
+  doc.setFontSize(9);
   const colW = (pageWidth - margin * 2) / 3;
   details.forEach(([label, value], i) => {
     const col = i % 3;
@@ -76,52 +94,61 @@ export async function exportFridgeTempsPdf(tenantId) {
     doc.text(String(label).toUpperCase(), x, yy);
     doc.setTextColor(...NAVY);
     doc.setFont('helvetica', 'normal');
-    doc.text(String(value), x + 34, yy);
+    doc.text(String(value), x + 36, yy);
   });
   y += 7 * Math.ceil(details.length / 3) + 3;
 
   doc.setDrawColor(...TERRA);
-  doc.setLineWidth(0.5);
+  doc.setLineWidth(0.6);
   doc.line(margin, y, pageWidth - margin, y);
   y += 4;
 
-  // ── Table ────────────────────────────────────────────────────────────────
-  const body = logs.map((l) => [
-    ddmmyyyy(l.logged_at),
-    hhmm(l.logged_at),
-    l.fridgeName,
-    l.fridgeKind === 'freezer' ? 'Freezer' : 'Fridge',
-    l.temp_c == null ? (l.photo_url ? 'photo' : '—') : `${l.temp_c} °C`,
-    rangeText(l.safeMin, l.safeMax),
-    l.in_range == null ? '—' : (l.in_range ? 'In range' : 'OUT OF RANGE'),
-    l.loggedByName || '—',
-    l.note || '',
-  ]);
+  // ── Table — grouped into a band per day so it reads like a daily log ────────
+  // Drop the per-row Date column; a full-width day band introduces each date.
+  const NCOLS = 8;
+  const body = [];
+  let lastDay = null;
+  logs.forEach((l) => {
+    const day = (l.logged_at || '').slice(0, 10);
+    if (day !== lastDay) {
+      lastDay = day;
+      body.push([{ content: dayHeading(l.logged_at), colSpan: NCOLS, styles: { fillColor: [238, 240, 244], textColor: NAVY, fontStyle: 'bold', fontSize: 9.5, halign: 'left', cellPadding: { top: 2.4, bottom: 2.4, left: 3, right: 3 } } }]);
+    }
+    body.push([
+      hhmm(l.logged_at),
+      l.fridgeName,
+      l.fridgeKind === 'freezer' ? 'Freezer' : 'Fridge',
+      l.temp_c == null ? (l.photo_url ? 'photo' : '—') : `${l.temp_c} °C`,
+      rangeText(l.safeMin, l.safeMax),
+      l.in_range == null ? '—' : (l.in_range ? 'In range' : 'OUT OF RANGE'),
+      l.loggedByName || '—',
+      l.note || '',
+    ]);
+  });
 
   autoTable(doc, {
     startY: y,
-    head: [['Date', 'Time', 'Appliance', 'Type', 'Temp', 'Safe range', 'Status', 'Logged by', 'Note']],
+    head: [['Time', 'Appliance', 'Type', 'Temp', 'Safe range', 'Status', 'Logged by', 'Note']],
     body,
     margin: { left: margin, right: margin },
-    styles: { fontSize: 8, cellPadding: { top: 1.6, right: 2, bottom: 1.6, left: 2 }, overflow: 'linebreak', valign: 'middle', lineColor: HAIR, lineWidth: 0.1 },
-    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
-    alternateRowStyles: { fillColor: COOL },
+    styles: { fontSize: 9, cellPadding: { top: 2.2, right: 2.5, bottom: 2.2, left: 2.5 }, overflow: 'linebreak', valign: 'middle', lineColor: HAIR, lineWidth: 0.1 },
+    headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
     columnStyles: {
-      0: { cellWidth: 22 }, 1: { cellWidth: 14 }, 2: { cellWidth: 40 }, 3: { cellWidth: 20 },
-      4: { cellWidth: 20 }, 5: { cellWidth: 34 }, 6: { cellWidth: 30 }, 7: { cellWidth: 40 },
+      0: { cellWidth: 18 }, 1: { cellWidth: 46, fontStyle: 'bold' }, 2: { cellWidth: 22 },
+      3: { cellWidth: 24 }, 4: { cellWidth: 34 }, 5: { cellWidth: 32 }, 6: { cellWidth: 46 }, 7: { cellWidth: 'auto' },
     },
     didParseCell: (data) => {
       // Flag out-of-range rows in red for at-a-glance scanning.
-      if (data.section === 'body' && data.column.index === 6 && data.cell.raw === 'OUT OF RANGE') {
+      if (data.section === 'body' && data.column.index === 5 && data.cell.raw === 'OUT OF RANGE') {
         data.cell.styles.textColor = [180, 35, 24];
         data.cell.styles.fontStyle = 'bold';
       }
     },
     didDrawPage: () => {
-      doc.setFontSize(7);
+      doc.setFontSize(7.5);
       doc.setTextColor(160, 160, 160);
       doc.text(`Page ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth / 2, pageHeight - 6, { align: 'center' });
-      doc.text('Cargo — Food Safety Record', margin, pageHeight - 6);
+      doc.text(`${vesselName} — Food Safety Record`, margin, pageHeight - 6);
     },
   });
 

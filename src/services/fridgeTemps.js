@@ -129,14 +129,39 @@ export async function fetchHistory(tenantId, { fridgeId = null, limit = 300 } = 
   }));
 }
 
+// Update an existing reading (fix a typed temp, its time, or the note). Recomputes
+// the in/out-of-range flag when a new temperature is given. Used by the full-page
+// log editor.
+export async function updateReading(id, { tempC, loggedAt, note, safeMin, safeMax }) {
+  if (!id) throw new Error('Missing reading');
+  const patch = { };
+  if (tempC !== undefined) {
+    const temp = tempC === '' || tempC == null ? null : Number(tempC);
+    patch.temp_c = temp;
+    patch.in_range = computeInRange(temp, safeMin, safeMax);
+  }
+  if (loggedAt !== undefined) patch.logged_at = loggedAt;
+  if (note !== undefined) patch.note = note?.trim() || null;
+  const { error } = await supabase?.from('fridge_temp_logs')?.update(patch)?.eq('id', id);
+  if (error) throw error;
+}
+
+// Remove a single reading from the log (COMMAND / CHIEF — enforced by RLS).
+export async function deleteReading(id) {
+  if (!id) throw new Error('Missing reading');
+  const { error } = await supabase?.from('fridge_temp_logs')?.delete()?.eq('id', id);
+  if (error) throw error;
+}
+
 // ── Manage (COMMAND / CHIEF) ────────────────────────────────────────────────
-export async function addFridge(tenantId, { name, kind = 'fridge', safeMin, safeMax, sortOrder = 99 }) {
-  const code = `FRG${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+export async function addFridge(tenantId, { name, kind = 'fridge', safeMin, safeMax, sortOrder = 99, location = null, code } = {}) {
+  const genCode = code?.trim() || `FRG${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
   const { data, error } = await supabase
     ?.from('fridges')
     ?.insert({
       tenant_id: tenantId, name: name?.trim() || 'Fridge', kind,
-      safe_min: safeMin ?? null, safe_max: safeMax ?? null, sort_order: sortOrder, code,
+      safe_min: safeMin ?? null, safe_max: safeMax ?? null, sort_order: sortOrder,
+      code: genCode, location: location?.trim() || null,
     })
     ?.select()?.single();
   if (error) throw error;
@@ -144,16 +169,17 @@ export async function addFridge(tenantId, { name, kind = 'fridge', safeMin, safe
 }
 
 export async function updateFridge(id, patch) {
-  const { error } = await supabase
-    ?.from('fridges')
-    ?.update({
-      name: patch.name?.trim(),
-      kind: patch.kind,
-      safe_min: patch.safeMin ?? null,
-      safe_max: patch.safeMax ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    ?.eq('id', id);
+  const fields = {
+    name: patch.name?.trim(),
+    kind: patch.kind,
+    safe_min: patch.safeMin ?? null,
+    safe_max: patch.safeMax ?? null,
+    updated_at: new Date().toISOString(),
+  };
+  // `location` doubles as the free-text make/model / position field — only write
+  // it when the caller actually passed one, so existing values aren't wiped.
+  if (patch.location !== undefined) fields.location = patch.location?.trim() || null;
+  const { error } = await supabase?.from('fridges')?.update(fields)?.eq('id', id);
   if (error) throw error;
 }
 
