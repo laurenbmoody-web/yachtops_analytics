@@ -1,0 +1,87 @@
+/* Uniform sizes card — Wardrobe management → Crew member view. Editorial:
+   hairline-separated ledger, no heavy box; navy ink + terracotta accent. */
+.ufs-card {
+  margin: 4px 0 22px;
+  padding: 16px 18px 18px;
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+}
+.ufs-head { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.ufs-t {
+  display: inline-flex; align-items: center; gap: 7px;
+  font: 700 9px/1 'Inter', system-ui, sans-serif;
+  letter-spacing: 1px; text-transform: uppercase; color: #8B8478;
+  white-space: nowrap;
+}
+.ufs-t svg { color: #C65A1A; }
+.ufs-chip {
+  font: 600 10px/1 'Inter', system-ui, sans-serif;
+  color: #C65A1A; background: #FBEFE9;
+  padding: 4px 9px; border-radius: 999px; white-space: nowrap;
+}
+.ufs-rule { flex: 1 1 auto; height: 1px; background: #F0F1F5; }
+.ufs-acts { display: inline-flex; gap: 8px; }
+.ufs-edit {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: 600 12px/1 'Inter', system-ui, sans-serif; color: #6B7280;
+  background: none; border: none; cursor: pointer; padding: 4px 2px;
+}
+.ufs-edit:hover { color: #C65A1A; }
+.ufs-btn {
+  font: 600 12px/1 'Inter', system-ui, sans-serif;
+  border-radius: 9px; padding: 7px 14px; cursor: pointer; border: 1px solid transparent;
+}
+.ufs-btn.ghost { background: #fff; border-color: #E5E7EB; color: #1C1B3A; }
+.ufs-btn.ghost:hover { border-color: #AEB4C2; }
+.ufs-btn.primary { background: #C65A1A; color: #fff; }
+.ufs-btn.primary:hover { background: #B14E16; }
+.ufs-btn:disabled { opacity: .55; cursor: default; }
+
+.ufs-none { font: 400 13px/1.5 'Inter', system-ui, sans-serif; color: #8B8478; margin: 2px 0 0; }
+
+/* Read ledger — two-ish columns of label/value rows, grouped. */
+.ufs-ledger {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 6px 28px;
+}
+.ufs-lgrp { break-inside: avoid; }
+.ufs-lgrp-h {
+  font: 700 9px/1 'Inter', system-ui, sans-serif; letter-spacing: 1px;
+  text-transform: uppercase; color: #AEB4C2; margin: 6px 0 4px;
+}
+.ufs-lrow {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 6px 0; border-bottom: 1px solid #F0F1F5;
+}
+.ufs-lrow .l { font: 400 13px/1.3 'Inter', system-ui, sans-serif; color: #6B7280; }
+.ufs-lrow .v { font: 600 13px/1.3 'Inter', system-ui, sans-serif; color: #1C1B3A; text-align: right; }
+.ufs-notes {
+  margin: 12px 0 0; font: 400 12px/1.5 'Inter', system-ui, sans-serif;
+  color: #8B8478; font-style: italic;
+}
+
+/* Edit mode */
+.ufs-profile, .ufs-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 14px;
+}
+.ufs-profile { margin-bottom: 8px; }
+.ufs-sgroup { margin-top: 10px; }
+.ufs-sgroup-h {
+  font: 700 9px/1 'Inter', system-ui, sans-serif; letter-spacing: 1px;
+  text-transform: uppercase; color: #AEB4C2; margin: 0 0 7px;
+}
+.ufs-field { display: flex; flex-direction: column; gap: 5px; }
+.ufs-field.ufs-full { margin-top: 12px; }
+.ufs-field > span {
+  font: 600 11px/1.2 'Inter', system-ui, sans-serif; color: #6B7280;
+}
+.ufs-field > span em { color: #AEB4C2; font-style: normal; font-weight: 400; }
+.ufs-field input, .ufs-field select {
+  font: 400 13px/1.2 'Inter', system-ui, sans-serif; color: #1C1B3A;
+  background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 9px;
+  padding: 8px 10px; width: 100%; box-sizing: border-box;
+}
+.ufs-field input:focus, .ufs-field select:focus {
+  outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff;
+}

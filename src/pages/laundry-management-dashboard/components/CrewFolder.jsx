@@ -20,6 +20,7 @@ import { money } from '../utils/laundryBilling';
 import PersonTiles from './PersonTiles';
 import { FilterMenu, SortMenu } from './LaundryFilters';
 import KitScanModal from './KitScanModal';
+import UniformSizesCard from './UniformSizesCard';
 import './crewFolder.css';
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -1247,6 +1248,10 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
           </div>
         </div>
       </div>
+
+      {/* The crew member's recorded uniform sizes — visible to anyone with access
+          to this view (Interior / COMMAND / vessel admin), editable by managers. */}
+      <UniformSizesCard userId={selectedId} crewSex={selected.sex} canEdit={canManage} />
 
       {memberKit.length === 0 ? (
         <div className="cf-empty">
