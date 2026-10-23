@@ -101,7 +101,18 @@ export async function exportFridgeTempsPdf(tenantId) {
   doc.setDrawColor(...TERRA);
   doc.setLineWidth(0.6);
   doc.line(margin, y, pageWidth - margin, y);
-  y += 4;
+  y += 5;
+
+  // ── Provenance note (first page) — records how the log is kept ─────────────
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8.5);
+  doc.setTextColor(110, 107, 133);
+  doc.text(
+    'All temperatures are recorded electronically in Cargo at the point of check. This document is a system-generated export of that log.',
+    margin, y,
+  );
+  doc.setFont('helvetica', 'normal');
+  y += 6;
 
   // ── Table — grouped into a band per day so it reads like a daily log ────────
   // Drop the per-row Date column; a full-width day band introduces each date.
