@@ -63,7 +63,7 @@ export async function exportFridgeTempsPdf(tenantId) {
 
   const now = new Date();
   doc.setFontSize(9);
-  doc.text(`Exported ${ddmmyyyy(now.toISOString())} ${hhmm(now.toISOString())}`, pageWidth - margin, 13, { align: 'right' });
+  doc.text(`Exported ${ddmmyyyy(now.toISOString())}`, pageWidth - margin, 13, { align: 'right' });
   doc.text(`${logs.length} reading${logs.length !== 1 ? 's' : ''}`, pageWidth - margin, 21, { align: 'right' });
 
   // ── Vessel identity strip (only the fields that are filled in) ──────────────
