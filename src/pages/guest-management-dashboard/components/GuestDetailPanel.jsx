@@ -373,13 +373,16 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
     setDeleteConfirmChecked(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteConfirmChecked) {
       showToast('Please confirm deletion by checking the box', 'error');
       return;
     }
-    
-    const success = deleteGuest(guest?.id);
+
+    // deleteGuest is async. Without the await this tested the PROMISE for
+    // truthiness, which it always is, so a delete that failed still reported
+    // "Guest deleted successfully" and closed the panel.
+    const success = await deleteGuest(guest?.id);
     if (success) {
       showToast('Guest deleted successfully', 'success');
       onDelete();
@@ -390,8 +393,9 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
     }
   };
   
-  const handleReinstate = () => {
-    const success = reinstateGuest(guest?.id);
+  const handleReinstate = async () => {
+    // Same bug as handleDelete: the promise was always truthy.
+    const success = await reinstateGuest(guest?.id);
     if (success) {
       showToast('Guest reinstated successfully', 'success');
       onReinstate();
