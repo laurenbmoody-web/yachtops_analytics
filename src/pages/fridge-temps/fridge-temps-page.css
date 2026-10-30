@@ -93,7 +93,7 @@
 /* ── manage rows ── */
 .ftp-mrow { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #F0F1F5; flex-wrap: wrap; }
 .ftp-input {
-  border: 1px solid #E5E7EB; border-radius: 9px; background: #FAFAF8; padding: 9px 11px;
+  border: 1px solid #E5E7EB; border-radius: 9px; background: #FFFFFF; padding: 9px 11px;
   font: inherit; font-size: 13.5px; color: #1C1B3A; box-sizing: border-box; width: 100%;
 }
 .ftp-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
@@ -154,7 +154,7 @@
 .ftp-logrow:nth-child(even):not(.ftp-loghd) { background: #FCFCFB; }
 .ftp-loghd {
   font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: .8px; text-transform: uppercase;
-  color: #8B8478; background: #F8FAFC; position: sticky; top: 64px;
+  color: #8B8478; background: #F8FAFC;
 }
 .ftp-lname { font-weight: 600; color: #1C1B3A; }
 .ftp-ltemp { font-weight: 700; }
