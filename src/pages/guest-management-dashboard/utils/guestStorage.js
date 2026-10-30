@@ -121,6 +121,16 @@ const mapRowToGuest = (row) => {
     // True when this reader was allowed the confidential record at all, so the
     // UI can say "you cannot see this" rather than showing convincing blanks.
     confidentialVisible: !!(confRaw && (Array.isArray(confRaw) ? confRaw.length : true)),
+    // This guest's trips, each carrying the kind of trip it is. The roster
+    // reads the role from here and only falls back to guestType when a guest
+    // has no trips at all.
+    trips: (row?.trip_guests || []).map((link) => ({
+      tripId: link?.trip_id,
+      isActiveOnTrip: link?.is_active_on_trip ?? false,
+      tripType: link?.trips?.trip_type || '',
+      startDate: link?.trips?.start_date || null,
+      endDate: link?.trips?.end_date || null,
+    })),
   };
 };
 
@@ -207,7 +217,23 @@ const saveConfidential = async (guestId, tenantId, guestData) => {
 
 // Every read of a guest needs the confidential half embedded. RLS decides
 // whether it comes back.
-const GUEST_SELECT = '*, guest_confidential(*)';
+//
+// The trip links come too, because owner-vs-charter is a property of the TRIP,
+// not the person: trips.trip_type carries it and trip_guests joins the two.
+// guests.guest_type is only a fallback for a guest with no trips — storing the
+// distinction on the person is what led to Rafael Edry existing twice.
+const GUEST_SELECT =
+  '*, guest_confidential(*), trip_guests(trip_id, is_active_on_trip, trips(trip_type, start_date, end_date))';
+
+// The same read without the trip links. An embed is resolved by PostgREST from
+// the foreign keys at request time, so a relationship it cannot name fails the
+// WHOLE query — and the guest list is not worth losing over a decoration. If
+// the richer select fails for a schema reason (PGRST200 is "could not find a
+// relationship"), fall back to this one and carry on with guest_type.
+const GUEST_SELECT_FALLBACK = '*, guest_confidential(*)';
+
+const isEmbedProblem = (error) =>
+  error?.code === 'PGRST200' || /relationship|embed/i.test(error?.message || '');
 
 // Load all guests for the active tenant
 export const loadGuests = async (tenantId) => {
@@ -218,7 +244,12 @@ export const loadGuests = async (tenantId) => {
       return [];
     }
 
-    const { data, error } = await supabase?.from('guests')?.select(GUEST_SELECT)?.eq('tenant_id', tid)?.order('created_at', { ascending: false });
+    let { data, error } = await supabase?.from('guests')?.select(GUEST_SELECT)?.eq('tenant_id', tid)?.order('created_at', { ascending: false });
+
+    if (error && isEmbedProblem(error)) {
+      console.warn('[guestStorage] trip links unavailable, falling back:', error?.message);
+      ({ data, error } = await supabase?.from('guests')?.select(GUEST_SELECT_FALLBACK)?.eq('tenant_id', tid)?.order('created_at', { ascending: false }));
+    }
 
     if (error) {
       console.error('[guestStorage] loadGuests error:', error);

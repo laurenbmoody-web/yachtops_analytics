@@ -179,6 +179,70 @@ test('survives junk input without throwing', () => {
   assert.deepEqual(rosterStats(null), { people: 0, aboard: 0, withAllergies: 0, duplicates: 0 });
 });
 
+// ── the role comes from the trip ────────────────────────────────────────────
+import { rolesOf, isAboard } from './guestRoster.js';
+
+const onTrip = (tripType, { from, to, active = true } = {}) => ({
+  tripId: `${tripType}-1`, tripType, isActiveOnTrip: active, startDate: from, endDate: to,
+});
+
+test('one person on two trips holds both roles without being cloned', () => {
+  // The thing the duplicate records were standing in for.
+  const [person] = groupGuestsByPerson([{
+    id: 'g1', firstName: 'Rafael', lastName: 'Edry', guestType: 'Owner',
+    trips: [onTrip('Owner'), onTrip('Charter')],
+  }]);
+  assert.equal(person.recordCount, 1);
+  assert.equal(person.hasDuplicates, false);
+  assert.deepEqual(person.types, ['Owner', 'Charter']);
+});
+
+test('the trip wins over the legacy guest_type', () => {
+  const [person] = groupGuestsByPerson([{
+    id: 'g1', firstName: 'A', lastName: 'B', guestType: 'Owner',
+    trips: [onTrip('Charter')],
+  }]);
+  assert.deepEqual(person.types, ['Charter']);
+});
+
+test('guest_type is still used when there are no trips', () => {
+  assert.deepEqual(rolesOf([{ guestType: 'Owner', trips: [] }]), ['Owner']);
+  assert.deepEqual(rolesOf([{ guestType: 'Charter' }]), ['Charter']);
+  assert.deepEqual(rolesOf([{ guestType: 'principal', trips: [] }]), ['Principal']);
+  assert.deepEqual(rolesOf([{}]), []);
+});
+
+test('aboard is read from a trip that is actually running', () => {
+  const asOf = new Date('2026-06-20T00:00:00Z');
+  assert.equal(isAboard([{ trips: [onTrip('Owner', { from: '2026-06-18', to: '2026-06-25' })] }], asOf), true);
+  // finished
+  assert.equal(isAboard([{ trips: [onTrip('Owner', { from: '2026-05-01', to: '2026-05-08' })] }], asOf), false);
+  // not started
+  assert.equal(isAboard([{ trips: [onTrip('Owner', { from: '2026-07-01', to: '2026-07-08' })] }], asOf), false);
+  // on the boundary days, inclusive
+  assert.equal(isAboard([{ trips: [onTrip('Owner', { from: '2026-06-20', to: '2026-06-20' })] }], asOf), true);
+});
+
+test('a trip link explicitly marked inactive does not count', () => {
+  const asOf = new Date('2026-06-20T00:00:00Z');
+  assert.equal(
+    isAboard([{ trips: [onTrip('Owner', { from: '2026-06-18', to: '2026-06-25', active: false })] }], asOf),
+    false,
+  );
+});
+
+test('with no trips, aboard falls back to the stored flag', () => {
+  assert.equal(isAboard([{ isActiveOnTrip: true, trips: [] }]), true);
+  assert.equal(isAboard([{ isActiveOnTrip: false, trips: [] }]), false);
+  assert.equal(isAboard([{ isActiveOnTrip: true }]), true);
+});
+
+test('an open-ended trip counts as aboard', () => {
+  const asOf = new Date('2026-06-20T00:00:00Z');
+  assert.equal(isAboard([{ trips: [onTrip('Owner', { from: '2026-06-01', to: null })] }], asOf), true);
+  assert.equal(isAboard([{ trips: [onTrip('Owner', { from: null, to: null })] }], asOf), true);
+});
+
 test('initials fall back sensibly', () => {
   assert.equal(initialsOf('Rafael Edry'), 'RE');
   assert.equal(initialsOf('Cher'), 'CH');

@@ -54,6 +54,34 @@ export const guestTypeLabel = (type) => {
 
 const uniq = (values) => [...new Set(values.filter(Boolean))];
 
+// The roles a person holds, read from the TRIPS they are on. trips.trip_type
+// already says whether a trip is an owner trip or a charter, so a person on
+// both is simply on two trips — which is the thing cloning them was standing
+// in for. guest_type is consulted ONLY when a guest has no trips at all, so
+// the legacy value stops mattering the moment a trip exists.
+export const rolesOf = (records) => {
+  const links = records.flatMap((r) => (Array.isArray(r?.trips) ? r.trips : []));
+  if (links.length) return uniq(links.map((l) => guestTypeLabel(l?.tripType)));
+  return uniq(records.map((r) => guestTypeLabel(r?.guestType)));
+};
+
+// Aboard means on a trip that is running, not a boolean somebody remembered to
+// set. Falls back to the stored flag for a guest with no trips, because that
+// is all there is to go on.
+export const isAboard = (records, asOf = new Date()) => {
+  const links = records.flatMap((r) => (Array.isArray(r?.trips) ? r.trips : []));
+  if (!links.length) return records.some((r) => r?.isActiveOnTrip === true);
+  const today = String(asOf.toISOString()).slice(0, 10);
+  return links.some((l) => {
+    if (l?.isActiveOnTrip === false) return false;
+    const from = l?.startDate ? String(l.startDate).slice(0, 10) : null;
+    const to = l?.endDate ? String(l.endDate).slice(0, 10) : null;
+    if (from && today < from) return false;
+    if (to && today > to) return false;
+    return true;
+  });
+};
+
 // One entry per person, each carrying the records behind it.
 export const groupGuestsByPerson = (guests) => {
   const list = (Array.isArray(guests) ? guests : []).filter(Boolean);
@@ -81,13 +109,13 @@ export const groupGuestsByPerson = (guests) => {
       primaryId: shown[0]?.id ?? null,
       recordCount: records.length,
       hasDuplicates: records.length > 1,
-      types: uniq(shown.map((r) => guestTypeLabel(r?.guestType))),
+      types: rolesOf(shown),
       cabins: uniq(shown.map(cabinOf)),
       contact: contactOf(shown.find((r) => contactOf(r)) || {}),
       allergies: uniq(shown.map((r) => squash(r?.allergies))).join(', '),
       photo: shown.find((r) => r?.photo?.dataUrl)?.photo?.dataUrl || null,
       isDeleted: live.length === 0,
-      isActiveOnTrip: shown.some((r) => r?.isActiveOnTrip === true),
+      isActiveOnTrip: isAboard(shown),
       // Two records disagreeing about the cabin is itself worth showing — it is
       // how the duplicate was noticed in the first place.
       cabinsDisagree: uniq(shown.map(cabinOf)).length > 1,
