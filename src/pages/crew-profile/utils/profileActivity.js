@@ -20,7 +20,7 @@ export const ACTIVITY_CATEGORIES = [
   { id: 'document', label: 'Documents', icon: 'FileText', color: '#6B57A0', bg: '#ECE7F6' },
   { id: 'kit', label: 'Kit', icon: 'Shirt', color: '#5C9B6A', bg: '#EAF3EC' },
   { id: 'compliance', label: 'Compliance', icon: 'Clock', color: '#C0504D', bg: '#FBECEB' },
-  { id: 'banking', label: 'Banking', icon: 'CreditCard', color: '#8B7A55', bg: '#F3EFE6' },
+  { id: 'banking', label: 'Banking', icon: 'CreditCard', color: '#8B7A55', bg: '#EAECEF' },
   { id: 'profile', label: 'Profile', icon: 'User', color: '#6B7280', bg: '#F0F1F4' },
 ];
 export const activityCat = (id) => ACTIVITY_CATEGORIES.find((c) => c.id === id) || ACTIVITY_CATEGORIES[5];

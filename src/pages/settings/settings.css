@@ -7,7 +7,7 @@
 body.settings-editorial {
   --color-primary: #262A53;
   --color-primary-foreground: #FFFFFF;
-  --color-accent: #F4EBE3;
+  --color-accent: #E8EBEF;
   --color-accent-foreground: #262A53;
   --color-background: #F8FAFC;
   --color-foreground: #1A1D3F;
@@ -48,7 +48,7 @@ body.settings-editorial {
 .settings-page .set-acct-eyebrow .dot { color: #C65A1A; margin-right: 6px; }
 .settings-page .set-acct-name { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 25px; line-height: 1; letter-spacing: -0.01em; color: #1C1B3A; }
 .settings-page .set-acct-sub { display: flex; align-items: center; gap: 9px; margin-top: 7px; font-size: 13px; color: #6F7396; }
-.settings-page .set-chip { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #B4602B; background: #F4EBE3; border-radius: 999px; padding: 3px 9px; }
+.settings-page .set-chip { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #B4602B; background: #E8EBEF; border-radius: 999px; padding: 3px 9px; }
 .settings-page .set-chip.ok { color: #3F7A52; background: #E7F2EA; }
 .settings-page .set-chip.off { color: #8B8478; background: #F0F1F5; }
 .settings-page .set-chip.warn { color: #9A2B12; background: #FBE4DC; }
@@ -71,8 +71,8 @@ body.settings-editorial {
 }
 .settings-page .set-nav-it span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; }
 .settings-page .set-nav-it:hover { background: #F6F7FA; color: #1C1B3A; }
-.settings-page .set-nav-it.active { color: #C65A1A; font-weight: 700; background: #FAECE7; }
-.settings-page .set-ext { flex: 0 0 auto; color: #C3BEB2; }
+.settings-page .set-nav-it.active { color: #C65A1A; font-weight: 700; background: #EEF2F7; }
+.settings-page .set-ext { flex: 0 0 auto; color: #B6BABF; }
 /* collapsed — icons only */
 .settings-page .set-rail.collapsed { padding: 10px 8px; }
 .settings-page .set-rail.collapsed .set-nav-grp { display: none; }
@@ -88,7 +88,7 @@ body.settings-editorial {
 .settings-page .set-h { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-weight: 400; font-size: 32px; line-height: 1.0; letter-spacing: -0.01em; text-transform: uppercase; color: #1C1B3A; margin: 0; }
 .settings-page .set-h em { font-style: italic; font-weight: 400; color: #C65A1A; text-transform: none; }
 .settings-page .set-hsub { font-size: 14px; color: #6F7396; margin: 11px 0 0; line-height: 1.5; max-width: 58ch; }
-.settings-page .set-caps { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #A7A296; margin: 26px 4px 9px; }
+.settings-page .set-caps { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #9A9EA3; margin: 26px 4px 9px; }
 
 /* Grouped inset card + rows */
 .settings-page .set-group { background: #FFFFFF; border: 1px solid #E6E8EF; border-radius: 14px; box-shadow: 0 1px 2px rgba(28,27,58,0.04), 0 6px 20px -16px rgba(28,27,58,0.14); overflow: hidden; }
@@ -105,10 +105,10 @@ body.settings-editorial {
 .settings-page .set-r-val { font-size: 13.5px; color: #6F7396; font-weight: 500; white-space: nowrap; flex: 0 0 auto; }
 .settings-page .set-r-val b { color: #1C1B3A; font-weight: 600; font-variant-numeric: tabular-nums; }
 .settings-page .set-r-val.muted { color: #AEB4C2; }
-.settings-page .set-go { color: #C3BEB2; flex: 0 0 auto; display: inline-flex; }
+.settings-page .set-go { color: #B6BABF; flex: 0 0 auto; display: inline-flex; }
 
 .settings-page .set-badge { font-size: 10.5px; font-weight: 600; color: #6F7396; background: #F0F1F5; border-radius: 999px; padding: 2px 9px; flex: 0 0 auto; }
-.settings-page .set-soon { font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #A7A296; background: #F3F1EA; border-radius: 999px; padding: 2px 8px; flex: 0 0 auto; }
+.settings-page .set-soon { font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #9A9EA3; background: #ECEEF1; border-radius: 999px; padding: 2px 8px; flex: 0 0 auto; }
 
 /* Switch (terracotta) */
 .settings-page .set-switch { position: relative; width: 42px; height: 25px; border-radius: 999px; border: 0; padding: 0; cursor: pointer; background: #DCDFE8; transition: background 0.18s ease; flex: 0 0 auto; }
@@ -118,14 +118,14 @@ body.settings-editorial {
 .settings-page .set-switch.is-on .set-knob { transform: translateX(17px); }
 
 /* Segmented control */
-.settings-page .set-seg { display: inline-flex; background: #F1EEE8; border-radius: 9px; padding: 3px; gap: 2px; flex: 0 0 auto; }
+.settings-page .set-seg { display: inline-flex; background: #EAECEF; border-radius: 9px; padding: 3px; gap: 2px; flex: 0 0 auto; }
 .settings-page .set-seg button { border: 0; background: none; border-radius: 7px; padding: 5px 12px; font: inherit; font-size: 12px; font-weight: 500; color: #7C766B; cursor: pointer; white-space: nowrap; transition: color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease; }
 .settings-page .set-seg button:hover { color: #1C1B3A; }
 .settings-page .set-seg button.on { background: #FFFFFF; color: #1C1B3A; font-weight: 600; box-shadow: 0 1px 2px rgba(28,27,58,0.1); }
 
 /* Buttons */
 .settings-page .set-btn { font: inherit; font-size: 13px; font-weight: 600; border-radius: 8px; padding: 7px 14px; cursor: pointer; white-space: nowrap; background: #FFFFFF; border: 1px solid #E5E7EB; color: #1C1B3A; transition: background 0.12s ease, border-color 0.12s ease; flex: 0 0 auto; }
-.settings-page .set-btn:hover { background: #FAFAF8; border-color: #D7DAE2; }
+.settings-page .set-btn:hover { background: #F8FAFC; border-color: #D7DAE2; }
 .settings-page .set-btn-primary { background: #C65A1A; border-color: #C65A1A; color: #fff; }
 .settings-page .set-btn-primary:hover { background: #B14E16; border-color: #B14E16; }
 .settings-page .set-btn-danger { color: #B23B2E; border-color: #EAD7D3; }
@@ -145,30 +145,30 @@ body.settings-editorial {
 /* Data-visibility pills: who can see a category */
 .settings-page .set-vis { font-size: 10.5px; font-weight: 600; border-radius: 999px; padding: 2px 10px; flex: 0 0 auto; white-space: nowrap; }
 .settings-page .set-vis.you { color: #3F7A52; background: #E9F3EC; }       /* you only — private */
-.settings-page .set-vis.command { color: #C65A1A; background: #FBEFE9; }   /* command tier */
+.settings-page .set-vis.command { color: #C65A1A; background: #EEF2F7; }   /* command tier */
 .settings-page .set-vis.crew { color: #5A5E82; background: #EEF0F6; }      /* everyone on board */
 
 /* Two-factor authentication — "On" pill + enrolment (QR + manual key + code) */
 .settings-page .set-badge-on { color: #3F7A52; background: #E9F3EC; }
 .settings-page .set-mfa-setup { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 4px 0 2px; }
-.settings-page .set-mfa-qr { width: 156px; height: 156px; border: 1px solid #ECEAE3; border-radius: 12px; background: #fff; display: grid; place-items: center; overflow: hidden; flex: 0 0 auto; }
+.settings-page .set-mfa-qr { width: 156px; height: 156px; border: 1px solid #E5E7EB; border-radius: 12px; background: #fff; display: grid; place-items: center; overflow: hidden; flex: 0 0 auto; }
 .settings-page .set-mfa-qr img { display: block; width: 148px; height: 148px; }
-.settings-page .set-mfa-qr-fallback { font-size: 11px; color: #A7A296; text-align: center; padding: 0 12px; }
+.settings-page .set-mfa-qr-fallback { font-size: 11px; color: #9A9EA3; text-align: center; padding: 0 12px; }
 .settings-page .set-mfa-manual { min-width: 0; }
 .settings-page .set-mfa-manual-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 7px; }
-.settings-page .set-mfa-secret { display: inline-block; font-family: 'SFMono-Regular', ui-monospace, Menlo, monospace; font-size: 13px; letter-spacing: 1.5px; color: #1C1B3A; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 8px; padding: 8px 12px; overflow-wrap: anywhere; }
+.settings-page .set-mfa-secret { display: inline-block; font-family: 'SFMono-Regular', ui-monospace, Menlo, monospace; font-size: 13px; letter-spacing: 1.5px; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 12px; overflow-wrap: anywhere; }
 .settings-page .set-mfa-code { max-width: 160px; letter-spacing: 3px; text-align: center; font-variant-numeric: tabular-nums; }
 
 .settings-page .set-search { position: relative; }
 .settings-page .set-search .set-searchic { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .settings-page .set-search .set-field { padding-left: 34px; }
 .settings-page .set-field { width: 100%; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 9px; padding: 9px 12px; font: inherit; font-size: 13.5px; color: #1C1B3A; transition: border-color 0.12s ease, box-shadow 0.12s ease; }
-.settings-page .set-field:focus { outline: 0; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.settings-page .set-field:focus { outline: 0; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .settings-page .set-field::placeholder { color: #AEB4C2; font-style: italic; }
 .settings-page .set-tzlist { max-height: 260px; overflow-y: auto; margin-top: 10px; }
 .settings-page .set-tzitem { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 9px 10px; border: 0; background: none; cursor: pointer; font: inherit; text-align: left; border-radius: 8px; transition: background 0.12s ease; }
 .settings-page .set-tzitem:hover { background: #F6F7FA; }
-.settings-page .set-tzitem.is-sel { background: #FAECE7; }
+.settings-page .set-tzitem.is-sel { background: #EEF2F7; }
 .settings-page .set-tzname { font-size: 13px; color: #1C1B3A; }
 .settings-page .set-tzitem.is-sel .set-tzname { color: #C65A1A; font-weight: 600; }
 .settings-page .set-tzoff { flex: 0 0 auto; font-size: 12px; color: #8B8478; font-variant-numeric: tabular-nums; }
@@ -189,7 +189,7 @@ body.settings-editorial {
 .settings-page .set-rail-strip-cur { font-size: 14px; font-weight: 700; color: #1C1B3A; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-page .set-rail-strip-tog {
   display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
-  font-size: 12px; font-weight: 600; color: #C65A1A; padding: 5px 10px; border-radius: 999px; background: #FBEFE9;
+  font-size: 12px; font-weight: 600; color: #C65A1A; padding: 5px 10px; border-radius: 999px; background: #EEF2F7;
 }
 .settings-page .set-rail.narrow.open .set-rail-strip { border-bottom: 1px solid #F0F1F5; padding-bottom: 10px; margin-bottom: 4px; }
 @media (max-width: 980px) { .settings-page .set-layout { gap: 16px; } }

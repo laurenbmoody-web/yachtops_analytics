@@ -83,12 +83,12 @@ const PersonalModeScreen = ({ userName, userId }) => {
       background: '#FCFCFD', border: '1px solid #E6EAEF', borderRadius: 12,
       padding: '13px 14px', cursor: 'pointer', font: 'inherit',
     }}>
-      <span style={{ width: 38, height: 38, borderRadius: 10, background: '#FBEFE9', color: '#C65A1A', display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>{icon}</span>
+      <span style={{ width: 38, height: 38, borderRadius: 10, background: '#EEF2F7', color: '#C65A1A', display: 'grid', placeItems: 'center', flex: '0 0 auto' }}>{icon}</span>
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: '#1C1B3A' }}>{title}</span>
         <span style={{ display: 'block', fontSize: 12, color: '#8B8478', marginTop: 1 }}>{sub}</span>
       </span>
-      <span style={{ color: '#CFCABF', flex: '0 0 auto' }}><Chevron /></span>
+      <span style={{ color: '#C3C7CB', flex: '0 0 auto' }}><Chevron /></span>
     </button>
   );
 

@@ -6,17 +6,17 @@
    ============================================================ */
 
 .edp {
-  --edp-cream:    #F4EEE4;
+  --edp-ground:    #E9ECEF;
   --edp-card:     #FFFFFF;
-  --edp-band:     #FCFAF5;
-  --edp-sand:     #DFD7C8;
-  --edp-sand-soft:#F1ECDF;
+  --edp-band:     #F7F8FA;
+  --edp-hairline-soft:     #CDD3DA;
+  --edp-tint:#E4E8EC;
   --edp-navy:     #262A53;
   --edp-rust:     #C65A1A;
   --edp-rust-dark:#A84A14;
   --edp-muted:    #695880;
   --edp-faint:    #94A3B8;
-  --edp-hairline: #D4CCBB;
+  --edp-hairline: #C1C7CE;
   --edp-shadow:   0 12px 32px rgba(38, 42, 83, 0.12), 0 1px 2px rgba(38, 42, 83, 0.04);
 
   position: relative;
@@ -80,7 +80,7 @@
   transition: background 120ms ease, color 120ms ease;
 }
 .edp-trigger:hover:not(:disabled) {
-  background: var(--edp-sand-soft);
+  background: var(--edp-tint);
   color: var(--edp-rust);
 }
 .edp-trigger:disabled { cursor: not-allowed; opacity: 0.5; }
@@ -89,17 +89,17 @@
 .edp-popover {
   /* Self-declare tokens: when portaled to <body> the popover is no longer a
      descendant of .edp, so it can't inherit that scope's custom properties. */
-  --edp-cream:    #F4EEE4;
+  --edp-ground:    #E9ECEF;
   --edp-card:     #FFFFFF;
-  --edp-band:     #FCFAF5;
-  --edp-sand:     #DFD7C8;
-  --edp-sand-soft:#F1ECDF;
+  --edp-band:     #F7F8FA;
+  --edp-hairline-soft:     #CDD3DA;
+  --edp-tint:#E4E8EC;
   --edp-navy:     #262A53;
   --edp-rust:     #C65A1A;
   --edp-rust-dark:#A84A14;
   --edp-muted:    #695880;
   --edp-faint:    #94A3B8;
-  --edp-hairline: #D4CCBB;
+  --edp-hairline: #C1C7CE;
   --edp-shadow:   0 12px 32px rgba(38, 42, 83, 0.12), 0 1px 2px rgba(38, 42, 83, 0.04);
 
   position: absolute;
@@ -151,7 +151,7 @@
   border-radius: 8px;
   transition: background 120ms ease, color 120ms ease;
 }
-.edp-month-label:hover { background: var(--edp-sand-soft); color: var(--edp-rust); }
+.edp-month-label:hover { background: var(--edp-tint); color: var(--edp-rust); }
 
 /* month / year quick-pick grids (click the header label to reach them) */
 .edp-picker-grid {
@@ -172,7 +172,7 @@
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
-.edp-picker-cell:hover { background: var(--edp-sand-soft); color: var(--edp-rust); }
+.edp-picker-cell:hover { background: var(--edp-tint); color: var(--edp-rust); }
 .edp-picker-cell.is-active { background: var(--edp-rust); color: #fff; }
 .edp-nav-btn {
   width: 26px;
@@ -188,7 +188,7 @@
   transition: background 120ms ease, color 120ms ease;
 }
 .edp-nav-btn:hover {
-  background: var(--edp-sand-soft);
+  background: var(--edp-tint);
   color: var(--edp-rust);
 }
 
@@ -228,7 +228,7 @@
   padding: 0;
 }
 .edp-day:hover:not(.is-selected) {
-  background: var(--edp-sand-soft);
+  background: var(--edp-tint);
   color: var(--edp-rust);
 }
 .edp-day:focus-visible {
@@ -255,7 +255,7 @@
    with a slightly stronger tint on the anchor (the fixed other end). Rounded
    pills keep the editorial look — no hard connected bar. */
 .edp-day.is-in-range {
-  background: #FBEFE9;
+  background: #EEF2F7;
   color: var(--edp-rust);
 }
 .edp-day.is-in-range:hover {
@@ -289,7 +289,7 @@
   justify-content: space-between;
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 0.5px solid var(--edp-sand);
+  border-top: 0.5px solid var(--edp-hairline-soft);
   gap: 8px;
 }
 .edp-foot-btn {
@@ -307,7 +307,7 @@
   transition: background 120ms ease, color 120ms ease;
 }
 .edp-foot-btn:hover {
-  background: var(--edp-sand-soft);
+  background: var(--edp-tint);
   color: var(--edp-rust);
 }
 
@@ -322,18 +322,18 @@
 .edp-day.is-disabled:hover { background: transparent; color: inherit; }
 
 /* Cargo's page palette is cool — navy, maritime white, terracotta accent — while
-   this component still carries the older warm sand tokens it shipped with. Any
+   these were the warm sand tokens this component shipped with; they now hold
    caller can opt into the cool set until the shared component is moved over.
-   See CLAUDE.md: never a warm fill on a cool canvas. */
+   cool values at the same lightness. See CLAUDE.md: no beige, anywhere. */
 .edp.is-cool {
-  --edp-cream:     #F8FAFC;
+  --edp-ground:     #F8FAFC;
   --edp-card:      #FFFFFF;
-  --edp-band:      #FAFAF8;
-  --edp-sand:      #E5E7EB;
-  --edp-sand-soft: #FBEFE9;
+  --edp-band:      #F8FAFC;
+  --edp-hairline-soft:      #E5E7EB;
+  --edp-tint: #EEF2F7;
   --edp-navy:      #1C1B3A;
   --edp-muted:     #6B7280;
   --edp-faint:     #AEB4C2;
-  --edp-hairline:  #ECEAE3;
+  --edp-hairline:  #E5E7EB;
   --edp-shadow:    0 24px 60px -16px rgba(28, 27, 58, .32);
 }

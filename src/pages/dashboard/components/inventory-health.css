@@ -6,7 +6,7 @@
 .ih {
   --ih-ink:#1C1B3A; --ih-terra:#C65A1A; --ih-terra-hi:#B14E16;
   --ih-muted:#6B7280; --ih-faint:#AEB4C2; --ih-hair:#ECEDF3;
-  --ih-cell:#FAFAF8; --ih-cell-bd:#EEF0F4; --ih-tint:#FBEFE9;
+  --ih-cell:#F8FAFC; --ih-cell-bd:#EEF0F4; --ih-tint:#EEF2F7;
   font-family:'Inter',system-ui,sans-serif;
 }
 .ih-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px;}
@@ -27,7 +27,7 @@
    compact status. Every part guards against overflow so nothing clips. */
 .ih-worst{display:flex;align-items:baseline;gap:9px;width:100%;text-align:left;background:none;border:0;
   margin-top:14px;padding:13px 2px 2px;border-top:1px solid var(--ih-hair);cursor:pointer;font-family:inherit;}
-.ih-worst:focus-visible{outline:none;box-shadow:0 0 0 2px #FAECE7 inset;border-radius:8px;}
+.ih-worst:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(198, 90, 26, 0.14) inset;border-radius:8px;}
 .ih-worst-lead{flex:none;font-size:9px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ih-terra);}
 .ih-worst-name{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--ih-ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}

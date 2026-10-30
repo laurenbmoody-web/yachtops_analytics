@@ -47,7 +47,7 @@
 
 /* ---- right pane ---- */
 .hrm-main { display: flex; flex-direction: column; min-width: 0; }
-.hrm-mhead { padding: 22px 26px 16px; border-bottom: 1px solid #F1EFEA; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.hrm-mhead { padding: 22px 26px 16px; border-bottom: 1px solid #ECEDEF; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .hrm-ttl { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #1C1B3A; }
 .hrm-sub { font-size: 11px; color: #6B7280; margin-top: 3px; }
 .hrm-remind-all {
@@ -58,13 +58,13 @@
 .hrm-remind-all:disabled { opacity: .6; cursor: default; }
 .hrm-list { flex: 1; overflow-y: auto; }
 .hrm-dept { font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: #AEB4C2; padding: 13px 26px 4px; }
-.hrm-row { display: flex; align-items: center; gap: 13px; padding: 11px 26px; border-bottom: 1px solid #F1EFEA; transition: background .12s; }
-.hrm-row:hover { background: #FBFAF8; }
+.hrm-row { display: flex; align-items: center; gap: 13px; padding: 11px 26px; border-bottom: 1px solid #ECEDEF; transition: background .12s; }
+.hrm-row:hover { background: #F9F9FA; }
 .hrm-chk { width: 22px; height: 22px; border-radius: 999px; flex: none; display: flex; align-items: center; justify-content: center; border: 1.5px solid #E5E7EB; color: #fff; }
 .hrm-chk.sage { background: #6E8B73; border-color: #6E8B73; }
 .hrm-chk.amber { border-color: #B7822E; color: #B7822E; font-weight: 700; font-size: 13px; }
 .hrm-chk.open { border-color: #E3CDBD; }
-.hrm-av { position: relative; width: 34px; height: 34px; border-radius: 999px; flex: none; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600; background: #F4F1EB; color: #9C8B79; }
+.hrm-av { position: relative; width: 34px; height: 34px; border-radius: 999px; flex: none; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600; background: #EDEFF2; color: #9C8B79; }
 .hrm-av-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .hrm-who { min-width: 0; }
 .hrm-nm { font-size: 13.5px; font-weight: 600; line-height: 1.2; }
@@ -73,7 +73,7 @@
 .hrm-unlog { font-size: 11px; color: #6B7280; white-space: nowrap; }
 .hrm-unlog b { color: #C65A1A; font-weight: 600; }
 .hrm-prog { display: flex; align-items: center; gap: 9px; }
-.hrm-bar { width: 60px; height: 4px; border-radius: 2px; background: #EDEAE3; overflow: hidden; }
+.hrm-bar { width: 60px; height: 4px; border-radius: 2px; background: #E5E8EB; overflow: hidden; }
 .hrm-bar span { display: block; height: 100%; border-radius: 2px; background: #1C1B3A; }
 .hrm-frac { font-size: 10.5px; color: #AEB4C2; }
 .hrm-logged { font-size: 11px; color: #AEB4C2; }

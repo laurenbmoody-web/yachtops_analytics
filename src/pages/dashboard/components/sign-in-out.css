@@ -48,5 +48,5 @@
 .sio-toggle.aboard .sio-half.l { color: #FFFFFF; }
 .sio-toggle.ashore .sio-half.r { color: #FFFFFF; }
 
-.sio-skel { height: 150px; border-radius: 14px; background: #F1F1EF; animation: sioPulse 1.4s ease-in-out infinite; margin-top: 12px; }
+.sio-skel { height: 150px; border-radius: 14px; background: #EFF0F1; animation: sioPulse 1.4s ease-in-out infinite; margin-top: 12px; }
 @keyframes sioPulse { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }

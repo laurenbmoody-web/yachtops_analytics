@@ -50,7 +50,7 @@
 .tj-btn.ghost { background: #FFFFFF; color: #1C1B3A; border-color: #E5E7EB; }
 .tj-btn.ghost:hover { border-color: #C9CED6; }
 .tj-btn.ghost svg { color: #6B7280; }
-.tj-btn.accent { background: #FBEFE9; color: #C65A1A; border-color: #F3D9CB; }
+.tj-btn.accent { background: #EEF2F7; color: #C65A1A; border-color: #F3D9CB; }
 .tj-btn.accent:hover { background: #F8E1D3; }
 .tj-btn.accent svg { color: #C65A1A; }
 .tj-btn.primary { background: #C65A1A; color: #FFFFFF; }
@@ -85,7 +85,7 @@
   transition: border-color 0.14s, box-shadow 0.14s;
 }
 .tj-search input::placeholder { color: #AEB4C2; }
-.tj-search input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.tj-search input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .tj-search-clear {
   position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
   background: none; border: none; cursor: pointer; color: #AEB4C2;
@@ -119,7 +119,7 @@
 .tj-menu {
   position: absolute; right: 0; top: calc(100% + 6px);
   min-width: 210px; background: #FFFFFF;
-  border: 1px solid #ECEAE3; border-radius: 12px;
+  border: 1px solid #E5E7EB; border-radius: 12px;
   box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32);
   z-index: 40; overflow: hidden; padding: 5px;
   max-height: 320px; overflow-y: auto;
@@ -132,7 +132,7 @@
   color: #1C1B3A; cursor: pointer; text-align: left; transition: background 0.12s;
 }
 .tj-menuitem:hover { background: #F5F6F8; }
-.tj-menuitem.on { color: #C65A1A; font-weight: 600; background: #FBEFE9; }
+.tj-menuitem.on { color: #C65A1A; font-weight: 600; background: #EEF2F7; }
 .tj-menuitem.on svg { color: #C65A1A; }
 .tj-menuitem .hint { font-size: 11px; color: #AEB4C2; font-weight: 500; }
 
@@ -140,7 +140,7 @@
 .tj-filterpanel {
   position: absolute; right: 0; top: calc(100% + 6px);
   width: 290px; background: #FFFFFF;
-  border: 1px solid #ECEAE3; border-radius: 14px;
+  border: 1px solid #E5E7EB; border-radius: 14px;
   box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32);
   z-index: 40; padding: 16px; max-height: 70vh; overflow-y: auto;
 }
@@ -182,7 +182,7 @@
 .tj-chip {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 10px 5px 12px; border-radius: 999px;
-  background: #FBEFE9; color: #C65A1A; border: 1px solid #F3D9CB;
+  background: #EEF2F7; color: #C65A1A; border: 1px solid #F3D9CB;
   font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 .tj-chip button { background: none; border: none; cursor: pointer; color: inherit; display: flex; padding: 0; }
@@ -197,7 +197,7 @@
 .tj-banner {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin-bottom: 16px; padding: 10px 16px;
-  background: #FBEFE9; border: 1px solid #F3D9CB; border-radius: 12px;
+  background: #EEF2F7; border: 1px solid #F3D9CB; border-radius: 12px;
   font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A;
 }
 .tj-banner-done {
@@ -258,7 +258,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
   border: none; border-bottom: 1px solid #C65A1A; width: 100%;
   padding: 0 0 2px;
 }
-.tj-col-nameinput:focus { outline: none; box-shadow: 0 2px 0 -1px #FAECE7; }
+.tj-col-nameinput:focus { outline: none; box-shadow: 0 2px 0 -1px rgba(198, 90, 26, 0.14); }
 .tj-col-menubtn {
   width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
@@ -268,7 +268,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 .tj-col-menubtn:hover { background: #F5F6F8; color: #1C1B3A; }
 .tj-col-menu {
   position: absolute; right: 0; top: calc(100% + 6px); min-width: 176px;
-  background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 12px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px;
   box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); z-index: 40; padding: 5px;
 }
 .tj-col-menu .tj-menuitem { justify-content: flex-start; }
@@ -300,7 +300,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
   font: 600 12.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #8B8478;
   cursor: pointer; transition: color 0.14s, border-color 0.14s, background 0.14s;
 }
-.tj-addjob:hover { color: #C65A1A; border-color: #F3D9CB; background: #FBEFE9; }
+.tj-addjob:hover { color: #C65A1A; border-color: #F3D9CB; background: #EEF2F7; }
 
 /* ── job cards ──────────────────────────────────────────────── */
 .tj-card {
@@ -336,7 +336,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
   background: #F6F8FB; border: 1px solid #EEF0F4; color: #6B7280;
   font-size: 10.5px; font-weight: 600;
 }
-.tj-pill.rotation { background: #FBEFE9; border-color: #F3D9CB; color: #C65A1A; }
+.tj-pill.rotation { background: #EEF2F7; border-color: #F3D9CB; color: #C65A1A; }
 .tj-pill.private { background: #F4F5FA; border-color: #E7E9F2; color: #5B5A78; }
 
 /* priority dot + tiny check control */
@@ -367,7 +367,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
   flex-shrink: 0; padding: 3px; border-radius: 6px; background: none; border: none;
   cursor: pointer; color: #AEB4C2; display: flex; transition: color 0.12s, background 0.12s;
 }
-.tj-pen:hover { color: #C65A1A; background: #FBEFE9; }
+.tj-pen:hover { color: #C65A1A; background: #EEF2F7; }
 
 /* completed divider */
 .tj-donerule {
@@ -384,7 +384,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 .tj-empty { text-align: center; padding: 30px 12px; }
 .tj-empty-ico {
   width: 38px; height: 38px; border-radius: 999px; margin: 0 auto 12px;
-  background: #FBEFE9; display: flex; align-items: center; justify-content: center;
+  background: #EEF2F7; display: flex; align-items: center; justify-content: center;
 }
 .tj-empty-ico svg { color: #C65A1A; }
 .tj-empty-t { font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; margin: 0 0 4px; }
@@ -401,7 +401,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 .tj-newboard:hover { border-color: #C65A1A; background: #F2F6FB; }
 .tj-newboard-ico {
   width: 46px; height: 46px; border-radius: 999px; margin-bottom: 14px;
-  background: #FBEFE9; display: flex; align-items: center; justify-content: center;
+  background: #EEF2F7; display: flex; align-items: center; justify-content: center;
 }
 .tj-newboard-ico svg { color: #C65A1A; }
 .tj-newboard-t {
@@ -423,7 +423,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 
 /* ── move-board modal (portaled — scoped under tjm-) ────────── */
 .tjm-panel {
-  background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 16px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32);
   width: 100%; max-width: 400px; padding: 22px;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
@@ -445,7 +445,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
   cursor: pointer; transition: background 0.12s;
 }
 .tjm-item:hover { background: #F5F6F8; }
-.tjm-item.current { background: #FBEFE9; color: #C65A1A; font-weight: 600; cursor: default; }
+.tjm-item.current { background: #EEF2F7; color: #C65A1A; font-weight: 600; cursor: default; }
 .tjm-num {
   width: 21px; height: 21px; border-radius: 999px; flex-shrink: 0;
   background: #F0F1F5; color: #6B7280; font-size: 11px; font-weight: 700;
@@ -485,7 +485,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 .tj-quickadd-row:hover { border-color: #E5E7EB; background: #EEF2F7; }
 .tj-quickadd-row.on {
   border-color: #C65A1A; background: #FFFFFF;
-  box-shadow: 0 0 0 3px #FAECE7;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 .tj-quickadd-row.err { border-color: #C0453C; }
 .tj-quickadd-ico {
@@ -504,7 +504,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 .tj-quickadd-go {
   flex-shrink: 0; display: flex; align-items: center; justify-content: center;
   width: 22px; height: 22px; border-radius: 6px;
-  border: none; background: #FBEFE9; color: #C65A1A; cursor: pointer;
+  border: none; background: #EEF2F7; color: #C65A1A; cursor: pointer;
 }
 .tj-quickadd-go:hover { background: #F8E1D3; }
 
@@ -553,7 +553,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 }
 .tj-card:hover .tj-due-push,
 .tj-due-push:focus-visible { opacity: 1; }
-.tj-due-push:hover { color: #C65A1A; background: #FBEFE9; }
+.tj-due-push:hover { color: #C65A1A; background: #EEF2F7; }
 @media (hover: none) {
   .tj-due-push { opacity: 1; }
 }
@@ -570,7 +570,7 @@ button.tj-col-title.rename:hover { color: #C65A1A; }
 }
 .tj-col:hover .tj-col-focus,
 .tj-col-focus:focus-visible { opacity: 1; }
-.tj-col-focus:hover { color: #C65A1A; background: #FBEFE9; }
+.tj-col-focus:hover { color: #C65A1A; background: #EEF2F7; }
 @media (hover: none) { .tj-col-focus { opacity: 1; } }
 
 .tj-col-head { gap: 6px; }

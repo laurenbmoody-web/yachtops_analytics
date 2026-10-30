@@ -17,7 +17,7 @@
 .ufs-t svg { color: #C65A1A; }
 .ufs-chip {
   font: 600 10px/1 'Inter', system-ui, sans-serif;
-  color: #C65A1A; background: #FBEFE9;
+  color: #C65A1A; background: #EEF2F7;
   padding: 4px 9px; border-radius: 999px; white-space: nowrap;
 }
 .ufs-rule { flex: 1 1 auto; height: 1px; background: #F0F1F5; }
@@ -79,9 +79,9 @@
 .ufs-field > span em { color: #AEB4C2; font-style: normal; font-weight: 400; }
 .ufs-field input, .ufs-field select {
   font: 400 13px/1.2 'Inter', system-ui, sans-serif; color: #1C1B3A;
-  background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 9px;
+  background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 9px;
   padding: 8px 10px; width: 100%; box-sizing: border-box;
 }
 .ufs-field input:focus, .ufs-field select:focus {
-  outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff;
+  outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); background: #fff;
 }

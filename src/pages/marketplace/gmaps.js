@@ -29,15 +29,15 @@ export function loadGoogleMaps() {
 
 // Editorial map styling — Google's tiles, warmed to the Cargo palette.
 export const MAP_STYLE_LIGHT = [
-  { elementType: 'geometry', stylers: [{ color: '#F2EDE3' }] },
+  { elementType: 'geometry', stylers: [{ color: '#E7EAEE' }] },
   { elementType: 'labels.text.fill', stylers: [{ color: '#7A7365' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#F7F4EE' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#F0F2F4' }] },
   { featureType: 'administrative', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
   { featureType: 'administrative.country', elementType: 'labels.text.fill', stylers: [{ color: '#9A9384' }] },
   { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#6B6559' }] },
-  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#F0EADD' }] },
+  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#E3E6EA' }] },
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#E7E0D1' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#D6DBE2' }] },
   { featureType: 'road', elementType: 'labels', stylers: [{ visibility: 'off' }] },
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#CDDFE3' }] },

@@ -46,8 +46,8 @@ export default function ConnectPaymentSettings({ supplier, onSaved }) {
 
   const meta = {
     ready:      { label: 'Ready to accept cards', tone: '#0F7B4F', bg: '#ECFDF3', border: '#BBF7D0' },
-    incomplete: { label: 'Onboarding incomplete',  tone: '#B14E16', bg: '#FBEFE9', border: '#F3D9CB' },
-    none:       { label: 'Not connected',          tone: '#6B7280', bg: 'var(--ground, #FAFAF8)', border: 'var(--line, #ECEAE3)' },
+    incomplete: { label: 'Onboarding incomplete',  tone: '#B14E16', bg: '#EEF2F7', border: '#F3D9CB' },
+    none:       { label: 'Not connected',          tone: '#6B7280', bg: 'var(--ground, #F8FAFC)', border: 'var(--line, #E5E7EB)' },
   }[state];
 
   // A small country <select> reused by the connect / start-over panels.
@@ -59,7 +59,7 @@ export default function ConnectPaymentSettings({ supplier, onSaved }) {
       <select
         value={country}
         onChange={(e) => setCountry(e.target.value)}
-        style={{ fontFamily: 'inherit', fontSize: 13, color: 'var(--fg)', background: 'var(--ground, #FAFAF8)', border: '1px solid var(--line, #ECEAE3)', borderRadius: 9, padding: '9px 11px', minWidth: 220 }}
+        style={{ fontFamily: 'inherit', fontSize: 13, color: 'var(--fg)', background: 'var(--ground, #F8FAFC)', border: '1px solid var(--line, #E5E7EB)', borderRadius: 9, padding: '9px 11px', minWidth: 220 }}
       >
         {COUNTRIES.map((c) => <option key={c.iso2} value={c.iso2}>{c.name}</option>)}
       </select>
@@ -86,7 +86,7 @@ export default function ConnectPaymentSettings({ supplier, onSaved }) {
         </div>
       )}
 
-      <div style={{ border: '1px solid var(--line, #ECEAE3)', borderRadius: 12, padding: 18 }}>
+      <div style={{ border: '1px solid var(--line, #E5E7EB)', borderRadius: 12, padding: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 42, height: 42, borderRadius: 10, flexShrink: 0, background: '#635BFF', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {state === 'ready' ? <CheckCircle2 size={20} /> : <Banknote size={20} />}
@@ -118,14 +118,14 @@ export default function ConnectPaymentSettings({ supplier, onSaved }) {
 
         {/* Country picker — shown before an account exists. */}
         {state === 'none' && (
-          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--line, #ECEAE3)' }}>
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--line, #E5E7EB)' }}>
             <CountrySelect />
           </div>
         )}
 
         {/* Incomplete: let them fix a wrong country by starting over. */}
         {state === 'incomplete' && (
-          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line, #ECEAE3)' }}>
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line, #E5E7EB)' }}>
             {!changing ? (
               <div style={{ fontSize: 11.5, color: 'var(--muted-strong)' }}>
                 Wrong country, or want to start fresh?{' '}

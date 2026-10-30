@@ -29,7 +29,7 @@
 .mp-monthnav-row { display: flex; justify-content: flex-start; margin-top: -8px; }
 .mp-monthnav { flex: 0 0 auto; }
 .mp-monthnav { display: inline-flex; align-items: center; gap: 12px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 7px 8px; font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
-.mp-monthnav button { border: 0; background: #F6F5F2; width: 26px; height: 26px; border-radius: 999px; cursor: pointer; color: #8B8478; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+.mp-monthnav button { border: 0; background: #F3F4F5; width: 26px; height: 26px; border-radius: 999px; cursor: pointer; color: #8B8478; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
 .mp-monthnav button:hover { color: #C65A1A; }
 .mp-monthnav span { padding: 0 2px; }
 
@@ -112,7 +112,7 @@
 /* Crew row — editorial list, separated by whitespace (no per-row rule); the name
    lines up with the title, the dot sits in the icon gutter. */
 .me-row { display: flex; align-items: center; padding: 10px 8px 10px 14px; transition: background 0.12s ease; }
-.me-row:hover { background: #FAFAF8; }
+.me-row:hover { background: #F8FAFC; }
 .me-dot { width: 9px; height: 9px; border-radius: 999px; flex: 0 0 auto; margin-left: 11px; }
 .me-who { min-width: 0; flex: 1; margin-left: 32px; }
 .me-name { font-size: 14.5px; font-weight: 600; color: #1C1B3A; }
@@ -123,7 +123,7 @@
    has logged something — otherwise the more direct "X days unlogged" reads in
    its place, so a roomful of zero-loggers isn't a column of empty rails. */
 .me-log { display: flex; align-items: center; justify-content: flex-end; gap: 11px; width: 188px; flex: 0 0 auto; }
-.me-logbar { flex: 1; height: 5px; border-radius: 3px; background: #EFEDE6; overflow: hidden; }
+.me-logbar { flex: 1; height: 5px; border-radius: 3px; background: #E8EAED; overflow: hidden; }
 .me-logbar span { display: block; height: 100%; border-radius: 3px; }
 .me-logfrac { font-size: 11.5px; font-weight: 600; color: #8B8478; white-space: nowrap; min-width: 42px; }
 .me-log-note { font-size: 11.5px; color: #8B8478; font-style: italic; white-space: nowrap; }
@@ -146,7 +146,7 @@
 .me-btn-primary:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }
 .me-btn-primary:disabled { opacity: 0.6; cursor: default; }
 .me-btn-ghost { background: #fff; border: 1px solid #E5E7EB; color: #1C1B3A; }
-.me-btn-ghost:hover { background: #FAFAF8; border-color: #D7DAE2; }
+.me-btn-ghost:hover { background: #F8FAFC; border-color: #D7DAE2; }
 .me-reminded { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; color: #5C9B6A; }
 
 .me-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1C1B3A; color: #fff; padding: 11px 20px; border-radius: 10px; font-size: 13.5px; font-weight: 600; box-shadow: 0 12px 30px -8px rgba(28,27,58,0.4); z-index: 60; }
@@ -159,7 +159,7 @@
 .me-vault-empty { font-size: 12px; color: #8B8478; padding: 4px 2px 6px; }
 .me-vault-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid #F0F1F5; padding: 9px 6px; cursor: pointer; transition: background 0.12s ease; }
 .me-vault-row:last-child { border-bottom: none; }
-.me-vault-row:hover { background: #FAFAF8; }
+.me-vault-row:hover { background: #F8FAFC; }
 .me-vault-ico { display: inline-flex; color: #C65A1A; }
 .me-vault-who { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .me-vault-name { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }

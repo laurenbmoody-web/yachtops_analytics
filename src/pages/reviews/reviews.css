@@ -82,7 +82,7 @@
 }
 .rv-sb-toggle:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px #FAECE7;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 
 /* MIDDLE — list strip of compact cards. */
@@ -269,7 +269,7 @@
 }
 .rv-cc-outcome.st-accepted,
 .rv-cc-outcome.st-accepted_with_edits { background: #E8F1E9; color: #2D5A3A; }
-.rv-cc-outcome.st-rejected            { background: #FAECE7; color: #7A2E1E; }
+.rv-cc-outcome.st-rejected            { background: #EEF2F7; color: #7A2E1E; }
 
 /* Read-only resolved (history) detail pane */
 .rv-resolved { padding: 40px 44px; max-width: 1040px; }
@@ -356,14 +356,14 @@
   box-shadow: 0 10px 30px rgba(28, 27, 58, 0.3);
   font-family: 'Inter', system-ui, sans-serif;
 }
-.rv-edit-pop-head { font-size: 11px; color: rgba(245, 241, 234, 0.6); margin-bottom: 8px; }
+.rv-edit-pop-head { font-size: 11px; color: rgba(248, 250, 252, 0.6); margin-bottom: 8px; }
 .rv-edit-pop-name { color: #F5F7FA; font-weight: 600; }
 .rv-edit-pop-k {
   font-size: 10px; font-weight: 600; letter-spacing: 0.6px; text-transform: uppercase;
-  color: rgba(245, 241, 234, 0.55); margin-bottom: 4px;
+  color: rgba(248, 250, 252, 0.55); margin-bottom: 4px;
 }
 .rv-edit-pop-line { font-size: 14px; font-variant-numeric: tabular-nums; line-height: 1.5; }
-.rv-edit-pop-off { font-size: 13px; color: rgba(245, 241, 234, 0.7); font-style: italic; }
+.rv-edit-pop-off { font-size: 13px; color: rgba(248, 250, 252, 0.7); font-style: italic; }
 /* Round the crew name tiles + the dept colour strip so the left side of each
    row reads as one soft unit instead of a hard-edged block. Strip rounds on
    its outer (left) corners, name tile on its inner (right) corners; they meet
@@ -400,7 +400,7 @@
   padding: 6px 14px; border-radius: 999px;
 }
 .rv-resolved-badge.ok   { background: #E8F1E9; color: #2D5A3A; }
-.rv-resolved-badge.warn { background: #FAECE7; color: #7A2E1E; }
+.rv-resolved-badge.warn { background: #EEF2F7; color: #7A2E1E; }
 .rv-resolved-meta {
   font-family: 'Inter', system-ui, sans-serif;
   margin: 0; max-width: 560px;
@@ -977,7 +977,7 @@
 .ord-rp-chip-quote {
   cursor: pointer;
   text-decoration: none;
-  background: #FBEFE9;
+  background: #EEF2F7;
   border-color: #E8B89B;
 }
 .ord-rp-chip-quote strong, .ord-rp-chip-quote .ord-rp-chip-icon { color: #C65A1A; }

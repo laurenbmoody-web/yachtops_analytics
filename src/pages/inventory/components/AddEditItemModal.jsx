@@ -1033,7 +1033,7 @@ const AddEditItemModal = ({ item, defaultLocation, defaultSubLocation, onClose }
                 onClick={pickOnMap}
                 disabled={saving}
                 title="Save the item, then click its spot on the 3D vessel map"
-                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#E5E1D8] text-[#C65A1A] hover:bg-[#FBEFE9] transition-colors disabled:opacity-50"
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-[#DBDEE2] text-[#C65A1A] hover:bg-[#EEF2F7] transition-colors disabled:opacity-50"
               >
                 <Icon name="MapPin" size={14} />
                 {saving ? 'Saving…' : 'Set on the map'}

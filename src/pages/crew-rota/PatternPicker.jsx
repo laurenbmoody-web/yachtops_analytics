@@ -39,7 +39,7 @@ function StarIcon({ filled }) {
 }
 
 function SimpleSwatch({ body }) {
-  const c = TYPE_COLOR[body?.shift_type] || '#B4B2A9';
+  const c = TYPE_COLOR[body?.shift_type] || '#ABAEB2';
   return <span className="tp-swatch" style={{ background: c }} aria-hidden />;
 }
 

@@ -48,7 +48,7 @@
 
 /* Pills */
 .ca-pill { display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; border-radius: 999px; padding: 2px 9px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
-.ca-pill-kind { background: #F1EFEA; color: #6B6455; }
+.ca-pill-kind { background: #ECEDEF; color: #6B6455; }
 .ca-pill-muted { background: #F1F1F4; color: #9A958A; }
 .ca-pill-sel { background: #C65A1A; color: #fff; }
 
@@ -58,7 +58,7 @@
 .ca-btn-primary:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }
 .ca-btn-primary:disabled { opacity: 0.6; cursor: default; }
 .ca-btn-ghost { background: #fff; border: 1px solid #E5E7EB; color: #1C1B3A; }
-.ca-btn-ghost:hover { background: #FAFAF8; border-color: #D7DAE2; }
+.ca-btn-ghost:hover { background: #F8FAFC; border-color: #D7DAE2; }
 .ca-link { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 0; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; color: #C65A1A; white-space: nowrap; }
 .ca-link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .ca-link.is-mut { color: #9A958A; }
@@ -75,7 +75,7 @@
 /* Filter bar */
 .ca-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 18px 0; border-bottom: 1px solid #E6E8EF; margin-top: 6px; }
 .ca-field { font: inherit; font-size: 13px; color: #1C1B3A; background: #fff; border: 1px solid #E6E8EF; border-radius: 9px; padding: 8px 11px; }
-.ca-field:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.ca-field:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .ca-toggle { display: inline-flex; align-items: center; gap: 7px; background: #fff; border: 1px solid #E6E8EF; border-radius: 999px; padding: 8px 13px; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 600; color: #6B7280; }
 .ca-toggle[aria-pressed="true"] { color: #fff; background: #C65A1A; border-color: #C65A1A; }
 .ca-toggle svg { flex: 0 0 auto; }
@@ -111,15 +111,15 @@
 .ca-txn-act { display: flex; justify-content: flex-end; gap: 12px; }
 
 /* ── Modal (portaled via ModalShell) ─────────────────────────────────────── */
-.ca-modal { background: #fff; border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); width: 100%; max-width: 440px; padding: 26px 26px 22px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
+.ca-modal { background: #fff; border: 1px solid #E5E7EB; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); width: 100%; max-width: 440px; padding: 26px 26px 22px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
 .ca-modal-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 24px; margin-bottom: 4px; }
 .ca-modal-sub { font-size: 12.5px; color: #8B8478; margin-bottom: 18px; }
 .ca-form-row { margin-bottom: 14px; }
 .ca-label { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 6px; }
 .ca-label .req { color: #C65A1A; text-transform: none; letter-spacing: 0; font-weight: 600; }
 .ca-label .opt { color: #AEB4C2; text-transform: none; letter-spacing: 0; font-weight: 500; }
-.ca-input, .ca-select, .ca-textarea { width: 100%; font: inherit; font-size: 14px; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E8E6DF; border-radius: 10px; padding: 10px 12px; }
-.ca-input:focus, .ca-select:focus, .ca-textarea:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.ca-input, .ca-select, .ca-textarea { width: 100%; font: inherit; font-size: 14px; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E1E3E6; border-radius: 10px; padding: 10px 12px; }
+.ca-input:focus, .ca-select:focus, .ca-textarea:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); background: #fff; }
 .ca-textarea { resize: vertical; min-height: 62px; }
 .ca-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .ca-modal-foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
@@ -150,7 +150,7 @@
 .ca-rec-linehead { display: grid; grid-template-columns: 78px 1fr auto auto; align-items: center; gap: 12px; }
 .ca-rec-cands { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px 90px; }
 .ca-rec-cand { display: inline-flex; align-items: center; gap: 5px; border: 1px solid #E6C9B8; background: #FDF7F3; color: #B14E16; border-radius: 999px; padding: 5px 11px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
-.ca-rec-cand:hover:not(:disabled) { background: #FBEFE9; border-color: #C65A1A; }
+.ca-rec-cand:hover:not(:disabled) { background: #EEF2F7; border-color: #C65A1A; }
 .ca-rec-cand:disabled { opacity: 0.6; cursor: default; }
 
 /* ── Vessel overview (holder-grouped) ──────────────────────────────────────── */
@@ -162,7 +162,7 @@
 .ca-ov-hsub { font-size: 11px; color: #AEB4C2; }
 .ca-ov-kpi { background: #fff; border: 1px solid #E5E7EB; border-radius: 14px; padding: 15px 17px; display: flex; flex-direction: column; gap: 4px; }
 .ca-ov-kpi-btn { font: inherit; text-align: left; cursor: pointer; transition: border-color 0.12s ease, box-shadow 0.12s ease; }
-.ca-ov-kpi-btn:hover { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.ca-ov-kpi-btn:hover { border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .ca-ov-kl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .ca-ov-kv { font-family: 'DM Serif Display', Georgia, serif; font-size: 24px; line-height: 1; color: #1C1B3A; }
 .ca-ov-kv.owner { color: #3B6EA5; } .ca-ov-kv.apa { color: #7A4FA3; }
@@ -189,7 +189,7 @@
 .ca-conn-btn:hover { color: #1C1B3A; border-color: #D6D9E0; }
 .ca-conn-btn:disabled { opacity: 0.5; cursor: default; }
 .ca-conn-btn.danger { color: #B14E16; }
-.ca-conn-btn.danger:hover { border-color: #E7C9B6; background: #FBEFE9; }
+.ca-conn-btn.danger:hover { border-color: #E7C9B6; background: #EEF2F7; }
 
 .ca-ov-listhead { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; margin: 30px 0 4px; flex-wrap: wrap; }
 .ca-ov-listtitle { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
@@ -248,9 +248,9 @@
 
 /* ── Bank-feed category suggestion ───────────────────────────────────────── */
 .ca-suggest { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-.ca-sug-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: #1C1B3A; background: #FBEFE9; border: 1px solid #F3DDD0; border-radius: 999px; padding: 3px 11px; }
+.ca-sug-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: #1C1B3A; background: #EEF2F7; border: 1px solid #F3DDD0; border-radius: 999px; padding: 3px 11px; }
 .ca-sug-dot { width: 6px; height: 6px; border-radius: 50%; background: #C65A1A; flex: 0 0 auto; }
-.ca-sug-pill.is-low { color: #6B7280; background: #FAFAF8; border-color: #E5E7EB; }
+.ca-sug-pill.is-low { color: #6B7280; background: #F8FAFC; border-color: #E5E7EB; }
 .ca-sug-pill.is-low .ca-sug-dot { background: #C9A227; }
 .ca-sug-check { font-style: normal; font-size: 10.5px; color: #AEB4C2; font-weight: 600; }
 .ca-sug-file { border: 0; border-radius: 8px; background: #C65A1A; color: #fff; font: inherit; font-size: 12px; font-weight: 600; padding: 4px 12px; cursor: pointer; }
@@ -275,16 +275,16 @@
 .ca-tl-prog{color:#AEB4C2; letter-spacing:.8px}
 @media (max-width:620px){ .ca-tl-meter{display:none} }
 .ca-toolbar-sp{flex:1 1 24px}
-.ca-search{display:inline-flex; align-items:center; gap:8px; background:#FAFAF8; border:1px solid #E5E7EB;
+.ca-search{display:inline-flex; align-items:center; gap:8px; background:#F8FAFC; border:1px solid #E5E7EB;
   border-radius:10px; padding:0 12px; height:38px; min-width:200px}
 .ca-search input{border:0; background:none; outline:none; font:inherit; font-size:13px; color:#1C1B3A; width:100%}
 .ca-search svg{color:#AEB4C2; flex:0 0 auto}
 .ca-toolbtn{display:inline-flex; align-items:center; gap:7px; height:38px; padding:0 13px; border:1px solid #E5E7EB;
   border-radius:10px; background:#fff; font:inherit; font-size:13px; font-weight:600; color:#1C1B3A; cursor:pointer}
 .ca-toolbtn:hover{border-color:#C65A1A; color:#C65A1A}
-.ca-toolbtn-badge{font-size:10px; font-weight:700; background:#FBEFE9; color:#C65A1A; border-radius:999px; padding:1px 7px}
+.ca-toolbtn-badge{font-size:10px; font-weight:700; background:#EEF2F7; color:#C65A1A; border-radius:999px; padding:1px 7px}
 .ca-filterwrap{position:relative}
-.ca-filterpop{position:absolute; right:0; top:44px; z-index:30; width:270px; background:#fff; border:1px solid #ECEAE3;
+.ca-filterpop{position:absolute; right:0; top:44px; z-index:30; width:270px; background:#fff; border:1px solid #E5E7EB;
   border-radius:12px; box-shadow:0 24px 60px -16px rgba(28,27,58,.32); padding:14px; display:flex; flex-direction:column; gap:11px}
 .ca-fp-row{display:flex; flex-direction:column; gap:5px}
 .ca-fp-row span{font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#8B8478}
@@ -325,7 +325,7 @@
 /* Spent in a month that had already been closed, so it reconciles in this one. */
 .ca-late{color:#6B7280; font-style:italic}
 .ca-ask{font-size:10px; font-weight:700; letter-spacing:.3px; text-transform:uppercase; color:#C9A227}
-.ca-opt{display:inline-flex; align-items:center; gap:6px; border:1px solid #F3DDD0; background:#FBEFE9; color:#C65A1A;
+.ca-opt{display:inline-flex; align-items:center; gap:6px; border:1px solid #F3DDD0; background:#EEF2F7; color:#C65A1A;
   font:inherit; font-size:12px; font-weight:600; padding:5px 12px; border-radius:8px; cursor:pointer}
 .ca-opt-code{font-size:10px; font-weight:700; opacity:.7}
 .ca-opt:hover{background:#C65A1A; color:#fff; border-color:#C65A1A}
@@ -335,22 +335,22 @@
 /* ── Row expander chevron + completeness marks ────────────────────────────── */
 .ca-exp-btn{width:24px; height:24px; border:0; background:none; padding:0; cursor:pointer; color:#AEB4C2;
   display:inline-flex; align-items:center; justify-content:center; border-radius:6px}
-.ca-exp-btn:hover{color:#C65A1A; background:#FBEFE9}
+.ca-exp-btn:hover{color:#C65A1A; background:#EEF2F7}
 .ca-exp-btn svg{transition:transform .16s ease}
 .ca-exp-btn.is-open svg{transform:rotate(90deg)}
 .ca-exp-btn.is-open{color:#C65A1A}
 @media (prefers-reduced-motion:reduce){.ca-exp-btn svg{transition:none}}
-.ca-txn.is-open{background:#FCFCFB; border-bottom-color:transparent}
+.ca-txn.is-open{background:#FBFBFC; border-bottom-color:transparent}
 
 .ca-marks{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px}
 .ca-mark{display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; letter-spacing:.3px;
   border:0; border-radius:999px; padding:3px 9px; font-family:'Plus Jakarta Sans', system-ui, sans-serif;
-  background:#F1EFEA; color:#6B6455}
+  background:#ECEDEF; color:#6B6455}
 button.ca-mark{cursor:pointer}
 .ca-mark.is-on{background:#EDF3F0; color:#2F7A64}
 button.ca-mark.is-on:hover{background:#E1EDE7}
 .ca-mark.is-alloc{background:#F0F1F5; color:#6B7280; text-transform:uppercase}
-.ca-mark.is-alloc.is-charter{background:#FBEFE9; color:#C65A1A}
+.ca-mark.is-alloc.is-charter{background:#EEF2F7; color:#C65A1A}
 .ca-mark.is-need{background:#FDFBF2; color:#A8871B; border:1px solid #F0E6C8; text-transform:none; letter-spacing:0}
 button.ca-mark.is-need:hover{background:#FBF6E4}
 
@@ -361,7 +361,7 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
 
 /* Show / Month-by choices, inside the Filters popover */
 .ca-fp-seg{display:flex; gap:5px}
-.ca-fp-seg button{flex:1; border:1px solid #E5E7EB; background:#FAFAF8; border-radius:8px; padding:7px 9px;
+.ca-fp-seg button{flex:1; border:1px solid #E5E7EB; background:#F8FAFC; border-radius:8px; padding:7px 9px;
   font:inherit; font-size:11.5px; font-weight:600; color:#6B7280; cursor:pointer; white-space:nowrap}
 .ca-fp-seg button:hover{border-color:#F3DDD0; color:#C65A1A}
 .ca-fp-seg button[aria-pressed="true"]{background:#1C1B3A; border-color:#1C1B3A; color:#fff}
@@ -394,7 +394,7 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
 /* inline receipt clip in the actions cell */
 .ca-clip{display:inline-flex; align-items:center; gap:3px; border:0; background:none; padding:2px 3px;
   border-radius:6px; cursor:pointer; color:#AEB4C2; font:inherit; font-size:10.5px; font-weight:700}
-.ca-clip:hover{color:#C65A1A; background:#FBEFE9}
+.ca-clip:hover{color:#C65A1A; background:#EEF2F7}
 .ca-clip.has{color:#2F7A64}
 .ca-clip.has:hover{color:#2F7A64; background:#EDF3F0}
 /* Receipt declared as never coming — evidenced, but not by an attachment. */
@@ -422,7 +422,7 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
   font:inherit; font-size:12px; color:#1C1B3A; font-variant-numeric:tabular-nums; cursor:pointer; text-align:left}
 .ca-dbtn:hover{border-color:#E5E7EB; background:#fff; color:#C65A1A}
 .ca-dedit{width:100%; border:1px solid #C65A1A; background:#fff; border-radius:6px; padding:2px 4px;
-  font:inherit; font-size:11.5px; color:#1C1B3A; outline:none; box-shadow:0 0 0 3px #FAECE7}
+  font:inherit; font-size:11.5px; color:#1C1B3A; outline:none; box-shadow:0 0 0 3px rgba(198, 90, 26, 0.14)}
 
 /* scan-receipt button */
 .ca-scan{cursor:pointer}
@@ -432,7 +432,7 @@ button.ca-mark.is-need:hover{background:#FBF6E4}
 @media (prefers-reduced-motion:reduce){.ca-scan.is-busy svg{animation:none}}
 
 /* Owner/charter toggle inside the Add transaction modal */
-.ca-mseg{display:inline-flex; background:#FAFAF8; border:1px solid #E5E7EB; border-radius:999px; padding:3px}
+.ca-mseg{display:inline-flex; background:#F8FAFC; border:1px solid #E5E7EB; border-radius:999px; padding:3px}
 .ca-mseg button{border:0; background:none; font:inherit; font-size:12.5px; font-weight:600; color:#6B7280;
   padding:6px 14px; border-radius:999px; cursor:pointer}
 .ca-mseg button[aria-pressed="true"]{background:#C65A1A; color:#fff}

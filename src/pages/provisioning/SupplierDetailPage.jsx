@@ -168,7 +168,7 @@ const initials = (name) => {
 // same person always gets the same colour without storing state.
 const AVATAR_PALETTE = [
   { bg: '#EEEDFE', fg: '#3C3489' },  // lavender / lavender-deep
-  { bg: '#F1EFE8', fg: '#5F5E5A' },  // sand / slate
+  { bg: '#EAECEF', fg: '#5F5E5A' },  // sand / slate
   { bg: '#FAEEDA', fg: '#C65A1A' },  // cream-warm / orange
   { bg: '#E1F5EE', fg: '#0F6E56' },  // green-soft / green-deep
   { bg: '#E6F1FB', fg: '#0C447C' },  // blue-soft / blue-deep
@@ -272,7 +272,7 @@ function CurrencyMixDonut({ mix }) {
   const cy = 40;
   const r = 32;
   const C = 2 * Math.PI * r; // ≈ 200.96
-  const palette = ['#262A53', '#C65A1A', '#B4B2A9', '#888780'];
+  const palette = ['#262A53', '#C65A1A', '#ABAEB2', '#888780'];
   let offset = 0;
   const segments = mix.map((m, i) => {
     const len = (C * m.percent) / 100;
@@ -891,7 +891,7 @@ export default function SupplierDetailPage() {
                     <div className="legend">
                       <div className="sd-label-cap">CURRENCY MIX</div>
                       {metrics.currencyMix.map((m, i) => {
-                        const palette = ['#262A53', '#C65A1A', '#B4B2A9', '#888780'];
+                        const palette = ['#262A53', '#C65A1A', '#ABAEB2', '#888780'];
                         return (
                           <div className="sd-currency-mix-row" key={m.code}>
                             <span><span className="swatch" style={{ background: palette[i % palette.length] }} />{m.code}</span>

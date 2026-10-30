@@ -20,7 +20,7 @@ import { MONTH_SHORT, MONTH_NAMES } from './MonthCalendar';
 //   - Sticky name column with Name · Role one line + rest line, identical
 //     to .rota-nm.
 //   - Day cells use the day-grid palette: navy (#1C1B3A) for scheduled,
-//     cream (#F7F5F0) for off, Saturday tint (#EDEAE3) for the weekend
+//     cream (#F2F3F5) for off, Saturday tint (#E5E8EB) for the weekend
 //     column. No new colour ramps invented.
 //   - DM Serif Display for the date numbers in headers; Plus Jakarta for
 //     all body text. Matches .rota-hour-label / .rota-nm-name / .rota-role.

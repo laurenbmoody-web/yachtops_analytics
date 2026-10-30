@@ -57,14 +57,14 @@ function CodeSelect({ value, onChange }) {
       </button>
       {open && (
         <div role="listbox" style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 60,
-          width: 248, maxHeight: 244, overflowY: 'auto', background: '#fff', border: '1px solid #ECEAE3',
+          width: 248, maxHeight: 244, overflowY: 'auto', background: '#fff', border: '1px solid #E5E7EB',
           borderRadius: 10, boxShadow: '0 16px 40px -12px rgba(28,27,58,0.28)' }}>
           {DIAL_CODES.map(([code, country]) => (
             <button type="button" key={code + country} role="option" aria-selected={code === value}
               onClick={() => { onChange(code); setOpen(false); }}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, width: '100%',
                 textAlign: 'left', padding: '8px 12px', border: 'none', cursor: 'pointer', fontSize: 13,
-                background: code === value ? '#FBEFE9' : '#fff', color: '#1C1B3A' }}>
+                background: code === value ? '#EEF2F7' : '#fff', color: '#1C1B3A' }}>
               <span>{country}</span>
               <span style={{ color: '#8B8478' }}>{code}</span>
             </button>

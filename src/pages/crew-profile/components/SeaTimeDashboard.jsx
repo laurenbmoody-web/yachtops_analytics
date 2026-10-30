@@ -92,7 +92,7 @@ const ATT_CHIP = {
   attested_external: { label: 'Testimonial uploaded',color: '#4A5263', bg: '#EEF0F3' },
   requested:         { label: 'Awaiting captain',    color: '#7A5A12', bg: '#FBEFD9' },
   outstanding:       { label: 'Not verified yet',    color: '#A32D2D', bg: '#FCEDEA' },
-  declined:          { label: 'Declined',            color: '#C65A1A', bg: '#FBEFE9' }
+  declined:          { label: 'Declined',            color: '#C65A1A', bg: '#EEF2F7' }
 };
 // Read-only verification chip shown inline on each log period. Tapping it jumps
 // to that ship in Step 03 (where the actions live). Draft/unsubmitted days show
@@ -100,7 +100,7 @@ const ATT_CHIP = {
 const VLOG_CHIP = {
   captain_signed: { label: 'Signed',           color: '#3F7A52', bg: '#E7F0E9' },
   pending:        { label: 'Awaiting captain',  color: '#7A5A12', bg: '#FBEFD9' },
-  rejected:       { label: 'Declined',          color: '#C65A1A', bg: '#FBEFE9' }
+  rejected:       { label: 'Declined',          color: '#C65A1A', bg: '#EEF2F7' }
 };
 
 // Cargo-styled select (native <select> menus can't be themed). `variant`:
@@ -1644,13 +1644,13 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               <div className="std-flex std-ac" style={{ gap: 8 }}>
                 <button type="button" aria-label="Previous year" disabled={yearIdx <= 0}
                   onClick={() => setLedgerYear(years[yearIdx - 1])}
-                  style={{ border: '1px solid #ECEAE3', background: '#fff', borderRadius: 8, width: 28, height: 28, cursor: yearIdx <= 0 ? 'default' : 'pointer', opacity: yearIdx <= 0 ? 0.4 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  style={{ border: '1px solid #E5E7EB', background: '#fff', borderRadius: 8, width: 28, height: 28, cursor: yearIdx <= 0 ? 'default' : 'pointer', opacity: yearIdx <= 0 ? 0.4 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon name="ChevronLeft" size={16} />
                 </button>
                 <span style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 20, color: '#1C1B3A', minWidth: 54, textAlign: 'center' }}>{activeYear}</span>
                 <button type="button" aria-label="Next year" disabled={yearIdx >= years.length - 1}
                   onClick={() => setLedgerYear(years[yearIdx + 1])}
-                  style={{ border: '1px solid #ECEAE3', background: '#fff', borderRadius: 8, width: 28, height: 28, cursor: yearIdx >= years.length - 1 ? 'default' : 'pointer', opacity: yearIdx >= years.length - 1 ? 0.4 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  style={{ border: '1px solid #E5E7EB', background: '#fff', borderRadius: 8, width: 28, height: 28, cursor: yearIdx >= years.length - 1 ? 'default' : 'pointer', opacity: yearIdx >= years.length - 1 ? 0.4 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icon name="ChevronRight" size={16} />
                 </button>
               </div>
@@ -1698,7 +1698,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                   onClick={rowAction || undefined}
                   onKeyDown={rowAction ? (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); rowAction(); } } : undefined}
                   style={{ opacity: isExcluded ? 0.55 : 1, cursor: rowAction ? 'pointer' : undefined }}>
-                  <span className="std-leg-rail" style={{ background: isExcluded ? '#CBC8C0' : tm.color }} />
+                  <span className="std-leg-rail" style={{ background: isExcluded ? '#C2C5C9' : tm.color }} />
                   <div className="std-leg-dt"><b>{e.dateMain}</b><span>{e.days} {e.days === 1 ? 'day' : 'days'}</span></div>
                   <div className="std-leg-mid">
                     <div className="role">{e.capacity}</div>
@@ -1739,7 +1739,7 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
               const leaveOff = Math.max(0, spanDays - total);
               const barSegs = [
                 ...TYPE_ORDER.filter(t => byType[t]).map(t => ({ key: t, days: byType[t], label: TYPE_META[t].label, color: TYPE_META[t].color, text: '#fff' })),
-                ...(leaveOff > 0 ? [{ key: 'leave', days: leaveOff, label: 'Leave', color: '#E6E2D9', text: '#8B8478' }] : []),
+                ...(leaveOff > 0 ? [{ key: 'leave', days: leaveOff, label: 'Leave', color: '#DCDFE3', text: '#8B8478' }] : []),
               ];
               const vm = [v.flag, v.gt != null ? `${v.gt} GT` : null, v.lengthM != null ? `${v.lengthM} m` : null, v.imo ? `IMO ${v.imo}` : null].filter(Boolean).join(' · ');
               const who = p.captainId === userId ? `Your service as ${topRankWord}` : (p.captainName || null);
@@ -2286,15 +2286,15 @@ const SeaTimeDashboard = ({ userId, tenantId, currentUser, onAddCertificate, onA
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             {verifier === 'nautilus'
-                              ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
+                              ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#E9EBED', color: canGenerate ? '#fff' : '#9C9FA3', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpell(s)}><Icon name="FileText" size={15} /> Nautilus form (PDF)</button>
                               : (verifier === 'transport_malta' && (family === 'DECK' || family === 'ENGINE' || family === 'ETO'))
-                                ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellTM(s)}><Icon name="FileText" size={15} /> Transport Malta form (PDF)</button>
+                                ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#E9EBED', color: canGenerate ? '#fff' : '#9C9FA3', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellTM(s)}><Icon name="FileText" size={15} /> Transport Malta form (PDF)</button>
                                 : (verifier === 'mca' && !interiorPathway)
-                                  ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#EFEDE7', color: canGenerate ? '#fff' : '#A6A199', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellRecord(s)}><Icon name="FileText" size={15} /> Testimonial · MSN 1858 (PDF)</button>
+                                  ? <button className="std-dl" disabled={!canGenerate} style={{ background: canGenerate ? '#C65A1A' : '#E9EBED', color: canGenerate ? '#fff' : '#9C9FA3', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => onDownloadSpellRecord(s)}><Icon name="FileText" size={15} /> Testimonial · MSN 1858 (PDF)</button>
                                   : verifier === 'pya' ? null
                                     : <span className="std-spell-tag">No Cargo form for {vp.short} — follow their own submission process</span>}
                             {verifier === 'pya' && (
-                              <button className="std-dl" disabled={!canGenerate} style={{ background: '#fff', color: canGenerate ? '#1C1B3A' : '#A6A199', border: '1px solid #E6E8EC', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => canGenerate && onCopySpellForPya(s)} title="Copy this record's details for the Cargo → PYA extension"><Icon name="Copy" size={15} /> Copy for PYA</button>
+                              <button className="std-dl" disabled={!canGenerate} style={{ background: '#fff', color: canGenerate ? '#1C1B3A' : '#9C9FA3', border: '1px solid #E6E8EC', cursor: canGenerate ? 'pointer' : 'not-allowed' }} onClick={() => canGenerate && onCopySpellForPya(s)} title="Copy this record's details for the Cargo → PYA extension"><Icon name="Copy" size={15} /> Copy for PYA</button>
                             )}
                             <div className="std-toggle" title="Mark this record submitted, or reopen it">
                               <button type="button" className={!isSub ? 'on' : ''} onClick={() => setSpellSubmitted(s, false)}>Open</button>

@@ -45,7 +45,7 @@ const pad2 = (n) => String(n).padStart(2, '0');
 // close-off family ("still to close" / "x / y closed").
 const PACK = {
   outstanding: { label: 'To close', dot: '#C65A1A', text: '#B14E16', bar: '#1C1B3A' },
-  complete:    { label: 'Closed',   dot: '#C7C3B6', text: '#9A958A', bar: '#CFCBBE' },
+  complete:    { label: 'Closed',   dot: '#BABEC3', text: '#9A958A', bar: '#C2C6CB' },
 };
 
 // Categories and the Planned placeholders that live under each. Hours of Rest is

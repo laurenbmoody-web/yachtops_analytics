@@ -40,13 +40,13 @@
 .mgl-menu {
   position: fixed; top: 60px; right: 18px; z-index: 1000;
   width: 264px;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 14px;
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 14px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
   overflow: hidden;
 }
 .mgl-menu-head {
   display: flex; align-items: center; gap: 12px;
-  padding: 16px; background: #F8FAFC; border-bottom: 1px solid #ECEAE3;
+  padding: 16px; background: #F8FAFC; border-bottom: 1px solid #E5E7EB;
 }
 .mgl-menu-av {
   width: 38px; height: 38px; border-radius: 999px; flex: 0 0 auto;

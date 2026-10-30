@@ -8,14 +8,14 @@
 .mv { position: relative; margin-top: 18px; font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
 .mv-btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; font-size: 13px; font-weight: 600; padding: 8px 14px; cursor: pointer; }
 .mv-btn.ghost { background: #fff; border: 1px solid #E5E7EB; color: #1C1B3A; }
-.mv-btn.ghost:hover { background: #FAFAF8; }
+.mv-btn.ghost:hover { background: #F8FAFC; }
 .mv-btn.primary { background: #C65A1A; border: 0; color: #fff; }
 /* Sits at the end of the month-nav row — a terracotta icon/label (not a
    filled button, that's reserved for primary actions) is enough to read as
    the "setup" control without competing with the Presence/Cabins toggle. */
 .mv-btn.cfg { margin-left: auto; color: #C65A1A; }
 .mv-btn.cfg svg { color: #C65A1A; }
-.mv-btn.cfg:hover { background: #FBEFE9; border-color: #F0D8C8; }
+.mv-btn.cfg:hover { background: #EEF2F7; border-color: #F0D8C8; }
 
 /* view toggle (sits beside the month picker) */
 .mv-toggle { display: inline-flex; gap: 4px; background: #EEF2F6; border-radius: 999px; padding: 3px; }
@@ -26,21 +26,21 @@
 .mv-flights { margin-top: 18px; }
 .mv-fhead { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
 .mv-fhead .t { font-family: 'DM Serif Display', Georgia, serif; font-size: 18px; color: #1C1B3A; }
-.mv-fhead .ln { flex: 1; height: 1px; background: #ECEAE3; }
+.mv-fhead .ln { flex: 1; height: 1px; background: #E5E7EB; }
 .mv-flt { display: flex; align-items: center; gap: 14px; padding: 11px 8px; border-bottom: 1px solid #F0F1F5; cursor: pointer; border-radius: 8px; }
-.mv-flt:hover { background: #FBFAF7; }
-.mv-flt.sel { background: #FBEFE9; box-shadow: inset 0 0 0 1.5px #E8B6A6; }
+.mv-flt:hover { background: #F8F9FA; }
+.mv-flt.sel { background: #EEF2F7; box-shadow: inset 0 0 0 1.5px #E8B6A6; }
 .mv-flt .date { flex: 0 0 52px; }
 .mv-flt .date .d { font-family: 'DM Serif Display', serif; font-size: 18px; }
 .mv-flt .date .m { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-left: 4px; }
 .mv-flt .mv-dir { flex: 0 0 118px; display: flex; }
 .mv-flt .dirpill { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; border-radius: 999px; padding: 4px 10px; }
-.mv-flt .dirpill.dep { background: #FBEFE9; color: #C65A1A; }
+.mv-flt .dirpill.dep { background: #EEF2F7; color: #C65A1A; }
 .mv-flt .dirpill.arr { background: #E9F5EF; color: #2F855A; }
 .mv-flt .dirpill.transit { background: #EEF2F6; color: #6B7280; }
 .mv-flt .who { flex: 0 0 150px; font-weight: 600; font-size: 13px; }
 .mv-addtravel { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #C65A1A; background: #fff; border: 1px solid #E8B6A6; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
-.mv-addtravel:hover { background: #FBEFE9; }
+.mv-addtravel:hover { background: #EEF2F7; }
 .mv-noflt { font-size: 12px; color: #AEB4C2; padding: 14px 8px; }
 .mv-flt .legs { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .mv-flt .leg { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1C1B3A; }
@@ -48,7 +48,7 @@
 .mv-flt .leg svg { color: #8B8478; flex: 0 0 auto; }
 .mv-flt .leg.sub svg { color: #AEB4C2; }
 .mv-flt .leg .rt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mv-flt .leg .no { flex: 0 0 auto; font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #1C1B3A; background: #F3F1EC; border: 1px solid #E6E2D8; border-radius: 999px; padding: 2px 9px; min-width: 62px; text-align: center; }
+.mv-flt .leg .no { flex: 0 0 auto; font-size: 11px; font-weight: 700; letter-spacing: 0.3px; color: #1C1B3A; background: #EEEFF1; border: 1px solid #E5E7EB; border-radius: 999px; padding: 2px 9px; min-width: 62px; text-align: center; }
 .mv-flt .leg .tms { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
 .mv-flt .leg .tm { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700; color: #1C1B3A; }
 .mv-flt .leg .tm i { font-style: normal; font-size: 8px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #AEB4C2; }
@@ -56,7 +56,7 @@
 .mv-flt .leg .tm.arr i { color: #2F855A; }
 .mv-flt .leg.sub .tm { font-weight: 500; }
 .mv-editflt { flex: 0 0 auto; border: 0; background: none; color: #AEB4C2; cursor: pointer; padding: 6px; border-radius: 8px; }
-.mv-editflt:hover { color: #C65A1A; background: #FBEFE9; }
+.mv-editflt:hover { color: #C65A1A; background: #EEF2F7; }
 
 .mv-navrow { display: flex; align-items: center; gap: 12px; margin: 16px 0 14px; }
 /* Same width as the crew-name column below (.mv-name), so the chip reads as
@@ -71,7 +71,7 @@
 .mv-navbtn { display: flex; align-items: center; justify-content: center; border: 0; background: #F1F5F9; width: 26px; height: 26px; border-radius: 999px; cursor: pointer; color: #6B7280; }
 .mv-navbtn:hover { background: #E6E8EF; color: #1C1B3A; }
 .mv-today { border: 0; background: none; color: #6B7280; font-size: 12.5px; font-weight: 600; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
-.mv-today:hover { color: #C65A1A; background: #FBEFE9; }
+.mv-today:hover { color: #C65A1A; background: #EEF2F7; }
 
 /* row labels (crew names / bed names) share one size */
 .mv-grid, .mv-chart { position: relative; }
@@ -94,7 +94,7 @@
 
 /* Quick per-day status picker — a small floating swatch menu, not a modal. */
 .mv-daypick-backdrop { position: fixed; inset: 0; z-index: 4000; }
-.mv-daypick { position: fixed; width: 216px; background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 12px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); padding: 8px; }
+.mv-daypick { position: fixed; width: 216px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); padding: 8px; }
 .mv-daypick-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 4px 8px 8px; border-bottom: 1px solid #F0F1F5; margin-bottom: 6px; }
 .mv-daypick-head .who { font-size: 12.5px; font-weight: 600; color: #1C1B3A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mv-daypick-head .dt { font-size: 11px; color: #8B8478; white-space: nowrap; }
@@ -152,7 +152,7 @@
 .mv-dtick { position: absolute; top: 0; font-size: 10px; font-weight: 700; color: #6B7280; }
 .mv-todayline { position: absolute; top: 0; bottom: -6px; width: 1.5px; background: #C65A1A; opacity: 0.6; z-index: 1; }
 .mv-track {
-  position: relative; height: 26px; margin-bottom: 3px; background: #FAFAF8; border-radius: 6px;
+  position: relative; height: 26px; margin-bottom: 3px; background: #F8FAFC; border-radius: 6px;
   background-image: repeating-linear-gradient(to right, #F0F1F4 0, #F0F1F4 1px, transparent 1px, transparent var(--day-w));
 }
 .mv-track.drop { outline: 2px dashed #C65A1A; outline-offset: 1px; background-color: #FBF3EE; }
@@ -217,7 +217,7 @@
 .mv-unberthed { margin-top: 22px; }
 .mv-unb-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .mv-unb-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; white-space: nowrap; }
-.mv-unb-rule { flex: 1; height: 1px; background: #ECEAE3; }
+.mv-unb-rule { flex: 1; height: 1px; background: #E5E7EB; }
 .mv-unb-ok { font-size: 12px; color: #4E8C63; font-weight: 600; }
 .mv-unb-list { display: flex; flex-wrap: wrap; gap: 20px 24px; }
 .mv-unb-chip { display: flex; align-items: center; gap: 9px; cursor: grab; }
@@ -233,7 +233,7 @@
 
 /* cabin cards */
 .mv-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; margin-top: 18px; }
-.mv-card { background: #fff; border: 1px solid #ECEAE3; border-radius: 14px; padding: 15px 16px; }
+.mv-card { background: #fff; border: 1px solid #E5E7EB; border-radius: 14px; padding: 15px 16px; }
 .mv-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .mv-card-top .cn { font-family: 'DM Serif Display', serif; font-size: 16px; }
 .mv-card-top .cd { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #AEB4C2; margin-top: 2px; }
@@ -257,15 +257,15 @@
 .mv-setup p { font-size: 13px; color: #6B7280; margin-bottom: 14px; }
 
 /* move popover */
-.mv-pop { position: absolute; z-index: 20; background: #fff; border: 1px solid #ECEAE3; border-radius: 12px; box-shadow: 0 20px 50px -16px rgba(28,27,58,0.4); padding: 14px; width: 250px; }
+.mv-pop { position: absolute; z-index: 20; background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; box-shadow: 0 20px 50px -16px rgba(28,27,58,0.4); padding: 14px; width: 250px; }
 .mv-pop h4 { margin: 0 0 2px; font-family: 'DM Serif Display', serif; font-weight: 400; font-size: 16px; }
 .mv-pop .sub { font-size: 11px; color: #6B7280; margin-bottom: 10px; }
 .mv-pop label { display: block; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 10px 0 4px; }
-.mv-pop select, .mv-pop input[type=date] { width: 100%; font-size: 12px; border: 1px solid #E6E8EF; border-radius: 8px; padding: 7px 9px; background: #FAFAF8; font-family: inherit; color: #1C1B3A; }
+.mv-pop select, .mv-pop input[type=date] { width: 100%; font-size: 12px; border: 1px solid #E6E8EF; border-radius: 8px; padding: 7px 9px; background: #F8FAFC; font-family: inherit; color: #1C1B3A; }
 .mv-pop .act { display: flex; gap: 8px; margin-top: 14px; }
 .mv-pop .apply { flex: 1; background: #C65A1A; color: #fff; border: 0; border-radius: 9px; padding: 9px; font-size: 12px; font-weight: 600; cursor: pointer; }
 .mv-pop .apply:disabled { opacity: 0.5; }
-.mv-pop .rm { background: #fff; border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 12px; font-size: 12px; font-weight: 600; color: #E4574C; cursor: pointer; }
+.mv-pop .rm { background: #fff; border: 1px solid #E1E3E6; border-radius: 9px; padding: 9px 12px; font-size: 12px; font-weight: 600; color: #E4574C; cursor: pointer; }
 /* End stay — a second action below a hairline, so closing a berth reads as a
    distinct thing from moving one. */
 .mv-pop-end { margin-top: 14px; padding-top: 12px; border-top: 1px solid #F0F1F5; }
@@ -281,12 +281,12 @@
 .mv-dlg p { font-size: 13px; color: #6B7280; line-height: 1.5; margin: 0 0 16px; }
 .mv-dlg .act { display: flex; flex-wrap: wrap; gap: 8px; }
 .mv-dlg .yes { flex: 1 1 auto; min-width: 120px; background: #C65A1A; color: #fff; border: 0; border-radius: 10px; padding: 11px; font-size: 13px; font-weight: 600; cursor: pointer; }
-.mv-dlg .no, .mv-dlg .move { flex: 0 0 auto; background: #fff; border: 1px solid #E8E6DF; border-radius: 10px; padding: 11px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.mv-dlg .no, .mv-dlg .move { flex: 0 0 auto; background: #fff; border: 1px solid #E1E3E6; border-radius: 10px; padding: 11px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .mv-dlg .move { color: #C65A1A; border-color: #E8B6A6; }
-.mv-dlg .move:hover { background: #FBEFE9; }
+.mv-dlg .move:hover { background: #EEF2F7; }
 .mv-dlg .yes:disabled { opacity: 0.5; cursor: default; }
-.mv-dlg-date { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 10px 12px; background: #FAFAF8; border: 1px solid #EEF0F4; border-radius: 10px; }
+.mv-dlg-date { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 10px 12px; background: #F8FAFC; border: 1px solid #EEF0F4; border-radius: 10px; }
 .mv-dlg-date span { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
-.mv-dlg-date input { border: 1px solid #E8E6DF; border-radius: 8px; padding: 7px 10px; font-size: 13px; color: #1C1B3A; background: #fff; font-family: inherit; }
-.mv-dlg-date input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.mv-dlg-date input { border: 1px solid #E1E3E6; border-radius: 8px; padding: 7px 10px; font-size: 13px; color: #1C1B3A; background: #fff; font-family: inherit; }
+.mv-dlg-date input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .mv-legdept { display: flex; flex-wrap: wrap; gap: 16px; }

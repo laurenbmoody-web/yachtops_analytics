@@ -74,7 +74,7 @@ const SignOffModal = ({
             documented by this point, so this is a calm confirmation summary, not
             an amber hazard panel. Terracotta is reserved for a genuine "No reason". */}
         {breaches.length > 0 && (
-          <div className="rounded-xl p-4" style={{ background: '#FAFAF8', border: '1px solid #ECEAE3' }}>
+          <div className="rounded-xl p-4" style={{ background: '#F8FAFC', border: '1px solid #E5E7EB' }}>
             <div
               className="text-[9px] font-bold uppercase tracking-[1px] pb-2 mb-1"
               style={{ color: '#8B8478', borderBottom: '1px solid #F0F1F5' }}
@@ -102,7 +102,7 @@ const SignOffModal = ({
                         <Icon name="Check" size={13} /> Signed off
                       </span>
                     ) : !b.documented ? (
-                      <span className="shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: '#FBEFE9', color: '#C65A1A' }}>
+                      <span className="shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: '#EEF2F7', color: '#C65A1A' }}>
                         No reason
                       </span>
                     ) : kind === 'approve' ? (

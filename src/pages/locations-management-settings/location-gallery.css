@@ -56,7 +56,7 @@ html[data-theme="night"] .lg .lg-cf.addcard .card{border-color:#3A3960;}
 .lg-btn-primary:disabled{opacity:.5;cursor:default;}
 /* Ghost/secondary button — was unstyled, so it rendered as oversized default text. */
 .lg-btn{font-family:var(--lg-sans);font-size:12.5px;font-weight:600;color:var(--lg-ink);
-  background:#fff;border:1px solid var(--lg-hair,#E8E6DF);border-radius:9px;padding:7px 13px;cursor:pointer;
+  background:#fff;border:1px solid var(--lg-hair,#E1E3E6);border-radius:9px;padding:7px 13px;cursor:pointer;
   transition:border-color .14s ease,color .14s ease;}
 .lg-btn:hover:not(:disabled){border-color:var(--lg-terra);color:var(--lg-terra);}
 .lg-btn:disabled{opacity:.55;cursor:default;}
@@ -257,7 +257,7 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-chip.is-tracing{border-color:var(--lg-terra);color:var(--lg-terra);}
 /* Curved/Straight toggle for the outline being traced. */
 .dp-smooth-toggle{font-family:var(--lg-sans);font-size:11.5px;font-weight:600;color:var(--lg-muted);
-  background:#fff;border:1px solid var(--lg-hair,#E8E6DF);border-radius:999px;padding:5px 12px;cursor:pointer;}
+  background:#fff;border:1px solid var(--lg-hair,#E1E3E6);border-radius:999px;padding:5px 12px;cursor:pointer;}
 .dp-smooth-toggle.is-on{background:var(--lg-terra);border-color:var(--lg-terra);color:#fff;}
 
 /* Room markers on the plan (Phase 2): small constant-size dots so they don't
@@ -318,7 +318,7 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
    pointing at the deck it climbs to. Tap to jump there (or remove in link mode). */
 .dp-stair-badge{position:absolute;transform:translate(-50%,10px);z-index:5;
   display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;
-  border-radius:999px;border:1px solid #E4CBB9;background:var(--lg-terra-tint,#FBEFE9);
+  border-radius:999px;border:1px solid #E4CBB9;background:var(--lg-terra-tint,#EEF2F7);
   color:#B14E16;font-family:var(--lg-sans);font-weight:700;
   cursor:pointer;white-space:nowrap;box-shadow:0 2px 5px rgba(28,27,58,.16);
   transition:background .15s,border-color .15s,transform .12s;}
@@ -326,7 +326,7 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-stair-ic{width:13px;height:13px;display:block;}
 /* Non-interactive marker (not link mode): just shows a stair connection exists. */
 .dp-stair-badge.is-static{cursor:default;}
-.dp-stair-badge.is-static:hover{background:var(--lg-terra-tint,#FBEFE9);border-color:#E4CBB9;transform:translate(-50%,10px);}
+.dp-stair-badge.is-static:hover{background:var(--lg-terra-tint,#EEF2F7);border-color:#E4CBB9;transform:translate(-50%,10px);}
 .dp-stair-badge.is-removable{border-style:dashed;}
 .dp-stair-badge.is-removable:hover{background:#FBE3DA;border-color:#B14E16;color:#B14E16;}
 .dp-plan.is-focus .dp-stair-badge{display:none;}
@@ -337,7 +337,7 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-fb-search{position:relative;flex:1 1 260px;min-width:200px;}
 .dp-fb-search input{width:100%;font-family:var(--lg-sans);font-size:13px;color:var(--lg-ink);
   background:var(--lg-card,#fff);border:1px solid var(--lg-hair);border-radius:12px;padding:10px 66px 10px 36px;outline:none;}
-.dp-fb-search input:focus{border-color:var(--lg-terra);box-shadow:0 0 0 3px #FAECE7;}
+.dp-fb-search input:focus{border-color:var(--lg-terra);box-shadow:0 0 0 3px rgba(198, 90, 26, 0.14);}
 .dp-fb-search .ic{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--lg-faint);pointer-events:none;}
 .dp-fb-clear{position:absolute;right:38px;top:50%;transform:translateY(-50%);border:0;background:none;cursor:pointer;
   font-size:18px;line-height:1;color:var(--lg-faint);padding:2px 4px;}
@@ -345,7 +345,7 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-fb-mic{position:absolute;right:7px;top:50%;transform:translateY(-50%);}
 /* Search results — matching pins across the vessel, each into its scan. */
 .dp-sr{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:40;background:var(--lg-card,#fff);
-  border:1px solid #ECEAE3;border-radius:12px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);overflow:hidden;}
+  border:1px solid #E5E7EB;border-radius:12px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);overflow:hidden;}
 .dp-sr-empty{margin:0;padding:12px 14px;font-family:var(--lg-sans);font-size:12.5px;color:var(--lg-muted);}
 .dp-sr-list{list-style:none;margin:0;padding:4px;max-height:280px;overflow-y:auto;}
 .dp-sr-item{display:flex;align-items:center;gap:9px;width:100%;border:0;background:none;cursor:pointer;
@@ -364,19 +364,19 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
   transition:border-color .12s,box-shadow .12s,background .12s;white-space:nowrap;}
 .dp-md-btn svg{flex:0 0 auto;color:#8B95A5;}
 .dp-md-btn:hover{border-color:#CBD5E1;}
-.dp-md-btn.is-open{border-color:var(--lg-terra);box-shadow:0 0 0 3px #FAECE7;}
-.dp-md-btn.is-active{border-color:#E8B6A6;background:#FBEFE9;color:var(--lg-terra);}
+.dp-md-btn.is-open{border-color:var(--lg-terra);box-shadow:0 0 0 3px rgba(198, 90, 26, 0.14);}
+.dp-md-btn.is-active{border-color:#E8B6A6;background:#EEF2F7;color:var(--lg-terra);}
 .dp-md-btn.is-active svg{color:var(--lg-terra);}
 .dp-md-cur{color:var(--lg-terra);}
 .dp-md-panel{position:absolute;top:calc(100% + 8px);left:0;z-index:60;width:288px;max-width:min(288px,88vw);
-  background:var(--lg-card,#fff);border:1px solid #ECEAE3;border-radius:14px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);padding:6px;}
+  background:var(--lg-card,#fff);border:1px solid #E5E7EB;border-radius:14px;box-shadow:0 24px 60px -16px rgba(28,27,58,.32);padding:6px;}
 .dp-md-panel.to-right{left:auto;right:0;}
 .dp-md-sec{padding:12px 12px 14px;border-bottom:1px solid #F0F1F5;}
 .dp-md-sec:last-of-type{border-bottom:0;}
 .dp-md-lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#8B8478;margin:0 0 6px;padding:0 10px;}
 .dp-md-opt{display:flex;align-items:center;gap:10px;width:100%;font-family:var(--lg-sans);font-size:13px;font-weight:500;
   color:var(--lg-ink);background:none;border:0;border-radius:9px;padding:9px 10px;cursor:pointer;text-align:left;transition:background .12s;}
-.dp-md-opt:hover{background:#F6F5F2;}
+.dp-md-opt:hover{background:#F3F4F5;}
 .dp-md-opt.is-on{color:var(--lg-terra);font-weight:700;}
 .dp-md-opt .dir{margin-left:auto;display:inline-flex;align-items:center;color:var(--lg-terra);}
 .dp-md-swatch{width:9px;height:9px;border-radius:50%;flex:0 0 auto;}
@@ -441,7 +441,7 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
    not a mode toggle), and reads terracotta so it stands out as the smart help. */
 .dp-aibtn{color:var(--lg-terra);border-color:#F0D9CC;}
 .dp-aibtn .dp-linkbtn-label{max-width:140px;opacity:1;margin-left:6px;}
-.dp-aibtn:hover{background:#FBEFE9;border-color:var(--lg-terra);}
+.dp-aibtn:hover{background:#EEF2F7;border-color:var(--lg-terra);}
 .dp-aibtn:disabled{opacity:.6;cursor:default;}
 .dp-aibtn:disabled:hover{background:var(--lg-card,#fff);}
 
@@ -467,21 +467,21 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-proposal-edit:hover,.dp-proposal-x:hover{background:rgba(255,255,255,.42);}
 
 /* AI review bar — reuses the trace-hint layout, tinted so it reads as a prompt. */
-.dp-ai-review{background:#FBEFE9;border:1px solid #F0D9CC;border-radius:10px;padding:9px 12px;}
+.dp-ai-review{background:#EEF2F7;border:1px solid #F0D9CC;border-radius:10px;padding:9px 12px;}
 .dp-ai-review b{color:var(--lg-ink);}
 .dp-ai-spark{color:var(--lg-terra)!important;font-weight:700;}
 .dp-ai-unmatched{color:var(--lg-muted);}
 .lg-btn-primary.sm{font-size:12px;padding:6px 12px;}
 
 /* Reconcile panel — map AI-read names onto rooms the crew already set up. */
-.dp-reconcile{margin:0 0 12px;padding:12px 14px;background:#fff;border:1px solid var(--lg-hair,#ECEAE3);border-radius:12px;}
+.dp-reconcile{margin:0 0 12px;padding:12px 14px;background:#fff;border:1px solid var(--lg-hair,#E5E7EB);border-radius:12px;}
 .dp-reconcile-hd{font-family:var(--lg-sans);font-size:12px;color:var(--lg-muted,#6B7280);margin-bottom:9px;}
 .dp-reconcile-rows{display:flex;flex-wrap:wrap;gap:8px 16px;}
 .dp-reconcile-row{display:inline-flex;align-items:center;gap:8px;font-family:var(--lg-sans);font-size:12.5px;}
 .dp-recon-name{font-weight:600;color:var(--lg-ink,#1C1B3A);}
-.dp-recon-sel{font-family:var(--lg-sans);font-size:12px;color:var(--lg-ink,#1C1B3A);background:#FAFAF8;
-  border:1px solid var(--lg-hair,#E8E6DF);border-radius:8px;padding:5px 8px;cursor:pointer;max-width:200px;}
-.dp-recon-sel:focus{outline:none;border-color:var(--lg-terra);box-shadow:0 0 0 3px #FAECE7;}
+.dp-recon-sel{font-family:var(--lg-sans);font-size:12px;color:var(--lg-ink,#1C1B3A);background:#F8FAFC;
+  border:1px solid var(--lg-hair,#E1E3E6);border-radius:8px;padding:5px 8px;cursor:pointer;max-width:200px;}
+.dp-recon-sel:focus{outline:none;border-color:var(--lg-terra);box-shadow:0 0 0 3px rgba(198, 90, 26, 0.14);}
 
 /* Tray of rooms still to place. */
 .dp-tray{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--lg-hair);}
@@ -516,7 +516,7 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-adjhdr{white-space:nowrap;display:inline-flex;align-items:center;gap:5px;}
 .dp-adj-name{font-family:var(--lg-sans);font-size:13px;font-weight:600;color:var(--lg-ink);
   background:#fff;border:1px solid var(--lg-hair);border-radius:8px;padding:5px 9px;outline:none;min-width:150px;}
-.dp-adj-name:focus{border-color:var(--lg-terra);box-shadow:0 0 0 3px #FAECE7;}
+.dp-adj-name:focus{border-color:var(--lg-terra);box-shadow:0 0 0 3px rgba(198, 90, 26, 0.14);}
 .dp-hint-faint{color:var(--lg-faint,#AEB4C2);font-size:11px;margin-left:6px;}
 /* Info dot in the Adjust header — carries the how-to in its tooltip. */
 .dp-adj-info{display:inline-flex;align-items:center;color:var(--lg-faint,#AEB4C2);cursor:help;}
@@ -527,7 +527,7 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-adj-more{position:relative;display:inline-flex;}
 .dp-adj-backdrop{position:fixed;inset:0;z-index:40;}
 .dp-adj-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:41;min-width:190px;
-  background:#fff;border:1px solid #ECEAE3;border-radius:12px;padding:6px;
+  background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:6px;
   box-shadow:0 24px 60px -16px rgba(28,27,58,.32);display:flex;flex-direction:column;gap:2px;}
 .dp-adj-menu button{display:block;width:100%;text-align:left;border:0;background:none;cursor:pointer;
   font-family:var(--lg-sans);font-size:13px;color:var(--lg-ink);padding:8px 10px;border-radius:8px;}
@@ -538,13 +538,13 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .dp-cat-pick{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;}
 .dp-cat-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;cursor:pointer;
   font-family:var(--lg-sans);font-size:11.5px;font-weight:600;color:var(--lg-muted,#6B7280);
-  background:#fff;border:1px solid var(--lg-hair,#E8E6DF);transition:border-color .12s,color .12s;}
+  background:#fff;border:1px solid var(--lg-hair,#E1E3E6);transition:border-color .12s,color .12s;}
 .dp-cat-chip:hover{border-color:var(--lg-ink,#1C1B3A);color:var(--lg-ink,#1C1B3A);}
 .dp-cat-chip.is-on{border-color:var(--lg-ink,#1C1B3A);color:var(--lg-ink,#1C1B3A);background:var(--lg-wash,#F8FAFC);}
 .dp-cat-dot{width:11px;height:11px;border-radius:3px;flex:none;box-shadow:0 0 0 1px rgba(28,27,58,.12);}
 /* Compact category dropdown (replaces the 6 chips in the adjust bar). */
 .dp-cat-sel{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:8px;
-  background:#fff;border:1px solid var(--lg-hair,#E8E6DF);}
+  background:#fff;border:1px solid var(--lg-hair,#E1E3E6);}
 .dp-cat-native{font-family:var(--lg-sans);font-size:12px;font-weight:600;color:var(--lg-ink,#1C1B3A);
   border:0;background:transparent;cursor:pointer;padding:0;padding-right:2px;}
 .dp-cat-native:focus{outline:none;}
@@ -572,7 +572,7 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 /* Move-a-space picker — pick a destination zone (grouped by deck). */
 .lg-move-ov{position:fixed;inset:0;z-index:1000;background:rgba(28,27,58,.32);display:flex;align-items:center;justify-content:center;padding:24px;}
 .lg-move{width:100%;max-width:420px;max-height:80vh;display:flex;flex-direction:column;background:var(--lg-card,#fff);
-  border:1px solid var(--lg-hair,#ECEAE3);border-radius:16px;box-shadow:0 24px 60px -16px rgba(28,27,58,.4);overflow:hidden;}
+  border:1px solid var(--lg-hair,#E5E7EB);border-radius:16px;box-shadow:0 24px 60px -16px rgba(28,27,58,.4);overflow:hidden;}
 .lg-move-hd{display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--lg-line,#F0F1F5);
   font-family:var(--lg-sans);font-size:14px;color:var(--lg-ink,#1C1B3A);}
 .lg-move-hd span{flex:1;}
@@ -595,7 +595,7 @@ html[data-theme="night"] .lg-menu button.danger:hover{background:#3A2020;color:#
 .lg-move-pick label{font-family:var(--lg-sans);font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--lg-muted,#8B8478);}
 .lg-move-pick select{flex:1;font-family:var(--lg-sans);font-size:13.5px;font-weight:600;color:var(--lg-ink,#1C1B3A);
   background:var(--lg-card,#fff);border:1px solid var(--lg-hair,#E5E7EB);border-radius:9px;padding:8px 10px;outline:none;cursor:pointer;}
-.lg-move-pick select:focus{border-color:var(--lg-terra,#C65A1A);box-shadow:0 0 0 3px #FAECE7;}
+.lg-move-pick select:focus{border-color:var(--lg-terra,#C65A1A);box-shadow:0 0 0 3px rgba(198, 90, 26, 0.14);}
 
 /* A zone lit up as a drop target while dragging a space over it. */
 .lg-zone.droptarget{outline:2px dashed var(--lg-terra,#C65A1A);outline-offset:3px;border-radius:12px;background:var(--lg-terra-soft,#FBEEE4);}

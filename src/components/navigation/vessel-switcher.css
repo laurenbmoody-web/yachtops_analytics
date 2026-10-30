@@ -45,7 +45,7 @@
   max-height: 380px;
   overflow-y: auto;
   background: #fff;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 14px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
   padding: 6px;
@@ -79,8 +79,8 @@
   color: #1C1B3A;
   transition: background 0.12s ease;
 }
-.vs-opt:hover:not(:disabled) { background: #FAFAF8; }
-.vs-opt.on { background: #FBEFE9; color: #C65A1A; }
+.vs-opt:hover:not(:disabled) { background: #F8FAFC; }
+.vs-opt.on { background: #EEF2F7; color: #C65A1A; }
 .vs-opt:disabled { cursor: default; opacity: 0.55; }
 
 .vs-opt-txt { flex: 1; min-width: 0; }

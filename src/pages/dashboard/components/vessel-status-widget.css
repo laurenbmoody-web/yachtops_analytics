@@ -22,7 +22,7 @@
   transition: box-shadow .15s ease, transform .12s ease;
 }
 .vsw-chip:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -8px rgba(20, 19, 44, 0.6); }
-.vsw-chip.is-open { box-shadow: 0 0 0 4px #FAECE7, 0 8px 18px -8px rgba(20, 19, 44, 0.55); }
+.vsw-chip.is-open { box-shadow: 0 0 0 4px rgba(198, 90, 26, 0.14), 0 8px 18px -8px rgba(20, 19, 44, 0.55); }
 .vsw-chip-static { cursor: default; }
 .vsw-chip-ic { width: 21px; height: 21px; }
 
@@ -41,31 +41,31 @@
 .vsw-loading { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 15px; color: #AEB4C2; }
 
 .vsw-hint { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 11.5px; color: #B14E16; margin: 12px 0 0; text-align: center; }
-.vsw-hint-quiet { color: #A29C90; }
-.vsw-err { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; color: #B14E16; background: #FBEFE9; border-radius: 8px; padding: 8px 10px; margin: 10px 0 0; }
+.vsw-hint-quiet { color: #94999E; }
+.vsw-err { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; color: #B14E16; background: #EEF2F7; border-radius: 8px; padding: 8px 10px; margin: 10px 0 0; }
 
 /* ── Picker dropdown (anchored under the chip, left) ─────────────────────── */
 .vsw-picker {
   position: absolute; top: 64px; left: 50%; transform: translateX(-50%);
   width: 300px; max-width: 100%;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 14px;
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 14px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.34);
   padding: 6px; z-index: 40; text-align: left;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
-.vsw-picker-hd { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #A29C90; padding: 9px 11px 7px; }
+.vsw-picker-hd { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #94999E; padding: 9px 11px 7px; }
 .vsw-row { position: relative; display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 11px; border: 0; background: transparent; border-radius: 9px; cursor: pointer; text-align: left; }
-.vsw-row:hover:not(:disabled):not(.cur) { background: #FAFAF8; }
+.vsw-row:hover:not(:disabled):not(.cur) { background: #F8FAFC; }
 .vsw-row:disabled { cursor: default; }
 .vsw-row.cur { background: #F4F4F8; cursor: default; }
 .vsw-row.cur::before { content: ''; position: absolute; left: 3px; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--vsw-terra); }
-.vsw-row-ic { width: 34px; height: 34px; border-radius: 9px; background: #F2F1ED; color: #1C1B3A; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.vsw-row-ic { width: 34px; height: 34px; border-radius: 9px; background: #EEEFF1; color: #1C1B3A; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .vsw-row.cur .vsw-row-ic { background: var(--vsw-navy); color: #fff; }
 .vsw-row-text { display: flex; flex-direction: column; }
 .vsw-row-label { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .vsw-row-note { font-size: 11px; color: #9A958B; }
 .vsw-row-check { margin-left: auto; color: var(--vsw-terra); display: flex; }
-.vsw-picker-ft { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #F0EEE8; margin-top: 5px; padding: 10px 11px 6px; }
+.vsw-picker-ft { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #EAECEE; margin-top: 5px; padding: 10px 11px 6px; }
 .vsw-ft-link { border: 0; background: transparent; cursor: pointer; font-size: 12px; font-weight: 600; color: var(--vsw-terra); display: inline-flex; align-items: center; gap: 5px; font-family: inherit; }
 .vsw-ft-link:hover { text-decoration: underline; }
 
@@ -74,7 +74,7 @@
 
 /* ── Modal (portaled to <body>) ──────────────────────────────────────────── */
 .vsw-scrim { position: fixed; inset: 0; z-index: 1000; background: rgba(28, 27, 58, 0.42); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 20px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
-.vsw-modal { width: 440px; max-width: 100%; max-height: 90vh; overflow: auto; background: #fff; border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32); padding: 20px 22px 22px; }
+.vsw-modal { width: 440px; max-width: 100%; max-height: 90vh; overflow: auto; background: #fff; border: 1px solid #E5E7EB; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32); padding: 20px 22px 22px; }
 .vsw-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 /* Two-tone editorial headline. Portaled to <body> (outside .cargo-editorial), so
    both the title and the .accent span carry an explicit DM Serif font-family —
@@ -84,18 +84,18 @@
 .vsw-modal-title .accent { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; }
 .vsw-modal-title { font-size: 30px; line-height: 1.05; font-weight: 400; letter-spacing: -0.4px; color: #1C1B3A; margin: 2px 0 0; }
 .vsw-modal-title .accent { font-style: italic; color: var(--vsw-terra); }
-.vsw-modal-x { background: #F6F5F2; border: 0; border-radius: 8px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #6B7280; flex: 0 0 auto; }
-.vsw-modal-x:hover { background: #ECEAE3; color: #1C1B3A; }
-.vsw-modal-tabs { display: flex; gap: 4px; background: #F6F5F2; border-radius: 999px; padding: 3px; margin: 16px 0; }
+.vsw-modal-x { background: #F3F4F5; border: 0; border-radius: 8px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #6B7280; flex: 0 0 auto; }
+.vsw-modal-x:hover { background: #E5E7EB; color: #1C1B3A; }
+.vsw-modal-tabs { display: flex; gap: 4px; background: #F3F4F5; border-radius: 999px; padding: 3px; margin: 16px 0; }
 .vsw-modal-tabs button { flex: 1; border: 0; background: transparent; cursor: pointer; font-size: 12.5px; font-weight: 600; color: #6B7280; padding: 7px; border-radius: 999px; font-family: inherit; }
 .vsw-modal-tabs button.on { background: #fff; color: #1C1B3A; box-shadow: 0 1px 2px rgba(28, 27, 58, 0.08); }
 .vsw-help { font-size: 12.5px; color: #6B7280; line-height: 1.5; margin: 0 0 14px; }
 .vsw-flabel { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0 0 8px; }
 .vsw-flabel .req { color: var(--vsw-terra); margin-left: 4px; letter-spacing: .5px; }
 .vsw-state-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-.vsw-state-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; border: 1px solid #ECEAE3; border-radius: 10px; background: #FAFAF8; padding: 10px; cursor: pointer; text-align: left; transition: border-color .12s ease, background .12s ease; }
-.vsw-state-opt:hover { border-color: #E8E6DF; background: #F6F5F2; }
-.vsw-state-opt.on { border-color: var(--vsw-terra); background: #FBEFE9; }
+.vsw-state-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; border: 1px solid #E5E7EB; border-radius: 10px; background: #F8FAFC; padding: 10px; cursor: pointer; text-align: left; transition: border-color .12s ease, background .12s ease; }
+.vsw-state-opt:hover { border-color: #E1E3E6; background: #F3F4F5; }
+.vsw-state-opt.on { border-color: var(--vsw-terra); background: #EEF2F7; }
 .vsw-state-ico { display: inline-flex; margin-bottom: 2px; color: #1C1B3A; }
 .vsw-state-label { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .vsw-state-note { font-size: 11px; color: #8B8478; }
@@ -106,11 +106,11 @@
    casing (the <label> above sets tracked-caps, which the field must not inherit). */
 .vsw-dates .edp-input { font-size: 13.5px; font-weight: 500; color: #1C1B3A; letter-spacing: normal; text-transform: none; }
 .vsw-dates .edp-input::placeholder { color: #AEB4C2; font-weight: 500; }
-.vsw-input { border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 11px; font-size: 13.5px; color: #1C1B3A; background: #FAFAF8; font-family: inherit; width: 100%; text-transform: none; letter-spacing: normal; font-weight: 400; }
-.vsw-input:focus { outline: none; border-color: var(--vsw-terra); box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.vsw-input { border: 1px solid #E1E3E6; border-radius: 9px; padding: 9px 11px; font-size: 13.5px; color: #1C1B3A; background: #F8FAFC; font-family: inherit; width: 100%; text-transform: none; letter-spacing: normal; font-weight: 400; }
+.vsw-input:focus { outline: none; border-color: var(--vsw-terra); box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); background: #fff; }
 /* Overlap notice — editorial, not an alert. Hairline rule + quiet type; the
    period's own note carries the DM Serif italic accent. No box, no orange fill. */
-.vsw-overlap { border-top: 1px solid #ECEAE3; margin-top: 16px; padding-top: 14px; }
+.vsw-overlap { border-top: 1px solid #E5E7EB; margin-top: 16px; padding-top: 14px; }
 .vsw-overlap-hd { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0 0 5px; }
 .vsw-overlap-main { font-size: 13.5px; font-weight: 600; color: #1C1B3A; margin: 0; }
 .vsw-overlap-dates { font-weight: 500; color: #6B7280; }
@@ -124,14 +124,14 @@
 .vsw-tl { display: flex; flex-direction: column; }
 .vsw-tl-row { display: flex; align-items: flex-start; gap: 12px; padding: 13px 0; border-bottom: 1px solid #F0F1F5; }
 .vsw-tl-row:last-child { border-bottom: 0; }
-.vsw-tl-ico { width: 32px; height: 32px; border-radius: 9px; background: #F6F5F2; color: #1C1B3A; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; margin-top: 1px; }
+.vsw-tl-ico { width: 32px; height: 32px; border-radius: 9px; background: #F3F4F5; color: #1C1B3A; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; margin-top: 1px; }
 .vsw-tl-main { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.35; gap: 2px; }
 .vsw-tl-top { display: flex; align-items: center; gap: 8px; }
 .vsw-tl-label { font-size: 14px; font-weight: 600; color: #1C1B3A; }
 .vsw-tl-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; padding: 2px 8px; border-radius: 999px; flex: 0 0 auto; }
-.vsw-tl-badge-now { color: var(--vsw-terra); background: #FBEFE9; }
-.vsw-tl-badge-lock { color: #6B7280; background: #F1F0EC; }
+.vsw-tl-badge-now { color: var(--vsw-terra); background: #EEF2F7; }
+.vsw-tl-badge-lock { color: #6B7280; background: #EDEEF0; }
 .vsw-tl-dates { font-size: 12px; color: #6B7280; }
-.vsw-tl-sep { margin: 0 6px; color: #C9C4BA; }
+.vsw-tl-sep { margin: 0 6px; color: #BDC1C6; }
 .vsw-tl-note { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 15px; font-style: italic; color: #4A4763; margin-top: 3px; }
-.vsw-tl-meta { font-size: 11px; color: #A29C90; margin-top: 3px; }
+.vsw-tl-meta { font-size: 11px; color: #94999E; margin-top: 3px; }

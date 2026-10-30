@@ -1,7 +1,7 @@
 /* Cargo Accounts — line-detail expander. Scoped .ld-*. Editorial system: hairlines
    and whitespace, soft fields, terracotta accent, no boxed-card look. */
 
-.ld { padding: 14px 14px 14px 44px; background: #FCFCFB; border-top: 1px solid #EEF0F4;
+.ld { padding: 14px 14px 14px 44px; background: #FBFBFC; border-top: 1px solid #EEF0F4;
   display: flex; flex-direction: column; gap: 13px; }
 
 .ld-label { display: block; font-size: 8.5px; font-weight: 700; letter-spacing: .9px;
@@ -19,7 +19,7 @@
    and these are the things you're here to fill in. */
 .ld-input { width: 100%; background: #fff; border: 1px solid #E5E7EB; border-radius: 8px;
   padding: 7px 10px; font: inherit; font-size: 12.5px; color: #1C1B3A; outline: none; }
-.ld-input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.ld-input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .ld-input.is-need { border-color: #C9A227; }
 select.ld-input { cursor: pointer; }
 
@@ -38,7 +38,7 @@ select.ld-input { cursor: pointer; }
 .ld-block { display: block; }
 .ld-blockhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
 .ld-receipts { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.ld-rec { display: inline-flex; align-items: center; gap: 2px; background: #F1EFEA; border-radius: 999px; padding: 0 4px 0 0; }
+.ld-rec { display: inline-flex; align-items: center; gap: 2px; background: #ECEDEF; border-radius: 999px; padding: 0 4px 0 0; }
 .ld-rec-open { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; font: inherit;
   font-size: 11.5px; font-weight: 600; color: #6B6455; padding: 5px 4px 5px 11px; cursor: pointer; }
 .ld-rec-open:hover { color: #C65A1A; }
@@ -123,7 +123,7 @@ select.ld-input { cursor: pointer; }
 
 /* Disabled is where a fill is meaningful — it says "not yours to change" rather
    than decorating an editable box. */
-.ld-input:disabled { background: #FAFAF8; color: #8B8478; }
+.ld-input:disabled { background: #F8FAFC; color: #8B8478; }
 
 /* Who pays needs room for "Charter (APA)" without squeezing the fields beside it. */
 .ld-field.ld-whopays { min-width: 168px; }
@@ -139,5 +139,5 @@ select.ld-input { cursor: pointer; }
   display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer; color: #AEB4C2; padding: 0;
 }
-.ld-combo-back:hover { background: #FAFAF8; color: #C65A1A; }
+.ld-combo-back:hover { background: #F8FAFC; color: #C65A1A; }
 .ld-combo-back:focus-visible { outline: 2px solid #C65A1A; outline-offset: 1px; }

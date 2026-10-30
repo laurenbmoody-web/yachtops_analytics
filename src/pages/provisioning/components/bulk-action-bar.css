@@ -98,7 +98,7 @@
      particularly the danger variant which kept full terracotta-
      red border + text. */
   color: var(--d-muted-soft, #94A3B8) !important;
-  border-color: var(--d-border, #E2DDD4) !important;
+  border-color: var(--d-border, #D7DBDF) !important;
   background: var(--d-card, #FFFFFF) !important;
 }
 .pv-bulk-bar-btn:disabled:hover {
@@ -106,7 +106,7 @@
      stray pointer doesn't flash the red back in for a frame. */
   background: var(--d-card, #FFFFFF) !important;
   color: var(--d-muted-soft, #94A3B8) !important;
-  border-color: var(--d-border, #E2DDD4) !important;
+  border-color: var(--d-border, #D7DBDF) !important;
   filter: grayscale(0.6);
 }
 

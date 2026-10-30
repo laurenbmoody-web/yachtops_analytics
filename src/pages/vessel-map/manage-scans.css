@@ -33,7 +33,7 @@
   transition: box-shadow var(--vm-ease-ui), background var(--vm-ease-ui);
   margin-bottom: 30px;
 }
-.vmm-uploader-over { box-shadow: 0 0 0 2px #C65A1A, 0 0 0 8px #FAECE7; }
+.vmm-uploader-over { box-shadow: 0 0 0 2px #C65A1A, 0 0 0 8px rgba(198, 90, 26, 0.14); }
 .vmm-under-cards {
   display: flex;
   justify-content: flex-end;
@@ -60,8 +60,8 @@
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
-  border: 1px solid #ECEAE3;
-  background: #FAFAF8;
+  border: 1px solid #E5E7EB;
+  background: #F8FAFC;
   border-radius: 16px;
   padding: 18px 22px;
 }
@@ -71,7 +71,7 @@
 .vmm-compact .vmm-steps-toggle { margin-left: auto; }
 /* ── Flow panels ────────────────────────────────────────────────────────── */
 .vmm-panel {
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 16px;
   background: #fff;
   padding: 22px 24px;
@@ -84,7 +84,7 @@
   font-size: 11px;
   font-weight: 600;
   color: #6B7280;
-  background: #F6F5F2;
+  background: #F3F4F5;
   border-radius: 999px;
   padding: 2px 10px;
 }
@@ -138,7 +138,7 @@
 .vml { margin-top: 4px; }
 .vml-head {
   padding: 4px 2px 10px;
-  border-bottom: 1px solid #E8E6DF;
+  border-bottom: 1px solid #E1E3E6;
 }
 .vml-label {
   font-size: 9px;
@@ -213,7 +213,7 @@
   width: 42px;
   height: 42px;
   border-radius: 999px;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   background: #fff;
   color: #1C1B3A;
   font-size: 22px;
@@ -260,9 +260,9 @@
   max-width: 640px;
   margin: 16px auto 0;
   text-align: left;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 14px;
-  background: #FAFAF8;
+  background: #F8FAFC;
   padding: 16px 18px;
 }
 .vmr-editor-actions { margin-top: 14px; }

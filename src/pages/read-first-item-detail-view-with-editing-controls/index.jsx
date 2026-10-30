@@ -243,7 +243,7 @@ const ReadFirstItemDetailView = () => {
               <button
                 type="button"
                 onClick={() => setShowMapPicker(true)}
-                className="mt-2 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border border-[#E5E1D8] text-[#C65A1A] hover:bg-[#FBEFE9] transition-colors"
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border border-[#DBDEE2] text-[#C65A1A] hover:bg-[#EEF2F7] transition-colors"
               >
                 <Icon name="MapPin" size={16} />
                 Set location on the map

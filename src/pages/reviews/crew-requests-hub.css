@@ -94,7 +94,7 @@
 .crh-stat.clickable:focus-visible {
   outline: none;
   border-color: #C65A1A;
-  box-shadow: 0 0 0 3px #FAECE7;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 .crh-stat.active { border-color: #C65A1A; }
 .crh-stat.active .n { color: #C65A1A; }
@@ -137,7 +137,7 @@
 .crh-search input:focus {
   outline: none;
   border-color: #C65A1A;
-  box-shadow: 0 0 0 3px #FAECE7;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
   background: #FFFFFF;
 }
 
@@ -159,7 +159,7 @@
 .crh-dd-btn:hover { border-color: #C9CED6; }
 .crh-dd.open .crh-dd-btn {
   border-color: #C65A1A;
-  box-shadow: 0 0 0 3px #FAECE7;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 .crh-dd-ic { color: #1C1B3A; flex: none; }
 .crh-dd-label { font-weight: 500; }
@@ -288,7 +288,7 @@
   justify-content: center;
   font: 600 11.5px 'Inter', system-ui, sans-serif;
   color: #C65A1A;
-  background: #FBEFE9;
+  background: #EEF2F7;
   overflow: hidden;
 }
 .crh-av img {

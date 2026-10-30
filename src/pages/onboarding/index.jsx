@@ -33,11 +33,11 @@ const NAVY      = '#1C1B3A'; // navy ink — headings, structural fills
 const NAVY_DARK = '#141330'; // deeper ink for hover states
 const ACCENT    = '#C65A1A'; // terracotta — primary actions, selected, emphasis
 const ACCENT_HOVER = '#B14E16';
-const ACCENT_SOFT  = '#FBEFE9'; // tinted terracotta pill/selection background
+const ACCENT_SOFT  = '#EEF2F7'; // tinted terracotta pill/selection background
 const CHARCOAL  = '#1C1B3A'; // body/label text — unified with navy ink
 const MUTED     = '#8B8478';
 const MUTED_SOFT = '#6B7280';
-const BORDER    = '#ECEAE3'; // soft hairline
+const BORDER    = '#E5E7EB'; // soft hairline
 const CARD      = '#FFFFFF';
 
 const HEADING_FONT = "'DM Serif Display', 'DM Serif Text', Georgia, serif";
@@ -1465,7 +1465,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete, previewMode = fal
                   >
                     <div
                       className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
-                      style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.18)' : '#F6F5F2', color: isSelected ? 'white' : ACCENT }}
+                      style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.18)' : '#F3F4F5', color: isSelected ? 'white' : ACCENT }}
                     >
                       <DIcon size={18} />
                     </div>
@@ -1496,7 +1496,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete, previewMode = fal
                   >
                     <div
                       className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
-                      style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.18)' : '#F6F5F2', color: isSelected ? 'white' : ACCENT }}
+                      style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.18)' : '#F3F4F5', color: isSelected ? 'white' : ACCENT }}
                     >
                       <Briefcase size={18} />
                     </div>
@@ -1578,7 +1578,7 @@ const DepartmentsStep = ({ tenant, userId, onBack, onComplete, previewMode = fal
                   className="rounded-xl p-4 text-left cg-hover-lift"
                   style={{ border: `1px dashed ${BORDER}`, backgroundColor: 'white', color: MUTED_SOFT }}
                 >
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: '#F6F5F2', color: '#AEB4C2' }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: '#F3F4F5', color: '#AEB4C2' }}>
                     <Plus size={18} />
                   </div>
                   <div className="text-sm" style={{ fontFamily: BODY_FONT, fontWeight: 600 }}>+ Other</div>
@@ -2241,13 +2241,13 @@ const STEP_KEYS = ['vessel', 'profile', 'departments', 'crew', 'locations'];
 // on welcome/vessel so the only warm full-bleed colour is the deliberate
 // terracotta accent, not an invented tan.
 const THEMES = {
-  welcome:     { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
-  vessel:      { bg: '#F4F1EC', fg: '#1C1B3A', ac: '#C65A1A' },
-  profile:     { bg: '#1C1B3A', fg: '#F4F1EC', ac: '#E8915A' },
-  departments: { bg: '#F4F1EC', fg: '#1C1B3A', ac: '#C65A1A' },
+  welcome:     { bg: '#EEF0F2', fg: '#1C1B3A', ac: '#C65A1A' },
+  vessel:      { bg: '#EEF0F2', fg: '#1C1B3A', ac: '#C65A1A' },
+  profile:     { bg: '#1C1B3A', fg: '#EEF0F2', ac: '#E8915A' },
+  departments: { bg: '#EEF0F2', fg: '#1C1B3A', ac: '#C65A1A' },
   crew:        { bg: '#DCE3EA', fg: '#1C1B3A', ac: '#C65A1A' },
-  locations:   { bg: '#1C1B3A', fg: '#F4F1EC', ac: '#E8915A' },
-  done:        { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
+  locations:   { bg: '#1C1B3A', fg: '#EEF0F2', ac: '#E8915A' },
+  done:        { bg: '#EEF0F2', fg: '#1C1B3A', ac: '#C65A1A' },
 };
 
 // Dark (navy) step screens — these need the inverted logo (see logoSrc below).
@@ -2466,7 +2466,7 @@ const OnboardingPage = ({ previewMode = false }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FAFAF8' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F8FAFC' }}>
         <div className="text-center">
           <Anchor size={36} color={ACCENT} className="mx-auto mb-3" />
           <p className="text-sm" style={{ color: MUTED_SOFT, fontFamily: BODY_FONT }}>Loading your vessel…</p>
@@ -2478,7 +2478,7 @@ const OnboardingPage = ({ previewMode = false }) => {
   if (loadError) {
     const isMembershipError = loadError.includes('vessel membership');
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#FAFAF8' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F8FAFC' }}>
         <div style={{ maxWidth: 480, textAlign: 'center', padding: '0 24px' }}>
           <p className="text-sm" style={{ color: '#A32D2D', marginBottom: 16, fontFamily: BODY_FONT }}>{loadError}</p>
           {isMembershipError && (

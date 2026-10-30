@@ -38,7 +38,7 @@
   --hair:          #EEF2F7;           /* faint hairline rules */
   --faint:         #AAB6C6;           /* faintest text/icons */
   --ground:        #F4F5F7;           /* recessed list ground */
-  --pill:          #FBEFE9;           /* tinted terracotta pill bg */
+  --pill:          #EEF2F7;           /* tinted terracotta pill bg */
   --sh1:           0 1px 2px rgba(16, 24, 40, 0.06);
   --sh2:           0 4px 14px -4px rgba(16, 24, 40, 0.14), 0 1px 2px rgba(16, 24, 40, 0.05);
   --sh3:           0 24px 50px -18px rgba(16, 24, 40, 0.28);
@@ -2492,7 +2492,7 @@
 #sp-root .sp-return-auth {
   padding: 18px 22px 18px;
   border-top: 1px solid var(--line-soft);
-  background: #FBFAF6;        /* cream wash, matches editorial slips */
+  background: #F7F8FA;        /* cream wash, matches editorial slips */
 }
 #sp-root .sp-return-auth-label {
   font-family: 'Inter', system-ui, sans-serif;
@@ -2647,10 +2647,10 @@
 .sod-note-icon:hover:not(:disabled) {
   border-color: #C65A1A;
   color: #C65A1A;
-  background: #FBEFE9;
+  background: #EEF2F7;
 }
 .sod-note-icon-active {
-  background: #FBEFE9;
+  background: #EEF2F7;
   border-color: #E8B89B;
   color: #C65A1A;
 }
@@ -2662,9 +2662,9 @@
    item row, with soft cream background so the editor reads as part of
    the row but distinct. */
 .sod-expand-row > td {
-  background: #FAFAF8;
-  border-top: 1px solid #ECEAE3;
-  border-bottom: 1px solid #ECEAE3;
+  background: #F8FAFC;
+  border-top: 1px solid #E5E7EB;
+  border-bottom: 1px solid #E5E7EB;
   padding: 14px 20px 16px;
 }
 .sod-expand {
@@ -2736,7 +2736,7 @@
 .sod-expand-input:focus,
 .sod-expand-textarea:focus {
   border-color: #C65A1A;
-  box-shadow: 0 0 0 3px #FAECE7;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 
 .sod-expand-price {
@@ -2779,7 +2779,7 @@
   border-color: #E5E7EB;
   color: #1C1B3A;
 }
-.sod-expand-cancel:hover:not(:disabled) { background: #FAFAF8; border-color: #D7DAE2; }
+.sod-expand-cancel:hover:not(:disabled) { background: #F8FAFC; border-color: #D7DAE2; }
 .sod-expand-save {
   background: #C65A1A;
   border-color: #C65A1A;
@@ -2815,7 +2815,7 @@
 .sod-card-msg-btn:hover:not(:disabled) {
   border-color: #C65A1A;
   color: #C65A1A;
-  background: #FBEFE9;
+  background: #EEF2F7;
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -2835,7 +2835,7 @@
 #sp-root .sod-wq-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 22px;
-  background: #FBFAF7;
+  background: #F8F9FA;
   border-bottom: 1px solid #F0F1F5;
   gap: 24px;
 }
@@ -2893,7 +2893,7 @@
   padding: 8px 18px;
 }
 #sp-root .sod-wq-cols {
-  background: #FAFAF8;
+  background: #F8FAFC;
   border-bottom: 1px solid var(--line);
   font-size: 9px; font-weight: 700;
   letter-spacing: 1.2px; text-transform: uppercase;
@@ -2935,7 +2935,7 @@
 
 /* ── rows ─────────────────────────────────────────────────────────────── */
 #sp-root .sod-wq-row {
-  border-top: 1px solid #F4F4F0;
+  border-top: 1px solid #F1F2F3;
   font-size: 13px;
   min-height: 44px;
   padding-top: 7px; padding-bottom: 7px;
@@ -3005,7 +3005,7 @@
   font-variant-numeric: tabular-nums;
   outline: none;
   color: var(--fg);
-  box-shadow: 0 0 0 3px #FBEFE9;
+  box-shadow: 0 0 0 3px #EEF2F7;
 }
 #sp-root .sod-wq-edit-right { text-align: right; }
 
@@ -3039,7 +3039,7 @@
 #sp-root .sod-wq-unit-select-control:focus-visible {
   outline: none;
   border-color: var(--orange);
-  box-shadow: 0 0 0 3px #FBEFE9;
+  box-shadow: 0 0 0 3px #EEF2F7;
   background-color: #fff;
 }
 #sp-root .sod-wq-unit-select.sod-wq-changed .sod-wq-unit-select-control {
@@ -3062,7 +3062,7 @@
 #sp-root .sod-wq-note-input:hover:not(:disabled) { border-color: var(--line); }
 #sp-root .sod-wq-note-input:focus {
   border-color: var(--orange); background: #fff;
-  box-shadow: 0 0 0 3px #FBEFE9;
+  box-shadow: 0 0 0 3px #EEF2F7;
   color: var(--fg);
   font-style: normal;
 }
@@ -3107,7 +3107,7 @@
 
 /* ── completed row treatment ────────────────────────────────────────── */
 #sp-root .sod-wq-row-completed {
-  background: #FCFCFA;
+  background: #FAFBFC;
 }
 #sp-root .sod-wq-row-completed .sod-wq-name { color: var(--muted-strong); font-weight: 500; }
 #sp-root .sod-wq-row-completed .sod-wq-brand { color: var(--faint, #AEB4C2); }
@@ -3115,7 +3115,7 @@
 #sp-root .sod-wq-row-completed .sod-wq-changed .sod-wq-val { color: var(--orange); }
 
 #sp-root .sod-wq-row-unavailable .sod-wq-name { color: var(--muted-strong); }
-#sp-root .sod-wq-row-unavailable { background: #FDFBF9; }
+#sp-root .sod-wq-row-unavailable { background: #FAFBFC; }
 
 #sp-root .sod-wq-empty {
   padding: 40px 24px;
@@ -3156,9 +3156,9 @@
   display: flex; align-items: baseline; gap: 12px;
   padding: 14px 18px 14px 16px;
   margin: 0;
-  background: #FAFAF8;
-  border-top: 1px solid #ECEAE3;
-  border-bottom: 1px solid #ECEAE3;
+  background: #F8FAFC;
+  border-top: 1px solid #E5E7EB;
+  border-bottom: 1px solid #E5E7EB;
   border-left: 3px solid #C65A1A;
   font-size: 13.5px;
   color: #1C1B3A;
@@ -3191,7 +3191,7 @@
   margin-left: 8px;
   padding: 1px 8px 2px;
   border-radius: 999px;
-  background: #FBEFE9;
+  background: #EEF2F7;
   color: #C65A1A;
   font-size: 10px;
   font-weight: 700;
@@ -3259,7 +3259,7 @@
   right: 0;
   width: 360px;
   background: #FFFFFF;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 12px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
   z-index: 100;
@@ -3287,7 +3287,7 @@
   line-height: 1.5;
 }
 .sp-bell-panel-list { list-style: none; margin: 0; padding: 4px 0; max-height: 360px; overflow-y: auto; }
-.sp-bell-panel-list li + li { border-top: 1px solid #F4F4F0; }
+.sp-bell-panel-list li + li { border-top: 1px solid #F1F2F3; }
 .sp-bell-panel-item {
   display: flex; align-items: center; gap: 10px;
   width: 100%;
@@ -3296,7 +3296,7 @@
   text-align: left; cursor: pointer;
   font-family: inherit;
 }
-.sp-bell-panel-item:hover { background: #FAFAF8; }
+.sp-bell-panel-item:hover { background: #F8FAFC; }
 .sp-bell-panel-item-dot {
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -3319,7 +3319,7 @@
   font-size: 9px; font-weight: 700;
   letter-spacing: 0.1em; text-transform: uppercase;
   color: #C65A1A;
-  background: #FBEFE9;
+  background: #EEF2F7;
   padding: 2px 7px;
   border-radius: 999px;
   border: 1px solid #E8B89B;
@@ -3344,7 +3344,7 @@
   letter-spacing: 0.01em;
   cursor: pointer;
 }
-.sp-bell-panel-viewall:hover { background: #FAFAF8; }
+.sp-bell-panel-viewall:hover { background: #F8FAFC; }
 
 /* Bell dropdown — approved-orders sub-list. Sits below the revised-
    lines list, separated by a hairline. Green tag for the approved

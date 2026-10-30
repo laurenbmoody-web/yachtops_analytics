@@ -24,7 +24,7 @@ import {
 import './warehouse.css';
 
 const ZONES = [
-  { key: 'ambient', label: 'Ambient', hint: 'Dry store · room temp',  Icon: Sun,        color: '#C65A1A', tint: '#FBEFE9' },
+  { key: 'ambient', label: 'Ambient', hint: 'Dry store · room temp',  Icon: Sun,        color: '#C65A1A', tint: '#EEF2F7' },
   { key: 'chilled', label: 'Chilled', hint: 'Fridge · 1–5 °C',        Icon: Thermometer, color: '#2563EB', tint: '#E8EEFE' },
   { key: 'frozen',  label: 'Frozen',  hint: 'Freezer · below 0 °C',   Icon: Snowflake,   color: '#0E7490', tint: '#E0F2F6' },
 ];

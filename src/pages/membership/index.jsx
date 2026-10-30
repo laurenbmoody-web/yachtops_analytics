@@ -413,7 +413,7 @@ const Membership = () => {
       {/* Cancel — step-through confirmation, then Stripe's cancel flow */}
       {cancelOpen && (
         <div onClick={() => !portalBusy && setCancelOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(28,27,58,0.32)', display: 'grid', placeItems: 'center', padding: 24 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', border: '1px solid #ECEAE3', borderRadius: 16, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)', width: '100%', maxWidth: 460, padding: '26px 26px 22px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 16, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)', width: '100%', maxWidth: 460, padding: '26px 26px 22px' }}>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 22, color: '#1C1B3A', margin: '0 0 12px' }}>Cancel membership?</h2>
             <ul style={{ listStyle: 'none', margin: '0 0 18px', padding: 0, display: 'grid', gap: 10 }}>
               {[

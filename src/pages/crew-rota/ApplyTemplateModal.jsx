@@ -2030,7 +2030,7 @@ export default function ApplyTemplateModal({
   const headerEyebrow = isPattern ? 'Apply shift pattern' : 'Apply template';
   const headerSwatch = isPattern
     ? null
-    : (TYPE_COLOR[template.body?.shift_type] || '#B4B2A9');
+    : (TYPE_COLOR[template.body?.shift_type] || '#ABAEB2');
   const headerHours = !isPattern
     ? (template.body?.start_time && template.body?.end_time
         ? `${fmtTime(template.body.start_time)} – ${fmtTime(template.body.end_time)}`
@@ -2996,10 +2996,10 @@ export default function ApplyTemplateModal({
                                       return <td key={`c-${pr.slotIdx}-${pr.memberIdx}-${k}`} className="ap-preview-empty">—</td>;
                                     }
                                     const duty = duties[di];
-                                    const c = TYPE_COLOR[duty?.shift_type] || '#B4B2A9';
+                                    const c = TYPE_COLOR[duty?.shift_type] || '#ABAEB2';
                                     return (
                                       <td key={`c-${pr.slotIdx}-${pr.memberIdx}-${k}`} className="ap-preview-cell"
-                                        style={{ background: c, color: '#F5F1EA' }}>
+                                        style={{ background: c, color: '#F8FAFC' }}>
                                         <div className="ap-preview-cell-label">{duty?.label || 'Duty'}</div>
                                         <div className="ap-preview-cell-time">
                                           {fmtTime(duty?.start_time)}–{fmtTime(duty?.end_time)}

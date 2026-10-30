@@ -65,7 +65,7 @@
   display: inline-block;
   width: 1px;
   height: 10px;
-  background: #DFD8CC;
+  background: #D0D5DB;
   margin: 0 12px;
   flex-shrink: 0;
 }
@@ -95,7 +95,7 @@
 .mem-card {
   position: relative;
   background: #fff;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 18px;
   padding: 28px 30px;
   box-shadow: 0 1px 2px rgba(28, 27, 58, 0.04);
@@ -213,7 +213,7 @@
 .mem-btn:disabled { cursor: default; opacity: 0.75; }
 .mem-btn-primary { color: #fff; background: #C65A1A; border-color: #C65A1A; }
 .mem-btn-primary:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }
-.mem-btn-ghost { color: #9A2B12; background: #fff; border-color: #E8E6DF; }
+.mem-btn-ghost { color: #9A2B12; background: #fff; border-color: #E1E3E6; }
 .mem-btn-ghost:hover:not(:disabled) { border-color: #D9B7AD; }
 .mem-btn-ghost-ink { color: #1C1B3A; background: #fff; border-color: #E5E7EB; }
 .mem-btn-ghost-ink:hover:not(:disabled) { border-color: #C9CDD6; }
@@ -230,8 +230,8 @@
 }
 .mem-toggle {
   display: inline-flex;
-  background: #F6F5F2;
-  border: 1px solid #ECEAE3;
+  background: #F3F4F5;
+  border: 1px solid #E5E7EB;
   border-radius: 999px;
   padding: 3px;
 }
@@ -258,17 +258,17 @@
   gap: 12px;
   text-align: left;
   cursor: pointer;
-  border: 1.5px solid #ECEAE3;
+  border: 1.5px solid #E5E7EB;
   background: #fff;
   border-radius: 12px;
   padding: 14px 16px;
 }
-.mem-tier.on { border-color: #C65A1A; background: #FBEFE9; }
+.mem-tier.on { border-color: #C65A1A; background: #EEF2F7; }
 .mem-tier-radio {
   width: 18px; height: 18px;
   border-radius: 999px;
   flex: none;
-  border: 2px solid #CBC9C0;
+  border: 2px solid #C2C5C9;
   display: grid;
   place-items: center;
 }

@@ -72,7 +72,7 @@
 }
 .spm-input:focus, .spm-select:focus, .spm-textarea:focus {
   outline: none; border-color: var(--orange, #C65A1A);
-  box-shadow: 0 0 0 3px #FAECE7; background: var(--card, #fff);
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); background: var(--card, #fff);
 }
 .spm-input::placeholder { color: var(--muted, #94A3B8); }
 .spm-textarea { resize: vertical; min-height: 54px; }
@@ -121,7 +121,7 @@
 }
 .spm-toggle input:checked + .track { background: #29A36A; }
 .spm-toggle input:checked + .track::after { left: 16px; }
-.spm-toggle input:focus-visible + .track { box-shadow: 0 0 0 3px #FAECE7; }
+.spm-toggle input:focus-visible + .track { box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 
 /* Footer */
 .spm-foot {

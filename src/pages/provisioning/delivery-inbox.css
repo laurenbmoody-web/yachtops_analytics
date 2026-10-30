@@ -15,10 +15,10 @@
    ============================================================ */
 
 .di, .di-slip {
-  --di-cream:       #F8FAFC; /* was #F4EEE4 → cool --d-bg */
+  --di-cream:       #F8FAFC; /* was #E9ECEF → cool --d-bg */
   --di-card:        #FFFFFF;
-  --di-band:        #F8FAFC; /* was #FCFAF5 → cool bg (no exact peer) */
-  --di-band-soft:   #EEF0F4; /* was #F8F4EA → cool --d-border-soft */
+  --di-band:        #F8FAFC; /* was #F7F8FA → cool bg (no exact peer) */
+  --di-band-soft:   #EEF0F4; /* was #EFF1F3 → cool --d-border-soft */
   --di-navy:        #262A53;
   --di-navy-deep:   #1A1D3F;
   --di-rust:        #C65A1A; /* identical to --d-orange */
@@ -28,11 +28,11 @@
   --di-sage:        #5C9B6A;
   --di-sage-deep:   #047857;
   --di-sage-soft:   #E8F5EE; /* was #ECFDF5 → cool --d-status-received-bg */
-  --di-sand:        #E5E7EB; /* was #DFD7C8 → cool --d-border */
-  --di-sand-soft:   #EEF0F4; /* was #F1ECDF → cool --d-border-soft */
+  --di-sand:        #E5E7EB; /* was #CDD3DA → cool --d-border */
+  --di-sand-soft:   #EEF0F4; /* was #E4E8EC → cool --d-border-soft */
   --di-muted:       #7C7E9B; /* was #695880 → cool --d-muted */
   --di-faint:       #9098B1; /* was #94A3B8 → cool --d-muted-soft */
-  --di-hairline:    #E5E7EB; /* was #D4CCBB → cool --d-border */
+  --di-hairline:    #E5E7EB; /* was #C1C7CE → cool --d-border */
   --di-shadow:      0 1px 2px rgba(38, 42, 83, 0.04);
 }
 
@@ -229,7 +229,7 @@
 .di-row:last-of-type { border-bottom: 0; }
 .di-row.is-selected { background: var(--di-band); }
 .di-row.is-fading { opacity: 0; }
-.di-row.is-archived { background: #FAF7EE; }
+.di-row.is-archived { background: #F2F4F6; }
 
 .di-row-check {
   width: 15px; height: 15px;

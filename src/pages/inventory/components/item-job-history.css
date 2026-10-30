@@ -33,7 +33,7 @@
   transition: border-color 0.12s, background 0.12s, color 0.12s;
 }
 .ijh-raise svg { color: #C65A1A; }
-.ijh-raise:hover { border-color: #C65A1A; background: #FBEFE9; color: #C65A1A; }
+.ijh-raise:hover { border-color: #C65A1A; background: #EEF2F7; color: #C65A1A; }
 
 .ijh-err {
   display: flex; align-items: center; gap: 8px;
@@ -47,14 +47,14 @@
 .ijh-input {
   flex: 1; min-width: 0; box-sizing: border-box;
   padding: 9px 12px; border-radius: 10px;
-  border: 1px solid #E5E7EB; background: #FAFAF8;
+  border: 1px solid #E5E7EB; background: #F8FAFC;
   font: 400 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
   transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
 }
 .ijh-input::placeholder { color: #AEB4C2; }
 .ijh-input:focus {
   outline: none; background: #FFFFFF;
-  border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7;
+  border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 .ijh-save {
   flex-shrink: 0; padding: 9px 16px; border-radius: 10px;

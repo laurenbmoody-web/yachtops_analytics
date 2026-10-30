@@ -270,7 +270,7 @@
 @layer components {
   .nav-header {
     /* Pinned to white app-wide. Previously inherited bg-card which on
-       the day theme resolves to the warm cream #FAF8F4, so on pages
+       the day theme resolves to the warm cream #F8FAFC, so on pages
        that use that page background (provisioning board, suppliers
        directory) the nav bar visually merged into the page. Crew
        Profile already overrode --color-card to white locally; this

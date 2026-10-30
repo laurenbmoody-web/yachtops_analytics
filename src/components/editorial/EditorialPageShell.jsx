@@ -35,15 +35,15 @@ import NowAndDutyStack from '../../pages/pantry/widgets/NowAndDutyStack';
  * scoped scoping. See pantry.css token block for the shared selectors.
  *
  * Body background: the shell sets `document.body.style.background` to
- * the editorial cream (`#F5F1EA`) on mount and restores it on unmount.
- * This extends the cream past the inner content to the viewport edges.
+ * the editorial ground (`#F8FAFC`) on mount and restores it on unmount.
+ * This extends the ground past the inner content to the viewport edges.
  * Pass `manageBodyBg={false}` to opt out (e.g. when nesting under a
  * different page that already manages it). Pass `bodyBg='#XXXXXX'` to
  * lift the body to a different ground — e.g. cool dashboard surfaces
  * (`#F8FAFC` / `var(--d-bg)`) for provisioning consumers.
  */
 
-const EDITORIAL_BG_WARM = '#F5F1EA';
+const EDITORIAL_BG = '#F8FAFC';
 
 export default function EditorialPageShell({
   // Headline pattern
@@ -78,7 +78,7 @@ export default function EditorialPageShell({
 
   // Body bg lift
   manageBodyBg = true,
-  bodyBg = EDITORIAL_BG_WARM,
+  bodyBg = EDITORIAL_BG,
 
   // Page content
   children,

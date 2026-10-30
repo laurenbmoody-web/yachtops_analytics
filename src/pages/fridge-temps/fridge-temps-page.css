@@ -87,7 +87,7 @@
   font-size: 11px; font-weight: 600; white-space: nowrap;
 }
 .ftp-badge.done { background: #E7F4EE; color: #2F855A; }
-.ftp-badge.due { background: #FBEFE9; color: #C65A1A; }
+.ftp-badge.due { background: #EEF2F7; color: #C65A1A; }
 .ftp-badge.breach { background: #FBE3DF; color: #B42318; }
 
 /* ── manage rows ── */
@@ -96,7 +96,7 @@
   border: 1px solid #E5E7EB; border-radius: 9px; background: #FFFFFF; padding: 9px 11px;
   font: inherit; font-size: 13.5px; color: #1C1B3A; box-sizing: border-box; width: 100%;
 }
-.ftp-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.ftp-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .ftp-mname { flex: 2 1 150px; width: auto; }
 .ftp-mkind { flex: 0 0 110px; width: auto; }
 .ftp-mloc { flex: 2 1 160px; width: auto; }
@@ -151,7 +151,7 @@
   align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid #F3F5F8; font-size: 13px;
 }
 .ftp-logrow:last-child { border-bottom: 0; }
-.ftp-logrow:nth-child(even):not(.ftp-loghd) { background: #FCFCFB; }
+.ftp-logrow:nth-child(even):not(.ftp-loghd) { background: #FBFBFC; }
 .ftp-loghd {
   font: 700 9px 'Inter', system-ui, sans-serif; letter-spacing: .8px; text-transform: uppercase;
   color: #8B8478; background: #F8FAFC;
@@ -175,7 +175,7 @@
   padding: 10px; border-radius: 10px; border: 1px solid #E5E7EB; background: #fff; color: #6B7280;
   font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer;
 }
-.ftp-seg button.on { border-color: #C65A1A; background: #FBEFE9; color: #C65A1A; }
+.ftp-seg button.on { border-color: #C65A1A; background: #EEF2F7; color: #C65A1A; }
 .ftp-rangerow { display: flex; align-items: center; gap: 10px; }
 .ftp-rangeto { color: #8B8478; font-size: 13px; }
 

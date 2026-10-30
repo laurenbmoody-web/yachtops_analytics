@@ -46,7 +46,7 @@ const orderTotal = (o) => (o.supplier_order_items ?? []).reduce((s, i) => s + it
 const yachtOf = (o) => o.yacht_client_name || o.vessel_name || o.yacht_name || 'Yacht client';
 const initialsOf = (name) => (name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '—';
 const TINTS = [
-  { bg: '#EAF1FB', fg: '#3B6BA5' }, { bg: '#FBEFE9', fg: '#C65A1A' }, { bg: '#EAF6EF', fg: '#1D7A4D' },
+  { bg: '#EAF1FB', fg: '#3B6BA5' }, { bg: '#EEF2F7', fg: '#C65A1A' }, { bg: '#EAF6EF', fg: '#1D7A4D' },
   { bg: '#F3EEFB', fg: '#6D4BA5' }, { bg: '#FDF2E7', fg: '#B07A16' }, { bg: '#FBEAF0', fg: '#B23A6B' },
 ];
 const tintOf = (name) => TINTS[[...(name || 'x')].reduce((h, c) => (h + c.charCodeAt(0)) | 0, 0) % TINTS.length];

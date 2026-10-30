@@ -15,7 +15,7 @@
 }
 .shm-panel {
   background: #FFFFFF;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
   width: min(480px, 94vw);
@@ -89,7 +89,7 @@
 .shm-tab-count {
   font-size: 10px;
   font-weight: 700;
-  background: #FBEFE9;
+  background: #EEF2F7;
   color: #C65A1A;
   border-radius: 999px;
   padding: 1px 7px;
@@ -116,8 +116,8 @@
   font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px;
   color: #1C1B3A;
-  background: #FAFAF8;
-  border: 1px solid #E8E6DF;
+  background: #F8FAFC;
+  border: 1px solid #E1E3E6;
   border-radius: 10px;
   padding: 9px 12px;
   outline: none;
@@ -128,15 +128,15 @@
 .shm-field:focus {
   background: #fff;
   border-color: #C65A1A;
-  box-shadow: 0 0 0 3px #FAECE7;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 select.shm-field { cursor: pointer; }
 .shm-select-sm {
   font-size: 11.5px;
   padding: 4px 8px;
   border-radius: 8px;
-  border: 1px solid #E8E6DF;
-  background: #FAFAF8;
+  border: 1px solid #E1E3E6;
+  background: #F8FAFC;
   color: #1C1B3A;
   cursor: pointer;
   outline: none;
@@ -206,8 +206,8 @@ select.shm-field { cursor: pointer; }
   padding: 5px 11px;
   border-radius: 999px;
   cursor: pointer;
-  border: 1px solid #E8E6DF;
-  background: #FAFAF8;
+  border: 1px solid #E1E3E6;
+  background: #F8FAFC;
   color: #1C1B3A;
   transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
@@ -226,7 +226,7 @@ select.shm-field { cursor: pointer; }
   line-height: 0;
   transition: color 0.12s ease, background 0.12s ease;
 }
-.shm-icon-btn:hover { color: #C65A1A; background: #FBEFE9; }
+.shm-icon-btn:hover { color: #C65A1A; background: #EEF2F7; }
 
 /* ── Collaborator row ────────────────────────────────────────── */
 .shm-collab-row {
@@ -270,7 +270,7 @@ select.shm-field { cursor: pointer; }
 .shm-collab-you {
   font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: #C65A1A;
-  background: #FBEFE9; border-radius: 999px; padding: 1px 7px;
+  background: #EEF2F7; border-radius: 999px; padding: 1px 7px;
   margin-left: 6px;
 }
 
@@ -285,10 +285,10 @@ select.shm-field { cursor: pointer; }
   max-height: 296px;            /* ~6 crew rows */
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: #D4D2CB transparent;
+  scrollbar-color: #CDCFD2 transparent;
 }
 .shm-search-inline::-webkit-scrollbar { width: 6px; }
-.shm-search-inline::-webkit-scrollbar-thumb { background: #D4D2CB; border-radius: 3px; }
+.shm-search-inline::-webkit-scrollbar-thumb { background: #CDCFD2; border-radius: 3px; }
 
 /* Department group header — tracked caps + chevron, terracotta on
    hover. Sticky so the group label stays visible while its members
@@ -304,7 +304,7 @@ select.shm-field { cursor: pointer; }
   padding: 8px 2px;
   background: #fff;
   border: 0;
-  border-bottom: 1px solid #F4F4F0;
+  border-bottom: 1px solid #F1F2F3;
   cursor: pointer;
   text-align: left;
 }
@@ -329,7 +329,7 @@ select.shm-field { cursor: pointer; }
   font-size: 10px;
   font-weight: 600;
   color: #AEB4C2;
-  background: #F4F4F0;
+  background: #F1F2F3;
   border-radius: 999px;
   padding: 1px 7px;
 }
@@ -344,7 +344,7 @@ select.shm-field { cursor: pointer; }
   padding: 9px 2px;
   background: none;
   border: 0;
-  border-bottom: 1px solid #F4F4F0;
+  border-bottom: 1px solid #F1F2F3;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -352,7 +352,7 @@ select.shm-field { cursor: pointer; }
   transition: background 0.1s ease;
 }
 .shm-search-item:last-child { border-bottom: 0; }
-.shm-search-item:hover { background: #FAFAF8; }
+.shm-search-item:hover { background: #F8FAFC; }
 .shm-default-perm {
   display: flex; align-items: center; gap: 8px;
   margin-top: 8px;

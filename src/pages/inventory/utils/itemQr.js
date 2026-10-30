@@ -38,12 +38,12 @@ const LABEL_CSS = `
   * { box-sizing: border-box; }
   html, body { margin: 0; }
   body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1C1B3A; background: #EEF0F4; }
-  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 18px; background: #FFFFFF; border-bottom: 1px solid #E5E2DA; position: sticky; top: 0; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 18px; background: #FFFFFF; border-bottom: 1px solid #DCDFE3; position: sticky; top: 0; }
   .bar label { font: 700 9px system-ui; letter-spacing: .12em; text-transform: uppercase; color: #8B8478; }
-  .bar select { font: 500 13px 'Inter', system-ui; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E5E2DA; border-radius: 9px; padding: 8px 10px; }
+  .bar select { font: 500 13px 'Inter', system-ui; color: #1C1B3A; background: #F8FAFC; border: 1px solid #DCDFE3; border-radius: 9px; padding: 8px 10px; }
   .bar button { font: 600 13px 'Inter', system-ui; border-radius: 9px; padding: 9px 15px; border: 1px solid transparent; cursor: pointer; }
   .bar .print { background: #C65A1A; color: #fff; }
-  .bar .png { background: #fff; color: #C65A1A; border-color: #E5E2DA; }
+  .bar .png { background: #fff; color: #C65A1A; border-color: #DCDFE3; }
   .bar .hint { flex-basis: 100%; font-size: 11.5px; color: #6B7280; }
   .stage { padding: 26px; }
   .labels { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
@@ -53,7 +53,7 @@ const LABEL_CSS = `
   .label.card.mini .qr { width: 108px; height: 108px; }
   .label.card.mini .name { font-size: 15px; margin: 5px 0 1px; }
   .label.card.mini .code { margin-top: 6px; font-size: 10.5px; }
-  .label.card { width: 320px; flex-direction: column; text-align: center; border: 1px solid #E5E2DA; border-radius: 14px; padding: 22px; }
+  .label.card { width: 320px; flex-direction: column; text-align: center; border: 1px solid #DCDFE3; border-radius: 14px; padding: 22px; }
   .label.tag { border: 1px dashed #C9CDD6; padding: 3mm 4mm; }
   .label .qr { flex: none; }
   .label.card .qr { width: 200px; height: 200px; }
@@ -75,7 +75,7 @@ const LABEL_CSS = `
     .labels { display: flex; }
     .labels.sheet { display: grid; grid-template-columns: repeat(auto-fill, minmax(46mm, 1fr)); gap: 5mm; padding: 8mm; }
     .label.card { margin: 14mm auto; border: 0; }
-    .label.card.mini { margin: 0; border: 1px solid #E5E2DA; }
+    .label.card.mini { margin: 0; border: 1px solid #DCDFE3; }
     .label.tag { border: 0; }
     .copy-page { break-after: page; page-break-after: always; }
     .copy-page:last-child { break-after: auto; page-break-after: auto; }
@@ -108,11 +108,11 @@ export async function printItemQr({ code, name, brand, location, win }) {
       <label for="sz">Label size</label>
       <select id="sz">${options}<option value="custom">Custom size…</option></select>
       <span id="customwrap" style="display:none;align-items:center;gap:6px;font-size:12.5px;color:#6B7280">
-        <input id="cw" type="number" min="10" max="300" step="1" value="50" style="width:64px;font:500 13px 'Inter',system-ui;border:1px solid #E5E2DA;border-radius:8px;padding:7px 8px" /> ×
-        <input id="ch" type="number" min="10" max="300" step="1" value="25" style="width:64px;font:500 13px 'Inter',system-ui;border:1px solid #E5E2DA;border-radius:8px;padding:7px 8px" /> mm
+        <input id="cw" type="number" min="10" max="300" step="1" value="50" style="width:64px;font:500 13px 'Inter',system-ui;border:1px solid #DCDFE3;border-radius:8px;padding:7px 8px" /> ×
+        <input id="ch" type="number" min="10" max="300" step="1" value="25" style="width:64px;font:500 13px 'Inter',system-ui;border:1px solid #DCDFE3;border-radius:8px;padding:7px 8px" /> mm
       </span>
       <label for="copies" style="margin-left:4px">Copies</label>
-      <input id="copies" type="number" min="1" max="200" step="1" value="1" style="width:60px;font:500 13px 'Inter',system-ui;border:1px solid #E5E2DA;border-radius:8px;padding:7px 8px" />
+      <input id="copies" type="number" min="1" max="200" step="1" value="1" style="width:60px;font:500 13px 'Inter',system-ui;border:1px solid #DCDFE3;border-radius:8px;padding:7px 8px" />
       <button class="print" onclick="window.print()">Print</button>
       <button class="png" id="dl">Download PNG</button>
       <span class="hint">Pick your label stock (or a <b>Custom size</b>) and how many <b>Copies</b> — on the A4 sheet, multiples tile across the page (e.g. 60 to a sheet); on a label size they print one per label. Then <b>Print</b> to your Brother / Dymo / Zebra printer, or <b>Download PNG</b> for P-touch Editor, Dymo Connect or Zebra software.</span>

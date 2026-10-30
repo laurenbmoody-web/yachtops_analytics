@@ -16,7 +16,7 @@
 .prov-more:hover{color:#C65A1A;}
 
 /* Unplanned-trip prompt — the one terracotta call to action. */
-.prov-trip{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:9px;background:#FBEFE9;margin-top:10px;}
+.prov-trip{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:9px;background:#EEF2F7;margin-top:10px;}
 .prov-trip svg{flex:0 0 auto;color:#C65A1A;}
 .prov-trip-t{flex:1;min-width:0;font-size:12px;color:#1C1B3A;}
 .prov-trip-t b{color:#C65A1A;}

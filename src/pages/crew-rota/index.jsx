@@ -23,7 +23,7 @@ import { supabase } from '../../lib/supabaseClient';
 // props so they can react to the workspace's live state (selectedDate,
 // crew, editMode, draftDayCount, …) without lifting any of it.
 
-const EDITORIAL_BG = '#F5F1EA';
+const EDITORIAL_BG = '#F8FAFC';
 
 function RotaLegend({ now }) {
   const hhmmNow = now
@@ -36,11 +36,11 @@ function RotaLegend({ now }) {
         <span>Scheduled</span>
       </div>
       <div className="crew-rota-legend-item">
-        <span className="crew-rota-legend-swatch" style={{ background: '#F7F5F0' }} />
+        <span className="crew-rota-legend-swatch" style={{ background: '#F2F3F5' }} />
         <span>Off</span>
       </div>
       <div className="crew-rota-legend-item">
-        <span className="crew-rota-legend-swatch" style={{ background: '#EDEAE3' }} />
+        <span className="crew-rota-legend-swatch" style={{ background: '#E5E8EB' }} />
         <span>Saturday</span>
       </div>
       {now && (

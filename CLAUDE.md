@@ -98,8 +98,9 @@ an old-styled surface, bring it up to this system.
 - Navy ink (text/headings): `#1C1B3A`
 - Terracotta accent (primary actions, selected, emphasis): `#C65A1A` (hover `#B14E16`)
 - Muted text: `#8B8478` / `#6B7280`; faint: `#AEB4C2`
-- Soft borders / hairlines: `#E5E7EB`, `#EEF0F4`, `#F0F1F5` on page surfaces;
-  `#ECEAE3` is fine as the thin hairline on portaled modals/panels.
+- Soft borders / hairlines: `#E5E7EB`, `#EEF0F4`, `#F0F1F5` — on page surfaces
+  and on portaled modals/panels alike. (`#ECEAE3` used to be allowed here; it is
+  beige and is now banned, see below.)
 - Soft field bg: `#F8FAFC`; soft hover / inset: `#F1F5F9`
 - **Page canvas: `#F8FAFC`** ("clean maritime white", cool) — this is the ONLY
   page background. Cards on it are `#FFFFFF` with a `#E5E7EB` border.
@@ -118,9 +119,18 @@ stays the accent, but as **text, border, or a solid fill with white text** — n
 as a pale wash. For a focus ring use `rgba(198,90,26,0.14)`, which is terracotta
 at low opacity rather than a beige swatch.
 
-One known exception still in the tree: `EditorialPageShell` sets the body to
-cream `#F5F1EA` by default and Pantry relies on it. Pass `bodyBg="#F8FAFC"` when
-using that shell, and do not copy the default into anything new.
+The whole tree has been swept — there is no beige left in `src/`, including
+`EditorialPageShell` (which used to ground the body in cream `#F5F1EA`) and the
+date picker's old sand tokens. Each of the ~160 hand-rolled beiges was converted
+to a cool value **at the same lightness**, so every contrast relationship those
+pages were built on still holds.
+
+What was deliberately NOT swept, because it is not beige: pale reds (`#FEF2F2`,
+`#FECACA`) for errors, pale ambers (`#FEF3C7`, `#FBEFD9`) for warnings, and
+terracotta `#C65A1A` itself. Those are semantic, not decoration. The dividing
+line is saturation — beige sits around 0.42 and below, the nearest amber at
+0.76 — so if you are unsure whether a warm colour is beige, check its hue is in
+30–70° and its saturation is under ~0.55.
 
 **Type**
 - Headings: `'DM Serif Display', 'DM Serif Text', Georgia, serif`
@@ -149,12 +159,12 @@ a tab that owns the viewport) leads with the same two elements — do NOT invent
 **Shape & layout**
 - No heavy boxed cards. Separate items with hairline rules (`border-bottom:1px
   solid #F0F1F5`) and whitespace — editorial sections, not boxed widgets.
-- Panels/modals: radius `12–16px`, border `1px solid #ECEAE3`, soft shadow
+- Panels/modals: radius `12–16px`, border `1px solid #E5E7EB`, soft shadow
   (`0 24px 60px -16px rgba(28,27,58,0.32)`).
 - Pills are fully rounded (`border-radius:999px`) — tags, chips, statuses.
   Selected pill = filled terracotta, white text.
 - Inputs: soft field card, focus halo = `border-color:#C65A1A; box-shadow:0 0 0
-  3px #FAECE7`.
+  3px rgba(198,90,26,0.14)`.
 - Primary button: terracotta fill, radius `10px`. Ghost: white, soft border.
 
 **Conventions**

@@ -6,7 +6,7 @@
 }
 .ro-panel {
   width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto;
-  background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 16px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
@@ -20,11 +20,11 @@
 .ro-lab { display: block; margin: 14px 0 7px; font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .ro-qty, .ro-newtitle {
   width: 100%; box-sizing: border-box; padding: 10px 12px;
-  background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 10px;
+  background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 10px;
   font: 500 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
 }
 .ro-qty { max-width: 120px; }
-.ro-qty:focus, .ro-newtitle:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.ro-qty:focus, .ro-newtitle:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .ro-newtitle { margin-top: 8px; }
 .ro-loading { font-size: 13px; color: #8B8478; margin: 4px 0; }
 .ro-note { font-size: 12.5px; line-height: 1.5; color: #6B7280; margin: 2px 0 4px; }
@@ -56,7 +56,7 @@
   border: 1px solid #E5E7EB; background: #FFFFFF; transition: border-color .12s, background .12s;
 }
 .ro-opt:hover { border-color: #C9CED6; }
-.ro-opt.on { border-color: #C65A1A; background: #FBEFE9; }
+.ro-opt.on { border-color: #C65A1A; background: #EEF2F7; }
 .ro-opt input { accent-color: #C65A1A; }
 .ro-opt-title { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: #1C1B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ro-opt-title svg { color: #C65A1A; flex: none; }

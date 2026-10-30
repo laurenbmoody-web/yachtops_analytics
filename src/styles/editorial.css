@@ -18,7 +18,7 @@
    Canonical values (from pantry.css):
      ink      #1C1B3A   ink-muted #695880   accent #C65A1A
      serif    'DM Serif Display'   sans 'Plus Jakarta Sans'
-     border   #DFD8CC
+     border   #D0D5DB
    ============================================================ */
 
 .editorial-greeting {
@@ -72,7 +72,7 @@
   display: inline-block;
   width: 1px;
   height: 10px;
-  background: #DFD8CC;
+  background: #D0D5DB;
   margin: 0 10px;
   flex-shrink: 0;
 }

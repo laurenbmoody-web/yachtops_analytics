@@ -85,7 +85,7 @@ function DutyRow({
     <div
       className={`rt-duty-row${sameTimes ? ' is-invalid' : ''}`}
       draggable
-      style={{ '--rt-duty-color': TYPE_COLOR[duty.shift_type] || '#B4B2A9' }}
+      style={{ '--rt-duty-color': TYPE_COLOR[duty.shift_type] || '#ABAEB2' }}
       onDragStart={(e) => onDragStart(e, index)}
       onDragOver={(e) => { e.preventDefault(); onDragOver(e, index); }}
       onDrop={(e) => { e.preventDefault(); onDrop(e, index); }}
@@ -470,13 +470,13 @@ export default function RotationTemplateEditor({
                     );
                   }
                   const d = duties[di];
-                  const c = TYPE_COLOR[d.shift_type] || '#B4B2A9';
+                  const c = TYPE_COLOR[d.shift_type] || '#ABAEB2';
                   return (
                     <div
                       key={`c-${j}-${k}`}
                       className="rt-cell"
                       role="gridcell"
-                      style={{ background: c, color: '#F5F1EA' }}
+                      style={{ background: c, color: '#F8FAFC' }}
                     >
                       <div className="rt-cell-label">{d.label || 'Duty'}</div>
                       <div className="rt-cell-time">{d.start_time}–{d.end_time}</div>
