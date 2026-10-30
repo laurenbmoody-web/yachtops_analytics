@@ -9,8 +9,8 @@ const DEPT_BADGE_LABEL = { draft: 'Draft', pending_approval: 'Pending', publishe
 
 function avatarColors(onDuty) {
   return onDuty
-    ? { bg: '#FAECE7', fg: '#7A2E1E' }
-    : { bg: '#ECE6DC', fg: '#5C5440' };
+    ? { bg: '#EEF2F7', fg: '#7A2E1E' }
+    : { bg: '#E0E4E8', fg: '#5C5440' };
 }
 
 function pad2(n) { return String(n).padStart(2, '0'); }

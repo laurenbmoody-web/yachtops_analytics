@@ -192,7 +192,7 @@ const Detail = ({ p, onExport, onOpenItem, vessel, billing }) => {
             <div className="lb-clockwrap">
               <div className="lb-clock">
                 <svg viewBox="0 0 100 100" aria-label={`Average turnaround ${p.avg}`}>
-                  <circle cx="50" cy="50" r="40" fill="#FDFCFA" stroke="#ECECEE" strokeWidth="2" />
+                  <circle cx="50" cy="50" r="40" fill="#FBFBFC" stroke="#ECECEE" strokeWidth="2" />
                   <g stroke="#CFCFD6" strokeWidth="2" strokeLinecap="round">
                     <line x1="50" y1="13" x2="50" y2="19" /><line x1="87" y1="50" x2="81" y2="50" /><line x1="50" y1="87" x2="50" y2="81" /><line x1="13" y1="50" x2="19" y2="50" />
                   </g>

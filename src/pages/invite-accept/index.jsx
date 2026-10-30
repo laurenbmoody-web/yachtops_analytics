@@ -52,14 +52,14 @@ const isStrongPassword = (v) => PASSWORD_CHECKS.every((c) => c.test(v || ''));
 
 // Per-screen full-bleed theme — same palette/roles as onboarding's THEMES.
 const THEMES = {
-  invite:   { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
-  details:  { bg: '#1C1B3A', fg: '#F4F1EC', ac: '#E8915A' },
-  password: { bg: '#F4F1EC', fg: '#1C1B3A', ac: '#C65A1A' },
-  login:    { bg: '#F4F1EC', fg: '#1C1B3A', ac: '#C65A1A' },
-  join:     { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
-  loading:  { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
-  error:    { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
-  done:     { bg: '#F7F2E9', fg: '#1C1B3A', ac: '#C65A1A' },
+  invite:   { bg: '#EEF0F2', fg: '#1C1B3A', ac: '#C65A1A' },
+  details:  { bg: '#1C1B3A', fg: '#EEF0F2', ac: '#E8915A' },
+  password: { bg: '#EEF0F2', fg: '#1C1B3A', ac: '#C65A1A' },
+  login:    { bg: '#EEF0F2', fg: '#1C1B3A', ac: '#C65A1A' },
+  join:     { bg: '#EEF0F2', fg: '#1C1B3A', ac: '#C65A1A' },
+  loading:  { bg: '#EEF0F2', fg: '#1C1B3A', ac: '#C65A1A' },
+  error:    { bg: '#EEF0F2', fg: '#1C1B3A', ac: '#C65A1A' },
+  done:     { bg: '#EEF0F2', fg: '#1C1B3A', ac: '#C65A1A' },
 };
 const DARK_SCREENS = ['details']; // needs the inverted (white) logo
 

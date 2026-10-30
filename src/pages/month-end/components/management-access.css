@@ -41,7 +41,7 @@
 }
 .ma-field input::placeholder { color: #C3C7D0; }
 .ma-field input:focus {
-  outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7;
+  outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 
 .ma-act { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 10px; }

@@ -17,7 +17,7 @@ const CAL_COLORS = {
   medical_leave: '#E8A29A',
   training_leave: '#9DBCF0',
   travelling: '#7FD3CA',
-  invited: '#D8D6CF',
+  invited: '#D1D3D6',
 };
 const calColor = (s) => CAL_COLORS[s] || '#F0F1F5';
 

@@ -15,7 +15,7 @@
 }
 .cb-item:last-child { border-right: 0; }
 .cb-item + .cb-item { padding-left: 20px; }
-.cb-item:hover { background: #FBFAF8; }
+.cb-item:hover { background: #F9F9FA; }
 .cb-item:focus-visible { outline: 2px solid #C65A1A; outline-offset: -2px; }
 
 .cb-item b {
@@ -34,7 +34,7 @@
    down rather than merely hovered. */
 .cb-item.on b { color: #1C1B3A; }
 .cb-item.on em { color: #C65A1A; }
-.cb-item.on { background: #FBFAF8; box-shadow: inset 0 -2px 0 0 #C65A1A; }
+.cb-item.on { background: #F9F9FA; box-shadow: inset 0 -2px 0 0 #C65A1A; }
 
 @media (max-width: 620px) {
   .cb-set { flex-direction: column; }

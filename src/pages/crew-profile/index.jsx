@@ -168,7 +168,7 @@ const TagInput = ({ value, disabled, onChange, placeholder }) => {
 const SPICE_LEVELS = ['Mild', 'Medium', 'Hot', 'Very hot'];
 const Flame = ({ on }) => (
   <Icon name="Flame" size={19} strokeWidth={1.8}
-    color={on ? '#C65A1A' : '#D6CCC2'} fill={on ? '#C65A1A' : 'none'} />
+    color={on ? '#C65A1A' : '#C7CBD2'} fill={on ? '#C65A1A' : 'none'} />
 );
 const SpiceField = ({ value, disabled, onChange }) => {
   const idx = SPICE_LEVELS.indexOf(value); // -1 when not set

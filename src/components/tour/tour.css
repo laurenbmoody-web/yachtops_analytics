@@ -54,7 +54,7 @@
   box-sizing: border-box;
   padding: 15px 17px 16px;
   background: #FFFFFF;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 14px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
   pointer-events: none;
@@ -71,8 +71,8 @@
   width: 11px;
   height: 11px;
   background: #FFFFFF;
-  border-left: 1px solid #ECEAE3;
-  border-top: 1px solid #ECEAE3;
+  border-left: 1px solid #E5E7EB;
+  border-top: 1px solid #E5E7EB;
   transform: translateX(-50%) rotate(45deg);
 }
 .gt-tip[data-side='below'] .gt-arrow { top: -6px; }
@@ -116,7 +116,7 @@
   width: 268px;
   padding: 11px 13px 12px;
   background: #FFFFFF;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 14px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
 }

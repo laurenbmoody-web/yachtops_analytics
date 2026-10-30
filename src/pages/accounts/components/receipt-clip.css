@@ -5,7 +5,7 @@
   position: fixed;
   z-index: 1200;
   background: #FFFFFF;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 12px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
   padding: 4px 0;
@@ -39,7 +39,7 @@
   color: #1C1B3A;
   text-align: left;
 }
-.rc-item:hover { background: #FAFAF8; color: #C65A1A; }
+.rc-item:hover { background: #F8FAFC; color: #C65A1A; }
 .rc-item:disabled { opacity: .5; cursor: default; }
 .rc-item svg { color: #8B8478; flex: 0 0 auto; }
 .rc-item:hover svg { color: #C65A1A; }
@@ -57,7 +57,7 @@
   flex: 0 0 auto; border: 0; background: none; cursor: pointer;
   font-size: 15px; line-height: 1; color: #AEB4C2; padding: 2px 5px; border-radius: 6px;
 }
-.rc-att-x:hover { color: #C65A1A; background: #FBEFE9; }
+.rc-att-x:hover { color: #C65A1A; background: #EEF2F7; }
 
 .rc-reason {
   display: block;
@@ -66,7 +66,7 @@
   margin: 0 14px;
   min-width: 0;
   padding: 7px 9px;
-  background: #FAFAF8;
+  background: #F8FAFC;
   border: 1px solid #E5E7EB;
   border-radius: 8px;
   font: inherit;
@@ -74,7 +74,7 @@
   color: #1C1B3A;
 }
 .rc-reason::placeholder { color: #AEB4C2; }
-.rc-reason:focus { outline: 0; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.rc-reason:focus { outline: 0; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 
 .rc-act { display: flex; justify-content: flex-end; gap: 8px; padding: 9px 14px 3px; }
 .rc-ghost, .rc-save {

@@ -264,7 +264,7 @@ export default function BudgetDetail() {
         <span className="bg-row-act">
           {canEdit && row.id && (
             <button type="button" className="bg-icon-btn" onClick={() => openFullEdit(row)} aria-label="Edit line" title="Edit code, comment, delete">
-              <Icon name="Pencil" size={13} color="#CFCABF" />
+              <Icon name="Pencil" size={13} color="#C3C7CB" />
             </button>
           )}
         </span>

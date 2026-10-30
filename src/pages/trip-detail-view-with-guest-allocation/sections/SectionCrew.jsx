@@ -70,7 +70,7 @@ export default function SectionCrew() {
           fontFamily: 'var(--font-serif)', fontSize: 32, color: '#1C1B3A', lineHeight: 1,
         }}>{onDuty}</span>
         <span style={{
-          fontFamily: 'var(--font-serif)', fontSize: 32, color: '#DFD8CC', lineHeight: 1,
+          fontFamily: 'var(--font-serif)', fontSize: 32, color: '#D0D5DB', lineHeight: 1,
           margin: '0 6px',
         }}>/</span>
         <span style={{
@@ -88,7 +88,7 @@ export default function SectionCrew() {
           return (
             <div key={dept} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '8px 0', borderTop: '0.5px solid #ECE6DC',
+              padding: '8px 0', borderTop: '0.5px solid #E0E4E8',
             }}>
               <span style={{
                 fontSize: 9, textTransform: 'uppercase', letterSpacing: 1,
@@ -108,7 +108,7 @@ export default function SectionCrew() {
       {/* MLC warnings */}
       {warnings.length > 0 && (
         <div style={{
-          marginTop: 4, paddingTop: 10, borderTop: '0.5px solid #ECE6DC',
+          marginTop: 4, paddingTop: 10, borderTop: '0.5px solid #E0E4E8',
           display: 'flex', flexDirection: 'column', gap: 6,
         }}>
           {warnings.map(c => (

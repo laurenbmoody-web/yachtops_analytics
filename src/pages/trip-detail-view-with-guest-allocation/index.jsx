@@ -16,7 +16,7 @@ import SectionDocuments   from './sections/SectionDocuments';
 import SectionPhotos      from './sections/SectionPhotos';
 import SectionActivity    from './sections/SectionActivity';
 
-const EDITORIAL_BG = '#F5F1EA';
+const EDITORIAL_BG = '#F8FAFC';
 
 export default function TripDetail() {
   const { tripId } = useParams();

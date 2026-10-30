@@ -33,7 +33,7 @@ const ExportIllo = () => (
     <line x1="44" y1="98" x2="86" y2="98" stroke="#AEB4C2" strokeWidth="1.4" strokeLinecap="round" />
     <line x1="44" y1="108" x2="74" y2="108" stroke="#AEB4C2" strokeWidth="1.4" strokeLinecap="round" />
     <path d="M112 78 L142 78 M142 78 L134 70 M142 78 L134 86" stroke="#1C1B3A" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    <rect x="152" y="62" width="52" height="32" rx="16" fill="#FBEFE9" />
+    <rect x="152" y="62" width="52" height="32" rx="16" fill="#EEF2F7" />
     <text x="178" y="83" textAnchor="middle" fontSize="13" fontWeight="700" fill="#C65A1A" fontFamily="Inter, system-ui, sans-serif">SPZ</text>
   </svg>
 );

@@ -39,7 +39,7 @@ const SOFT = {
   travelling: { bg: '#E5F0ED', ink: '#2E7D6B' },
   invited: { bg: '#F0F1F4', ink: '#6B7280' },
 };
-const soft = (s) => SOFT[s] || { bg: '#F6F5F1', ink: '#8B8478' };
+const soft = (s) => SOFT[s] || { bg: '#F2F3F5', ink: '#8B8478' };
 const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 // Short labels for the bottom status tab (active = no tab; it's the default).

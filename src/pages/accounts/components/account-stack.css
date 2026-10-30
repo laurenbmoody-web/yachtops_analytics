@@ -88,7 +88,7 @@
 .as-morebtn:hover { border-color: #C65A1A; color: #C65A1A; }
 .as-morepop {
   position: absolute; left: 0; top: 38px; z-index: 30; min-width: 220px;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 12px; padding: 6px;
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; padding: 6px;
   box-shadow: 0 24px 60px -16px rgba(28,27,58,.32);
   display: flex; flex-direction: column;
 }
@@ -96,7 +96,7 @@
   border: 0; background: none; border-radius: 8px; padding: 7px 10px; cursor: pointer;
   font: inherit; font-size: 12.5px; color: #1C1B3A; text-align: left;
 }
-.as-morepop button:hover { background: #FAFAF8; color: #C65A1A; }
+.as-morepop button:hover { background: #F8FAFC; color: #C65A1A; }
 
 .as-orphan {
   display: flex; align-items: center; gap: 6px; margin-top: 12px;

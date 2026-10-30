@@ -7,7 +7,7 @@
 .ob-field {
   font-family: 'Inter', system-ui, sans-serif;
   color: #1C1B3A;
-  background: #FAFAF8;
+  background: #F8FAFC;
   border: 1px solid #E5E7EB;
   border-radius: 10px;
   padding: 9px 12px;
@@ -17,7 +17,7 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .ob-field::placeholder { color: #AEB4C2; }
-.ob-field:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.ob-field:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .ob-field:disabled { opacity: 0.6; }
 
 .ob-card-hover { transition: transform 200ms ease, box-shadow 200ms ease; }

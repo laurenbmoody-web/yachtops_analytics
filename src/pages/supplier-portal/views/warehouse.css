@@ -31,7 +31,7 @@
 .wm-empty-badge {
   width: 52px; height: 52px; border-radius: 15px; margin: 0 auto 16px;
   display: flex; align-items: center; justify-content: center;
-  background: #FBEFE9; color: var(--orange, #C65A1A);
+  background: #EEF2F7; color: var(--orange, #C65A1A);
 }
 .wm-empty-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 22px; color: var(--navy-deep, #141D2E); }
 .wm-empty p { max-width: 440px; margin: 8px auto 22px; font-size: 13.5px; line-height: 1.6; color: var(--muted-strong, #64748B); }
@@ -45,14 +45,14 @@
 .wm-zone-icon {
   width: 34px; height: 34px; border-radius: 10px; flex: none;
   display: flex; align-items: center; justify-content: center;
-  background: var(--zt, #FBEFE9); color: var(--zc, #C65A1A);
+  background: var(--zt, #EEF2F7); color: var(--zc, #C65A1A);
 }
 .wm-zone-label { font-size: 14.5px; font-weight: 700; color: var(--fg, #0C0E14); letter-spacing: -0.01em; }
 .wm-zone-hint { font-size: 11.5px; color: var(--muted-strong, #64748B); margin-top: 1px; }
 .wm-zone-count {
   margin-left: auto; min-width: 24px; height: 24px; padding: 0 8px; border-radius: 999px;
   display: inline-flex; align-items: center; justify-content: center;
-  background: var(--zt, #FBEFE9); color: var(--zc, #C65A1A); font-size: 12px; font-weight: 700;
+  background: var(--zt, #EEF2F7); color: var(--zc, #C65A1A); font-size: 12px; font-weight: 700;
 }
 
 /* ── Tile grid ───────────────────────────────────────────────────────────── */
@@ -109,14 +109,14 @@
 @keyframes wm-fade { from { opacity: 0; } to { opacity: 1; } }
 .wm-sheet {
   width: 100%; max-width: 460px; background: var(--card, #fff);
-  border: 1px solid #ECEAE3; border-bottom: none; border-radius: 18px 18px 0 0;
+  border: 1px solid #E5E7EB; border-bottom: none; border-radius: 18px 18px 0 0;
   padding: 22px 22px 26px; box-shadow: 0 -24px 60px -16px rgba(20,29,46,0.4);
   animation: wm-rise .22s cubic-bezier(0.16,1,0.3,1);
 }
 @keyframes wm-rise { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @media (min-width: 640px) {
   .wm-sheet-back { align-items: center; padding: 20px; }
-  .wm-sheet { border-radius: 16px; border-bottom: 1px solid #ECEAE3; }
+  .wm-sheet { border-radius: 16px; border-bottom: 1px solid #E5E7EB; }
 }
 .wm-sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .wm-sheet-title { font-family: 'DM Serif Display', Georgia, serif; font-size: 21px; color: var(--navy-deep, #141D2E); }
@@ -129,10 +129,10 @@
 .wm-field > span em { font-style: normal; color: var(--orange, #C65A1A); }
 .wm-field input {
   width: 100%; box-sizing: border-box; font-family: inherit; font-size: 14px; color: var(--fg, #0C0E14);
-  background: #FAFAF8; border: 1px solid var(--line, #E2E8F0); border-radius: 10px; padding: 11px 13px;
+  background: #F8FAFC; border: 1px solid var(--line, #E2E8F0); border-radius: 10px; padding: 11px 13px;
   transition: border-color .14s, box-shadow .14s;
 }
-.wm-field input:focus { outline: none; border-color: var(--orange, #C65A1A); box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.wm-field input:focus { outline: none; border-color: var(--orange, #C65A1A); box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); background: #fff; }
 
 .wm-zonepick { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
 .wm-zonepick-b {

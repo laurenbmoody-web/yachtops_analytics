@@ -39,7 +39,7 @@
 .td-cell .n { font-size: 12.5px; font-weight: 600; color: #1C1B3A; font-variant-numeric: tabular-nums; line-height: 1; }
 .td-cell.out .n { color: #C9CDD8; }
 .td-cell.is-today .n { color: #C65A1A; }
-.td-cell.is-sel { border-color: #C65A1A; background: #FBEFE9; }
+.td-cell.is-sel { border-color: #C65A1A; background: #EEF2F7; }
 .td-cell.is-today.is-sel { background: #C65A1A; }
 .td-cell.is-today.is-sel .n { color: #fff; }
 .td-dots { display: flex; gap: 2px; height: 4px; align-items: center; }
@@ -55,7 +55,7 @@
 .td-daylab.is-today { color: #C65A1A; }
 
 .td-ev { display: flex; align-items: center; gap: 11px; padding: 8px 4px; border-radius: 8px; cursor: pointer; transition: background .1s; }
-.td-ev:hover { background: #FAFAF8; }
+.td-ev:hover { background: #F8FAFC; }
 .td-ev-rail { flex: 0 0 auto; width: 3px; align-self: stretch; border-radius: 999px; background: #DADEE6; }
 .td-ev.is-group .td-ev-rail { background: var(--g); }
 .td-ev.is-crew .td-ev-rail { background: var(--c); }

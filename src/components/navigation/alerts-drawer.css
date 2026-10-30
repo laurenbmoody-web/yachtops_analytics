@@ -22,7 +22,7 @@
   height: calc(100vh - 64px);
   width: min(424px, 100vw);
   background: #FFFFFF;
-  border-left: 1px solid #EAE8E1;
+  border-left: 1px solid #E3E5E8;
   z-index: var(--z-dropdown, 1000);
   display: flex;
   flex-direction: column;
@@ -48,14 +48,14 @@
 
 /* Top bar — no title (the panel is more than an inbox); the tabs sit at the
    top with the close button trailing on the same row. */
-.ad-tabs { display: flex; align-items: flex-end; gap: 22px; padding: 18px 16px 0 22px; border-bottom: 1px solid #EFEDE7; }
+.ad-tabs { display: flex; align-items: flex-end; gap: 22px; padding: 18px 16px 0 22px; border-bottom: 1px solid #E9EBED; }
 .ad-tabgroup { display: flex; gap: 22px; flex: 1; }
 .ad-x {
   align-self: center; margin-bottom: 7px;
-  color: #B0ABA0; background: none; border: 0; padding: 5px; cursor: pointer;
+  color: #A4A8AC; background: none; border: 0; padding: 5px; cursor: pointer;
   display: inline-flex; border-radius: 8px; transition: color 0.14s ease, background 0.14s ease;
 }
-.ad-x:hover { color: #1C1B3A; background: #F5F3EE; }
+.ad-x:hover { color: #1C1B3A; background: #F0F1F3; }
 .ad-tab {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 0 1px 12px; margin-bottom: -1px;
@@ -70,13 +70,13 @@
   min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
   font-size: 10px; font-weight: 700; letter-spacing: 0; font-variant-numeric: tabular-nums;
   display: inline-flex; align-items: center; justify-content: center;
-  background: #F4EFE9; color: #B4602B;
+  background: #ECEEF1; color: #B4602B;
 }
 .ad-tab.is-active .ad-tab-count { background: #FBEEE6; color: #C65A1A; }
 
 /* Toolbar (Notifications) — segmented control + quiet icon actions */
 .ad-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 13px 22px 12px; }
-.ad-seg { display: inline-flex; background: #F1EEE8; border-radius: 9px; padding: 3px; gap: 2px; }
+.ad-seg { display: inline-flex; background: #EAECEF; border-radius: 9px; padding: 3px; gap: 2px; }
 .ad-seg-btn {
   border: 0; background: none; border-radius: 7px; padding: 4px 13px;
   font: inherit; font-size: 12px; font-weight: 500; color: #7C766B; cursor: pointer;
@@ -90,7 +90,7 @@
   width: 30px; height: 30px; border-radius: 8px; border: 0; background: none;
   color: #9C968B; cursor: pointer; transition: color 0.14s ease, background 0.14s ease;
 }
-.ad-iconbtn:hover:not(:disabled) { color: #1C1B3A; background: #F5F3EE; }
+.ad-iconbtn:hover:not(:disabled) { color: #1C1B3A; background: #F0F1F3; }
 .ad-iconbtn:disabled { opacity: 0.4; cursor: default; }
 
 /* Tab body holds one tab's scroll area + optional footer as a flex column. */
@@ -98,11 +98,11 @@
 
 /* Scroll area, day sections + rows */
 .ad-scroll { position: relative; flex: 1; overflow-y: auto; min-height: 0; padding-bottom: 6px; }
-.ad-summary { padding: 10px 22px; font-size: 11.5px; color: #A29C90; border-bottom: 1px solid #F2F0EA; }
+.ad-summary { padding: 10px 22px; font-size: 11.5px; color: #94999E; border-bottom: 1px solid #ECEEF0; }
 .ad-daylabel {
   position: sticky; top: 0; z-index: 2; background: #FFFFFF;
   padding: 10px 22px 6px; font-family: 'Outfit', system-ui, sans-serif;
-  font-size: 9.5px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: #ABA599;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: #9DA2A7;
 }
 
 /* A row is the flex layout (icon + main). Used directly (reviews/activity) or
@@ -118,14 +118,14 @@
 .ad-nrow { position: relative; border-bottom: 1px solid #EEF0F4; transition: background 0.14s ease; }
 .ad-nrow > .ad-row { border-bottom: 0; }
 .ad-nrow:hover { background: #F5F7FA; }
-.ad-nrow.is-unread { background: #FBEFE9; }
+.ad-nrow.is-unread { background: #EEF2F7; }
 .ad-nrow.is-unread:hover { background: #F7E4DA; }
-.ad-nrow.is-sub { background: #FCFBF9; }
+.ad-nrow.is-sub { background: #FAFAFB; }
 .ad-nrow.is-sub > .ad-row { padding-left: 40px; }
 
 .ad-ico {
   flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%;
-  background: #F5F3EE; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px;
+  background: #F0F1F3; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px;
 }
 .ad-main { flex: 1; min-width: 0; }
 .ad-row-top { display: flex; align-items: baseline; gap: 8px; }
@@ -133,29 +133,29 @@
 .ad-nrow.is-unread .ad-row-title { font-weight: 600; }
 .ad-titlewrap { display: inline-flex; align-items: baseline; gap: 7px; min-width: 0; flex: 1; }
 .ad-titlewrap .ad-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ad-time { flex: 0 0 auto; margin-left: auto; font-size: 11px; font-weight: 500; color: #B4AFA4; white-space: nowrap; font-variant-numeric: tabular-nums; transition: opacity 0.12s ease; }
+.ad-time { flex: 0 0 auto; margin-left: auto; font-size: 11px; font-weight: 500; color: #A8ACB0; white-space: nowrap; font-variant-numeric: tabular-nums; transition: opacity 0.12s ease; }
 .ad-msg {
   font-size: 12.5px; color: #77726A; margin-top: 2px; line-height: 1.5;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .ad-sub { display: block; font-size: 12.5px; color: #77726A; margin-top: 1px; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ad-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; font-size: 11px; color: #A29C90; }
+.ad-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; font-size: 11px; color: #94999E; }
 .ad-meta svg { flex: 0 0 auto; opacity: 0.8; }
-.ad-sep { color: #D8D4CB; }
+.ad-sep { color: #CED1D5; }
 .ad-cap { text-transform: capitalize; }
 .ad-udot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 999px; background: #C65A1A; align-self: center; }
 
 /* Category tag on review rows */
 .ad-cat {
   flex: 0 0 auto; font-family: 'Outfit', system-ui, sans-serif; font-size: 8.5px; font-weight: 700;
-  letter-spacing: 0.06em; text-transform: uppercase; color: #9A7B62; background: #F4EFE9;
+  letter-spacing: 0.06em; text-transform: uppercase; color: #9A7B62; background: #ECEEF1;
   border-radius: 999px; padding: 2px 7px;
 }
 
 /* Collapsed notification group */
 .ad-groupcount {
   flex: 0 0 auto; min-width: 18px; height: 17px; padding: 0 5px; border-radius: 999px;
-  background: #F1EFEA; color: #7C766B; font-size: 10.5px; font-weight: 700;
+  background: #ECEDEF; color: #7C766B; font-size: 10.5px; font-weight: 700;
   display: inline-flex; align-items: center; justify-content: center;
 }
 .ad-chev { flex: 0 0 auto; align-self: center; margin-top: 1px; transition: transform 0.16s ease; }
@@ -167,18 +167,18 @@
 .ad-nrow.has-acts:hover .ad-time, .ad-nrow.has-acts:focus-within .ad-time { opacity: 0; }
 .ad-act {
   display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
-  border-radius: 7px; border: 1px solid #ECEAE3; background: #FFFFFF; color: #8B8478; cursor: pointer;
+  border-radius: 7px; border: 1px solid #E5E7EB; background: #FFFFFF; color: #8B8478; cursor: pointer;
   transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
 }
-.ad-act:hover { color: #1C1B3A; background: #F6F5F2; border-color: #DAD6CD; }
+.ad-act:hover { color: #1C1B3A; background: #F3F4F5; border-color: #D0D3D7; }
 
 /* Empty + loading (skeleton) */
 .ad-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 40px 24px; gap: 10px; }
-.ad-empty-ic { width: 46px; height: 46px; border-radius: 50%; background: #F7F5F0; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 4px; }
+.ad-empty-ic { width: 46px; height: 46px; border-radius: 50%; background: #F2F3F5; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 4px; }
 .ad-empty p { font-size: 13px; font-weight: 500; color: #6F6A61; margin: 0; }
-.ad-empty-hint { font-size: 12px; font-weight: 400 !important; color: #A8A296 !important; }
+.ad-empty-hint { font-size: 12px; font-weight: 400 !important; color: #9A9FA4 !important; }
 .ad-skrow { display: flex; gap: 13px; align-items: center; padding: 13px 22px; }
-.ad-sk { background: linear-gradient(90deg, #F1EFEA 25%, #F8F6F2 37%, #F1EFEA 63%); background-size: 400% 100%; animation: ad-shimmer 1.4s ease infinite; border-radius: 6px; }
+.ad-sk { background: linear-gradient(90deg, #ECEDEF 25%, #F3F5F7 37%, #ECEDEF 63%); background-size: 400% 100%; animation: ad-shimmer 1.4s ease infinite; border-radius: 6px; }
 .ad-sk-ico { width: 32px; height: 32px; border-radius: 50%; flex: 0 0 auto; }
 .ad-sk-main { flex: 1; display: flex; flex-direction: column; gap: 7px; }
 .ad-sk-line { height: 10px; }
@@ -187,7 +187,7 @@
 @media (prefers-reduced-motion: reduce) { .ad-sk { animation: none; } }
 
 /* Footer — quiet primary link, not a loud filled block */
-.ad-foot { border-top: 1px solid #EFEDE7; }
+.ad-foot { border-top: 1px solid #E9EBED; }
 .ad-foot-link {
   display: flex; align-items: center; justify-content: space-between; width: 100%;
   padding: 14px 22px; border: 0; background: #FFFFFF; cursor: pointer;

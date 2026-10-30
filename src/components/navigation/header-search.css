@@ -32,7 +32,7 @@
 .hsearch-input:focus {
   outline: none;
   border-color: #C65A1A;
-  box-shadow: 0 0 0 3px #FAECE7;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
   background: #FFFFFF;
 }
 
@@ -122,7 +122,7 @@
   padding: 0 12px;
   border: 1px solid #E8B6A6;
   border-radius: 999px;
-  background: #FBEFE9;
+  background: #EEF2F7;
   color: #C65A1A;
   font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif;
   cursor: pointer;

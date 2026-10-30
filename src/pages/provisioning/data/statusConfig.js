@@ -19,7 +19,7 @@
 // or changing a status.
 //
 // draft + pending_approval intentionally share the same cool-
-// surface hex (#DFD7C8). The colour channel encodes the binary
+// surface hex (#CDD3DA). The colour channel encodes the binary
 // "sent vs not sent"; the verbal label ("Draft" / "Pending
 // approval") carries the precision. The upcoming meta-bar
 // surface will surface the precise state verbally too.
@@ -36,12 +36,12 @@ export const BOARD_STATUS_ORDER = [
 export const BOARD_STATUS_CONFIG = {
   draft: {
     label: 'Draft',
-    color: '#DFD7C8',
+    color: '#CDD3DA',
     badgeClassName: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
   },
   pending_approval: {
     label: 'Pending approval',
-    color: '#DFD7C8',
+    color: '#CDD3DA',
     badgeClassName: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400',
   },
   sent_to_supplier: {
@@ -107,7 +107,7 @@ export const getBoardStatusConfig = (status) => {
   if (status) console.warn('[statusConfig] Unknown board status:', status);
   return {
     label: status || '—',
-    color: '#DFD7C8',
+    color: '#CDD3DA',
     badgeClassName: 'bg-slate-100 text-slate-600',
   };
 };

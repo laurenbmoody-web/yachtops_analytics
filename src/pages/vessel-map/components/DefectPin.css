@@ -14,16 +14,16 @@
 .vmd-lbl { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .vmd-lbl .req { color: #C65A1A; margin-left: 5px; text-transform: lowercase; letter-spacing: .3px; }
 .vmd-input, .vmd-select, .vmd-textarea {
-  width: 100%; font-family: inherit; font-size: 13px; color: #1C1B3A; background: #FAFAF8;
-  border: 1px solid #E8E6DF; border-radius: 9px; padding: 9px 10px; outline: none; }
-.vmd-input:focus, .vmd-select:focus, .vmd-textarea:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+  width: 100%; font-family: inherit; font-size: 13px; color: #1C1B3A; background: #F8FAFC;
+  border: 1px solid #E1E3E6; border-radius: 9px; padding: 9px 10px; outline: none; }
+.vmd-input:focus, .vmd-select:focus, .vmd-textarea:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); background: #fff; }
 .vmd-textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
 .vmd-row { display: flex; gap: 8px; }
 .vmd-row > * { flex: 1; min-width: 0; }
 
 .vmd-seg { display: flex; gap: 6px; }
 .vmd-seg button { flex: 1; font-family: inherit; font-size: 12px; font-weight: 600; padding: 7px 8px;
-  border-radius: 999px; border: 1px solid #E8E6DF; background: #fff; color: #6B7280; cursor: pointer; }
+  border-radius: 999px; border: 1px solid #E1E3E6; background: #fff; color: #6B7280; cursor: pointer; }
 .vmd-seg button.on { background: #C65A1A; border-color: #C65A1A; color: #fff; }
 
 /* Assign + flags: compact icon buttons, quiet navy selected state. */
@@ -31,27 +31,27 @@
 .vmd-af-group { display: flex; flex-direction: column; gap: 5px; }
 .vmd-iconset { display: flex; gap: 6px; }
 .vmd-iconbtn { width: 36px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid #E8E6DF; border-radius: 9px; background: #fff; color: #8B8478; cursor: pointer; }
-.vmd-iconbtn:hover { border-color: #C9C4B8; color: #1C1B3A; }
+  border: 1px solid #E1E3E6; border-radius: 9px; background: #fff; color: #8B8478; cursor: pointer; }
+.vmd-iconbtn:hover { border-color: #BCC0C5; color: #1C1B3A; }
 .vmd-iconbtn.on { background: #1C1B3A; border-color: #1C1B3A; color: #fff; }
 
 /* Editorial dropdown (VmdSelect) — replaces native <select>. */
 .vmd-ddl { position: relative; }
 .vmd-ddl-trigger { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  font-family: inherit; font-size: 13px; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E8E6DF;
+  font-family: inherit; font-size: 13px; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E1E3E6;
   border-radius: 9px; padding: 9px 11px; cursor: pointer; text-align: left; }
-.vmd-ddl-trigger:hover { border-color: #C9C4B8; }
-.vmd-ddl-trigger:focus-visible { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.vmd-ddl-trigger:hover { border-color: #BCC0C5; }
+.vmd-ddl-trigger:focus-visible { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); background: #fff; }
 .vmd-ddl.disabled .vmd-ddl-trigger { opacity: .6; cursor: default; }
 .vmd-ddl-ph { color: #AEB4C2; }
 .vmd-ddl-chev { color: #8B8478; flex: none; }
 .vmd-ddl-menu { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 50; background: #fff;
-  border: 1px solid #ECEAE3; border-radius: 12px; box-shadow: 0 16px 40px -12px rgba(28,27,58,.28);
+  border: 1px solid #E5E7EB; border-radius: 12px; box-shadow: 0 16px 40px -12px rgba(28,27,58,.28);
   padding: 5px; max-height: 244px; overflow-y: auto; }
 .vmd-ddl-opt { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
   font-family: inherit; font-size: 13px; color: #1C1B3A; background: none; border: 0; border-radius: 8px;
   padding: 8px 9px; cursor: pointer; text-align: left; }
-.vmd-ddl-opt:hover { background: #FBEFE9; }
+.vmd-ddl-opt:hover { background: #EEF2F7; }
 .vmd-ddl-opt.on { color: #C65A1A; font-weight: 600; }
 .vmd-ddl-opt .lucide, .vmd-ddl-opt svg { color: #C65A1A; flex: none; }
 .vmd-ddl-empty { padding: 12px 10px; font-size: 12.5px; color: #AEB4C2; text-align: center; }
@@ -68,13 +68,13 @@
 .vmd-prio-name.p-Critical { color: #A32D2D; }
 .vmd-ref-tag { align-self: center; font-size: 11px; font-weight: 600; color: #AEB4C2; font-variant-numeric: tabular-nums; }
 .vmd-prio { display: flex; align-items: center; gap: 6px; flex: none; }
-.vmd-prio-dot { width: 18px; height: 18px; border-radius: 999px; border: 2px solid #D9D5CB; background: transparent; padding: 0; cursor: pointer; transition: box-shadow .12s, background .12s; }
+.vmd-prio-dot { width: 18px; height: 18px; border-radius: 999px; border: 2px solid #CED2D6; background: transparent; padding: 0; cursor: pointer; transition: box-shadow .12s, background .12s; }
 .vmd-prio-dot.p-Low { border-color: #C3C7D0; }
 .vmd-prio-dot.p-Medium { border-color: #E3A981; }
 .vmd-prio-dot.p-High { border-color: #DCB877; }
 .vmd-prio-dot.p-Critical { border-color: #D69B95; }
 .vmd-prio-dot.p-Low.on { background: #AEB4C2; box-shadow: 0 0 0 3px rgba(174,180,194,.25); }
-.vmd-prio-dot.p-Medium.on { background: #C65A1A; box-shadow: 0 0 0 3px #FBEFE9; }
+.vmd-prio-dot.p-Medium.on { background: #C65A1A; box-shadow: 0 0 0 3px #EEF2F7; }
 .vmd-prio-dot.p-High.on { background: #B9761A; box-shadow: 0 0 0 3px #F7EEDD; }
 .vmd-prio-dot.p-Critical.on { background: #A32D2D; box-shadow: 0 0 0 3px #F7E7E5; }
 
@@ -83,8 +83,8 @@
 
 /* Flag icon buttons that expand to their label on hover (provisioning pattern). */
 .vmd-flagset { display: flex; gap: 8px; }
-.vmd-flagbtn { display: inline-flex; align-items: center; height: 34px; padding: 0 9px; border: 1px solid #E8E6DF; border-radius: 9px; background: #fff; color: #8B8478; cursor: pointer; }
-.vmd-flagbtn:hover:not(.on) { border-color: #C9C4B8; color: #1C1B3A; }
+.vmd-flagbtn { display: inline-flex; align-items: center; height: 34px; padding: 0 9px; border: 1px solid #E1E3E6; border-radius: 9px; background: #fff; color: #8B8478; cursor: pointer; }
+.vmd-flagbtn:hover:not(.on) { border-color: #BCC0C5; color: #1C1B3A; }
 .vmd-flagbtn.on { background: #1C1B3A; border-color: #1C1B3A; color: #fff; }
 .vmd-flag-label { display: inline-block; max-width: 0; opacity: 0; margin-left: 0; overflow: hidden; white-space: nowrap;
   font-size: 12px; font-weight: 600; transition: max-width .2s ease, opacity .16s ease, margin-left .2s ease; }
@@ -92,15 +92,15 @@
 
 /* Also-notify chips. */
 .vmd-notify-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #1C1B3A;
-  background: #F4F2EC; border-radius: 999px; padding: 4px 6px 4px 11px; }
-.vmd-notify-chip button { border: 0; background: #DAD5CB; color: #1C1B3A; border-radius: 999px; width: 16px; height: 16px;
+  background: #EEF0F2; border-radius: 999px; padding: 4px 6px 4px 11px; }
+.vmd-notify-chip button { border: 0; background: #CED2D7; color: #1C1B3A; border-radius: 999px; width: 16px; height: 16px;
   font-size: 11px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .vmd-notify-chip button:hover { background: #C65A1A; color: #fff; }
 
 /* Multi-photo scrollable strip; + tile first. */
 .vmd-photostrip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
 .vmd-photo-add { flex: none; width: 72px; height: 72px; display: inline-flex; align-items: center; justify-content: center;
-  border: 1.5px dashed #DAD5CB; border-radius: 10px; background: #FAFAF8; color: #8B8478; cursor: pointer; }
+  border: 1.5px dashed #CED2D7; border-radius: 10px; background: #F8FAFC; color: #8B8478; cursor: pointer; }
 .vmd-photo-add:hover { border-color: #9AA0AE; color: #1C1B3A; }
 .vmd-photo-thumb { position: relative; flex: none; width: 72px; height: 72px; }
 .vmd-photo-thumb img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; display: block; }
@@ -115,7 +115,7 @@
 .vmd-pinlink:hover:not(:disabled) { color: #B14E16; }
 .vmd-pinlink:disabled { opacity: .5; cursor: default; }
 /* Note shown when "Set on map" is chosen — the pin is dropped after logging. */
-.vmd-pinnote { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #6B7280; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 9px; padding: 9px 11px; line-height: 1.4; }
+.vmd-pinnote { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #6B7280; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 9px; padding: 9px 11px; line-height: 1.4; }
 .vmd-pinnote svg { flex: 0 0 auto; color: #C65A1A; }
 
 /* view card */
@@ -128,11 +128,11 @@
 .vmd-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
   padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
 .vmd-chip .cd { width: 6px; height: 6px; border-radius: 999px; }
-.vmd-chip.dept { background: #F4F2EC; color: #6B7280; }
+.vmd-chip.dept { background: #EEF0F2; color: #6B7280; }
 .p-critical { background: #F7E7E5; color: #A32D2D; } .p-critical .cd { background: #A32D2D; }
 .p-high { background: #F7EEDD; color: #B9761A; } .p-high .cd { background: #B9761A; }
-.p-medium { background: #FBEFE9; color: #C65A1A; } .p-medium .cd { background: #C65A1A; }
-.p-low { background: #F4F2EC; color: #8B8478; } .p-low .cd { background: #AEB4C2; }
+.p-medium { background: #EEF2F7; color: #C65A1A; } .p-medium .cd { background: #C65A1A; }
+.p-low { background: #EEF0F2; color: #8B8478; } .p-low .cd { background: #AEB4C2; }
 .s-open { background: #E5EDF2; color: #3E6B89; } .s-open .cd { background: #3E6B89; }
 .s-pending { background: #F7EEDD; color: #B9761A; } .s-pending .cd { background: #B9761A; }
 .s-progress { background: #E5EDF2; color: #3E6B89; } .s-progress .cd { background: #3E6B89; }
@@ -150,7 +150,7 @@
 .vmd-avatar { flex: none; width: 34px; height: 34px; border-radius: 999px; background: linear-gradient(135deg,#C65A1A,#8a3d12);
   color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; }
 .vmd-avatar.team { background: linear-gradient(135deg,#3E6B89,#274a5f); }
-.vmd-avatar.none { background: #F4F2EC; color: #AEB4C2; border: 1px dashed #E8E6DF; }
+.vmd-avatar.none { background: #EEF0F2; color: #AEB4C2; border: 1px dashed #E1E3E6; }
 .vmd-assignee-who { flex: 1; min-width: 0; }
 .vmd-assignee-n { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .vmd-assignee-r { font-size: 11.5px; color: #8B8478; }
@@ -178,7 +178,7 @@
 
 /* Wide modal — the defect opens across the app, not the narrow inspector.
    Bare shell: the log form and the two-column detail own their own layout. */
-.vmd-modal { position: relative; width: 100%; max-width: 880px; background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
+.vmd-modal { position: relative; width: 100%; max-width: 880px; background: #fff; border: 1px solid #E5E7EB; border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28,27,58,.32); display: flex; flex-direction: column; max-height: 90vh; overflow: hidden;
   transition: max-width .18s ease; }
 /* Log-a-defect form mode — a compact single column that matches the dashboard
@@ -194,11 +194,11 @@
   color: #6B7280; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .vmd-manage-btn:hover { color: #1C1B3A; }
 .vmd-manage-menu { position: absolute; top: calc(100% + 6px); right: 0; width: 232px; padding: 6px;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 12px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); }
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); }
 .vmd-manage-item { display: flex; align-items: center; gap: 9px; width: 100%; background: none; border: 0;
   padding: 9px 10px; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 600; color: #1C1B3A;
   cursor: pointer; text-align: left; }
-.vmd-manage-item:hover { background: #FAFAF8; }
+.vmd-manage-item:hover { background: #F8FAFC; }
 .vmd-manage-item > svg { color: #8B8478; flex: none; }
 .vmd-manage-danger { color: #A32D2D; }
 .vmd-manage-danger > svg { color: #A32D2D; }
@@ -209,7 +209,7 @@
 .vmd-manage-remove { flex: 1; border: 0; border-radius: 8px; background: #A32D2D; color: #fff; font-family: inherit;
   font-size: 12.5px; font-weight: 600; padding: 7px 10px; cursor: pointer; }
 .vmd-manage-remove:disabled { opacity: .6; cursor: default; }
-.vmd-manage-keep { border: 1px solid #E8E6DF; border-radius: 8px; background: #fff; color: #1C1B3A; font-family: inherit;
+.vmd-manage-keep { border: 1px solid #E1E3E6; border-radius: 8px; background: #fff; color: #1C1B3A; font-family: inherit;
   font-size: 12.5px; font-weight: 600; padding: 7px 12px; cursor: pointer; }
 .vmd-manage-err { margin: 6px 10px 2px; font-size: 12px; color: #A32D2D; }
 /* the floating × lives in the modal's top-right corner — reserve room in the
@@ -228,7 +228,7 @@
 /* Shared defect-form shape — bordered header bar + padded body. Matched by the
    dashboard quick-add (.qad-head/.qad-body) and the edit form (.dd-head/
    .dd-editwrap) so all three read as one form. */
-.vmd-fhead { padding: 16px 22px; border-bottom: 1px solid #ECEAE3; }
+.vmd-fhead { padding: 16px 22px; border-bottom: 1px solid #E5E7EB; }
 .vmd-fhead .vmd-form-title { margin: 0; }
 .vmd-fbody { padding: 18px 22px 20px; }
 

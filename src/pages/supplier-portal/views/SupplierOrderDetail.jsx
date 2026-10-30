@@ -1604,7 +1604,7 @@ const ItemRow = ({ item, currency, canEdit, onUpdate, onQuote }) => {
               <span style={{ textDecoration: 'line-through', color: 'var(--muted)' }}>{item.item_name}</span>
               <span style={{ color: 'var(--muted)' }}>→</span>
               <span style={{ color: 'var(--orange)', fontWeight: 600 }}>{item.substitute_description}</span>
-              <span className="sod-wq-revised-chip" title="Substitute proposed for the vessel" style={{ background: '#FBEFE9', color: '#C65A1A' }}>Sub</span>
+              <span className="sod-wq-revised-chip" title="Substitute proposed for the vessel" style={{ background: '#EEF2F7', color: '#C65A1A' }}>Sub</span>
             </span>
           ) : (
             <>
@@ -2947,7 +2947,7 @@ const SupplierOrderDetail = () => {
   const mPending = mItems.filter(i => (i.status || 'pending') === 'pending').length;
   const lineState = mItems.length === 0 ? null
     : mPending === 0 ? { bg: '#EAF6EF', fg: '#1D7A4D', dot: '#1D9E75', label: `All ${mItems.length} lines actioned` }
-    : mPending === mItems.length ? { bg: '#F6F5F2', fg: '#8B8478', dot: '#AEB4C2', label: `Awaiting confirmation · ${mPending} line${mPending === 1 ? '' : 's'}` }
+    : mPending === mItems.length ? { bg: '#F3F4F5', fg: '#8B8478', dot: '#AEB4C2', label: `Awaiting confirmation · ${mPending} line${mPending === 1 ? '' : 's'}` }
     : { bg: '#FEF6E7', fg: '#9A6700', dot: '#E0A63E', label: `Partially confirmed · ${mPending} to action` };
 
   return (

@@ -1442,7 +1442,7 @@ const SettingsPage = () => {
           onClick={() => !supportBusy && closeSupport()}
           style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(28,27,58,0.32)', display: 'grid', placeItems: 'center', padding: 24 }}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', border: '1px solid #ECEAE3', borderRadius: 16, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)', width: '100%', maxWidth: 440, padding: '24px 24px 20px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 16, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)', width: '100%', maxWidth: 440, padding: '24px 24px 20px' }}>
             <h2 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 22, color: '#1C1B3A', margin: '0 0 6px' }}>Contact support</h2>
             {supportSent ? (
               <>
@@ -1458,7 +1458,7 @@ const SettingsPage = () => {
                 <p style={{ fontSize: 13.5, color: '#6B7280', lineHeight: 1.6, margin: '0 0 14px' }}>
                   Send us a message and we’ll get back to you at <strong>{acct.email || 'your account email'}</strong>.
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: '#FAFAF8', border: '1px solid #ECEAE3', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: '#F8FAFC', border: '1px solid #E5E7EB', marginBottom: 12 }}>
                   <Icon name="User" size={15} color="#8B8478" />
                   <span style={{ fontSize: 12.5, color: '#6B7280' }}>
                     {acct.name || 'You'}{acct.tenant ? ` · ${acct.tenant}` : ''}

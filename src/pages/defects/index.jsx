@@ -180,7 +180,7 @@ const DefectsDashboard = () => {
   const filteredSentByYou = sentByYouDefects?.filter(d => showArchivedSent || d?.isArchivedBySender !== true);
 
   return (
-    <div className="df-page-outer" style={{ minHeight: '100vh', background: '#FAFAF8' }}>
+    <div className="df-page-outer" style={{ minHeight: '100vh', background: '#F8FAFC' }}>
       <Header />
       <div className="df-page">
         <div className="df-wrap">

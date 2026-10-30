@@ -112,7 +112,7 @@ const Loading = () => (
 
 const EmptyState = ({ icon, label, hint }) => (
   <div className="ad-empty">
-    <span className="ad-empty-ic"><Icon name={icon} size={20} color="#B7B1A5" /></span>
+    <span className="ad-empty-ic"><Icon name={icon} size={20} color="#A9AEB3" /></span>
     <p>{label}</p>
     {hint && <p className="ad-empty-hint">{hint}</p>}
   </div>
@@ -198,7 +198,7 @@ const NotifGroup = ({ group, expanded, onToggle, rowProps }) => {
             </span>
             <span className="ad-msg">{expanded ? 'Hide' : 'Show all'} · latest: {latest?.title}</span>
           </span>
-          <span className={`ad-chev${expanded ? ' is-open' : ''}`}><Icon name="ChevronDown" size={16} color="#A29C90" /></span>
+          <span className={`ad-chev${expanded ? ' is-open' : ''}`}><Icon name="ChevronDown" size={16} color="#94999E" /></span>
         </button>
       </div>
       {expanded && group.items.map(n => <NotifRow key={n.id} n={n} sub {...rowProps(n)} />)}

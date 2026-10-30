@@ -108,7 +108,7 @@ const EditorialDatePicker = ({
   // equivalent here, swapping to this component would quietly drop the rule.
   maxDate = '',
   // Opt into the cool page palette (navy / maritime white / terracotta) instead
-  // of the warm sand this component shipped with.
+  // of the warm sand this component shipped with (now cool, same lightness).
   cool = false,
   className = '',
   rangeStart = '',

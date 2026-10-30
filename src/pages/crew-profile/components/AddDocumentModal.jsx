@@ -307,9 +307,9 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
                 advisory.kind === 'mismatch'
                   ? { background: '#FBE9E7', color: '#A32D2D', border: '1px solid #F2C9C0' }
                   : advisory.kind === 'warn'
-                    ? { background: '#FBEFE9', color: '#7A2E1E' }
+                    ? { background: '#EEF2F7', color: '#7A2E1E' }
                     : advisory.kind === 'error'
-                      ? { background: '#FAFAF8', border: '1px solid #ECEAE3', color: '#6B7280' }
+                      ? { background: '#F8FAFC', border: '1px solid #E5E7EB', color: '#6B7280' }
                       : advisory.kind === 'ok'
                         ? { background: '#ECF7EE', color: '#1E7A3E' }
                         : { background: '#FAEEDA', color: '#7A2E1E' }
@@ -328,7 +328,7 @@ const AddDocumentModal = ({ isOpen, onClose, onSaved, onProfileSynced, userId, t
       </div>
 
       {duplicate && (
-        <div className="flex items-start gap-2 mt-4 px-3 py-2 rounded-lg text-xs" style={{ background: '#FBEFE9', color: '#7A2E1E' }}>
+        <div className="flex items-start gap-2 mt-4 px-3 py-2 rounded-lg text-xs" style={{ background: '#EEF2F7', color: '#7A2E1E' }}>
           <Icon name="Copy" size={14} className="flex-shrink-0 mt-0.5" />
           <span>
             Looks like a duplicate — there's already a {getDocTypeLabel(duplicate.doc_type, duplicate.details)}

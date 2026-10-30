@@ -12,7 +12,7 @@
   position: fixed; z-index: 3001; left: 50%; top: 82px; transform: translateX(-50%);
   width: min(940px, 95vw); max-height: calc(100vh - 104px); overflow: hidden;
   display: flex; flex-direction: column;
-  background: #FFFDFA; color: #1C1B3A; border: 1px solid #ECEAE3; border-radius: 18px;
+  background: #FFFDFA; color: #1C1B3A; border: 1px solid #E5E7EB; border-radius: 18px;
   box-shadow: 0 40px 90px -30px rgba(28, 27, 58, 0.5);
   font-family: 'Inter', system-ui, sans-serif;
   animation: mpm-in .2s cubic-bezier(.2, .7, .3, 1);
@@ -29,14 +29,14 @@
 .mpm-searchrow { display: flex; gap: 8px; padding: 0 22px 8px; }
 .mpm-field {
   flex: 1; display: inline-flex; align-items: center; gap: 8px;
-  border: 1px solid #E8E6DF; border-radius: 10px; background: #FAFAF8; padding: 0 13px; height: 42px;
+  border: 1px solid #E1E3E6; border-radius: 10px; background: #F8FAFC; padding: 0 13px; height: 42px;
 }
 .mpm-field .ic { color: #AEB4C2; flex: none; }
 .mpm-field input { border: none; background: none; outline: none; width: 100%; min-width: 80px; font-family: inherit; font-size: 14px; font-weight: 400; color: #1C1B3A; }
 /* Searched-area chip, sitting on the search bar */
 .mpm-chip {
   display: inline-flex; align-items: center; gap: 4px; flex: none;
-  background: #FBEFE9; color: #C65A1A; border: 1px solid #F0D6C6; border-radius: 999px;
+  background: #EEF2F7; color: #C65A1A; border: 1px solid #F0D6C6; border-radius: 999px;
   padding: 3px 5px 3px 11px; font-size: 12.5px; font-weight: 600; white-space: nowrap; max-width: 200px;
 }
 .mpm-chip button { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border: none; background: none; color: #C65A1A; cursor: pointer; font-size: 15px; line-height: 1; padding: 0; border-radius: 999px; }
@@ -44,7 +44,7 @@
 .mpm-panel.dark .mpm-chip { background: #3A2519; color: #F0A277; border-color: #5A3A24; }
 .mpm-panel.dark .mpm-chip button { color: #F0A277; }
 .mpm-field input::placeholder { color: #AEB4C2; }
-.mpm-field:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #fff; }
+.mpm-field:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); background: #fff; }
 .mpm-go {
   display: inline-flex; align-items: center; gap: 6px; height: 42px; padding: 0 17px;
   border: none; border-radius: 10px; background: #C65A1A; color: #fff;
@@ -54,7 +54,7 @@
 .mpm-go:disabled { opacity: 0.6; cursor: default; }
 .mpm-loc {
   width: 42px; height: 42px; flex: none; display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid #E8E6DF; border-radius: 10px; background: #fff; color: #1C1B3A; cursor: pointer;
+  border: 1px solid #E1E3E6; border-radius: 10px; background: #fff; color: #1C1B3A; cursor: pointer;
 }
 .mpm-loc:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
 .mpm-err { padding: 2px 22px 8px; font-size: 12px; color: #B0372B; }
@@ -66,15 +66,15 @@
 .mpm-searcharea {
   position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 500;
   display: inline-flex; align-items: center; gap: 6px;
-  background: #fff; color: #1C1B3A; border: 1px solid #ECEAE3; border-radius: 999px;
+  background: #fff; color: #1C1B3A; border: 1px solid #E5E7EB; border-radius: 999px;
   padding: 7px 15px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
   box-shadow: 0 8px 22px -8px rgba(28, 27, 58, 0.45);
 }
 .mpm-searcharea:hover { border-color: #C65A1A; color: #C65A1A; }
-.mpm-panel.dark .mpm-searcharea { background: #262238; color: #F2EFE9; border-color: #302C42; }
+.mpm-panel.dark .mpm-searcharea { background: #262238; color: #EBEDF0; border-color: #302C42; }
 .mpm-panel.dark .mpm-searcharea:hover { border-color: #E07A45; color: #E07A45; }
-.mpm-map { height: 388px; border-radius: 12px; overflow: hidden; border: 1px solid #ECEAE3; background: #E7EEF0; }
-.mpm-mapfail { height: 388px; border-radius: 12px; border: 1px dashed #E8E6DF; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: #8B8478; font-size: 13px; }
+.mpm-map { height: 388px; border-radius: 12px; overflow: hidden; border: 1px solid #E5E7EB; background: #E7EEF0; }
+.mpm-mapfail { height: 388px; border-radius: 12px; border: 1px dashed #E1E3E6; display: flex; align-items: center; justify-content: center; text-align: center; padding: 20px; color: #8B8478; font-size: 13px; }
 
 /* Results rail */
 .mpm-side { display: flex; flex-direction: column; min-width: 0; max-height: 388px; }
@@ -85,10 +85,10 @@
 .mpm-shop {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%;
   text-align: left; cursor: pointer; padding: 10px 13px; border-radius: 11px;
-  border: 1px solid #F0EEE7; background: #FCFBF8; font-family: inherit;
+  border: 1px solid #E9EBEE; background: #F9FAFB; font-family: inherit;
   transition: border-color .15s, background .15s;
 }
-.mpm-shop:hover { border-color: #E6C6B2; background: #FBEFE9; }
+.mpm-shop:hover { border-color: #E6C6B2; background: #EEF2F7; }
 .mpm-shop-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .mpm-shop .nm {
   font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; color: #1C1B3A; line-height: 1.05;
@@ -107,9 +107,9 @@
 .mpm-inviterow {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
   text-align: left; cursor: pointer; padding: 7px 10px; border-radius: 9px;
-  border: 1px dashed #E3E0D8; background: transparent; font-family: inherit; transition: border-color .15s, background .15s;
+  border: 1px dashed #DADDE1; background: transparent; font-family: inherit; transition: border-color .15s, background .15s;
 }
-.mpm-inviterow:hover { border-color: #C65A1A; background: #FBEFE9; }
+.mpm-inviterow:hover { border-color: #C65A1A; background: #EEF2F7; }
 .mpm-inv-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .mpm-inviterow .nm { font-size: 13px; font-weight: 600; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mpm-inviterow:hover .nm { color: #1C1B3A; }
@@ -121,13 +121,13 @@
 .mpm-panel.dark .mpm-inviterow { border-color: #302C42; }
 .mpm-panel.dark .mpm-inviterow:hover { border-color: #5A3A24; background: #3A2519; }
 .mpm-panel.dark .mpm-inviterow .nm { color: #A9A3B6; }
-.mpm-panel.dark .mpm-inviterow:hover .nm { color: #F2EFE9; }
+.mpm-panel.dark .mpm-inviterow:hover .nm { color: #EBEDF0; }
 
 .mpm-panel.dark .mpm-count { color: #A9A3B6; }
-.mpm-panel.dark .mpm-count b { color: #F2EFE9; }
+.mpm-panel.dark .mpm-count b { color: #EBEDF0; }
 .mpm-panel.dark .mpm-shop { background: #232135; border-color: #302C42; }
 .mpm-panel.dark .mpm-shop:hover { background: #3A2519; border-color: #5A3A24; }
-.mpm-panel.dark .mpm-shop .nm { color: #F2EFE9; }
+.mpm-panel.dark .mpm-shop .nm { color: #EBEDF0; }
 
 @media (max-width: 720px) {
   .mpm-body { grid-template-columns: 1fr; }
@@ -142,16 +142,16 @@
 .mpm-done:hover { background: #12112a; }
 
 /* ── Night market ── */
-.mpm-panel.dark { background: #1E1B2C; color: #F2EFE9; border-color: #302C42; }
-.mpm-panel.dark .mpm-title { color: #F2EFE9; }
+.mpm-panel.dark { background: #1E1B2C; color: #EBEDF0; border-color: #302C42; }
+.mpm-panel.dark .mpm-title { color: #EBEDF0; }
 .mpm-panel.dark .mpm-sub, .mpm-panel.dark .mpm-count { color: #A9A3B6; }
-.mpm-panel.dark .mpm-count b { color: #F2EFE9; }
+.mpm-panel.dark .mpm-count b { color: #EBEDF0; }
 .mpm-panel.dark .mpm-field { background: #262238; border-color: #302C42; }
-.mpm-panel.dark .mpm-field input { color: #F2EFE9; }
-.mpm-panel.dark .mpm-loc { background: #262238; border-color: #302C42; color: #F2EFE9; }
+.mpm-panel.dark .mpm-field input { color: #EBEDF0; }
+.mpm-panel.dark .mpm-loc { background: #262238; border-color: #302C42; color: #EBEDF0; }
 .mpm-panel.dark .mpm-map { border-color: #302C42; background: #10151a; }
 .mpm-panel.dark .mpm-map .leaflet-tile { filter: invert(0.92) hue-rotate(180deg) saturate(0.55) brightness(0.85) contrast(0.95); }
-.mpm-panel.dark .mpm-shop { color: #F2EFE9; }
+.mpm-panel.dark .mpm-shop { color: #EBEDF0; }
 .mpm-panel.dark .mpm-shop:hover { background: #3A2519; }
 .mpm-panel.dark .mpm-foot { border-color: #272338; }
 .mpm-panel.dark .mpm-done { background: #C65A1A; }

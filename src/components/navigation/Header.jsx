@@ -60,7 +60,7 @@ const AvatarMenuItem = ({ icon, label, onClick, danger, active }) => {
   // only — deliberately no left bar and no extra font weight.
   const baseColor = danger ? '#DC2626' : active ? '#C65A1A' : '#1C1B3A';
   const iconColor = danger ? '#DC2626' : active ? '#C65A1A' : '#8B8478';
-  const baseBg = active ? '#FBEFE9' : 'transparent';
+  const baseBg = active ? '#EEF2F7' : 'transparent';
   return (
     <button
       type="button"
@@ -71,7 +71,7 @@ const AvatarMenuItem = ({ icon, label, onClick, danger, active }) => {
         fontSize: 13, fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
         color: baseColor, transition: 'background 100ms',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.background = active ? '#FBEFE9' : '#F6F5F2'; }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = active ? '#EEF2F7' : '#F3F4F5'; }}
       onMouseLeave={(e) => { e.currentTarget.style.background = baseBg; }}
     >
       <Icon name={icon} size={15} color={iconColor} />
@@ -849,12 +849,12 @@ const Header = () => {
                 position: 'fixed',
                 top: (menuRef.current?.getBoundingClientRect().bottom ?? 64) + 8,
                 right: Math.max(8, window.innerWidth - (menuRef.current?.getBoundingClientRect().right ?? window.innerWidth)),
-                width: 320, background: '#FFFFFF', border: '1px solid #ECEAE3',
+                width: 320, background: '#FFFFFF', border: '1px solid #E5E7EB',
                 borderRadius: 14, boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)',
                 zIndex: 2000, overflow: 'hidden', pointerEvents: 'auto',
               }}>
                 {/* Header block — avatar, name, email, workspace + department-tinted role pill */}
-                <div style={{ padding: 16, background: '#F8FAFC', borderBottom: '1px solid #ECEAE3' }}>
+                <div style={{ padding: 16, background: '#F8FAFC', borderBottom: '1px solid #E5E7EB' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
                     <div style={{
                       width: 40, height: 40, borderRadius: '50%', background: '#1C1B3A', color: '#fff',

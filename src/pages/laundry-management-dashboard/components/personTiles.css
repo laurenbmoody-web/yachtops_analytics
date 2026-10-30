@@ -13,7 +13,7 @@
 
 .pt-avatar {
   width: 46px; height: 46px; border-radius: 50%; margin-bottom: 10px;
-  background: #FBEFE9; color: #C65A1A; display: grid; place-items: center; overflow: hidden;
+  background: #EEF2F7; color: #C65A1A; display: grid; place-items: center; overflow: hidden;
   font: 700 15px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.5px;
 }
 .pt-avatar img { width: 100%; height: 100%; object-fit: cover; }

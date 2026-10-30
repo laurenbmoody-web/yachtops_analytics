@@ -16,7 +16,7 @@ const TERRA = '#C65A1A';
 const MUTED = '#6B7280';
 const FAINT = '#AEB4C2';
 const HAIR = '#F0F1F5';
-const FIELD = '#FAFAF8';
+const FIELD = '#F8FAFC';
 
 // Drill-down picker over the inventory folder tree. onSelect receives
 // { path: string[], displayPath: 'Dept > Sub' }. Shared by the inventory add/edit
@@ -85,17 +85,17 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated, rootS
 
   const iconBtn = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 999, background: 'none', border: 0, color: MUTED, cursor: 'pointer' };
   const label = { display: 'block', fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#8B8478' };
-  const pillGhost = { fontSize: 12, fontWeight: 600, color: TERRA, background: '#FBEFE9', border: 0, borderRadius: 999, padding: '5px 12px', cursor: 'pointer', whiteSpace: 'nowrap' };
+  const pillGhost = { fontSize: 12, fontWeight: 600, color: TERRA, background: '#EEF2F7', border: 0, borderRadius: 999, padding: '5px 12px', cursor: 'pointer', whiteSpace: 'nowrap' };
   const pillPrimary = { fontSize: 12.5, fontWeight: 600, color: '#fff', background: TERRA, border: 0, borderRadius: 10, padding: '6px 14px', cursor: 'pointer', whiteSpace: 'nowrap' };
 
   return (
     <ModalShell
       onClose={onClose}
       panelClassName="w-full max-w-sm flex flex-col"
-      panelStyle={{ maxHeight: '78vh', background: '#fff', borderRadius: 16, border: '1px solid #ECEAE3', boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)', fontFamily: "'Inter', system-ui, sans-serif" }}
+      panelStyle={{ maxHeight: '78vh', background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)', fontFamily: "'Inter', system-ui, sans-serif" }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '16px 18px', borderBottom: `1px solid #ECEAE3`, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '16px 18px', borderBottom: `1px solid #E5E7EB`, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {!atRoot && (
             <button onClick={handleBack} style={iconBtn} aria-label="Back"><Icon name="ChevronLeft" size={18} /></button>
@@ -107,7 +107,7 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated, rootS
 
       {/* Breadcrumb + "place the item in this folder" */}
       {!atRoot && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: FIELD, borderBottom: `1px solid #ECEAE3`, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', background: FIELD, borderBottom: `1px solid #E5E7EB`, flexShrink: 0 }}>
           <p style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: MUTED, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             <Icon name="Folder" size={13} style={{ display: 'inline', marginRight: 5, verticalAlign: '-2px', color: FAINT }} />
             {currentPath}
@@ -125,7 +125,7 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated, rootS
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 10px' }}>
         {currentFolders?.length === 0 && !creatingFolder && (
           <div style={{ padding: '26px 18px', textAlign: 'center' }}>
-            <Icon name="FolderOpen" size={30} style={{ margin: '0 auto 8px', color: '#E5E1D8' }} />
+            <Icon name="FolderOpen" size={30} style={{ margin: '0 auto 8px', color: '#DBDEE2' }} />
             <p style={{ fontSize: 13, color: MUTED, margin: 0 }}>No sub-folders here yet.</p>
             {!atRoot && (
               <button onClick={handleSelectCurrent} style={{ ...pillPrimary, marginTop: 12 }}>
@@ -151,7 +151,7 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated, rootS
         ))}
 
         {creatingFolder ? (
-          <div style={{ margin: '10px 6px 2px', padding: 12, background: FIELD, borderRadius: 12, border: `1px solid #ECEAE3` }}>
+          <div style={{ margin: '10px 6px 2px', padding: 12, background: FIELD, borderRadius: 12, border: `1px solid #E5E7EB` }}>
             <p style={{ fontSize: 11.5, color: MUTED, margin: '0 0 8px' }}>
               New folder {atTopLevel ? 'at top level (department)' : `inside “${pathSegments?.[pathSegments?.length - 1]}”`}
             </p>
@@ -163,7 +163,7 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated, rootS
                 onChange={(e) => { setNewFolderName(e?.target?.value); setCreateError(''); }}
                 onKeyDown={(e) => { if (e?.key === 'Enter') handleCreateFolder(); if (e?.key === 'Escape') { setCreatingFolder(false); setNewFolderName(''); } }}
                 placeholder="Folder name…"
-                style={{ flex: 1, fontSize: 13, color: INK, background: '#fff', border: '1px solid #E8E6DF', borderRadius: 8, padding: '8px 10px', outline: 'none' }}
+                style={{ flex: 1, fontSize: 13, color: INK, background: '#fff', border: '1px solid #E1E3E6', borderRadius: 8, padding: '8px 10px', outline: 'none' }}
               />
               <button onClick={handleCreateFolder} disabled={creating} style={{ ...pillPrimary, borderRadius: 8, opacity: creating ? 0.5 : 1 }}>{creating ? '…' : 'Create'}</button>
               <button onClick={() => { setCreatingFolder(false); setNewFolderName(''); setCreateError(''); }} style={{ fontSize: 12.5, fontWeight: 500, color: MUTED, background: '#F0F1F5', border: 0, borderRadius: 8, padding: '8px 12px', cursor: 'pointer' }}>Cancel</button>
@@ -181,7 +181,7 @@ const InventoryFolderPicker = ({ tree, onSelect, onClose, onFolderCreated, rootS
       </div>
 
       {/* Footer */}
-      <div style={{ padding: '12px 18px', borderTop: `1px solid #ECEAE3`, flexShrink: 0 }}>
+      <div style={{ padding: '12px 18px', borderTop: `1px solid #E5E7EB`, flexShrink: 0 }}>
         <button onClick={onClose} style={{ width: '100%', fontSize: 13.5, fontWeight: 500, color: MUTED, background: 'none', border: 0, padding: '8px 0', cursor: 'pointer' }}>Cancel</button>
       </div>
     </ModalShell>

@@ -242,7 +242,7 @@ export default function VesselDocuments() {
         <div className="vd-card-sub">{total ? parts.join(' · ') : 'Empty'}</div>
         <div className="vd-card-bar">
           {total ? segs.map((s, i) => <i key={i} style={{ width: `${(s.n / total) * 100}%`, background: s.c }} />)
-            : <i style={{ width: '100%', background: '#ECEAE3' }} />}
+            : <i style={{ width: '100%', background: '#E5E7EB' }} />}
         </div>
         <div className="vd-card-foot">
           <span>{total} document{total !== 1 ? 's' : ''}</span>

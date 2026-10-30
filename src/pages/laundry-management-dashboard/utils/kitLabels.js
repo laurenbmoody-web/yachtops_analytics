@@ -49,7 +49,7 @@ const TAG_CSS = `
   .sheet-head h1 { font: 700 15px 'Inter', system-ui; margin: 0; letter-spacing: 0.02em; }
   .sheet-head span { font: 700 9px system-ui; letter-spacing: 0.12em; text-transform: uppercase; color: #8B8478; }
   .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .tag { display: flex; gap: 12px; align-items: stretch; border: 1px solid #D9D6CE; border-radius: 10px; padding: 12px 14px; break-inside: avoid; page-break-inside: avoid; min-height: 108px; }
+  .tag { display: flex; gap: 12px; align-items: stretch; border: 1px solid #D0D3D7; border-radius: 10px; padding: 12px 14px; break-inside: avoid; page-break-inside: avoid; min-height: 108px; }
   .tag-qr { flex: none; width: 88px; display: flex; align-items: center; justify-content: center; }
   .tag-qr img { width: 88px; height: 88px; display: block; }
   .tag-main { display: flex; flex-direction: column; min-width: 0; }

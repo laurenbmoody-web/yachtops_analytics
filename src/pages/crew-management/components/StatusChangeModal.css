@@ -3,7 +3,7 @@
    away statuses. Scoped under .scm because the modal is portaled to body. */
 .scm-panel {
   background: #FFFFFF;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 18px;
   box-shadow: 0 30px 70px -20px rgba(28, 27, 58, 0.4);
   width: min(500px, 94vw);
@@ -12,7 +12,7 @@
 .scm { font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; }
 
 /* Hero */
-.scm-hero { position: relative; padding: 24px 28px 22px; border-bottom: 1px solid #ECEAE3; transition: background 0.25s ease; }
+.scm-hero { position: relative; padding: 24px 28px 22px; border-bottom: 1px solid #E5E7EB; transition: background 0.25s ease; }
 .scm-x { position: absolute; top: 18px; right: 22px; background: none; border: 0; color: #AEB4C2; cursor: pointer; display: inline-flex; }
 .scm-x:hover { color: #1C1B3A; }
 .scm-x:disabled { opacity: 0.5; cursor: default; }
@@ -31,35 +31,35 @@
 
 /* Status pill set */
 .scm-seg { display: flex; flex-wrap: wrap; gap: 7px; }
-.scm-pill { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 999px; border: 1px solid #ECEAE3; font: inherit; font-size: 12.5px; font-weight: 600; color: #6B7280; background: #fff; cursor: pointer; transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease; }
+.scm-pill { display: inline-flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 999px; border: 1px solid #E5E7EB; font: inherit; font-size: 12.5px; font-weight: 600; color: #6B7280; background: #fff; cursor: pointer; transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease; }
 .scm-pill:hover { color: #1C1B3A; border-color: #CBD5E1; }
 .scm-pdot { width: 7px; height: 7px; border-radius: 999px; flex: 0 0 auto; }
 .scm-current { font-size: 8px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; opacity: 0.7; }
 
 /* Fields */
 .scm-field { margin-top: 20px; }
-.scm-softbox { display: flex; gap: 8px; align-items: center; background: #fff; border: 1px solid #ECEAE3; border-radius: 11px; padding: 10px 13px; transition: border-color 0.12s ease, box-shadow 0.12s ease; }
-.scm-softbox:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.scm-softbox { display: flex; gap: 8px; align-items: center; background: #fff; border: 1px solid #E5E7EB; border-radius: 11px; padding: 10px 13px; transition: border-color 0.12s ease, box-shadow 0.12s ease; }
+.scm-softbox:focus-within { border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .scm-softbox input, .scm-softbox textarea { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: 14px; font-weight: 500; color: #1C1B3A; }
 .scm-softbox textarea { resize: none; min-height: 36px; line-height: 1.4; font-weight: 400; }
 .scm-softbox textarea::placeholder { color: #C3C8D2; font-style: italic; font-size: 12.5px; }
 
 /* Travel grid */
 .scm-travel { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
-.scm-travel > input, .scm-travel > select { min-width: 0; border: 1px solid #ECEAE3; border-radius: 9px; padding: 9px 11px; font: inherit; font-size: 13px; font-weight: 500; color: #1C1B3A; background: #fff; outline: 0; }
-.scm-travel > input:focus, .scm-travel > select:focus { border-color: #C65A1A; box-shadow: 0 0 0 2px #FAECE7; }
+.scm-travel > input, .scm-travel > select { min-width: 0; border: 1px solid #E5E7EB; border-radius: 9px; padding: 9px 11px; font: inherit; font-size: 13px; font-weight: 500; color: #1C1B3A; background: #fff; outline: 0; }
+.scm-travel > input:focus, .scm-travel > select:focus { border-color: #C65A1A; box-shadow: 0 0 0 2px rgba(198, 90, 26, 0.14); }
 .scm-travel > input::placeholder { color: #C3C8D2; }
 .scm-tlab { display: flex; flex-direction: column; gap: 4px; font-size: 8.5px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #AEB4C2; }
-.scm-tlab input { border: 1px solid #ECEAE3; border-radius: 9px; padding: 8px 10px; font: inherit; font-size: 13px; font-weight: 500; color: #1C1B3A; outline: 0; }
-.scm-tlab input:focus { border-color: #C65A1A; box-shadow: 0 0 0 2px #FAECE7; }
+.scm-tlab input { border: 1px solid #E5E7EB; border-radius: 9px; padding: 8px 10px; font: inherit; font-size: 13px; font-weight: 500; color: #1C1B3A; outline: 0; }
+.scm-tlab input:focus { border-color: #C65A1A; box-shadow: 0 0 0 2px rgba(198, 90, 26, 0.14); }
 .scm-tfull { grid-column: 1 / -1; }
 
 /* Footer */
-.scm-foot { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; margin-top: 22px; border-top: 1px solid #ECEAE3; background: #FCFDFE; }
+.scm-foot { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; margin-top: 22px; border-top: 1px solid #E5E7EB; background: #FCFDFE; }
 .scm-perm { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #6B7280; margin: 0; }
 .scm-perm svg { flex: 0 0 auto; }
 .scm-actions { display: flex; gap: 9px; }
-.scm-btn { font: inherit; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 10px 18px; cursor: pointer; border: 1px solid #ECEAE3; background: #fff; color: #1C1B3A; transition: background 0.12s ease, border-color 0.12s ease; }
+.scm-btn { font: inherit; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 10px 18px; cursor: pointer; border: 1px solid #E5E7EB; background: #fff; color: #1C1B3A; transition: background 0.12s ease, border-color 0.12s ease; }
 .scm-btn-ghost:hover { background: #F1F5F9; }
 .scm-btn-primary { background: #C65A1A; border-color: #C65A1A; color: #fff; }
 .scm-btn-primary:hover { background: #B14E16; border-color: #B14E16; }

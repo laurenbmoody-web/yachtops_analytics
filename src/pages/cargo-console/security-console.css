@@ -10,7 +10,7 @@
 .sc-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid #E5E7EB; }
 .sc-list li { display: flex; gap: 12px; padding: 14px 4px; border-bottom: 1px solid #F0F1F5; }
 .sc-list li.new { box-shadow: inset 3px 0 0 #C65A1A; padding-left: 12px; }
-.sc-ic { flex: none; width: 30px; height: 30px; border-radius: 999px; background: #FBEFE9; display: inline-flex; align-items: center; justify-content: center; }
+.sc-ic { flex: none; width: 30px; height: 30px; border-radius: 999px; background: #EEF2F7; display: inline-flex; align-items: center; justify-content: center; }
 .sc-main { min-width: 0; }
 .sc-t { margin: 0; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .sc-vessel { padding: 2px 9px; border-radius: 999px; background: #F0F1F5; font-size: 11px; font-weight: 600; color: #6B7280; }
@@ -37,7 +37,7 @@
 .sc-link { border: 0; background: none; padding: 0; font: 600 12.5px 'Inter', system-ui, sans-serif; color: #C65A1A; cursor: pointer; }
 .sc-add { display: flex; gap: 8px; margin: 12px 0 0; max-width: 560px; }
 .sc-input {
-  flex: 1 1 auto; min-width: 0; height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid #E5E7EB; background: #FAFAF8;
+  flex: 1 1 auto; min-width: 0; height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid #E5E7EB; background: #F8FAFC;
   font: 400 13px 'Inter', system-ui, sans-serif; color: #1C1B3A;
 }
-.sc-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.sc-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }

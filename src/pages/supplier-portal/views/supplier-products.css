@@ -58,7 +58,7 @@
   border: 1px solid var(--line, #E2E8F0); border-radius: 10px; background: var(--card, #fff);
   padding: 9px 13px; font-size: 13px; font-family: inherit; color: var(--fg, #0C0E14);
 }
-.spp-search:focus { outline: none; border-color: var(--orange, #C65A1A); box-shadow: 0 0 0 3px #FAECE7; }
+.spp-search:focus { outline: none; border-color: var(--orange, #C65A1A); box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .spp-filter {
   display: inline-flex; align-items: center; gap: 6px;
   border: 1px solid var(--line, #E2E8F0); border-radius: 10px; background: var(--card, #fff);
@@ -73,7 +73,7 @@
   color: var(--fg, #0C0E14); padding: 0 6px 0 2px; height: 36px; cursor: pointer; max-width: 190px;
 }
 .spp-filter select:focus { outline: none; }
-.spp-filter:focus-within { border-color: var(--orange, #C65A1A); box-shadow: 0 0 0 3px #FAECE7; }
+.spp-filter:focus-within { border-color: var(--orange, #C65A1A); box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .spp-controls-count { margin-left: auto; font-size: 12px; color: var(--muted, #94A3B8); white-space: nowrap; }
 
 /* ── Margin cell ── */
@@ -107,7 +107,7 @@
 .spp-cell-input {
   width: 84px; border: 1.5px solid var(--orange, #C65A1A); border-radius: 6px;
   padding: 3px 7px; font-size: 13px; text-align: right; background: var(--card, #fff);
-  box-shadow: 0 0 0 3px #FAECE7; outline: none; font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); outline: none; font-variant-numeric: tabular-nums;
 }
 .spp-cell-saving { opacity: 0.45; }
 .spp-updated { font-size: 10.5px; color: var(--muted, #94A3B8); margin-top: 2px; }
@@ -155,4 +155,4 @@
   font-size: 12.5px; font-weight: 600; color: var(--orange, #C65A1A);
   padding: 8px 10px; border-radius: 8px; white-space: nowrap;
 }
-.spp-clear:hover { background: #FBEFE9; }
+.spp-clear:hover { background: #EEF2F7; }

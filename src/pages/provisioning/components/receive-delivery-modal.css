@@ -445,7 +445,7 @@
 }
 .rdm-item-group-chevron:hover,
 .rdm-item-group-chevron:focus-visible {
-  background: var(--d-soft, #FBEFE9);
+  background: var(--d-soft, #EEF2F7);
   color: var(--d-orange, #C65A1A);
   outline: none;
 }

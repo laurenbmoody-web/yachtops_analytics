@@ -26,7 +26,7 @@
 .help-hint-trigger:hover,
 .help-hint-trigger:focus-visible {
   color: #C65A1A;
-  background: #FBEFE9;
+  background: #EEF2F7;
   outline: none;
 }
 .help-hint-trigger svg { display: block; }
@@ -38,7 +38,7 @@
   position: absolute;
   z-index: 60;
   background: #FFFFFF;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 10px;
   box-shadow: 0 14px 36px -8px rgba(28, 27, 58, 0.22);
   padding: 12px 14px;

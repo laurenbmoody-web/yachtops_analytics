@@ -3,7 +3,7 @@
    panel card. Scoped under .vh-page. */
 .vh-page{
   --vh-ink:#1C1B3A; --vh-muted:#6B7280; --vh-faint:#9AA1B4;
-  --vh-terra:#C65A1A; --vh-terra-tint:#FBEFE9;
+  --vh-terra:#C65A1A; --vh-terra-tint:#EEF2F7;
   --vh-hair:#E4E8EF; --vh-soft:#EEF1F6;
   background:#F8FAFC;min-height:100vh;
   font-family:'Manrope','Inter',system-ui,sans-serif;
@@ -44,7 +44,7 @@ html[data-theme="night"] .vh-page .editorial-meta .bar{background:#2B2A47;}
   font-family:'Manrope','Inter',system-ui,sans-serif;font-size:13px;font-weight:500;color:#695880;cursor:pointer;text-align:left;transition:background .12s ease,color .12s ease;}
 .vh-rail-it span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;}
 .vh-rail-it:hover{background:#F6F7FA;color:#1C1B3A;}
-.vh-rail-it.active{color:#C65A1A;font-weight:700;background:#FAECE7;}
+.vh-rail-it.active{color:#C65A1A;font-weight:700;background:#EEF2F7;}
 /* collapsed — icons only */
 .vh-rail.collapsed{padding:10px 8px;}
 .vh-rail.collapsed .vh-rail-it{justify-content:center;padding:9px 0;}

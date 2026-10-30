@@ -32,7 +32,7 @@ const CSS = `
   body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1C1B3A; background: #EEF0F4; }
   .bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 18px; background: #FFFFFF; border-bottom: 1px solid #E5E7EB; position: sticky; top: 0; z-index: 2; }
   .bar label { font: 700 9px system-ui; letter-spacing: .12em; text-transform: uppercase; color: #8B8478; }
-  .bar select { font: 500 13px 'Inter', system-ui; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 9px; padding: 8px 10px; }
+  .bar select { font: 500 13px 'Inter', system-ui; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 9px; padding: 8px 10px; }
   .bar button { font: 600 13px 'Inter', system-ui; border-radius: 9px; padding: 9px 15px; border: 1px solid transparent; cursor: pointer; }
   .bar .print { background: #C65A1A; color: #fff; }
   .bar .count { font: 600 12.5px 'Inter'; color: #6B7280; }

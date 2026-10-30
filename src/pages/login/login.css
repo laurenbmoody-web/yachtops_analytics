@@ -470,13 +470,13 @@
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--cl-hairline, #E8E6DF);
+  background: var(--cl-hairline, #E1E3E6);
 }
 /* Secondary submit — used for "Verify code" when a passkey is the primary path */
 #cargo-login-root .cl-submit.cl-submit-ghost {
   background: transparent;
   color: var(--cl-ink, #1C1B3A);
-  border: 1px solid var(--cl-hairline, #E8E6DF);
+  border: 1px solid var(--cl-hairline, #E1E3E6);
 }
 #cargo-login-root .cl-submit.cl-submit-ghost:hover:not(:disabled) {
   background: var(--cl-rust-soft);

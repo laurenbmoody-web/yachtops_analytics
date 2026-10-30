@@ -1,10 +1,10 @@
 .csh-page {
-  min-height: 100vh; background: #F3F1EC; color: #1C1B3A;
+  min-height: 100vh; background: #EEEFF1; color: #1C1B3A;
   font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   display: flex; align-items: flex-start; justify-content: center; padding: 32px 18px 64px;
 }
 .csh-card {
-  width: 100%; max-width: 440px; background: #FFFFFF; border: 1px solid #ECEAE3;
+  width: 100%; max-width: 440px; background: #FFFFFF; border: 1px solid #E5E7EB;
   border-radius: 16px; box-shadow: 0 24px 60px -24px rgba(28, 27, 58, 0.28);
   padding: 26px 26px 24px; margin-top: 6vh;
 }
@@ -18,9 +18,9 @@
 .csh-label { font: 700 9px 'Plus Jakarta Sans', system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #8B8478; margin-bottom: 6px; }
 .csh-input {
   font: 400 15px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
-  background: #FAFAF8; border: 1px solid #E5E2DA; border-radius: 10px; padding: 12px 14px;
+  background: #F8FAFC; border: 1px solid #DCDFE3; border-radius: 10px; padding: 12px 14px;
 }
-.csh-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; background: #FFFFFF; }
+.csh-input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); background: #FFFFFF; }
 .csh-err { font-size: 13px; color: #C24632; background: #FBECEA; border: 1px solid #F5D9D4; border-radius: 9px; padding: 9px 12px; margin-top: 12px; }
 .csh-btn {
   margin-top: 16px; font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif; cursor: pointer;

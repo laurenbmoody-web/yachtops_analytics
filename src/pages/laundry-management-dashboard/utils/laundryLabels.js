@@ -97,7 +97,7 @@ const SHEET_CSS = `
   .sheet-head h1 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 18px; margin: 0; }
   .sheet-head span { font: 700 9px system-ui; letter-spacing: 0.12em; text-transform: uppercase; color: #8B8478; }
   .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .lbl { display: flex; gap: 12px; align-items: stretch; border: 1px solid #D9D6CE; border-radius: 10px; padding: 12px 14px; break-inside: avoid; page-break-inside: avoid; min-height: 104px; }
+  .lbl { display: flex; gap: 12px; align-items: stretch; border: 1px solid #D0D3D7; border-radius: 10px; padding: 12px 14px; break-inside: avoid; page-break-inside: avoid; min-height: 104px; }
   .lbl-qr { flex: none; width: 84px; display: flex; align-items: center; justify-content: center; }
   .lbl-qr img { width: 84px; height: 84px; }
   .lbl-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -146,14 +146,14 @@ const CASE_CSS = `
   * { box-sizing: border-box; }
   body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #1C1B3A; margin: 0; padding: 28px 32px; background: #FFFFFF; }
   .ch { display: flex; gap: 22px; align-items: flex-start; border-bottom: 2px solid #1C1B3A; padding-bottom: 18px; margin-bottom: 18px; }
-  .ch-qr { flex: none; width: 132px; height: 132px; border: 1px solid #ECEAE3; border-radius: 10px; padding: 7px; }
+  .ch-qr { flex: none; width: 132px; height: 132px; border: 1px solid #E5E7EB; border-radius: 10px; padding: 7px; }
   .ch-qr img { width: 100%; height: 100%; }
   .ch-id { flex: 1; min-width: 0; }
   .ch-eyebrow { font: 700 10px system-ui; letter-spacing: 0.14em; text-transform: uppercase; color: #C65A1A; }
   .ch-name { font-family: 'DM Serif Display', Georgia, serif; font-size: 32px; line-height: 1.02; margin: 4px 0 8px; word-break: break-word; }
   .ch-meta { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: #6B7280; }
   .ch-meta b { color: #1C1B3A; font-weight: 700; }
-  .ch-status { font: 700 9px system-ui; letter-spacing: 0.08em; text-transform: uppercase; color: #C65A1A; background: #FBEFE9; border-radius: 999px; padding: 3px 10px; }
+  .ch-status { font: 700 9px system-ui; letter-spacing: 0.08em; text-transform: uppercase; color: #C65A1A; background: #EEF2F7; border-radius: 999px; padding: 3px 10px; }
   h2 { font: 700 9px system-ui; letter-spacing: 0.13em; text-transform: uppercase; color: #8B8478; margin: 0 0 8px; }
   table { width: 100%; border-collapse: collapse; }
   th { font: 700 8px system-ui; letter-spacing: 0.08em; text-transform: uppercase; color: #AEB4C2; text-align: left; padding: 4px 10px 6px 0; border-bottom: 1px solid #ECECEE; }

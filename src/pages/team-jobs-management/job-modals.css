@@ -7,13 +7,13 @@
    ancestor and no theme tokens are used (hardcoded, so the warm
    `day` theme cannot tint a panel).
    Palette: navy #1C1B3A · terracotta #C65A1A · muted #8B8478
-   Panels: radius 16px, 1px #ECEAE3 hairline, soft deep shadow.
+   Panels: radius 16px, 1px #E5E7EB hairline, soft deep shadow.
    ============================================================ */
 
 /* ── panel shell ────────────────────────────────────────────── */
 .jm-panel {
   background: #FFFFFF;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
   width: 100%;
@@ -94,7 +94,7 @@
 .jm-input::placeholder, .jm-textarea::placeholder { color: #AEB4C2; }
 .jm-input:focus, .jm-textarea:focus, .jm-select:focus {
   outline: none; background: #FFFFFF;
-  border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7;
+  border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 .jm-input:disabled, .jm-textarea:disabled, .jm-select:disabled {
   opacity: 0.6; cursor: not-allowed;
@@ -151,7 +151,7 @@
 .jm-notice.info svg { color: #6B7280; }
 .jm-notice.warn { background: #FDF6EC; border: 1px solid #F3E2C7; color: #8A6320; }
 .jm-notice.warn svg { color: #B7791F; }
-.jm-notice.accent { background: #FBEFE9; border: 1px solid #F3D9CB; color: #A8491A; }
+.jm-notice.accent { background: #EEF2F7; border: 1px solid #F3D9CB; color: #A8491A; }
 .jm-notice.accent svg { color: #C65A1A; }
 .jm-notice.danger { background: #FCF1F0; border: 1px solid #F3D5D2; color: #A03A32; }
 .jm-notice.danger svg { color: #C0453C; }
@@ -169,7 +169,7 @@
 .jm-btn.ghost { background: #FFFFFF; color: #1C1B3A; border-color: #E5E7EB; }
 .jm-btn.ghost:hover:not(:disabled) { border-color: #C9CED6; }
 .jm-btn.ghost svg { color: #6B7280; }
-.jm-btn.accent { background: #FBEFE9; color: #C65A1A; border-color: #F3D9CB; }
+.jm-btn.accent { background: #EEF2F7; color: #C65A1A; border-color: #F3D9CB; }
 .jm-btn.accent:hover:not(:disabled) { background: #F8E1D3; }
 .jm-btn.danger { background: #FFFFFF; color: #C0453C; border-color: #F0D6D3; }
 .jm-btn.danger:hover:not(:disabled) { background: #FCF1F0; border-color: #E4BDB8; }
@@ -203,7 +203,7 @@
   font: 600 11px 'Plus Jakarta Sans', system-ui, sans-serif;
   background: #F6F8FB; border: 1px solid #EEF0F4; color: #6B7280;
 }
-.jm-tag.accent { background: #FBEFE9; border-color: #F3D9CB; color: #C65A1A; }
+.jm-tag.accent { background: #EEF2F7; border-color: #F3D9CB; color: #C65A1A; }
 .jm-tag.danger { background: #FCF1F0; border-color: #F3D5D2; color: #C0453C; }
 .jm-tag.success { background: #EFF6F1; border-color: #D9E9DE; color: #427A4D; }
 .jm-tag.warn { background: #FDF6EC; border-color: #F3E2C7; color: #B7791F; }
@@ -247,13 +247,13 @@
   cursor: pointer; transition: background 0.12s;
 }
 .jm-option:hover { background: #F5F6F8; }
-.jm-option.on { background: #FBEFE9; color: #C65A1A; font-weight: 600; }
+.jm-option.on { background: #EEF2F7; color: #C65A1A; font-weight: 600; }
 .jm-option.on svg { color: #C65A1A; }
 
 /* ── avatar ─────────────────────────────────────────────────── */
 .jm-avatar {
   width: 28px; height: 28px; border-radius: 999px; flex-shrink: 0;
-  background: #FBEFE9; color: #C65A1A;
+  background: #EEF2F7; color: #C65A1A;
   font: 700 11px 'Plus Jakarta Sans', system-ui, sans-serif;
   display: flex; align-items: center; justify-content: center;
   text-transform: uppercase;
@@ -264,7 +264,7 @@
 .jm-empty { text-align: center; padding: 40px 20px; }
 .jm-empty-ico {
   width: 44px; height: 44px; border-radius: 999px; margin: 0 auto 14px;
-  background: #FBEFE9; display: flex; align-items: center; justify-content: center;
+  background: #EEF2F7; display: flex; align-items: center; justify-content: center;
 }
 .jm-empty-ico svg { color: #C65A1A; }
 .jm-empty-t {
@@ -298,7 +298,7 @@
 }
 .jm-check:hover .box { border-color: #C65A1A; }
 .jm-check input:checked + .box { background: #C65A1A; border-color: #C65A1A; }
-.jm-check input:focus-visible + .box { box-shadow: 0 0 0 3px #FAECE7; }
+.jm-check input:focus-visible + .box { box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 
 /* ── searchable dropdown (assignee picker) ──────────────────── */
 .jm-combo { position: relative; }
@@ -382,7 +382,7 @@
 }
 .jm-combo-control:hover:not(:disabled) { border-color: #C9CED6; }
 .jm-combo-control.open {
-  background: #FFFFFF; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7;
+  background: #FFFFFF; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 .jm-combo-control:disabled { opacity: 0.6; cursor: not-allowed; }
 .jm-combo-control .ph { color: #AEB4C2; flex: 1; }
@@ -416,7 +416,7 @@
 .jm-drop:hover { border-color: #C65A1A; background: #F2F6FB; }
 .jm-drop-ico {
   width: 38px; height: 38px; border-radius: 999px; margin-bottom: 10px;
-  background: #FBEFE9; display: flex; align-items: center; justify-content: center;
+  background: #EEF2F7; display: flex; align-items: center; justify-content: center;
 }
 .jm-drop-ico svg { color: #C65A1A; }
 .jm-drop-t { font: 600 13px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; }
@@ -455,7 +455,7 @@
   cursor: pointer; transition: background 0.12s, border-color 0.12s;
 }
 .rq-item:hover { background: #F6F8FB; }
-.rq-item.on { background: #FBEFE9; border-color: #F3D9CB; }
+.rq-item.on { background: #EEF2F7; border-color: #F3D9CB; }
 .rq-item-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 9px; }
 .rq-item-title {
   flex: 1; min-width: 0;
@@ -849,7 +849,7 @@
 .cd-row:last-child { border-bottom: none; }
 .cd-row:hover { background: #F6F8FB; color: #1C1B3A; }
 /* The open row is marked by a terracotta rule and terracotta type, not by a
-   wash of #FBEFE9 across its whole width. That tint is for a chip or an icon
+   wash of #EEF2F7 across its whole width. That tint is for a chip or an icon
    badge; spread over a full-width row in a white drawer it reads as beige,
    which is the one thing the canvas is not. */
 .cd-row.open {
@@ -907,7 +907,7 @@
   font: 400 13.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A;
   border-radius: 6px;
 }
-.cd-steptext:focus { outline: none; background: #FFFFFF; box-shadow: 0 0 0 2px #FAECE7; }
+.cd-steptext:focus { outline: none; background: #FFFFFF; box-shadow: 0 0 0 2px rgba(198, 90, 26, 0.14); }
 .cd-steptext.ro { padding: 4px 2px; }
 .cd-step.done .cd-steptext { color: #8B8478; text-decoration: line-through; }
 .cd-stepx {
@@ -1042,7 +1042,7 @@
   font-variant-numeric: tabular-nums;
 }
 .cd-auditrow-head > svg { color: #AEB4C2; flex-shrink: 0; }
-.cd-auditrow-body { padding: 14px; border-top: 1px solid #EEF0F4; background: #FCFCFB; }
+.cd-auditrow-body { padding: 14px; border-top: 1px solid #EEF0F4; background: #FBFBFC; }
 .cd-change {
   padding: 11px; border-radius: 10px; margin-top: 8px;
   background: #FFFFFF; border: 1px solid #EEF0F4;
@@ -1094,7 +1094,7 @@
 .jl-ico {
   flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  background: #FBEFE9; color: #C65A1A;
+  background: #EEF2F7; color: #C65A1A;
 }
 .jl-ico.equip { background: #EEF2F8; color: #4A5568; }
 .jl-main { flex: 1; min-width: 0; display: block; }
@@ -1157,7 +1157,7 @@
   background: #EDF5EF; border-color: #CBE3D2; color: #2F6B40; font-weight: 600;
 }
 .jl-qtyfield.used:focus {
-  background: #FFFFFF; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7;
+  background: #FFFFFF; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 
 .jl-used {
@@ -1215,7 +1215,7 @@
   transition: border-color 0.12s, background 0.12s, color 0.12s;
 }
 .dc-bulk svg { color: #C65A1A; }
-.dc-bulk:hover:not(:disabled) { border-color: #C65A1A; background: #FBEFE9; color: #C65A1A; }
+.dc-bulk:hover:not(:disabled) { border-color: #C65A1A; background: #EEF2F7; color: #C65A1A; }
 .dc-bulk:disabled { opacity: 0.55; cursor: default; }
 
 .dc-group { margin-top: 18px; }
@@ -1275,14 +1275,14 @@
   padding: 4px; border-radius: 7px; border: none; background: none;
   color: #C9CED6; cursor: pointer; display: flex; transition: color 0.12s, background 0.12s;
 }
-.dc-notebtn:hover { color: #C65A1A; background: #FBEFE9; }
+.dc-notebtn:hover { color: #C65A1A; background: #EEF2F7; }
 .dc-notebtn.has { color: #C65A1A; }
 
 .dc-note { grid-column: 1 / -1; padding-left: 27px; }
 .dc-note .jm-textarea { font-size: 12.5px; min-height: 56px; }
 .dc-note-read {
   margin: 0; padding: 8px 11px; border-radius: 9px; cursor: text;
-  background: #FBEFE9; border: 1px solid #F3D9CB;
+  background: #EEF2F7; border: 1px solid #F3D9CB;
   font: 400 11.5px 'Plus Jakarta Sans', system-ui, sans-serif;
   color: #A8491A; line-height: 1.5; white-space: pre-wrap;
 }
@@ -1310,7 +1310,7 @@
   max-height: none;
   height: 100%;
   border: none;
-  /* Cool hairline, not the warm #ECEAE3 one. At 1px on a small modal it is
+  /* Cool hairline, not the warm #E5E7EB one. At 1px on a small modal it is
      invisible; down the full height of a drawer it tints the whole edge. */
   border-left: 1px solid #E5E7EB;
   border-radius: 0;
@@ -1439,7 +1439,7 @@
   font: 600 11.5px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A;
   transition: background 0.14s;
 }
-.cd-addmini:hover { background: #FBEFE9; }
+.cd-addmini:hover { background: #EEF2F7; }
 
 /* Tighter bottom half. Each section was carrying a lot of air for a one-line
    read-out, which is what pushed the pane past the window. */

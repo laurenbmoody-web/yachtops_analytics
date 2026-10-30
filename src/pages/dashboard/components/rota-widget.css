@@ -56,7 +56,7 @@
 /* Editable On/Off time trigger (the wheel's inline anchor). Inherits the big
    serif .rw-tm; button reset + a soft hover only (no underline). */
 .rw-tm-edit { background: none; padding: 0 6px; cursor: pointer; border: 0; border-radius: 8px; }
-.rw-tm-edit:hover { background: #FAFAF8; }
+.rw-tm-edit:hover { background: #F8FAFC; }
 /* Second and later blocks sit a touch smaller so the day reads as a list. */
 .rw-hero-block { position: relative; margin: 6px 0 0; }
 .rw-tm-sm { font-size: 30px; }
@@ -71,7 +71,7 @@
 
 /* schedule calendar — today + days ahead as cells (Rota widget). Wraps. */
 .rw-cal { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 8px; }
-.rw-day.is-today { border-color: var(--rw-orange); background: #FBEFE9; }
+.rw-day.is-today { border-color: var(--rw-orange); background: #EEF2F7; }
 .rw-day.is-today .rw-wd { color: var(--rw-orange); }
 .rw-day.is-today .rw-dn { color: var(--rw-deep); }
 
@@ -122,12 +122,12 @@
 /* Crew's own last-7-days rest strip — a cell + weekday per day, tap to log. */
 .rw-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 .rw-wcell { display: flex; flex-direction: column; align-items: stretch; gap: 4px; background: none; border: 0; padding: 2px; border-radius: 8px; cursor: pointer; font-family: inherit; }
-.rw-wcell:hover { background: #FAFAF8; }
+.rw-wcell:hover { background: #F8FAFC; }
 .rw-wcell .rw-cell { height: 26px; }
 .rw-wcell .rw-wd { text-align: center; font-size: 9px; font-weight: 700; letter-spacing: .3px; color: var(--rw-msoft); white-space: nowrap; }
 .rw-wcell.is-today .rw-wd { color: var(--rw-orange); }
-.rw-wcell.is-sel { background: #FBEFE9; }
-.rw-wcell.is-sel .rw-cell { box-shadow: 0 0 0 2px #FBEFE9, 0 0 0 3px var(--rw-orange); }
+.rw-wcell.is-sel { background: #EEF2F7; }
+.rw-wcell.is-sel .rw-cell { box-shadow: 0 0 0 2px #EEF2F7, 0 0 0 3px var(--rw-orange); }
 .rw-seclab-hint { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--rw-orange); }
 
 .rw-legend { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 12px; font-size: 10px; color: var(--rw-muted); align-items: center; }

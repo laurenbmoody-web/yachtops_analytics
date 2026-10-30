@@ -400,7 +400,7 @@ const ExportInventoryModal = ({
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#FBEFE9] flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl bg-[#EEF2F7] flex items-center justify-center">
             <Icon name="Download" size={18} className="text-[#C65A1A]" />
           </div>
           <div>
@@ -430,10 +430,10 @@ const ExportInventoryModal = ({
                 disabled={opt?.disabled}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
                   opt?.disabled
-                    ? 'opacity-40 cursor-not-allowed border-[#E5E7EB] bg-[#FAFAF8]'
+                    ? 'opacity-40 cursor-not-allowed border-[#E5E7EB] bg-[#F8FAFC]'
                     : scope === opt?.value
-                    ? 'border-[#C65A1A] bg-[#FBEFE9]'
-                    : 'border-[#E5E7EB] bg-white hover:border-[#C65A1A]/50 hover:bg-[#FAFAF8]'
+                    ? 'border-[#C65A1A] bg-[#EEF2F7]'
+                    : 'border-[#E5E7EB] bg-white hover:border-[#C65A1A]/50 hover:bg-[#F8FAFC]'
                 }`}
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
@@ -544,8 +544,8 @@ const ExportInventoryModal = ({
                 onClick={() => setFormat(opt?.value)}
                 className={`flex flex-col items-center gap-2 px-3 py-3.5 rounded-xl border text-center transition-all ${
                   format === opt?.value
-                    ? 'border-[#C65A1A] bg-[#FBEFE9]'
-                    : 'border-[#E5E7EB] bg-white hover:border-[#C65A1A]/50 hover:bg-[#FAFAF8]'
+                    ? 'border-[#C65A1A] bg-[#EEF2F7]'
+                    : 'border-[#E5E7EB] bg-white hover:border-[#C65A1A]/50 hover:bg-[#F8FAFC]'
                 }`}
               >
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
@@ -569,7 +569,7 @@ const ExportInventoryModal = ({
         </div>
 
         {/* Include Images toggle */}
-        <div className="flex items-center justify-between px-4 py-3 bg-[#FAFAF8] rounded-xl border border-[#E5E7EB]">
+        <div className="flex items-center justify-between px-4 py-3 bg-[#F8FAFC] rounded-xl border border-[#E5E7EB]">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-[#F1F5F9] flex items-center justify-center">
               <Icon name="Image" size={16} className="text-[#8B8478]" />
@@ -599,7 +599,7 @@ const ExportInventoryModal = ({
         </div>
 
         {/* Blank template — start a list from scratch */}
-        <div className="flex items-center justify-between px-4 py-3 bg-[#FAFAF8] rounded-xl border border-dashed border-[#E5E7EB]">
+        <div className="flex items-center justify-between px-4 py-3 bg-[#F8FAFC] rounded-xl border border-dashed border-[#E5E7EB]">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-[#F1F5F9] flex items-center justify-center flex-shrink-0">
               <Icon name="FileSpreadsheet" size={16} className="text-[#8B8478]" />

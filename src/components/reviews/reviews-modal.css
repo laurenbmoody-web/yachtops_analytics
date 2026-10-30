@@ -5,19 +5,19 @@
 .rvw-scope {
   --ink: #1C1B3A;
   --surface: #ffffff;
-  --surface-2: #FAFAF8;
-  --border: #ECEAE3;
+  --surface-2: #F8FAFC;
+  --border: #E5E7EB;
   --hair: #F0F1F5;
   --muted: #6B7280;
   --soft: #8B8478;
   --faint: #AEB4C2;
   --accent: #C65A1A;
   --accent-hover: #B14E16;
-  --halo: #FAECE7;
+  --halo: rgba(198, 90, 26, 0.14);
   --shadow-strong: rgba(28,27,58,0.32);
 }
 :root[data-theme="night"] .rvw-scope {
-  --ink: #F2EFE9;
+  --ink: #EBEDF0;
   --surface: #1E1B2C;
   --surface-2: #262238;
   --border: #302C42;

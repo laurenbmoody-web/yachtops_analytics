@@ -13,10 +13,10 @@
 .pantry-page,
 .editorial-page {
   /* Canvas */
-  --bg-canvas:      #F5F1EA;
+  --bg-canvas:      #F8FAFC;
   --bg-card:        #FFFFFF;
-  --bg-surface:     #F5F1EA;
-  --bg-secondary:   #DFD8CC;
+  --bg-surface:     #F8FAFC;
+  --bg-secondary:   #D0D5DB;
 
   /* Ink */
   --ink:            #1C1B3A;
@@ -25,7 +25,7 @@
 
   /* Accent — terracotta */
   --accent:         #C65A1A;
-  --accent-soft:    #FAECE7;
+  --accent-soft:    #EEF2F7;
   --accent-deep:    #7A2E1E;
 
   /* Confirm — sage */
@@ -42,7 +42,7 @@
   --brass-soft:     #FAF3E7;
 
   /* Border */
-  --p-border:       #DFD8CC;
+  --p-border:       #D0D5DB;
 
   /* Typography */
   --font-serif:     'DM Serif Display', 'DM Serif Text', Georgia, serif;
@@ -53,7 +53,7 @@
 /* ── Base reset inside pantry / editorial page ──────────────── */
 .pantry-page,
 .editorial-page {
-  background: #F5F1EA;
+  background: #F8FAFC;
   color: var(--ink);
   font-family: var(--font-sans);
   font-size: 13px;
@@ -1883,7 +1883,7 @@
 /* ── Supplier order drawer (Sprint 9c.2 Commit 1.5c — redesign) ─
    Editorial magazine spread + dashboard density. Drawer panel bg
    is set on the Drawer wrapper (#FFFEFB — slightly warmer than the
-   page #F5F1EA gives a paper feel). No card walls inside; sections
+   page #F8FAFC gives a paper feel). No card walls inside; sections
    are hairline-separated regions within the body.
 
    Section vocab:
@@ -2128,9 +2128,9 @@
 
 /* ── Track delivery (driver / courier) ─────────────────────── */
 .cargo-od-track {
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 14px;
-  background: #FAFAF8;
+  background: #F8FAFC;
   padding: 16px 18px;
 }
 .cargo-od-track-head {
@@ -2159,7 +2159,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--accent);
-  background: #FBEFE9;
+  background: #EEF2F7;
   border-radius: 999px;
   padding: 5px 12px;
 }
@@ -2192,7 +2192,7 @@
   left: -50%;
   width: 100%;
   height: 2px;
-  background: #E8E6DF;
+  background: #E1E3E6;
 }
 .cargo-od-track-node:first-child::before { display: none; }
 .cargo-od-track-node.is-past::before,
@@ -2204,7 +2204,7 @@
   height: 13px;
   border-radius: 50%;
   background: #fff;
-  border: 2px solid #D8D5CC;
+  border: 2px solid #CFD2D5;
 }
 .cargo-od-track-node.is-past .cargo-od-track-dot,
 .cargo-od-track-node.is-current .cargo-od-track-dot {
@@ -2212,7 +2212,7 @@
   border-color: var(--accent);
 }
 .cargo-od-track-node.is-current .cargo-od-track-dot {
-  box-shadow: 0 0 0 4px #FBEFE9;
+  box-shadow: 0 0 0 4px #EEF2F7;
 }
 .cargo-od-track-step {
   font-family: var(--font-sans);
@@ -2246,8 +2246,8 @@
   height: 260px;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid #E8E6DF;
-  background: #F0EADD;
+  border: 1px solid #E1E3E6;
+  background: #E3E6EA;
 }
 .cargo-od-track-map-cap {
   margin-top: 8px;
@@ -2266,7 +2266,7 @@
   font-family: var(--font-sans);
   font-size: 12.5px;
   color: #8B8478;
-  background: #FAFAF8;
+  background: #F8FAFC;
 }
 
 /* ── Documents (3 hairline-separated rows) ─────────────────── */
@@ -2413,7 +2413,7 @@
   cursor: pointer;
   transition: background 0.1s;
 }
-.cargo-od-doc-popover-item:hover { background: #FAF7F0; }
+.cargo-od-doc-popover-item:hover { background: #F3F5F7; }
 .cargo-od-doc-popover-item:disabled { cursor: not-allowed; opacity: 0.6; }
 
 /* Sprint 9c.2 Commit 2 (follow-up v3) — supplier name trigger.
@@ -2549,7 +2549,7 @@
   line-height: 1.5;
   margin: 4px 0 18px;
   padding: 10px 12px;
-  background: #FAF7F0;
+  background: #F3F5F7;
   border-radius: 8px;
 }
 .cargo-od-variance-actions {
@@ -2561,7 +2561,7 @@
 /* Card-payment success — in-app receipt shown on return from Stripe. */
 .cargo-od-paid-dialog {
   background: #FFFFFF;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 16px;
   width: 100%;
   max-width: 380px;
@@ -2887,7 +2887,7 @@
   align-items: center;
   gap: 8px;
   padding: 0.85rem 1.5rem;
-  background: #FAF7F0;
+  background: #F3F5F7;
   border-top: 1px solid rgba(30, 39, 66, 0.06);
 }
 .cargo-od-footer-spacer { flex: 1; }
@@ -2919,7 +2919,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #FAF7F0;
+  background: #F3F5F7;
   border: 1px solid rgba(30, 39, 66, 0.06);
   border-radius: 12px;
   padding: 0.85rem 1.25rem;
@@ -3530,7 +3530,7 @@
 .editorial-page .v2-cu-row:last-child { border-bottom: none; }
 .editorial-page .v2-cu-row.today {
   padding: 18px 16px;
-  background: #FAFAF7;
+  background: #F8F8F9;
   margin: 0 -16px;
   border-radius: 8px;
 }

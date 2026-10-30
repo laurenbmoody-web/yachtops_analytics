@@ -51,7 +51,7 @@ export default function NowAndDutyStack({ onDutyClick }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
             width: 28, height: 28, borderRadius: '50%',
-            background: '#1C1B3A', color: '#F5F1EA',
+            background: '#1C1B3A', color: '#F8FAFC',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: 'var(--font-sans)', fontSize: 11, fontWeight: 600,
             flexShrink: 0,

@@ -84,7 +84,7 @@ export default function SimpleTemplateEditor({
 
   if (!open) return null;
 
-  const previewColor = TYPE_COLOR[type] || '#B4B2A9';
+  const previewColor = TYPE_COLOR[type] || '#ABAEB2';
   const scope = selection === 'all' ? 'vessel' : 'department';
   const departmentId = selection === 'all' ? null : selection;
 

@@ -40,7 +40,7 @@
 .qac-btn:focus-visible {
   outline: none;
   border-color: #C65A1A;
-  box-shadow: 0 0 0 3px #FAECE7;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 .qac-cap {
   font-size: 9.5px;

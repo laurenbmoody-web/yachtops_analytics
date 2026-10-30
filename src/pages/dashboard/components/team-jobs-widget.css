@@ -3,14 +3,14 @@
    the ce-card family; DM Serif title comes from .ce-title in the header. */
 
 /* Lead — the featured job. Light ground, terracotta rail, serif figure. */
-.tj-lead { display: flex; align-items: center; gap: 15px; background: #FAFAF8; border: 1px solid #ECEDF3; border-radius: 13px; padding: 15px 16px; margin-top: 2px; position: relative; overflow: hidden; cursor: pointer; transition: border-color .12s, background .12s; }
-.tj-lead:hover { border-color: #E1D9CE; background: #F8F6F2; }
+.tj-lead { display: flex; align-items: center; gap: 15px; background: #F8FAFC; border: 1px solid #ECEDF3; border-radius: 13px; padding: 15px 16px; margin-top: 2px; position: relative; overflow: hidden; cursor: pointer; transition: border-color .12s, background .12s; }
+.tj-lead:hover { border-color: #D2D7DD; background: #F3F5F7; }
 .tj-lead::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #C65A1A; }
 .tj-lead-fig { flex: 0 0 auto; text-align: center; line-height: .78; min-width: 40px; }
 .tj-lead-num { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-style: italic; font-size: 42px; color: #C65A1A; line-height: .78; letter-spacing: -1px; }
 .tj-lead-unit { font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-top: 6px; line-height: 1.25; }
 .tj-lead-word { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-style: italic; font-size: 22px; color: #C65A1A; line-height: 1; }
-.tj-lead-m { flex: 1; min-width: 0; border-left: 1px solid #E4E0D7; padding-left: 15px; }
+.tj-lead-m { flex: 1; min-width: 0; border-left: 1px solid #DADDE1; padding-left: 15px; }
 .tj-lead-e { font-size: 8.5px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase; color: #C65A1A; }
 .tj-lead-t { font-size: 15px; font-weight: 700; color: #1C1B3A; margin: 4px 0 3px; line-height: 1.2; letter-spacing: -.2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tj-lead-s { font-size: 11px; color: #8B8478; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -22,7 +22,7 @@
 .tj-list { display: flex; flex-direction: column; }
 .tj-row { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid #F0F1F5; cursor: pointer; border-radius: 8px; transition: background .1s; }
 .tj-row:last-child { border-bottom: 0; }
-.tj-row:hover { background: #FAFAF8; }
+.tj-row:hover { background: #F8FAFC; }
 /* Tick-to-complete: strike through, then the row collapses out. */
 .tj-row.is-clearing { pointer-events: none; animation: tj-clear .55s ease forwards; }
 .tj-row.is-clearing .tj-t, .tj-row.is-clearing .tj-d { text-decoration: line-through; color: #AEB4C2; }

@@ -6,7 +6,7 @@
    the panel is portaled outside the page tree. */
 .stsm-panel {
   background: #FFFFFF;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
   width: min(600px, 94vw);
@@ -113,8 +113,8 @@
 }
 
 .stsm-inputcard {
-  background: #FAFAF8;
-  border: 1px solid #ECEAE3;
+  background: #F8FAFC;
+  border: 1px solid #E5E7EB;
   border-radius: 11px;
   padding: 12px 14px;
   display: flex;
@@ -124,7 +124,7 @@
 .stsm-inputcard:focus-within {
   background: #FFFFFF;
   border-color: #C65A1A;
-  box-shadow: 0 0 0 3px #FAECE7;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 .stsm-inputcard input,
 .stsm-inputcard select {
@@ -194,7 +194,7 @@
   min-width: 0;
   width: 100%;
 }
-.stsm-row-main:focus-visible { outline: 2px solid #FAECE7; outline-offset: 4px; border-radius: 6px; }
+.stsm-row-main:focus-visible { outline: 2px solid rgba(198, 90, 26, 0.14); outline-offset: 4px; border-radius: 6px; }
 
 .stsm-chev {
   display: inline-flex;
@@ -327,7 +327,7 @@
   flex-shrink: 0;
   transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
-.stsm-selectall:hover:not(:disabled) { background: #FAFAF8; border-color: #D7DAE2; color: #C65A1A; }
+.stsm-selectall:hover:not(:disabled) { background: #F8FAFC; border-color: #D7DAE2; color: #C65A1A; }
 .stsm-selectall:disabled { cursor: default; opacity: 0.5; }
 .stsm-assign-bar .stsm-btn { height: 34px; flex-shrink: 0; }
 
@@ -359,7 +359,7 @@
   grid-column: 1 / -1;
   margin: 8px 0 4px 28px;
   padding: 10px 0 6px;
-  border-top: 1px dashed #ECEAE3;
+  border-top: 1px dashed #E5E7EB;
   list-style: none;
   display: flex;
   flex-direction: column;
@@ -395,8 +395,8 @@
    halo on focus, plain Inter copy (no italic placeholder). */
 .stsm-picker-input {
   width: 100%;
-  background: #FAFAF8;
-  border: 1px solid #ECEAE3;
+  background: #F8FAFC;
+  border: 1px solid #E5E7EB;
   border-radius: 10px;
   padding: 9px 12px;
   font-size: 13px;
@@ -417,7 +417,7 @@
 .stsm-picker-input:focus {
   background: #FFFFFF;
   border-color: #C65A1A;
-  box-shadow: 0 0 0 3px #FAECE7;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
 
 /* ── Buttons ──────────────────────────────────────────────────────── */
@@ -455,11 +455,11 @@
   border: 1px solid #E5E7EB;
   color: #1C1B3A;
 }
-.stsm-btn-ghost:hover:not(:disabled) { background: #FAFAF8; border-color: #D7DAE2; }
+.stsm-btn-ghost:hover:not(:disabled) { background: #F8FAFC; border-color: #D7DAE2; }
 .stsm-btn-ghost:disabled,
 .stsm-btn-ghost.is-disabled {
   background: #FFFFFF;
-  border-color: #EFEEE9;
+  border-color: #EAECEE;
   color: #C3C8D2;
   cursor: not-allowed;
 }
@@ -526,7 +526,7 @@
   transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 .stsm-foot-btn:hover:not(:disabled) {
-  background: #FAFAF8;
+  background: #F8FAFC;
   border-color: #D7DAE2;
   color: #C65A1A;
 }

@@ -6,7 +6,7 @@
   width: 100%;
   max-width: 30rem;
   background: #fff;
-  border: 1px solid #ECEAE3;
+  border: 1px solid #E5E7EB;
   border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
 }
@@ -30,7 +30,7 @@
   width: 38px;
   height: 38px;
   border-radius: 10px;
-  background: #FBEFE9;
+  background: #EEF2F7;
   color: #C65A1A;
 }
 .so-title {
@@ -68,14 +68,14 @@
   padding: 10px 12px;
   font-size: 14px;
   color: #1C1B3A;
-  background: #FAFAF8;
-  border: 1px solid #ECEAE3;
+  background: #F8FAFC;
+  border: 1px solid #E5E7EB;
   border-radius: 10px;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .so-input::placeholder { color: #AEB4C2; }
-.so-input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.so-input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 
 /* Audit-trail note */
 .so-audit { font-size: 11px; line-height: 1.5; color: #AEB4C2; }
@@ -94,8 +94,8 @@
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .so-btn:disabled { cursor: not-allowed; }
-.so-btn-ghost { background: #fff; color: #1C1B3A; border: 1px solid #E8E6DF; }
-.so-btn-ghost:hover { background: #FAFAF8; }
+.so-btn-ghost { background: #fff; color: #1C1B3A; border: 1px solid #E1E3E6; }
+.so-btn-ghost:hover { background: #F8FAFC; }
 .so-btn-ghost:disabled { opacity: 0.5; }
 .so-btn-primary { background: #C65A1A; color: #fff; border: 1px solid #C65A1A; }
 .so-btn-primary:hover { background: #B14E16; border-color: #B14E16; }

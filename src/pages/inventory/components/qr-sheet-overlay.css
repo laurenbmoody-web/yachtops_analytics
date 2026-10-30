@@ -5,14 +5,14 @@
 .qro-eyebrow { font: 700 9px system-ui; letter-spacing: .12em; text-transform: uppercase; color: #8B8478; }
 .qro-count { font: 600 13px 'Inter'; color: #1C1B3A; }
 .qro-stock { display: inline-flex; align-items: center; gap: 8px; font: 700 9px system-ui; letter-spacing: .1em; text-transform: uppercase; color: #8B8478; }
-.qro-stock select { font: 500 13px 'Inter'; color: #1C1B3A; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 9px; padding: 8px 10px; }
+.qro-stock select { font: 500 13px 'Inter'; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 9px; padding: 8px 10px; }
 .qro-btn { display: inline-flex; align-items: center; gap: 6px; font: 600 13px 'Inter'; border-radius: 9px; padding: 9px 16px; border: 1px solid transparent; cursor: pointer; }
 .qro-btn.prim { background: #C65A1A; color: #fff; }
 .qro-btn.prim:hover { background: #B14E16; }
 .qro-btn.prim:disabled { opacity: .6; cursor: default; }
 .qro-btn.ghost { background: #fff; border-color: #E5E7EB; color: #6B7280; }
 .qro-btn.ghost:hover { border-color: #C65A1A; color: #C65A1A; }
-.qro-tune { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 10px; background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 10px; }
+.qro-tune { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 10px; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 10px; }
 .qro-tune-l { font: 700 9px system-ui; letter-spacing: .1em; text-transform: uppercase; color: #8B8478; }
 .qro-tune label { display: inline-flex; align-items: center; gap: 4px; font: 600 11.5px 'Inter'; color: #6B7280; }
 .qro-tune input { width: 52px; font: 500 12.5px 'Inter'; color: #1C1B3A; background: #fff; border: 1px solid #E5E7EB; border-radius: 7px; padding: 5px 7px; }
@@ -32,7 +32,7 @@
 .qro-cell .nm { font: 700 7pt 'Inter'; line-height: 1.05; margin-top: 1mm; word-break: break-word; }
 .qro-cell .cd { font: 700 6pt 'Inter'; color: #6B7280; word-break: break-all; }
 .qro-cell[draggable="true"] { cursor: grab; border-radius: 6px; }
-.qro-cell[draggable="true"]:hover { background: #FBEFE9; }
+.qro-cell[draggable="true"]:hover { background: #EEF2F7; }
 .qro-cell.dragging { opacity: .35; }
 .qro-cell.empty { border-radius: 6px; }
 .qro-slot-empty { width: var(--qmm, 25mm); height: var(--qmm, 25mm); border: 1.5px dashed #D6DBE4; border-radius: 6px; display: block; }

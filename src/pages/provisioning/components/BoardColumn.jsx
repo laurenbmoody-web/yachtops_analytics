@@ -49,7 +49,7 @@ const SWATCHES = [
   { label: 'Amber',     value: '#FAEEDA' },
   { label: 'Pink',      value: '#F4E4EC' },
   { label: 'Lilac',     value: '#EDE9F4' },
-  { label: 'Warm grey', value: '#F0EBE0' },
+  { label: 'Warm grey', value: '#E4E8EC' },
   { label: 'Default',   value: null },
 ];
 
@@ -69,7 +69,7 @@ const ColourPicker = ({ current, onSelect, onClose }) => {
       className="absolute right-0 top-8 z-50"
       style={{
         background: '#FFFFFF',
-        border: '0.5px solid #D4CCBB',
+        border: '0.5px solid #C1C7CE',
         borderRadius: 11,
         padding: 12,
         width: 184,
@@ -92,7 +92,7 @@ const ColourPicker = ({ current, onSelect, onClose }) => {
               style={{
                 width: 32, height: 32, borderRadius: '50%',
                 background: s.value || '#FFFFFF',
-                border: isSelected ? '2px solid #262A53' : '0.5px solid #D4CCBB',
+                border: isSelected ? '2px solid #262A53' : '0.5px solid #C1C7CE',
                 cursor: 'pointer', padding: 0, position: 'relative', flexShrink: 0,
                 outline: 'none',
               }}
@@ -480,7 +480,7 @@ const BoardColumn = ({
               </button>
               <button
                 onClick={e => { e.stopPropagation(); setConfirmDelete(false); }}
-                style={{ flex: 1, padding: '8px 0', background: 'transparent', color: '#262A53', fontSize: 13, border: '0.5px solid #D4CCBB', borderRadius: 9, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '8px 0', background: 'transparent', color: '#262A53', fontSize: 13, border: '0.5px solid #C1C7CE', borderRadius: 9, cursor: 'pointer' }}
               >
                 Cancel
               </button>

@@ -31,7 +31,7 @@ body.crew-profile-editorial {
 
   /* Soft terracotta-tinted ground for hover surfaces (outline / ghost
      button hovers, nav hovers) with navy text sitting on top. */
-  --color-accent: #F4EBE3;
+  --color-accent: #E8EBEF;
   --color-accent-foreground: #262A53;
 
   /* Cool editorial paper + navy ink. */
@@ -197,13 +197,13 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-hor-btn-primary { background: #C65A1A; border: 1px solid #C65A1A; color: #FFFFFF; }
 .crew-profile-page .cp-hor-btn-primary:hover { background: #B14E16; border-color: #B14E16; }
 .crew-profile-page .cp-hor-btn-ghost { background: #FFFFFF; border: 1px solid #E5E7EB; color: #1C1B3A; }
-.crew-profile-page .cp-hor-btn-ghost:hover { background: #FAFAF8; border-color: #D7DAE2; }
+.crew-profile-page .cp-hor-btn-ghost:hover { background: #F8FAFC; border-color: #D7DAE2; }
 
 /* Unlock confirm popover — anchored under the Unlock button; warns that
    reopening voids the sign-off and bounces the month back to the crew. */
 .crew-profile-page .cp-unlock-wrap { position: relative; }
 .crew-profile-page .cp-unlock-backdrop { position: fixed; inset: 0; z-index: 40; }
-.crew-profile-page .cp-unlock-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 50; width: 290px; background: #FFFFFF; border: 1px solid #ECEAE3; border-radius: 12px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); padding: 16px; text-align: left; }
+.crew-profile-page .cp-unlock-pop { position: absolute; right: 0; top: calc(100% + 8px); z-index: 50; width: 290px; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); padding: 16px; text-align: left; }
 .crew-profile-page .cp-unlock-pop-title { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 16px; color: #1C1B3A; margin-bottom: 6px; }
 .crew-profile-page .cp-unlock-pop-body { font-size: 12.5px; line-height: 1.5; color: #6B7280; margin: 0 0 14px; }
 .crew-profile-page .cp-unlock-pop-actions { display: flex; justify-content: flex-end; gap: 8px; }
@@ -229,7 +229,7 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-field-card.cp-accent { border-top: 2px solid #C65A1A; }
 .crew-profile-page .cp-field-card:focus-within {
   border-color: #C65A1A;
-  box-shadow: 0 0 0 2px #FAECE7;
+  box-shadow: 0 0 0 2px rgba(198, 90, 26, 0.14);
 }
 
 .crew-profile-page .cp-field-label {
@@ -358,7 +358,7 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-field-card .absolute.z-50 input:focus {
   border-color: #C65A1A !important;
-  box-shadow: 0 0 0 2px #FAECE7 !important;
+  box-shadow: 0 0 0 2px rgba(198, 90, 26, 0.14) !important;
   background: #fff !important;
 }
 .crew-profile-page .cp-field-card .absolute.z-50 [class*="rounded-sm"] { border-radius: 8px !important; }
@@ -562,7 +562,7 @@ body.crew-profile-editorial {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: #F4EBE3;
+  background: #E8EBEF;
   color: #1C1B3A;
   border: 1px solid #EBD9CC;
   border-radius: 999px;
@@ -613,7 +613,7 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-avatar-ring-svg .fill.is-complete { stroke: #5C9B6A; }
 .crew-profile-page .cp-avatar-pct {
   position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%);
-  background: #fff; border: 1px solid #F0E0CC; color: #C65A1A;
+  background: #fff; border: 1px solid #D9DDE3; color: #C65A1A;
   font-size: 10.5px; font-weight: 800; line-height: 1; padding: 3px 7px;
   border-radius: 999px; box-shadow: 0 1px 2px rgba(0,0,0,0.06); white-space: nowrap;
 }
@@ -621,7 +621,7 @@ body.crew-profile-editorial {
 /* The % badge doubles as the "what's left to fill in" trigger. */
 .crew-profile-page .cp-avatar-pct-btn { cursor: pointer; transition: border-color .12s ease, box-shadow .12s ease, transform .12s ease; }
 .crew-profile-page .cp-avatar-pct-btn:hover { border-color: #C65A1A; box-shadow: 0 2px 6px rgba(198,90,26,0.22); }
-.crew-profile-page .cp-avatar-pct-btn.is-open { border-color: #C65A1A; box-shadow: 0 0 0 2px #FAECE7; }
+.crew-profile-page .cp-avatar-pct-btn.is-open { border-color: #C65A1A; box-shadow: 0 0 0 2px rgba(198, 90, 26, 0.14); }
 
 .crew-profile-page .cp-avatar-col { position: relative; }
 .crew-profile-page .cp-completion-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
@@ -629,13 +629,13 @@ body.crew-profile-editorial {
 /* "What's left to fill in" dropdown, anchored under the % badge. */
 .crew-profile-page .cp-completion-pop {
   position: absolute; top: 118px; left: -4px; width: 252px; z-index: 40;
-  background: #fff; border: 1px solid #ECE8DE; border-radius: 12px;
+  background: #fff; border: 1px solid #E1E5E9; border-radius: 12px;
   box-shadow: 0 12px 34px rgba(28,27,58,0.14); padding: 8px;
   text-align: left;
 }
 .crew-profile-page .cp-completion-pop-head {
   display: flex; align-items: baseline; justify-content: space-between;
-  padding: 4px 8px 8px; border-bottom: 1px solid #F2EFE8; margin-bottom: 4px;
+  padding: 4px 8px 8px; border-bottom: 1px solid #EAEDF0; margin-bottom: 4px;
 }
 .crew-profile-page .cp-completion-pop-head .pct { font-size: 12px; font-weight: 800; color: #C65A1A; }
 .crew-profile-page .cp-completion-pop-head .rem { font-size: 11px; color: #8B8478; }
@@ -682,7 +682,7 @@ body.crew-profile-editorial {
   color: #C65A1A; background: none; border: 0; cursor: pointer; padding: 0;
 }
 .crew-profile-page .cd-seg {
-  display: inline-flex; background: #fff; border: 1px solid #ECEAE3; border-radius: 999px; padding: 3px;
+  display: inline-flex; background: #fff; border: 1px solid #E5E7EB; border-radius: 999px; padding: 3px;
 }
 .crew-profile-page .cd-seg button {
   border: 0; background: none; border-radius: 999px; padding: 7px 16px;
@@ -709,11 +709,11 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cd-tile {
   min-height: 178px; display: flex; flex-direction: column; text-align: left;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 14px; padding: 15px 16px;
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 14px; padding: 15px 16px;
   box-shadow: 0 1px 2px rgba(28,27,58,.04); cursor: pointer;
   transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
 }
-.crew-profile-page .cd-tile:hover { transform: translateY(-1px); box-shadow: 0 10px 26px -16px rgba(28,27,58,.28); border-color: #E1DCCF; }
+.crew-profile-page .cd-tile:hover { transform: translateY(-1px); box-shadow: 0 10px 26px -16px rgba(28,27,58,.28); border-color: #D3D8DD; }
 .crew-profile-page .cd-tile-top { display: flex; align-items: flex-start; justify-content: space-between; }
 .crew-profile-page .cd-ico { width: 36px; height: 36px; border-radius: 10px; flex: none; display: grid; place-items: center; }
 .crew-profile-page .cd-pill {
@@ -746,11 +746,11 @@ body.crew-profile-editorial {
 .crew-profile-page .cd-soon-v.bad { color: #A32D2D; }
 /* Empty department tile — dashed invitation, no shadow */
 .crew-profile-page .cd-tile.is-empty {
-  border: 1px dashed #DCD8CE; background: #FCFBF8; box-shadow: none; cursor: pointer;
+  border: 1px dashed #D1D5D9; background: #F9FAFB; box-shadow: none; cursor: pointer;
 }
 .crew-profile-page .cd-tile.is-empty:hover { transform: none; box-shadow: none; border-color: #C65A1A; }
-.crew-profile-page .cd-tile.is-empty .cd-tile-name { color: #A39E92; }
-.crew-profile-page .cd-tile.is-empty .cd-ico { background: #F1EFE9 !important; }
+.crew-profile-page .cd-tile.is-empty .cd-tile-name { color: #969A9F; }
+.crew-profile-page .cd-tile.is-empty .cd-ico { background: #EBEDEF !important; }
 .crew-profile-page .cd-tile-add { margin-top: auto; font-size: 12px; font-weight: 600; color: #C65A1A; }
 
 /* Drill-in / list headers within the content column */
@@ -764,18 +764,18 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cd-detail-head > :last-child { margin-left: auto; }
 .crew-profile-page .cd-muted { font-size: 13px; color: #8B8478; padding: 8px 2px; }
-.crew-profile-page .cd-sep { color: #D7D3C9; }
+.crew-profile-page .cd-sep { color: #CCD0D4; }
 
 /* Historic records — held on file, but refreshed/superseded so they no longer
    drive expiry status (e.g. an old combined STCW Basic kept current via its
    element revalidations). Muted, with a neutral "Historic" pill. */
-.crew-profile-page .cd-historic-row { background: #FBFAF7; border-color: #ECEAE3; }
+.crew-profile-page .cd-historic-row { background: #F8F9FA; border-color: #E5E7EB; }
 .crew-profile-page .cd-historic-row .cp-doc-title { color: #6B6657; font-weight: 500; }
 .crew-profile-page .cd-historic-pill {
   display: inline-block; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
-  font-size: 11px; font-weight: 700; background: #EEEDE8; color: #7A7568;
+  font-size: 11px; font-weight: 700; background: #E9EBED; color: #7A7568;
 }
-.crew-profile-page .cd-historic-note { color: #A39E92; font-style: italic; }
+.crew-profile-page .cd-historic-note { color: #969A9F; font-style: italic; }
 .crew-profile-page .cd-historic-group { margin-top: 16px; }
 .crew-profile-page .cd-historic-head {
   font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
@@ -788,7 +788,7 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-notes { font-size: 11.5px; color: #8B8478; font-style: italic; margin-top: 3px; }
 .crew-profile-page .kit-sig-thumb {
   height: 26px; width: auto; max-width: 80px; border-radius: 4px;
-  background: #fff; border: 1px solid #ECEAE3; object-fit: contain;
+  background: #fff; border: 1px solid #E5E7EB; object-fit: contain;
 }
 .crew-profile-page .kit-empty {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
@@ -800,11 +800,11 @@ body.crew-profile-editorial {
 /* ── Signature & Stamp (captain-only, self-service) ──────────────────── */
 .crew-profile-page .cc-sig-preview {
   max-height: 90px; max-width: 260px; object-fit: contain;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 10px; padding: 10px 14px;
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 10px; padding: 10px 14px;
 }
 .crew-profile-page .cc-stamp-preview {
   height: 110px; width: 110px; object-fit: contain;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 10px; padding: 8px;
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 10px; padding: 8px;
 }
 .crew-profile-page .cc-edit-block { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
 .crew-profile-page .cc-current { display: flex; align-items: center; gap: 14px; }
@@ -815,7 +815,7 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-ack-banner {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   padding: 12px 14px; border-radius: 12px; margin-bottom: 18px;
-  background: #FBEFE9; border: 1px solid #F0D8C8; color: #7A2E1E; font-size: 13px;
+  background: #EEF2F7; border: 1px solid #F0D8C8; color: #7A2E1E; font-size: 13px;
 }
 .crew-profile-page .kit-ack-banner > :last-child { margin-left: auto; }
 
@@ -826,7 +826,7 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .kit-panel {
   width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32);
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
@@ -860,7 +860,7 @@ body.crew-profile-editorial {
   background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px 15px;
   font-family: inherit; color: #1C1B3A; transition: border-color 0.14s, background 0.14s;
 }
-.crew-profile-page .kit-scope-opt:hover { border-color: #C65A1A; background: #FBEFE9; }
+.crew-profile-page .kit-scope-opt:hover { border-color: #C65A1A; background: #EEF2F7; }
 .crew-profile-page .kit-scope-opt:disabled { opacity: 0.5; cursor: default; }
 .crew-profile-page .kit-scope-opt svg { color: #C65A1A; flex: none; margin-top: 1px; }
 .crew-profile-page .kit-scope-opt b { display: block; font-size: 14px; font-weight: 600; }
@@ -890,7 +890,7 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .kit-field input:not(.edp-input):focus,
 .crew-profile-page .kit-field select:focus {
-  border-color: #C65A1A; box-shadow: 0 0 0 2px #FAECE7;
+  border-color: #C65A1A; box-shadow: 0 0 0 2px rgba(198, 90, 26, 0.14);
 }
 /* The editorial date picker brings its own field styling — just let it fill. */
 .crew-profile-page .kit-field .edp { width: 100%; }
@@ -900,7 +900,7 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .kit-ack-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
 .crew-profile-page .kit-ack-intro { font-size: 13.5px; color: #1C1B3A; margin: 0; }
-.crew-profile-page .kit-ack-list { list-style: none; margin: 0; padding: 0; border: 1px solid #ECEAE3; border-radius: 10px; }
+.crew-profile-page .kit-ack-list { list-style: none; margin: 0; padding: 0; border: 1px solid #E5E7EB; border-radius: 10px; }
 .crew-profile-page .kit-ack-list li {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 9px 12px; font-size: 13px; color: #1C1B3A; border-bottom: 1px solid #F0F1F5;
@@ -917,7 +917,7 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-ack-swapbtn:hover { text-decoration: underline; }
 .crew-profile-page .kit-ack-swap { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: #C65A1A; }
 .crew-profile-page .kit-ack-swap input { flex: 1; border: 1px solid #E5E7EB; background: #FFFFFF; border-radius: 8px; padding: 7px 10px; font-size: 13px; color: #1C1B3A; outline: none; }
-.crew-profile-page .kit-ack-swap input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.crew-profile-page .kit-ack-swap input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 
 /* Issued-kit tiles — visual, so a crew member can recognise items at a glance. */
 .crew-profile-page .kit-tilegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
@@ -929,7 +929,7 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-tile-ph { position: absolute; inset: 0; display: grid; place-items: center; color: #C9CDD6; }
 .crew-profile-page .kit-tile-qty { position: absolute; top: 8px; left: 8px; background: #1C1B3A; color: #FFFFFF; border-radius: 999px; min-width: 26px; height: 24px; padding: 0 9px; display: inline-flex; align-items: center; justify-content: center; font: 800 13px 'Plus Jakarta Sans', system-ui, sans-serif; box-shadow: 0 2px 8px -2px rgba(28, 27, 58, 0.4); }
 .crew-profile-page .kit-tile-qty .x { font-weight: 600; opacity: 0.7; font-size: 11px; margin-right: 1px; }
-.crew-profile-page .kit-tile-sig { position: absolute; bottom: 6px; right: 6px; width: 58px; height: 30px; object-fit: contain; background: rgba(255, 255, 255, 0.94); border: 1px solid #ECEAE3; border-radius: 7px; padding: 2px 4px; box-shadow: 0 1px 4px -1px rgba(28, 27, 58, 0.18); }
+.crew-profile-page .kit-tile-sig { position: absolute; bottom: 6px; right: 6px; width: 58px; height: 30px; object-fit: contain; background: rgba(255, 255, 255, 0.94); border: 1px solid #E5E7EB; border-radius: 7px; padding: 2px 4px; box-shadow: 0 1px 4px -1px rgba(28, 27, 58, 0.18); }
 .crew-profile-page .kit-tile-body { padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 5px; }
 .crew-profile-page .kit-tile-nm { font-weight: 600; font-size: 13px; color: #1C1B3A; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .crew-profile-page .kit-tile-sub { font-size: 11px; color: #8B8478; }
@@ -948,7 +948,7 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-sizes { margin: 0 0 30px; padding-bottom: 24px; border-bottom: 1px solid #F0F1F5; }
 .crew-profile-page .kit-fit-chip {
   font-size: 10px; font-weight: 700; letter-spacing: 0.4px; color: #7A7568;
-  background: #EEEDE8; border-radius: 999px; padding: 3px 9px; white-space: nowrap;
+  background: #E9EBED; border-radius: 999px; padding: 3px 9px; white-space: nowrap;
 }
 .crew-profile-page .kit-profile-row { display: flex; gap: 20px; margin-bottom: 18px; flex-wrap: wrap; }
 .crew-profile-page .kit-profile-row .kit-fit-field { margin-bottom: 0; }
@@ -970,7 +970,7 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-sgroup { margin-top: 16px; }
 .crew-profile-page .kit-sgroup-h {
   font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
-  color: #C65A1A; margin: 0 0 4px; padding-bottom: 5px; border-bottom: 1px solid #ECEAE3;
+  color: #C65A1A; margin: 0 0 4px; padding-bottom: 5px; border-bottom: 1px solid #E5E7EB;
 }
 .crew-profile-page .kit-sgroup .kit-size-grid { margin-top: 12px; }
 
@@ -984,7 +984,7 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-lgrp-foot { margin: 2px 0 0; }
 .crew-profile-page .kit-lgrp-h {
   font-size: 9px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
-  color: #C65A1A; margin: 0 0 2px; padding-bottom: 6px; border-bottom: 1px solid #ECEAE3;
+  color: #C65A1A; margin: 0 0 2px; padding-bottom: 6px; border-bottom: 1px solid #E5E7EB;
 }
 .crew-profile-page .kit-lrow {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
@@ -1013,11 +1013,11 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-history-toggle:hover { text-decoration: underline; }
 .crew-profile-page .kit-history-list { list-style: none; margin: 6px 0 0; padding: 0; }
 .crew-profile-page .kit-history-list li {
-  display: flex; gap: 11px; padding: 9px 2px; border-bottom: 1px solid #F4F2EC;
+  display: flex; gap: 11px; padding: 9px 2px; border-bottom: 1px solid #EEF0F2;
 }
 .crew-profile-page .kit-history-list li:last-child { border-bottom: 0; }
 .crew-profile-page .kit-ev-dot {
-  width: 7px; height: 7px; border-radius: 50%; background: #D9D5CC; margin-top: 5px; flex: none;
+  width: 7px; height: 7px; border-radius: 50%; background: #CFD2D6; margin-top: 5px; flex: none;
 }
 .crew-profile-page .kit-ev-desc { font-size: 13px; color: #1C1B3A; }
 .crew-profile-page .kit-ev-meta { font-size: 11px; color: #8B8478; margin-top: 2px; font-variant-numeric: tabular-nums; }
@@ -1047,7 +1047,7 @@ body.crew-profile-editorial {
   flex: 1;
   min-width: 150px;
   background: #FFFFFF;
-  border: 1px solid #E6E3DA;
+  border: 1px solid #DDE0E3;
   border-top: 3px solid #5E8E6F;     /* sage default = compliant */
   border-radius: 11px;
   padding: 13px 16px;
@@ -1094,7 +1094,7 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-cal-amber .cp-cal-v { color: #C0851F; }
 .crew-profile-page .cp-cal-red   .cp-cal-v { color: #E4574C; }
 /* A day still carried by the rota baseline (not yet logged) — white, dashed. */
-.crew-profile-page .cp-cal-cell.is-baseline { background: #FFFFFF; border: 1px dashed #CFCABE; }
+.crew-profile-page .cp-cal-cell.is-baseline { background: #FFFFFF; border: 1px dashed #C2C6CB; }
 .crew-profile-page .cp-cal-cell.is-baseline .cp-cal-d { color: #9aa0b0; }
 .crew-profile-page .cp-cal-cell.is-baseline .cp-cal-v { color: #b9bdc9; }
 .crew-profile-page .cp-cal-cell.is-selected { box-shadow: 0 0 0 2px #1C1B3A; }
@@ -1153,13 +1153,13 @@ body.crew-profile-editorial {
   transition: background 0.12s ease, color 0.12s ease;
 }
 .crew-profile-page .cp-nav-it:hover { background: #F6F7FA; color: #1C1B3A; }
-.crew-profile-page .cp-nav-it.active { color: #C65A1A; font-weight: 700; background: #FAECE7; }
+.crew-profile-page .cp-nav-it.active { color: #C65A1A; font-weight: 700; background: #EEF2F7; }
 
 /* Legend swatches mirror the soft calendar palette. */
 .crew-profile-page .cp-cal-swatch { width: 16px; height: 16px; border-radius: 4px; background: #E7F0E9; }
 .crew-profile-page .cp-cal-swatch.amber { background: #FBEFD9; }
 .crew-profile-page .cp-cal-swatch.red { background: #FBEAE8; }
-.crew-profile-page .cp-cal-swatch.rota { background: #FFFFFF; border: 1px dashed #CFCABE; }
+.crew-profile-page .cp-cal-swatch.rota { background: #FFFFFF; border: 1px dashed #C2C6CB; }
 
 /* ── HOR hybrid — compact calendar (left) + inline-edit day list (right) ───
    Mirrors the approved hybrid mockup: month overview always on, each day a
@@ -1180,7 +1180,7 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-hor-subh .mo { color: #1C1B3A; font-size: 13px; min-width: 96px; text-align: center; }
 .crew-profile-page .cp-hor-navbtn { background: none; border: 0; cursor: pointer; color: #1C1B3A; padding: 2px 7px; border-radius: 6px; line-height: 1; }
 .crew-profile-page .cp-hor-navbtn:hover { background: #F1F5F9; }
-.crew-profile-page .cp-hor-lockednote { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #8B8478; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 999px; padding: 7px 14px; }
+.crew-profile-page .cp-hor-lockednote { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #8B8478; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 999px; padding: 7px 14px; }
 .crew-profile-page .cp-hor-lockednote svg { color: #C65A1A; flex: 0 0 auto; }
 .crew-profile-page .cp-hor-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .crew-profile-page .cp-hor-dow { font-size: 8.5px; text-transform: uppercase; color: #9aa0b0; text-align: center; font-weight: 600; padding-bottom: 2px; }
@@ -1191,7 +1191,7 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-hor-c:hover { filter: brightness(0.975); }
 .crew-profile-page .cp-hor-c.amber { background: #FBEFD9; }
 .crew-profile-page .cp-hor-c.red { background: #FBEAE8; }
-.crew-profile-page .cp-hor-c.future { background: #fff; border: 1px dashed #CFCABE; }
+.crew-profile-page .cp-hor-c.future { background: #fff; border: 1px dashed #C2C6CB; }
 .crew-profile-page .cp-hor-c.sel { outline: 2px solid #1C1B3A; outline-offset: 1px; }
 .crew-profile-page .cp-hor-c .d { font-size: 10px; font-weight: 600; color: #3f6b50; }
 .crew-profile-page .cp-hor-c.amber .d { color: #8a6a1f; }
@@ -1204,9 +1204,9 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-hor-c.blank { visibility: hidden; }
 .crew-profile-page .cp-hor-hint { font-size: 11px; color: #7b7f93; margin-top: 12px; line-height: 1.5; }
 
-.crew-profile-page .cp-hor-list { flex: 1; border-left: 1px solid #ECEAE3; padding-left: 16px; max-height: 560px; overflow: auto; }
-.crew-profile-page .cp-il { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f1efe9; cursor: pointer; }
-.crew-profile-page .cp-il:hover { background: #FBFAF7; }
+.crew-profile-page .cp-hor-list { flex: 1; border-left: 1px solid #E5E7EB; padding-left: 16px; max-height: 560px; overflow: auto; }
+.crew-profile-page .cp-il { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #EBEDEF; cursor: pointer; }
+.crew-profile-page .cp-il:hover { background: #F8F9FA; }
 .crew-profile-page .cp-il .dd { width: 84px; font-size: 12px; flex-shrink: 0; }
 .crew-profile-page .cp-il .dd b { display: block; font-weight: 600; color: #1C1B3A; }
 .crew-profile-page .cp-il .dd span { color: #9aa0b0; font-size: 11px; }
@@ -1215,7 +1215,7 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-il .rr.off { color: #9aa0b0; font-weight: 500; }
 .crew-profile-page .cp-il .rr.amber { color: #C0851F; }
 .crew-profile-page .cp-il .rr.red { color: #E4574C; }
-.crew-profile-page .cp-bar { position: relative; height: 24px; background: #F4F2EC; border-radius: 6px; overflow: hidden; border: 1px solid #e6e3da; }
+.crew-profile-page .cp-bar { position: relative; height: 24px; background: #EEF0F2; border-radius: 6px; overflow: hidden; border: 1px solid #DDE0E3; }
 .crew-profile-page .cp-bar.big { height: 44px; }
 .crew-profile-page .cp-bar .blk { position: absolute; top: 0; bottom: 0; background: #1C1B3A; opacity: 0.9; }
 .crew-profile-page .cp-bar.rota .blk { background: repeating-linear-gradient(45deg, #c7cad6, #c7cad6 4px, #d7dae2 4px, #d7dae2 8px); }
@@ -1237,7 +1237,7 @@ body.crew-profile-editorial {
 }
 .crew-profile-page .cp-ticks span.minor {
   font-size: 8px;
-  color: #b3ada0;
+  color: #A4A9AF;
   font-weight: 500;
 }
 .crew-profile-page .cp-ticks span.major {
@@ -1252,7 +1252,7 @@ body.crew-profile-editorial {
   top: -5px;
   width: 1px;
   height: 4px;
-  background: #cdc8bb;
+  background: #BFC4C9;
   transform: translateX(-50%);
 }
 .crew-profile-page .cp-ticks span.major::before {
@@ -1285,7 +1285,7 @@ body.crew-profile-editorial {
       #D9DCE3 calc((100% - 1px) / 12),
       #D9DCE3 calc(100% / 12)
     ),
-    #FAFAF8;
+    #F8FAFC;
   user-select: none;
   -webkit-user-select: none;
   /* Finger drags paint instead of scrolling the page (pointer handlers). */
@@ -1390,7 +1390,7 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-bulkbar .apply { background: #1C1B3A; color: #fff; border: 0; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }
 .crew-profile-page .cp-bulkbar .apply:disabled { opacity: 0.45; cursor: not-allowed; }
 .crew-profile-page .cp-bulkbar .hint { font-size: 11px; color: #9aa0b0; }
-.crew-profile-page .cp-il.picked { background: #FAECE7; box-shadow: inset 3px 0 0 0 #C65A1A; }
+.crew-profile-page .cp-il.picked { background: rgba(198, 90, 26, 0.14); box-shadow: inset 3px 0 0 0 #C65A1A; }
 
 .crew-profile-page .cp-tplmenu { border: 1px solid #E6E8EF; border-radius: 10px; padding: 6px; margin: 6px 0 4px; background: #fff; }
 .crew-profile-page .cp-tplmenu .empty { font-size: 12px; color: #9aa0b0; margin: 6px; }
@@ -1404,7 +1404,7 @@ body.crew-profile-editorial {
 
 /* HOR signature receipt — editorial "signed ledger" (replaces the boxed cards).
    One panel, hairline-divided; a signing line under each drawn signature. */
-.crew-profile-page .cp-sigrcpt { display: grid; grid-template-columns: 1fr; background: #fff; border: 1px solid #ECEAE3; border-radius: 14px; overflow: hidden; }
+.crew-profile-page .cp-sigrcpt { display: grid; grid-template-columns: 1fr; background: #fff; border: 1px solid #E5E7EB; border-radius: 14px; overflow: hidden; }
 /* A single signature (self-certified, or crew-only before counter-sign) only
    ever holds one column, so don't stretch the panel the full content width —
    size it to a tidy receipt. The two-signature case (.two) still spans wide. */
@@ -1419,14 +1419,14 @@ body.crew-profile-editorial {
 /* White field behind the ink so the transparent-background signature PNG (dark
    strokes) always reads, and a taller box so a thin stroke isn't downscaled to
    near-invisible. Signature rests bottom-left like a real signing line. */
-.crew-profile-page .cp-sig-ink { display: flex; align-items: flex-end; justify-content: flex-start; min-height: 80px; margin: 12px 0 8px; padding: 8px 10px; background: #fff; border-bottom: 1px solid #E8E6DF; }
+.crew-profile-page .cp-sig-ink { display: flex; align-items: flex-end; justify-content: flex-start; min-height: 80px; margin: 12px 0 8px; padding: 8px 10px; background: #fff; border-bottom: 1px solid #E1E3E6; }
 .crew-profile-page .cp-sig-ink img { height: 64px; width: auto; max-width: 100%; object-fit: contain; object-position: left bottom; }
 .crew-profile-page .cp-sig-name { font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif; font-size: 16px; line-height: 1.2; color: #1C1B3A; }
 .crew-profile-page .cp-sig-meta { margin-top: 3px; font-size: 11px; color: #AEB4C2; }
 
 /* Approver review summary — scannable card shown to the master on a submitted
    month (breach days + documented reasons; full grid stays below). */
-.crew-profile-page .cp-review { border: 1px solid #ECEAE3; border-radius: 14px; background: #FFFFFF; padding: 18px 20px; }
+.crew-profile-page .cp-review { border: 1px solid #E5E7EB; border-radius: 14px; background: #FFFFFF; padding: 18px 20px; }
 /* Two-tone title: navy word + terracotta italic, matching HOR, Submitted. */
 .crew-profile-page .cp-section-head h3 em { font-style: italic; color: #C65A1A; }
 /* Breaches header — navy "Compliance," lead, smaller terracotta italic emphasis. */
@@ -1465,7 +1465,7 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-review-bhead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .crew-profile-page .cp-review-bdate { font-size: 13.5px; font-weight: 600; color: #1C1B3A; min-width: 84px; }
 .crew-profile-page .cp-review-bchips { display: flex; flex-wrap: wrap; gap: 6px; }
-.crew-profile-page .cp-review-chip { font-size: 11px; font-weight: 600; color: #1C1B3A; background: #F4F3EE; border: 1px solid #E8E6DF; border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+.crew-profile-page .cp-review-chip { font-size: 11px; font-weight: 600; color: #1C1B3A; background: #EFF1F3; border: 1px solid #E1E3E6; border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
 .crew-profile-page .cp-review-bnote { margin-top: 5px; font-size: 12.5px; color: #6B7280; font-style: italic; }
 .crew-profile-page .cp-review-bnote.none { color: #C65A1A; }
 .crew-profile-page .cp-review-clean { margin-top: 12px; font-size: 13px; color: #6B7280; }
@@ -1476,7 +1476,7 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-brlist { border-top: 1px solid #F0F1F5; }
 .crew-profile-page .cp-brrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 14px 8px; border-bottom: 1px solid #F0F1F5; }
 .crew-profile-page .cp-brrow.is-editable { cursor: pointer; border-radius: 8px; transition: background 0.12s ease; }
-.crew-profile-page .cp-brrow.is-editable:hover { background: #FAFAF8; }
+.crew-profile-page .cp-brrow.is-editable:hover { background: #F8FAFC; }
 .crew-profile-page .cp-brrow-main { min-width: 0; }
 .crew-profile-page .cp-brrow-date { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 .crew-profile-page .cp-brrow-rule { margin-top: 2px; font-size: 12px; color: #8B8478; }
@@ -1486,7 +1486,7 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-brpill { padding: 4px 11px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
 .crew-profile-page .cp-brpill.ok { background: #EAF3EC; color: #3F7A4E; }
 .crew-profile-page .cp-brpill.pending { background: #F0F1F5; color: #6B7280; }
-.crew-profile-page .cp-brpill.open { background: #FBEFE9; color: #C65A1A; }
+.crew-profile-page .cp-brpill.open { background: #EEF2F7; color: #C65A1A; }
 .crew-profile-page .cp-brempty { padding: 10px 0; font-size: 13px; color: #6B7280; }
 .crew-profile-page .cp-braddentry { align-self: flex-start; margin-top: 16px; }
 
@@ -1510,14 +1510,14 @@ body.crew-profile-editorial {
 /* Read-only value pill (e.g. tier / department context). */
 .crew-profile-page .cp-set-pill {
   padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600;
-  background: #F6F5F2; color: #6B7280; white-space: nowrap; letter-spacing: 0.2px;
+  background: #F3F4F5; color: #6B7280; white-space: nowrap; letter-spacing: 0.2px;
 }
-.crew-profile-page .cp-set-pill.accent { background: #FBEFE9; color: #C65A1A; }
+.crew-profile-page .cp-set-pill.accent { background: #EEF2F7; color: #C65A1A; }
 
 /* Toggle switch. */
 .crew-profile-page .cp-switch {
   position: relative; flex: 0 0 auto; width: 46px; height: 26px; border-radius: 999px;
-  border: 1px solid #ECEAE3; background: #F6F5F2; cursor: pointer;
+  border: 1px solid #E5E7EB; background: #F3F4F5; cursor: pointer;
   transition: background 150ms ease; padding: 0;
 }
 .crew-profile-page .cp-switch[aria-checked="true"] { background: #C65A1A; border-color: #C65A1A; }
@@ -1532,9 +1532,9 @@ body.crew-profile-editorial {
 /* Channel chips (Bell / Email) shown per notification row. */
 .crew-profile-page .cp-chanchip {
   display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px;
-  font-size: 10.5px; font-weight: 600; border: 1px solid #ECEAE3; color: #8B8478; background: #fff;
+  font-size: 10.5px; font-weight: 600; border: 1px solid #E5E7EB; color: #8B8478; background: #fff;
 }
-.crew-profile-page .cp-chanchip.on { background: #FBEFE9; border-color: #FBEFE9; color: #C65A1A; }
+.crew-profile-page .cp-chanchip.on { background: #EEF2F7; border-color: #EEF2F7; color: #C65A1A; }
 
 /* ── Clean settings surface (Notifications + Permissions) ─────────────────────
    The GitHub/Vercel LAYOUT, skinned in the Cargo system: navy ink #1C1B3A,
@@ -1551,19 +1551,19 @@ body.crew-profile-editorial {
 .crew-profile-page .s2-main { min-width: 0; }
 .crew-profile-page .s2-label { font-family: 'Manrope', 'Inter', system-ui, sans-serif; font-size: 14px; font-weight: 500; letter-spacing: -0.005em; color: #1C1B3A; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .crew-profile-page .s2-desc { font-size: 12.5px; color: #8B8478; margin-top: 4px; line-height: 1.5; }
-.crew-profile-page .s2-flag { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #C65A1A; background: #FBEFE9; border-radius: 999px; padding: 3px 8px; }
+.crew-profile-page .s2-flag { font-size: 9px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #C65A1A; background: #EEF2F7; border-radius: 999px; padding: 3px 8px; }
 /* checkbox channels */
 .crew-profile-page .s2-cbs { flex: 0 0 auto; display: flex; gap: 20px; }
 .crew-profile-page .s2-cb { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #6B7280; background: none; border: 0; cursor: pointer; padding: 0; }
 .crew-profile-page .s2-cb.on { color: #1C1B3A; }
-.crew-profile-page .s2-cb-box { width: 18px; height: 18px; border-radius: 6px; border: 1.5px solid #D8D6CE; display: inline-flex; align-items: center; justify-content: center; color: #fff; transition: all 0.14s ease; }
+.crew-profile-page .s2-cb-box { width: 18px; height: 18px; border-radius: 6px; border: 1.5px solid #D0D3D6; display: inline-flex; align-items: center; justify-content: center; color: #fff; transition: all 0.14s ease; }
 .crew-profile-page .s2-cb.on .s2-cb-box { background: #C65A1A; border-color: #C65A1A; }
 .crew-profile-page .s2-cb:not(.na):hover .s2-cb-box { border-color: #C65A1A; }
-.crew-profile-page .s2-cb.na { color: #C4C2BA; cursor: default; }
-.crew-profile-page .s2-cb.na .s2-cb-box { border-color: #ECEAE3; border-style: dashed; }
+.crew-profile-page .s2-cb.na { color: #BCBFC2; cursor: default; }
+.crew-profile-page .s2-cb.na .s2-cb-box { border-color: #E5E7EB; border-style: dashed; }
 /* Notifications header line — title left, compact quiet-hours control right. */
 .crew-profile-page .cp-settings2 .cp-section-head.s2-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
-.crew-profile-page .s2-qmini { display: inline-flex; align-items: center; gap: 10px; border: 1px solid #ECEAE3; border-radius: 12px; padding: 5px 7px 5px 12px; background: #fff; box-shadow: 0 1px 2px rgba(28,27,58,0.03); }
+.crew-profile-page .s2-qmini { display: inline-flex; align-items: center; gap: 10px; border: 1px solid #E5E7EB; border-radius: 12px; padding: 5px 7px 5px 12px; background: #fff; box-shadow: 0 1px 2px rgba(28,27,58,0.03); }
 .crew-profile-page .s2-qmini > svg { color: #8B8478; flex: 0 0 auto; }
 .crew-profile-page .s2-qmini-lbl { font-family: 'Manrope', 'Inter', system-ui, sans-serif; font-weight: 500; font-size: 12.5px; color: #1C1B3A; letter-spacing: -0.005em; }
 .crew-profile-page .s2-qmini-times { display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.2s ease; }
@@ -1589,8 +1589,8 @@ body.crew-profile-editorial {
 .crew-profile-page .s2-trig svg { flex: 0 0 auto; }
 .crew-profile-page .s2-pop-back { position: fixed; inset: 0; z-index: 40; }
 .crew-profile-page .s2-pop { position: absolute; top: calc(100% + 12px); right: 0; width: 340px; max-width: 86vw; z-index: 41;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 14px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); padding: 16px 18px 14px; }
-.crew-profile-page .s2-pop::before { content: ''; position: absolute; top: -6px; right: 34px; width: 11px; height: 11px; background: #fff; border-left: 1px solid #ECEAE3; border-top: 1px solid #ECEAE3; transform: rotate(45deg); }
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 14px; box-shadow: 0 24px 60px -16px rgba(28,27,58,0.32); padding: 16px 18px 14px; }
+.crew-profile-page .s2-pop::before { content: ''; position: absolute; top: -6px; right: 34px; width: 11px; height: 11px; background: #fff; border-left: 1px solid #E5E7EB; border-top: 1px solid #E5E7EB; transform: rotate(45deg); }
 .crew-profile-page .s2-pop-h { font-family: 'Manrope', 'Inter', system-ui, sans-serif; font-weight: 600; font-size: 13.5px; color: #1C1B3A; }
 .crew-profile-page .s2-pop-s { font-size: 12px; color: #8B8478; margin: 2px 0 12px; line-height: 1.45; }
 .crew-profile-page .s2-pop-grp { font-size: 9px; font-weight: 700; letter-spacing: 0.9px; text-transform: uppercase; color: #AEB4C2; margin: 12px 0 5px; }
@@ -1609,24 +1609,24 @@ body.crew-profile-editorial {
 /* Drop the rail clear of the absolute Edit/Save actions in the section head. */
 .crew-profile-page .cp-rail { position: sticky; top: 20px; margin-top: 54px; display: flex; flex-direction: column; gap: 14px; }
 @media (max-width: 1100px) { .crew-profile-page .cp-rail { margin-top: 0; } }
-.crew-profile-page .cp-rail-card { border: 1px solid #ECEAE3; border-radius: 14px; padding: 18px; background: #fff; }
+.crew-profile-page .cp-rail-card { border: 1px solid #E5E7EB; border-radius: 14px; padding: 18px; background: #fff; }
 .crew-profile-page .cp-rail-card .h { font-family: 'DM Serif Display', Georgia, serif; font-size: 16px; margin: 0 0 4px; color: #1C1B3A; }
 .crew-profile-page .cp-rail-card .h.sm { font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; }
 .crew-profile-page .cp-rail-card .p { font-size: 12px; color: #6B7280; line-height: 1.55; margin: 0 0 14px; }
 .crew-profile-page .cp-rail-step { display: flex; gap: 10px; font-size: 12.5px; margin-bottom: 10px; color: #2B2A47; line-height: 1.45; }
-.crew-profile-page .cp-rail-step .n { width: 20px; height: 20px; border-radius: 999px; background: #FBEFE9; color: #C65A1A; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.crew-profile-page .cp-rail-step .n { width: 20px; height: 20px; border-radius: 999px; background: #EEF2F7; color: #C65A1A; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .crew-profile-page .cp-rail-status { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; padding: 7px 0; border-bottom: 1px solid #F0F1F5; color: #6B7280; }
 .crew-profile-page .cp-rail-status:last-child { border-bottom: 0; }
 .crew-profile-page .cp-rail-badge { font-size: 10.5px; font-weight: 600; border-radius: 999px; padding: 3px 9px; }
 .crew-profile-page .cp-rail-badge.ok { background: #EAF3EC; color: #3F7A4E; }
-.crew-profile-page .cp-rail-badge.warn { background: #FBEFE9; color: #C65A1A; }
+.crew-profile-page .cp-rail-badge.warn { background: #EEF2F7; color: #C65A1A; }
 .crew-profile-page .cp-rail-btn { width: 100%; border-radius: 10px; font-size: 13px; font-weight: 600; padding: 10px 14px; cursor: pointer; }
 .crew-profile-page .cp-rail-btn.fill { background: #C65A1A; color: #fff; border: 1px solid #C65A1A; }
 .crew-profile-page .cp-rail-btn.fill:hover { background: #B14E16; }
-.crew-profile-page .cp-rail-btn.ghost { background: #fff; color: #1C1B3A; border: 1px solid #ECEAE3; margin-top: 8px; }
+.crew-profile-page .cp-rail-btn.ghost { background: #fff; color: #1C1B3A; border: 1px solid #E5E7EB; margin-top: 8px; }
 .crew-profile-page .cp-rail-btn:disabled { opacity: .55; cursor: not-allowed; }
-.crew-profile-page .cp-rail-step code { background: #FBEFE9; border-radius: 5px; padding: 1px 5px; font-size: 11px; color: #C65A1A; }
-.crew-profile-page .cp-rail-chosen { display: flex; flex-direction: column; gap: 2px; margin: 14px 0 4px; padding: 10px 12px; border: 1px solid #ECEAE3; border-radius: 10px; background: #FAFAF8; }
+.crew-profile-page .cp-rail-step code { background: #EEF2F7; border-radius: 5px; padding: 1px 5px; font-size: 11px; color: #C65A1A; }
+.crew-profile-page .cp-rail-chosen { display: flex; flex-direction: column; gap: 2px; margin: 14px 0 4px; padding: 10px 12px; border: 1px solid #E5E7EB; border-radius: 10px; background: #F8FAFC; }
 .crew-profile-page .cp-rail-chosen-label { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; }
 .crew-profile-page .cp-rail-chosen-name { font-size: 13px; font-weight: 600; color: #1C1B3A; }
 
@@ -1641,7 +1641,7 @@ body.crew-profile-editorial {
 /* Probation period quick-pick chips. */
 .crew-profile-page .cp-prob { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .crew-profile-page .cp-prob-chip {
-  border: 1px solid #ECEAE3; background: #fff; color: #6B7280; border-radius: 999px;
+  border: 1px solid #E5E7EB; background: #fff; color: #6B7280; border-radius: 999px;
   padding: 5px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer;
 }
 .crew-profile-page .cp-prob-chip:hover { border-color: #C65A1A; color: #C65A1A; }
@@ -1654,9 +1654,9 @@ body.crew-profile-editorial {
 .crew-profile-page .act-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 16px; }
 .crew-profile-page .act-pill {
   font-size: 12px; font-weight: 600; color: #6B7280; background: #fff;
-  border: 1px solid #ECEAE3; border-radius: 999px; padding: 5px 13px; cursor: pointer;
+  border: 1px solid #E5E7EB; border-radius: 999px; padding: 5px 13px; cursor: pointer;
 }
-.crew-profile-page .act-pill:hover { border-color: #D7D3C9; }
+.crew-profile-page .act-pill:hover { border-color: #CCD0D4; }
 .crew-profile-page .act-pill.on { background: #1C1B3A; border-color: #1C1B3A; color: #fff; }
 
 .crew-profile-page .act-list { display: flex; flex-direction: column; }
@@ -1681,13 +1681,13 @@ body.crew-profile-editorial {
 .crew-profile-page .act-cal { margin-top: 6px; }
 .crew-profile-page .act-cal-nav { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
 .crew-profile-page .act-cal-nav button { color: #8B8478; background: none; border: 0; cursor: pointer; padding: 4px; border-radius: 8px; }
-.crew-profile-page .act-cal-nav button:hover { background: #F4F2EC; color: #1C1B3A; }
+.crew-profile-page .act-cal-nav button:hover { background: #EEF0F2; color: #1C1B3A; }
 .crew-profile-page .act-cal-nav span { font-size: 14px; font-weight: 600; color: #1C1B3A; min-width: 140px; text-align: center; }
 .crew-profile-page .act-cal-today {
   margin-left: 6px; font-size: 11.5px; font-weight: 600; color: #C65A1A;
   background: none; border: 0; cursor: pointer; padding: 4px 6px; border-radius: 8px;
 }
-.crew-profile-page .act-cal-today:hover { background: #FAECE7; }
+.crew-profile-page .act-cal-today:hover { background: #EEF2F7; }
 
 /* Three columns on wide screens: calendar · day panel + 365-day KPIs ·
    residency. Collapses to two then one as the viewport narrows so the whole
@@ -1717,7 +1717,7 @@ body.crew-profile-editorial {
   display: block; text-align: left; background: #fff; cursor: pointer; font: inherit; overflow: hidden;
   transition: border-color .12s ease, transform .12s ease, opacity .22s ease, box-shadow .12s ease;
 }
-.crew-profile-page .act-mcell:hover { border-color: #E1DCCF; transform: translateY(-1px); }
+.crew-profile-page .act-mcell:hover { border-color: #D3D8DD; transform: translateY(-1px); }
 .crew-profile-page .act-mcell.is-blank { background: transparent; border: 0; cursor: default; }
 .crew-profile-page .act-mnum { font-size: 12px; font-weight: 600; color: #1C1B3A; }
 .crew-profile-page .act-mtab {
@@ -1735,14 +1735,14 @@ body.crew-profile-editorial {
 .crew-profile-page .act-mstamp { position: absolute; top: 4px; right: 5px; display: inline-flex; color: #C65A1A; opacity: .85; }
 /* Per-month KPI strip — each chip is a colour key + day-count for the status. */
 .crew-profile-page .act-kpis { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-.crew-profile-page .act-kpi { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border: 1px solid #ECEAE3; border-radius: 999px; background: #FAFAF8; }
+.crew-profile-page .act-kpi { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border: 1px solid #E5E7EB; border-radius: 999px; background: #F8FAFC; }
 .crew-profile-page .act-kpi i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .crew-profile-page .act-kpi b { font-size: 13px; font-weight: 700; color: #1C1B3A; font-variant-numeric: tabular-nums; }
 .crew-profile-page .act-kpi span { font-size: 11.5px; color: #6B7280; }
 .crew-profile-page .act-kpi-empty { font-size: 12px; color: #8B8478; }
 
 /* Day panel */
-.crew-profile-page .act-daypanel { border: 1px solid #ECEAE3; border-radius: 14px; padding: 18px; background: #fff; }
+.crew-profile-page .act-daypanel { border: 1px solid #E5E7EB; border-radius: 14px; padding: 18px; background: #fff; }
 .crew-profile-page .act-dp-date { font-family: 'DM Serif Display', Georgia, serif; font-size: 17px; color: #1C1B3A; display: flex; flex-direction: column; line-height: 1.2; }
 .crew-profile-page .act-dp-date span { font-size: 12px; color: #8B8478; font-family: 'Inter', sans-serif; margin-top: 3px; font-variant-numeric: tabular-nums; }
 .crew-profile-page .act-dp-status { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #1C1B3A; margin-top: 12px; }
@@ -1760,33 +1760,33 @@ body.crew-profile-editorial {
   font-size: 13px; font-weight: 600; color: #C65A1A; background: none; border: 1px dashed #E5D5C8; border-radius: 10px;
   padding: 10px 12px; cursor: pointer;
 }
-.crew-profile-page .act-dp-add:hover { background: #FBEFE9; }
+.crew-profile-page .act-dp-add:hover { background: #EEF2F7; }
 .crew-profile-page .act-dp-empty { font-size: 13px; color: #8B8478; margin-top: 14px; }
 /* Vessel sign-on / sign-off stamp controls in the day panel. */
 .crew-profile-page .act-dp-stamp { margin-top: 14px; padding-top: 14px; border-top: 1px solid #F0F1F5; }
 .crew-profile-page .act-stamp-row { display: flex; align-items: center; gap: 7px; }
 .crew-profile-page .act-stamp-rm { margin-left: auto; color: #A32D2D; background: none; border: 0; cursor: pointer; padding: 2px; display: inline-flex; }
 .crew-profile-page .act-stamp-actions { display: flex; gap: 10px; }
-.crew-profile-page .act-stamp-actions button { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #1C1B3A; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+.crew-profile-page .act-stamp-actions button { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #1C1B3A; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 8px; padding: 6px 10px; cursor: pointer; }
 .crew-profile-page .act-stamp-actions button:hover { border-color: #C65A1A; color: #C65A1A; }
 /* Last-365-days KPI card — tappable rows that filter the calendar. */
-.crew-profile-page .act-statcard { border: 1px solid #ECEAE3; border-radius: 14px; padding: 14px 16px; background: #fff; }
+.crew-profile-page .act-statcard { border: 1px solid #E5E7EB; border-radius: 14px; padding: 14px 16px; background: #fff; }
 .crew-profile-page .act-statcard-h { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 6px; }
 .crew-profile-page .act-statcard-h em { font-style: normal; color: #AEB4C2; }
 .crew-profile-page .act-kpirow { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: 0; background: none; border-radius: 8px; cursor: pointer; font: inherit; text-align: left; transition: background .12s ease, opacity .2s ease; }
-.crew-profile-page .act-kpirow:hover { background: #FAFAF8; }
-.crew-profile-page .act-kpirow.on { background: #FAFAF8; }
+.crew-profile-page .act-kpirow:hover { background: #F8FAFC; }
+.crew-profile-page .act-kpirow.on { background: #F8FAFC; }
 .crew-profile-page .act-kpirow.is-mute { opacity: .4; }
 .crew-profile-page .act-kpidot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .crew-profile-page .act-kpilab { font-size: 12.5px; color: #1C1B3A; width: 70px; flex: none; }
 .crew-profile-page .act-kpibar { flex: 1; height: 6px; border-radius: 999px; background: #F0F1F5; overflow: hidden; }
 .crew-profile-page .act-kpibar i { display: block; height: 100%; border-radius: 999px; transition: width .7s cubic-bezier(.22,.61,.36,1); }
 .crew-profile-page .act-kpival { font-size: 13px; font-weight: 700; color: #1C1B3A; font-variant-numeric: tabular-nums; width: 34px; text-align: right; }
-.crew-profile-page .act-filterpill { margin-top: 12px; font-size: 12px; color: #6B7280; background: #FAFAF8; border: 1px solid #ECEAE3; border-radius: 999px; padding: 6px 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
-.crew-profile-page .act-filterpill:hover { background: #FBEFE9; color: #C65A1A; border-color: #F0D9CC; }
+.crew-profile-page .act-filterpill { margin-top: 12px; font-size: 12px; color: #6B7280; background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 999px; padding: 6px 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.crew-profile-page .act-filterpill:hover { background: #EEF2F7; color: #C65A1A; border-color: #F0D9CC; }
 .crew-profile-page .act-filterpill b { font-weight: 700; }
 /* Residency & visas — scaffolded; switches on once per-day location is captured. */
-.crew-profile-page .act-rescard { border: 1px solid #ECEAE3; border-radius: 14px; padding: 14px 16px; background: #fff; }
+.crew-profile-page .act-rescard { border: 1px solid #E5E7EB; border-radius: 14px; padding: 14px 16px; background: #fff; }
 .crew-profile-page .act-res-h { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; display: flex; align-items: center; gap: 7px; }
 .crew-profile-page .act-res-gauge { height: 11px; border-radius: 999px; background: #F0F1F5; overflow: hidden; margin: 11px 0 2px; }
 .crew-profile-page .act-res-soon { font-size: 12px; color: #8B8478; line-height: 1.5; margin-top: 8px; }
@@ -1838,7 +1838,7 @@ body.crew-profile-editorial {
 .crew-profile-page .ps-aibtn:hover { background: #FDF6F1; border-color: #C65A1A; }
 .crew-profile-page .ps-aibtn:disabled { opacity: .6; cursor: default; }
 .crew-profile-page .ps-aibtn.ghost { color: #6B7280; border-color: #E5E7EB; }
-.crew-profile-page .ps-aibtn.ghost:hover { background: #FAFAF8; border-color: #d8b9a6; color: #1C1B3A; }
+.crew-profile-page .ps-aibtn.ghost:hover { background: #F8FAFC; border-color: #d8b9a6; color: #1C1B3A; }
 .crew-profile-page .ps-aihint { font-size: 11.5px; color: #8B8478; margin-top: 9px; max-width: 460px; line-height: 1.45; }
 .crew-profile-page .ps-aihint b { color: #6B7280; font-weight: 600; }
 
@@ -1910,7 +1910,7 @@ body.crew-profile-editorial {
 .crew-profile-page .cp-rail-strip-tog {
   display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
   font-size: 12px; font-weight: 600; color: #C65A1A;
-  padding: 5px 10px; border-radius: 999px; background: #FBEFE9;
+  padding: 5px 10px; border-radius: 999px; background: #EEF2F7;
 }
 .crew-profile-page .cp-rail-box.narrow { padding: 8px 10px; }
 .crew-profile-page .cp-rail-box.narrow.open .cp-rail-strip {

@@ -181,7 +181,7 @@ const MapPopover = ({
       if (!c) return;
       const m = new g.Marker({
         map, position: { lat: c.lat, lng: c.lng }, title: `${s.name} — invite to Cargo`,
-        icon: { path: g.SymbolPath.CIRCLE, scale: 6, fillColor: '#B8B3A8', fillOpacity: 0.5, strokeColor: '#8B8478', strokeWeight: 1.5 },
+        icon: { path: g.SymbolPath.CIRCLE, scale: 6, fillColor: '#ACB0B4', fillOpacity: 0.5, strokeColor: '#8B8478', strokeWeight: 1.5 },
         zIndex: 1,
       });
       m.addListener('click', () => onInviteRef.current && onInviteRef.current(s));

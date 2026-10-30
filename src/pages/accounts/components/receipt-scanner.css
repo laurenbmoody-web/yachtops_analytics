@@ -4,7 +4,7 @@
 .rs-back { position: fixed; inset: 0; z-index: 120; background: rgba(28,27,58,.72);
   display: flex; align-items: center; justify-content: center; padding: 20px; }
 
-.rs-panel { width: 100%; max-width: 520px; background: #fff; border: 1px solid #ECEAE3;
+.rs-panel { width: 100%; max-width: 520px; background: #fff; border: 1px solid #E5E7EB;
   border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,.42); overflow: hidden;
   display: flex; flex-direction: column; max-height: 92vh; }
 

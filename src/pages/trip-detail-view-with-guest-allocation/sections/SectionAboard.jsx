@@ -37,7 +37,7 @@ function StatusBadge({ kind }) {
     <span style={{
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       width: 19, height: 19, borderRadius: '50%',
-      background: '#FAECE7', color: '#7A2E1E',
+      background: '#EEF2F7', color: '#7A2E1E',
       fontSize: 10, fontWeight: 700, lineHeight: 1,
     }}>{kind}</span>
   );
@@ -70,7 +70,7 @@ function GuestBlock({ guest, isLeader, showState }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
         <div style={{
           width: avatarBaseSize, height: avatarBaseSize, borderRadius: '50%',
-          background: '#1C1B3A', color: '#F5F1EA',
+          background: '#1C1B3A', color: '#F8FAFC',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: isLeader ? 14 : 13, fontWeight: 600, flexShrink: 0,
           opacity: ashore ? 0.55 : 1,
@@ -121,7 +121,7 @@ function CabinCard({ cabin, isPrincipalCabin, showState, fullWidth = false }) {
 
   return (
     <div style={{
-      border: '0.5px solid #DFD8CC',
+      border: '0.5px solid #D0D5DB',
       borderRadius: 12,
       padding: '18px 22px',
       background: '#FFFFFF',
@@ -140,7 +140,7 @@ function CabinCard({ cabin, isPrincipalCabin, showState, fullWidth = false }) {
         // Two-up horizontal layout for the principal's cabin (couple)
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: 22, alignItems: 'flex-start' }}>
           <GuestBlock guest={guests[0]} isLeader showState={showState} />
-          <div style={{ background: '#DFD8CC', width: 1, minHeight: 90 }} />
+          <div style={{ background: '#D0D5DB', width: 1, minHeight: 90 }} />
           <GuestBlock guest={guests[1]} isLeader showState={showState} />
         </div>
       ) : (
@@ -148,7 +148,7 @@ function CabinCard({ cabin, isPrincipalCabin, showState, fullWidth = false }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {guests.map((g, i) => (
             <React.Fragment key={g.id}>
-              {i > 0 && <div style={{ height: '0.5px', background: '#DFD8CC' }} />}
+              {i > 0 && <div style={{ height: '0.5px', background: '#D0D5DB' }} />}
               <GuestBlock guest={g} showState={showState} />
             </React.Fragment>
           ))}

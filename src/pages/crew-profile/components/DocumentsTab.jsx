@@ -216,7 +216,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, crewName, crewDob,
               {prev.length} earlier version{prev.length > 1 ? 's' : ''} on file
             </button>
             {open && prev.map((p) => (
-              <div key={p.id} className="flex items-center justify-between py-1.5" style={{ borderTop: '1px dashed #ECEAE3' }}>
+              <div key={p.id} className="flex items-center justify-between py-1.5" style={{ borderTop: '1px dashed #E5E7EB' }}>
                 <span className="text-[11px] text-muted-foreground truncate">
                   {[...metaBits(p), 'superseded'].join(' · ')}
                 </span>
@@ -330,7 +330,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, crewName, crewDob,
           onClick={canEdit ? () => openAdd() : undefined}
         >
           <div className="cd-tile-top">
-            <span className="cd-ico" style={{ background: '#F1EFE9' }}><Icon name={catIcon(s.id)} size={19} style={{ color: '#A8A296' }} /></span>
+            <span className="cd-ico" style={{ background: '#EBEDEF' }}><Icon name={catIcon(s.id)} size={19} style={{ color: '#9A9FA4' }} /></span>
           </div>
           <div className="cd-tile-name">{s.label}</div>
           <div className="cd-tile-break">No documents yet</div>
@@ -477,7 +477,7 @@ const DocumentsTab = ({ userId, tenantId, createdBy, canEdit, crewName, crewDob,
           className="flex flex-col items-center justify-center gap-2 text-sm font-semibold"
           style={{
             position: 'absolute', inset: 0, zIndex: 5, borderRadius: 14,
-            border: '2px dashed #C65A1A', background: 'rgba(251,239,233,0.92)', color: '#7A2E1E',
+            border: '2px dashed #C65A1A', background: 'rgba(238, 242, 247,0.92)', color: '#7A2E1E',
             pointerEvents: 'none',
           }}
         >

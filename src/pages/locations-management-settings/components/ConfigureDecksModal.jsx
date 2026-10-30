@@ -9,7 +9,7 @@ const INK = '#1C1B3A';
 const TERRA = '#C65A1A';
 const MUTED = '#6B7280';
 const HAIR = '#F0F1F5';
-const FIELD = '#FAFAF8';
+const FIELD = '#F8FAFC';
 
 export default function ConfigureDecksModal({ decks = [], onChanged, onClose }) {
   const [adding, setAdding] = useState(false);
@@ -43,7 +43,7 @@ export default function ConfigureDecksModal({ decks = [], onChanged, onClose }) 
 
   const iconBtn = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 999, background: 'none', border: 0, color: MUTED, cursor: 'pointer' };
   const linkBtn = { background: 'none', border: 0, padding: 0, fontFamily: 'inherit', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' };
-  const field = { flex: 1, fontSize: 13.5, color: INK, background: '#fff', border: '1px solid #E8E6DF', borderRadius: 8, padding: '8px 10px', outline: 'none' };
+  const field = { flex: 1, fontSize: 13.5, color: INK, background: '#fff', border: '1px solid #E1E3E6', borderRadius: 8, padding: '8px 10px', outline: 'none' };
   const primary = { fontSize: 12.5, fontWeight: 600, color: '#fff', background: TERRA, border: 0, borderRadius: 8, padding: '8px 14px', cursor: 'pointer' };
   const ghost = { fontSize: 12.5, fontWeight: 500, color: MUTED, background: '#F0F1F5', border: 0, borderRadius: 8, padding: '8px 12px', cursor: 'pointer' };
 
@@ -51,9 +51,9 @@ export default function ConfigureDecksModal({ decks = [], onChanged, onClose }) 
     <ModalShell
       onClose={onClose}
       panelClassName="w-full max-w-md flex flex-col"
-      panelStyle={{ maxHeight: '80vh', background: '#fff', borderRadius: 16, border: '1px solid #ECEAE3', boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)', fontFamily: "'Inter', system-ui, sans-serif" }}
+      panelStyle={{ maxHeight: '80vh', background: '#fff', borderRadius: 16, border: '1px solid #E5E7EB', boxShadow: '0 24px 60px -16px rgba(28,27,58,0.32)', fontFamily: "'Inter', system-ui, sans-serif" }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid #ECEAE3', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px', borderBottom: '1px solid #E5E7EB', flexShrink: 0 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, color: INK, margin: 0 }}>Configure decks</h3>
         <button onClick={onClose} style={iconBtn} aria-label="Close">×</button>
       </div>
@@ -113,7 +113,7 @@ export default function ConfigureDecksModal({ decks = [], onChanged, onClose }) 
         {error && <p style={{ padding: '4px 12px 10px', margin: 0, fontSize: 12, color: '#B91C1C' }}>{error}</p>}
       </div>
 
-      <div style={{ padding: '12px 18px', borderTop: '1px solid #ECEAE3', flexShrink: 0 }}>
+      <div style={{ padding: '12px 18px', borderTop: '1px solid #E5E7EB', flexShrink: 0 }}>
         <button onClick={onClose} style={{ width: '100%', ...ghost, background: 'none', color: MUTED, padding: '8px 0' }}>Done</button>
       </div>
     </ModalShell>

@@ -184,7 +184,7 @@ const BatchReviewModal = ({ isOpen, files, onClose, onSaved, onProfileSynced, us
                   </span>
                 )}
                 {dup && (
-                  <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: '#FBEFE9', color: '#7A2E1E' }} title="A matching document is already on file">
+                  <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: '#EEF2F7', color: '#7A2E1E' }} title="A matching document is already on file">
                     <Icon name="Copy" size={11} /> Possible duplicate
                   </span>
                 )}

@@ -291,7 +291,7 @@ export default function SplatViewer({
 
     // Placement reticle — a small surface-snapped dot tracking the cursor in
     // Pin mode, so placement is previewed before the click. Hidden on miss.
-    const reticle = makePin('#F4F3EE');
+    const reticle = makePin('#EFF1F3');
     reticle.material.opacity = 0.9;
     reticle.renderOrder = 12;
     reticle.visible = false;

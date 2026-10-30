@@ -4,15 +4,15 @@
   background: rgba(28, 27, 58, .42); backdrop-filter: blur(2px); padding: 40px 20px; overflow-y: auto;
 }
 .gbx-panel {
-  width: 100%; max-width: 1120px; background: #fff; border: 1px solid #ECEAE3; border-radius: 16px;
+  width: 100%; max-width: 1120px; background: #fff; border: 1px solid #E5E7EB; border-radius: 16px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, .32); display: flex; flex-direction: column;
   font-family: 'Inter', system-ui, sans-serif; color: #1C1B3A; overflow: hidden;
 }
 .gbx-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 26px 16px; border-bottom: 1px solid #F0F1F5; }
 .gbx-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin-bottom: 4px; }
 .gbx-head h2 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 23px; margin: 0; }
-.gbx-x { border: none; background: #F6F5F2; color: #6B7280; width: 34px; height: 34px; border-radius: 999px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-.gbx-x:hover { background: #ECEAE3; }
+.gbx-x { border: none; background: #F3F4F5; color: #6B7280; width: 34px; height: 34px; border-radius: 999px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.gbx-x:hover { background: #E5E7EB; }
 .gbx-loading { display: flex; align-items: center; justify-content: center; padding: 80px; }
 
 .gbx-body { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 0; align-items: stretch; }
@@ -26,15 +26,15 @@
 .gbx-tpl.on { border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, .1); }
 .gbx-tpl b { font-size: 12.5px; margin-top: 8px; }
 .gbx-tpl span:not(.gbx-tpl-thumb) { font-size: 11px; color: #6B7280; }
-.gbx-tpl-thumb { width: 100%; height: 54px; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: #FAFAF8; border: 1px solid #F0F1F5; }
+.gbx-tpl-thumb { width: 100%; height: 54px; border-radius: 7px; display: flex; align-items: center; justify-content: center; background: #F8FAFC; border: 1px solid #F0F1F5; }
 /* mini layout diagram — a photo dot + statement bars per row; the alternating
    template flips the second row so the photo side swaps. */
 .tpl-mini { display: flex; flex-direction: column; gap: 8px; width: 76%; }
 .tpl-row { display: flex; align-items: center; gap: 6px; }
 .tpl-row.rev { flex-direction: row-reverse; }
-.tpl-row .d { width: 11px; height: 11px; border-radius: 999px; background: #DED7CC; flex: none; }
-.tpl-row .b { flex: 1; height: 3px; border-radius: 2px; background: #E6E2DA; box-shadow: 0 5px 0 -0.5px #ECEAE3; }
-.gbx-tpl-thumb.t-upload { color: #8B8478; border-style: dashed; border-color: #cfc8bd; }
+.tpl-row .d { width: 11px; height: 11px; border-radius: 999px; background: #D0D5DA; flex: none; }
+.tpl-row .b { flex: 1; height: 3px; border-radius: 2px; background: #DDE0E3; box-shadow: 0 5px 0 -0.5px #E5E7EB; }
+.gbx-tpl-thumb.t-upload { color: #8B8478; border-style: dashed; border-color: #C1C6CB; }
 .gbx-upload { border-style: dashed; }
 .gbx-ainote { margin-top: 12px; display: flex; align-items: flex-start; gap: 7px; font-size: 12px; color: #6B7280; background: #FBFCFD; border: 1px solid #EAECEF; border-radius: 10px; padding: 9px 12px; line-height: 1.45; }
 .gbx-ainote svg { color: #C65A1A; flex: none; margin-top: 1px; }
@@ -45,13 +45,13 @@
 .gbx-row:active { cursor: grabbing; }
 .gbx-row.dim { opacity: .5; }
 .gbx-grip { color: #AEB4C2; font-size: 13px; letter-spacing: -2px; }
-.gbx-av { width: 28px; height: 28px; border-radius: 999px; background: #E9E4DC; flex: none; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #a08e7d; }
+.gbx-av { width: 28px; height: 28px; border-radius: 999px; background: #DFE2E6; flex: none; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #a08e7d; }
 .gbx-row-name { display: flex; flex-direction: column; line-height: 1.25; }
 .gbx-row-name b { font-size: 13px; }
 .gbx-row-name i { font-style: normal; font-size: 10.5px; color: #6B7280; }
 .gbx-wc { margin-left: auto; font-size: 10.5px; color: #AEB4C2; }
 .gbx-wc.warn { color: #C65A1A; font-weight: 600; }
-.gbx-nostmt { margin-left: auto; font-size: 10px; color: #C65A1A; background: #FBEFE9; border-radius: 999px; padding: 2px 8px; }
+.gbx-nostmt { margin-left: auto; font-size: 10px; color: #C65A1A; background: #EEF2F7; border-radius: 999px; padding: 2px 8px; }
 .gbx-check { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: #6B7280; cursor: pointer; }
 .gbx-check input { accent-color: #C65A1A; }
 
@@ -65,7 +65,7 @@
 /* number steppers (font sizes) */
 .gbx-stepper { display: inline-flex; align-items: center; border: 1px solid #E5E7EB; border-radius: 999px; overflow: hidden; }
 .gbx-stepper button { border: none; background: #fff; width: 30px; height: 32px; font-size: 16px; color: #1C1B3A; cursor: pointer; }
-.gbx-stepper button:hover:not(:disabled) { background: #FAFAF8; color: #C65A1A; }
+.gbx-stepper button:hover:not(:disabled) { background: #F8FAFC; color: #C65A1A; }
 .gbx-stepper button:disabled { opacity: .35; cursor: default; }
 .gbx-stepper span { min-width: 44px; text-align: center; font-size: 12.5px; font-weight: 600; color: #1C1B3A; }
 /* colour swatches */
@@ -80,25 +80,25 @@
 .gbx-titles input:focus { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, .1); }
 
 /* preview — the real exported PDF in an iframe (WYSIWYG) */
-.gbx-preview-wrap { background: #F4F3EF; border-left: 1px solid #ECEAE3; padding: 20px 22px; display: flex; flex-direction: column; }
+.gbx-preview-wrap { background: #F0F1F3; border-left: 1px solid #E5E7EB; padding: 20px 22px; display: flex; flex-direction: column; }
 .gbx-preview-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .gbx-pg { font-size: 11px; color: #6B7280; min-width: 78px; text-align: center; }
 .gbx-pager { display: inline-flex; align-items: center; gap: 6px; }
 .gbx-pager button { border: 1px solid #E5E7EB; background: #fff; border-radius: 7px; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: #6B7280; }
 .gbx-pager button:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
 .gbx-pager button:disabled { opacity: .4; cursor: default; }
-.gbx-pdfwrap { width: 100%; background: #fff; border: 1px solid #ECEAE3; border-radius: 4px; box-shadow: 0 10px 30px -16px rgba(28, 27, 58, .3); overflow: hidden; display: grid; place-items: center; }
+.gbx-pdfwrap { width: 100%; background: #fff; border: 1px solid #E5E7EB; border-radius: 4px; box-shadow: 0 10px 30px -16px rgba(28, 27, 58, .3); overflow: hidden; display: grid; place-items: center; }
 .gbx-pdfwrap.portrait { aspect-ratio: 1 / 1.414; }
 .gbx-pdfwrap.landscape { aspect-ratio: 1.414 / 1; }
 .gbx-pdf { width: 100%; height: 100%; border: 0; display: block; }
 /* title show/hide toggle */
 .gbx-title-row { display: flex; align-items: center; justify-content: space-between; }
 .gbx-toggle { font-size: 8.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; border: 1px solid #E5E7EB; background: #fff; color: #8B8478; border-radius: 999px; padding: 2px 8px; cursor: pointer; }
-.gbx-toggle.on { background: #FBEFE9; border-color: #E7C3AE; color: #C65A1A; }
+.gbx-toggle.on { background: #EEF2F7; border-color: #E7C3AE; color: #C65A1A; }
 /* landscape — widen the modal + preview so the wide page is legible */
 .gbx-panel.landscape { max-width: 1340px; }
 .gbx-body.landscape { grid-template-columns: minmax(0, 1fr) 620px; }
-.gbx-page { background: #fff; border: 1px solid #ECEAE3; border-radius: 4px; box-shadow: 0 10px 30px -16px rgba(28, 27, 58, .3); padding: 22px 22px 24px; position: relative; overflow: hidden; width: 100%; display: flex; flex-direction: column; }
+.gbx-page { background: #fff; border: 1px solid #E5E7EB; border-radius: 4px; box-shadow: 0 10px 30px -16px rgba(28, 27, 58, .3); padding: 22px 22px 24px; position: relative; overflow: hidden; width: 100%; display: flex; flex-direction: column; }
 .gbx-page.portrait { aspect-ratio: 1 / 1.414; }
 .gbx-page.landscape { aspect-ratio: 1.414 / 1; }
 .gbx-page.dark { background: #1C1B3A; color: #E7E6EF; border-color: #1C1B3A; }
@@ -119,7 +119,7 @@
    clip the name — matching how the PDF centres each fitted strip. */
 .gbx-card { display: flex; flex-direction: row; align-items: stretch; gap: 14px; min-height: 0; overflow: hidden; }
 .gbx-card.flip { flex-direction: row-reverse; text-align: right; }
-.gbx-pic { width: 40px; height: 40px; align-self: center; border-radius: 999px; background: #E9E4DC; flex: none; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #a08e7d; overflow: hidden; }
+.gbx-pic { width: 40px; height: 40px; align-self: center; border-radius: 999px; background: #DFE2E6; flex: none; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #a08e7d; overflow: hidden; }
 .gbx-pic-img { object-fit: cover; color: transparent; }
 .gbx-page.dark .gbx-pic { background: #33325A; color: #C9C7E0; }
 .gbx-card-body { min-width: 0; min-height: 0; display: flex; flex-direction: column; flex: 1; }
@@ -138,12 +138,12 @@
 .gbx-foot-note { margin-right: auto; font-size: 11.5px; color: #6B7280; }
 .gbx-btn { display: inline-flex; align-items: center; gap: 7px; font: inherit; font-size: 13px; font-weight: 600; border-radius: 10px; padding: 10px 18px; cursor: pointer; border: 1px solid transparent; }
 .gbx-btn.ghost { background: #fff; border-color: #E5E7EB; color: #1C1B3A; }
-.gbx-btn.ghost:hover { background: #FAFAF8; }
+.gbx-btn.ghost:hover { background: #F8FAFC; }
 .gbx-btn.primary { background: #C65A1A; color: #fff; }
 .gbx-btn.primary:hover { background: #B14E16; }
 .gbx-btn.primary:disabled { opacity: .5; cursor: default; }
 
 @media (max-width: 880px) {
   .gbx-body { grid-template-columns: 1fr; }
-  .gbx-preview-wrap { border-left: none; border-top: 1px solid #ECEAE3; }
+  .gbx-preview-wrap { border-left: none; border-top: 1px solid #E5E7EB; }
 }

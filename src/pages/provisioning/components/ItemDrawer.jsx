@@ -621,8 +621,8 @@ const ItemDrawer = ({ open, item, listId, tenantId, listCurrency = 'GBP', depart
             <div style={{
               margin: '0 0 16px',
               padding: '12px 14px',
-              background: '#FAFAF8',
-              border: '1px solid #ECEAE3',
+              background: '#F8FAFC',
+              border: '1px solid #E5E7EB',
               borderLeft: '3px solid #C65A1A',
               borderRadius: 8,
               fontSize: 13,

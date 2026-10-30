@@ -25,7 +25,7 @@
 .pay-due { font-size: 12.5px; color: #6B7280; font-variant-numeric: tabular-nums; }
 .pay-pill {
   font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  color: #C65A1A; background: #FBEFE9; border-radius: 999px; padding: 3px 9px;
+  color: #C65A1A; background: #EEF2F7; border-radius: 999px; padding: 3px 9px;
 }
 .pay-row.is-overdue .pay-due { color: #C65A1A; font-weight: 600; }
 
@@ -48,7 +48,7 @@
   background: #fff; border: 1px solid #E7C9B6; border-radius: 8px; padding: 7px 13px;
   white-space: nowrap; transition: background .12s, border-color .12s;
 }
-.pay-card:hover:not(:disabled) { background: #FBEFE9; border-color: #C65A1A; }
+.pay-card:hover:not(:disabled) { background: #EEF2F7; border-color: #C65A1A; }
 .pay-card:disabled { opacity: 0.55; cursor: default; }
 
 @media (max-width: 640px) {

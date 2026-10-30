@@ -4082,7 +4082,7 @@ const SUPPLIER_MIRROR_FIELD = {
                               // unavailable, or sent) lines get a soft field
                               // tint so settled work recedes as a group and
                               // the still-actionable rows read as white.
-                              background: allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : (isLocked ? '#FAFAF8' : 'white'),
+                              background: allergen ? '#FFFBEB' : isHovered ? '#FAFCFF' : (isLocked ? '#F8FAFC' : 'white'),
                               borderBottom: rowIdx < totalRows - 1 ? '1px solid #F8FAFC' : 'none',
                               transition: 'background 0.1s',
                               opacity: (isLocked && itemOrder.status === 'unavailable') || item.status === 'unavailable' ? 0.7 : 1,
@@ -4458,7 +4458,7 @@ const SUPPLIER_MIRROR_FIELD = {
                                   onClick={() => handleReopenLine(item, itemOrder)}
                                   title="Reopen for changes — supplier will be notified"
                                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#94A3B8' }}
-                                  onMouseEnter={e => { e.currentTarget.style.background = '#FBEFE9'; e.currentTarget.style.color = '#C65A1A'; }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = '#EEF2F7'; e.currentTarget.style.color = '#C65A1A'; }}
                                   onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94A3B8'; }}
                                 >
                                   <Icon name="RotateCcw" style={{ width: 12, height: 12 }} />
@@ -4473,7 +4473,7 @@ const SUPPLIER_MIRROR_FIELD = {
                                   onClick={() => handleReopenManualLine(item)}
                                   title="Reopen for changes — unlocks the line, keeps its quoted price"
                                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#94A3B8' }}
-                                  onMouseEnter={e => { e.currentTarget.style.background = '#FBEFE9'; e.currentTarget.style.color = '#C65A1A'; }}
+                                  onMouseEnter={e => { e.currentTarget.style.background = '#EEF2F7'; e.currentTarget.style.color = '#C65A1A'; }}
                                   onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94A3B8'; }}
                                 >
                                   <Icon name="RotateCcw" style={{ width: 12, height: 12 }} />

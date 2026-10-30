@@ -1,6 +1,6 @@
 /* Set-location picker — editorial (Cargo) design system. */
 .slm-scrim { position: fixed; inset: 0; z-index: 1700; background: rgba(28,27,58,.34); display: grid; place-items: center; padding: 20px; }
-.slm { width: 100%; max-width: 400px; max-height: 84vh; display: flex; flex-direction: column; background: #fff; border: 1px solid #ECEAE3; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,.32); overflow: hidden; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+.slm { width: 100%; max-width: 400px; max-height: 84vh; display: flex; flex-direction: column; background: #fff; border: 1px solid #E5E7EB; border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28,27,58,.32); overflow: hidden; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
 .slm-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 16px 18px 10px; }
 .slm-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #8B8478; margin: 0; }
 .slm-eyebrow::first-letter { color: #C65A1A; }
@@ -16,7 +16,7 @@
 .slm-empty { font-size: 12.5px; color: #8B8478; padding: 14px 6px; }
 .slm-row { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 9px; cursor: pointer; }
 .slm-row:hover { background: #FAFBFC; }
-.slm-row.on { background: #FBEFE9; }
+.slm-row.on { background: #EEF2F7; }
 .slm-radio { width: 18px; height: 18px; border-radius: 999px; border: 1.5px solid #CBD5E1; display: grid; place-items: center; color: #fff; flex: 0 0 auto; }
 .slm-row.on .slm-radio { background: #C65A1A; border-color: #C65A1A; }
 .slm-name { font: 600 14px 'Plus Jakarta Sans', system-ui, sans-serif; color: #1C1B3A; flex: 1 1 auto; }
