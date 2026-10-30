@@ -48,6 +48,14 @@ const getCurrentUserId = async () => {
 // Map DB row (snake_case) → app object (camelCase)
 const mapRowToGuest = (row) => {
   if (!row) return null;
+  // Travel documents, commercial terms and legal status live in
+  // public.guest_confidential, which only Command and Chief can read. The embed
+  // comes back as an object, or as an array depending on how PostgREST resolves
+  // the relationship, and as NOTHING AT ALL for crew — RLS simply returns no
+  // row. That last case is the normal one, not an error: the guest still
+  // renders, minus the parts crew are not entitled to.
+  const confRaw = row?.guest_confidential;
+  const conf = (Array.isArray(confRaw) ? confRaw[0] : confRaw) || {};
   return {
     id: row?.id,
     tenantId: row?.tenant_id,
@@ -78,34 +86,41 @@ const mapRowToGuest = (row) => {
     updatedAt: row?.updated_at,
     createdBy: row?.created_by,
     updatedBy: row?.updated_by,
-    // Travel & Documents
-    passportNumber: row?.passport_number || '',
-    passportNationality: row?.passport_nationality || '',
-    passportNationalityOther: row?.passport_nationality_other || '',
-    passportExpiryDate: row?.passport_expiry_date || '',
-    visaNotes: row?.visa_notes || '',
+    // Travel & Documents — confidential
+    passportNumber: conf?.passport_number || '',
+    passportNationality: conf?.passport_nationality || '',
+    passportNationalityOther: conf?.passport_nationality_other || '',
+    passportExpiryDate: conf?.passport_expiry_date || '',
+    passportDocumentUrl: conf?.passport_document_url || null,
+    visaNotes: conf?.visa_notes || '',
+    // Emergency contacts stay on `guests`: whoever is standing there needs them
+    // in a hurry, which is not a Command-only moment.
     emergencyContactName: row?.emergency_contact_name || '',
     emergencyContactPhone: row?.emergency_contact_phone || '',
     emergencyContactRelationship: row?.emergency_contact_relationship || '',
-    // Payment & APA
-    clientType: row?.client_type || '',
-    billingContactName: row?.billing_contact_name || '',
-    billingContactEmail: row?.billing_contact_email || '',
-    preferredCurrency: row?.preferred_currency || '',
-    apaRequired: row?.apa_required || false,
-    apaAmount: row?.apa_amount || null,
-    apaNotes: row?.apa_notes || '',
-    paymentNotes: row?.payment_notes || '',
-    // NDA & Privacy
-    ndaSigned: row?.nda_signed || false,
-    ndaExpiryDate: row?.nda_expiry_date || '',
-    ndaDocumentUrl: row?.nda_document_url || null,
+    // Payment & APA — confidential
+    clientType: conf?.client_type || '',
+    billingContactName: conf?.billing_contact_name || '',
+    billingContactEmail: conf?.billing_contact_email || '',
+    preferredCurrency: conf?.preferred_currency || '',
+    apaRequired: conf?.apa_required || false,
+    apaAmount: conf?.apa_amount || null,
+    apaNotes: conf?.apa_notes || '',
+    paymentNotes: conf?.payment_notes || '',
+    // NDA — confidential
+    ndaSigned: conf?.nda_signed || false,
+    ndaExpiryDate: conf?.nda_expiry_date || '',
+    ndaDocumentUrl: conf?.nda_document_url || null,
+    privacyNotes: conf?.privacy_notes || '',
+    // The guest's own stated privacy preference stays readable, so the page can
+    // show crew what the guest asked for even where it is not yet enforced.
     privacyLevel: row?.privacy_level || 'Standard',
     photoPermission: row?.photo_permission || 'Ask Each Time',
     shareGuestInfoWithCrew: row?.share_guest_info_with_crew || 'Limited',
-    privacyNotes: row?.privacy_notes || '',
-    passportDocumentUrl: row?.passport_document_url || null,
     isActiveOnTrip: row?.is_active_on_trip ?? false,
+    // True when this reader was allowed the confidential record at all, so the
+    // UI can say "you cannot see this" rather than showing convincing blanks.
+    confidentialVisible: !!(confRaw && (Array.isArray(confRaw) ? confRaw.length : true)),
   };
 };
 
@@ -136,16 +151,30 @@ const mapGuestToRow = (guestData) => {
   if (guestData?.deletedAt !== undefined) row.deleted_at = guestData?.deletedAt;
   if (guestData?.deletedByUserId !== undefined) row.deleted_by_user_id = guestData?.deletedByUserId;
   if (guestData?.historyLog !== undefined) row.history_log = guestData?.historyLog;
-  // Travel & Documents
+  if (guestData?.emergencyContactName !== undefined) row.emergency_contact_name = guestData?.emergencyContactName;
+  if (guestData?.emergencyContactPhone !== undefined) row.emergency_contact_phone = guestData?.emergencyContactPhone;
+  if (guestData?.emergencyContactRelationship !== undefined) row.emergency_contact_relationship = guestData?.emergencyContactRelationship;
+  if (guestData?.privacyLevel !== undefined) row.privacy_level = guestData?.privacyLevel;
+  if (guestData?.photoPermission !== undefined) row.photo_permission = guestData?.photoPermission;
+  if (guestData?.shareGuestInfoWithCrew !== undefined) row.share_guest_info_with_crew = guestData?.shareGuestInfoWithCrew;
+  if (guestData?.isActiveOnTrip !== undefined) row.is_active_on_trip = guestData?.isActiveOnTrip;
+  return row;
+};
+
+// The other half of the same form: the fields that live in
+// public.guest_confidential. Sparse like the one above, so an update only
+// touches what the caller actually supplied. Returns an empty object when the
+// caller sent none of them, which is the signal not to write that table at all
+// — a crew member saving a guest's cabin must not be refused by RLS for a
+// confidential write they never asked to make.
+const mapGuestToConfidentialRow = (guestData) => {
+  const row = {};
   if (guestData?.passportNumber !== undefined) row.passport_number = guestData?.passportNumber;
   if (guestData?.passportNationality !== undefined) row.passport_nationality = guestData?.passportNationality;
   if (guestData?.passportNationalityOther !== undefined) row.passport_nationality_other = guestData?.passportNationalityOther;
   if (guestData?.passportExpiryDate !== undefined) row.passport_expiry_date = guestData?.passportExpiryDate;
+  if (guestData?.passportDocumentUrl !== undefined) row.passport_document_url = guestData?.passportDocumentUrl;
   if (guestData?.visaNotes !== undefined) row.visa_notes = guestData?.visaNotes;
-  if (guestData?.emergencyContactName !== undefined) row.emergency_contact_name = guestData?.emergencyContactName;
-  if (guestData?.emergencyContactPhone !== undefined) row.emergency_contact_phone = guestData?.emergencyContactPhone;
-  if (guestData?.emergencyContactRelationship !== undefined) row.emergency_contact_relationship = guestData?.emergencyContactRelationship;
-  // Payment & APA
   if (guestData?.clientType !== undefined) row.client_type = guestData?.clientType;
   if (guestData?.billingContactName !== undefined) row.billing_contact_name = guestData?.billingContactName;
   if (guestData?.billingContactEmail !== undefined) row.billing_contact_email = guestData?.billingContactEmail;
@@ -154,18 +183,31 @@ const mapGuestToRow = (guestData) => {
   if (guestData?.apaAmount !== undefined) row.apa_amount = guestData?.apaAmount;
   if (guestData?.apaNotes !== undefined) row.apa_notes = guestData?.apaNotes;
   if (guestData?.paymentNotes !== undefined) row.payment_notes = guestData?.paymentNotes;
-  // NDA & Privacy
   if (guestData?.ndaSigned !== undefined) row.nda_signed = guestData?.ndaSigned;
   if (guestData?.ndaExpiryDate !== undefined) row.nda_expiry_date = guestData?.ndaExpiryDate;
   if (guestData?.ndaDocumentUrl !== undefined) row.nda_document_url = guestData?.ndaDocumentUrl;
-  if (guestData?.privacyLevel !== undefined) row.privacy_level = guestData?.privacyLevel;
-  if (guestData?.photoPermission !== undefined) row.photo_permission = guestData?.photoPermission;
-  if (guestData?.shareGuestInfoWithCrew !== undefined) row.share_guest_info_with_crew = guestData?.shareGuestInfoWithCrew;
   if (guestData?.privacyNotes !== undefined) row.privacy_notes = guestData?.privacyNotes;
-  if (guestData?.passportDocumentUrl !== undefined) row.passport_document_url = guestData?.passportDocumentUrl;
-  if (guestData?.isActiveOnTrip !== undefined) row.is_active_on_trip = guestData?.isActiveOnTrip;
   return row;
 };
+
+// Write the confidential half, if the caller supplied any of it. Upsert rather
+// than update: a guest created before this table existed has no row yet.
+const saveConfidential = async (guestId, tenantId, guestData) => {
+  const row = mapGuestToConfidentialRow(guestData);
+  if (!Object.keys(row).length) return { error: null };
+  const { error } = await supabase
+    ?.from('guest_confidential')
+    ?.upsert(
+      { ...row, guest_id: guestId, tenant_id: tenantId, updated_at: new Date()?.toISOString() },
+      { onConflict: 'guest_id' },
+    );
+  if (error) console.error('[guestStorage] saveConfidential failed:', error);
+  return { error };
+};
+
+// Every read of a guest needs the confidential half embedded. RLS decides
+// whether it comes back.
+const GUEST_SELECT = '*, guest_confidential(*)';
 
 // Load all guests for the active tenant
 export const loadGuests = async (tenantId) => {
@@ -176,7 +218,7 @@ export const loadGuests = async (tenantId) => {
       return [];
     }
 
-    const { data, error } = await supabase?.from('guests')?.select('*')?.eq('tenant_id', tid)?.order('created_at', { ascending: false });
+    const { data, error } = await supabase?.from('guests')?.select(GUEST_SELECT)?.eq('tenant_id', tid)?.order('created_at', { ascending: false });
 
     if (error) {
       console.error('[guestStorage] loadGuests error:', error);
@@ -227,7 +269,13 @@ export const createGuest = async (guestData, tenantId) => {
       throw error;
     }
 
-    const newGuest = mapRowToGuest(data);
+    // The confidential half, if this form carried any. A failure here is NOT
+    // swallowed into a half-saved guest: the guest row exists either way, and
+    // the caller is told so the passport is not silently lost.
+    const { error: confError } = await saveConfidential(data?.id, tid, guestData);
+    if (confError) throw confError;
+
+    const newGuest = mapRowToGuest({ ...data, guest_confidential: mapGuestToConfidentialRow(guestData) });
 
     // Handle bidirectional spouse linking
     if (newGuest?.spouseGuestId && guestData?.maritalStatus === MaritalStatus?.MARRIED) {
@@ -262,7 +310,7 @@ export const updateGuest = async (guestId, updates, tenantId) => {
     const now = new Date()?.toISOString();
 
     // Fetch current guest for history
-    const { data: currentData, error: fetchError } = await supabase?.from('guests')?.select('*')?.eq('id', guestId)?.eq('tenant_id', tid)?.single();
+    const { data: currentData, error: fetchError } = await supabase?.from('guests')?.select(GUEST_SELECT)?.eq('id', guestId)?.eq('tenant_id', tid)?.single();
 
     if (fetchError || !currentData) {
       console.error('[guestStorage] updateGuest: guest not found', fetchError);
@@ -298,6 +346,13 @@ export const updateGuest = async (guestId, updates, tenantId) => {
       throw error;
     }
 
+    // Travel documents, commercial terms and legal status are a separate table
+    // with its own RLS. Nothing is written there unless this form supplied some
+    // of it, so a crew member saving a cabin is not refused for a confidential
+    // write they never made.
+    const { error: confError } = await saveConfidential(guestId, tid, updates);
+    if (confError) throw confError;
+
     // Handle spouse link changes
     if (oldSpouseId && oldSpouseId !== newSpouseId) {
       await _unlinkSpouse(oldSpouseId, guestId, userId, tid);
@@ -317,7 +372,10 @@ export const updateGuest = async (guestId, updates, tenantId) => {
       meta: { guestName }
     });
 
-    return mapRowToGuest(data);
+    // The update's own RETURNING cannot carry the embed, so fold the
+    // confidential fields this call just wrote back in. Without this the caller
+    // gets a guest whose passport looks newly empty.
+    return mapRowToGuest({ ...data, guest_confidential: mapGuestToConfidentialRow(updates) });
   } catch (error) {
     console.error('[guestStorage] updateGuest failed:', error);
     return null;
@@ -334,7 +392,7 @@ export const deleteGuest = async (guestId, tenantId) => {
     const now = new Date()?.toISOString();
 
     // Fetch current for history
-    const { data: currentData } = await supabase?.from('guests')?.select('*')?.eq('id', guestId)?.eq('tenant_id', tid)?.single();
+    const { data: currentData } = await supabase?.from('guests')?.select(GUEST_SELECT)?.eq('id', guestId)?.eq('tenant_id', tid)?.single();
 
     if (!currentData) return false;
 
@@ -393,7 +451,7 @@ export const reinstateGuest = async (guestId, tenantId) => {
     const userId = await getCurrentUserId();
     const now = new Date()?.toISOString();
 
-    const { data: currentData } = await supabase?.from('guests')?.select('*')?.eq('id', guestId)?.eq('tenant_id', tid)?.single();
+    const { data: currentData } = await supabase?.from('guests')?.select(GUEST_SELECT)?.eq('id', guestId)?.eq('tenant_id', tid)?.single();
 
     if (!currentData) return false;
 
@@ -435,7 +493,7 @@ export const getGuestById = async (guestId, tenantId) => {
     const tid = tenantId || getActiveTenantId();
     if (!tid) return null;
 
-    const { data, error } = await supabase?.from('guests')?.select('*')?.eq('id', guestId)?.eq('tenant_id', tid)?.single();
+    const { data, error } = await supabase?.from('guests')?.select(GUEST_SELECT)?.eq('id', guestId)?.eq('tenant_id', tid)?.single();
 
     if (error) return null;
     return mapRowToGuest(data);
@@ -596,13 +654,10 @@ export const uploadPassportDocument = async (guestId, file, tenantId) => {
 
     if (uploadError) throw uploadError;
 
-    // Save path to guest record
-    const { error: updateError } = await supabase
-      ?.from('guests')
-      ?.update({ passport_document_url: path, updated_at: new Date()?.toISOString() })
-      ?.eq('id', guestId)
-      ?.eq('tenant_id', tid);
-
+    // The path lives with the rest of the travel documents, not on the open
+    // guest row. Upsert, because a guest created before that table existed has
+    // no confidential row yet.
+    const { error: updateError } = await saveConfidential(guestId, tid, { passportDocumentUrl: path });
     if (updateError) throw updateError;
 
     return path;
@@ -624,12 +679,7 @@ export const deletePassportDocument = async (guestId, filePath, tenantId) => {
 
     if (removeError) throw removeError;
 
-    const { error: updateError } = await supabase
-      ?.from('guests')
-      ?.update({ passport_document_url: null, updated_at: new Date()?.toISOString() })
-      ?.eq('id', guestId)
-      ?.eq('tenant_id', tid);
-
+    const { error: updateError } = await saveConfidential(guestId, tid, { passportDocumentUrl: null });
     if (updateError) throw updateError;
 
     return true;
