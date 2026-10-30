@@ -10,3 +10,5 @@ them, and commits the results to the `store-screenshots` branch:
 - `raw/` — the bare captures (plus `_full` tall versions for tuning scroll)
 - `promo/header.jpg` (3840×1646) and `promo/search.jpg` (3840×2560) — product page header and search results image
 - `contact-sheet.png` — every product photo on the demo vessel
+
+For the 6.3" iPhone slot (1206 × 2622), the raw `film_*` captures can be framed at that size — see the session notes for the Jobs / Inventory / Crew set.
