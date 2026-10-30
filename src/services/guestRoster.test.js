@@ -243,6 +243,72 @@ test('an open-ended trip counts as aboard', () => {
   assert.equal(isAboard([{ trips: [onTrip('Owner', { from: null, to: null })] }], asOf), true);
 });
 
+// ── filters and the sort control ────────────────────────────────────────────
+import {
+  SORT_OPTIONS, DIETARY_OPTIONS, ABOARD_OPTIONS,
+  parseSort, toSortValue, roleOptions, filterPeople,
+} from './guestRoster.js';
+
+const ROSTER = () => groupGuestsByPerson([JANE, RAFAEL_OWNER, {
+  id: 'p1', firstName: 'Ines', lastName: 'Moreau', guestType: 'principal',
+  cabinAllocated: 'VIP', isActiveOnTrip: true,
+}]);
+
+test('role options are built from the roster, not hardcoded', () => {
+  assert.deepEqual(roleOptions(ROSTER()).map((o) => o.value),
+    ['all', 'Charter', 'Owner', 'Principal']);
+  // Nobody is offered a role that matches nothing.
+  assert.deepEqual(roleOptions([]).map((o) => o.value), ['all']);
+  assert.deepEqual(roleOptions(null).map((o) => o.value), ['all']);
+});
+
+test('filtering by role, dietary and aboard', () => {
+  const people = ROSTER();
+  assert.deepEqual(filterPeople(people, { role: 'Owner' }).map((p) => p.name), ['Rafael Edry']);
+  assert.deepEqual(filterPeople(people, { dietary: 'has' }).map((p) => p.name), ['Jane Doh']);
+  assert.deepEqual(filterPeople(people, { dietary: 'none' }).map((p) => p.name),
+    ['Rafael Edry', 'Ines Moreau']);
+  assert.deepEqual(filterPeople(people, { aboard: 'aboard' }).map((p) => p.name),
+    ['Jane Doh', 'Ines Moreau']);
+});
+
+test('role matching ignores case', () => {
+  assert.deepEqual(filterPeople(ROSTER(), { role: 'owner' }).map((p) => p.name), ['Rafael Edry']);
+});
+
+test('filters combine, and "all" is a no-op', () => {
+  const people = ROSTER();
+  assert.deepEqual(filterPeople(people, { role: 'Charter', dietary: 'has' }).map((p) => p.name),
+    ['Jane Doh']);
+  assert.deepEqual(filterPeople(people, { role: 'Charter', dietary: 'none' }), []);
+  assert.equal(filterPeople(people, {}).length, 3);
+  assert.equal(filterPeople(people).length, 3);
+  assert.deepEqual(filterPeople(null, { role: 'Owner' }), []);
+});
+
+test('the sort control round-trips', () => {
+  for (const opt of SORT_OPTIONS) {
+    assert.equal(toSortValue(parseSort(opt.value)), opt.value, opt.value);
+  }
+});
+
+test('an unknown or missing sort falls back to name ascending', () => {
+  assert.deepEqual(parseSort('passport_desc'), { column: 'name', direction: 'asc' });
+  assert.deepEqual(parseSort(''), { column: 'name', direction: 'asc' });
+  assert.deepEqual(parseSort(null), { column: 'name', direction: 'asc' });
+  assert.deepEqual(parseSort('name_sideways'), { column: 'name', direction: 'asc' });
+  assert.equal(toSortValue({}), 'name_asc');
+  assert.equal(toSortValue(), 'name_asc');
+});
+
+test('every sort option names a real column', () => {
+  for (const opt of SORT_OPTIONS) {
+    assert.ok(SORT_COLUMNS.includes(parseSort(opt.value).column), opt.value);
+  }
+  assert.deepEqual(DIETARY_OPTIONS.map((o) => o.value), ['all', 'has', 'none']);
+  assert.deepEqual(ABOARD_OPTIONS.map((o) => o.value), ['all', 'aboard']);
+});
+
 test('initials fall back sensibly', () => {
   assert.equal(initialsOf('Rafael Edry'), 'RE');
   assert.equal(initialsOf('Cher'), 'CH');

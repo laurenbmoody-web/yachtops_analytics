@@ -1,0 +1,263 @@
+/* ============================================================
+   Guest detail panel — editorial (Cargo)
+
+   The panel is restyled rather than rewritten: every handler, the
+   spouse and kids linking, the passport upload and the delete flow
+   are untouched, and only the presentation classes changed. A 1,678
+   line rewrite would have risked that logic for a visual result.
+
+   NO BEIGE anywhere — cool greys, navy ink, terracotta as text,
+   border or solid fill. Sections are separated by hairlines and
+   whitespace, not boxed cards.
+   ============================================================ */
+
+.gdp {
+  background: #FFFFFF;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+
+/* ── header ─────────────────────────────────────────────────── */
+.gdp-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  padding: 18px 22px;
+  border-bottom: 1px solid #EEF0F4;
+}
+.gdp-head-l { display: flex; align-items: center; gap: 10px; }
+.gdp-title {
+  margin: 0;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 22px; font-weight: 400; letter-spacing: -0.2px; color: #1C1B3A;
+}
+.gdp-head-r { display: flex; align-items: center; gap: 8px; }
+
+/* ── body ───────────────────────────────────────────────────── */
+.gdp-body {
+  padding: 4px 22px 22px;
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+}
+
+/* ── a section ──────────────────────────────────────────────── */
+.gdp-sec { padding: 18px 0; border-top: 1px solid #F0F1F5; }
+.gdp-sec:first-of-type { border-top: 0; }
+
+.gdp-h {
+  display: flex; align-items: center; gap: 7px;
+  margin: 0 0 14px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.gdp-h svg { width: 13px; height: 13px; color: #C65A1A; }
+
+.gdp-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+}
+@media (max-width: 760px) { .gdp-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── a field ────────────────────────────────────────────────── */
+.gdp-l {
+  display: block; margin-bottom: 5px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.gdp-v {
+  margin: 0;
+  font-size: 13.5px; line-height: 1.5; color: #1C1B3A;
+  min-height: 20px;
+}
+.gdp-v:empty::after { content: '—'; color: #AEB4C2; }
+.gdp-note { font-size: 12px; line-height: 1.5; color: #8B8478; }
+
+/* Inputs inside the panel, whatever component rendered them. */
+.gdp input[type='text'],
+.gdp input[type='date'],
+.gdp input[type='email'],
+.gdp input[type='tel'],
+.gdp input[type='number'],
+.gdp textarea,
+.gdp select {
+  width: 100%; box-sizing: border-box;
+  padding: 8px 11px;
+  font: inherit; font-size: 13px; color: #1C1B3A;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 9px;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.gdp input::placeholder, .gdp textarea::placeholder { color: #AEB4C2; }
+.gdp input:hover, .gdp textarea:hover, .gdp select:hover { border-color: #D7DAE2; }
+.gdp input:focus, .gdp textarea:focus, .gdp select:focus {
+  outline: none;
+  border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
+}
+.gdp textarea { min-height: 72px; resize: vertical; }
+
+/* ── buttons ────────────────────────────────────────────────── */
+.gdp-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  border-radius: 9px; transition: background 0.14s, border-color 0.14s, color 0.14s;
+}
+.gdp-btn.primary { background: #C65A1A; border: 1px solid #C65A1A; color: #FFFFFF; }
+.gdp-btn.primary:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }
+.gdp-btn.ghost { background: #FFFFFF; border: 1px solid #E5E7EB; color: #6B7280; }
+.gdp-btn.ghost:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
+.gdp-btn.danger { background: #FFFFFF; border: 1px solid #EFC9C9; color: #A32D2D; }
+.gdp-btn.danger:hover:not(:disabled) { background: #A32D2D; border-color: #A32D2D; color: #FFFFFF; }
+.gdp-btn:disabled { opacity: 0.55; cursor: default; }
+
+/* A link-ish action inside a field (connect kids, open preferences). */
+.gdp-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600; color: #C65A1A;
+}
+.gdp-link:hover { color: #B14E16; }
+.gdp-link svg:last-child { color: #AEB4C2; }
+
+/* ── chips ──────────────────────────────────────────────────── */
+.gdp-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 10px; border-radius: 999px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; color: #6B7280;
+}
+.gdp-chip.warn { border-color: #EFC9C9; color: #A32D2D; }
+.gdp-chip.ok { border-color: #BFDBC6; color: #3F7A52; }
+
+/* ── photo ──────────────────────────────────────────────────── */
+.gdp-photo {
+  width: 128px; height: 128px; border-radius: 14px; overflow: hidden;
+  border: 1px solid #E5E7EB; background: #EEF2F7;
+  display: grid; place-items: center; flex: 0 0 auto;
+}
+.gdp-photo img { width: 100%; height: 100%; object-fit: cover; }
+.gdp-photo-empty {
+  width: 128px; height: 128px; border-radius: 14px;
+  border: 1px dashed #D7DAE2; background: #F8FAFC;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 7px; cursor: pointer; color: #8B8478;
+  font-size: 11.5px; font-weight: 600;
+  transition: border-color 0.14s, color 0.14s;
+}
+.gdp-photo-empty:hover { border-color: #C65A1A; color: #C65A1A; }
+
+/* ── the toggles (active on trip, APA required, NDA signed) ─── */
+.gdp-toggle-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 12px 0;
+}
+.gdp-toggle-txt b { display: block; font-size: 13px; font-weight: 600; color: #1C1B3A; }
+.gdp-toggle-txt span { display: block; margin-top: 2px; font-size: 11.5px; color: #8B8478; }
+
+/* ── danger zone ────────────────────────────────────────────── */
+.gdp-danger {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  margin-top: 4px; padding: 16px 0 4px;
+  border-top: 1px solid #F0F1F5;
+}
+.gdp-danger p { margin: 0; font-size: 12px; line-height: 1.5; color: #8B8478; }
+
+/* ── the portaled modals (delete confirm, kids) ─────────────── */
+.gdp-modal {
+  width: 100%; max-width: 460px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  padding: 22px;
+}
+.gdp-modal h3 {
+  margin: 0 0 8px;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 20px; font-weight: 400; color: #1C1B3A;
+}
+.gdp-modal p { margin: 0 0 14px; font-size: 13px; line-height: 1.55; color: #6B7280; }
+.gdp-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+/* ── second pass: the remaining pieces ──────────────────────── */
+.gdp-ta, .gdp-in { width: 100%; box-sizing: border-box; }
+.gdp-accent { color: #C65A1A; flex-shrink: 0; }
+.gdp-empty { padding: 24px 0; text-align: center; font-size: 13px; color: #8B8478; }
+
+/* a row in a floating list */
+.gdp-menu {
+  position: absolute; z-index: var(--z-overlay, 1000);
+  margin-top: 6px; padding: 5px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px;
+  box-shadow: 0 18px 44px -14px rgba(28, 27, 58, 0.28);
+  min-width: 210px;
+}
+.gdp-menu.wide { width: 100%; max-height: 260px; overflow-y: auto; }
+.gdp-opt {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 8px 10px; cursor: pointer; text-align: left;
+  background: none; border: 0; border-radius: 8px;
+  font: inherit; font-size: 13px; color: #1C1B3A;
+}
+.gdp-opt:hover { background: #F1F5F9; }
+.gdp-opt-group {
+  position: sticky; top: 0;
+  padding: 7px 10px; background: #FFFFFF;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+
+/* a quiet block holding a linked person or a document */
+.gdp-tile {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 13px;
+  background: #F8FAFC; border: 1px solid #EEF0F4; border-radius: 10px;
+}
+
+/* the one call-to-action inside the body (open preferences) */
+.gdp-cta {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 13px 16px; cursor: pointer; text-align: left;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px;
+  font: inherit; font-size: 13px; font-weight: 600; color: #1C1B3A;
+  transition: border-color 0.14s, color 0.14s;
+}
+.gdp-cta:hover { border-color: #C65A1A; color: #C65A1A; }
+
+.gdp-btn.sm { padding: 5px 10px; font-size: 11.5px; }
+.gdp-reinstate { color: #3F7A52 !important; border-color: #BFDBC6 !important; }
+.gdp-reinstate:hover { background: #3F7A52 !important; border-color: #3F7A52 !important; color: #FFFFFF !important; }
+
+/* ── third pass: one-offs ───────────────────────────────────── */
+.gdp-tile.pick { cursor: pointer; align-items: flex-start; transition: border-color 0.12s, background 0.12s; }
+.gdp-tile.pick:hover { background: #F1F5F9; border-color: #D7DAE2; }
+
+.gdp-iconbtn {
+  display: grid; place-items: center;
+  width: 28px; height: 28px; padding: 0; cursor: pointer;
+  background: none; border: 1px solid transparent; border-radius: 8px;
+  color: #8B8478; transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.gdp-iconbtn:hover { background: #F1F5F9; border-color: #E5E7EB; color: #C65A1A; }
+
+.gdp-mini-avatar {
+  display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 999px;
+  background: #EEF2F7; color: #1C1B3A;
+  font-size: 11px; font-weight: 700; flex: 0 0 auto;
+}
+.gdp-mini-avatar.full { width: 100%; height: 100%; border-radius: 0; }
+
+.gdp-dashed {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 14px; cursor: pointer;
+  background: #FFFFFF; border: 1px dashed #D7DAE2; border-radius: 10px;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: #8B8478;
+  transition: border-color 0.14s, color 0.14s;
+}
+.gdp-dashed:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
+.gdp-dashed:disabled { opacity: 0.55; cursor: default; }
+
+.gdp-check { width: 15px; height: 15px; margin-top: 2px; accent-color: #A32D2D; cursor: pointer; }
+.gdp-btn.danger.solid { background: #A32D2D; border-color: #A32D2D; color: #FFFFFF; }
+.gdp-btn.danger.solid:hover:not(:disabled) { background: #8E2626; border-color: #8E2626; }
