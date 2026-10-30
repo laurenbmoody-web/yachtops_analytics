@@ -177,6 +177,58 @@ export const sortPeople = (people, column, direction) => {
   });
 };
 
+// ── filtering and sorting the roster ────────────────────────────────────────
+// Offered as real named controls rather than a row of filter pills: a chip row
+// cannot express "sorted by cabin, descending" and falls apart the moment there
+// is more than one axis.
+
+export const SORT_OPTIONS = [
+  { value: 'name_asc', label: 'Name (A → Z)' },
+  { value: 'name_desc', label: 'Name (Z → A)' },
+  { value: 'cabin_asc', label: 'Cabin (A → Z)' },
+  { value: 'cabin_desc', label: 'Cabin (Z → A)' },
+  { value: 'type_asc', label: 'Role (A → Z)' },
+  { value: 'contact_asc', label: 'Contact (A → Z)' },
+];
+
+export const parseSort = (value) => {
+  const [column, direction] = String(value || '').split('_');
+  if (!SORT_COLUMNS.includes(column)) return { column: 'name', direction: 'asc' };
+  return { column, direction: direction === 'desc' ? 'desc' : 'asc' };
+};
+
+export const toSortValue = ({ column, direction } = {}) =>
+  `${SORT_COLUMNS.includes(column) ? column : 'name'}_${direction === 'desc' ? 'desc' : 'asc'}`;
+
+// Built from the roster rather than hardcoded, so a vessel using 'Principal'
+// gets 'Principal' and nobody is offered a role that matches nothing.
+export const roleOptions = (people) => [
+  { value: 'all', label: 'Every role' },
+  ...uniq((people || []).flatMap((p) => p?.types || []))
+    .sort((a, b) => (norm(a) < norm(b) ? -1 : 1))
+    .map((role) => ({ value: role, label: role })),
+];
+
+export const DIETARY_OPTIONS = [
+  { value: 'all', label: 'Anything' },
+  { value: 'has', label: 'Has allergies' },
+  { value: 'none', label: 'None recorded' },
+];
+
+export const ABOARD_OPTIONS = [
+  { value: 'all', label: 'Everyone' },
+  { value: 'aboard', label: 'Aboard now' },
+];
+
+export const filterPeople = (people, { role = 'all', dietary = 'all', aboard = 'all' } = {}) =>
+  (people || []).filter((p) => {
+    if (role !== 'all' && !(p?.types || []).some((t) => norm(t) === norm(role))) return false;
+    if (dietary === 'has' && !squash(p?.allergies)) return false;
+    if (dietary === 'none' && squash(p?.allergies)) return false;
+    if (aboard === 'aboard' && !p?.isActiveOnTrip) return false;
+    return true;
+  });
+
 // The quick stats in the meta strip. Only facts the page can stand behind —
 // no "status" invented out of nothing, which is what the column this replaces did.
 export const rosterStats = (people) => {

@@ -100,15 +100,27 @@ an old-styled surface, bring it up to this system.
 - Muted text: `#8B8478` / `#6B7280`; faint: `#AEB4C2`
 - Soft borders / hairlines: `#E5E7EB`, `#EEF0F4`, `#F0F1F5` on page surfaces;
   `#ECEAE3` is fine as the thin hairline on portaled modals/panels.
-- Soft field bg: `#FAFAF8`; tinted terracotta pill/chip bg: `#FBEFE9`
+- Soft field bg: `#F8FAFC`; soft hover / inset: `#F1F5F9`
 - **Page canvas: `#F8FAFC`** ("clean maritime white", cool) — this is the ONLY
   page background. Cards on it are `#FFFFFF` with a `#E5E7EB` border.
 
-**Never warm beige/cream backgrounds.** The app's canvas is cool (navy + maritime
-white + terracotta accent). Do NOT fill a page or card with a warm background
-(`#F7F6F3`, `#F4F1EA`, `#FAF8F4`, cream, beige) — it reads as a different product.
-`#FBEFE9` is fine only as the small terracotta accent tint on chips/icon badges,
-never as a page or card fill.
+**NO BEIGE. Not anywhere, not at any size.** This is absolute and it is not
+limited to page fills: no beige or cream on a chip, a pill, an avatar, an icon
+badge, a field, a row hover, a focus ring or a panel. Banned values include
+`#FAFAF8`, `#FBEFE9`, `#FAECE7`, `#F5F1EA`, `#F7F6F3`, `#F4F1EA`, `#FAF8F4`,
+`#FFFDF9`, `#E6E2D8` and anything else that reads warm — they make the product
+look like a different app. Earlier guidance allowed `#FBEFE9` as a "small accent
+tint"; that is withdrawn.
+
+Reach for instead: `#FFFFFF`, the cool greys `#F8FAFC` / `#F1F5F9` / `#EEF2F7`,
+hairlines `#E5E7EB` / `#EEF0F4` / `#F0F1F5`, navy `#1C1B3A`. Terracotta `#C65A1A`
+stays the accent, but as **text, border, or a solid fill with white text** — never
+as a pale wash. For a focus ring use `rgba(198,90,26,0.14)`, which is terracotta
+at low opacity rather than a beige swatch.
+
+One known exception still in the tree: `EditorialPageShell` sets the body to
+cream `#F5F1EA` by default and Pantry relies on it. Pass `bodyBg="#F8FAFC"` when
+using that shell, and do not copy the default into anything new.
 
 **Type**
 - Headings: `'DM Serif Display', 'DM Serif Text', Georgia, serif`

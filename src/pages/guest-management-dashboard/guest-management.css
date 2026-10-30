@@ -1,9 +1,12 @@
 /* ============================================================
-   Guest Management — editorial (Cargo) rebuild
-   Follows the canonical editorial standard (month-end / laundry /
-   crew-profile): cool #F8FAFC ground, DM Serif headings, Inter for
-   body and tracked-caps labels, navy ink + terracotta accent,
-   hairline rules and whitespace — no boxed cards, no grey chips.
+   Guest Management — editorial (Cargo)
+
+   NO BEIGE. Nothing warm appears in this file — not a chip, not an
+   avatar, not a field, not a row hover, not a focus ring. The ground
+   is cool (#F8FAFC / #F1F5F9 / #EEF2F7), the ink is navy, and
+   terracotta is used as text, border or a solid fill with white text,
+   never as a pale wash. The focus ring is terracotta at low opacity
+   rather than a beige swatch.
    ============================================================ */
 
 .gm-page {
@@ -23,7 +26,7 @@
   justify-content: space-between;
   gap: 20px;
   flex-wrap: wrap;
-  margin-bottom: 22px;
+  margin-bottom: 20px;
 }
 .gm-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
@@ -39,41 +42,62 @@
 .gm-btn.ghost:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
 .gm-btn:disabled { opacity: 0.55; cursor: default; }
 
-/* ── controls ───────────────────────────────────────────────── */
-.gm-controls {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  margin-bottom: 18px;
+/* ── the filter row ─────────────────────────────────────────────
+   Search, then real dropdowns (EditorialSelect), then a quiet toggle.
+   No filter pills: a chip row cannot say "sorted by cabin, descending"
+   and goes to pieces the moment there is more than one axis. */
+.gm-filters {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #E5E7EB;
+  margin-bottom: 2px;
 }
-.gm-search { position: relative; flex: 1 1 320px; min-width: 0; }
-.gm-search svg {
-  position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+
+.gm-search { position: relative; flex: 1 1 280px; min-width: 0; }
+.gm-search > svg {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
   color: #AEB4C2; pointer-events: none;
 }
 .gm-search input {
   width: 100%; box-sizing: border-box;
-  padding: 11px 14px 11px 38px;
-  font: inherit; font-size: 13.5px; color: #1C1B3A;
-  background: #FAFAF8; border: 1px solid #E5E7EB; border-radius: 10px;
-  transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
+  padding: 8px 12px 8px 36px;
+  font: inherit; font-size: 13px; color: #1C1B3A;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 9px;
+  transition: border-color 0.12s, box-shadow 0.12s;
 }
 .gm-search input::placeholder { color: #AEB4C2; }
+.gm-search input:hover { border-color: #D7DAE2; }
 .gm-search input:focus {
-  outline: none; background: #FFFFFF;
-  border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7;
+  outline: none;
+  border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
+}
+
+/* Each dropdown gets a tracked-caps label above it so the row reads as
+   a set of named controls rather than three anonymous boxes. */
+.gm-field { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+.gm-field > span {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
 }
 
 .gm-toggle {
   display: inline-flex; align-items: center; gap: 7px;
+  margin-left: auto; align-self: flex-end; padding-bottom: 7px;
   font-size: 12.5px; color: #6B7280; cursor: pointer; user-select: none;
 }
 .gm-toggle input { width: 15px; height: 15px; accent-color: #C65A1A; cursor: pointer; }
+
+.gm-count {
+  align-self: flex-end; padding-bottom: 8px;
+  font-size: 11.5px; color: #AEB4C2; font-variant-numeric: tabular-nums;
+}
 
 /* ── the roster: hairline rows, not a boxed table ───────────── */
 .gm-head {
   display: grid;
   grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1.4fr) auto;
   gap: 16px; align-items: center;
-  padding: 0 4px 9px;
+  padding: 14px 4px 9px;
   border-bottom: 1px solid #E5E7EB;
 }
 .gm-th {
@@ -85,10 +109,9 @@
 }
 .gm-th:hover { color: #C65A1A; }
 .gm-th[data-sorted='y'] { color: #C65A1A; }
-.gm-th svg { opacity: 0.45; }
+.gm-th svg { opacity: 0.4; }
 .gm-th[data-sorted='y'] svg { opacity: 1; }
-.gm-th.static { cursor: default; }
-.gm-th.static:hover { color: #8B8478; }
+.gm-th.static, .gm-th.static:hover { cursor: default; color: #8B8478; }
 .gm-th.right { justify-content: flex-end; }
 
 .gm-row {
@@ -99,16 +122,17 @@
   border-bottom: 1px solid #F0F1F5;
   transition: background 0.12s;
 }
-.gm-row:hover { background: #FCFCFB; }
-.gm-row[data-deleted='y'] { opacity: 0.55; }
+.gm-row:hover { background: #F1F5F9; }
+.gm-row[data-open='y'] { background: #F1F5F9; }
+.gm-row[data-deleted='y'] { opacity: 0.5; }
 
 /* person */
 .gm-person { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .gm-avatar {
   flex: 0 0 auto; width: 40px; height: 40px; border-radius: 999px;
-  object-fit: cover; border: 1px solid #E5E7EB; background: #FBEFE9;
+  object-fit: cover; border: 1px solid #E5E7EB; background: #EEF2F7;
   display: grid; place-items: center;
-  font-size: 12.5px; font-weight: 700; color: #C65A1A; letter-spacing: 0.3px;
+  font-size: 12.5px; font-weight: 700; color: #1C1B3A; letter-spacing: 0.3px;
 }
 .gm-ident { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .gm-name {
@@ -117,17 +141,17 @@
 }
 .gm-chips { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 
+/* Outline chips, not filled washes. */
 .gm-pill {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 9px; border-radius: 999px;
   font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
-  background: #F4F5F8; color: #6B7280; white-space: nowrap;
+  background: #FFFFFF; border: 1px solid #E5E7EB; color: #6B7280;
+  white-space: nowrap;
 }
-.gm-pill.accent { background: #FBEFE9; color: #8A3D10; }
-.gm-pill.warn { background: #FCEBEB; color: #A32D2D; }
-.gm-pill.flag {
-  background: #FFFFFF; color: #8A3D10; border: 1px solid #F0D9CC; cursor: help;
-}
+.gm-pill.accent { border-color: #E8C4AC; color: #C65A1A; }
+.gm-pill.warn { border-color: #EFC9C9; color: #A32D2D; }
+.gm-pill.flag { border-color: #E8C4AC; color: #C65A1A; cursor: help; }
 
 /* cells */
 .gm-cell {
@@ -145,24 +169,29 @@
   background: none; border: 1px solid transparent; border-radius: 8px;
   color: #8B8478; transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.gm-iconbtn:hover { background: #FBEFE9; color: #C65A1A; }
-.gm-iconbtn[data-open='y'] { background: #FBEFE9; color: #C65A1A; }
+.gm-iconbtn:hover { background: #FFFFFF; border-color: #E5E7EB; color: #C65A1A; }
+.gm-iconbtn[data-open='y'] { background: #FFFFFF; border-color: #E5E7EB; color: #C65A1A; }
 
-/* ── the expanded detail, sitting inside the roster flow ────── */
+/* ── the expanded detail ────────────────────────────────────── */
 .gm-detail {
-  padding: 0 0 18px;
-  border-bottom: 1px solid #F0F1F5;
-  background: #FCFCFB;
+  margin: 0 0 14px;
+  padding: 0;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 /* a person backed by more than one record */
 .gm-dupe {
   display: flex; align-items: flex-start; gap: 9px;
-  margin: 0 4px 14px; padding: 11px 14px;
-  background: #FBEFE9; border-radius: 10px;
-  font-size: 12px; line-height: 1.5; color: #8A3D10;
+  margin: 16px 18px 0; padding: 11px 14px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB; border-left: 3px solid #C65A1A;
+  border-radius: 8px;
+  font-size: 12px; line-height: 1.5; color: #1C1B3A;
 }
-.gm-dupe svg { flex: 0 0 auto; margin-top: 1px; }
+.gm-dupe svg { flex: 0 0 auto; margin-top: 1px; color: #C65A1A; }
 .gm-dupe b { font-weight: 600; }
 
 /* ── states ─────────────────────────────────────────────────── */
@@ -175,7 +204,8 @@
 .gm-error {
   display: flex; align-items: flex-start; gap: 10px;
   margin-bottom: 18px; padding: 13px 16px;
-  background: #FCEBEB; border-radius: 10px;
+  background: #FFFFFF; border: 1px solid #EFC9C9; border-left: 3px solid #A32D2D;
+  border-radius: 8px;
   font-size: 13px; line-height: 1.5; color: #A32D2D;
 }
 .gm-error svg { flex: 0 0 auto; margin-top: 1px; }
@@ -197,9 +227,11 @@
   .gm-rowactions { grid-column: 2; grid-row: 1; }
   .gm-cell { grid-column: 1 / -1; white-space: normal; }
   .gm-cell:empty { display: none; }
+  .gm-toggle, .gm-count { margin-left: 0; align-self: center; padding-bottom: 0; }
 }
 
 @media (max-width: 640px) {
   .gm-page { padding: 20px 16px 72px; }
   .gm-titlerow { align-items: flex-start; }
+  .gm-field { min-width: 0; flex: 1 1 140px; }
 }

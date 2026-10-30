@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 import Icon from '../../../components/AppIcon';
+import '../guest-detail-panel.css';
 import { showToast } from '../../../utils/toast';
 import { MaritalStatus, getMaritalStatusDisplay, getAvailableSpouseOptions, updateGuest, deleteGuest, reinstateGuest, getAvailableKidsOptions, getLinkedKids, linkKid, unlinkKid, uploadPassportDocument, deletePassportDocument, getPassportDocumentSignedUrl } from '../utils/guestStorage';
 import { getCurrentUser } from '../../../utils/authStorage';
@@ -590,61 +590,42 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+    <div className="gdp">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-border bg-muted/30 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xl font-semibold text-foreground">Guest Details</h2>
+      <div className="gdp-head">
+        <div className="gdp-head-l">
+          <h2 className="gdp-title">Guest Details</h2>
           {isDeleted && (
-            <span className="px-3 py-1 text-xs font-medium bg-red-500/20 text-red-700 dark:text-red-400 rounded-full">
+            <span className="gdp-chip warn">
               Deleted
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="gdp-head-r">
           {!isEditing && canEdit && !isDeleted && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsEditing(true)}
-              iconName="Edit"
-            >
-              Edit
-            </Button>
+            <button type="button" className="gdp-btn ghost" onClick={() => setIsEditing(true)}>
+              <Icon name="Edit2" size={14} /> Edit
+            </button>
           )}
           {isEditing && (
             <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCancel}
-              >
+              <button type="button" className="gdp-btn ghost" onClick={handleCancel}>
                 Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={handleSave}
-                iconName="Check"
-              >
-                Save
-              </Button>
+              </button>
+              <button type="button" className="gdp-btn primary" onClick={handleSave}>
+                <Icon name="Check" size={14} /> Save
+              </button>
             </>
           )}
           {isDeleted && canDelete && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleReinstate}
-              iconName="RotateCcw"
-              className="text-green-600 border-green-600 hover:bg-green-600/10"
-            >
-              Reinstate
-            </Button>
+            <button type="button" className="gdp-btn ghost gdp-reinstate" onClick={handleReinstate}>
+              <Icon name="RotateCcw" size={14} /> Reinstate
+            </button>
           )}
         </div>
       </div>
       {/* Content */}
-      <div className="p-6 space-y-6 max-h-[calc(100vh-340px)] overflow-y-auto">
+      <div className="gdp-body">
         {/* Photo and Basic Info */}
         <div className="flex items-start gap-6">
           {/* Photo */}
@@ -652,7 +633,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             {isEditing ? (
               <div className="relative">
                 {formData?.photo ? (
-                  <div className="relative w-32 h-32 rounded-xl overflow-hidden border-2 border-border">
+                  <div className="gdp-photo">
                     <img
                       src={formData?.photo?.dataUrl}
                       alt="Guest"
@@ -671,21 +652,21 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                     <button
                       type="button"
                       onClick={() => setShowPhotoPicker(!showPhotoPicker)}
-                      className="w-32 h-32 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-2 hover:border-primary transition-colors"
+                      className="gdp-photo-empty"
                     >
                       <Icon name="Camera" size={24} className="text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground">Add Photo</span>
+                      <span className="gdp-note">Add Photo</span>
                     </button>
 
                     {showPhotoPicker && (
-                      <div className="absolute top-full left-0 mt-2 bg-card border border-border rounded-lg shadow-lg py-2 z-10 min-w-[200px]">
+                      <div className="gdp-menu">
                         <button
                           type="button"
                           onClick={() => {
                             fileInputRef?.current?.click();
                             setShowPhotoPicker(false);
                           }}
-                          className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2"
+                          className="gdp-opt"
                         >
                           <Icon name="Image" size={16} />
                           Photo Library
@@ -696,7 +677,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                             cameraInputRef?.current?.click();
                             setShowPhotoPicker(false);
                           }}
-                          className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2"
+                          className="gdp-opt"
                         >
                           <Icon name="Camera" size={16} />
                           Take Photo
@@ -707,7 +688,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                             fileInputRef?.current?.click();
                             setShowPhotoPicker(false);
                           }}
-                          className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2"
+                          className="gdp-opt"
                         >
                           <Icon name="Upload" size={16} />
                           Choose File
@@ -733,7 +714,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 />
               </div>
             ) : (
-              <div className="w-32 h-32 rounded-xl overflow-hidden bg-muted flex-shrink-0">
+              <div className="gdp-photo">
                 {formData?.photo?.dataUrl ? (
                   <img
                     src={formData?.photo?.dataUrl}
@@ -741,8 +722,8 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-primary/20">
-                    <Icon name="User" size={48} className="text-primary" />
+                  <div className="gdp-mini-avatar full">
+                    <Icon name="User" size={48} className="gdp-accent" />
                   </div>
                 )}
               </div>
@@ -753,7 +734,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
           <div className="flex-1 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-1 block">First Name *</label>
+                <label className="gdp-l">First Name *</label>
                 {isEditing && !isDeleted ? (
                   <Input
                     value={formData?.firstName || ''}
@@ -765,7 +746,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 )}
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-1 block">Last Name *</label>
+                <label className="gdp-l">Last Name *</label>
                 {isEditing && !isDeleted ? (
                   <Input
                     value={formData?.lastName || ''}
@@ -780,7 +761,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
 
             {/* Active on Trip Toggle */}
             {canEdit && !isDeleted && (
-              <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="gdp-tile">
                 <button
                   onClick={handleActiveToggle}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
@@ -794,13 +775,13 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   />
                 </button>
                 <div>
-                  <p className="text-sm font-medium text-foreground">Active on current trip</p>
-                  <p className="text-xs text-muted-foreground">Enable to include in active guest lists</p>
+                  <p className="gdp-v">Active on current trip</p>
+                  <p className="gdp-note">Enable to include in active guest lists</p>
                 </div>
               </div>
             )}
             {(!canEdit || isDeleted) && (
-              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+              <div className="gdp-tile">
                 <div
                   className={`relative inline-flex h-6 w-11 items-center rounded-full opacity-50 ${
                     formData?.isActiveOnTrip ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
@@ -813,8 +794,8 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">Active on current trip</p>
-                  <p className="text-xs text-muted-foreground">{isDeleted ? 'Read-only (deleted)' : 'View only'}</p>
+                  <p className="gdp-v">Active on current trip</p>
+                  <p className="gdp-note">{isDeleted ? 'Read-only (deleted)' : 'View only'}</p>
                 </div>
               </div>
             )}
@@ -822,14 +803,14 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: Personal */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+        <div className="gdp-sec">
+          <h3 className="gdp-h">
             <Icon name="User" size={18} />
             Personal
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="gdp-grid">
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Date of Birth</label>
+              <label className="gdp-l">Date of Birth</label>
               {isEditing && !isDeleted ? (
                 <Input
                   type="date"
@@ -837,11 +818,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   onChange={(e) => handleChange('dateOfBirth', e?.target?.value)}
                 />
               ) : (
-                <p className="text-foreground">{formData?.dateOfBirth || '-'}</p>
+                <p className="gdp-v">{formData?.dateOfBirth || '-'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Cake Preference</label>
+              <label className="gdp-l">Cake Preference</label>
               {isEditing && !isDeleted ? (
                 <Input
                   value={formData?.cakePreference || ''}
@@ -849,11 +830,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="e.g., Chocolate, Vanilla"
                 />
               ) : (
-                <p className="text-foreground">{formData?.cakePreference || '-'}</p>
+                <p className="gdp-v">{formData?.cakePreference || '-'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Marital Status</label>
+              <label className="gdp-l">Marital Status</label>
               {isEditing && !isDeleted ? (
                 <Select
                   value={formData?.maritalStatus || ''}
@@ -861,12 +842,12 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={maritalStatusOptions}
                 />
               ) : (
-                <p className="text-foreground">{getMaritalStatusDisplay(formData?.maritalStatus)}</p>
+                <p className="gdp-v">{getMaritalStatusDisplay(formData?.maritalStatus)}</p>
               )}
             </div>
             {formData?.maritalStatus === MaritalStatus?.MARRIED && (
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-1 block">Connect Spouse (optional)</label>
+                <label className="gdp-l">Connect Spouse (optional)</label>
                 {isEditing && !isDeleted ? (
                   <Select
                     value={formData?.spouseGuestId || ''}
@@ -875,13 +856,13 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                     searchable
                   />
                 ) : (
-                  <p className="text-foreground">{getSpouseName(formData?.spouseGuestId)}</p>
+                  <p className="gdp-v">{getSpouseName(formData?.spouseGuestId)}</p>
                 )}
               </div>
             )}
             {/* Connect Kids */}
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Connect Kids (optional)</label>
+              <label className="gdp-l">Connect Kids (optional)</label>
               <button
                 type="button"
                 onClick={handleOpenKidsModal}
@@ -896,14 +877,14 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: Contact */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+        <div className="gdp-sec">
+          <h3 className="gdp-h">
             <Icon name="Mail" size={18} />
             Contact
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="gdp-grid">
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Email</label>
+              <label className="gdp-l">Email</label>
               {isEditing && !isDeleted ? (
                 <Input
                   type="email"
@@ -912,11 +893,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="guest@example.com"
                 />
               ) : (
-                <p className="text-foreground">{formData?.contactEmail || '-'}</p>
+                <p className="gdp-v">{formData?.contactEmail || '-'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Phone</label>
+              <label className="gdp-l">Phone</label>
               {isEditing && !isDeleted ? (
                 <Input
                   type="tel"
@@ -925,21 +906,21 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="+1 234 567 8900"
                 />
               ) : (
-                <p className="text-foreground">{formData?.contactPhone || '-'}</p>
+                <p className="gdp-v">{formData?.contactPhone || '-'}</p>
               )}
             </div>
           </div>
         </div>
 
         {/* Section: Travel & Documents (NEW - after Contact, before Health) */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+        <div className="gdp-sec">
+          <h3 className="gdp-h">
             <Icon name="FileText" size={18} />
             Travel &amp; Documents
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="gdp-grid">
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Passport Number</label>
+              <label className="gdp-l">Passport Number</label>
               {isEditing && !isDeleted ? (
                 <Input
                   value={formData?.passportNumber || ''}
@@ -947,11 +928,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="e.g., AB1234567"
                 />
               ) : (
-                <p className="text-foreground">{formData?.passportNumber || '-'}</p>
+                <p className="gdp-v">{formData?.passportNumber || '-'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Passport Nationality</label>
+              <label className="gdp-l">Passport Nationality</label>
               {isEditing && !isDeleted ? (
                 <div className="space-y-2">
                   <Select
@@ -968,7 +949,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   )}
                 </div>
               ) : (
-                <p className="text-foreground">
+                <p className="gdp-v">
                   {formData?.passportNationality === 'Other'
                     ? formData?.passportNationalityOther || 'Other'
                     : formData?.passportNationality || '-'}
@@ -976,7 +957,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Passport Expiry Date</label>
+              <label className="gdp-l">Passport Expiry Date</label>
               {isEditing && !isDeleted ? (
                 <Input
                   type="date"
@@ -984,11 +965,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   onChange={(e) => handleChange('passportExpiryDate', e?.target?.value)}
                 />
               ) : (
-                <p className="text-foreground">{formData?.passportExpiryDate || '-'}</p>
+                <p className="gdp-v">{formData?.passportExpiryDate || '-'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Emergency Contact Name</label>
+              <label className="gdp-l">Emergency Contact Name</label>
               {isEditing && !isDeleted ? (
                 <Input
                   value={formData?.emergencyContactName || ''}
@@ -996,11 +977,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="Full name"
                 />
               ) : (
-                <p className="text-foreground">{formData?.emergencyContactName || '-'}</p>
+                <p className="gdp-v">{formData?.emergencyContactName || '-'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Emergency Contact Phone</label>
+              <label className="gdp-l">Emergency Contact Phone</label>
               {isEditing && !isDeleted ? (
                 <Input
                   type="tel"
@@ -1009,11 +990,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="+1 234 567 8900"
                 />
               ) : (
-                <p className="text-foreground">{formData?.emergencyContactPhone || '-'}</p>
+                <p className="gdp-v">{formData?.emergencyContactPhone || '-'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Emergency Contact Relationship</label>
+              <label className="gdp-l">Emergency Contact Relationship</label>
               {isEditing && !isDeleted ? (
                 <Select
                   value={formData?.emergencyContactRelationship || ''}
@@ -1021,19 +1002,19 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={relationshipOptions}
                 />
               ) : (
-                <p className="text-foreground">{formData?.emergencyContactRelationship || '-'}</p>
+                <p className="gdp-v">{formData?.emergencyContactRelationship || '-'}</p>
               )}
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground mb-1 block">Visa Notes</label>
+            <label className="gdp-l">Visa Notes</label>
             {isEditing && !isDeleted ? (
               <textarea
                 value={formData?.visaNotes || ''}
                 onChange={(e) => handleChange('visaNotes', e?.target?.value)}
                 placeholder="Any visa requirements or notes..."
                 rows={3}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                className="gdp-ta"
               />
             ) : (
               <p className="text-foreground whitespace-pre-wrap">{formData?.visaNotes || '-'}</p>
@@ -1042,22 +1023,22 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
 
           {/* Passport Document Upload */}
           <div>
-            <label className="text-sm font-medium text-muted-foreground mb-2 block">Passport Document</label>
+            <label className="gdp-l">Passport Document</label>
             {(formData?.passportDocumentUrl || guest?.passportDocumentUrl) ? (
-              <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border">
-                <Icon name="FileText" size={18} className="text-primary flex-shrink-0" />
+              <div className="gdp-tile">
+                <Icon name="FileText" size={18} className="gdp-accent" />
                 <div className="flex-1 min-w-0">
                   {passportSignedUrl ? (
                     <a
                       href={passportSignedUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline truncate block"
+                      className="gdp-link"
                     >
                       View Passport Document
                     </a>
                   ) : (
-                    <span className="text-sm text-foreground">Passport document uploaded</span>
+                    <span className="gdp-v">Passport document uploaded</span>
                   )}
                 </div>
                 {canEdit && !isDeleted && (
@@ -1066,7 +1047,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                       type="button"
                       onClick={() => passportFileInputRef?.current?.click()}
                       disabled={passportUploading}
-                      className="text-xs px-2 py-1 rounded border border-border text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                      className="gdp-btn ghost sm"
                     >
                       Replace
                     </button>
@@ -1087,7 +1068,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   type="button"
                   onClick={() => passportFileInputRef?.current?.click()}
                   disabled={passportUploading}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border hover:border-primary text-sm text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+                  className="gdp-dashed"
                 >
                   {passportUploading ? (
                     <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -1109,35 +1090,35 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: Health */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+        <div className="gdp-sec">
+          <h3 className="gdp-h">
             <Icon name="Heart" size={18} />
             Health
           </h3>
-          <div className="space-y-4">
+          <div className="gdp-sec">
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Health Conditions</label>
+              <label className="gdp-l">Health Conditions</label>
               {isEditing && !isDeleted ? (
                 <textarea
                   value={formData?.healthConditions || ''}
                   onChange={(e) => handleChange('healthConditions', e?.target?.value)}
                   placeholder="Any health conditions to be aware of..."
                   rows={3}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                  className="gdp-ta"
                 />
               ) : (
                 <p className="text-foreground whitespace-pre-wrap">{formData?.healthConditions || '-'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Allergies</label>
+              <label className="gdp-l">Allergies</label>
               {isEditing && !isDeleted ? (
                 <textarea
                   value={formData?.allergies || ''}
                   onChange={(e) => handleChange('allergies', e?.target?.value)}
                   placeholder="Any allergies to be aware of..."
                   rows={3}
-                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                  className="gdp-ta"
                 />
               ) : (
                 <p className="text-foreground whitespace-pre-wrap">{formData?.allergies || '-'}</p>
@@ -1147,14 +1128,14 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: Accommodation */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+        <div className="gdp-sec">
+          <h3 className="gdp-h">
             <Icon name="Home" size={18} />
             Accommodation
           </h3>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Cabin</div>
-            <div className="text-sm font-medium text-foreground">{getCabinDisplay()}</div>
+            <div className="gdp-note">Cabin</div>
+            <div className="gdp-v">{getCabinDisplay()}</div>
           </div>
 
           {/* Cabin Allocation - Searchable Dropdown */}
@@ -1172,7 +1153,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                     onFocus={() => setShowCabinDropdown(true)}
                     placeholder={cabinOptions?.length === 0 ? "No locations configured" : "Search or select cabin..."}
                     disabled={cabinOptions?.length === 0}
-                    className="w-full h-10 px-3 pr-10 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="gdp-in"
                   />
                   <Icon
                     name="ChevronDown"
@@ -1189,7 +1170,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 )}
                 
                 {showCabinDropdown && cabinOptions?.length > 0 && (
-                  <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                  <div className="gdp-menu wide">
                     {filteredCabinOptions?.length === 0 ? (
                       <div className="p-3 text-sm text-muted-foreground text-center">
                         No matching cabins found
@@ -1197,7 +1178,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                     ) : (
                       Object.keys(groupedOptions)?.map(deckName => (
                         <div key={deckName}>
-                          <div className="px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted/30 sticky top-0">
+                          <div className="gdp-opt-group">
                             {deckName}
                           </div>
                           {groupedOptions?.[deckName]?.map(option => (
@@ -1205,7 +1186,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                               key={option?.path}
                               type="button"
                               onClick={() => handleCabinSelect(option)}
-                              className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
+                              className="gdp-opt"
                             >
                               {option?.path}
                             </button>
@@ -1237,7 +1218,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 placeholder="Enter cabin manually if not in dropdown"
               />
               {cabinFreeText && selectedCabinPath && (
-                <div className="text-xs text-muted-foreground">
+                <div className="gdp-note">
                   Note: Dropdown selection takes priority for automation
                 </div>
               )}
@@ -1246,14 +1227,14 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: Payment & APA (NEW - after Accommodation, before History) */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+        <div className="gdp-sec">
+          <h3 className="gdp-h">
             <Icon name="CreditCard" size={18} />
             Payment &amp; APA
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="gdp-grid">
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Client Type</label>
+              <label className="gdp-l">Client Type</label>
               {isEditing && !isDeleted ? (
                 <Select
                   value={formData?.clientType || ''}
@@ -1261,11 +1242,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={clientTypeOptions}
                 />
               ) : (
-                <p className="text-foreground">{formData?.clientType || '-'}</p>
+                <p className="gdp-v">{formData?.clientType || '-'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Preferred Currency</label>
+              <label className="gdp-l">Preferred Currency</label>
               {isEditing && !isDeleted ? (
                 <Select
                   value={formData?.preferredCurrency || ''}
@@ -1273,11 +1254,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={currencyOptions}
                 />
               ) : (
-                <p className="text-foreground">{formData?.preferredCurrency || '-'}</p>
+                <p className="gdp-v">{formData?.preferredCurrency || '-'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Billing Contact Name</label>
+              <label className="gdp-l">Billing Contact Name</label>
               {isEditing && !isDeleted ? (
                 <Input
                   value={formData?.billingContactName || ''}
@@ -1285,11 +1266,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="Full name"
                 />
               ) : (
-                <p className="text-foreground">{formData?.billingContactName || '-'}</p>
+                <p className="gdp-v">{formData?.billingContactName || '-'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Billing Contact Email</label>
+              <label className="gdp-l">Billing Contact Email</label>
               {isEditing && !isDeleted ? (
                 <Input
                   type="email"
@@ -1298,12 +1279,12 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="billing@example.com"
                 />
               ) : (
-                <p className="text-foreground">{formData?.billingContactEmail || '-'}</p>
+                <p className="gdp-v">{formData?.billingContactEmail || '-'}</p>
               )}
             </div>
           </div>
           {/* APA Required Toggle */}
-          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+          <div className="gdp-tile">
             {isEditing && !isDeleted ? (
               <button
                 type="button"
@@ -1331,12 +1312,12 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 />
               </div>
             )}
-            <p className="text-sm font-medium text-foreground">APA Required?</p>
+            <p className="gdp-v">APA Required?</p>
           </div>
           {/* APA Amount - only visible when APA Required = true */}
           {formData?.apaRequired && (
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">APA Amount</label>
+              <label className="gdp-l">APA Amount</label>
               {isEditing && !isDeleted ? (
                 <Input
                   type="number"
@@ -1345,33 +1326,33 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="0.00"
                 />
               ) : (
-                <p className="text-foreground">{formData?.apaAmount != null ? formData?.apaAmount : '-'}</p>
+                <p className="gdp-v">{formData?.apaAmount != null ? formData?.apaAmount : '-'}</p>
               )}
             </div>
           )}
           <div>
-            <label className="text-sm font-medium text-muted-foreground mb-1 block">APA Notes</label>
+            <label className="gdp-l">APA Notes</label>
             {isEditing && !isDeleted ? (
               <textarea
                 value={formData?.apaNotes || ''}
                 onChange={(e) => handleChange('apaNotes', e?.target?.value)}
                 placeholder="APA notes..."
                 rows={3}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                className="gdp-ta"
               />
             ) : (
               <p className="text-foreground whitespace-pre-wrap">{formData?.apaNotes || '-'}</p>
             )}
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground mb-1 block">Payment Notes</label>
+            <label className="gdp-l">Payment Notes</label>
             {isEditing && !isDeleted ? (
               <textarea
                 value={formData?.paymentNotes || ''}
                 onChange={(e) => handleChange('paymentNotes', e?.target?.value)}
                 placeholder="Payment notes..."
                 rows={3}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                className="gdp-ta"
               />
             ) : (
               <p className="text-foreground whitespace-pre-wrap">{formData?.paymentNotes || '-'}</p>
@@ -1380,13 +1361,13 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: NDA & Privacy (NEW - after Payment & APA, before History) */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+        <div className="gdp-sec">
+          <h3 className="gdp-h">
             <Icon name="Shield" size={18} />
             NDA &amp; Privacy
           </h3>
           {/* NDA Signed Toggle */}
-          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+          <div className="gdp-tile">
             {isEditing && !isDeleted ? (
               <button
                 type="button"
@@ -1414,12 +1395,12 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 />
               </div>
             )}
-            <p className="text-sm font-medium text-foreground">NDA Signed?</p>
+            <p className="gdp-v">NDA Signed?</p>
           </div>
           {/* NDA Expiry Date - only visible when NDA Signed = true */}
           {formData?.ndaSigned && (
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">NDA Expiry Date</label>
+              <label className="gdp-l">NDA Expiry Date</label>
               {isEditing && !isDeleted ? (
                 <Input
                   type="date"
@@ -1427,13 +1408,13 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   onChange={(e) => handleChange('ndaExpiryDate', e?.target?.value)}
                 />
               ) : (
-                <p className="text-foreground">{formData?.ndaExpiryDate || '-'}</p>
+                <p className="gdp-v">{formData?.ndaExpiryDate || '-'}</p>
               )}
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="gdp-grid">
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Privacy Level</label>
+              <label className="gdp-l">Privacy Level</label>
               {isEditing && !isDeleted ? (
                 <Select
                   value={formData?.privacyLevel || 'Standard'}
@@ -1441,11 +1422,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={privacyLevelOptions}
                 />
               ) : (
-                <p className="text-foreground">{formData?.privacyLevel || 'Standard'}</p>
+                <p className="gdp-v">{formData?.privacyLevel || 'Standard'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Photo Permission</label>
+              <label className="gdp-l">Photo Permission</label>
               {isEditing && !isDeleted ? (
                 <Select
                   value={formData?.photoPermission || 'Ask Each Time'}
@@ -1453,11 +1434,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={photoPermissionOptions}
                 />
               ) : (
-                <p className="text-foreground">{formData?.photoPermission || 'Ask Each Time'}</p>
+                <p className="gdp-v">{formData?.photoPermission || 'Ask Each Time'}</p>
               )}
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-1 block">Share Guest Info With Crew</label>
+              <label className="gdp-l">Share Guest Info With Crew</label>
               {isEditing && !isDeleted ? (
                 <Select
                   value={formData?.shareGuestInfoWithCrew || 'Limited'}
@@ -1465,19 +1446,19 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={shareInfoOptions}
                 />
               ) : (
-                <p className="text-foreground">{formData?.shareGuestInfoWithCrew || 'Limited'}</p>
+                <p className="gdp-v">{formData?.shareGuestInfoWithCrew || 'Limited'}</p>
               )}
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-muted-foreground mb-1 block">Privacy Notes</label>
+            <label className="gdp-l">Privacy Notes</label>
             {isEditing && !isDeleted ? (
               <textarea
                 value={formData?.privacyNotes || ''}
                 onChange={(e) => handleChange('privacyNotes', e?.target?.value)}
                 placeholder="Privacy notes..."
                 rows={3}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                className="gdp-ta"
               />
             ) : (
               <p className="text-foreground whitespace-pre-wrap">{formData?.privacyNotes || '-'}</p>
@@ -1486,28 +1467,28 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: Preferences */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+        <div className="gdp-sec">
+          <h3 className="gdp-h">
             <Icon name="Star" size={18} />
             Preferences
           </h3>
           {/* Open Preferences navigation button */}
           <button
             onClick={handleOpenPreferences}
-            className="w-full px-4 py-3 bg-primary/10 hover:bg-primary/20 rounded-lg text-left flex items-center justify-between transition-colors border border-primary/20"
+            className="gdp-cta"
           >
             <div className="flex items-center gap-2">
-              <Icon name="ExternalLink" size={16} className="text-primary" />
-              <span className="text-sm font-medium text-primary">Open Preferences</span>
+              <Icon name="ExternalLink" size={16} className="gdp-accent" />
+              <span className="gdp-accent">Open Preferences</span>
             </div>
-            <Icon name="ChevronRight" size={16} className="text-primary" />
+            <Icon name="ChevronRight" size={16} className="gdp-accent" />
           </button>
           {/* Preferences page link */}
         </div>
 
         {/* Section: History */}
         {guest?.historyLog && guest?.historyLog?.length > 0 && (
-          <div className="space-y-4">
+          <div className="gdp-sec">
             <button
               onClick={() => setShowHistory(!showHistory)}
               className="flex items-center gap-2 text-lg font-semibold text-foreground hover:text-primary transition-colors"
@@ -1518,7 +1499,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             {showHistory && (
               <div className="space-y-2">
                 {[...guest?.historyLog]?.reverse()?.map((entry) => (
-                  <div key={entry?.id} className="p-3 bg-muted/30 rounded-lg border border-border">
+                  <div key={entry?.id} className="gdp-tile">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -1530,10 +1511,10 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                           }`}>
                             {entry?.action?.toUpperCase()}
                           </span>
-                          <span className="text-sm font-medium text-foreground">{entry?.actorName}</span>
-                          <span className="text-xs text-muted-foreground">({entry?.actorTier})</span>
+                          <span className="gdp-v">{entry?.actorName}</span>
+                          <span className="gdp-note">({entry?.actorTier})</span>
                         </div>
-                        <p className="text-sm text-muted-foreground">{entry?.message}</p>
+                        <p className="gdp-note">{entry?.message}</p>
                         {entry?.changes && Object.keys(entry?.changes)?.length > 0 && (
                           <div className="mt-2 text-xs text-muted-foreground">
                             <span className="font-medium">Changes: </span>
@@ -1542,7 +1523,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                           </div>
                         )}
                       </div>
-                      <span className="text-xs text-muted-foreground whitespace-nowrap ml-3">
+                      <span className="gdp-note">
                         {new Date(entry?.at)?.toLocaleString()}
                       </span>
                     </div>
@@ -1555,21 +1536,16 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
 
         {/* Delete Button - COMMAND ONLY */}
         {canDelete && !isEditing && !isDeleted && (
-          <div className="pt-6 border-t border-border">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="text-error border-error hover:bg-error/10"
-              iconName="Trash2"
-            >
-              Delete Guest
-            </Button>
+          <div className="gdp-sec">
+            <button type="button" className="gdp-btn danger" onClick={() => setShowDeleteConfirm(true)}>
+              <Icon name="Trash2" size={14} /> Delete guest
+            </button>
           </div>
         )}
       </div>
       {/* Delete Confirmation Modal - COMMAND ONLY */}
       {showDeleteConfirm && canDelete && (
-        <ModalShell onClose={() => setShowDeleteConfirm(false)} panelClassName="bg-card border border-border rounded-2xl w-full max-w-md p-6">
+        <ModalShell onClose={() => setShowDeleteConfirm(false)} panelClassName="gdp-modal">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-full bg-error/20 flex items-center justify-center">
               <Icon name="AlertTriangle" size={24} className="text-error" />
@@ -1579,60 +1555,61 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             </div>
           </div>
           <div className="space-y-3 mb-6">
-            <p className="text-sm text-foreground">
+            <p className="gdp-v">
               This will remove the guest profile from Guest Management.
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="gdp-note">
               This cannot be undone unless restored from audit history.
             </p>
-            <label className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+            <label className="gdp-tile pick">
               <input
                 type="checkbox"
                 checked={deleteConfirmChecked}
                 onChange={(e) => setDeleteConfirmChecked(e?.target?.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-border text-error focus:ring-2 focus:ring-error"
+                className="gdp-check"
               />
-              <span className="text-sm text-foreground">
+              <span className="gdp-v">
                 I understand this will delete the guest profile.
               </span>
             </label>
           </div>
           <div className="flex gap-3">
-            <Button
-              variant="outline"
+            <button
+              type="button"
+              className="gdp-btn ghost"
               onClick={() => {
                 setShowDeleteConfirm(false);
                 setDeleteConfirmChecked(false);
               }}
-              className="flex-1"
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
+              type="button"
+              className="gdp-btn danger solid"
               onClick={handleDelete}
               disabled={!deleteConfirmChecked}
-              className="flex-1 bg-error hover:bg-error/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Delete guest
-            </Button>
+            </button>
           </div>
         </ModalShell>
       )}
 
       {/* Kids Linking Modal */}
       {showKidsModal && (
-        <ModalShell onClose={() => setShowKidsModal(false)} panelClassName="bg-card border border-border rounded-2xl w-full max-w-md p-6">
+        <ModalShell onClose={() => setShowKidsModal(false)} panelClassName="gdp-modal">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-foreground">Link Children</h3>
             <button
               type="button"
               onClick={() => setShowKidsModal(false)}
-              className="p-1 rounded-lg hover:bg-muted transition-colors"
+              className="gdp-iconbtn"
             >
               <Icon name="X" size={18} className="text-muted-foreground" />
             </button>
           </div>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="gdp-note">
             Select existing guest profiles to link as children of {formData?.firstName} {formData?.lastName}.
           </p>
           {kidsLoading ? (
@@ -1640,7 +1617,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : kidsOptions?.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No other guests available to link.</p>
+            <p className="gdp-empty">No other guests available to link.</p>
           ) : (
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {kidsOptions?.map(kid => {
@@ -1656,8 +1633,8 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                        <Icon name="User" size={14} className="text-primary" />
+                      <div className="gdp-mini-avatar">
+                        <Icon name="User" size={14} className="gdp-accent" />
                       </div>
                       <span className="text-sm font-medium">{kid?.firstName} {kid?.lastName}</span>
                     </div>
@@ -1672,7 +1649,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             </div>
           )}
           <div className="mt-4 flex justify-end">
-            <Button size="sm" onClick={() => setShowKidsModal(false)}>Done</Button>
+            <button type="button" className="gdp-btn primary" onClick={() => setShowKidsModal(false)}>Done</button>
           </div>
         </ModalShell>
       )}

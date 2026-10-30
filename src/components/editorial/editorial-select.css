@@ -14,10 +14,10 @@
 }
 .es-trigger svg { flex: 0 0 auto; color: #AEB4C2; transition: transform .16s ease; }
 .es-trigger:hover:not(:disabled) { border-color: #D7DAE2; }
-.es-trigger.is-open { border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
+.es-trigger.is-open { border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .es-trigger.is-open svg { transform: rotate(180deg); color: #C65A1A; }
-.es-trigger:focus-visible { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px #FAECE7; }
-.es-trigger:disabled { cursor: not-allowed; background: #FAFAF8; color: #8B8478; }
+.es-trigger:focus-visible { outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
+.es-trigger:disabled { cursor: not-allowed; background: #F1F5F9; color: #8B8478; }
 .es.is-disabled .es-trigger svg { opacity: .4; }
 
 .es-val { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -31,7 +31,7 @@
   position: absolute; z-index: 60; top: calc(100% + 4px); left: 0;
   min-width: 100%; width: max-content; max-width: min(420px, 78vw);
   max-height: 264px; overflow-y: auto;
-  background: #fff; border: 1px solid #ECEAE3; border-radius: 12px; padding: 5px;
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; padding: 5px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, .32);
   display: flex; flex-direction: column;
 }
@@ -44,7 +44,7 @@
 /* Options carry their own words; the trigger is the one that has to fit a column. */
 .es-list .es-opt { white-space: nowrap; }
 .es-opt svg { flex: 0 0 auto; color: #C65A1A; }
-.es-opt:hover { background: #FAFAF8; }
+.es-opt:hover { background: #F1F5F9; }
 .es-opt.on { color: #C65A1A; font-weight: 600; }
 .es-opt:focus-visible { outline: 2px solid #C65A1A; outline-offset: -2px; }
 .es-group {

@@ -30,8 +30,10 @@ import GuestDetailPanel from './components/GuestDetailPanel';
 // Deleting and reinstating are GuestDetailPanel's own business — it calls
 // guestStorage directly — so they are deliberately not imported here.
 import { loadGuests, createGuest, updateGuest, linkKid } from './utils/guestStorage';
+import EditorialSelect from '../../components/editorial/EditorialSelect';
 import {
-  groupGuestsByPerson, searchPeople, sortPeople, rosterStats, initialsOf,
+  groupGuestsByPerson, searchPeople, sortPeople, filterPeople, rosterStats, initialsOf,
+  SORT_OPTIONS, DIETARY_OPTIONS, ABOARD_OPTIONS, roleOptions, parseSort, toSortValue,
 } from '../../services/guestRoster';
 import { showToast } from '../../utils/toast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -49,6 +51,7 @@ const GuestManagementDashboard = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingGuest, setEditingGuest] = useState(null);
   const [sort, setSort] = useState({ column: 'name', direction: 'asc' });
+  const [filters, setFilters] = useState({ role: 'all', dietary: 'all', aboard: 'all' });
   const [showDeleted, setShowDeleted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -90,13 +93,21 @@ const GuestManagementDashboard = () => {
     fetchGuests();
   }, [authLoading, fetchGuests]);
 
-  const people = useMemo(() => {
+  // Grouped once, so the role dropdown can offer the roles this vessel actually
+  // uses rather than a hardcoded list.
+  const grouped = useMemo(() => {
     const visible = showDeleted ? guests : guests.filter((g) => !g?.isDeleted);
-    const grouped = groupGuestsByPerson(visible);
-    return sortPeople(searchPeople(grouped, query), sort.column, sort.direction);
-  }, [guests, showDeleted, query, sort]);
+    return groupGuestsByPerson(visible);
+  }, [guests, showDeleted]);
 
+  const people = useMemo(
+    () => sortPeople(filterPeople(searchPeople(grouped, query), filters), sort.column, sort.direction),
+    [grouped, query, filters, sort],
+  );
+
+  const roles = useMemo(() => roleOptions(grouped), [grouped]);
   const stats = useMemo(() => rosterStats(groupGuestsByPerson(guests)), [guests]);
+  const narrowed = people.length !== grouped.length;
 
   const toggleSort = (column) => {
     setSort((prev) => {
@@ -182,16 +193,6 @@ const GuestManagementDashboard = () => {
           </div>
 
           <div className="gm-actions">
-            {canDelete && (
-              <label className="gm-toggle">
-                <input
-                  type="checkbox"
-                  checked={showDeleted}
-                  onChange={(e) => setShowDeleted(e.target.checked)}
-                />
-                Show deleted
-              </label>
-            )}
             {canEdit && (
               <button
                 type="button"
@@ -211,7 +212,10 @@ const GuestManagementDashboard = () => {
           </p>
         )}
 
-        <div className="gm-controls">
+        {/* Named controls, not a row of filter pills — a chip row cannot say
+            "sorted by cabin, descending", and goes to pieces once there is more
+            than one axis to filter on. */}
+        <div className="gm-filters">
           <div className="gm-search">
             <Icon name="Search" size={16} />
             <input
@@ -221,6 +225,61 @@ const GuestManagementDashboard = () => {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
+
+          <label className="gm-field">
+            <span>Sort by</span>
+            <EditorialSelect
+              ariaLabel="Sort guests"
+              value={toSortValue(sort)}
+              options={SORT_OPTIONS}
+              onChange={(v) => setSort(parseSort(v))}
+            />
+          </label>
+
+          <label className="gm-field">
+            <span>Role</span>
+            <EditorialSelect
+              ariaLabel="Filter by role"
+              value={filters.role}
+              options={roles}
+              onChange={(v) => setFilters((f) => ({ ...f, role: v }))}
+            />
+          </label>
+
+          <label className="gm-field">
+            <span>Dietary</span>
+            <EditorialSelect
+              ariaLabel="Filter by dietary requirement"
+              value={filters.dietary}
+              options={DIETARY_OPTIONS}
+              onChange={(v) => setFilters((f) => ({ ...f, dietary: v }))}
+            />
+          </label>
+
+          <label className="gm-field">
+            <span>Aboard</span>
+            <EditorialSelect
+              ariaLabel="Filter by who is aboard"
+              value={filters.aboard}
+              options={ABOARD_OPTIONS}
+              onChange={(v) => setFilters((f) => ({ ...f, aboard: v }))}
+            />
+          </label>
+
+          {narrowed && (
+            <span className="gm-count">{people.length} of {grouped.length}</span>
+          )}
+
+          {canDelete && (
+            <label className="gm-toggle">
+              <input
+                type="checkbox"
+                checked={showDeleted}
+                onChange={(e) => setShowDeleted(e.target.checked)}
+              />
+              Show deleted
+            </label>
+          )}
         </div>
 
         <div className="gm-head">
@@ -260,7 +319,11 @@ const GuestManagementDashboard = () => {
             const open = expandedId === person.primaryId;
             return (
               <React.Fragment key={person.key}>
-                <div className="gm-row" data-deleted={person.isDeleted ? 'y' : undefined}>
+                <div
+                  className="gm-row"
+                  data-open={open ? 'y' : undefined}
+                  data-deleted={person.isDeleted ? 'y' : undefined}
+                >
                   <div className="gm-person">
                     {person.photo ? (
                       <img className="gm-avatar" src={person.photo} alt="" />
