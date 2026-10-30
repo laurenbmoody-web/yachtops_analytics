@@ -1,0 +1,162 @@
+// Turning guest ROWS into the PEOPLE the page shows.
+//
+// The two are not the same thing, and that is the whole point of this module.
+// guest_type ('Owner' / 'Charter') is stored on the person, but owner-vs-charter
+// is really a property of the TRIP — trips.trip_type and trip_guests already
+// model it properly. On a vessel with no trips there was nowhere to put the
+// distinction, so people were cloned instead: Rafael Edry exists twice on
+// Horizon, once as Owner in "Master Cabin" and once as Charter in "Master".
+//
+// So the list groups records back into people. This is PRESENTATIONAL ONLY — it
+// does not merge anything in the database, and it is deliberately not silent
+// about what it did: a grouped person carries `recordCount` and `hasDuplicates`
+// so the page can say "2 records" rather than quietly hiding that the data is
+// wrong. The real merge is a separate migration.
+//
+// Grouping is by name, not by email: every duplicated guest on this project has
+// a null contact_email, so email would group nothing. Name is crude — two real
+// people who share a name would be merged — hence `hasDuplicates` surfacing it
+// for a human to confirm rather than the UI acting on it.
+
+const squash = (value) => String(value ?? '').trim().replace(/\s+/g, ' ');
+const norm = (value) => squash(value).toLowerCase();
+
+export const fullName = (guest) =>
+  squash(`${guest?.firstName ?? ''} ${guest?.lastName ?? ''}`);
+
+// What counts as "the same person". Exported so a merge tool can agree with the
+// list about which records it is about to combine.
+export const personKey = (guest) => norm(fullName(guest));
+
+// Cabin is stored five ways (free text, path, label, ids, id) and they disagree
+// — "Master Cabin" vs "Master" for the same cabin. Read them in the order the
+// old page did so nothing changes on screen, then show the last path segment.
+export const cabinOf = (guest) => {
+  const raw = squash(
+    guest?.cabinLocationPath || guest?.cabinLocationLabel || guest?.cabinAllocated || '',
+  );
+  if (!raw) return '';
+  const parts = raw.split('>').map((p) => p.trim()).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : '';
+};
+
+export const contactOf = (guest) =>
+  squash(guest?.contactEmail || guest?.contactPhone || '');
+
+// Legacy rows carry lowercase 'principal' / 'guest' from an older seed alongside
+// the current 'Owner' / 'Charter'. Present them consistently rather than showing
+// a user two chips that differ only in case.
+export const guestTypeLabel = (type) => {
+  const t = norm(type);
+  if (!t || t === 'unknown') return '';
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+const uniq = (values) => [...new Set(values.filter(Boolean))];
+
+// One entry per person, each carrying the records behind it.
+export const groupGuestsByPerson = (guests) => {
+  const list = (Array.isArray(guests) ? guests : []).filter(Boolean);
+  const byKey = new Map();
+
+  for (const guest of list) {
+    const key = personKey(guest);
+    if (!key) continue;
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push(guest);
+  }
+
+  return [...byKey.entries()].map(([key, records]) => {
+    // A person is only deleted when every record of them is. One live record
+    // means they are still a guest, whatever happened to the other.
+    const live = records.filter((r) => !r?.isDeleted);
+    const shown = live.length ? live : records;
+
+    return {
+      key,
+      name: fullName(shown[0]),
+      records,
+      // The id the page acts on: expanding and editing still work on one
+      // record, because that is what the database and every other page have.
+      primaryId: shown[0]?.id ?? null,
+      recordCount: records.length,
+      hasDuplicates: records.length > 1,
+      types: uniq(shown.map((r) => guestTypeLabel(r?.guestType))),
+      cabins: uniq(shown.map(cabinOf)),
+      contact: contactOf(shown.find((r) => contactOf(r)) || {}),
+      allergies: uniq(shown.map((r) => squash(r?.allergies))).join(', '),
+      photo: shown.find((r) => r?.photo?.dataUrl)?.photo?.dataUrl || null,
+      isDeleted: live.length === 0,
+      isActiveOnTrip: shown.some((r) => r?.isActiveOnTrip === true),
+      // Two records disagreeing about the cabin is itself worth showing — it is
+      // how the duplicate was noticed in the first place.
+      cabinsDisagree: uniq(shown.map(cabinOf)).length > 1,
+    };
+  });
+};
+
+export const initialsOf = (name) => {
+  const parts = squash(name).split(' ').filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+// Search across what a person actually is, not just their name — a stew looking
+// for "shellfish" before service should find the right guest.
+export const searchPeople = (people, query) => {
+  const q = norm(query);
+  if (!q) return people;
+  return (people || []).filter((p) => {
+    const haystack = [
+      p?.name,
+      p?.contact,
+      p?.allergies,
+      ...(p?.cabins || []),
+      ...(p?.types || []),
+      ...(p?.records || []).map((r) => r?.healthConditions),
+    ];
+    return haystack.some((value) => norm(value).includes(q));
+  });
+};
+
+export const SORT_COLUMNS = ['name', 'cabin', 'contact', 'type'];
+
+const sortValue = (person, column) => {
+  switch (column) {
+    case 'cabin': return norm((person?.cabins || [])[0]);
+    case 'contact': return norm(person?.contact);
+    case 'type': return norm((person?.types || [])[0]);
+    case 'name':
+    default: return norm(person?.name);
+  }
+};
+
+export const sortPeople = (people, column, direction) => {
+  const list = [...(people || [])];
+  if (!column || !direction || !SORT_COLUMNS.includes(column)) return list;
+  const flip = direction === 'desc' ? -1 : 1;
+  return list.sort((a, b) => {
+    const av = sortValue(a, column);
+    const bv = sortValue(b, column);
+    // Blanks sort last in both directions: a column of empty contacts should
+    // not push everyone useful off the top of the page.
+    if (av && !bv) return -1;
+    if (!av && bv) return 1;
+    if (av < bv) return -1 * flip;
+    if (av > bv) return 1 * flip;
+    return norm(a?.name) < norm(b?.name) ? -1 : 1;
+  });
+};
+
+// The quick stats in the meta strip. Only facts the page can stand behind —
+// no "status" invented out of nothing, which is what the column this replaces did.
+export const rosterStats = (people) => {
+  const list = (people || []).filter((p) => !p?.isDeleted);
+  return {
+    people: list.length,
+    aboard: list.filter((p) => p.isActiveOnTrip).length,
+    withAllergies: list.filter((p) => squash(p.allergies)).length,
+    duplicates: list.filter((p) => p.hasDuplicates).length,
+  };
+};
