@@ -10,3 +10,7 @@ them, and commits the results to the `store-screenshots` branch:
 - `raw/` — the bare captures (plus `_full` tall versions for tuning scroll)
 - `promo/header.jpg` (3840×1646) and `promo/search.jpg` (3840×2560) — product page header and search results image
 - `contact-sheet.png` — every product photo on the demo vessel
+
+Search-results set for the 6.3" iPhone slot (1206 × 2622): "Jobs, done on deck",
+"Inventory, counted once" and "Crew, aboard or ashore" are framed from
+`raw/film_01_jobs`, `raw/film_06_inventory` and `raw/film_11_sign_ashore`.
