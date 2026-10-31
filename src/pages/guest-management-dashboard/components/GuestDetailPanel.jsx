@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Input from '../../../components/ui/Input';
-import Select from '../../../components/ui/Select';
+import EditorialSelect from '../../../components/editorial/EditorialSelect';
+import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
 import Icon from '../../../components/AppIcon';
 import '../guest-detail-panel.css';
 import { showToast } from '../../../utils/toast';
@@ -434,13 +434,27 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
     setFormData(prev => ({ ...prev, photo: null }));
   };
 
-  const handleSave = () => {
+  // The avatar IS the photo control — there is no separate "Add Photo" tile.
+  // A photo change only lives in formData until Save, so clicking the avatar
+  // while reading drops into edit mode first rather than appearing to save on
+  // its own.
+  const handlePhotoAvatarClick = () => {
+    if (!isEditing) setIsEditing(true);
+    setShowPhotoPicker(open => !open);
+  };
+
+  const pickPhoto = (ref) => {
+    ref?.current?.click();
+    setShowPhotoPicker(false);
+  };
+
+  const handleSave = async () => {
     // Validate required fields
     if (!formData?.firstName?.trim() || !formData?.lastName?.trim()) {
       showToast('First name and last name are required', 'error');
       return;
     }
-    
+
     // Prepare data with backward compatibility
     const updateData = {
       ...formData,
@@ -449,7 +463,12 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
       cabinFreeText: cabinFreeText || ''
     };
 
-    const updated = updateGuest(guest?.id, updateData);
+    // updateGuest is async. Without the await this tested the PROMISE for
+    // truthiness — always true — so a save that failed still said it worked,
+    // and onEdit() refetched BEFORE the write landed, so the panel reloaded the
+    // old row and the edit appeared to vanish. The spouse link runs late in
+    // that same chain, which is why it never reached the other guest either.
+    const updated = await updateGuest(guest?.id, updateData);
     if (updated) {
       showToast('Guest updated successfully', 'success');
       onEdit();
@@ -691,9 +710,64 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
           of mostly-empty values dominating the top of the record. */}
       <div className="gdp-head">
         <div className="gdp-head-l">
-          {guest?.photo?.dataUrl
-            ? <img className="gdp-head-avatar" src={guest.photo.dataUrl} alt="" />
-            : <span className="gdp-head-avatar">{initials}</span>}
+          {canEdit && !isDeleted ? (
+            <span className="gdp-photo-wrap">
+              <button
+                type="button"
+                className="gdp-head-avatar is-editable"
+                onClick={handlePhotoAvatarClick}
+                aria-label={formData?.photo?.dataUrl ? 'Change photo' : 'Add photo'}
+                title={formData?.photo?.dataUrl ? 'Change photo' : 'Add photo'}
+              >
+                {formData?.photo?.dataUrl
+                  ? <img src={formData.photo.dataUrl} alt="" />
+                  : <span className="gdp-head-initials">{initials}</span>}
+                <span className="gdp-photo-hover">
+                  <Icon name="Camera" size={16} />
+                </span>
+              </button>
+
+              {showPhotoPicker && (
+                <div className="gdp-menu">
+                  <button type="button" className="gdp-opt" onClick={() => pickPhoto(fileInputRef)}>
+                    <span className="gdp-opt-main"><Icon name="Image" size={15} /> Photo library</span>
+                  </button>
+                  <button type="button" className="gdp-opt" onClick={() => pickPhoto(cameraInputRef)}>
+                    <span className="gdp-opt-main"><Icon name="Camera" size={15} /> Take photo</span>
+                  </button>
+                  {formData?.photo?.dataUrl && (
+                    <button
+                      type="button"
+                      className="gdp-opt is-danger"
+                      onClick={() => { handleRemovePhoto(); setShowPhotoPicker(false); }}
+                    >
+                      <span className="gdp-opt-main"><Icon name="Trash2" size={15} /> Remove photo</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="gdp-hidden-input"
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handlePhotoUpload}
+                className="gdp-hidden-input"
+              />
+            </span>
+          ) : formData?.photo?.dataUrl ? (
+            <img className="gdp-head-avatar" src={formData.photo.dataUrl} alt="" />
+          ) : (
+            <span className="gdp-head-avatar">{initials}</span>
+          )}
           <span className="gdp-head-ident">
             <h2 className="gdp-title">
               {fullName || 'Guest'}
@@ -779,158 +853,32 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
 
       {/* Content */}
       <div className="gdp-body" data-tab={tab} data-empty={showEmpty ? 'show' : 'fold'}>
-        {/* Photo and Basic Info */}
+        {/* Names. The photo lives on the header avatar — one control, where the
+            face already is, rather than a second tile repeating it. */}
         <div className="gdp-identity" data-tab="overview">
-          {/* Photo */}
-          <div className="flex-shrink-0">
-            {isEditing ? (
-              <div className="relative">
-                {formData?.photo ? (
-                  <div className="gdp-photo">
-                    <img
-                      src={formData?.photo?.dataUrl}
-                      alt="Guest"
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemovePhoto}
-                      className="absolute top-1 right-1 bg-error text-error-foreground rounded-full p-1 hover:bg-error/90 transition-colors"
-                    >
-                      <Icon name="X" size={16} />
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => setShowPhotoPicker(!showPhotoPicker)}
-                      className="gdp-photo-empty"
-                    >
-                      <Icon name="Camera" size={24} className="gdp-note" />
-                      <span className="gdp-note">Add Photo</span>
-                    </button>
-
-                    {showPhotoPicker && (
-                      <div className="gdp-menu">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            fileInputRef?.current?.click();
-                            setShowPhotoPicker(false);
-                          }}
-                          className="gdp-opt"
-                        >
-                          <Icon name="Image" size={16} />
-                          Photo Library
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            cameraInputRef?.current?.click();
-                            setShowPhotoPicker(false);
-                          }}
-                          className="gdp-opt"
-                        >
-                          <Icon name="Camera" size={16} />
-                          Take Photo
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            fileInputRef?.current?.click();
-                            setShowPhotoPicker(false);
-                          }}
-                          className="gdp-opt"
-                        >
-                          <Icon name="Upload" size={16} />
-                          Choose File
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                />
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                />
-              </div>
-            ) : (
-              <div className="gdp-photo">
-                {formData?.photo?.dataUrl ? (
-                  <img
-                    src={formData?.photo?.dataUrl}
-                    alt={`${formData?.firstName} ${formData?.lastName}`}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="gdp-mini-avatar full">
-                    <Icon name="User" size={48} className="gdp-accent" />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Basic Info */}
           <div className="gdp-grid gdp-names">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="gdp-l">First Name *</label>
-                {isEditing && !isDeleted ? (
-                  <Input
-                    value={formData?.firstName || ''}
-                    onChange={(e) => handleChange('firstName', e?.target?.value)}
-                    placeholder="First name"
-                  />
-                ) : (
-                  <V>{formData?.firstName || '-'}</V>
-                )}
-              </div>
-              <div>
-                <label className="gdp-l">Last Name *</label>
-                {isEditing && !isDeleted ? (
-                  <Input
-                    value={formData?.lastName || ''}
-                    onChange={(e) => handleChange('lastName', e?.target?.value)}
-                    placeholder="Last name"
-                  />
-                ) : (
-                  <V>{formData?.lastName || '-'}</V>
-                )}
-              </div>
+            <div>
+              <label className="gdp-l">First name <em>required</em></label>
+              <input
+                type="text"
+                className="gdp-in"
+                value={formData?.firstName || ''}
+                onChange={(e) => handleChange('firstName', e?.target?.value)}
+                placeholder="First name"
+                disabled={isDeleted}
+              />
             </div>
-
-            {(!canEdit || isDeleted) && (
-              <div className="gdp-tile">
-                <div
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full opacity-50 ${
-                    formData?.isActiveOnTrip ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white ${
-                      formData?.isActiveOnTrip ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </div>
-                <div>
-                  <span className="gdp-switch-l">Active on current trip</span>
-                  <p className="gdp-note">{isDeleted ? 'Read-only (deleted)' : 'View only'}</p>
-                </div>
-              </div>
-            )}
+            <div>
+              <label className="gdp-l">Last name <em>required</em></label>
+              <input
+                type="text"
+                className="gdp-in"
+                value={formData?.lastName || ''}
+                onChange={(e) => handleChange('lastName', e?.target?.value)}
+                placeholder="Last name"
+                disabled={isDeleted}
+              />
+            </div>
           </div>
         </div>
 
@@ -944,10 +892,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Date of Birth</label>
               {isEditing && !isDeleted ? (
-                <Input
-                  type="date"
+                <EditorialDatePicker
+                  cool
                   value={formData?.dateOfBirth || ''}
-                  onChange={(e) => handleChange('dateOfBirth', e?.target?.value)}
+                  onChange={(iso) => handleChange('dateOfBirth', iso)}
+                  placeholder="dd/mm/yyyy"
                 />
               ) : (
                 <V>{formData?.dateOfBirth || '-'}</V>
@@ -956,7 +905,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Cake Preference</label>
               {isEditing && !isDeleted ? (
-                <Input
+                <input className="gdp-in"
                   value={formData?.cakePreference || ''}
                   onChange={(e) => handleChange('cakePreference', e?.target?.value)}
                   placeholder="e.g., Chocolate, Vanilla"
@@ -968,7 +917,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Marital Status</label>
               {isEditing && !isDeleted ? (
-                <Select
+                <EditorialSelect
                   value={formData?.maritalStatus || ''}
                   onChange={(value) => handleChange('maritalStatus', value)}
                   options={maritalStatusOptions}
@@ -981,11 +930,10 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               <div>
                 <label className="gdp-l">Connect Spouse (optional)</label>
                 {isEditing && !isDeleted ? (
-                  <Select
+                  <EditorialSelect
                     value={formData?.spouseGuestId || ''}
                     onChange={(value) => handleChange('spouseGuestId', value)}
                     options={spouseSelectOptions}
-                    searchable
                   />
                 ) : (
                   <V>{getSpouseName(formData?.spouseGuestId)}</V>
@@ -1018,7 +966,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Email</label>
               {isEditing && !isDeleted ? (
-                <Input
+                <input className="gdp-in"
                   type="email"
                   value={formData?.contactEmail || ''}
                   onChange={(e) => handleChange('contactEmail', e?.target?.value)}
@@ -1031,7 +979,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Phone</label>
               {isEditing && !isDeleted ? (
-                <Input
+                <input className="gdp-in"
                   type="tel"
                   value={formData?.contactPhone || ''}
                   onChange={(e) => handleChange('contactPhone', e?.target?.value)}
@@ -1054,7 +1002,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Passport Number</label>
               {isEditing && !isDeleted ? (
-                <Input
+                <input className="gdp-in"
                   value={formData?.passportNumber || ''}
                   onChange={(e) => handleChange('passportNumber', e?.target?.value)}
                   placeholder="e.g., AB1234567"
@@ -1067,13 +1015,13 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               <label className="gdp-l">Passport Nationality</label>
               {isEditing && !isDeleted ? (
                 <div className="gdp-field">
-                  <Select
+                  <EditorialSelect
                     value={formData?.passportNationality || ''}
                     onChange={(value) => handleChange('passportNationality', value)}
                     options={nationalityOptions}
                   />
                   {formData?.passportNationality === 'Other' && (
-                    <Input
+                    <input className="gdp-in"
                       value={formData?.passportNationalityOther || ''}
                       onChange={(e) => handleChange('passportNationalityOther', e?.target?.value)}
                       placeholder="Specify nationality"
@@ -1091,10 +1039,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Passport Expiry Date</label>
               {isEditing && !isDeleted ? (
-                <Input
-                  type="date"
+                <EditorialDatePicker
+                  cool
                   value={formData?.passportExpiryDate || ''}
-                  onChange={(e) => handleChange('passportExpiryDate', e?.target?.value)}
+                  onChange={(iso) => handleChange('passportExpiryDate', iso)}
+                  placeholder="dd/mm/yyyy"
                 />
               ) : (
                 <V>{formData?.passportExpiryDate || '-'}</V>
@@ -1103,7 +1052,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Emergency Contact Name</label>
               {isEditing && !isDeleted ? (
-                <Input
+                <input className="gdp-in"
                   value={formData?.emergencyContactName || ''}
                   onChange={(e) => handleChange('emergencyContactName', e?.target?.value)}
                   placeholder="Full name"
@@ -1115,7 +1064,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Emergency Contact Phone</label>
               {isEditing && !isDeleted ? (
-                <Input
+                <input className="gdp-in"
                   type="tel"
                   value={formData?.emergencyContactPhone || ''}
                   onChange={(e) => handleChange('emergencyContactPhone', e?.target?.value)}
@@ -1128,7 +1077,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Emergency Contact Relationship</label>
               {isEditing && !isDeleted ? (
-                <Select
+                <EditorialSelect
                   value={formData?.emergencyContactRelationship || ''}
                   onChange={(value) => handleChange('emergencyContactRelationship', value)}
                   options={relationshipOptions}
@@ -1352,7 +1301,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               <label className="gdp-l">
                 OR Cabin (free text)
               </label>
-              <Input
+              <input className="gdp-in"
                 value={cabinFreeText}
                 onChange={(e) => handleCabinFreeTextChange(e?.target?.value)}
                 placeholder="Enter cabin manually if not in dropdown"
@@ -1376,7 +1325,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Client Type</label>
               {isEditing && !isDeleted ? (
-                <Select
+                <EditorialSelect
                   value={formData?.clientType || ''}
                   onChange={(value) => handleChange('clientType', value)}
                   options={clientTypeOptions}
@@ -1388,7 +1337,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Preferred Currency</label>
               {isEditing && !isDeleted ? (
-                <Select
+                <EditorialSelect
                   value={formData?.preferredCurrency || ''}
                   onChange={(value) => handleChange('preferredCurrency', value)}
                   options={currencyOptions}
@@ -1400,7 +1349,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Billing Contact Name</label>
               {isEditing && !isDeleted ? (
-                <Input
+                <input className="gdp-in"
                   value={formData?.billingContactName || ''}
                   onChange={(e) => handleChange('billingContactName', e?.target?.value)}
                   placeholder="Full name"
@@ -1412,7 +1361,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Billing Contact Email</label>
               {isEditing && !isDeleted ? (
-                <Input
+                <input className="gdp-in"
                   type="email"
                   value={formData?.billingContactEmail || ''}
                   onChange={(e) => handleChange('billingContactEmail', e?.target?.value)}
@@ -1459,7 +1408,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">APA Amount</label>
               {isEditing && !isDeleted ? (
-                <Input
+                <input className="gdp-in"
                   type="number"
                   value={formData?.apaAmount || ''}
                   onChange={(e) => handleChange('apaAmount', e?.target?.value ? parseFloat(e?.target?.value) : null)}
@@ -1542,10 +1491,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">NDA Expiry Date</label>
               {isEditing && !isDeleted ? (
-                <Input
-                  type="date"
+                <EditorialDatePicker
+                  cool
                   value={formData?.ndaExpiryDate || ''}
-                  onChange={(e) => handleChange('ndaExpiryDate', e?.target?.value)}
+                  onChange={(iso) => handleChange('ndaExpiryDate', iso)}
+                  placeholder="dd/mm/yyyy"
                 />
               ) : (
                 <V>{formData?.ndaExpiryDate || '-'}</V>
@@ -1556,7 +1506,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Privacy Level</label>
               {isEditing && !isDeleted ? (
-                <Select
+                <EditorialSelect
                   value={formData?.privacyLevel || 'Standard'}
                   onChange={(value) => handleChange('privacyLevel', value)}
                   options={privacyLevelOptions}
@@ -1568,7 +1518,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Photo Permission</label>
               {isEditing && !isDeleted ? (
-                <Select
+                <EditorialSelect
                   value={formData?.photoPermission || 'Ask Each Time'}
                   onChange={(value) => handleChange('photoPermission', value)}
                   options={photoPermissionOptions}
@@ -1580,7 +1530,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Share Guest Info With Crew</label>
               {isEditing && !isDeleted ? (
-                <Select
+                <EditorialSelect
                   value={formData?.shareGuestInfoWithCrew || 'Limited'}
                   onChange={(value) => handleChange('shareGuestInfoWithCrew', value)}
                   options={shareInfoOptions}

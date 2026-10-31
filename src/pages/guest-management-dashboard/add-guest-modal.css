@@ -1,0 +1,254 @@
+/* ============================================================
+   Add / edit guest modal — editorial (Cargo)
+
+   Same spacing scale and palette as guest-detail-panel.css, so the
+   modal you add a guest in and the panel you then read them in are
+   plainly the same product. Scoped `ag-*` because the panel is
+   portaled outside the page tree.
+
+   NO BEIGE: cool greys, navy ink, terracotta as text/border/solid.
+   ============================================================ */
+
+.ag {
+  width: 100%; max-width: 760px; max-height: 90vh; overflow-y: auto;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+.ag.is-narrow { max-width: 460px; max-height: 80vh; }
+
+/* ── header ─────────────────────────────────────────────────── */
+.ag-head {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 20px 28px;
+  background: #FFFFFF; border-bottom: 1px solid #EEF0F4;
+  border-radius: 16px 16px 0 0;
+}
+.ag-head h2, .ag-head h3 {
+  margin: 0;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 24px; font-weight: 400; line-height: 1.1; letter-spacing: -0.2px;
+}
+.ag-head h3 { font-size: 20px; }
+.ag-x {
+  display: grid; place-items: center;
+  width: 30px; height: 30px; padding: 0; cursor: pointer;
+  background: none; border: 1px solid transparent; border-radius: 8px;
+  color: #8B8478; transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.ag-x:hover { background: #F1F5F9; border-color: #E5E7EB; color: #C65A1A; }
+
+/* ── form ───────────────────────────────────────────────────── */
+.ag-form { padding: 4px 28px 28px; }
+
+/* A section: tracked-caps heading, then its fields. */
+.ag-sec { padding: 20px 0; border-bottom: 1px solid #F0F1F5; }
+.ag-sec:last-of-type { border-bottom: 0; }
+.ag-h {
+  display: flex; align-items: center; gap: 7px;
+  margin: 0 0 16px; padding: 0; border: 0;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.ag-h svg { color: #C65A1A; flex: 0 0 auto; }
+
+/* A field: label, 8px, control. The one spacing rule for the whole form. */
+.ag-f { display: flex; flex-direction: column; gap: 8px; }
+.ag-sec > .ag-f + .ag-f, .ag-sec > .ag-row + .ag-f,
+.ag-sec > .ag-f + .ag-row, .ag-sec > .ag-row + .ag-row { margin-top: 20px; }
+.ag-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.ag-stack { display: flex; flex-direction: column; gap: 12px; }
+.ag-grow { flex: 1; min-width: 0; }
+
+.ag-l {
+  display: block; margin: 0;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.ag-note { margin: 0; font-size: 11.5px; line-height: 1.5; color: #8B8478; }
+.ag-strong { font-weight: 600; color: #1C1B3A; }
+.ag-err { margin: 0; font-size: 11.5px; color: #A32D2D; }
+.ag-empty { padding: 28px 0; text-align: center; font-size: 13px; color: #8B8478; }
+
+/* ── controls ───────────────────────────────────────────────── */
+.ag-in, .ag-ta, .ag input[type='text'], .ag input[type='email'],
+.ag input[type='tel'], .ag input[type='number'] {
+  width: 100%; box-sizing: border-box;
+  padding: 9px 12px;
+  font: inherit; font-size: 13.5px; color: #1C1B3A;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 9px;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.ag-in::placeholder, .ag-ta::placeholder { color: #AEB4C2; }
+.ag-in:hover, .ag-ta:hover { border-color: #D7DAE2; }
+.ag-in:focus, .ag-ta:focus {
+  outline: none; border-color: #C65A1A;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
+}
+.ag-in.is-bad { border-color: #EFC9C9; }
+.ag-in.is-bad:focus { border-color: #A32D2D; box-shadow: 0 0 0 3px rgba(163, 45, 45, 0.12); }
+.ag-ta { min-height: 76px; resize: vertical; }
+.ag-hidden-input { display: none; }
+
+.ag-check { width: 15px; height: 15px; accent-color: #C65A1A; cursor: pointer; flex: 0 0 auto; }
+
+/* EditorialSelect, sized to the fields beside it. */
+.ag .es { font-family: 'Inter', system-ui, sans-serif; }
+.ag .es-trigger { padding: 9px 12px; font-size: 13.5px; border-radius: 9px; }
+.ag .es-opt { font-size: 13.5px; }
+
+/* ── switch ─────────────────────────────────────────────────── */
+.ag-switch {
+  display: inline-flex; align-items: center; gap: 11px;
+  padding: 0; cursor: pointer; background: none; border: 0; font: inherit;
+}
+.ag-switch-track {
+  position: relative; flex: 0 0 auto;
+  width: 38px; height: 22px; border-radius: 999px;
+  background: #E2E6ED; transition: background 0.16s;
+}
+.ag-switch-knob {
+  position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 999px;
+  background: #FFFFFF; box-shadow: 0 1px 2px rgba(28, 27, 58, 0.22);
+  transition: transform 0.16s;
+}
+.ag-switch.is-on .ag-switch-track { background: #C65A1A; }
+.ag-switch.is-on .ag-switch-knob { transform: translateX(16px); }
+.ag-switch-l { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
+.ag-switchrow { display: flex; align-items: center; gap: 12px; }
+
+/* ── buttons ────────────────────────────────────────────────── */
+.ag-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 10px 18px; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600;
+  border-radius: 10px; transition: background 0.14s, border-color 0.14s, color 0.14s;
+}
+.ag-btn.primary { background: #C65A1A; border: 1px solid #C65A1A; color: #FFFFFF; }
+.ag-btn.primary:hover:not(:disabled) { background: #B14E16; border-color: #B14E16; }
+.ag-btn.ghost { background: #FFFFFF; border: 1px solid #E5E7EB; color: #6B7280; }
+.ag-btn.ghost:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
+.ag-btn:disabled { opacity: 0.55; cursor: default; }
+.ag-btn.is-wide { width: 100%; }
+.ag-btn.is-grow { flex: 1; }
+
+.ag-actions {
+  display: flex; gap: 10px;
+  padding-top: 20px; border-top: 1px solid #F0F1F5;
+}
+.ag-foot { margin-top: 20px; }
+
+/* ── floating list (photo menu, cabin picker) ───────────────── */
+.ag-opt {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 9px 11px; cursor: pointer; text-align: left;
+  background: none; border: 0; border-radius: 8px;
+  font: inherit; font-size: 13px; color: #1C1B3A;
+}
+.ag-opt:hover { background: #F1F5F9; }
+
+/* ── photo ──────────────────────────────────────────────────── */
+.ag-photo, .ag-photo-empty {
+  width: 92px; height: 92px; border-radius: 999px;
+  display: grid; place-items: center; overflow: hidden;
+}
+.ag-photo { position: relative; border: 1px solid #E5E7EB; background: #EEF2F7; }
+.ag-photo img { width: 100%; height: 100%; object-fit: cover; }
+.ag-photo-x {
+  position: absolute; top: 2px; right: 2px;
+  display: grid; place-items: center;
+  width: 22px; height: 22px; padding: 0; cursor: pointer;
+  background: rgba(28, 27, 58, 0.62); border: 0; border-radius: 999px; color: #FFFFFF;
+}
+.ag-photo-x:hover { background: #A32D2D; }
+.ag-photo-empty {
+  gap: 5px; cursor: pointer;
+  border: 1px dashed #D7DAE2; background: #F8FAFC; color: #8B8478;
+  font-size: 10px; font-weight: 600; text-align: center; line-height: 1.2;
+}
+.ag-photo-empty:hover { border-color: #C65A1A; color: #C65A1A; }
+
+/* ── a pickable row (kids list) ─────────────────────────────── */
+.ag-pick {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px; cursor: pointer;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px;
+  transition: border-color 0.14s;
+}
+.ag-pick:hover { border-color: #D7DAE2; }
+
+@media (max-width: 680px) {
+  .ag-form { padding-left: 18px; padding-right: 18px; }
+  .ag-head { padding-left: 18px; padding-right: 18px; }
+  .ag-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── bits the body of the form needs ────────────────────────── */
+.ag-anchor { position: relative; }
+.ag-menu {
+  position: absolute; top: 100%; left: 0; z-index: 10;
+  margin-top: 6px; padding: 6px; min-width: 220px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px;
+  box-shadow: 0 18px 44px -14px rgba(28, 27, 58, 0.28);
+}
+.ag-doc {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: #F8FAFC; border: 1px solid #EEF0F4; border-radius: 10px;
+}
+.ag-accent { color: #C65A1A; flex-shrink: 0; }
+.ag-val { font-size: 13.5px; color: #1C1B3A; }
+.ag-filename, .ag-filelink {
+  display: block; flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 13px;
+}
+.ag-filename { color: #1C1B3A; }
+.ag-filelink { color: #C65A1A; text-decoration: none; }
+.ag-filelink:hover { text-decoration: underline; }
+.ag-inline { display: flex; align-items: center; gap: 8px; }
+.ag-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 600; color: #C65A1A;
+}
+.ag-link:hover { color: #B14E16; }
+.ag-iconbtn {
+  display: grid; place-items: center;
+  width: 28px; height: 28px; padding: 0; cursor: pointer;
+  background: none; border: 1px solid transparent; border-radius: 8px;
+  color: #8B8478; transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.ag-iconbtn:hover { background: #F1F5F9; border-color: #E5E7EB; color: #C65A1A; }
+.ag-iconbtn.is-danger:hover { background: #FEF2F2; border-color: #EFC9C9; color: #A32D2D; }
+.ag-cta {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; padding: 11px 14px; cursor: pointer; text-align: left;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px;
+  font: inherit; font-size: 13.5px; color: #1C1B3A;
+  transition: border-color 0.14s, color 0.14s;
+}
+.ag-cta:hover { border-color: #C65A1A; color: #C65A1A; }
+.ag-btn.sm { padding: 5px 11px; font-size: 11.5px; }
+.ag-btn.danger { background: #FFFFFF; border: 1px solid #EFC9C9; color: #A32D2D; }
+.ag-btn.danger:hover:not(:disabled) { background: #A32D2D; border-color: #A32D2D; color: #FFFFFF; }
+
+/* Status notes. Pale red/amber are semantic, not decoration — they stay. */
+.ag-callout {
+  margin: 0; padding: 9px 12px;
+  background: #F8FAFC; border: 1px solid #EEF0F4; border-radius: 9px;
+  font-size: 11.5px; line-height: 1.5; color: #6B7280;
+}
+.ag-callout.warn { background: #FEF3C7; border-color: #FBEFD9; color: #8A5A08; }
+.ag-callout.info { background: #EEF2F7; border-color: #E5E7EB; color: #1C1B3A; }
+
+.ag-spin {
+  width: 15px; height: 15px; border-radius: 999px;
+  border: 2px solid #C65A1A; border-top-color: transparent;
+  animation: ag-spin 0.7s linear infinite;
+}
+@keyframes ag-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ag-spin { animation: none; } }
