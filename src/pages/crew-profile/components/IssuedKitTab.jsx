@@ -401,6 +401,74 @@ const IssuedKitTab =({ userId, tenantId, currentUserId, currentUserName, crewNam
     );
   };
 
+  // Several sizes of the SAME garment collapse onto one tile that lists each
+  // size with its quantity (and per-size manager actions), rather than one
+  // tile per size.
+  const KIT_SIZE_ORDER = ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', 'XXL', '3XL', 'XXXL'];
+  const kitSizeRank = (s) => { const i = KIT_SIZE_ORDER.indexOf(String(s || '').toUpperCase().trim()); return i < 0 ? 900 : i; };
+  const sortKitSizes = (rows) => [...rows].sort((a, b) => {
+    const ra = kitSizeRank(a.size); const rb = kitSizeRank(b.size);
+    if (ra !== rb) return ra - rb;
+    const na = parseFloat(a.size); const nb = parseFloat(b.size);
+    if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
+    return String(a.size || '').localeCompare(String(b.size || ''));
+  });
+  const renderTileGroup = (rows) => {
+    const sorted = sortKitSizes(rows);
+    const first = sorted[0];
+    const live = first.status === 'in_service';
+    const type = canonicalGarment(first.item);
+    const img = imgMap[first.inventory_item_id];
+    const pill = statusPill(first);
+    const totalQty = sorted.reduce((a, k) => a + (Number(k.quantity) || 1), 0);
+    return (
+      <div className={`kit-tile${live ? '' : ' ret'}`} key={`grp-${first.item}-${first.inventory_item_id || ''}-${first.status}-${pill.label}`}>
+        <div className="kit-tile-media">
+          {img ? <img src={img} alt={first.item} /> : <span className="kit-tile-ph"><Icon name={GARMENT_ICON[type] || 'Shirt'} size={28} /></span>}
+          {totalQty > 1 && <span className="kit-tile-qty"><span className="x">×</span>{totalQty}</span>}
+        </div>
+        <div className="kit-tile-body">
+          <span className="kit-tile-nm">{first.item}</span>
+          <div className="kit-tile-szlist">
+            {sorted.map((k) => (
+              <div className="kit-tile-szrow" key={k.id}>
+                <span className="kit-szlbl">{k.size || 'One size'}</span>
+                <span className="kit-szq">×{k.quantity || 1}</span>
+                {k.swap_requested_size && <span className="kit-szswap"><Icon name="Repeat" size={10} /> {k.swap_requested_size}</span>}
+                <span className="kit-szsp" />
+                {canManage && editMode && live && (
+                  <span className="kit-szacts">
+                    <button onClick={() => openReturn([k])} title="Record return"><Icon name="PackageCheck" size={13} /></button>
+                    <button onClick={() => lose(k)} title="Mark lost / damaged"><Icon name="TriangleAlert" size={13} /></button>
+                    <button onClick={() => openEdit(k)} title="Edit"><Icon name="Pencil" size={13} /></button>
+                    <button onClick={() => remove(k)} title="Remove" className="danger"><Icon name="Trash2" size={13} /></button>
+                  </span>
+                )}
+                {canManage && editMode && !live && (
+                  <button className="kit-szreinstate" onClick={() => reinstate(k)} title="Reinstate to in-service"><Icon name="Undo2" size={12} /></button>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="kit-tile-foot">
+            <span className={`cd-pill ${pill.cls}`}>{pill.label}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  // Bucket rows by garment (same item + inventory link + status + condition +
+  // pill state); mixed sizes share a tile, singletons stay single.
+  const renderKitTiles = (rows) => {
+    const buckets = new Map();
+    rows.forEach((it) => {
+      const key = `${(it.item || '').trim().toLowerCase()}|${it.inventory_item_id || ''}|${it.status}|${it.condition_issued || ''}|${statusPill(it).label}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(it);
+    });
+    return [...buckets.values()].map((b) => (b.length > 1 ? renderTileGroup(b) : renderTile(b[0])));
+  };
+
   return (
     <div>
       <div className="cp-tab-head">
@@ -593,14 +661,14 @@ const IssuedKitTab =({ userId, tenantId, currentUserId, currentUserName, crewNam
                   return types.map((t) => (
                     <div className="cp-group" key={`uniform-${t}`}>
                       <div className="cp-group-head"><span className="dia">◆</span><span className="t">{t}</span><span className="line" /></div>
-                      <div className="kit-tilegrid">{sub[t].map(renderTile)}</div>
+                      <div className="kit-tilegrid">{renderKitTiles(sub[t])}</div>
                     </div>
                   ));
                 }
                 return (
                   <div className="cp-group" key={cat.id}>
                     <div className="cp-group-head"><span className="dia">◆</span><span className="t">{cat.label}</span><span className="line" /></div>
-                    <div className="kit-tilegrid">{rows.map(renderTile)}</div>
+                    <div className="kit-tilegrid">{renderKitTiles(rows)}</div>
                   </div>
                 );
               })}
@@ -608,7 +676,7 @@ const IssuedKitTab =({ userId, tenantId, currentUserId, currentUserName, crewNam
               {archived.length > 0 && (
                 <div className="cp-group">
                   <div className="cp-group-head"><span className="dia">◆</span><span className="t">Returned &amp; archived</span><span className="line" /></div>
-                  <div className="kit-tilegrid">{archived.map(renderTile)}</div>
+                  <div className="kit-tilegrid">{renderKitTiles(archived)}</div>
                 </div>
               )}
             </>
