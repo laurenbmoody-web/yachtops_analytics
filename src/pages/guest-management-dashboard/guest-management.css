@@ -235,3 +235,72 @@
   .gm-titlerow { align-items: flex-start; }
   .gm-field { min-width: 0; flex: 1 1 140px; }
 }
+
+/* ── two pane: roster left, the open guest right ─────────────
+   Replaces the inline expand. The roster stays on screen while you read
+   someone, and the record no longer pushes everyone else off the page. */
+.gm-split {
+  display: flex; flex-wrap: wrap; align-items: flex-start;
+  gap: 0; margin-top: 2px;
+}
+
+.gm-list {
+  flex: 1 1 300px; max-width: 340px; min-width: 0;
+  padding: 14px 20px 20px 0;
+  border-right: 1px solid #E5E7EB;
+  align-self: stretch;
+}
+.gm-list-count {
+  margin: 0 0 10px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+
+.gm-pick {
+  display: flex; align-items: center; gap: 11px;
+  width: 100%; text-align: left; cursor: pointer;
+  padding: 10px 12px; margin-bottom: 3px;
+  background: none; border: 1px solid transparent; border-radius: 10px;
+  font: inherit; transition: background 0.12s, border-color 0.12s;
+}
+.gm-pick:hover { background: #F1F5F9; }
+.gm-pick.is-on {
+  background: #FFFFFF; border-color: #E5E7EB;
+  box-shadow: inset 3px 0 0 #C65A1A;
+}
+.gm-pick[data-deleted='y'] { opacity: 0.5; }
+
+.gm-pick-av {
+  flex: 0 0 auto; width: 36px; height: 36px; border-radius: 999px;
+  object-fit: cover; border: 1px solid #E5E7EB; background: #EEF2F7;
+  display: grid; place-items: center;
+  font-size: 11.5px; font-weight: 700; color: #1C1B3A;
+}
+.gm-pick-txt { min-width: 0; flex: 1 }
+.gm-pick-name {
+  display: block; font-size: 14px; font-weight: 600; color: #1C1B3A;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gm-pick-sub {
+  display: block; margin-top: 2px; font-size: 11.5px; color: #8B8478;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gm-pick-flag { flex: 0 0 auto; color: #C65A1A; }
+
+.gm-pane { flex: 999 1 540px; min-width: 0; padding: 14px 0 20px 26px; }
+
+.gm-pane-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 90px 24px; text-align: center;
+}
+.gm-pane-empty b { font-size: 15px; font-weight: 600; color: #1C1B3A; }
+.gm-pane-empty span { font-size: 13px; color: #8B8478; }
+
+@media (max-width: 1000px) {
+  .gm-list {
+    max-width: none; flex: 1 1 100%;
+    border-right: 0; border-bottom: 1px solid #E5E7EB;
+    padding: 14px 0 16px;
+  }
+  .gm-pane { flex: 1 1 100%; padding: 16px 0 20px; }
+}

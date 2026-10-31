@@ -261,3 +261,73 @@
 .gdp-check { width: 15px; height: 15px; margin-top: 2px; accent-color: #A32D2D; cursor: pointer; }
 .gdp-btn.danger.solid { background: #A32D2D; border-color: #A32D2D; color: #FFFFFF; }
 .gdp-btn.danger.solid:hover:not(:disabled) { background: #8E2626; border-color: #8E2626; }
+
+/* ── two-pane: identity, key facts, tabs ────────────────────── */
+.gdp { display: flex; flex-direction: column; min-height: 0; }
+
+.gdp-head-avatar {
+  flex: 0 0 auto; width: 46px; height: 46px; border-radius: 999px;
+  object-fit: cover; border: 1px solid #E5E7EB; background: #EEF2F7;
+  display: grid; place-items: center;
+  font-size: 13px; font-weight: 700; color: #1C1B3A;
+}
+.gdp-head-ident { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.gdp-head-chips { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.gdp-chip.accent { border-color: #E8C4AC; color: #C65A1A; }
+
+/* The three things anyone opening a guest wants first. */
+.gdp-facts {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px; background: #EEF0F4;
+  border-bottom: 1px solid #EEF0F4;
+}
+.gdp-fact { background: #FFFFFF; padding: 13px 22px; min-width: 0; }
+.gdp-fact-l {
+  display: block;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.gdp-fact-v {
+  display: block; margin-top: 5px;
+  font-size: 14px; font-weight: 600; color: #1C1B3A;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.gdp-fact-v.is-none { font-weight: 400; color: #AEB4C2; }
+.gdp-fact-v.is-flag { color: #C65A1A; }
+
+.gdp-tabs {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding: 12px 22px 0;
+  border-bottom: 1px solid #E5E7EB;
+}
+.gdp-tab {
+  padding: 0 0 11px; cursor: pointer;
+  background: none; border: 0; border-bottom: 2px solid transparent;
+  font: inherit; font-size: 12.5px; font-weight: 600; color: #8B8478;
+  transition: color 0.12s, border-color 0.12s;
+}
+.gdp-tab:hover { color: #1C1B3A; }
+.gdp-tab.is-on { color: #C65A1A; border-bottom-color: #C65A1A; font-weight: 700; }
+
+.gdp-emptytoggle {
+  margin-left: auto; margin-bottom: 9px; padding: 4px 10px; cursor: pointer;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px;
+  font: inherit; font-size: 11px; font-weight: 600; color: #8B8478;
+}
+.gdp-emptytoggle:hover { border-color: #C65A1A; color: #C65A1A; }
+
+/* Only the chosen tab's sections render. */
+.gdp-body[data-tab='overview'] [data-tab]:not([data-tab='overview']),
+.gdp-body[data-tab='prefs'] [data-tab]:not([data-tab='prefs']),
+.gdp-body[data-tab='confidential'] [data-tab]:not([data-tab='confidential']),
+.gdp-body[data-tab='history'] [data-tab]:not([data-tab='history']) { display: none; }
+
+.gdp-identity { display: flex; align-items: flex-start; gap: 24px; padding: 18px 0; }
+@media (max-width: 720px) { .gdp-identity { flex-direction: column; gap: 16px; } }
+
+/* A field whose value is blank folds away until asked for. */
+.gdp-v.is-empty { color: #AEB4C2; }
+.gdp-body[data-empty='fold'] .gdp-grid > div:has(> .gdp-v.is-empty) { display: none; }
+.gdp-body[data-empty='fold'] .gdp-sec:has(> .gdp-grid:not(:has(> div:not(:has(.gdp-v.is-empty))))) {
+  opacity: 0.55;
+}
