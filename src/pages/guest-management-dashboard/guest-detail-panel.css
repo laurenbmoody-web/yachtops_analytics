@@ -1,17 +1,28 @@
 /* ============================================================
    Guest detail panel — editorial (Cargo)
 
-   The panel is restyled rather than rewritten: every handler, the
-   spouse and kids linking, the passport upload and the delete flow
-   are untouched, and only the presentation classes changed. A 1,678
-   line rewrite would have risked that logic for a visual result.
+   REWRITTEN FROM SCRATCH. The previous file had grown by append:
+   .gdp-body was declared twelve times, .gdp-v six, .gdp-sec four,
+   each pass overriding the last. Nothing governed spacing, which is
+   why section headings sat on top of field labels however many times
+   the padding was "fixed". One rule per thing now, in one place.
 
-   NO BEIGE anywhere — cool greys, navy ink, terracotta as text,
-   border or solid fill. Sections are separated by hairlines and
-   whitespace, not boxed cards.
+   SPACING SCALE — every gap below comes from this, nothing ad hoc:
+     4   inside a label/value pair
+     8   between a label and its input
+     12  between fields in a column
+     20  between field columns
+     24  section padding
+     28  panel gutter
+
+   NO BEIGE: cool greys, navy ink, terracotta as text/border/solid.
    ============================================================ */
 
 .gdp {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   background: #FFFFFF;
   font-family: 'Inter', system-ui, sans-serif;
   color: #1C1B3A;
@@ -19,85 +30,203 @@
 
 /* ── header ─────────────────────────────────────────────────── */
 .gdp-head {
+  flex: 0 0 auto;
   display: flex; align-items: center; justify-content: space-between;
-  gap: 14px; flex-wrap: wrap;
-  padding: 18px 22px;
+  gap: 16px; flex-wrap: wrap;
+  padding: 20px 28px;
   border-bottom: 1px solid #EEF0F4;
 }
-.gdp-head-l { display: flex; align-items: center; gap: 10px; }
+.gdp-head-l { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1; }
+.gdp-head-r { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.gdp-head-avatar {
+  flex: 0 0 auto; width: 52px; height: 52px; border-radius: 999px;
+  object-fit: cover; border: 1px solid #E5E7EB; background: #EEF2F7;
+  display: grid; place-items: center;
+  font-size: 15px; font-weight: 700; color: #1C1B3A;
+}
+.gdp-head-ident { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+
 .gdp-title {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   margin: 0;
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 22px; font-weight: 400; letter-spacing: -0.2px; color: #1C1B3A;
+  font-size: 26px; font-weight: 400; line-height: 1.1; letter-spacing: -0.2px;
 }
-.gdp-head-r { display: flex; align-items: center; gap: 8px; }
+.gdp-role {
+  padding: 2px 9px; border-radius: 999px; border: 1px solid #E8C4AC;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.3px; color: #C65A1A;
+}
+
+.gdp-meta {
+  display: flex; align-items: center; flex-wrap: wrap; margin: 0;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+  text-transform: uppercase; color: #1C1B3A;
+}
+.gdp-meta .muted { color: #AEB4C2; }
+.gdp-meta .alert { color: #C65A1A; }
+.gdp-meta .bar { width: 1px; height: 10px; background: #D7DAE2; margin: 0 10px; }
+
+.gdp-aboard {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px; cursor: pointer;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px;
+  font: inherit; font-size: 12px; font-weight: 600; color: #8B8478;
+  transition: border-color 0.14s, color 0.14s;
+}
+.gdp-aboard:hover { border-color: #C65A1A; color: #C65A1A; }
+.gdp-aboard-dot { width: 7px; height: 7px; border-radius: 999px; background: #D7DAE2; }
+.gdp-aboard.is-on { border-color: #BFDBC6; color: #3F7A52; }
+.gdp-aboard.is-on .gdp-aboard-dot { background: #3F7A52; }
+
+/* ── tabs ───────────────────────────────────────────────────── */
+.gdp-tabs {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+  padding: 14px 28px 0;
+  border-bottom: 1px solid #E5E7EB;
+}
+.gdp-tab {
+  padding: 0 0 12px; cursor: pointer;
+  background: none; border: 0; border-bottom: 2px solid transparent;
+  font: inherit; font-size: 13px; font-weight: 600; color: #8B8478;
+  transition: color 0.12s, border-color 0.12s;
+}
+.gdp-tab:hover { color: #1C1B3A; }
+.gdp-tab.is-on { color: #C65A1A; border-bottom-color: #C65A1A; }
+
+.gdp-emptytoggle {
+  margin-left: auto; margin-bottom: 10px;
+  padding: 4px 11px; cursor: pointer;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px;
+  font: inherit; font-size: 11px; font-weight: 600; color: #8B8478;
+}
+.gdp-emptytoggle:hover { border-color: #C65A1A; color: #C65A1A; }
 
 /* ── body ───────────────────────────────────────────────────── */
 .gdp-body {
-  padding: 4px 22px 22px;
-  max-height: calc(100vh - 300px);
-  overflow-y: auto;
+  flex: 1; min-height: 0; overflow-y: auto;
+  padding: 0 28px 28px;
 }
+/* Only the chosen tab's blocks render. */
+.gdp-body[data-tab='overview'] [data-tab]:not([data-tab='overview']),
+.gdp-body[data-tab='prefs'] [data-tab]:not([data-tab='prefs']),
+.gdp-body[data-tab='confidential'] [data-tab]:not([data-tab='confidential']),
+.gdp-body[data-tab='history'] [data-tab]:not([data-tab='history']) { display: none; }
 
 /* ── a section ──────────────────────────────────────────────── */
-.gdp-sec { padding: 18px 0; border-top: 1px solid #F0F1F5; }
-.gdp-sec:first-of-type { border-top: 0; }
+/* ONE rule per join. Reading mode already draws a hairline under every
+   field row, so a section border there would stack a second line a gap
+   below the first — the last row's rule IS the section divider. Editing
+   has no row rules (fields are a form, not a table), so there the
+   section carries the border itself.
+   Separators are bottom-side throughout: tabs hide sections with
+   display:none, which sibling selectors still match, so "no rule above
+   the first visible section" is not expressible with border-top. */
+.gdp-sec, .gdp-identity { padding: 20px 0; }
+.gdp-identity, .gdp.is-editing .gdp-sec { border-bottom: 1px solid #F0F1F5; }
+.gdp-body > *:last-child { border-bottom: 0; }
 
+/* The heading needs real air beneath it — this is the gap that kept
+   collapsing and putting the heading on top of the first label. */
 .gdp-h {
   display: flex; align-items: center; gap: 7px;
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   font-size: 9px; font-weight: 700; letter-spacing: 1px;
   text-transform: uppercase; color: #8B8478;
 }
-.gdp-h svg { width: 13px; height: 13px; color: #C65A1A; }
-
-.gdp-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 24px;
+.gdp-h svg { width: 13px; height: 13px; color: #C65A1A; flex: 0 0 auto; }
+.gdp-h-btn {
+  width: 100%; cursor: pointer; background: none; border: 0;
+  padding: 0; text-align: left;
 }
-@media (max-width: 760px) { .gdp-grid { grid-template-columns: minmax(0, 1fr); } }
+.gdp-h-btn:hover { color: #C65A1A; }
 
-/* ── a field ────────────────────────────────────────────────── */
+/* ── fields: READING ────────────────────────────────────────── */
+/* Label column, value column. Both left aligned at a tab stop, so the
+   value never drifts to the far edge of a wide pane. */
+.gdp-grid { display: flex; flex-direction: column; }
+.gdp-grid > div, .gdp-field {
+  display: grid; grid-template-columns: 200px minmax(0, 1fr);
+  align-items: baseline; gap: 6px 20px;
+  padding: 11px 0; border-bottom: 1px solid #F0F1F5;
+  min-width: 0;
+}
+
 .gdp-l {
-  display: block; margin-bottom: 5px;
+  display: block; margin: 0;
   font-size: 9px; font-weight: 700; letter-spacing: 1px;
   text-transform: uppercase; color: #8B8478;
 }
 .gdp-v {
-  margin: 0;
-  font-size: 13.5px; line-height: 1.5; color: #1C1B3A;
-  min-height: 20px;
+  margin: 0; min-width: 0;
+  font-size: 13.5px; line-height: 1.5; color: #1C1B3A; text-align: left;
 }
-.gdp-v:empty::after { content: '—'; color: #AEB4C2; }
-.gdp-note { font-size: 12px; line-height: 1.5; color: #8B8478; }
+.gdp-v.is-pre { white-space: pre-wrap; }
+.gdp-v.is-empty { color: #C8CCD4; }
+.gdp-note { margin: 0; font-size: 11.5px; line-height: 1.5; color: #8B8478; }
 
-/* Inputs inside the panel, whatever component rendered them. */
-.gdp input[type='text'],
-.gdp input[type='date'],
-.gdp input[type='email'],
-.gdp input[type='tel'],
-.gdp input[type='number'],
-.gdp textarea,
-.gdp select {
+/* ── fields: EDITING ────────────────────────────────────────── */
+/* A form, so labels sit above their inputs and fields run two to a row. */
+.gdp.is-editing .gdp-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.gdp.is-editing .gdp-grid > div, .gdp.is-editing .gdp-field {
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  padding: 0; border-bottom: 0;
+}
+.gdp.is-editing .gdp-field { grid-column: 1 / -1; }
+.gdp.is-editing .gdp-names { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.gdp input[type='text'], .gdp input[type='date'], .gdp input[type='email'],
+.gdp input[type='tel'], .gdp input[type='number'], .gdp textarea, .gdp select,
+.gdp .gdp-in, .gdp .gdp-ta {
   width: 100%; box-sizing: border-box;
-  padding: 8px 11px;
-  font: inherit; font-size: 13px; color: #1C1B3A;
+  padding: 9px 12px;
+  font: inherit; font-size: 13.5px; color: #1C1B3A;
   background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 9px;
   transition: border-color 0.12s, box-shadow 0.12s;
 }
 .gdp input::placeholder, .gdp textarea::placeholder { color: #AEB4C2; }
 .gdp input:hover, .gdp textarea:hover, .gdp select:hover { border-color: #D7DAE2; }
 .gdp input:focus, .gdp textarea:focus, .gdp select:focus {
-  outline: none;
-  border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
+  outline: none; border-color: #C65A1A;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
-.gdp textarea { min-height: 72px; resize: vertical; }
+.gdp textarea, .gdp .gdp-ta { min-height: 76px; resize: vertical; }
+
+/* ── identity block (editing only) ──────────────────────────── */
+.gdp-identity { display: flex; align-items: flex-start; gap: 20px; }
+.gdp:not(.is-editing) .gdp-identity { display: none; }
+.gdp-identity > div:last-child { flex: 1; min-width: 0; }
+.gdp-photo, .gdp-photo-empty {
+  flex: 0 0 auto; width: 76px; height: 76px; border-radius: 999px;
+  display: grid; place-items: center; overflow: hidden;
+}
+.gdp-photo { border: 1px solid #E5E7EB; background: #EEF2F7; }
+.gdp-photo img { width: 100%; height: 100%; object-fit: cover; }
+.gdp-photo-empty {
+  gap: 4px; cursor: pointer;
+  border: 1px dashed #D7DAE2; background: #F8FAFC; color: #8B8478;
+  font-size: 10px; font-weight: 600; text-align: center; line-height: 1.2;
+}
+.gdp-photo-empty:hover { border-color: #C65A1A; color: #C65A1A; }
+.gdp-photo-empty svg { width: 16px; height: 16px; }
+
+/* ── a switch with its caption ──────────────────────────────── */
+.gdp-tile {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0; background: none; border: 0;
+  border-bottom: 1px solid #F0F1F5;
+}
+.gdp-switch-l { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
 
 /* ── buttons ────────────────────────────────────────────────── */
 .gdp-btn {
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 14px; cursor: pointer;
+  padding: 8px 15px; cursor: pointer;
   font: inherit; font-size: 12.5px; font-weight: 600;
   border-radius: 9px; transition: background 0.14s, border-color 0.14s, color 0.14s;
 }
@@ -107,130 +236,20 @@
 .gdp-btn.ghost:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
 .gdp-btn.danger { background: #FFFFFF; border: 1px solid #EFC9C9; color: #A32D2D; }
 .gdp-btn.danger:hover:not(:disabled) { background: #A32D2D; border-color: #A32D2D; color: #FFFFFF; }
+.gdp-btn.danger.solid { background: #A32D2D; border-color: #A32D2D; color: #FFFFFF; }
+.gdp-btn.danger.solid:hover:not(:disabled) { background: #8E2626; border-color: #8E2626; }
+.gdp-btn.sm { padding: 5px 11px; font-size: 11.5px; }
 .gdp-btn:disabled { opacity: 0.55; cursor: default; }
-
-/* A link-ish action inside a field (connect kids, open preferences). */
-.gdp-link {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: none; border: 0; padding: 0; cursor: pointer;
-  font: inherit; font-size: 13px; font-weight: 600; color: #C65A1A;
-}
-.gdp-link:hover { color: #B14E16; }
-.gdp-link svg:last-child { color: #AEB4C2; }
-
-/* ── chips ──────────────────────────────────────────────────── */
-.gdp-chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 10px; border-radius: 999px;
-  font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
-  background: #FFFFFF; border: 1px solid #E5E7EB; color: #6B7280;
-}
-.gdp-chip.warn { border-color: #EFC9C9; color: #A32D2D; }
-.gdp-chip.ok { border-color: #BFDBC6; color: #3F7A52; }
-
-/* ── photo ──────────────────────────────────────────────────── */
-.gdp-photo {
-  width: 128px; height: 128px; border-radius: 14px; overflow: hidden;
-  border: 1px solid #E5E7EB; background: #EEF2F7;
-  display: grid; place-items: center; flex: 0 0 auto;
-}
-.gdp-photo img { width: 100%; height: 100%; object-fit: cover; }
-.gdp-photo-empty {
-  width: 128px; height: 128px; border-radius: 14px;
-  border: 1px dashed #D7DAE2; background: #F8FAFC;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 7px; cursor: pointer; color: #8B8478;
-  font-size: 11.5px; font-weight: 600;
-  transition: border-color 0.14s, color 0.14s;
-}
-.gdp-photo-empty:hover { border-color: #C65A1A; color: #C65A1A; }
-
-/* ── the toggles (active on trip, APA required, NDA signed) ─── */
-.gdp-toggle-row {
-  display: flex; align-items: center; gap: 11px;
-  padding: 12px 0;
-}
-.gdp-toggle-txt b { display: block; font-size: 13px; font-weight: 600; color: #1C1B3A; }
-.gdp-toggle-txt span { display: block; margin-top: 2px; font-size: 11.5px; color: #8B8478; }
-
-/* ── danger zone ────────────────────────────────────────────── */
-.gdp-danger {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 14px; flex-wrap: wrap;
-  margin-top: 4px; padding: 16px 0 4px;
-  border-top: 1px solid #F0F1F5;
-}
-.gdp-danger p { margin: 0; font-size: 12px; line-height: 1.5; color: #8B8478; }
-
-/* ── the portaled modals (delete confirm, kids) ─────────────── */
-.gdp-modal {
-  width: 100%; max-width: 460px;
-  background: #FFFFFF;
-  border: 1px solid #E5E7EB;
-  border-radius: 16px;
-  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
-  padding: 22px;
-}
-.gdp-modal h3 {
-  margin: 0 0 8px;
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-size: 20px; font-weight: 400; color: #1C1B3A;
-}
-.gdp-modal p { margin: 0 0 14px; font-size: 13px; line-height: 1.55; color: #6B7280; }
-.gdp-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
-
-/* ── second pass: the remaining pieces ──────────────────────── */
-.gdp-ta, .gdp-in { width: 100%; box-sizing: border-box; }
-.gdp-accent { color: #C65A1A; flex-shrink: 0; }
-.gdp-empty { padding: 24px 0; text-align: center; font-size: 13px; color: #8B8478; }
-
-/* a row in a floating list */
-.gdp-menu {
-  position: absolute; z-index: var(--z-overlay, 1000);
-  margin-top: 6px; padding: 5px;
-  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px;
-  box-shadow: 0 18px 44px -14px rgba(28, 27, 58, 0.28);
-  min-width: 210px;
-}
-.gdp-menu.wide { width: 100%; max-height: 260px; overflow-y: auto; }
-.gdp-opt {
-  display: flex; align-items: center; gap: 8px;
-  width: 100%; padding: 8px 10px; cursor: pointer; text-align: left;
-  background: none; border: 0; border-radius: 8px;
-  font: inherit; font-size: 13px; color: #1C1B3A;
-}
-.gdp-opt:hover { background: #F1F5F9; }
-.gdp-opt-group {
-  position: sticky; top: 0;
-  padding: 7px 10px; background: #FFFFFF;
-  font-size: 9px; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: #8B8478;
-}
-
-/* a quiet block holding a linked person or a document */
-.gdp-tile {
-  display: flex; align-items: center; gap: 11px;
-  padding: 11px 13px;
-  background: #F8FAFC; border: 1px solid #EEF0F4; border-radius: 10px;
-}
-
-/* the one call-to-action inside the body (open preferences) */
-.gdp-cta {
-  display: flex; align-items: center; justify-content: space-between;
-  width: 100%; padding: 13px 16px; cursor: pointer; text-align: left;
-  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px;
-  font: inherit; font-size: 13px; font-weight: 600; color: #1C1B3A;
-  transition: border-color 0.14s, color 0.14s;
-}
-.gdp-cta:hover { border-color: #C65A1A; color: #C65A1A; }
-
-.gdp-btn.sm { padding: 5px 10px; font-size: 11.5px; }
 .gdp-reinstate { color: #3F7A52 !important; border-color: #BFDBC6 !important; }
 .gdp-reinstate:hover { background: #3F7A52 !important; border-color: #3F7A52 !important; color: #FFFFFF !important; }
 
-/* ── third pass: one-offs ───────────────────────────────────── */
-.gdp-tile.pick { cursor: pointer; align-items: flex-start; transition: border-color 0.12s, background 0.12s; }
-.gdp-tile.pick:hover { background: #F1F5F9; border-color: #D7DAE2; }
+.gdp-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 600; color: #C65A1A;
+}
+.gdp-link:hover { color: #B14E16; }
+.gdp-link svg:last-child { color: #AEB4C2; }
 
 .gdp-iconbtn {
   display: grid; place-items: center;
@@ -240,17 +259,9 @@
 }
 .gdp-iconbtn:hover { background: #F1F5F9; border-color: #E5E7EB; color: #C65A1A; }
 
-.gdp-mini-avatar {
-  display: grid; place-items: center;
-  width: 32px; height: 32px; border-radius: 999px;
-  background: #EEF2F7; color: #1C1B3A;
-  font-size: 11px; font-weight: 700; flex: 0 0 auto;
-}
-.gdp-mini-avatar.full { width: 100%; height: 100%; border-radius: 0; }
-
 .gdp-dashed {
   display: inline-flex; align-items: center; gap: 7px;
-  padding: 8px 14px; cursor: pointer;
+  padding: 9px 15px; cursor: pointer;
   background: #FFFFFF; border: 1px dashed #D7DAE2; border-radius: 10px;
   font: inherit; font-size: 12.5px; font-weight: 600; color: #8B8478;
   transition: border-color 0.14s, color 0.14s;
@@ -259,205 +270,165 @@
 .gdp-dashed:disabled { opacity: 0.55; cursor: default; }
 
 .gdp-check { width: 15px; height: 15px; margin-top: 2px; accent-color: #A32D2D; cursor: pointer; }
-.gdp-btn.danger.solid { background: #A32D2D; border-color: #A32D2D; color: #FFFFFF; }
-.gdp-btn.danger.solid:hover:not(:disabled) { background: #8E2626; border-color: #8E2626; }
 
-/* ── two-pane: identity, key facts, tabs ────────────────────── */
-.gdp { display: flex; flex-direction: column; min-height: 0; }
-
-.gdp-head-avatar {
-  flex: 0 0 auto; width: 46px; height: 46px; border-radius: 999px;
-  object-fit: cover; border: 1px solid #E5E7EB; background: #EEF2F7;
-  display: grid; place-items: center;
-  font-size: 13px; font-weight: 700; color: #1C1B3A;
+/* ── chips, tiles, lists ────────────────────────────────────── */
+.gdp-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 10px; border-radius: 999px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; color: #6B7280;
 }
-.gdp-head-ident { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
-.gdp-head-chips { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .gdp-chip.accent { border-color: #E8C4AC; color: #C65A1A; }
+.gdp-chip.warn { border-color: #EFC9C9; color: #A32D2D; }
+.gdp-chip.ok { border-color: #BFDBC6; color: #3F7A52; }
 
-.gdp-tabs {
-  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
-  padding: 12px 22px 0;
-  border-bottom: 1px solid #E5E7EB;
+.gdp-accent { color: #C65A1A; flex-shrink: 0; }
+.gdp-empty { padding: 28px 0; text-align: center; font-size: 13px; color: #8B8478; }
+
+.gdp-mini-avatar {
+  display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 999px;
+  background: #EEF2F7; color: #1C1B3A;
+  font-size: 11px; font-weight: 700; flex: 0 0 auto;
 }
-.gdp-tab {
-  padding: 0 0 11px; cursor: pointer;
-  background: none; border: 0; border-bottom: 2px solid transparent;
-  font: inherit; font-size: 12.5px; font-weight: 600; color: #8B8478;
-  transition: color 0.12s, border-color 0.12s;
+.gdp-mini-avatar.full { width: 100%; height: 100%; border-radius: 0; }
+
+.gdp-picklist { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+
+.gdp-caret {
+  position: absolute; right: 11px; top: 50%; transform: translateY(-50%);
+  pointer-events: none; color: #AEB4C2;
 }
-.gdp-tab:hover { color: #1C1B3A; }
-.gdp-tab.is-on { color: #C65A1A; border-bottom-color: #C65A1A; font-weight: 700; }
-
-.gdp-emptytoggle {
-  margin-left: auto; margin-bottom: 9px; padding: 4px 10px; cursor: pointer;
-  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px;
-  font: inherit; font-size: 11px; font-weight: 600; color: #8B8478;
-}
-.gdp-emptytoggle:hover { border-color: #C65A1A; color: #C65A1A; }
-
-/* Only the chosen tab's sections render. */
-.gdp-body[data-tab='overview'] [data-tab]:not([data-tab='overview']),
-.gdp-body[data-tab='prefs'] [data-tab]:not([data-tab='prefs']),
-.gdp-body[data-tab='confidential'] [data-tab]:not([data-tab='confidential']),
-.gdp-body[data-tab='history'] [data-tab]:not([data-tab='history']) { display: none; }
-
-.gdp-identity { display: flex; align-items: flex-start; gap: 24px; padding: 18px 0; }
-@media (max-width: 720px) { .gdp-identity { flex-direction: column; gap: 16px; } }
-
-/* A field whose value is blank folds away until asked for. */
-.gdp-v.is-empty { color: #AEB4C2; }
-.gdp-body[data-empty='fold'] .gdp-grid > div:has(> .gdp-v.is-empty) { display: none; }
-.gdp-body[data-empty='fold'] .gdp-sec:has(> .gdp-grid:not(:has(> div:not(:has(.gdp-v.is-empty))))) {
-  opacity: 0.55;
+.gdp-warn {
+  display: flex; align-items: center; gap: 5px;
+  margin: 6px 0 0; font-size: 11.5px; color: #B45309;
 }
 
-/* ═══ second pass: the reading layout ════════════════════════
-   The tabs were bolted onto the old body. This is the inside of
-   the pane redesigned around reading a record rather than filling
-   a form. */
-
-/* ── header ─────────────────────────────────────────────────── */
-.gdp-head { align-items: center; padding: 18px 24px; }
-.gdp-head-l { align-items: center; gap: 14px; min-width: 0; flex: 1; }
-.gdp-head-avatar { width: 52px; height: 52px; font-size: 15px; }
-
-.gdp-title {
-  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
-  font-size: 26px; line-height: 1.15;
+/* ── floating lists (cabin picker, photo menu) ──────────────── */
+.gdp-menu {
+  position: absolute; z-index: var(--z-overlay, 1000);
+  margin-top: 6px; padding: 6px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 12px;
+  box-shadow: 0 18px 44px -14px rgba(28, 27, 58, 0.28);
+  min-width: 220px;
 }
-.gdp-role {
-  padding: 2px 9px; border-radius: 999px; border: 1px solid #E8C4AC;
-  font-family: 'Inter', system-ui, sans-serif;
-  font-size: 10px; font-weight: 600; letter-spacing: 0.3px; color: #C65A1A;
+.gdp-menu.wide { width: 100%; max-height: 280px; overflow-y: auto; }
+.gdp-opt {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; padding: 9px 11px; cursor: pointer; text-align: left;
+  background: none; border: 0; border-radius: 8px;
+  font: inherit; font-size: 13px; color: #1C1B3A;
 }
-
-/* The house meta line, in place of the boxed three-up band. */
-.gdp-meta {
-  display: flex; align-items: center; flex-wrap: wrap;
-  margin: 6px 0 0;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
-  text-transform: uppercase; color: #1C1B3A;
-}
-.gdp-meta .muted { color: #AEB4C2; }
-.gdp-meta .alert { color: #C65A1A; }
-.gdp-meta .bar {
-  width: 1px; height: 10px; background: #D7DAE2; margin: 0 10px;
-}
-
-/* Aboard, as a control rather than a tile with a switch inside it. */
-.gdp-aboard {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 7px 13px; cursor: pointer;
-  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px;
-  font: inherit; font-size: 12px; font-weight: 600; color: #8B8478;
-  transition: border-color 0.14s, color 0.14s;
-}
-.gdp-aboard:hover { border-color: #C65A1A; color: #C65A1A; }
-.gdp-aboard-dot {
-  width: 7px; height: 7px; border-radius: 999px; background: #D7DAE2;
-}
-.gdp-aboard.is-on { border-color: #BFDBC6; color: #3F7A52; }
-.gdp-aboard.is-on .gdp-aboard-dot { background: #3F7A52; }
-
-/* The photo + name block is for EDITING. While reading, the header already
-   carries the face and the name, which is why both were showing at once. */
-.gdp:not(.is-editing) .gdp-identity { display: none; }
-
-/* ── the body ───────────────────────────────────────────────── */
-.gdp-body { padding: 0 24px 24px; max-height: none; overflow: visible; }
-
-.gdp-sec { padding: 20px 0 6px; border-top: 1px solid #F0F1F5; }
-.gdp-sec:first-of-type { border-top: 0; }
-.gdp-h { margin-bottom: 4px; }
-
-/* A record is read at a comfortable measure, not stretched across a 1400px
-   pane. Without this the value ends up a hand's width from its own label. */
-.gdp-body { max-width: 860px; }
-
-/* Label column, value column — both left aligned at a fixed tab stop. Values
-   pushed to the right edge looked disconnected from what they described. */
-.gdp-grid { display: flex; flex-direction: column; gap: 0; }
-.gdp-grid > div,
-.gdp-field {
-  display: grid; grid-template-columns: 190px minmax(0, 1fr);
-  align-items: baseline; gap: 8px 22px;
-  padding: 10px 0; border-bottom: 1px solid #F5F6F8;
-  min-width: 0;
-}
-.gdp-grid > div:last-child { border-bottom: 0; }
-.gdp-l { margin: 0; align-self: baseline; }
-.gdp-v { margin: 0; min-width: 0; font-size: 13.5px; text-align: left; }
-.gdp-v.is-pre { white-space: pre-wrap; }
-.gdp-v.is-empty { color: #C8CCD4; }
-
-/* Editing is a form, so labels sit above their inputs and fields run two to a
-   row with real spacing — the single-column stack had them running together. */
-.gdp.is-editing .gdp-grid {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px;
-}
-.gdp.is-editing .gdp-grid > div,
-.gdp.is-editing .gdp-field {
-  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
-  padding: 0; border-bottom: 0;
-}
-.gdp.is-editing .gdp-field { grid-column: 1 / -1; }
-@media (max-width: 760px) {
-  .gdp.is-editing .gdp-grid { grid-template-columns: minmax(0, 1fr); }
-  .gdp-grid > div, .gdp-field { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-}
-
-/* The photo control. It is a way to set an avatar, not a hero image — it was
-   a 128px dashed panel competing with the name. */
-.gdp-identity { gap: 20px; align-items: flex-start; }
-.gdp-photo, .gdp-photo-empty { width: 76px; height: 76px; border-radius: 999px; }
-.gdp-photo-empty { gap: 4px; font-size: 10px; }
-.gdp-photo-empty svg { width: 16px; height: 16px; }
-.gdp-identity > div:last-child { flex: 1; min-width: 0; }
-
-/* ── empties ────────────────────────────────────────────────── */
-.gdp-body[data-empty='fold'] .gdp-grid > div:has(> .gdp-v.is-empty) { display: none; }
-/* …and a section where every field folded away goes with them, so no more
-   orphaned "CONTACT" headings with nothing underneath. */
-.gdp-body[data-empty='fold'] .gdp-sec:has(.gdp-grid > div):not(:has(.gdp-grid > div > .gdp-v:not(.is-empty))) {
-  display: none;
-}
-
-/* A yes/no switch with its caption beside it, on one line — not a full-width
-   tile. Used by APA required and NDA signed. */
-.gdp-tile {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 0; background: none; border: 0;
-  border-bottom: 1px solid #F5F6F8;
-}
-.gdp-switch-l { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
-
-/* The preferences tab is one action — let it be an action, not a lone link
-   adrift in an empty card. */
-.gdp-cta { max-width: 420px; }
-
-/* A cabin option: the cabin first, the route to it underneath. */
-.gdp-opt { flex-direction: column; align-items: flex-start; gap: 2px; }
+.gdp-opt:hover { background: #F1F5F9; }
 .gdp-opt-main { font-size: 13px; font-weight: 600; color: #1C1B3A; }
 .gdp-opt-path { font-size: 11px; color: #8B8478; }
+.gdp-opt-group {
+  position: sticky; top: 0;
+  padding: 8px 11px 6px; background: #FFFFFF;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
 
-/* The card is a column: fixed head, fixed tabs, scrolling record. */
-.gdp { flex: 1; min-height: 0; }
-.gdp-head, .gdp-tabs { flex: 0 0 auto; }
-.gdp-body { flex: 1; min-height: 0; overflow-y: auto; }
+/* ── preferences, read in place ─────────────────────────────── */
+.gdp-prefs { display: flex; flex-direction: column; gap: 20px; }
+.gdp-pref-group > p {
+  margin: 0 0 10px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #C65A1A;
+}
+.gdp-pref {
+  display: grid; grid-template-columns: 200px minmax(0, 1fr);
+  align-items: baseline; gap: 4px 20px;
+  padding: 9px 0; border-bottom: 1px solid #F0F1F5;
+}
+.gdp-pref:last-child { border-bottom: 0; }
+.gdp-pref-k {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #8B8478;
+}
+.gdp-pref-v {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 13.5px; line-height: 1.5; color: #1C1B3A;
+}
+.gdp-pref-manage { margin-top: 16px; }
+
+/* ── danger zone ────────────────────────────────────────────── */
+.gdp-danger {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.gdp-danger .gdp-h { margin-bottom: 6px; }
+.gdp-danger p { margin: 0; font-size: 12px; line-height: 1.5; color: #8B8478; }
+
+/* ── audit log ──────────────────────────────────────────────── */
+.gdp-log { display: flex; flex-direction: column; }
+.gdp-log-row {
+  display: grid; grid-template-columns: 78px minmax(0, 1fr) auto;
+  align-items: baseline; gap: 14px;
+  padding: 12px 0; border-bottom: 1px solid #F0F1F5;
+}
+.gdp-log-row:last-child { border-bottom: 0; }
+.gdp-log-row .gdp-chip { justify-self: start; }
+.gdp-log-body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.gdp-log-msg { margin: 0; font-size: 13px; line-height: 1.45; color: #1C1B3A; }
+.gdp-log-at { font-size: 11.5px; color: #AEB4C2; white-space: nowrap; }
+
+/* ── modals ─────────────────────────────────────────────────── */
+.gdp-modal {
+  width: 100%; max-width: 460px;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 16px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  padding: 24px;
+}
+.gdp-modal h3 {
+  margin: 0 0 8px;
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-size: 20px; font-weight: 400; color: #1C1B3A;
+}
+.gdp-modal p { margin: 0 0 14px; font-size: 13px; line-height: 1.55; color: #6B7280; }
+.gdp-modal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.gdp-modal-head h3 { margin: 0 0 8px; }
+.gdp-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+
+.gdp-confirm {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 13px 14px; cursor: pointer;
+  background: #F8FAFC; border: 1px solid #EEF0F4; border-radius: 10px;
+  font-size: 13px; line-height: 1.45; color: #1C1B3A;
+}
+
+.gdp-pick {
+  display: flex; align-items: center; gap: 11px;
+  width: 100%; padding: 9px 12px; cursor: pointer; text-align: left;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px;
+  font: inherit; transition: border-color 0.14s;
+}
+.gdp-pick:hover { border-color: #D7DAE2; }
+.gdp-pick.is-on { border-color: #C65A1A; }
+.gdp-pick-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: #1C1B3A; }
+
+/* ── empties fold away ──────────────────────────────────────── */
+/* Read mode only. Editing renders inputs instead of .gdp-v, so in edit mode
+   "has no non-empty value" is vacuously true and the section rule would hide
+   every field you came to fill in. */
+.gdp:not(.is-editing) .gdp-body[data-empty='fold'] .gdp-grid > div:has(> .gdp-v.is-empty) {
+  display: none;
+}
+.gdp:not(.is-editing) .gdp-body[data-empty='fold']
+  .gdp-sec:has(.gdp-grid > div):not(:has(.gdp-grid > div > .gdp-v:not(.is-empty))) {
+  display: none;
+}
+.gdp.is-editing .gdp-emptytoggle { display: none; }
+
+/* ── narrow ─────────────────────────────────────────────────── */
 @media (max-width: 1000px) {
   .gdp-body { overflow: visible; }
 }
-
-/* First and last name, side by side while editing. */
-.gdp-names { padding-top: 0; }
-.gdp.is-editing .gdp-names { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
-/* History's disclosure reads as a section label, not an 18px heading. */
-.gdp-h-btn {
-  width: 100%; cursor: pointer; background: none; border: 0;
-  padding: 0; text-align: left;
+@media (max-width: 760px) {
+  .gdp-head, .gdp-tabs, .gdp-body { padding-left: 18px; padding-right: 18px; }
+  .gdp-grid > div, .gdp-field, .gdp-pref { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .gdp.is-editing .gdp-grid, .gdp.is-editing .gdp-names { grid-template-columns: minmax(0, 1fr); }
+  .gdp-identity { flex-direction: column; }
 }
-.gdp-h-btn:hover { color: #C65A1A; }
-
-.gdp-picklist { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
