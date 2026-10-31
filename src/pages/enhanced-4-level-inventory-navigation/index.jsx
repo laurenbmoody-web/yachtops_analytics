@@ -2715,6 +2715,14 @@ const LocationFirstInventory = () => {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [activeFilters, setActiveFilters] = useState({ tags: [] });
   const [searchParams, setSearchParams] = useSearchParams();
+  // Set by the deep-link effect below in the same render commit that it seeds a
+  // filter/search from the URL, and cleared by the folder-reset effect further
+  // down. The reset effect runs just AFTER this one (it is defined later), and
+  // it clears search/filters on every path change — which includes the moment
+  // we land on a deep link. This ref is how the reset effect knows to leave a
+  // fresh deep-link seed alone. (A URL check can't do it: this effect strips the
+  // param before the reset effect would read it.)
+  const deepLinkSeededRef = useRef(false);
   // Deep-link filters from the item drawer (Brand / Supplier → filtered view).
   // Seed the filter, then consume the query param so it doesn't re-fire.
   useEffect(() => {
@@ -2728,6 +2736,8 @@ const LocationFirstInventory = () => {
     // here; seed the flat search so every matching item shows at once.
     const q = searchParams.get('q');
     if (!brand && !supplier && !loc && !q) return;
+    // Tell the folder-reset effect (runs right after this) not to wipe the seed.
+    deepLinkSeededRef.current = true;
     if (brand || supplier) {
       setActiveFilters(prev => ({
         ...prev,
@@ -3344,10 +3354,10 @@ const LocationFirstInventory = () => {
   useEffect(() => {
     // Changing folders clears the search / filters — but NOT when we've just
     // arrived on a deep link that seeds one (?q= from global search, ?brand= /
-    // ?supplier= / ?loc= from the item drawer). That seeding effect runs in the
-    // same commit, so without this guard the reset would wipe it straight away.
-    const sp = new URLSearchParams(window.location.search);
-    if (sp.get('q') || sp.get('brand') || sp.get('supplier') || sp.get('loc')) return;
+    // ?supplier= / ?loc= from the item drawer). The seeding effect above runs in
+    // the same commit, just before this one, and flags the ref when it seeds, so
+    // we skip exactly that one reset and leave the seed in place.
+    if (deepLinkSeededRef.current) { deepLinkSeededRef.current = false; return; }
     setSearchQuery('');
     setActiveTagFilter(null);
     setActiveFilters({ tags: [] });
