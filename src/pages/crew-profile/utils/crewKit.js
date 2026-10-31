@@ -94,6 +94,19 @@ export const fetchCrewKit = async (userId) => {
   return data || [];
 };
 
+// Garment photos for a crew member's issued kit, keyed by inventory_item_id.
+// Goes through a SECURITY DEFINER read (get_kit_item_images) so a plain crew
+// member — who has no inventory read — can still see what each piece is on
+// their Issued Kit, in the acknowledgement flow and on the exported record.
+export const fetchKitItemImages = async (userId) => {
+  if (!userId) return {};
+  const { data, error } = await supabase.rpc('get_kit_item_images', { subject: userId });
+  if (error) { console.error('[kit] image fetch failed', error); return {}; }
+  const out = {};
+  (data || []).forEach((r) => { if (r?.inventory_item_id && r?.image_url) out[r.inventory_item_id] = r.image_url; });
+  return out;
+};
+
 // All uniform kit issued across the vessel — powers the wardrobe-management
 // "Crew" folder (roster counts + per-member lists). The crew_kit_manage RLS
 // lets COMMAND / Interior read the whole tenant's rows; a plain crew member

@@ -956,10 +956,14 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
         retPath ? kitSignatureDataUrl(retPath) : null,
         fetchVesselIdentity(activeTenantId).catch(() => null),
       ]);
+      // Garment photos keyed by inventory id (managers have inventory read).
+      const images = {};
+      list.forEach((k) => { const u = itemById[k.inventory_item_id]?.imageUrl; if (k.inventory_item_id && u) images[k.inventory_item_id] = u; });
       await exportKitReceipt({
         crewName: selected?.fullName || 'Crew member', vesselName: vessel?.name, vessel,
         generatedAt: fmtKitDate(today()), items: list, ackSig: ackImg, returnSig: retImg,
         scopeLabel: scope === 'held' ? 'Currently held' : 'Full record',
+        images,
       });
     } catch (e) { window.showToast?.('Couldn’t export — try again', 'error'); }
     finally { setExportingReceipt(false); }
