@@ -1029,11 +1029,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   )}
                 </div>
               ) : (
-                <p className="gdp-v">
+                <V>
                   {formData?.passportNationality === 'Other'
                     ? formData?.passportNationalityOther || 'Other'
                     : formData?.passportNationality || '-'}
-                </p>
+                </V>
               )}
             </div>
             <div>
@@ -1087,7 +1087,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               )}
             </div>
           </div>
-          <div>
+          <div className="gdp-field">
             <label className="gdp-l">Visa Notes</label>
             {isEditing && !isDeleted ? (
               <textarea
@@ -1103,7 +1103,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
           </div>
 
           {/* Passport Document Upload */}
-          <div>
+          <div className="gdp-field">
             <label className="gdp-l">Passport Document</label>
             {(formData?.passportDocumentUrl || guest?.passportDocumentUrl) ? (
               <div className="gdp-tile">
@@ -1424,7 +1424,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               )}
             </div>
           )}
-          <div>
+          <div className="gdp-field">
             <label className="gdp-l">APA Notes</label>
             {isEditing && !isDeleted ? (
               <textarea
@@ -1438,7 +1438,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               <V pre>{formData?.apaNotes || '-'}</V>
             )}
           </div>
-          <div>
+          <div className="gdp-field">
             <label className="gdp-l">Payment Notes</label>
             {isEditing && !isDeleted ? (
               <textarea
@@ -1545,7 +1545,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               )}
             </div>
           </div>
-          <div>
+          <div className="gdp-field">
             <label className="gdp-l">Privacy Notes</label>
             {isEditing && !isDeleted ? (
               <textarea
