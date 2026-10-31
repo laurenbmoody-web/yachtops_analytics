@@ -155,18 +155,17 @@
 
 /* The heading needs real air beneath it — this is the gap that kept
    collapsing and putting the heading on top of the first label. */
+/* A SECTION heading, not a field label. They were the same muted tracked
+   caps, so "PERSONAL" read as just another label sitting on top of "DATE
+   OF BIRTH". The heading is navy and wider-tracked, the labels stay muted
+   — one glance now separates what-this-group-is from what-this-box-is. */
 .gdp-h {
-  display: flex; align-items: center; gap: 7px;
-  margin: 0 0 16px;
-  font-size: 9px; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: #8B8478;
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 18px;
+  font-size: 10px; font-weight: 700; letter-spacing: 1.6px;
+  text-transform: uppercase; color: #1C1B3A;
 }
-.gdp-h svg { width: 13px; height: 13px; color: #C65A1A; flex: 0 0 auto; }
-.gdp-h-btn {
-  width: 100%; cursor: pointer; background: none; border: 0;
-  padding: 0; text-align: left;
-}
-.gdp-h-btn:hover { color: #C65A1A; }
+.gdp-h svg { width: 14px; height: 14px; color: #C65A1A; flex: 0 0 auto; }
 
 /* ── fields: READING ────────────────────────────────────────── */
 /* Label column, value column. Both left aligned at a tab stop, so the
@@ -199,14 +198,26 @@
   gap: 20px;
 }
 .gdp.is-editing .gdp-grid > div, .gdp.is-editing .gdp-field {
-  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  display: flex; flex-direction: column; align-items: stretch;
   padding: 0; border-bottom: 0;
 }
 .gdp.is-editing .gdp-field { grid-column: 1 / -1; }
 .gdp.is-editing .gdp-names { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-.gdp input[type='text'], .gdp input[type='date'], .gdp input[type='email'],
-.gdp input[type='tel'], .gdp input[type='number'], .gdp textarea, .gdp select,
+/* Deliberately UNEQUAL gaps. With one uniform gap, a caption under a field
+   sat exactly as far from it as the next field's label did, so the eye had
+   no way to tell which words belonged to which box. A label is 8 above the
+   thing it names; a caption is 5 below the thing it explains; separate
+   fields are 20 apart. */
+.gdp.is-editing .gdp-l { margin-bottom: 8px; }
+.gdp.is-editing .gdp-note, .gdp.is-editing .gdp-warn { margin-top: 5px; }
+.gdp.is-editing .gdp-sec > .gdp-field + .gdp-field,
+.gdp.is-editing .gdp-sec > .gdp-field + .gdp-grid,
+.gdp.is-editing .gdp-sec > .gdp-grid + .gdp-field { margin-top: 20px; }
+
+/* Styled by class, never by element+type. The date picker is a bordered
+   field wrapping its own borderless <input type="text">; a rule matching
+   that element drew a second box inside the first. */
 .gdp .gdp-in, .gdp .gdp-ta {
   width: 100%; box-sizing: border-box;
   padding: 9px 12px;
@@ -214,13 +225,19 @@
   background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 9px;
   transition: border-color 0.12s, box-shadow 0.12s;
 }
-.gdp input::placeholder, .gdp textarea::placeholder { color: #AEB4C2; }
-.gdp input:hover, .gdp textarea:hover, .gdp select:hover { border-color: #D7DAE2; }
-.gdp input:focus, .gdp textarea:focus, .gdp select:focus {
+.gdp .gdp-in::placeholder, .gdp .gdp-ta::placeholder { color: #AEB4C2; }
+.gdp .gdp-in:hover, .gdp .gdp-ta:hover { border-color: #D7DAE2; }
+.gdp .gdp-in:focus, .gdp .gdp-ta:focus {
   outline: none; border-color: #C65A1A;
   box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
-.gdp textarea, .gdp .gdp-ta { min-height: 76px; resize: vertical; }
+.gdp .gdp-ta { min-height: 76px; resize: vertical; }
+.gdp .gdp-in:disabled { background: #F8FAFC; color: #AEB4C2; cursor: not-allowed; }
+
+/* The date picker's own field, matched to the inputs beside it. */
+.gdp .edp, .gdp .edp-field { width: 100%; }
+.gdp .edp-field { border-width: 1px; border-radius: 9px; }
+.gdp .edp-input { font-size: 13.5px; }
 
 /* ── identity block (editing only) ──────────────────────────── */
 /* Names only — the photo moved to the header avatar. */
@@ -230,6 +247,8 @@
   margin-left: 5px; font-style: normal;
   font-size: 9px; font-weight: 700; letter-spacing: 1px; color: #C65A1A;
 }
+.gdp-l em.faint { color: #AEB4C2; }
+.gdp-anchor { position: relative; }
 
 /* ── EditorialSelect, sized to this panel's fields ──────────── */
 /* The shared component sets its own family and padding; inside the record it
@@ -281,6 +300,8 @@
   color: #8B8478; transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .gdp-iconbtn:hover { background: #F1F5F9; border-color: #E5E7EB; color: #C65A1A; }
+.gdp-iconbtn.is-danger:hover { background: #FEF2F2; border-color: #EFC9C9; color: #A32D2D; }
+.gdp-iconbtn:disabled { opacity: 0.5; cursor: default; }
 
 .gdp-dashed {
   display: inline-flex; align-items: center; gap: 7px;
@@ -458,3 +479,14 @@
   .gdp.is-editing .gdp-grid, .gdp.is-editing .gdp-names { grid-template-columns: minmax(0, 1fr); }
   .gdp-identity { flex-direction: column; }
 }
+
+/* ── small layout bits ──────────────────────────────────────── */
+.gdp-grow { flex: 1; min-width: 0; }
+.gdp-inline { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.gdp-spin {
+  width: 15px; height: 15px; border-radius: 999px;
+  border: 2px solid #C65A1A; border-top-color: transparent;
+  animation: gdp-spin 0.7s linear infinite;
+}
+@keyframes gdp-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .gdp-spin { animation: none; } }
