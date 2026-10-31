@@ -101,6 +101,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
   const [selectedCabinPath, setSelectedCabinPath] = useState('');
   const [cabinSearchQuery, setCabinSearchQuery] = useState('');
   const [showCabinDropdown, setShowCabinDropdown] = useState(false);
+  const [cabinMenuUp, setCabinMenuUp] = useState(false);
   const [cabinFreeText, setCabinFreeText] = useState('');
   const [locationNotFound, setLocationNotFound] = useState(false);
   
@@ -447,6 +448,19 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
     ref?.current?.click();
     setShowPhotoPicker(false);
   };
+
+  // The menu is absolutely positioned, so it cannot make the page taller:
+  // opened near the bottom of the window it would hang below the fold with
+  // no way to scroll to it. Measure once on open and hang it upward instead
+  // when there is more room above than below.
+  const CABIN_MENU_MAX = 280;
+  useEffect(() => {
+    if (!showCabinDropdown) return;
+    const box = cabinDropdownRef.current?.getBoundingClientRect();
+    if (!box) return;
+    const below = window.innerHeight - box.bottom;
+    setCabinMenuUp(below < CABIN_MENU_MAX && box.top > below);
+  }, [showCabinDropdown]);
 
   const handleSave = async () => {
     // Validate required fields
@@ -1256,7 +1270,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 )}
                 
                 {showCabinDropdown && cabinOptions?.length > 0 && (
-                  <div className="gdp-menu wide">
+                  <div className={cabinMenuUp ? 'gdp-menu wide is-up' : 'gdp-menu wide'}>
                     {filteredCabinOptions?.length === 0 ? (
                       <div className="gdp-empty">
                         No matching cabins found

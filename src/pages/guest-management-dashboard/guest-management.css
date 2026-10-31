@@ -173,14 +173,20 @@
 .gm-iconbtn[data-open='y'] { background: #FFFFFF; border-color: #E5E7EB; color: #C65A1A; }
 
 /* ── the expanded detail ────────────────────────────────────── */
+/* NOT overflow:hidden. The card used to clip its contents to keep the
+   rounded corners, which was harmless while the pane scrolled — a dropdown
+   opened inside a tall scroll box. Now that the page scrolls and the card
+   ends where the record ends, clipping cut the cabin menu off at the card's
+   bottom edge. The panel inherits the radius instead, so the corners stay
+   round and a menu can hang past the card like the overlay it is. */
 .gm-detail {
   margin: 0 0 14px;
   padding: 0;
   background: #FFFFFF;
   border: 1px solid #E5E7EB;
   border-radius: 14px;
-  overflow: hidden;
 }
+.gm-detail > * { border-radius: inherit; }
 
 /* a person backed by more than one record */
 .gm-dupe {
