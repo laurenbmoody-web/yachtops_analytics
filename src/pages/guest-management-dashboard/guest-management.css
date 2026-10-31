@@ -334,3 +334,15 @@
   .gm-page.is-split .gm-list,
   .gm-page.is-split .gm-pane { height: auto; overflow: visible; }
 }
+
+/* The scroll belongs INSIDE the card, not on the pane: that way the guest's
+   name and the tabs stay put while the record moves under them. Scrolling the
+   pane instead meant losing both the moment you read past the first section. */
+.gm-page.is-split .gm-pane { overflow: hidden; }
+.gm-page.is-split .gm-pane .gm-detail {
+  height: 100%; display: flex; flex-direction: column; min-height: 0;
+}
+@media (max-width: 1000px) {
+  .gm-page.is-split .gm-pane { overflow: visible; }
+  .gm-page.is-split .gm-pane .gm-detail { height: auto; }
+}
