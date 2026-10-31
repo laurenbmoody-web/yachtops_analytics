@@ -1187,6 +1187,73 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
     );
   };
 
+  // Several sizes of the SAME garment (e.g. 2×M + 1×S) collapse onto ONE tile
+  // listing each size with its quantity and its own return / remove / swap
+  // actions, instead of a separate tile per size.
+  const SIZE_ORDER = ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', 'XXL', '3XL', 'XXXL'];
+  const sizeRank = (s) => { const i = SIZE_ORDER.indexOf(String(s || '').toUpperCase().trim()); return i < 0 ? 900 : i; };
+  const sortSizes = (rows) => [...rows].sort((a, b) => {
+    const ra = sizeRank(a.size); const rb = sizeRank(b.size);
+    if (ra !== rb) return ra - rb;
+    const na = parseFloat(a.size); const nb = parseFloat(b.size);
+    if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
+    return String(a.size || '').localeCompare(String(b.size || ''));
+  });
+  const KitTileGroup = (rows) => {
+    const sorted = sortSizes(rows);
+    const first = sorted[0];
+    const f = kitFacets[first.id] || {};
+    const live = first.status === 'in_service';
+    const st = kitStatus(first);
+    const totalQty = sorted.reduce((a, k) => a + (Number(k.quantity) || 1), 0);
+    const totalVal = sorted.reduce((a, k) => a + ((k.value != null ? k.value : 0) * (Number(k.quantity) || 1)), 0);
+    return (
+      <div className={`cf-tile${live ? '' : ' ret'}`} key={`grp-${first.item}-${first.inventory_item_id || ''}-${first.status}-${st.label}`}>
+        <div className="cf-tile-media">
+          {f.img ? <img src={f.img} alt={first.item} /> : <span className="cf-tile-ph"><Icon name={f.kind === 'equip' ? (CATEGORY_ICON[f.category] || 'Package') : typeIcon(f.type)} size={30} /></span>}
+          <span className={`cf-tile-qty${live ? '' : ' ret'}`}><span className="x">×</span>{totalQty}</span>
+        </div>
+        <div className="cf-tile-body">
+          <span className="cf-tile-nm">{first.item}</span>
+          <div className="cf-tile-szlist">
+            {sorted.map((k) => (
+              <div className="cf-tile-szrow" key={k.id}>
+                <span className="cf-szlbl">{k.size || 'One size'}</span>
+                <span className="cf-szq">×{k.quantity || 1}</span>
+                {k.swap_requested_size && <span className="cf-szswap"><Icon name="Repeat" size={10} /> {k.swap_requested_size}</span>}
+                <span className="cf-szsp" />
+                {canManage && live && (
+                  <span className="cf-szacts">
+                    {k.swap_requested_size && <button type="button" onClick={() => setSwapping(k)} title={`Swap to ${k.swap_requested_size}`}><Icon name="Repeat" size={12} /></button>}
+                    <button type="button" onClick={() => setReturning(k)} title="Record return">Return</button>
+                    <button type="button" className="danger" onClick={() => doDelete(k)} title="Remove"><Icon name="Trash2" size={12} /></button>
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="cf-tile-foot">
+            <span className={`cf-pill ${st.cls}`}>{st.label}</span>
+            {showValue && totalVal > 0 && <span className="cf-tile-val">{money(totalVal, 'USD')}</span>}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Bucket a section's rows by garment (same item + inventory link + status +
+  // condition + pill state) so mixed sizes share one tile; singletons stay as
+  // the normal single-size tile.
+  const renderKitTiles = (rows) => {
+    const buckets = new Map();
+    rows.forEach((k) => {
+      const key = `${(k.item || '').trim().toLowerCase()}|${k.inventory_item_id || ''}|${k.status}|${k.condition_issued || ''}|${kitStatus(k).label}`;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(k);
+    });
+    return [...buckets.values()].map((bucket) => (bucket.length > 1 ? KitTileGroup(bucket) : KitTile(bucket[0])));
+  };
+
   const noneMatch = memberKit.length > 0 && memberGroups.groups.length === 0 && memberGroups.retired.length === 0;
 
   return (
@@ -1289,7 +1356,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
                       <span className="cf-cat-ct">{grp.rows.length} {grp.rows.length === 1 ? 'line' : 'lines'} · {units} item{units === 1 ? '' : 's'}</span>
                       <span className="cf-cat-rule" />
                     </div>
-                    <div className="cf-tilegrid">{grp.rows.map(KitTile)}</div>
+                    <div className="cf-tilegrid">{renderKitTiles(grp.rows)}</div>
                   </section>
                 );
               })}
@@ -1300,7 +1367,7 @@ const CrewFolder = ({ onBack, initialCrewId = null }) => {
                     <span className="cf-cat-ct">{memberGroups.retired.length} item{memberGroups.retired.length === 1 ? '' : 's'}</span>
                     <span className="cf-cat-rule" />
                   </div>
-                  <div className="cf-tilegrid">{memberGroups.retired.map(KitTile)}</div>
+                  <div className="cf-tilegrid">{renderKitTiles(memberGroups.retired)}</div>
                 </section>
               )}
             </>
