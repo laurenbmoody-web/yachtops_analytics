@@ -440,9 +440,11 @@ button.inv-crumb:hover { color: #C65A1A; text-decoration: underline; }
 .inv-card.selected { border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 .inv-card-media {
   position: relative; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center;
-  overflow: hidden; cursor: pointer; background: #F5F6F8;
+  overflow: hidden; cursor: pointer; background: #FFFFFF;
 }
-.inv-card-media img { width: 100%; height: 100%; object-fit: cover; }
+/* Show the whole product (bottle, item) rather than cropping it to fill the
+   tile — reads like a product catalogue instead of a zoomed-in close-up. */
+.inv-card-media img { width: 100%; height: 100%; object-fit: contain; padding: 10px; box-sizing: border-box; }
 .inv-card-media .inv-placeholder svg { color: #D3D7DF; }
 /* Body is compact and centred; the media flexes to fill the tile so there is
    no dead space and folders + items stay identical in size. */
