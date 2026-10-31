@@ -31,10 +31,20 @@
   position: absolute; z-index: 60; top: calc(100% + 4px); left: 0;
   min-width: 100%; width: max-content; max-width: min(420px, 78vw);
   max-height: 264px; overflow-y: auto;
+  overscroll-behavior: contain;
   background: #fff; border: 1px solid #E5E7EB; border-radius: 12px; padding: 5px;
   box-shadow: 0 24px 60px -16px rgba(28, 27, 58, .32);
   display: flex; flex-direction: column;
 }
+/* Hangs upward when the field sits too near the bottom of the window. The
+   list is absolutely positioned, so it cannot make the page taller — opened
+   low it would otherwise be below the fold with nothing to scroll to. The
+   choice is made in selectPlacement.js, which also sets the inline height. */
+.es-list.is-up {
+  top: auto; bottom: calc(100% + 4px);
+  box-shadow: 0 -24px 60px -16px rgba(28, 27, 58, .32);
+}
+
 .es-opt {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   border: 0; background: none; border-radius: 8px; cursor: pointer;
