@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
@@ -10,6 +10,7 @@ import { getCurrentUser } from '../../../utils/authStorage';
 import { loadTrips, toggleGuestActiveStatus } from '../../trips-management-dashboard/utils/tripStorage';
 
 import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-management-settings/utils/locationsHierarchyStorage';
+import { getPreferencesByGuest } from '../../../utils/preferencesStorage';
 
 
 import ModalShell from '../../../components/ui/ModalShell';
@@ -42,6 +43,22 @@ const TABS = [
 // here, and thirty rows of "-" is what made the panel unreadable — so a value
 // that is empty marks itself, and the CSS folds its whole field away until the
 // reader asks to see them.
+// Audit actions carry a tone, not a colour — the chip classes decide the hue.
+const ACTION_TONE = {
+  created: 'accent',
+  updated: 'ok',
+  reinstated: 'ok',
+  deleted: 'warn',
+};
+
+// dd/mm/yyyy hh:mm — the house date format, zero-padded.
+const formatStamp = (value) => {
+  const d = value ? new Date(value) : null;
+  if (!d || Number.isNaN(d.getTime())) return '—';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
 const EMPTY = new Set(['', '-', '—', 'Not assigned', 'Not specified', 'Unknown']);
 const V = ({ children, pre }) => {
   const text = Array.isArray(children) ? children.join('') : children;
@@ -60,8 +77,13 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmChecked, setDeleteConfirmChecked] = useState(false);
   const [spouseOptions, setSpouseOptions] = useState([]);
-  const [showHistory, setShowHistory] = useState(false);
-  
+
+  // Preferences read in place. They used to be a button that navigated to
+  // another page, which lost the guest you were reading — so they load on
+  // first visit to the tab and render here.
+  const [prefs, setPrefs] = useState(null);
+  const [prefsLoading, setPrefsLoading] = useState(false);
+
   // NDA document upload state
   const [ndaUploading, setNdaUploading] = useState(false);
   const [ndaDocumentName, setNdaDocumentName] = useState('');
@@ -104,6 +126,39 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
   const roleLabel = (rolesOf([guest])[0]) || '';
   const cabinText = cabinOf(guest);
   const dietaryText = String(formData?.allergies || '').trim();
+
+  // Fetched once per guest, the first time the tab is opened — a guest with
+  // dozens of preferences should not cost a query for every row of the list.
+  useEffect(() => { setPrefs(null); }, [guest?.id]);
+  useEffect(() => {
+    if (tab !== 'prefs' || prefs !== null || prefsLoading || !guest?.id) return;
+    let live = true;
+    setPrefsLoading(true);
+    getPreferencesByGuest(guest.id)
+      .then((rows) => { if (live) setPrefs(rows || []); })
+      .catch(() => { if (live) setPrefs([]); })
+      .finally(() => { if (live) setPrefsLoading(false); });
+    return () => { live = false; };
+  }, [tab, prefs, prefsLoading, guest?.id]);
+
+  // Newest first, without mutating the guest's array.
+  const historyEntries = useMemo(
+    () => [...(guest?.historyLog || [])].reverse(),
+    [guest?.historyLog],
+  );
+
+  // Grouped by category, in the order the categories first appear.
+  const prefGroups = useMemo(() => {
+    const groups = [];
+    const byName = new Map();
+    for (const p of prefs || []) {
+      const name = String(p?.category || '').trim() || 'Other';
+      let group = byName.get(name);
+      if (!group) { group = { name, items: [] }; byName.set(name, group); groups.push(group); }
+      group.items.push(p);
+    }
+    return groups;
+  }, [prefs]);
 
   useEffect(() => {
     const init = async () => {
@@ -943,11 +998,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               <button
                 type="button"
                 onClick={handleOpenKidsModal}
-                className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                className="gdp-link"
               >
                 <Icon name="Users" size={14} />
                 <span>{getLinkedKidsDisplay()}</span>
-                <Icon name="ChevronRight" size={14} className="gdp-note" />
+                <Icon name="ChevronRight" size={14} />
               </button>
             </div>
           </div>
@@ -1235,15 +1290,15 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   <Icon
                     name="ChevronDown"
                     size={18}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                    className="gdp-caret"
                   />
                 </div>
                 
                 {locationNotFound && (
-                  <div className="mt-1 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                  <p className="gdp-warn">
                     <Icon name="AlertTriangle" size={12} />
                     Previously selected location not found
-                  </div>
+                  </p>
                 )}
                 
                 {showCabinDropdown && cabinOptions?.length > 0 && (
@@ -1557,71 +1612,81 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <Icon name="Star" size={18} />
             Preferences
           </h3>
-          {/* Open Preferences navigation button */}
-          <button
-            onClick={handleOpenPreferences}
-            className="gdp-cta"
-          >
-            <div className="flex items-center gap-2">
-              <Icon name="ExternalLink" size={16} className="gdp-accent" />
-              <span className="gdp-accent">Open Preferences</span>
-            </div>
-            <Icon name="ChevronRight" size={16} className="gdp-accent" />
-          </button>
-          {/* Preferences page link */}
-        </div>
+          {prefsLoading && <p className="gdp-empty">Loading preferences…</p>}
 
-        {/* Section: History */}
-        {guest?.historyLog && guest?.historyLog?.length > 0 && (
-          <div className="gdp-sec" data-tab="history">
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="gdp-h gdp-h-btn"
-            >
-              <Icon name={showHistory ? "ChevronDown" : "ChevronRight"} size={18} />
-              History
-            </button>
-            {showHistory && (
-              <div className="gdp-field">
-                {[...guest?.historyLog]?.reverse()?.map((entry) => (
-                  <div key={entry?.id} className="gdp-tile">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded ${
-                            entry?.action === 'created' ? 'bg-blue-500/20 text-blue-700 dark:text-blue-400' :
-                            entry?.action === 'updated' ? 'bg-green-500/20 text-green-700 dark:text-green-400' :
-                            entry?.action === 'deleted' ? 'bg-red-500/20 text-red-700 dark:text-red-400' :
-                            entry?.action === 'reinstated'? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-gray-500/20 text-gray-700 dark:text-gray-400'
-                          }`}>
-                            {entry?.action?.toUpperCase()}
-                          </span>
-                          <span className="gdp-v">{entry?.actorName}</span>
-                          <span className="gdp-note">({entry?.actorTier})</span>
-                        </div>
-                        <p className="gdp-note">{entry?.message}</p>
-                        {entry?.changes && Object.keys(entry?.changes)?.length > 0 && (
-                          <div className="gdp-note">
-                            <span className="font-medium">Changes: </span>
-                            {Object.keys(entry?.changes)?.slice(0, 3)?.join(', ')}
-                            {Object.keys(entry?.changes)?.length > 3 && ` +${Object.keys(entry?.changes)?.length - 3} more`}
-                          </div>
-                        )}
-                      </div>
-                      <span className="gdp-note">
-                        {new Date(entry?.at)?.toLocaleString()}
+          {!prefsLoading && prefGroups.length > 0 && (
+            <div className="gdp-prefs">
+              {prefGroups.map((group) => (
+                <div key={group.name} className="gdp-pref-group">
+                  <p>{group.name}</p>
+                  {group.items.map((p) => (
+                    <div key={p?.id} className="gdp-pref">
+                      <span className="gdp-pref-k">{p?.key || '—'}</span>
+                      <span className="gdp-pref-v">
+                        {p?.value || '—'}
+                        {p?.priority === 'critical' && <span className="gdp-chip warn">Critical</span>}
+                        {p?.timeOfDay && <span className="gdp-chip">{p.timeOfDay}</span>}
                       </span>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
 
-        {/* Delete Button - COMMAND ONLY */}
+          {!prefsLoading && prefs !== null && prefGroups.length === 0 && (
+            <p className="gdp-empty">No preferences recorded yet.</p>
+          )}
+
+          <button onClick={handleOpenPreferences} className="gdp-link gdp-pref-manage">
+            Add or edit preferences
+            <Icon name="ChevronRight" size={15} />
+          </button>
+        </div>
+
+        {/* Section: History. Open on arrival — the tab exists to show the log,
+            so collapsing it behind a toggle only costs a click. */}
+        <div className="gdp-sec" data-tab="history">
+          <h3 className="gdp-h">
+            <Icon name="Clock" size={18} />
+            Change history
+          </h3>
+          {historyEntries.length === 0 ? (
+            <p className="gdp-empty">No changes recorded yet.</p>
+          ) : (
+            <div className="gdp-log">
+              {historyEntries.map((entry) => {
+                const changed = Object.keys(entry?.changes || {});
+                return (
+                  <div key={entry?.id} className="gdp-log-row">
+                    <span className={`gdp-chip ${ACTION_TONE[entry?.action] || ''}`}>
+                      {String(entry?.action || '').toUpperCase()}
+                    </span>
+                    <div className="gdp-log-body">
+                      <p className="gdp-log-msg">{entry?.message}</p>
+                      <p className="gdp-note">
+                        {entry?.actorName}
+                        {entry?.actorTier ? ` · ${entry.actorTier}` : ''}
+                        {changed.length > 0 && ` · ${changed.slice(0, 3).join(', ')}`}
+                        {changed.length > 3 && ` +${changed.length - 3} more`}
+                      </p>
+                    </div>
+                    <span className="gdp-log-at">{formatStamp(entry?.at)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Delete — Command only, kept off the Overview tab so it is never a
+            stray click away from the fields people edit every day. */}
         {canDelete && !isEditing && !isDeleted && (
-          <div className="gdp-sec" data-tab="history">
+          <div className="gdp-sec gdp-danger" data-tab="history">
+            <div>
+              <h3 className="gdp-h"><Icon name="Trash2" size={18} />Delete guest</h3>
+              <p>Removes the profile from Guest Management. The audit history is kept.</p>
+            </div>
             <button type="button" className="gdp-btn danger" onClick={() => setShowDeleteConfirm(true)}>
               <Icon name="Trash2" size={14} /> Delete guest
             </button>
@@ -1631,34 +1696,21 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
       {/* Delete Confirmation Modal - COMMAND ONLY */}
       {showDeleteConfirm && canDelete && (
         <ModalShell onClose={() => setShowDeleteConfirm(false)} panelClassName="gdp-modal">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-full bg-error/20 flex items-center justify-center">
-              <Icon name="AlertTriangle" size={24} className="text-error" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-foreground">Delete guest?</h3>
-            </div>
-          </div>
-          <div className="gdp-grid">
-            <p className="gdp-v">
-              This will remove the guest profile from Guest Management.
-            </p>
-            <p className="gdp-note">
-              This cannot be undone unless restored from audit history.
-            </p>
-            <label className="gdp-tile pick">
-              <input
-                type="checkbox"
-                checked={deleteConfirmChecked}
-                onChange={(e) => setDeleteConfirmChecked(e?.target?.checked)}
-                className="gdp-check"
-              />
-              <span className="gdp-v">
-                I understand this will delete the guest profile.
-              </span>
-            </label>
-          </div>
-          <div className="flex gap-3">
+          <h3>Delete {fullName || 'this guest'}?</h3>
+          <p>
+            This removes the guest profile from Guest Management. It cannot be undone
+            unless restored from audit history.
+          </p>
+          <label className="gdp-confirm">
+            <input
+              type="checkbox"
+              checked={deleteConfirmChecked}
+              onChange={(e) => setDeleteConfirmChecked(e?.target?.checked)}
+              className="gdp-check"
+            />
+            <span>I understand this will delete the guest profile.</span>
+          </label>
+          <div className="gdp-modal-actions">
             <button
               type="button"
               className="gdp-btn ghost"
@@ -1684,23 +1736,22 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
       {/* Kids Linking Modal */}
       {showKidsModal && (
         <ModalShell onClose={() => setShowKidsModal(false)} panelClassName="gdp-modal">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-foreground">Link Children</h3>
+          <div className="gdp-modal-head">
+            <h3>Link children</h3>
             <button
               type="button"
               onClick={() => setShowKidsModal(false)}
               className="gdp-iconbtn"
+              aria-label="Close"
             >
-              <Icon name="X" size={18} className="gdp-note" />
+              <Icon name="X" size={18} />
             </button>
           </div>
-          <p className="gdp-note">
+          <p>
             Select existing guest profiles to link as children of {formData?.firstName} {formData?.lastName}.
           </p>
           {kidsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
+            <p className="gdp-empty">Loading guests…</p>
           ) : kidsOptions?.length === 0 ? (
             <p className="gdp-empty">No other guests available to link.</p>
           ) : (
@@ -1712,21 +1763,14 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                     key={kid?.id}
                     type="button"
                     onClick={() => handleToggleKid(kid?.id)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-lg border transition-colors ${
-                      isLinked
-                        ? 'border-primary bg-primary/10 text-primary' :'border-border bg-muted/30 text-foreground hover:bg-muted/50'
-                    }`}
+                    className={isLinked ? 'gdp-pick is-on' : 'gdp-pick'}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="gdp-mini-avatar">
-                        <Icon name="User" size={14} className="gdp-accent" />
-                      </div>
-                      <span className="text-sm font-medium">{kid?.firstName} {kid?.lastName}</span>
-                    </div>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      isLinked ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-                    }`}>
-                      {isLinked ? 'Linked' : 'Unlinked'}
+                    <span className="gdp-mini-avatar">
+                      {initialsOf(`${kid?.firstName || ''} ${kid?.lastName || ''}`)}
+                    </span>
+                    <span className="gdp-pick-name">{kid?.firstName} {kid?.lastName}</span>
+                    <span className={isLinked ? 'gdp-chip accent' : 'gdp-chip'}>
+                      {isLinked ? 'Linked' : 'Link'}
                     </span>
                   </button>
                 );
