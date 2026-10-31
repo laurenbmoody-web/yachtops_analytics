@@ -2724,7 +2724,10 @@ const LocationFirstInventory = () => {
     // seed the physical-location filter so the flat view shows what's in that box.
     const loc = searchParams.get('loc');
     const ln = searchParams.get('ln');
-    if (!brand && !supplier && !loc) return;
+    // ?q=<text> — "View all inventory matching …" from the global search lands
+    // here; seed the flat search so every matching item shows at once.
+    const q = searchParams.get('q');
+    if (!brand && !supplier && !loc && !q) return;
     if (brand || supplier) {
       setActiveFilters(prev => ({
         ...prev,
@@ -2733,8 +2736,9 @@ const LocationFirstInventory = () => {
       }));
     }
     if (loc) { setActiveLocationId(loc); setActiveLocationName(ln || ''); }
+    if (q) setSearchQuery(q);
     const next = new URLSearchParams(searchParams);
-    next.delete('brand'); next.delete('supplier'); next.delete('loc'); next.delete('ln');
+    next.delete('brand'); next.delete('supplier'); next.delete('loc'); next.delete('ln'); next.delete('q');
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 

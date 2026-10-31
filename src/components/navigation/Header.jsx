@@ -400,7 +400,7 @@ const Header = () => {
       race(
         supabase
           ?.from('inventory_items')
-          ?.select('id, name, location, sub_location, l1_name, l2_name, l3_name')
+          ?.select('id, name, location, sub_location, l1_name, l2_name, l3_name, image_url')
           ?.eq('tenant_id', tenantId)
           ?.ilike('name', `%${q}%`)
           ?.limit(5)
@@ -480,7 +480,7 @@ const Header = () => {
             : '/inventory';
           const subtitle = segments.join(' › ') || [item.l1_name, item.l2_name, item.l3_name].filter(Boolean).join(' › ');
           const loc = mapById[item.id];
-          return { label: item.name, subtitle, path, icon: 'Package', mapPath: loc?.path || null, mapRoom: loc?.room || null };
+          return { label: item.name, subtitle, path, icon: 'Package', image: item.image_url || null, mapPath: loc?.path || null, mapRoom: loc?.room || null };
         });
         upsert('Inventory', items);
       }
@@ -725,7 +725,10 @@ const Header = () => {
                             onClick={() => handleSearchSelect(item.path)}
                             className="hsearch-item"
                           >
-                            <Icon name={item.icon} size={15} className="hsearch-ico" />
+                            {item.image
+                              ? <img src={item.image} alt="" className="hsearch-thumb" loading="lazy"
+                                  onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                              : <Icon name={item.icon} size={15} className="hsearch-ico" />}
                             <div className="hsearch-body">
                               <p className="hsearch-label">{item.label}</p>
                               {item.subtitle && (
@@ -745,6 +748,16 @@ const Header = () => {
                           )}
                         </div>
                       ))}
+                      {group.category === 'Inventory' && (
+                        <button
+                          className="hsearch-viewall"
+                          onClick={() => handleSearchSelect(`/inventory?q=${encodeURIComponent(searchQuery.trim())}`)}
+                        >
+                          <Icon name="Search" size={13} className="hsearch-ico" />
+                          View all inventory matching &ldquo;{searchQuery.trim()}&rdquo;
+                          <Icon name="ChevronRight" size={14} className="hsearch-chev" />
+                        </button>
+                      )}
                     </div>
                   ))
                 )}
