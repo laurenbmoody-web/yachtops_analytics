@@ -45,7 +45,7 @@ const buildGroups = (list) => {
   list.forEach((it) => {
     const label = statusText(it);
     const key = [(it.item || '').toLowerCase(), it.category || '', label].join('|');
-    if (!m.has(key)) m.set(key, { item: it.item, category: it.category, status: it.status, label, sizes: new Map(), serials: new Set(), issued: new Set() });
+    if (!m.has(key)) m.set(key, { item: it.item, category: it.category, status: it.status, label, invId: it.inventory_item_id || null, sizes: new Map(), serials: new Set(), issued: new Set() });
     const g = m.get(key);
     const sz = (it.size || '').trim();
     g.sizes.set(sz, (g.sizes.get(sz) || 0) + (Number(it.quantity) || 1));
@@ -69,7 +69,7 @@ const buildGroups = (list) => {
  * and signature blocks are kept whole — pushed to a fresh page rather than
  * colliding with the footer.
  */
-export const exportKitReceipt = async ({ crewName, vesselName, vessel, generatedAt, items, ackSig, returnSig, scopeLabel }) => {
+export const exportKitReceipt = async ({ crewName, vesselName, vessel, generatedAt, items, ackSig, returnSig, scopeLabel, images }) => {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -112,6 +112,14 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
   }
   doc.setDrawColor(...HAIR); doc.line(M, hy, pageW - M, hy);
 
+  // Preload the garment photos (as data URLs) so each item shows what it is.
+  const imgData = {};
+  await Promise.all(Object.entries(images || {}).map(async ([id, url]) => {
+    if (!url) return;
+    const loaded = await loadLogoForPdf(url).catch(() => null);
+    if (loaded?.dataUrl) imgData[id] = loaded.dataUrl;
+  }));
+
   // Group by item (sizes nested), then summarise at a glance.
   const groups = buildGroups(items);
   const unitsOf = (st) => groups.filter((g) => g.status === st).reduce((a, g) => a + g.total, 0);
@@ -135,10 +143,11 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
   // One merged Item row per item, each size on its own line beneath — matching
   // the fleet register. Category / Serial / Issued / Status span via rowSpan;
   // shading is per item (theme 'grid' so autoTable adds no zebra of its own).
-  const head = [['Category', 'Item', 'Size', 'Qty', 'Serial', 'Issued', 'Status']];
+  const head = [['', 'Category', 'Item', 'Size', 'Qty', 'Serial', 'Issued', 'Status']];
   const body = [];
   const stripeByRow = [];
   const retiredByRow = [];
+  const imgByRow = {}; // body-row index of a group's first row -> garment data URL
   let gi = 0;
   groups.forEach((g) => {
     const sizes = g.sizes.length ? g.sizes : [{ size: '', qty: g.total }];
@@ -148,7 +157,9 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
     const itemText = n > 1 ? `${g.item || ''}\n${g.total} total` : (g.item || '');
     sizes.forEach((s, idx) => {
       if (idx === 0) {
+        if (g.invId && imgData[g.invId]) imgByRow[body.length] = imgData[g.invId];
         body.push([
+          { content: '', rowSpan: n, styles: { valign: 'middle', cellPadding: 1, minCellHeight: 16 } },
           { content: kitCategoryLabel(g.category), rowSpan: n, styles: { textColor: MUTED, fontStyle: 'bold', valign: 'middle' } },
           { content: itemText, rowSpan: n, styles: { valign: 'middle' } },
           s.size || 'One size',
@@ -171,15 +182,23 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
     head, body,
     theme: 'grid',
     styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.6, textColor: NAVY, fillColor: [255, 255, 255], lineColor: HAIR, lineWidth: 0.1 },
-    headStyles: { fillColor: [250, 250, 248], textColor: MUTED, fontStyle: 'bold', fontSize: 7.5, lineColor: HAIR, lineWidth: 0.1 },
+    headStyles: { fillColor: [241, 245, 249], textColor: MUTED, fontStyle: 'bold', fontSize: 7.5, lineColor: HAIR, lineWidth: 0.1 },
     columnStyles: {
-      0: { cellWidth: 34 }, 1: { cellWidth: 84 }, 2: { cellWidth: 30 },
-      3: { halign: 'center', cellWidth: 16 }, 4: { cellWidth: 36 }, 5: { cellWidth: 28 }, 6: { cellWidth: 38 },
+      0: { cellWidth: 18, halign: 'center' }, 1: { cellWidth: 30 }, 2: { cellWidth: 74 }, 3: { cellWidth: 28 },
+      4: { halign: 'center', cellWidth: 14 }, 5: { cellWidth: 32 }, 6: { cellWidth: 26 }, 7: { cellWidth: 36 },
     },
     didParseCell: (data) => {
       if (data.section !== 'body') return;
-      if (stripeByRow[data.row.index]) data.cell.styles.fillColor = [252, 251, 248];
+      if (stripeByRow[data.row.index]) data.cell.styles.fillColor = [248, 250, 252];
       if (retiredByRow[data.row.index]) data.cell.styles.textColor = MUTED;
+    },
+    didDrawCell: (data) => {
+      if (data.section !== 'body' || data.column.index !== 0) return;
+      const url = imgByRow[data.row.index];
+      if (!url) return;
+      const { x, y, width, height } = data.cell;
+      const side = Math.min(width - 2, height - 2, 14);
+      try { doc.addImage(url, 'PNG', x + (width - side) / 2, y + (height - side) / 2, side, side); } catch { /* skip bad image */ }
     },
   });
 

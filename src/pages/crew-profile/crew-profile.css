@@ -908,11 +908,15 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-ack-list li:last-child { border-bottom: 0; }
 .crew-profile-page .kit-ack-cat { font-size: 11px; color: #8B8478; white-space: nowrap; }
 
+/* Garment thumbnail so the crew member can see what each piece is. */
+.crew-profile-page .kit-ack-thumb { flex: none; width: 34px; height: 34px; border-radius: 8px; border: 1px solid #E5E7EB; background: #F8FAFC; display: grid; place-items: center; overflow: hidden; color: #AEB4C2; }
+.crew-profile-page .kit-ack-thumb img { width: 100%; height: 100%; object-fit: contain; padding: 2px; }
+
 /* Per-item acknowledge / request-swap rows */
 .crew-profile-page .kit-ack-list li.kit-ack-item { display: block; }
-.crew-profile-page .kit-ack-item.swapping { background: #FCF6EF; }
-.crew-profile-page .kit-ack-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.crew-profile-page .kit-ack-nm { min-width: 0; }
+.crew-profile-page .kit-ack-item.swapping { background: #F1F5F9; }
+.crew-profile-page .kit-ack-line { display: flex; align-items: center; gap: 10px; }
+.crew-profile-page .kit-ack-nm { min-width: 0; flex: 1 1 auto; }
 .crew-profile-page .kit-ack-swapbtn { flex: none; background: none; border: none; font: 600 12px 'Plus Jakarta Sans', system-ui, sans-serif; color: #C65A1A; cursor: pointer; padding: 2px 4px; border-radius: 6px; }
 .crew-profile-page .kit-ack-swapbtn:hover { text-decoration: underline; }
 .crew-profile-page .kit-ack-swap { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: #C65A1A; }

@@ -6,7 +6,7 @@ import SignaturePad from '../../../components/SignaturePad';
 import { showToast } from '../../../utils/toast';
 import {
   KIT_CATEGORIES, CONDITIONS, kitCategoryLabel, fmtKitDate,
-  fetchCrewKit, saveKitItem, deleteKitItem,
+  fetchCrewKit, fetchKitItemImages, saveKitItem, deleteKitItem,
   uploadKitSignature, acknowledgeKitItems, requestKitSwap, signedKitSignatureUrl, kitSignatureDataUrl,
   recordKitReturn, markKitLost, reinstateKitItem,
   fetchUniformSizes, saveUniformSizes, UNIFORM_SIZE_KEYS,
@@ -21,7 +21,6 @@ import {
   fieldVisible, fitLabel, sizeKeyFor, suggestSize, sexToFit,
 } from '../utils/uniformSizeFields';
 import { sendDbNotification } from '../../../lib/dbNotifications';
-import { getAllItems } from '../../inventory/utils/inventoryStorage';
 import { fetchCabinForUser } from '../../crew-management/utils/vesselCabins';
 import { EditorialDatePicker } from '../../../components/editorial';
 
@@ -101,12 +100,11 @@ const IssuedKitTab =({ userId, tenantId, currentUserId, currentUserName, crewNam
       setSizes(sz);
       setEvents(ev);
       setAlloc(al || {});
-      // Photos from linked inventory (best-effort — a plain crew member may not
-      // have inventory read, in which case tiles fall back to garment icons).
+      // Garment photos so the crew member can see what each piece is (tiles,
+      // acknowledgement, export). Via a SECURITY DEFINER read so it works even
+      // without inventory read; falls back to garment icons if unavailable.
       if (kit.some((k) => k.inventory_item_id)) {
-        getAllItems()
-          .then((inv) => setImgMap(Object.fromEntries((inv || []).filter((x) => x.imageUrl).map((x) => [x.id, x.imageUrl]))))
-          .catch(() => {});
+        fetchKitItemImages(userId).then((m) => setImgMap(m || {})).catch(() => {});
       }
     } catch { showToast('Failed to load issued kit', 'error'); }
     finally { setLoading(false); }
@@ -324,6 +322,7 @@ const IssuedKitTab =({ userId, tenantId, currentUserId, currentUserName, crewNam
         vessel: vesselInfo,
         generatedAt: fmtKitDate(today()), items: list, ackSig: ackImg, returnSig: retImg,
         scopeLabel: scope === 'held' ? 'Currently held' : 'Full record',
+        images: imgMap,
       });
     } catch (e) { showToast(e.message || 'Could not generate the kit record', 'error'); }
     finally { setBusy(false); }
@@ -824,9 +823,13 @@ const IssuedKitTab =({ userId, tenantId, currentUserId, currentUserName, crewNam
                     <ul className="kit-ack-list">
                       {unacked.map((i) => {
                         const swapping = i.id in swaps;
+                        const img = imgMap[i.inventory_item_id];
                         return (
                           <li key={i.id} className={`kit-ack-item${swapping ? ' swapping' : ''}`}>
                             <div className="kit-ack-line">
+                              <span className="kit-ack-thumb">
+                                {img ? <img src={img} alt={i.item} /> : <Icon name={GARMENT_ICON[canonicalGarment(i.item)] || 'Shirt'} size={18} />}
+                              </span>
                               <span className="kit-ack-nm">{i.item}{i.size ? ` · ${i.size}` : ''}{i.quantity > 1 ? ` · ×${i.quantity}` : ''}</span>
                               <button type="button" className="kit-ack-swapbtn" onClick={() => toggleSwap(i.id)}>
                                 {swapping ? 'Keep this' : 'Wrong size?'}
@@ -872,9 +875,16 @@ const IssuedKitTab =({ userId, tenantId, currentUserId, currentUserName, crewNam
             <div className="kit-ack-body">
               <p className="kit-ack-intro">Confirming the following {returnTarget.length > 1 ? `${returnTarget.length} items have` : 'item has'} been returned:</p>
               <ul className="kit-ack-list">
-                {returnTarget.map((i) => (
-                  <li key={i.id}><span>{i.item}{i.size ? ` · ${i.size}` : ''}{i.quantity > 1 ? ` · ×${i.quantity}` : ''}</span><span className="kit-ack-cat">{kitCategoryLabel(i.category)}</span></li>
-                ))}
+                {returnTarget.map((i) => {
+                  const img = imgMap[i.inventory_item_id];
+                  return (
+                    <li key={i.id}>
+                      <span className="kit-ack-thumb">{img ? <img src={img} alt={i.item} /> : <Icon name={GARMENT_ICON[canonicalGarment(i.item)] || 'Shirt'} size={18} />}</span>
+                      <span>{i.item}{i.size ? ` · ${i.size}` : ''}{i.quantity > 1 ? ` · ×${i.quantity}` : ''}</span>
+                      <span className="kit-ack-cat">{kitCategoryLabel(i.category)}</span>
+                    </li>
+                  );
+                })}
               </ul>
               <div className="kit-form" style={{ padding: 0 }}>
                 <label className="kit-field"><span>Returned date</span>
