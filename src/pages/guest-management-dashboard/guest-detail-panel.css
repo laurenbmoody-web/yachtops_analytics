@@ -371,24 +371,49 @@
 .gdp-sec:first-of-type { border-top: 0; }
 .gdp-h { margin-bottom: 4px; }
 
-/* Label left, value right — one column of rows, so the eye runs down a
-   single edge instead of zigzagging through a two-column grid. */
+/* A record is read at a comfortable measure, not stretched across a 1400px
+   pane. Without this the value ends up a hand's width from its own label. */
+.gdp-body { max-width: 860px; }
+
+/* Label column, value column — both left aligned at a fixed tab stop. Values
+   pushed to the right edge looked disconnected from what they described. */
 .gdp-grid { display: flex; flex-direction: column; gap: 0; }
-.gdp-grid > div {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 24px; padding: 10px 0; border-bottom: 1px solid #F5F6F8;
+.gdp-grid > div,
+.gdp-field {
+  display: grid; grid-template-columns: 190px minmax(0, 1fr);
+  align-items: baseline; gap: 8px 22px;
+  padding: 10px 0; border-bottom: 1px solid #F5F6F8;
   min-width: 0;
 }
 .gdp-grid > div:last-child { border-bottom: 0; }
-.gdp-l { margin: 0; flex: 0 0 auto; max-width: 45%; }
-.gdp-v { flex: 1; min-width: 0; text-align: right; font-size: 13.5px; }
+.gdp-l { margin: 0; align-self: baseline; }
+.gdp-v { margin: 0; min-width: 0; font-size: 13.5px; text-align: left; }
 .gdp-v.is-pre { white-space: pre-wrap; }
 .gdp-v.is-empty { color: #C8CCD4; }
 
-/* While editing, a field needs room: stack it again. */
-.gdp.is-editing .gdp-grid > div { flex-direction: column; align-items: stretch; gap: 6px; }
-.gdp.is-editing .gdp-l { max-width: none; }
-.gdp.is-editing .gdp-v { text-align: left; }
+/* Editing is a form, so labels sit above their inputs and fields run two to a
+   row with real spacing — the single-column stack had them running together. */
+.gdp.is-editing .gdp-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px;
+}
+.gdp.is-editing .gdp-grid > div,
+.gdp.is-editing .gdp-field {
+  display: flex; flex-direction: column; align-items: stretch; gap: 6px;
+  padding: 0; border-bottom: 0;
+}
+.gdp.is-editing .gdp-field { grid-column: 1 / -1; }
+@media (max-width: 760px) {
+  .gdp.is-editing .gdp-grid { grid-template-columns: minmax(0, 1fr); }
+  .gdp-grid > div, .gdp-field { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+
+/* The photo control. It is a way to set an avatar, not a hero image — it was
+   a 128px dashed panel competing with the name. */
+.gdp-identity { gap: 20px; align-items: flex-start; }
+.gdp-photo, .gdp-photo-empty { width: 76px; height: 76px; border-radius: 999px; }
+.gdp-photo-empty { gap: 4px; font-size: 10px; }
+.gdp-photo-empty svg { width: 16px; height: 16px; }
+.gdp-identity > div:last-child { flex: 1; min-width: 0; }
 
 /* ── empties ────────────────────────────────────────────────── */
 .gdp-body[data-empty='fold'] .gdp-grid > div:has(> .gdp-v.is-empty) { display: none; }
@@ -397,3 +422,42 @@
 .gdp-body[data-empty='fold'] .gdp-sec:has(.gdp-grid > div):not(:has(.gdp-grid > div > .gdp-v:not(.is-empty))) {
   display: none;
 }
+
+/* A yes/no switch with its caption beside it, on one line — not a full-width
+   tile. Used by APA required and NDA signed. */
+.gdp-tile {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; background: none; border: 0;
+  border-bottom: 1px solid #F5F6F8;
+}
+.gdp-switch-l { font-size: 13.5px; font-weight: 600; color: #1C1B3A; }
+
+/* The preferences tab is one action — let it be an action, not a lone link
+   adrift in an empty card. */
+.gdp-cta { max-width: 420px; }
+
+/* A cabin option: the cabin first, the route to it underneath. */
+.gdp-opt { flex-direction: column; align-items: flex-start; gap: 2px; }
+.gdp-opt-main { font-size: 13px; font-weight: 600; color: #1C1B3A; }
+.gdp-opt-path { font-size: 11px; color: #8B8478; }
+
+/* The card is a column: fixed head, fixed tabs, scrolling record. */
+.gdp { flex: 1; min-height: 0; }
+.gdp-head, .gdp-tabs { flex: 0 0 auto; }
+.gdp-body { flex: 1; min-height: 0; overflow-y: auto; }
+@media (max-width: 1000px) {
+  .gdp-body { overflow: visible; }
+}
+
+/* First and last name, side by side while editing. */
+.gdp-names { padding-top: 0; }
+.gdp.is-editing .gdp-names { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* History's disclosure reads as a section label, not an 18px heading. */
+.gdp-h-btn {
+  width: 100%; cursor: pointer; background: none; border: 0;
+  padding: 0; text-align: left;
+}
+.gdp-h-btn:hover { color: #C65A1A; }
+
+.gdp-picklist { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }

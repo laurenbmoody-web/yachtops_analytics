@@ -752,7 +752,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                       onClick={() => setShowPhotoPicker(!showPhotoPicker)}
                       className="gdp-photo-empty"
                     >
-                      <Icon name="Camera" size={24} className="text-muted-foreground" />
+                      <Icon name="Camera" size={24} className="gdp-note" />
                       <span className="gdp-note">Add Photo</span>
                     </button>
 
@@ -829,7 +829,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
           </div>
 
           {/* Basic Info */}
-          <div className="flex-1 space-y-4">
+          <div className="gdp-grid gdp-names">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="gdp-l">First Name *</label>
@@ -857,27 +857,6 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               </div>
             </div>
 
-            {/* Active on Trip Toggle */}
-            {canEdit && !isDeleted && (
-              <div className="gdp-tile">
-                <button
-                  onClick={handleActiveToggle}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    formData?.isActiveOnTrip ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      formData?.isActiveOnTrip ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-                <div>
-                  <V>Active on current trip</V>
-                  <p className="gdp-note">Enable to include in active guest lists</p>
-                </div>
-              </div>
-            )}
             {(!canEdit || isDeleted) && (
               <div className="gdp-tile">
                 <div
@@ -892,7 +871,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   />
                 </div>
                 <div>
-                  <V>Active on current trip</V>
+                  <span className="gdp-switch-l">Active on current trip</span>
                   <p className="gdp-note">{isDeleted ? 'Read-only (deleted)' : 'View only'}</p>
                 </div>
               </div>
@@ -968,7 +947,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               >
                 <Icon name="Users" size={14} />
                 <span>{getLinkedKidsDisplay()}</span>
-                <Icon name="ChevronRight" size={14} className="text-muted-foreground" />
+                <Icon name="ChevronRight" size={14} className="gdp-note" />
               </button>
             </div>
           </div>
@@ -1032,7 +1011,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <div>
               <label className="gdp-l">Passport Nationality</label>
               {isEditing && !isDeleted ? (
-                <div className="space-y-2">
+                <div className="gdp-field">
                   <Select
                     value={formData?.passportNationality || ''}
                     onChange={(value) => handleChange('passportNationality', value)}
@@ -1231,15 +1210,15 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <Icon name="Home" size={18} />
             Accommodation
           </h3>
-          <div className="space-y-1">
-            <div className="gdp-note">Cabin</div>
+          <div className="gdp-field">
+            <label className="gdp-l">Cabin</label>
             <div className="gdp-v">{getCabinDisplay()}</div>
           </div>
 
           {/* Cabin Allocation - Searchable Dropdown */}
           {isEditing && !isDeleted && (
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-foreground mb-1">
+            <div className="gdp-field">
+              <label className="gdp-l">
                 Guest Cabin Allocated (Optional)
               </label>
               <div className="relative" ref={cabinDropdownRef}>
@@ -1270,7 +1249,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 {showCabinDropdown && cabinOptions?.length > 0 && (
                   <div className="gdp-menu wide">
                     {filteredCabinOptions?.length === 0 ? (
-                      <div className="p-3 text-sm text-muted-foreground text-center">
+                      <div className="gdp-empty">
                         No matching cabins found
                       </div>
                     ) : (
@@ -1286,7 +1265,15 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                               onClick={() => handleCabinSelect(option)}
                               className="gdp-opt"
                             >
-                              {option?.path}
+                              {/* The cabin, then the route to it in smaller
+                                  type — a raw "Bridge Deck > Interior - Crew >
+                                  Captain Cabin" is a path, not a choice. */}
+                              <span className="gdp-opt-main">
+                                {String(option?.path || '').split('>').pop().trim()}
+                              </span>
+                              <span className="gdp-opt-path">
+                                {String(option?.path || '').split('>').slice(0, -1).map((p) => p.trim()).join(' › ')}
+                              </span>
                             </button>
                           ))}
                         </div>
@@ -1296,7 +1283,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 )}
                 
                 {cabinOptions?.length === 0 && (
-                  <div className="mt-1 text-xs text-muted-foreground">
+                  <div className="gdp-note">
                     No locations configured. Add cabins in Location Management.
                   </div>
                 )}
@@ -1306,8 +1293,8 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
 
           {/* Free Text Cabin Fallback */}
           {isEditing && !isDeleted && (
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-muted-foreground mb-1">
+            <div className="gdp-field">
+              <label className="gdp-l">
                 OR Cabin (free text)
               </label>
               <Input
@@ -1410,7 +1397,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 />
               </div>
             )}
-            <V>APA Required?</V>
+            <span className="gdp-switch-l">APA Required?</span>
           </div>
           {/* APA Amount - only visible when APA Required = true */}
           {formData?.apaRequired && (
@@ -1493,7 +1480,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 />
               </div>
             )}
-            <V>NDA Signed?</V>
+            <span className="gdp-switch-l">NDA Signed?</span>
           </div>
           {/* NDA Expiry Date - only visible when NDA Signed = true */}
           {formData?.ndaSigned && (
@@ -1589,13 +1576,13 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
           <div className="gdp-sec" data-tab="history">
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center gap-2 text-lg font-semibold text-foreground hover:text-primary transition-colors"
+              className="gdp-h gdp-h-btn"
             >
               <Icon name={showHistory ? "ChevronDown" : "ChevronRight"} size={18} />
               History
             </button>
             {showHistory && (
-              <div className="space-y-2">
+              <div className="gdp-field">
                 {[...guest?.historyLog]?.reverse()?.map((entry) => (
                   <div key={entry?.id} className="gdp-tile">
                     <div className="flex items-start justify-between">
@@ -1614,7 +1601,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                         </div>
                         <p className="gdp-note">{entry?.message}</p>
                         {entry?.changes && Object.keys(entry?.changes)?.length > 0 && (
-                          <div className="mt-2 text-xs text-muted-foreground">
+                          <div className="gdp-note">
                             <span className="font-medium">Changes: </span>
                             {Object.keys(entry?.changes)?.slice(0, 3)?.join(', ')}
                             {Object.keys(entry?.changes)?.length > 3 && ` +${Object.keys(entry?.changes)?.length - 3} more`}
@@ -1652,7 +1639,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               <h3 className="text-lg font-semibold text-foreground">Delete guest?</h3>
             </div>
           </div>
-          <div className="space-y-3 mb-6">
+          <div className="gdp-grid">
             <p className="gdp-v">
               This will remove the guest profile from Guest Management.
             </p>
@@ -1704,7 +1691,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               onClick={() => setShowKidsModal(false)}
               className="gdp-iconbtn"
             >
-              <Icon name="X" size={18} className="text-muted-foreground" />
+              <Icon name="X" size={18} className="gdp-note" />
             </button>
           </div>
           <p className="gdp-note">
@@ -1717,7 +1704,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
           ) : kidsOptions?.length === 0 ? (
             <p className="gdp-empty">No other guests available to link.</p>
           ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
+            <div className="gdp-picklist">
               {kidsOptions?.map(kid => {
                 const isLinked = linkedKidIds?.includes(kid?.id);
                 return (
