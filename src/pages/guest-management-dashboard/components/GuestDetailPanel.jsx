@@ -43,10 +43,11 @@ const TABS = [
 // that is empty marks itself, and the CSS folds its whole field away until the
 // reader asks to see them.
 const EMPTY = new Set(['', '-', '—', 'Not assigned', 'Not specified', 'Unknown']);
-const V = ({ children }) => {
+const V = ({ children, pre }) => {
   const text = Array.isArray(children) ? children.join('') : children;
   const blank = EMPTY.has(String(text ?? '').trim());
-  return <p className={blank ? 'gdp-v is-empty' : 'gdp-v'}>{blank ? '—' : children}</p>;
+  const cls = ['gdp-v', pre ? 'is-pre' : '', blank ? 'is-empty' : ''].filter(Boolean).join(' ');
+  return <p className={cls}>{blank ? '—' : children}</p>;
 };
 
 const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permissions }) => {
@@ -627,24 +628,50 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
   };
 
   return (
-    <div className="gdp">
-      {/* Header */}
+    <div className={isEditing ? 'gdp is-editing' : 'gdp'}>
+      {/* Header. One avatar — the body's photo block is for EDITING a photo and
+          is hidden while reading, which is why the same face was appearing
+          twice. Cabin, dietary and aboard read as a meta line here rather than
+          a boxed three-up band: it is the house pattern, and it stops a strip
+          of mostly-empty values dominating the top of the record. */}
       <div className="gdp-head">
         <div className="gdp-head-l">
           {guest?.photo?.dataUrl
             ? <img className="gdp-head-avatar" src={guest.photo.dataUrl} alt="" />
             : <span className="gdp-head-avatar">{initials}</span>}
           <span className="gdp-head-ident">
-            {/* The name, not "Guest Details" — in a two-pane layout the panel
-                has to say whose record you are looking at. */}
-            <h2 className="gdp-title">{fullName || 'Guest'}</h2>
-            <span className="gdp-head-chips">
-              {roleLabel && <span className="gdp-chip accent">{roleLabel}</span>}
+            <h2 className="gdp-title">
+              {fullName || 'Guest'}
+              {roleLabel && <span className="gdp-role">{roleLabel}</span>}
               {isDeleted && <span className="gdp-chip warn">Deleted</span>}
-            </span>
+            </h2>
+            <p className="gdp-meta">
+              <span className={cabinText ? '' : 'muted'}>{cabinText || 'No cabin'}</span>
+              <span className="bar" />
+              {dietaryText
+                ? <span className="alert">{dietaryText}</span>
+                : <span className="muted">No dietary needs</span>}
+              <span className="bar" />
+              <span className={formData?.isActiveOnTrip ? '' : 'muted'}>
+                {formData?.isActiveOnTrip ? 'Aboard' : 'Ashore'}
+              </span>
+            </p>
           </span>
         </div>
         <div className="gdp-head-r">
+          {/* Was a full-width tile with a switch in it. It says the same thing
+              in a tenth of the space, next to the state it changes. */}
+          {canEdit && !isDeleted && (
+            <button
+              type="button"
+              className={formData?.isActiveOnTrip ? 'gdp-aboard is-on' : 'gdp-aboard'}
+              aria-pressed={!!formData?.isActiveOnTrip}
+              onClick={handleActiveToggle}
+            >
+              <span className="gdp-aboard-dot" />
+              {formData?.isActiveOnTrip ? 'On this trip' : 'Not on a trip'}
+            </button>
+          )}
           {!isEditing && canEdit && !isDeleted && (
             <button type="button" className="gdp-btn ghost" onClick={() => setIsEditing(true)}>
               <Icon name="Edit2" size={14} /> Edit
@@ -667,30 +694,6 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
           )}
         </div>
       </div>
-      {/* The three things anyone opening a guest actually wants, above
-          everything else. They were previously buried among thirty fields of
-          equal weight, most of them empty. */}
-      <div className="gdp-facts">
-        <span className="gdp-fact">
-          <span className="gdp-fact-l">Cabin</span>
-          <span className={cabinText ? 'gdp-fact-v' : 'gdp-fact-v is-none'}>
-            {cabinText || 'Not assigned'}
-          </span>
-        </span>
-        <span className="gdp-fact">
-          <span className="gdp-fact-l">Dietary</span>
-          <span className={dietaryText ? 'gdp-fact-v is-flag' : 'gdp-fact-v is-none'}>
-            {dietaryText || 'None recorded'}
-          </span>
-        </span>
-        <span className="gdp-fact">
-          <span className="gdp-fact-l">Aboard</span>
-          <span className={formData?.isActiveOnTrip ? 'gdp-fact-v' : 'gdp-fact-v is-none'}>
-            {formData?.isActiveOnTrip ? 'On the current trip' : 'Not on a trip'}
-          </span>
-        </span>
-      </div>
-
       {/* Tabs rather than one long scroll: adding passport or APA fields later
           widens a tab instead of lengthening the page. */}
       <div className="gdp-tabs" role="tablist">
@@ -1112,7 +1115,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 className="gdp-ta"
               />
             ) : (
-              <p className="text-foreground whitespace-pre-wrap">{formData?.visaNotes || '-'}</p>
+              <V pre>{formData?.visaNotes || '-'}</V>
             )}
           </div>
 
@@ -1190,7 +1193,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <Icon name="Heart" size={18} />
             Health
           </h3>
-          <div className="gdp-sec">
+          <div className="gdp-grid">
             <div>
               <label className="gdp-l">Health Conditions</label>
               {isEditing && !isDeleted ? (
@@ -1202,7 +1205,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   className="gdp-ta"
                 />
               ) : (
-                <p className="text-foreground whitespace-pre-wrap">{formData?.healthConditions || '-'}</p>
+                <V pre>{formData?.healthConditions || '-'}</V>
               )}
             </div>
             <div>
@@ -1216,7 +1219,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   className="gdp-ta"
                 />
               ) : (
-                <p className="text-foreground whitespace-pre-wrap">{formData?.allergies || '-'}</p>
+                <V pre>{formData?.allergies || '-'}</V>
               )}
             </div>
           </div>
@@ -1436,7 +1439,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 className="gdp-ta"
               />
             ) : (
-              <p className="text-foreground whitespace-pre-wrap">{formData?.apaNotes || '-'}</p>
+              <V pre>{formData?.apaNotes || '-'}</V>
             )}
           </div>
           <div>
@@ -1450,7 +1453,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 className="gdp-ta"
               />
             ) : (
-              <p className="text-foreground whitespace-pre-wrap">{formData?.paymentNotes || '-'}</p>
+              <V pre>{formData?.paymentNotes || '-'}</V>
             )}
           </div>
         </div>
@@ -1556,7 +1559,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 className="gdp-ta"
               />
             ) : (
-              <p className="text-foreground whitespace-pre-wrap">{formData?.privacyNotes || '-'}</p>
+              <V pre>{formData?.privacyNotes || '-'}</V>
             )}
           </div>
         </div>

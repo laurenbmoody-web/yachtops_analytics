@@ -275,26 +275,6 @@
 .gdp-head-chips { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .gdp-chip.accent { border-color: #E8C4AC; color: #C65A1A; }
 
-/* The three things anyone opening a guest wants first. */
-.gdp-facts {
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px; background: #EEF0F4;
-  border-bottom: 1px solid #EEF0F4;
-}
-.gdp-fact { background: #FFFFFF; padding: 13px 22px; min-width: 0; }
-.gdp-fact-l {
-  display: block;
-  font-size: 9px; font-weight: 700; letter-spacing: 1px;
-  text-transform: uppercase; color: #8B8478;
-}
-.gdp-fact-v {
-  display: block; margin-top: 5px;
-  font-size: 14px; font-weight: 600; color: #1C1B3A;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.gdp-fact-v.is-none { font-weight: 400; color: #AEB4C2; }
-.gdp-fact-v.is-flag { color: #C65A1A; }
-
 .gdp-tabs {
   display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
   padding: 12px 22px 0;
@@ -330,4 +310,90 @@
 .gdp-body[data-empty='fold'] .gdp-grid > div:has(> .gdp-v.is-empty) { display: none; }
 .gdp-body[data-empty='fold'] .gdp-sec:has(> .gdp-grid:not(:has(> div:not(:has(.gdp-v.is-empty))))) {
   opacity: 0.55;
+}
+
+/* ═══ second pass: the reading layout ════════════════════════
+   The tabs were bolted onto the old body. This is the inside of
+   the pane redesigned around reading a record rather than filling
+   a form. */
+
+/* ── header ─────────────────────────────────────────────────── */
+.gdp-head { align-items: center; padding: 18px 24px; }
+.gdp-head-l { align-items: center; gap: 14px; min-width: 0; flex: 1; }
+.gdp-head-avatar { width: 52px; height: 52px; font-size: 15px; }
+
+.gdp-title {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  font-size: 26px; line-height: 1.15;
+}
+.gdp-role {
+  padding: 2px 9px; border-radius: 999px; border: 1px solid #E8C4AC;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.3px; color: #C65A1A;
+}
+
+/* The house meta line, in place of the boxed three-up band. */
+.gdp-meta {
+  display: flex; align-items: center; flex-wrap: wrap;
+  margin: 6px 0 0;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+  text-transform: uppercase; color: #1C1B3A;
+}
+.gdp-meta .muted { color: #AEB4C2; }
+.gdp-meta .alert { color: #C65A1A; }
+.gdp-meta .bar {
+  width: 1px; height: 10px; background: #D7DAE2; margin: 0 10px;
+}
+
+/* Aboard, as a control rather than a tile with a switch inside it. */
+.gdp-aboard {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px 13px; cursor: pointer;
+  background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 999px;
+  font: inherit; font-size: 12px; font-weight: 600; color: #8B8478;
+  transition: border-color 0.14s, color 0.14s;
+}
+.gdp-aboard:hover { border-color: #C65A1A; color: #C65A1A; }
+.gdp-aboard-dot {
+  width: 7px; height: 7px; border-radius: 999px; background: #D7DAE2;
+}
+.gdp-aboard.is-on { border-color: #BFDBC6; color: #3F7A52; }
+.gdp-aboard.is-on .gdp-aboard-dot { background: #3F7A52; }
+
+/* The photo + name block is for EDITING. While reading, the header already
+   carries the face and the name, which is why both were showing at once. */
+.gdp:not(.is-editing) .gdp-identity { display: none; }
+
+/* ── the body ───────────────────────────────────────────────── */
+.gdp-body { padding: 0 24px 24px; max-height: none; overflow: visible; }
+
+.gdp-sec { padding: 20px 0 6px; border-top: 1px solid #F0F1F5; }
+.gdp-sec:first-of-type { border-top: 0; }
+.gdp-h { margin-bottom: 4px; }
+
+/* Label left, value right — one column of rows, so the eye runs down a
+   single edge instead of zigzagging through a two-column grid. */
+.gdp-grid { display: flex; flex-direction: column; gap: 0; }
+.gdp-grid > div {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 24px; padding: 10px 0; border-bottom: 1px solid #F5F6F8;
+  min-width: 0;
+}
+.gdp-grid > div:last-child { border-bottom: 0; }
+.gdp-l { margin: 0; flex: 0 0 auto; max-width: 45%; }
+.gdp-v { flex: 1; min-width: 0; text-align: right; font-size: 13.5px; }
+.gdp-v.is-pre { white-space: pre-wrap; }
+.gdp-v.is-empty { color: #C8CCD4; }
+
+/* While editing, a field needs room: stack it again. */
+.gdp.is-editing .gdp-grid > div { flex-direction: column; align-items: stretch; gap: 6px; }
+.gdp.is-editing .gdp-l { max-width: none; }
+.gdp.is-editing .gdp-v { text-align: left; }
+
+/* ── empties ────────────────────────────────────────────────── */
+.gdp-body[data-empty='fold'] .gdp-grid > div:has(> .gdp-v.is-empty) { display: none; }
+/* …and a section where every field folded away goes with them, so no more
+   orphaned "CONTACT" headings with nothing underneath. */
+.gdp-body[data-empty='fold'] .gdp-sec:has(.gdp-grid > div):not(:has(.gdp-grid > div > .gdp-v:not(.is-empty))) {
+  display: none;
 }

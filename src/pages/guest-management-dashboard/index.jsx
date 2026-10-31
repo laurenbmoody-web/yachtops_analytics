@@ -165,7 +165,7 @@ const GuestManagementDashboard = () => {
   return (
     <>
       <Header />
-      <div className="gm-page">
+      <div className="gm-page is-split">
       <div className="gm-wrap">
         <div className="gm-titlerow">
           <div>
