@@ -923,6 +923,20 @@ body.crew-profile-editorial {
 .crew-profile-page .kit-ack-swap input { flex: 1; border: 1px solid #E5E7EB; background: #FFFFFF; border-radius: 8px; padding: 7px 10px; font-size: 13px; color: #1C1B3A; outline: none; }
 .crew-profile-page .kit-ack-swap input:focus { border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
 
+/* Charter divider inside the acknowledge list (On charter / Off charter). */
+.crew-profile-page .kit-ack-list li.kit-ack-charter {
+  display: block; padding: 7px 12px; background: #F1F5F9;
+  font: 700 9px/1 'Inter', system-ui, sans-serif; letter-spacing: 1px;
+  text-transform: uppercase; color: #C65A1A;
+}
+
+/* Charter section header above the garment groups on the Issued Kit tab. */
+.crew-profile-page .kit-charter-head {
+  margin: 18px 0 2px; font: 700 10px/1 'Inter', system-ui, sans-serif;
+  letter-spacing: 1.5px; text-transform: uppercase; color: #C65A1A;
+}
+.crew-profile-page .kit-charter-head:first-child { margin-top: 2px; }
+
 /* Issued-kit tiles — visual, so a crew member can recognise items at a glance. */
 .crew-profile-page .kit-tilegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
 .crew-profile-page .kit-tile { position: relative; background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.14s, box-shadow 0.14s; }

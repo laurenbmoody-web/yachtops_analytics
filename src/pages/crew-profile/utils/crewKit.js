@@ -107,6 +107,21 @@ export const fetchKitItemImages = async (userId) => {
   return out;
 };
 
+// Richer kit-item meta (photo + inventory folder path) keyed by inventory_item_id,
+// so the crew member's Issued Kit can also group by charter (derived from the
+// folder) without inventory read. Same SECURITY DEFINER gate as the images read.
+export const fetchKitItemMeta = async (userId) => {
+  if (!userId) return {};
+  const { data, error } = await supabase.rpc('get_kit_item_meta', { subject: userId });
+  if (error) { console.error('[kit] meta fetch failed', error); return {}; }
+  const out = {};
+  (data || []).forEach((r) => {
+    if (!r?.inventory_item_id) return;
+    out[r.inventory_item_id] = { image: r.image_url || null, location: r.location || null, sub_location: r.sub_location || null };
+  });
+  return out;
+};
+
 // All uniform kit issued across the vessel — powers the wardrobe-management
 // "Crew" folder (roster counts + per-member lists). The crew_kit_manage RLS
 // lets COMMAND / Interior read the whole tenant's rows; a plain crew member

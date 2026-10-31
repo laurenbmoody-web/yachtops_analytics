@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { kitCategoryLabel } from './crewKit';
+import { charterOfItem, CHARTER_ORDER } from './uniformFolder';
 import { loadLogoForPdf } from '../../crew-management/utils/guestBookExport';
 
 const CARGO_LOGO = '/assets/images/cargo_merged_originalmark_syne800_true.png';
@@ -69,7 +70,7 @@ const buildGroups = (list) => {
  * and signature blocks are kept whole — pushed to a fresh page rather than
  * colliding with the footer.
  */
-export const exportKitReceipt = async ({ crewName, vesselName, vessel, generatedAt, items, ackSig, returnSig, scopeLabel, images }) => {
+export const exportKitReceipt = async ({ crewName, vesselName, vessel, generatedAt, items, ackSig, returnSig, scopeLabel, meta }) => {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -114,14 +115,23 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
 
   // Preload the garment photos (as data URLs) so each item shows what it is.
   const imgData = {};
-  await Promise.all(Object.entries(images || {}).map(async ([id, url]) => {
+  await Promise.all(Object.entries(meta || {}).map(async ([id, m]) => {
+    const url = m?.image;
     if (!url) return;
     const loaded = await loadLogoForPdf(url).catch(() => null);
     if (loaded?.dataUrl) imgData[id] = loaded.dataUrl;
   }));
 
-  // Group by item (sizes nested), then summarise at a glance.
+  // Group by item (sizes nested), then summarise at a glance. Tag each group
+  // with its charter (from the item's inventory folder) and order charter-first.
   const groups = buildGroups(items);
+  groups.forEach((g) => { g.charter = charterOfItem((meta || {})[g.invId]); });
+  groups.sort((a, b) =>
+    ((STATUS_RANK[a.status] ?? 3) - (STATUS_RANK[b.status] ?? 3))
+    || ((CHARTER_ORDER[a.charter] ?? 9) - (CHARTER_ORDER[b.charter] ?? 9))
+    || a.label.localeCompare(b.label)
+    || (a.item || '').localeCompare(b.item || ''));
+  const showCharterHeaders = new Set(groups.map((g) => g.charter)).size > 1;
   const unitsOf = (st) => groups.filter((g) => g.status === st).reduce((a, g) => a + g.total, 0);
   const inServUnits = unitsOf('in_service');
   const returnedUnits = unitsOf('returned');
@@ -148,8 +158,20 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
   const stripeByRow = [];
   const retiredByRow = [];
   const imgByRow = {}; // body-row index of a group's first row -> garment data URL
+  const charterHeaderRows = new Set(); // body-row indices that are charter dividers
   let gi = 0;
+  let prevCharterKey = null;
   groups.forEach((g) => {
+    // A charter divider row whenever the charter (within a status block) changes.
+    if (showCharterHeaders) {
+      const key = `${g.status}|${g.charter}`;
+      if (key !== prevCharterKey) {
+        charterHeaderRows.add(body.length);
+        body.push([{ content: g.charter.toUpperCase(), colSpan: 8, styles: { fontStyle: 'bold', fontSize: 8, textColor: TERRA, fillColor: [241, 245, 249], halign: 'left' } }]);
+        stripeByRow.push(false); retiredByRow.push(false);
+        prevCharterKey = key;
+      }
+    }
     const sizes = g.sizes.length ? g.sizes : [{ size: '', qty: g.total }];
     const n = sizes.length;
     const stripe = gi % 2 === 1;
@@ -189,6 +211,7 @@ export const exportKitReceipt = async ({ crewName, vesselName, vessel, generated
     },
     didParseCell: (data) => {
       if (data.section !== 'body') return;
+      if (charterHeaderRows.has(data.row.index)) return; // keeps its own styling
       if (stripeByRow[data.row.index]) data.cell.styles.fillColor = [248, 250, 252];
       if (retiredByRow[data.row.index]) data.cell.styles.textColor = MUTED;
     },
