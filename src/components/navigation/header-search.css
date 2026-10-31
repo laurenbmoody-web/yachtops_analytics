@@ -222,3 +222,27 @@
   .nav-right { gap: 6px !important; flex-shrink: 0; }
   .nav-right button { padding: 6px !important; }
 }
+
+/* Inventory result thumbnail (so near-identical items are told apart at a glance) */
+.hsearch-thumb {
+  width: 30px; height: 30px; flex: none; border-radius: 7px; object-fit: cover;
+  background: #F1F5F9; border: 1px solid #E5E7EB;
+}
+
+/* "View all" footer row under a result group (e.g. all inventory matches) */
+.hsearch-viewall {
+  width: 100%; text-align: left; display: flex; align-items: center; gap: 10px;
+  padding: 9px 16px; background: #F8FAFC; border: none; border-top: 1px solid #F0F1F5;
+  cursor: pointer; font-family: 'Inter', system-ui, sans-serif; font-size: 12.5px; font-weight: 700;
+  color: #C65A1A; transition: background 0.12s;
+}
+.hsearch-viewall:hover { background: #F1F5F9; box-shadow: inset 3px 0 0 #C65A1A; }
+.hsearch-viewall .hsearch-ico { color: #C65A1A; }
+.hsearch-viewall .hsearch-chev { color: #C65A1A; }
+
+:root[data-theme="night"] .hsearch-thumb,
+.dark .hsearch-thumb { background: #20222E; border-color: #242639; }
+:root[data-theme="night"] .hsearch-viewall,
+.dark .hsearch-viewall { background: #191B26; border-top-color: #242639; }
+:root[data-theme="night"] .hsearch-viewall:hover,
+.dark .hsearch-viewall:hover { background: #20222E; }
