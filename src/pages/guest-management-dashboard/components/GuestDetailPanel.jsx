@@ -1108,7 +1108,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             {(formData?.passportDocumentUrl || guest?.passportDocumentUrl) ? (
               <div className="gdp-tile">
                 <Icon name="FileText" size={18} className="gdp-accent" />
-                <div className="flex-1 min-w-0">
+                <div className="gdp-grow">
                   {passportSignedUrl ? (
                     <a
                       href={passportSignedUrl}
@@ -1123,7 +1123,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   )}
                 </div>
                 {canEdit && !isDeleted && (
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="gdp-inline">
                     <button
                       type="button"
                       onClick={() => passportFileInputRef?.current?.click()}
@@ -1136,7 +1136,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                       type="button"
                       onClick={handlePassportDelete}
                       disabled={passportUploading}
-                      className="p-1 rounded text-error hover:bg-error/10 transition-colors disabled:opacity-50"
+                      className="gdp-iconbtn is-danger"
                     >
                       <Icon name="X" size={14} />
                     </button>
@@ -1152,7 +1152,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   className="gdp-dashed"
                 >
                   {passportUploading ? (
-                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    <div className="gdp-spin" />
                   ) : (
                     <Icon name="Upload" size={16} />
                   )}
@@ -1165,7 +1165,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               type="file"
               accept=".pdf,image/jpeg,image/png,image/webp"
               onChange={handlePassportUpload}
-              className="hidden"
+              className="gdp-hidden-input"
             />
           </div>
         </div>
@@ -1214,19 +1214,24 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <Icon name="Home" size={18} />
             Accommodation
           </h3>
-          <div className="gdp-field">
-            <label className="gdp-l">Cabin</label>
-            <div className="gdp-v">{getCabinDisplay()}</div>
-          </div>
+          {/* Reading: one line. Editing: the two ways to set it, and NOT a
+              third read-only copy of the answer above them — three stacked
+              "Cabin" rows was the thing that made this section unreadable. */}
+          {!(isEditing && !isDeleted) && (
+            <div className="gdp-field">
+              <label className="gdp-l">Cabin</label>
+              <V>{getCabinDisplay()}</V>
+            </div>
+          )}
 
           {/* Cabin Allocation - Searchable Dropdown */}
           {isEditing && !isDeleted && (
             <div className="gdp-field">
               <label className="gdp-l">
-                Guest Cabin Allocated (Optional)
+                Cabin <em>from the deck plan</em>
               </label>
-              <div className="relative" ref={cabinDropdownRef}>
-                <div className="relative">
+              <div className="gdp-anchor" ref={cabinDropdownRef}>
+                <div className="gdp-anchor">
                   <input
                     type="text"
                     value={cabinSearchQuery}
@@ -1286,12 +1291,12 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   </div>
                 )}
                 
-                {cabinOptions?.length === 0 && (
-                  <div className="gdp-note">
-                    No locations configured. Add cabins in Location Management.
-                  </div>
-                )}
               </div>
+              <p className="gdp-note">
+                {cabinOptions?.length === 0
+                  ? 'No locations configured. Add cabins in Location Management.'
+                  : `Currently ${getCabinDisplay()}.`}
+              </p>
             </div>
           )}
 
@@ -1299,18 +1304,18 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
           {isEditing && !isDeleted && (
             <div className="gdp-field">
               <label className="gdp-l">
-                OR Cabin (free text)
+                Or type a cabin <em className="faint">optional</em>
               </label>
               <input className="gdp-in"
                 value={cabinFreeText}
                 onChange={(e) => handleCabinFreeTextChange(e?.target?.value)}
-                placeholder="Enter cabin manually if not in dropdown"
+                placeholder="For a cabin that isn't on the deck plan"
               />
-              {cabinFreeText && selectedCabinPath && (
-                <div className="gdp-note">
-                  Note: Dropdown selection takes priority for automation
-                </div>
-              )}
+              <p className="gdp-note">
+                {cabinFreeText && selectedCabinPath
+                  ? 'A deck-plan cabin is set as well, and that one wins — automation follows the deck plan.'
+                  : 'Only used when the deck plan has no matching cabin.'}
+              </p>
             </div>
           )}
         </div>
@@ -1727,7 +1732,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
               })}
             </div>
           )}
-          <div className="mt-4 flex justify-end">
+          <div className="gdp-modal-actions">
             <button type="button" className="gdp-btn primary" onClick={() => setShowKidsModal(false)}>Done</button>
           </div>
         </ModalShell>
