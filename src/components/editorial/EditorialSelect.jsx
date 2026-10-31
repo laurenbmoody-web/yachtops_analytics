@@ -14,8 +14,9 @@
 // (pages/vessel-map/components/VmdSelect predates this and does the same job for
 // the defect form. It should fold into this one; it's left alone here because
 // re-skinning that page isn't what this change is for.)
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Icon from '../AppIcon';
+import { placeMenu } from './selectPlacement';
 import './editorial-select.css';
 
 export default function EditorialSelect({
@@ -23,6 +24,7 @@ export default function EditorialSelect({
   disabled = false, ariaLabel, id, className = '',
 }) {
   const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState({ up: false, maxHeight: null });
   const wrap = useRef(null);
   const listRef = useRef(null);
 
@@ -36,6 +38,25 @@ export default function EditorialSelect({
       document.removeEventListener('mousedown', onDoc);
       document.removeEventListener('keydown', onKey);
     };
+  }, [open]);
+
+  // Decide which way the list hangs, and how tall it may be, BEFORE the
+  // browser paints — a layout effect, so it never opens downward and then
+  // jumps. The list is absolutely positioned and so cannot make the page
+  // taller: opened low on a long record it would otherwise sit below the
+  // fold with nothing to scroll to.
+  useLayoutEffect(() => {
+    if (!open) { setPlace({ up: false, maxHeight: null }); return; }
+    const box = wrap.current?.getBoundingClientRect();
+    const list = listRef.current;
+    if (!box || !list) return;
+    setPlace(placeMenu({
+      triggerTop: box.top,
+      triggerBottom: box.bottom,
+      viewportHeight: window.innerHeight,
+      // scrollHeight is the full content height even once max-height clamps it.
+      contentHeight: list.scrollHeight,
+    }));
   }, [open]);
 
   // Open onto the chosen row rather than the top of the list — on a crew list of
@@ -66,7 +87,13 @@ export default function EditorialSelect({
       </button>
 
       {open && (
-        <div className="es-list" role="listbox" ref={listRef} aria-label={ariaLabel}>
+        <div
+          className={`es-list${place.up ? ' is-up' : ''}`}
+          role="listbox"
+          ref={listRef}
+          aria-label={ariaLabel}
+          style={place.maxHeight ? { maxHeight: `${place.maxHeight}px` } : undefined}
+        >
           {options.map((o, i) => {
             const on = String(o.value) === String(value);
             // Options may carry a `group`; a header is drawn wherever it changes,
