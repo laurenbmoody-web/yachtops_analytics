@@ -367,9 +367,6 @@ const GuestManagementDashboard = () => {
             )}
           </div>
         </div>
-            );
-          })
-        )}
         </div>
       </div>
 

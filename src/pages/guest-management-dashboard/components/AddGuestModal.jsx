@@ -1,17 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
 import Icon from '../../../components/AppIcon';
 import { showToast } from '../../../utils/toast';
 import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-management-settings/utils/locationsHierarchyStorage';
-import Select from '../../../components/ui/Select';
+import EditorialSelect from '../../../components/editorial/EditorialSelect';
+import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
 import { MaritalStatus, GuestType, getAvailableSpouseOptions, getAvailableKidsOptions, getPassportDocumentSignedUrl } from '../utils/guestStorage';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { supabase } from '../../../lib/supabaseClient';
 
 
 import ModalShell from '../../../components/ui/ModalShell';
+import '../add-guest-modal.css';
+// A plain input in the editorial field style, keeping the one extra thing the
+// old shared Input gave us: an `error` string that marks the field and prints
+// underneath it. Everything else it added — its own label, description and
+// colour tokens — is what made this modal look like a different product.
+const AgInput = ({ error, className = '', ...rest }) => (
+  <>
+    <input className={`ag-in${error ? ' is-bad' : ''} ${className}`.trim()} {...rest} />
+    {error && <p className="ag-err">{error}</p>}
+  </>
+);
+
 const PASSPORT_NATIONALITIES = [
   'Afghan', 'Albanian', 'Algerian', 'American', 'Andorran', 'Angolan', 'Antiguan',
   'Argentine', 'Armenian', 'Australian', 'Austrian', 'Azerbaijani', 'Bahamian',
@@ -511,83 +522,76 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
 
   // Section header helper
   const SectionHeader = ({ icon, title }) => (
-    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 pb-1 border-b border-border">
-      <Icon name={icon} size={15} className="text-muted-foreground" />
+    <h3 className="ag-h">
+      <Icon name={icon} size={14} />
       {title}
     </h3>
   );
 
   // Toggle component
   const Toggle = ({ checked, onChange, label }) => (
-    <div className="flex items-center gap-3">
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-          checked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
-        }`}
-      >
-        <span
-          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-            checked ? 'translate-x-6' : 'translate-x-1'
-          }`}
-        />
-      </button>
-      {label && <span className="text-sm font-medium text-foreground">{label}</span>}
-    </div>
+    <button
+      type="button"
+      className={checked ? 'ag-switch is-on' : 'ag-switch'}
+      aria-pressed={!!checked}
+      onClick={() => onChange(!checked)}
+    >
+      <span className="ag-switch-track"><span className="ag-switch-knob" /></span>
+      {label && <span className="ag-switch-l">{label}</span>}
+    </button>
   );
 
   return (
     <>
-      <ModalShell onClose={handleClose} panelClassName="bg-card border border-border rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <ModalShell onClose={handleClose} panelClassName="ag">
         {/* Header */}
-        <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl">
-          <h2 className="text-xl font-semibold text-foreground">{editingGuest ? 'Edit Guest' : 'Add Guest'}</h2>
+        <div className="ag-head">
+          <h2 >{editingGuest ? 'Edit Guest' : 'Add Guest'}</h2>
           <button
             onClick={handleClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="ag-x"
           >
             <Icon name="X" size={20} />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-8">
+        <form onSubmit={handleSubmit} className="ag-form">
 
           {/* ── Photo Upload ── */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Guest Photo</label>
+          <div className="ag-f">
+            <label className="ag-l">Guest Photo</label>
             {formData?.photo ? (
-              <div className="relative w-32 h-32 rounded-lg overflow-hidden border-2 border-border">
+              <div className="ag-photo">
                 <img
                   src={formData?.photo?.dataUrl}
                   alt="Guest"
-                  className="w-full h-full object-cover"
+                  
                 />
                 <button
                   type="button"
                   onClick={handleRemovePhoto}
-                  className="absolute top-2 right-2 bg-destructive text-destructive-foreground p-1.5 rounded-full hover:bg-destructive/90 transition-colors"
+                  className="ag-photo-x"
                 >
                   <Icon name="X" size={16} />
                 </button>
               </div>
             ) : (
-              <div className="relative">
+              <div className="ag-anchor">
                 <button
                   type="button"
                   onClick={() => setShowPhotoPicker(!showPhotoPicker)}
-                  className="w-32 h-32 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary transition-colors"
+                  className="ag-photo-empty"
                 >
-                  <Icon name="Camera" size={24} className="text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Add Photo</span>
+                  <Icon name="Camera" size={24} className="ag-note" />
+                  <span className="ag-note">Add Photo</span>
                 </button>
                 {showPhotoPicker && (
-                  <div className="absolute top-full left-0 mt-2 bg-card border border-border rounded-lg shadow-lg p-2 z-10 space-y-2">
+                  <div className="ag-menu">
                     <button
                       type="button"
                       onClick={() => fileInputRef?.current?.click()}
-                      className="w-full px-4 py-2 text-sm text-left hover:bg-accent rounded flex items-center gap-2"
+                      className="ag-opt"
                     >
                       <Icon name="Upload" size={16} />
                       Upload from device
@@ -595,37 +599,37 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
                     <button
                       type="button"
                       onClick={() => cameraInputRef?.current?.click()}
-                      className="w-full px-4 py-2 text-sm text-left hover:bg-accent rounded flex items-center gap-2"
+                      className="ag-opt"
                     >
                       <Icon name="Camera" size={16} />
                       Take photo
                     </button>
                   </div>
                 )}
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => handlePhotoUpload(e, 'file')} className="hidden" />
-                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={(e) => handlePhotoUpload(e, 'camera')} className="hidden" />
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={(e) => handlePhotoUpload(e, 'file')} className="ag-hidden-input" />
+                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={(e) => handlePhotoUpload(e, 'camera')} className="ag-hidden-input" />
               </div>
             )}
           </div>
 
           {/* ── Personal Info ── */}
-          <div className="space-y-4">
+          <div className="ag-sec">
             <SectionHeader icon="User" title="Personal Information" />
 
             {/* Name */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">First Name *</label>
-                <Input
+            <div className="ag-row">
+              <div className="ag-f">
+                <label className="ag-l">First Name *</label>
+                <AgInput
                   value={formData?.firstName}
                   onChange={(e) => handleChange('firstName', e?.target?.value)}
                   placeholder="Enter first name"
                   error={errors?.firstName}
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Last Name *</label>
-                <Input
+              <div className="ag-f">
+                <label className="ag-l">Last Name *</label>
+                <AgInput
                   value={formData?.lastName}
                   onChange={(e) => handleChange('lastName', e?.target?.value)}
                   placeholder="Enter last name"
@@ -635,9 +639,9 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
             </div>
 
             {/* Guest Type */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Guest Type</label>
-              <Select
+            <div className="ag-f">
+              <label className="ag-l">Guest Type</label>
+              <EditorialSelect
                 value={formData?.guestType}
                 onChange={(value) => handleChange('guestType', value)}
                 options={[
@@ -649,21 +653,21 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
             </div>
 
             {/* DOB & Cake */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Date of Birth</label>
-                <Input type="date" value={formData?.dateOfBirth} onChange={(e) => handleChange('dateOfBirth', e?.target?.value)} />
+            <div className="ag-row">
+              <div className="ag-f">
+                <label className="ag-l">Date of Birth</label>
+                <EditorialDatePicker cool value={formData?.dateOfBirth || ''} onChange={(iso) => handleChange('dateOfBirth', iso)} placeholder="dd/mm/yyyy" />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Cake Preference</label>
-                <Input value={formData?.cakePreference} onChange={(e) => handleChange('cakePreference', e?.target?.value)} placeholder="e.g., Chocolate, Vanilla" />
+              <div className="ag-f">
+                <label className="ag-l">Cake Preference</label>
+                <AgInput value={formData?.cakePreference} onChange={(e) => handleChange('cakePreference', e?.target?.value)} placeholder="e.g., Chocolate, Vanilla" />
               </div>
             </div>
 
             {/* Marital Status */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Marital Status</label>
-              <Select
+            <div className="ag-f">
+              <label className="ag-l">Marital Status</label>
+              <EditorialSelect
                 value={formData?.maritalStatus}
                 onChange={(value) => handleChange('maritalStatus', value)}
                 options={[
@@ -679,9 +683,9 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
 
             {/* Spouse Link */}
             {formData?.maritalStatus === MaritalStatus?.MARRIED && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Connect Spouse (optional)</label>
-                <Select
+              <div className="ag-f">
+                <label className="ag-l">Connect Spouse (optional)</label>
+                <EditorialSelect
                   value={formData?.spouseGuestId || ''}
                   onChange={(value) => handleChange('spouseGuestId', value)}
                   options={[
@@ -691,115 +695,113 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
                       label: `${guest?.firstName} ${guest?.lastName}${guest?.cabinLocationPath ? ` (${guest?.cabinLocationPath})` : ''}`
                     }))
                   ]}
-                  searchable
                 />
               </div>
             )}
 
             {/* Connect Kids */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Connect Kids (optional)</label>
+            <div className="ag-f">
+              <label className="ag-l">Connect Kids (optional)</label>
               <button
                 type="button"
                 onClick={handleOpenKidsModal}
-                className="flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                className="ag-link"
               >
                 <Icon name="Users" size={14} />
                 <span>{getLinkedKidsDisplay()}</span>
-                <Icon name="ChevronRight" size={14} className="text-muted-foreground" />
+                <Icon name="ChevronRight" size={14} className="ag-note" />
               </button>
             </div>
           </div>
 
           {/* ── Contact Information ── */}
-          <div className="space-y-4">
+          <div className="ag-sec">
             <SectionHeader icon="Mail" title="Contact Information" />
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Email</label>
-              <Input type="email" value={formData?.contactEmail} onChange={(e) => handleChange('contactEmail', e?.target?.value)} placeholder="guest@example.com" />
+            <div className="ag-f">
+              <label className="ag-l">Email</label>
+              <AgInput type="email" value={formData?.contactEmail} onChange={(e) => handleChange('contactEmail', e?.target?.value)} placeholder="guest@example.com" />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Phone</label>
-              <Input type="tel" value={formData?.contactPhone} onChange={(e) => handleChange('contactPhone', e?.target?.value)} placeholder="+1 (555) 000-0000" />
+            <div className="ag-f">
+              <label className="ag-l">Phone</label>
+              <AgInput type="tel" value={formData?.contactPhone} onChange={(e) => handleChange('contactPhone', e?.target?.value)} placeholder="+1 (555) 000-0000" />
             </div>
           </div>
 
           {/* ── Travel & Documents ── */}
-          <div className="space-y-4">
+          <div className="ag-sec">
             <SectionHeader icon="FileText" title="Travel & Documents" />
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Passport Number</label>
-              <Input value={formData?.passportNumber} onChange={(e) => handleChange('passportNumber', e?.target?.value)} placeholder="e.g., AB1234567" />
+            <div className="ag-f">
+              <label className="ag-l">Passport Number</label>
+              <AgInput value={formData?.passportNumber} onChange={(e) => handleChange('passportNumber', e?.target?.value)} placeholder="e.g., AB1234567" />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Passport Nationality</label>
-              <Select
+            <div className="ag-f">
+              <label className="ag-l">Passport Nationality</label>
+              <EditorialSelect
                 value={formData?.passportNationality}
                 onChange={(value) => handleChange('passportNationality', value)}
                 options={[
                   { value: '', label: 'Select nationality' },
                   ...PASSPORT_NATIONALITIES?.map(n => ({ value: n, label: n }))
                 ]}
-                searchable
               />
             </div>
 
             {formData?.passportNationality === 'Other' && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Nationality (specify)</label>
-                <Input value={formData?.passportNationalityOther} onChange={(e) => handleChange('passportNationalityOther', e?.target?.value)} placeholder="Enter nationality" />
+              <div className="ag-f">
+                <label className="ag-l">Nationality (specify)</label>
+                <AgInput value={formData?.passportNationalityOther} onChange={(e) => handleChange('passportNationalityOther', e?.target?.value)} placeholder="Enter nationality" />
               </div>
             )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Passport Expiry Date</label>
-              <Input type="date" value={formData?.passportExpiryDate} onChange={(e) => handleChange('passportExpiryDate', e?.target?.value)} />
+            <div className="ag-f">
+              <label className="ag-l">Passport Expiry Date</label>
+              <EditorialDatePicker cool value={formData?.passportExpiryDate || ''} onChange={(iso) => handleChange('passportExpiryDate', iso)} placeholder="dd/mm/yyyy" />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Visa Notes</label>
+            <div className="ag-f">
+              <label className="ag-l">Visa Notes</label>
               <textarea
                 value={formData?.visaNotes}
                 onChange={(e) => handleChange('visaNotes', e?.target?.value)}
                 placeholder="Visa requirements, restrictions, notes..."
                 rows={3}
-                className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                className="ag-ta"
               />
             </div>
 
             {/* Passport Document Upload */}
             <div>
-              <label className="text-sm font-medium text-muted-foreground mb-2 block">Passport Document</label>
+              <label className="ag-l">Passport Document</label>
               {(formData?.passportDocumentUrl) ? (
-                <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border border-border">
-                  <Icon name="FileText" size={18} className="text-primary flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
+                <div className="ag-doc">
+                  <Icon name="FileText" size={18} className="ag-accent" />
+                  <div className="ag-grow">
                     {passportSignedUrl ? (
                       <a
                         href={passportSignedUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline truncate block"
+                        className="ag-filelink"
                       >
                         View Passport Document
                       </a>
                     ) : (
-                      <span className="text-sm text-foreground">Passport Document</span>
+                      <span className="ag-val">Passport Document</span>
                     )}
                   </div>
                   <button
                     type="button"
                     onClick={() => passportFileInputRef?.current?.click()}
-                    className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded border border-border hover:bg-muted transition-colors"
+                    className="ag-btn ghost sm"
                   >
                     Replace
                   </button>
                   <button
                     type="button"
                     onClick={handlePassportRemove}
-                    className="text-xs text-destructive hover:text-destructive/80 px-2 py-1 rounded border border-destructive/30 hover:bg-destructive/10 transition-colors"
+                    className="ag-btn danger sm"
                   >
                     Remove
                   </button>
@@ -809,10 +811,10 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
                   type="button"
                   onClick={() => passportFileInputRef?.current?.click()}
                   disabled={passportUploading}
-                  className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-sm rounded-lg border border-border transition-colors disabled:opacity-50"
+                  className="ag-btn ghost"
                 >
                   {passportUploading ? (
-                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    <div className="ag-spin" />
                   ) : (
                     <Icon name="Upload" size={16} />
                   )}
@@ -824,24 +826,24 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
                 type="file"
                 accept=".pdf,image/jpeg,image/png,image/webp"
                 onChange={handlePassportUpload}
-                className="hidden"
+                className="ag-hidden-input"
               />
             </div>
 
-            <div className="pt-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Emergency Contact</p>
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Name</label>
-                  <Input value={formData?.emergencyContactName} onChange={(e) => handleChange('emergencyContactName', e?.target?.value)} placeholder="Full name" />
+            <div className="ag-f">
+              <p className="ag-l">Emergency Contact</p>
+              <div className="ag-stack">
+                <div className="ag-f">
+                  <label className="ag-l">Name</label>
+                  <AgInput value={formData?.emergencyContactName} onChange={(e) => handleChange('emergencyContactName', e?.target?.value)} placeholder="Full name" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Phone</label>
-                  <Input type="tel" value={formData?.emergencyContactPhone} onChange={(e) => handleChange('emergencyContactPhone', e?.target?.value)} placeholder="+1 (555) 000-0000" />
+                <div className="ag-f">
+                  <label className="ag-l">Phone</label>
+                  <AgInput type="tel" value={formData?.emergencyContactPhone} onChange={(e) => handleChange('emergencyContactPhone', e?.target?.value)} placeholder="+1 (555) 000-0000" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Relationship</label>
-                  <Select
+                <div className="ag-f">
+                  <label className="ag-l">Relationship</label>
+                  <EditorialSelect
                     value={formData?.emergencyContactRelationship}
                     onChange={(value) => handleChange('emergencyContactRelationship', value)}
                     options={[
@@ -855,36 +857,36 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
           </div>
 
           {/* ── Health Information ── */}
-          <div className="space-y-4">
+          <div className="ag-sec">
             <SectionHeader icon="Heart" title="Health Information" />
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Health Conditions</label>
-              <Input value={formData?.healthConditions} onChange={(e) => handleChange('healthConditions', e?.target?.value)} placeholder="Any medical conditions to note" />
+            <div className="ag-f">
+              <label className="ag-l">Health Conditions</label>
+              <AgInput value={formData?.healthConditions} onChange={(e) => handleChange('healthConditions', e?.target?.value)} placeholder="Any medical conditions to note" />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Allergies</label>
-              <Input value={formData?.allergies} onChange={(e) => handleChange('allergies', e?.target?.value)} placeholder="Food or other allergies" />
+            <div className="ag-f">
+              <label className="ag-l">Allergies</label>
+              <AgInput value={formData?.allergies} onChange={(e) => handleChange('allergies', e?.target?.value)} placeholder="Food or other allergies" />
             </div>
           </div>
 
           {/* ── Cabin Allocation ── */}
-          <div className="space-y-3">
+          <div className="ag-stack">
             <SectionHeader icon="Home" title="Cabin Allocation" />
             
             {locationNotFound && formData?.cabinLocationPath && (
-              <div className="px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800">
-                <span className="font-medium">⚠ Previously selected cabin no longer exists.</span> Please select a new cabin.
+              <div className="ag-callout warn">
+                <span className="ag-strong">⚠ Previously selected cabin no longer exists.</span> Please select a new cabin.
               </div>
             )}
             
             {getAllDecks()?.length > 0 ? (
-              <div className="space-y-3">
+              <div className="ag-stack">
                 <div>
-                  <label className="block text-xs font-medium text-gray-900 mb-1">Deck</label>
+                  <label className="ag-l">Deck</label>
                   <select
                     value={formData?.cabinLocationIds?.deckId || ''}
                     onChange={(e) => handleLocationHierarchyChange('deck', e?.target?.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="ag-in"
                   >
                     <option value="">Select deck</option>
                     {getAllDecks()?.map(deck => (
@@ -895,11 +897,11 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
                 
                 {/* Zone Dropdown */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-900 mb-1">Zone</label>
+                  <label className="ag-l">Zone</label>
                   <select
                     value={formData?.cabinLocationIds?.zoneId || ''}
                     onChange={(e) => handleLocationHierarchyChange('zone', e?.target?.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="ag-in"
                     disabled={!formData?.cabinLocationIds?.deckId}
                   >
                     <option value="">Select zone</option>
@@ -911,11 +913,11 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
                 
                 {/* Space Dropdown */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-900 mb-1">Space</label>
+                  <label className="ag-l">Space</label>
                   <select
                     value={formData?.cabinLocationIds?.spaceId || ''}
                     onChange={(e) => handleLocationHierarchyChange('space', e?.target?.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="ag-in"
                     disabled={!formData?.cabinLocationIds?.zoneId}
                   >
                     <option value="">Select space</option>
@@ -926,26 +928,26 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
                 </div>
               </div>
             ) : (
-              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600">
+              <div className="ag-callout">
                 No locations configured. Add cabins in Location Management.
               </div>
             )}
             
             {/* Display selected location */}
             {formData?.cabinLocationPath && (
-              <div className="px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-gray-700">
-                <span className="font-medium">Selected: </span>{formData?.cabinLocationPath}
+              <div className="ag-callout info">
+                <span className="ag-strong">Selected: </span>{formData?.cabinLocationPath}
               </div>
             )}
           </div>
 
           {/* ── Payment & APA ── */}
-          <div className="space-y-4">
+          <div className="ag-sec">
             <SectionHeader icon="DollarSign" title="Payment & APA" />
             
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Client Type</label>
-              <Select
+            <div className="ag-f">
+              <label className="ag-l">Client Type</label>
+              <EditorialSelect
                 value={formData?.clientType}
                 onChange={(value) => handleChange('clientType', value)}
                 options={[
@@ -955,19 +957,19 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Billing Contact Name</label>
-              <Input value={formData?.billingContactName} onChange={(e) => handleChange('billingContactName', e?.target?.value)} placeholder="Full name" />
+            <div className="ag-f">
+              <label className="ag-l">Billing Contact Name</label>
+              <AgInput value={formData?.billingContactName} onChange={(e) => handleChange('billingContactName', e?.target?.value)} placeholder="Full name" />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Billing Contact Email</label>
-              <Input type="email" value={formData?.billingContactEmail} onChange={(e) => handleChange('billingContactEmail', e?.target?.value)} placeholder="billing@example.com" />
+            <div className="ag-f">
+              <label className="ag-l">Billing Contact Email</label>
+              <AgInput type="email" value={formData?.billingContactEmail} onChange={(e) => handleChange('billingContactEmail', e?.target?.value)} placeholder="billing@example.com" />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Preferred Currency</label>
-              <Select
+            <div className="ag-f">
+              <label className="ag-l">Preferred Currency</label>
+              <EditorialSelect
                 value={formData?.preferredCurrency}
                 onChange={(value) => handleChange('preferredCurrency', value)}
                 options={[
@@ -985,37 +987,37 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
 
             {formData?.apaRequired && (
               <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">APA Amount</label>
-                  <Input type="number" value={formData?.apaAmount} onChange={(e) => handleChange('apaAmount', e?.target?.value)} placeholder="0.00" />
+                <div className="ag-f">
+                  <label className="ag-l">APA Amount</label>
+                  <AgInput type="number" value={formData?.apaAmount} onChange={(e) => handleChange('apaAmount', e?.target?.value)} placeholder="0.00" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">APA Notes</label>
+                <div className="ag-f">
+                  <label className="ag-l">APA Notes</label>
                   <textarea
                     value={formData?.apaNotes}
                     onChange={(e) => handleChange('apaNotes', e?.target?.value)}
                     placeholder="APA terms, conditions, notes..."
                     rows={3}
-                    className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                    className="ag-ta"
                   />
                 </div>
               </>
             )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Payment Notes</label>
+            <div className="ag-f">
+              <label className="ag-l">Payment Notes</label>
               <textarea
                 value={formData?.paymentNotes}
                 onChange={(e) => handleChange('paymentNotes', e?.target?.value)}
                 placeholder="Payment terms, history, special arrangements..."
                 rows={3}
-                className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                className="ag-ta"
               />
             </div>
           </div>
 
           {/* ── NDA & Privacy ── */}
-          <div className="space-y-4">
+          <div className="ag-sec">
             <SectionHeader icon="Shield" title="NDA &amp; Privacy" />
 
             <Toggle
@@ -1026,21 +1028,21 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
 
             {formData?.ndaSigned && (
               <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">NDA Expiry Date</label>
-                  <Input type="date" value={formData?.ndaExpiryDate} onChange={(e) => handleChange('ndaExpiryDate', e?.target?.value)} />
+                <div className="ag-f">
+                  <label className="ag-l">NDA Expiry Date</label>
+                  <EditorialDatePicker cool value={formData?.ndaExpiryDate || ''} onChange={(iso) => handleChange('ndaExpiryDate', iso)} placeholder="dd/mm/yyyy" />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">NDA Document</label>
+                <div className="ag-f">
+                  <label className="ag-l">NDA Document</label>
                   {formData?.ndaDocumentUrl ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-accent border border-border rounded-lg">
-                      <Icon name="FileText" size={16} className="text-muted-foreground" />
-                      <span className="text-sm text-foreground flex-1 truncate">{ndaFileName}</span>
+                    <div className="ag-doc">
+                      <Icon name="FileText" size={16} className="ag-note" />
+                      <span className="ag-filename">{ndaFileName}</span>
                       <button
                         type="button"
                         onClick={handleNdaRemove}
-                        className="text-destructive hover:text-destructive/80"
+                        className="ag-iconbtn is-danger"
                       >
                         <Icon name="X" size={16} />
                       </button>
@@ -1052,155 +1054,150 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
                         type="file"
                         accept=".pdf,.doc,.docx"
                         onChange={handleNdaUpload}
-                        className="hidden"
+                        className="ag-hidden-input"
                       />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => ndaFileInputRef?.current?.click()}
+                      <button className="ag-btn ghost" type="button" onClick={() => ndaFileInputRef?.current?.click()}
                         disabled={ndaUploading}
                       >
                         {ndaUploading ? 'Uploading...' : 'Upload NDA Document'}
-                      </Button>
+                      </button>
                     </div>
                   )}
                 </div>
               </>
             )}
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Privacy Level</label>
-              <Select
+            <div className="ag-f">
+              <label className="ag-l">Privacy Level</label>
+              <EditorialSelect
                 value={formData?.privacyLevel}
                 onChange={(value) => handleChange('privacyLevel', value)}
                 options={PRIVACY_LEVELS?.map(p => ({ value: p, label: p }))}
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Photo Permission</label>
-              <Select
+            <div className="ag-f">
+              <label className="ag-l">Photo Permission</label>
+              <EditorialSelect
                 value={formData?.photoPermission}
                 onChange={(value) => handleChange('photoPermission', value)}
                 options={PHOTO_PERMISSIONS?.map(p => ({ value: p, label: p }))}
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Share Guest Info with Crew</label>
-              <Select
+            <div className="ag-f">
+              <label className="ag-l">Share Guest Info with Crew</label>
+              <EditorialSelect
                 value={formData?.shareGuestInfoWithCrew}
                 onChange={(value) => handleChange('shareGuestInfoWithCrew', value)}
                 options={SHARE_INFO_OPTIONS?.map(o => ({ value: o, label: o }))}
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Privacy Notes</label>
+            <div className="ag-f">
+              <label className="ag-l">Privacy Notes</label>
               <textarea
                 value={formData?.privacyNotes}
                 onChange={(e) => handleChange('privacyNotes', e?.target?.value)}
                 placeholder="Privacy preferences, restrictions, special considerations..."
                 rows={3}
-                className="w-full px-3 py-2 bg-background border border-input rounded-lg text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                className="ag-ta"
               />
             </div>
           </div>
 
           {/* Preferences Summary */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2 pb-1 border-b border-border">
-              <Icon name="Star" size={15} className="text-muted-foreground" />
+          <div className="ag-sec">
+            <h3 className="ag-h">
+              <Icon name="Star" size={15} className="ag-note" />
               Preferences
             </h3>
             <button
               type="button"
               onClick={() => navigate('/preferences')}
-              className="w-full px-4 py-3 bg-muted/50 hover:bg-muted rounded-lg text-left flex items-center justify-between transition-colors"
+              className="ag-cta"
             >
-              <div className="flex items-center gap-2">
-                <Icon name="Settings" size={16} className="text-foreground" />
-                <span className="text-sm font-medium text-foreground">Preferences</span>
+              <div className="ag-inline">
+                <Icon name="Settings" size={16} className="ag-val" />
+                <span className="ag-l">Preferences</span>
               </div>
-              <Icon name="ChevronRight" size={16} className="text-muted-foreground" />
+              <Icon name="ChevronRight" size={16} className="ag-note" />
             </button>
           </div>
 
           {/* Active Status */}
-          <div className="flex items-center gap-3">
+          <div className="ag-switchrow">
             <input
               type="checkbox"
               id="isActiveOnTrip"
               checked={formData?.isActiveOnTrip}
               onChange={(e) => handleChange('isActiveOnTrip', e?.target?.checked)}
-              className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+              className="ag-check"
             />
-            <label htmlFor="isActiveOnTrip" className="text-sm font-medium text-foreground cursor-pointer">
+            <label htmlFor="isActiveOnTrip" className="ag-switch-l">
               Active on current trip
             </label>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
+          <div className="ag-actions">
+            <button className="ag-btn ghost is-grow" type="button" onClick={handleClose}>
               Cancel
-            </Button>
-            <Button type="submit" className="flex-1">
+            </button>
+            <button className="ag-btn primary is-grow" type="submit">
               {editingGuest ? 'Save Changes' : 'Add Guest'}
-            </Button>
+            </button>
           </div>
         </form>
       </ModalShell>
       {/* Kids Modal */}
       {showKidsModal && (
-        <ModalShell onClose={() => setShowKidsModal(false)} panelClassName="bg-card border border-border rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto">
-          <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between rounded-t-2xl">
-            <h3 className="text-lg font-semibold text-foreground">Connect Kids</h3>
+        <ModalShell onClose={() => setShowKidsModal(false)} panelClassName="ag is-narrow">
+          <div className="ag-head">
+            <h3 >Connect Kids</h3>
             <button
               onClick={() => setShowKidsModal(false)}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="ag-x"
             >
               <Icon name="X" size={20} />
             </button>
           </div>
-          <div className="p-6">
+          <div className="ag-form">
             {kidsLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+              <div className="ag-empty">Loading...</div>
             ) : kidsOptions?.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">No kids available to link</div>
+              <div className="ag-empty">No kids available to link</div>
             ) : (
-              <div className="space-y-2">
+              <div className="ag-f">
                 {kidsOptions?.map(kid => (
                   <label
                     key={kid?.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent cursor-pointer"
+                    className="ag-pick"
                   >
                     <input
                       type="checkbox"
                       checked={linkedKidIds?.includes(kid?.id)}
                       onChange={() => handleToggleKid(kid?.id)}
-                      className="w-4 h-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+                      className="ag-check"
                     />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-foreground">
+                    <div className="ag-grow">
+                      <div className="ag-l">
                         {kid?.firstName} {kid?.lastName}
                       </div>
                       {kid?.cabinLocationPath && (
-                        <div className="text-xs text-muted-foreground">{kid?.cabinLocationPath}</div>
+                        <div className="ag-note">{kid?.cabinLocationPath}</div>
                       )}
                     </div>
                   </label>
                 ))}
               </div>
             )}
-            <div className="mt-6">
-              <Button
-                type="button"
-                onClick={() => setShowKidsModal(false)}
-                className="w-full"
+            <div className="ag-foot">
+              <button className="ag-btn primary" type="button" onClick={() => setShowKidsModal(false)}
+                className="is-wide"
               >
                 Done
-              </Button>
+              </button>
             </div>
           </div>
         </ModalShell>
