@@ -6,7 +6,7 @@ import SignaturePad from '../../../components/SignaturePad';
 import { showToast } from '../../../utils/toast';
 import {
   KIT_CATEGORIES, CONDITIONS, kitCategoryLabel, fmtKitDate,
-  fetchCrewKit, fetchKitItemImages, saveKitItem, deleteKitItem,
+  fetchCrewKit, fetchKitItemMeta, saveKitItem, deleteKitItem,
   uploadKitSignature, acknowledgeKitItems, requestKitSwap, signedKitSignatureUrl, kitSignatureDataUrl,
   recordKitReturn, markKitLost, reinstateKitItem,
   fetchUniformSizes, saveUniformSizes, UNIFORM_SIZE_KEYS,
@@ -16,6 +16,7 @@ import {
 } from '../utils/crewKit';
 import { exportKitReceipt } from '../utils/kitReceiptExport';
 import { formatShoeTrio } from '../utils/shoeSizes';
+import { charterOfItem, CHARTER_ORDER } from '../utils/uniformFolder';
 import {
   FIT_OPTIONS, REGION_OPTIONS, SIZE_FIELDS, FIELD_BY_KEY, SIZE_GROUPS,
   fieldVisible, fitLabel, sizeKeyFor, suggestSize, sexToFit,
@@ -48,7 +49,8 @@ const IssuedKitTab =({ userId, tenantId, currentUserId, currentUserName, crewNam
   const [ackSig, setAckSig] = useState(null);
   const [ackName, setAckName] = useState(currentUserName || '');
   const [swaps, setSwaps] = useState({}); // itemId -> requested size (crew asks for a different size instead of signing)
-  const [imgMap, setImgMap] = useState({}); // inventory_item_id -> photo (best-effort; needs inventory read)
+  const [imgMap, setImgMap] = useState({}); // inventory_item_id -> photo
+  const [metaMap, setMetaMap] = useState({}); // inventory_item_id -> { image, location, sub_location } (for charter grouping)
   const [receiptOpen, setReceiptOpen] = useState(false); // receipt scope chooser (currently held vs full record)
 
   const [returnOpen, setReturnOpen] = useState(false);
@@ -104,7 +106,10 @@ const IssuedKitTab =({ userId, tenantId, currentUserId, currentUserName, crewNam
       // acknowledgement, export). Via a SECURITY DEFINER read so it works even
       // without inventory read; falls back to garment icons if unavailable.
       if (kit.some((k) => k.inventory_item_id)) {
-        fetchKitItemImages(userId).then((m) => setImgMap(m || {})).catch(() => {});
+        fetchKitItemMeta(userId).then((m) => {
+          setMetaMap(m || {});
+          setImgMap(Object.fromEntries(Object.entries(m || {}).filter(([, v]) => v?.image).map(([id, v]) => [id, v.image])));
+        }).catch(() => {});
       }
     } catch { showToast('Failed to load issued kit', 'error'); }
     finally { setLoading(false); }
@@ -322,7 +327,7 @@ const IssuedKitTab =({ userId, tenantId, currentUserId, currentUserName, crewNam
         vessel: vesselInfo,
         generatedAt: fmtKitDate(today()), items: list, ackSig: ackImg, returnSig: retImg,
         scopeLabel: scope === 'held' ? 'Currently held' : 'Full record',
-        images: imgMap,
+        meta: metaMap,
       });
     } catch (e) { showToast(e.message || 'Could not generate the kit record', 'error'); }
     finally { setBusy(false); }
@@ -654,15 +659,28 @@ const IssuedKitTab =({ userId, tenantId, currentUserId, currentUserName, crewNam
                 // Accessories) so the crew member reads it the way it's worn;
                 // other kit categories (PPE, electronics…) stay as one group.
                 if (cat.id === 'uniform') {
-                  const sub = {};
-                  rows.forEach((r) => { const t = canonicalGarment(r.item); (sub[t] = sub[t] || []).push(r); });
-                  const types = Object.keys(sub).sort((a, b) => ((GARMENT_ORDER[a] ?? 9) - (GARMENT_ORDER[b] ?? 9)) || a.localeCompare(b));
-                  return types.map((t) => (
-                    <div className="cp-group" key={`uniform-${t}`}>
-                      <div className="cp-group-head"><span className="dia">◆</span><span className="t">{t}</span><span className="line" /></div>
-                      <div className="kit-tilegrid">{renderKitTiles(sub[t])}</div>
-                    </div>
-                  ));
+                  // Charter-first (On charter → Off charter → General), then by
+                  // garment type within each — same shape as the wardrobe view.
+                  const byCharter = {};
+                  rows.forEach((r) => { const ch = charterOfItem(metaMap[r.inventory_item_id]); (byCharter[ch] = byCharter[ch] || []).push(r); });
+                  const charters = Object.keys(byCharter).sort((a, b) => (CHARTER_ORDER[a] ?? 9) - (CHARTER_ORDER[b] ?? 9));
+                  const multiCharter = charters.length > 1;
+                  return charters.map((ch) => {
+                    const sub = {};
+                    byCharter[ch].forEach((r) => { const t = canonicalGarment(r.item); (sub[t] = sub[t] || []).push(r); });
+                    const types = Object.keys(sub).sort((a, b) => ((GARMENT_ORDER[a] ?? 9) - (GARMENT_ORDER[b] ?? 9)) || a.localeCompare(b));
+                    return (
+                      <React.Fragment key={`uniform-ch-${ch}`}>
+                        {multiCharter && <p className="kit-charter-head">{ch}</p>}
+                        {types.map((t) => (
+                          <div className="cp-group" key={`uniform-${ch}-${t}`}>
+                            <div className="cp-group-head"><span className="dia">◆</span><span className="t">{t}</span><span className="line" /></div>
+                            <div className="kit-tilegrid">{renderKitTiles(sub[t])}</div>
+                          </div>
+                        ))}
+                      </React.Fragment>
+                    );
+                  });
                 }
                 return (
                   <div className="cp-group" key={cat.id}>
@@ -821,29 +839,41 @@ const IssuedKitTab =({ userId, tenantId, currentUserId, currentUserName, crewNam
                   <div className="kit-ack-body">
                     <p className="kit-ack-intro">Confirm the items you’ve received and accept responsibility for. If something’s the wrong size, request a swap instead — it goes back to whoever handed it over.</p>
                     <ul className="kit-ack-list">
-                      {unacked.map((i) => {
-                        const swapping = i.id in swaps;
-                        const img = imgMap[i.inventory_item_id];
-                        return (
-                          <li key={i.id} className={`kit-ack-item${swapping ? ' swapping' : ''}`}>
-                            <div className="kit-ack-line">
-                              <span className="kit-ack-thumb">
-                                {img ? <img src={img} alt={i.item} /> : <Icon name={GARMENT_ICON[canonicalGarment(i.item)] || 'Shirt'} size={18} />}
-                              </span>
-                              <span className="kit-ack-nm">{i.item}{i.size ? ` · ${i.size}` : ''}{i.quantity > 1 ? ` · ×${i.quantity}` : ''}</span>
-                              <button type="button" className="kit-ack-swapbtn" onClick={() => toggleSwap(i.id)}>
-                                {swapping ? 'Keep this' : 'Wrong size?'}
-                              </button>
-                            </div>
-                            {swapping && (
-                              <div className="kit-ack-swap">
-                                <Icon name="Repeat" size={13} />
-                                <input value={swaps[i.id]} onChange={(e) => setSwapSize(i.id, e.target.value)} placeholder="Size you need, e.g. L" autoFocus />
+                      {(() => {
+                        const byCh = {};
+                        unacked.forEach((i) => { const ch = charterOfItem(metaMap[i.inventory_item_id]); (byCh[ch] = byCh[ch] || []).push(i); });
+                        const chs = Object.keys(byCh).sort((a, b) => (CHARTER_ORDER[a] ?? 9) - (CHARTER_ORDER[b] ?? 9));
+                        const multi = chs.length > 1;
+                        const renderItem = (i) => {
+                          const swapping = i.id in swaps;
+                          const img = imgMap[i.inventory_item_id];
+                          return (
+                            <li key={i.id} className={`kit-ack-item${swapping ? ' swapping' : ''}`}>
+                              <div className="kit-ack-line">
+                                <span className="kit-ack-thumb">
+                                  {img ? <img src={img} alt={i.item} /> : <Icon name={GARMENT_ICON[canonicalGarment(i.item)] || 'Shirt'} size={18} />}
+                                </span>
+                                <span className="kit-ack-nm">{i.item}{i.size ? ` · ${i.size}` : ''}{i.quantity > 1 ? ` · ×${i.quantity}` : ''}</span>
+                                <button type="button" className="kit-ack-swapbtn" onClick={() => toggleSwap(i.id)}>
+                                  {swapping ? 'Keep this' : 'Wrong size?'}
+                                </button>
                               </div>
-                            )}
-                          </li>
-                        );
-                      })}
+                              {swapping && (
+                                <div className="kit-ack-swap">
+                                  <Icon name="Repeat" size={13} />
+                                  <input value={swaps[i.id]} onChange={(e) => setSwapSize(i.id, e.target.value)} placeholder="Size you need, e.g. L" autoFocus />
+                                </div>
+                              )}
+                            </li>
+                          );
+                        };
+                        return chs.map((ch) => (
+                          <React.Fragment key={`ack-${ch}`}>
+                            {multi && <li className="kit-ack-charter">{ch}</li>}
+                            {byCh[ch].map(renderItem)}
+                          </React.Fragment>
+                        ));
+                      })()}
                     </ul>
                     <label className="kit-field"><span>Your name</span>
                       <input value={ackName} onChange={(e) => setAckName(e.target.value)} placeholder="Full name" />
