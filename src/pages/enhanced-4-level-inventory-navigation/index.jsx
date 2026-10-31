@@ -3342,6 +3342,12 @@ const LocationFirstInventory = () => {
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => {
+    // Changing folders clears the search / filters — but NOT when we've just
+    // arrived on a deep link that seeds one (?q= from global search, ?brand= /
+    // ?supplier= / ?loc= from the item drawer). That seeding effect runs in the
+    // same commit, so without this guard the reset would wipe it straight away.
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('q') || sp.get('brand') || sp.get('supplier') || sp.get('loc')) return;
     setSearchQuery('');
     setActiveTagFilter(null);
     setActiveFilters({ tags: [] });
