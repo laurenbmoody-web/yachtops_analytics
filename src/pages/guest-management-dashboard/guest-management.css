@@ -304,3 +304,33 @@
   }
   .gm-pane { flex: 1 1 100%; padding: 16px 0 20px; }
 }
+
+/* ── the shell: the PAGE does not scroll, the panes do ───────
+   Previously the page scrolled and the right pane scrolled inside it, so
+   reading a guest meant two scrollbars fighting. Now the header and filters
+   are fixed and each pane owns its own scroll, which is how a two-pane app
+   is supposed to behave. */
+.gm-page.is-split {
+  height: calc(100vh - 64px);
+  display: flex; flex-direction: column;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+.gm-page.is-split .gm-wrap {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0;
+}
+.gm-page.is-split .gm-split { flex: 1; min-height: 0; }
+.gm-page.is-split .gm-list,
+.gm-page.is-split .gm-pane { height: 100%; overflow-y: auto; }
+.gm-page.is-split .gm-pane { padding-bottom: 32px; }
+
+/* The detail card fills the pane rather than floating in it. */
+.gm-pane .gm-detail { margin-bottom: 0; }
+
+@media (max-width: 1000px) {
+  /* Stacked, the two-scroll problem does not arise — let the page scroll. */
+  .gm-page.is-split { height: auto; overflow: visible; padding-bottom: 72px; }
+  .gm-page.is-split .gm-list,
+  .gm-page.is-split .gm-pane { height: auto; overflow: visible; }
+}
