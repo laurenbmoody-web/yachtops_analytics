@@ -18,11 +18,12 @@
    NO BEIGE: cool greys, navy ink, terracotta as text/border/solid.
    ============================================================ */
 
+/* The panel is as tall as the record. It used to be a flex child that
+   filled a fixed-height pane and scrolled its own body — which meant a
+   long record was read through a letterbox. The PAGE scrolls instead. */
 .gdp {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
   background: #FFFFFF;
   font-family: 'Inter', system-ui, sans-serif;
   color: #1C1B3A;
@@ -130,10 +131,7 @@
 .gdp-emptytoggle:hover { border-color: #C65A1A; color: #C65A1A; }
 
 /* ── body ───────────────────────────────────────────────────── */
-.gdp-body {
-  flex: 1; min-height: 0; overflow-y: auto;
-  padding: 0 28px 28px;
-}
+.gdp-body { padding: 0 28px 28px; }
 /* Only the chosen tab's blocks render. */
 .gdp-body[data-tab='overview'] [data-tab]:not([data-tab='overview']),
 .gdp-body[data-tab='prefs'] [data-tab]:not([data-tab='prefs']),
@@ -161,11 +159,13 @@
    — one glance now separates what-this-group-is from what-this-box-is. */
 .gdp-h {
   display: flex; align-items: center; gap: 8px;
-  margin: 0 0 18px;
+  margin: 0 0 10px;
   font-size: 10px; font-weight: 700; letter-spacing: 1.6px;
   text-transform: uppercase; color: #1C1B3A;
 }
 .gdp-h svg { width: 14px; height: 14px; color: #C65A1A; flex: 0 0 auto; }
+/* A heading in edit mode has no row padding under it to absorb the gap. */
+.gdp.is-editing .gdp-h { margin-bottom: 18px; }
 
 /* ── fields: READING ────────────────────────────────────────── */
 /* Label column, value column. Both left aligned at a tab stop, so the
@@ -312,6 +312,13 @@
 }
 .gdp-dashed:hover:not(:disabled) { border-color: #C65A1A; color: #C65A1A; }
 .gdp-dashed:disabled { opacity: 0.55; cursor: default; }
+
+/* A control in a value column is as wide as its words, not as wide as the
+   column — stretched to the full width it reads as an empty input. */
+.gdp:not(.is-editing) .gdp-field > .gdp-dashed,
+.gdp:not(.is-editing) .gdp-field > .gdp-link,
+.gdp:not(.is-editing) .gdp-grid > div > .gdp-dashed,
+.gdp:not(.is-editing) .gdp-grid > div > .gdp-link { justify-self: start; }
 
 .gdp-check { width: 15px; height: 15px; margin-top: 2px; accent-color: #A32D2D; cursor: pointer; }
 
@@ -460,19 +467,23 @@
 /* Read mode only. Editing renders inputs instead of .gdp-v, so in edit mode
    "has no non-empty value" is vacuously true and the section rule would hide
    every field you came to fill in. */
-.gdp:not(.is-editing) .gdp-body[data-empty='fold'] .gdp-grid > div:has(> .gdp-v.is-empty) {
+/* A row folds when its value is empty — whether it sits in a grid or
+   stands alone as a .gdp-field (the long-text ones: visa notes, APA
+   notes, payment notes, privacy notes). */
+.gdp:not(.is-editing) .gdp-body[data-empty='fold'] .gdp-grid > div:has(> .gdp-v.is-empty),
+.gdp:not(.is-editing) .gdp-body[data-empty='fold'] .gdp-sec > .gdp-field:has(> .gdp-v.is-empty) {
   display: none;
 }
+
+/* A SECTION folds only when it holds values and none of them have
+   anything in them — AND it has no field that is an action rather than a
+   value. Without that last clause, hiding the empty passport fields also
+   hid the "Upload Passport" button that was the point of the section. */
 .gdp:not(.is-editing) .gdp-body[data-empty='fold']
-  .gdp-sec:has(.gdp-grid > div):not(:has(.gdp-grid > div > .gdp-v:not(.is-empty))) {
+  .gdp-sec:has(.gdp-v):not(:has(.gdp-v:not(.is-empty))):not(:has(.gdp-field:not(:has(.gdp-v)))) {
   display: none;
 }
 .gdp.is-editing .gdp-emptytoggle { display: none; }
-
-/* ── narrow ─────────────────────────────────────────────────── */
-@media (max-width: 1000px) {
-  .gdp-body { overflow: visible; }
-}
 @media (max-width: 760px) {
   .gdp-head, .gdp-tabs, .gdp-body { padding-left: 18px; padding-right: 18px; }
   .gdp-grid > div, .gdp-field, .gdp-pref { grid-template-columns: minmax(0, 1fr); gap: 4px; }

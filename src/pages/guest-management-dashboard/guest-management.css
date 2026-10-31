@@ -305,44 +305,31 @@
   .gm-pane { flex: 1 1 100%; padding: 16px 0 20px; }
 }
 
-/* ── the shell: the PAGE does not scroll, the panes do ───────
-   Previously the page scrolled and the right pane scrolled inside it, so
-   reading a guest meant two scrollbars fighting. Now the header and filters
-   are fixed and each pane owns its own scroll, which is how a two-pane app
-   is supposed to behave. */
-.gm-page.is-split {
-  height: calc(100vh - 64px);
-  display: flex; flex-direction: column;
-  padding-bottom: 0;
-  overflow: hidden;
-}
-.gm-page.is-split .gm-wrap {
-  display: flex; flex-direction: column;
-  flex: 1; min-height: 0;
-}
-.gm-page.is-split .gm-split { flex: 1; min-height: 0; }
-.gm-page.is-split .gm-list,
-.gm-page.is-split .gm-pane { height: 100%; overflow-y: auto; }
-.gm-page.is-split .gm-pane { padding-bottom: 32px; }
+/* ── the shell: the PAGE scrolls ─────────────────────────────
+   This used to pin the page to the viewport (height: 100vh - 64, overflow
+   hidden) and give the roster, the pane and the record each a scrollbar of
+   their own. Three nested scroll boxes, and the record was trapped in the
+   innermost one — so a guest with more than a screen of detail was read
+   through a letterbox, and every section felt cramped no matter how it was
+   spaced.
 
-/* The detail card fills the pane rather than floating in it. */
+   The page scrolls now, like every other page in the app, and the record is
+   as tall as it needs to be. Only the roster keeps a scroll: it is an index,
+   not content, and it sticks beside whoever you are reading so you can still
+   switch guests without scrolling back up. */
+.gm-page.is-split { padding-bottom: 72px; }
+
+.gm-list {
+  position: sticky; top: 80px;
+  align-self: flex-start;
+  max-height: calc(100vh - 104px);
+  overflow-y: auto;
+}
+
+/* The detail card sits in the pane rather than filling it. */
 .gm-pane .gm-detail { margin-bottom: 0; }
 
 @media (max-width: 1000px) {
-  /* Stacked, the two-scroll problem does not arise — let the page scroll. */
-  .gm-page.is-split { height: auto; overflow: visible; padding-bottom: 72px; }
-  .gm-page.is-split .gm-list,
-  .gm-page.is-split .gm-pane { height: auto; overflow: visible; }
-}
-
-/* The scroll belongs INSIDE the card, not on the pane: that way the guest's
-   name and the tabs stay put while the record moves under them. Scrolling the
-   pane instead meant losing both the moment you read past the first section. */
-.gm-page.is-split .gm-pane { overflow: hidden; }
-.gm-page.is-split .gm-pane .gm-detail {
-  height: 100%; display: flex; flex-direction: column; min-height: 0;
-}
-@media (max-width: 1000px) {
-  .gm-page.is-split .gm-pane { overflow: visible; }
-  .gm-page.is-split .gm-pane .gm-detail { height: auto; }
+  /* Stacked, the roster is above the record, so sticking it would cover it. */
+  .gm-list { position: static; max-height: none; overflow: visible; }
 }
