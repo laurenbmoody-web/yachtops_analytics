@@ -46,7 +46,9 @@ const GuestManagementDashboard = () => {
   const { activeTenantId, currentTenantMember } = useTenant();
 
   const [guests, setGuests] = useState([]);
-  const [expandedId, setExpandedId] = useState(null);
+  // Keyed by PERSON, not by record id: the selection has to survive a refetch,
+  // and a person can be backed by more than one guests row.
+  const [selectedKey, setSelectedKey] = useState(null);
   const [query, setQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingGuest, setEditingGuest] = useState(null);
@@ -63,10 +65,10 @@ const GuestManagementDashboard = () => {
   // Writing a guest record is Command and Chief. Deleting is Command alone.
   const canEdit = isCommandOrChief;
   const canDelete = isCommand;
-  // Expanding opens the full dossier — passport, visa notes, emergency contacts,
-  // APA and payment notes. Crew get the roster line (name, cabin, allergies),
-  // which is what they need for service, and not the documents.
-  const canExpand = isCommandOrChief;
+  // The detail pane is open to everyone who can see the roster. What differs by
+  // tier is WHAT it holds: the Confidential tab (passport, visa, APA, NDA) is
+  // not offered below Chief, and guest_confidential would refuse those rows
+  // anyway, so there is nothing to gate twice.
 
   const fetchGuests = useCallback(async () => {
     if (!activeTenantId) {
@@ -107,24 +109,22 @@ const GuestManagementDashboard = () => {
 
   const roles = useMemo(() => roleOptions(grouped), [grouped]);
   const stats = useMemo(() => rosterStats(groupGuestsByPerson(guests)), [guests]);
-  const narrowed = people.length !== grouped.length;
 
-  const toggleSort = (column) => {
-    setSort((prev) => {
-      if (prev.column !== column) return { column, direction: 'asc' };
-      return { column, direction: prev.direction === 'asc' ? 'desc' : 'asc' };
-    });
-  };
+  const selected = people.find((p) => p.key === selectedKey) || null;
 
-  const sortIcon = (column) => {
-    const active = sort.column === column;
-    return (
-      <Icon
-        name={active && sort.direction === 'desc' ? 'ChevronDown' : 'ChevronUp'}
-        size={11}
-      />
-    );
-  };
+  // Open the first guest so the pane is never pointlessly blank, and re-open
+  // the top one when a filter or search drops the current selection out of the
+  // list. Without the second half the pane would sit empty next to a list full
+  // of guests, which looks broken.
+  useEffect(() => {
+    if (!people.length) {
+      if (selectedKey) setSelectedKey(null);
+      return;
+    }
+    if (!people.some((p) => p.key === selectedKey)) setSelectedKey(people[0].key);
+  }, [people, selectedKey]);
+
+
 
   const handleAdd = async (guestData) => {
     const { _linkedKidIds, ...clean } = guestData;
@@ -143,7 +143,7 @@ const GuestManagementDashboard = () => {
     if (updated) fetchGuests();
   };
 
-  const afterPanelAction = () => { setExpandedId(null); fetchGuests(); };
+  const afterPanelAction = () => { fetchGuests(); };
 
   if (authLoading || loading) {
     return (
@@ -266,9 +266,6 @@ const GuestManagementDashboard = () => {
             />
           </label>
 
-          {narrowed && (
-            <span className="gm-count">{people.length} of {grouped.length}</span>
-          )}
 
           {canDelete && (
             <label className="gm-toggle">
@@ -282,140 +279,94 @@ const GuestManagementDashboard = () => {
           )}
         </div>
 
-        <div className="gm-head">
-          <button type="button" className="gm-th" data-sorted={sort.column === 'name' ? 'y' : undefined}
-            onClick={() => toggleSort('name')}>
-            Guest {sortIcon('name')}
-          </button>
-          <button type="button" className="gm-th" data-sorted={sort.column === 'cabin' ? 'y' : undefined}
-            onClick={() => toggleSort('cabin')}>
-            Cabin {sortIcon('cabin')}
-          </button>
-          <button type="button" className="gm-th" data-sorted={sort.column === 'contact' ? 'y' : undefined}
-            onClick={() => toggleSort('contact')}>
-            Contact {sortIcon('contact')}
-          </button>
-          <span className="gm-th static">Dietary</span>
-          <span className="gm-th static right">&nbsp;</span>
-        </div>
+        <div className="gm-split">
 
-        {people.length === 0 ? (
-          <div className="gm-empty">
-            {!hasAnyGuests ? (
+          {/* the roster */}
+          <div className="gm-list">
+            <p className="gm-list-count">
+              {people.length === grouped.length
+                ? `${people.length} guest${people.length === 1 ? '' : 's'}`
+                : `${people.length} of ${grouped.length}`}
+            </p>
+
+            {people.length === 0 ? (
+              <div className="gm-empty">
+                {!hasAnyGuests ? (
+                  <>
+                    <b>No guests yet</b>
+                    {canEdit ? 'Add the first one and their preferences will follow.'
+                      : 'Nobody has been added to this vessel yet.'}
+                  </>
+                ) : (
+                  <>
+                    <b>Nothing matches that</b>
+                    Try a name, a cabin, or an allergy.
+                  </>
+                )}
+              </div>
+            ) : people.map((person) => (
+              <button
+                key={person.key}
+                type="button"
+                className={person.key === selectedKey ? 'gm-pick is-on' : 'gm-pick'}
+                data-deleted={person.isDeleted ? 'y' : undefined}
+                aria-current={person.key === selectedKey}
+                onClick={() => setSelectedKey(person.key)}
+              >
+                {person.photo
+                  ? <img className="gm-pick-av" src={person.photo} alt="" />
+                  : <span className="gm-pick-av">{initialsOf(person.name)}</span>}
+                <span className="gm-pick-txt">
+                  <span className="gm-pick-name">{person.name}</span>
+                  <span className="gm-pick-sub">
+                    {[person.types.join(' / '), person.cabins[0]].filter(Boolean).join(' · ') || 'No cabin'}
+                  </span>
+                </span>
+                {/* An allergy is the one thing worth flagging before you open
+                    anyone — the galley should not have to click to find it. */}
+                {person.allergies && (
+                  <Icon name="AlertTriangle" size={14} className="gm-pick-flag" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* the open guest */}
+          <div className="gm-pane">
+            {selected ? (
               <>
-                <b>No guests yet</b>
-                {canEdit ? 'Add the first one and their preferences will follow.'
-                  : 'Nobody has been added to this vessel yet.'}
+                {selected.hasDuplicates && (
+                  <p className="gm-dupe">
+                    <Icon name="AlertTriangle" size={14} />
+                    <span>
+                      <b>{selected.name} has {selected.recordCount} separate guest records</b> —
+                      usually because owner and charter trips were recorded as different
+                      people. Preferences and documents attach to one record at a time, so
+                      some may be filed under the other. You are looking at one of them.
+                    </span>
+                  </p>
+                )}
+                <div className="gm-detail">
+                  <GuestDetailPanel
+                    key={selected.primaryId}
+                    guest={selected.records.find((r) => r.id === selected.primaryId) || selected.records[0]}
+                    onEdit={afterPanelAction}
+                    onDelete={afterPanelAction}
+                    onReinstate={afterPanelAction}
+                    onClose={() => setSelectedKey(null)}
+                    permissions={{ canEdit, canDelete }}
+                  />
+                </div>
               </>
             ) : (
-              <>
-                <b>Nothing matches that</b>
-                Try a name, a cabin, or an allergy.
-              </>
+              <div className="gm-pane-empty">
+                <Icon name="Users" size={22} color="#AEB4C2" />
+                <b>Pick a guest</b>
+                <span>Their cabin, dietary needs and preferences open here.</span>
+              </div>
             )}
           </div>
-        ) : (
-          people.map((person) => {
-            const open = expandedId === person.primaryId;
-            return (
-              <React.Fragment key={person.key}>
-                <div
-                  className="gm-row"
-                  data-open={open ? 'y' : undefined}
-                  data-deleted={person.isDeleted ? 'y' : undefined}
-                >
-                  <div className="gm-person">
-                    {person.photo ? (
-                      <img className="gm-avatar" src={person.photo} alt="" />
-                    ) : (
-                      <span className="gm-avatar">{initialsOf(person.name)}</span>
-                    )}
-                    <span className="gm-ident">
-                      <span className="gm-name">{person.name}</span>
-                      <span className="gm-chips">
-                        {person.types.map((t) => (
-                          <span key={t} className="gm-pill accent">{t}</span>
-                        ))}
-                        {person.isDeleted && <span className="gm-pill warn">Deleted</span>}
-                        {person.hasDuplicates && (
-                          <span className="gm-pill flag" title="This person has more than one guest record">
-                            <Icon name="Copy" size={10} /> {person.recordCount} records
-                          </span>
-                        )}
-                      </span>
-                    </span>
-                  </div>
-
-                  <span className="gm-cell ink">
-                    {person.cabins.length ? person.cabins.join(' · ') : <span className="gm-cell faint">Not assigned</span>}
-                    {person.cabinsDisagree && (
-                      <span className="gm-cell-sub">records disagree</span>
-                    )}
-                  </span>
-
-                  <span className="gm-cell">
-                    {person.contact || <span className="gm-cell faint">—</span>}
-                  </span>
-
-                  <span className="gm-cell">
-                    {person.allergies
-                      ? <span className="gm-pill accent">{person.allergies}</span>
-                      : <span className="gm-cell faint">None recorded</span>}
-                  </span>
-
-                  <span className="gm-rowactions">
-                    {canExpand && (
-                      <button
-                        type="button"
-                        className="gm-iconbtn"
-                        data-open={open ? 'y' : undefined}
-                        title={open ? 'Close' : 'Open guest details'}
-                        onClick={() => setExpandedId(open ? null : person.primaryId)}
-                      >
-                        <Icon name={open ? 'ChevronUp' : 'ChevronDown'} size={16} />
-                      </button>
-                    )}
-                    {canEdit && !person.isDeleted && (
-                      <button
-                        type="button"
-                        className="gm-iconbtn"
-                        title="Edit guest"
-                        onClick={() => {
-                          const record = person.records.find((r) => r.id === person.primaryId);
-                          setEditingGuest(record || person.records[0]);
-                          setShowAddModal(true);
-                        }}
-                      >
-                        <Icon name="Edit2" size={15} />
-                      </button>
-                    )}
-                  </span>
-                </div>
-
-                {canExpand && open && (
-                  <div className="gm-detail">
-                    {person.hasDuplicates && (
-                      <p className="gm-dupe">
-                        <Icon name="AlertTriangle" size={14} />
-                        <span>
-                          <b>{person.name} has {person.recordCount} separate guest records</b> —
-                          usually because owner and charter trips were recorded as different
-                          people. Preferences and documents attach to one record at a time, so
-                          some may be filed under the other. You are looking at one of them.
-                        </span>
-                      </p>
-                    )}
-                    <GuestDetailPanel
-                      guest={person.records.find((r) => r.id === person.primaryId) || person.records[0]}
-                      onEdit={afterPanelAction}
-                      onDelete={afterPanelAction}
-                      onReinstate={afterPanelAction}
-                      onClose={() => setExpandedId(null)}
-                      permissions={{ canEdit, canDelete }}
-                    />
-                  </div>
-                )}
-              </React.Fragment>
+        </div>
             );
           })
         )}

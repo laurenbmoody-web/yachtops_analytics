@@ -13,6 +13,9 @@ import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-ma
 
 
 import ModalShell from '../../../components/ui/ModalShell';
+import {
+  fullName as guestFullName, initialsOf, cabinOf, rolesOf,
+} from '../../../services/guestRoster';
 // Helper function to format cabin display to show only Level 3 (final segment)
 const formatCabinLevel3 = (cabinValue) => {
   if (!cabinValue) return 'Not assigned';
@@ -23,8 +26,33 @@ const formatCabinLevel3 = (cabinValue) => {
   return parts?.[parts?.length - 1];
 };
 
+// The record split into tabs. Confidential holds travel documents, payment and
+// NDA — the three the guest_confidential table gates to Command and Chief — so
+// the tab is hidden outright from anyone who could not read it anyway, rather
+// than offered and then found empty.
+const TABS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'prefs', label: 'Preferences' },
+  { id: 'confidential', label: 'Confidential', commandOnly: true },
+  { id: 'history', label: 'History' },
+];
+
+
+// One rendered value. A record where most fields are blank is the normal case
+// here, and thirty rows of "-" is what made the panel unreadable — so a value
+// that is empty marks itself, and the CSS folds its whole field away until the
+// reader asks to see them.
+const EMPTY = new Set(['', '-', '—', 'Not assigned', 'Not specified', 'Unknown']);
+const V = ({ children }) => {
+  const text = Array.isArray(children) ? children.join('') : children;
+  const blank = EMPTY.has(String(text ?? '').trim());
+  return <p className={blank ? 'gdp-v is-empty' : 'gdp-v'}>{blank ? '—' : children}</p>;
+};
+
 const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permissions }) => {
   const navigate = useNavigate();
+  const [tab, setTab] = useState('overview');
+  const [showEmpty, setShowEmpty] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(guest);
   const [showPhotoPicker, setShowPhotoPicker] = useState(false);
@@ -66,6 +94,15 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
   const canEdit = permissions?.canEdit || false;
   const canDelete = permissions?.canDelete || false;
   const isDeleted = guest?.isDeleted || false;
+
+  // Identity and the three key facts, read through the same helpers the roster
+  // uses so the panel and the list can never disagree about a guest's cabin or
+  // role.
+  const fullName = guestFullName(guest);
+  const initials = initialsOf(fullName);
+  const roleLabel = (rolesOf([guest])[0]) || '';
+  const cabinText = cabinOf(guest);
+  const dietaryText = String(formData?.allergies || '').trim();
 
   useEffect(() => {
     const init = async () => {
@@ -594,12 +631,18 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
       {/* Header */}
       <div className="gdp-head">
         <div className="gdp-head-l">
-          <h2 className="gdp-title">Guest Details</h2>
-          {isDeleted && (
-            <span className="gdp-chip warn">
-              Deleted
+          {guest?.photo?.dataUrl
+            ? <img className="gdp-head-avatar" src={guest.photo.dataUrl} alt="" />
+            : <span className="gdp-head-avatar">{initials}</span>}
+          <span className="gdp-head-ident">
+            {/* The name, not "Guest Details" — in a two-pane layout the panel
+                has to say whose record you are looking at. */}
+            <h2 className="gdp-title">{fullName || 'Guest'}</h2>
+            <span className="gdp-head-chips">
+              {roleLabel && <span className="gdp-chip accent">{roleLabel}</span>}
+              {isDeleted && <span className="gdp-chip warn">Deleted</span>}
             </span>
-          )}
+          </span>
         </div>
         <div className="gdp-head-r">
           {!isEditing && canEdit && !isDeleted && (
@@ -624,10 +667,62 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
           )}
         </div>
       </div>
+      {/* The three things anyone opening a guest actually wants, above
+          everything else. They were previously buried among thirty fields of
+          equal weight, most of them empty. */}
+      <div className="gdp-facts">
+        <span className="gdp-fact">
+          <span className="gdp-fact-l">Cabin</span>
+          <span className={cabinText ? 'gdp-fact-v' : 'gdp-fact-v is-none'}>
+            {cabinText || 'Not assigned'}
+          </span>
+        </span>
+        <span className="gdp-fact">
+          <span className="gdp-fact-l">Dietary</span>
+          <span className={dietaryText ? 'gdp-fact-v is-flag' : 'gdp-fact-v is-none'}>
+            {dietaryText || 'None recorded'}
+          </span>
+        </span>
+        <span className="gdp-fact">
+          <span className="gdp-fact-l">Aboard</span>
+          <span className={formData?.isActiveOnTrip ? 'gdp-fact-v' : 'gdp-fact-v is-none'}>
+            {formData?.isActiveOnTrip ? 'On the current trip' : 'Not on a trip'}
+          </span>
+        </span>
+      </div>
+
+      {/* Tabs rather than one long scroll: adding passport or APA fields later
+          widens a tab instead of lengthening the page. */}
+      <div className="gdp-tabs" role="tablist">
+        {TABS.filter((t) => !t.commandOnly || canEdit).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            className={tab === t.id ? 'gdp-tab is-on' : 'gdp-tab'}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
+        ))}
+        {/* Blank fields are folded away by default. Most of a guest record is
+            usually empty, and thirty rows of "—" is what buried the handful of
+            values that matter. */}
+        <button
+          type="button"
+          className="gdp-emptytoggle"
+          aria-pressed={showEmpty}
+          onClick={() => setShowEmpty((v) => !v)}
+        >
+          {showEmpty ? 'Hide empty fields' : 'Show empty fields'}
+        </button>
+      </div>
+
       {/* Content */}
-      <div className="gdp-body">
+      <div className="gdp-body" data-tab={tab} data-empty={showEmpty ? 'show' : 'fold'}>
         {/* Photo and Basic Info */}
-        <div className="flex items-start gap-6">
+        <div className="gdp-identity" data-tab="overview">
           {/* Photo */}
           <div className="flex-shrink-0">
             {isEditing ? (
@@ -742,7 +837,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                     placeholder="First name"
                   />
                 ) : (
-                  <p className="text-foreground font-medium">{formData?.firstName || '-'}</p>
+                  <V>{formData?.firstName || '-'}</V>
                 )}
               </div>
               <div>
@@ -754,7 +849,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                     placeholder="Last name"
                   />
                 ) : (
-                  <p className="text-foreground font-medium">{formData?.lastName || '-'}</p>
+                  <V>{formData?.lastName || '-'}</V>
                 )}
               </div>
             </div>
@@ -775,7 +870,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   />
                 </button>
                 <div>
-                  <p className="gdp-v">Active on current trip</p>
+                  <V>Active on current trip</V>
                   <p className="gdp-note">Enable to include in active guest lists</p>
                 </div>
               </div>
@@ -794,7 +889,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   />
                 </div>
                 <div>
-                  <p className="gdp-v">Active on current trip</p>
+                  <V>Active on current trip</V>
                   <p className="gdp-note">{isDeleted ? 'Read-only (deleted)' : 'View only'}</p>
                 </div>
               </div>
@@ -803,7 +898,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: Personal */}
-        <div className="gdp-sec">
+        <div className="gdp-sec" data-tab="overview">
           <h3 className="gdp-h">
             <Icon name="User" size={18} />
             Personal
@@ -818,7 +913,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   onChange={(e) => handleChange('dateOfBirth', e?.target?.value)}
                 />
               ) : (
-                <p className="gdp-v">{formData?.dateOfBirth || '-'}</p>
+                <V>{formData?.dateOfBirth || '-'}</V>
               )}
             </div>
             <div>
@@ -830,7 +925,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="e.g., Chocolate, Vanilla"
                 />
               ) : (
-                <p className="gdp-v">{formData?.cakePreference || '-'}</p>
+                <V>{formData?.cakePreference || '-'}</V>
               )}
             </div>
             <div>
@@ -842,7 +937,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={maritalStatusOptions}
                 />
               ) : (
-                <p className="gdp-v">{getMaritalStatusDisplay(formData?.maritalStatus)}</p>
+                <V>{getMaritalStatusDisplay(formData?.maritalStatus)}</V>
               )}
             </div>
             {formData?.maritalStatus === MaritalStatus?.MARRIED && (
@@ -856,7 +951,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                     searchable
                   />
                 ) : (
-                  <p className="gdp-v">{getSpouseName(formData?.spouseGuestId)}</p>
+                  <V>{getSpouseName(formData?.spouseGuestId)}</V>
                 )}
               </div>
             )}
@@ -877,7 +972,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: Contact */}
-        <div className="gdp-sec">
+        <div className="gdp-sec" data-tab="overview">
           <h3 className="gdp-h">
             <Icon name="Mail" size={18} />
             Contact
@@ -893,7 +988,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="guest@example.com"
                 />
               ) : (
-                <p className="gdp-v">{formData?.contactEmail || '-'}</p>
+                <V>{formData?.contactEmail || '-'}</V>
               )}
             </div>
             <div>
@@ -906,14 +1001,14 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="+1 234 567 8900"
                 />
               ) : (
-                <p className="gdp-v">{formData?.contactPhone || '-'}</p>
+                <V>{formData?.contactPhone || '-'}</V>
               )}
             </div>
           </div>
         </div>
 
         {/* Section: Travel & Documents (NEW - after Contact, before Health) */}
-        <div className="gdp-sec">
+        <div className="gdp-sec" data-tab="confidential">
           <h3 className="gdp-h">
             <Icon name="FileText" size={18} />
             Travel &amp; Documents
@@ -928,7 +1023,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="e.g., AB1234567"
                 />
               ) : (
-                <p className="gdp-v">{formData?.passportNumber || '-'}</p>
+                <V>{formData?.passportNumber || '-'}</V>
               )}
             </div>
             <div>
@@ -965,7 +1060,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   onChange={(e) => handleChange('passportExpiryDate', e?.target?.value)}
                 />
               ) : (
-                <p className="gdp-v">{formData?.passportExpiryDate || '-'}</p>
+                <V>{formData?.passportExpiryDate || '-'}</V>
               )}
             </div>
             <div>
@@ -977,7 +1072,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="Full name"
                 />
               ) : (
-                <p className="gdp-v">{formData?.emergencyContactName || '-'}</p>
+                <V>{formData?.emergencyContactName || '-'}</V>
               )}
             </div>
             <div>
@@ -990,7 +1085,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="+1 234 567 8900"
                 />
               ) : (
-                <p className="gdp-v">{formData?.emergencyContactPhone || '-'}</p>
+                <V>{formData?.emergencyContactPhone || '-'}</V>
               )}
             </div>
             <div>
@@ -1002,7 +1097,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={relationshipOptions}
                 />
               ) : (
-                <p className="gdp-v">{formData?.emergencyContactRelationship || '-'}</p>
+                <V>{formData?.emergencyContactRelationship || '-'}</V>
               )}
             </div>
           </div>
@@ -1090,7 +1185,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: Health */}
-        <div className="gdp-sec">
+        <div className="gdp-sec" data-tab="overview">
           <h3 className="gdp-h">
             <Icon name="Heart" size={18} />
             Health
@@ -1128,7 +1223,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: Accommodation */}
-        <div className="gdp-sec">
+        <div className="gdp-sec" data-tab="overview">
           <h3 className="gdp-h">
             <Icon name="Home" size={18} />
             Accommodation
@@ -1227,7 +1322,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: Payment & APA (NEW - after Accommodation, before History) */}
-        <div className="gdp-sec">
+        <div className="gdp-sec" data-tab="confidential">
           <h3 className="gdp-h">
             <Icon name="CreditCard" size={18} />
             Payment &amp; APA
@@ -1242,7 +1337,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={clientTypeOptions}
                 />
               ) : (
-                <p className="gdp-v">{formData?.clientType || '-'}</p>
+                <V>{formData?.clientType || '-'}</V>
               )}
             </div>
             <div>
@@ -1254,7 +1349,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={currencyOptions}
                 />
               ) : (
-                <p className="gdp-v">{formData?.preferredCurrency || '-'}</p>
+                <V>{formData?.preferredCurrency || '-'}</V>
               )}
             </div>
             <div>
@@ -1266,7 +1361,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="Full name"
                 />
               ) : (
-                <p className="gdp-v">{formData?.billingContactName || '-'}</p>
+                <V>{formData?.billingContactName || '-'}</V>
               )}
             </div>
             <div>
@@ -1279,7 +1374,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="billing@example.com"
                 />
               ) : (
-                <p className="gdp-v">{formData?.billingContactEmail || '-'}</p>
+                <V>{formData?.billingContactEmail || '-'}</V>
               )}
             </div>
           </div>
@@ -1312,7 +1407,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 />
               </div>
             )}
-            <p className="gdp-v">APA Required?</p>
+            <V>APA Required?</V>
           </div>
           {/* APA Amount - only visible when APA Required = true */}
           {formData?.apaRequired && (
@@ -1326,7 +1421,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   placeholder="0.00"
                 />
               ) : (
-                <p className="gdp-v">{formData?.apaAmount != null ? formData?.apaAmount : '-'}</p>
+                <V>{formData?.apaAmount != null ? formData?.apaAmount : '-'}</V>
               )}
             </div>
           )}
@@ -1361,7 +1456,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: NDA & Privacy (NEW - after Payment & APA, before History) */}
-        <div className="gdp-sec">
+        <div className="gdp-sec" data-tab="confidential">
           <h3 className="gdp-h">
             <Icon name="Shield" size={18} />
             NDA &amp; Privacy
@@ -1395,7 +1490,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 />
               </div>
             )}
-            <p className="gdp-v">NDA Signed?</p>
+            <V>NDA Signed?</V>
           </div>
           {/* NDA Expiry Date - only visible when NDA Signed = true */}
           {formData?.ndaSigned && (
@@ -1408,7 +1503,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   onChange={(e) => handleChange('ndaExpiryDate', e?.target?.value)}
                 />
               ) : (
-                <p className="gdp-v">{formData?.ndaExpiryDate || '-'}</p>
+                <V>{formData?.ndaExpiryDate || '-'}</V>
               )}
             </div>
           )}
@@ -1422,7 +1517,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={privacyLevelOptions}
                 />
               ) : (
-                <p className="gdp-v">{formData?.privacyLevel || 'Standard'}</p>
+                <V>{formData?.privacyLevel || 'Standard'}</V>
               )}
             </div>
             <div>
@@ -1434,7 +1529,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={photoPermissionOptions}
                 />
               ) : (
-                <p className="gdp-v">{formData?.photoPermission || 'Ask Each Time'}</p>
+                <V>{formData?.photoPermission || 'Ask Each Time'}</V>
               )}
             </div>
             <div>
@@ -1446,7 +1541,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                   options={shareInfoOptions}
                 />
               ) : (
-                <p className="gdp-v">{formData?.shareGuestInfoWithCrew || 'Limited'}</p>
+                <V>{formData?.shareGuestInfoWithCrew || 'Limited'}</V>
               )}
             </div>
           </div>
@@ -1467,7 +1562,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
         </div>
 
         {/* Section: Preferences */}
-        <div className="gdp-sec">
+        <div className="gdp-sec" data-tab="prefs">
           <h3 className="gdp-h">
             <Icon name="Star" size={18} />
             Preferences
@@ -1488,7 +1583,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
 
         {/* Section: History */}
         {guest?.historyLog && guest?.historyLog?.length > 0 && (
-          <div className="gdp-sec">
+          <div className="gdp-sec" data-tab="history">
             <button
               onClick={() => setShowHistory(!showHistory)}
               className="flex items-center gap-2 text-lg font-semibold text-foreground hover:text-primary transition-colors"
@@ -1536,7 +1631,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
 
         {/* Delete Button - COMMAND ONLY */}
         {canDelete && !isEditing && !isDeleted && (
-          <div className="gdp-sec">
+          <div className="gdp-sec" data-tab="history">
             <button type="button" className="gdp-btn danger" onClick={() => setShowDeleteConfirm(true)}>
               <Icon name="Trash2" size={14} /> Delete guest
             </button>
