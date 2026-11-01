@@ -435,7 +435,7 @@ function UploadStep({ onFileUploaded, parseError, isLoading }) {
       <div className="azi-cta">
         <button className="azi-pill" disabled={!selectedFile || isLoading} onClick={() => selectedFile && onFileUploaded(selectedFile)}>
           {isLoading ? (
-            <><Icon name="Loader2" size={16} className="azi-spin" />Reading&hellip;</>
+            <span className="azi-pill-loading"><LogoSpinner size={16} />Reading your document&hellip;</span>
           ) : (
             <>Read my inventory<Icon name="ArrowRight" size={17} /></>
           )}
@@ -1702,10 +1702,10 @@ function SmartConfirmStep({ fileName, groups, folderOptions, existingFolders = [
           <div className="azi-empty-ic"><Icon name="FileSearch" size={26} /></div>
           <p className="azi-empty-t">Nothing recognised yet</p>
           <p className="azi-empty-s">
-            This can happen with an unusual layout or a scan we couldn&rsquo;t read. Open
-            <b> the detailed importer</b> to line up the columns yourself, or go back and try a clearer file.
+            This can happen with an unusual layout or a scan we couldn&rsquo;t read.
+            Go back and try a clearer PDF, spreadsheet or photo.
           </p>
-          <button className="azi-pill" onClick={onAdjust}><Icon name="SlidersHorizontal" size={16} />Detailed importer</button>
+          <button className="azi-pill" onClick={onBack}><Icon name="ArrowLeft" size={16} />Choose another file</button>
         </div>
       )}
 
@@ -1745,7 +1745,6 @@ function SmartConfirmStep({ fileName, groups, folderOptions, existingFolders = [
           <Icon name="ArrowLeft" size={16} />Back
         </button>
         <div className="azi-foot-r">
-          <button className="azi-link" onClick={onAdjust}>Detailed importer</button>
           <button className="azi-pill" onClick={onImport} disabled={totalItems === 0}>
             Import {totalItems} item{totalItems !== 1 ? 's' : ''}<Icon name="ArrowRight" size={16} />
           </button>

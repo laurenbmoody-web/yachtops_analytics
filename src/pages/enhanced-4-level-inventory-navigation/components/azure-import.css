@@ -60,6 +60,7 @@
 .azi-pill { background: var(--primary); color: #fff; border: none; border-radius: 999px; font-family: var(--sans); font-size: 14px; font-weight: 600; padding: 13px 30px; display: inline-flex; align-items: center; gap: 9px; cursor: pointer; transition: background .15s; }
 .azi-pill:hover { background: var(--primary-hi); }
 .azi-pill:disabled { background: var(--soft); color: var(--faint); cursor: default; }
+.azi-pill-loading { display: inline-flex; align-items: center; gap: 9px; font-weight: 500; }
 .azi-cap { font-size: 12.5px; color: var(--muted); }
 .azi-cap em { font-style: normal; color: var(--ink); font-weight: 600; }
 
