@@ -144,6 +144,16 @@ const buildDetails = (item) => {
     if (bonded.abv !== '' && bonded.abv != null) push('ABV', `${bonded.abv}%`);
     // Type from the name-based classifier, not the unreliable stored kind.
     push('Type', bondedArticle(item));
+    // Tobacco: show the per-carton multiple and the true stick/cigar total, so a
+    // "qty 2" box of cigars reads as the number of cigars it holds.
+    if (bonded.kind === 'cig' || bonded.kind === 'cigar') {
+      const per = (Number(bonded.perPack) || 0) * (Number(bonded.perCarton) || 0);
+      const word = bonded.kind === 'cigar' ? 'cigars' : 'cigarettes';
+      if (per) {
+        push('Pack', `${per} ${word}/carton`);
+        push('Total', `${getTotalQty(item) * per} ${word}`);
+      }
+    }
   }
   // Standard optional attributes.
   push('Supplier', item?.supplier);

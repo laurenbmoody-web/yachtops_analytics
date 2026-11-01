@@ -387,6 +387,8 @@ const ExportInventoryModal = ({
     },
   ];
 
+  const activeScopeDescription = scopeOptions.find((o) => o?.value === scope)?.description;
+
   const formatOptions = [
     {
       value: 'pdf',
@@ -431,13 +433,14 @@ const ExportInventoryModal = ({
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2.5">
             Export Scope
           </p>
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
             {scopeOptions?.map(opt => (
               <button
                 key={opt?.value}
                 onClick={() => !opt?.disabled && setScope(opt?.value)}
                 disabled={opt?.disabled}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                title={opt?.description}
+                className={`relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
                   opt?.disabled
                     ? 'opacity-40 cursor-not-allowed border-[#E5E7EB] bg-[#F8FAFC]'
                     : scope === opt?.value
@@ -445,29 +448,29 @@ const ExportInventoryModal = ({
                     : 'border-[#E5E7EB] bg-white hover:border-[#C65A1A]/50 hover:bg-[#F8FAFC]'
                 }`}
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
                   scope === opt?.value && !opt?.disabled ? 'bg-[#F7E4DA]' : 'bg-[#F1F5F9]'
                 }`}>
                   <Icon
                     name={opt?.icon}
-                    size={16}
+                    size={15}
                     className={scope === opt?.value && !opt?.disabled ? 'text-[#C65A1A]' : 'text-[#8B8478]'}
                   />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${scope === opt?.value && !opt?.disabled ? 'text-[#C65A1A]' : 'text-[#1C1B3A]'}`}>
-                    {opt?.label}
-                  </p>
-                  <p className="text-xs text-[#8B8478] truncate">{opt?.description}</p>
-                </div>
+                <p className={`text-[13px] font-semibold leading-tight min-w-0 ${scope === opt?.value && !opt?.disabled ? 'text-[#C65A1A]' : 'text-[#1C1B3A]'}`}>
+                  {opt?.label}
+                </p>
                 {scope === opt?.value && !opt?.disabled && (
-                  <div className="w-5 h-5 rounded-full bg-[#C65A1A] flex items-center justify-center flex-shrink-0">
-                    <Icon name="Check" size={12} className="text-white" />
+                  <div className="w-4 h-4 rounded-full bg-[#C65A1A] flex items-center justify-center flex-shrink-0 ml-auto">
+                    <Icon name="Check" size={11} className="text-white" />
                   </div>
                 )}
               </button>
             ))}
           </div>
+          {activeScopeDescription && (
+            <p className="text-xs text-[#8B8478] mt-2">{activeScopeDescription}</p>
+          )}
         </div>
 
         {/* Folder tree — shown when scope === 'selected' */}
