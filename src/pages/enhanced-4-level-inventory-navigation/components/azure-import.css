@@ -1,60 +1,126 @@
-/* Azure import modal — editorial Cargo retone, scoped to .azi-modal.
+/* Azure import modal — editorial Cargo design, scoped to .azi-modal.
  *
- * The modal is built from Tailwind utilities that resolve through the app's
- * CSS colour tokens (bg-primary → var(--color-primary), text-foreground →
- * var(--color-foreground), …). Rather than rewrite every element across the
- * five steps, we redefine those tokens on the modal wrapper so the whole
- * subtree picks up the editorial palette in one place: terracotta accent,
- * navy ink, cool white/grey surfaces, hairline borders. NO BEIGE. */
+ * The five steps are built from Tailwind utilities that resolve through the
+ * app's colour tokens, so we first re-tone those tokens on the wrapper
+ * (terracotta accent, navy ink, cool surfaces) to carry the palette through
+ * every step. On top of that we restyle the shell, step rail and upload
+ * affordance into proper editorial shapes: hairline rules, soft shadows,
+ * generous whitespace — no heavy boxed look, no beige. */
 .azi-modal {
   --color-primary: #C65A1A;            /* terracotta accent */
   --color-primary-foreground: #FFFFFF;
   --color-foreground: #1C1B3A;         /* navy ink */
-  --color-card: #FFFFFF;               /* pure white cards */
+  --color-card: #FFFFFF;
   --color-background: #F8FAFC;         /* cool maritime white */
-  --color-border: #E5E7EB;             /* soft hairline */
-  --color-muted: #F1F5F9;              /* cool inset / hover */
-  --color-muted-foreground: #6B7280;   /* muted text */
+  --color-border: #EEF0F4;             /* soft hairline */
+  --color-muted: #F1F5F9;
+  --color-muted-foreground: #6B7280;
   --color-ring: #C65A1A;
+
+  /* Lighter frame: a hairline border and one soft shadow instead of the
+     heavy ring. The className no longer sets border/shadow. */
+  border: 1px solid #EEF0F4 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32) !important;
+  overflow: hidden;
 }
 
-/* Header: serif title in navy, the way every editorial surface leads. */
+/* ── Header ──────────────────────────────────────────────────────────── */
+.azi-modal .azi-head { border-bottom: 1px solid #F0F1F5; }
 .azi-modal .azi-title {
   font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
   font-weight: 400;
-  font-size: 18px;
+  font-size: 19px;
   line-height: 1.1;
   letter-spacing: -0.01em;
   color: #1C1B3A;
 }
-.azi-modal .azi-sub {
-  color: #8B8478;
-  font-size: 12px;
-}
-
-/* Icon badge: cool tint with a terracotta glyph (editorial badge), not the
-   old pale-primary wash. */
+.azi-modal .azi-sub { color: #8B8478; font-size: 12px; margin-top: 1px; }
 .azi-modal .azi-badge {
   background: #EEF2F7;
+  color: #C65A1A;
+}
+.azi-modal .azi-x {
+  color: #AEB4C2;
+  border-radius: 999px;
+  transition: background .15s, color .15s;
+}
+.azi-modal .azi-x:hover { background: #F1F5F9; color: #1C1B3A; }
+
+/* ── Step rail ───────────────────────────────────────────────────────── */
+.azi-steps { display: flex; align-items: flex-start; margin-bottom: 30px; }
+.azi-step { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.azi-step-dot {
+  width: 24px; height: 24px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  background: #FFFFFF; border: 1px solid #E5E7EB; color: #AEB4C2;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.azi-step.is-active .azi-step-dot { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
+.azi-step.is-done   .azi-step-dot { background: #FFFFFF; border-color: #C65A1A; color: #C65A1A; }
+.azi-step-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #AEB4C2; white-space: nowrap;
+}
+.azi-step.is-active .azi-step-label { color: #1C1B3A; }
+.azi-step.is-done   .azi-step-label { color: #8B8478; }
+.azi-step-conn { flex: 1; height: 1px; margin: 12px 8px 0; background: #EEF0F4; transition: background .15s; }
+.azi-step-conn.is-done { background: #C65A1A; }
+
+/* ── Upload drop area ────────────────────────────────────────────────── */
+.azi-drop {
+  border: 1.5px dashed #E5E7EB; border-radius: 16px;
+  padding: 54px 24px; text-align: center; cursor: pointer; background: #FFFFFF;
+  transition: border-color .15s, background .15s;
+}
+.azi-drop:hover { border-color: #C65A1A; background: #FCFDFE; }
+.azi-drop.is-drag { border-color: #C65A1A; background: #F8FAFC; }
+.azi-drop-icn {
+  width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: #EEF2F7; color: #C65A1A;
+}
+.azi-drop-title { font-size: 15px; font-weight: 600; color: #1C1B3A; }
+.azi-drop-sub { font-size: 12.5px; color: #8B8478; margin-top: 4px; }
+.azi-drop-browse {
+  margin-top: 18px; display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 17px; border-radius: 999px; border: 1px solid #E5E7EB;
+  background: #FFFFFF; color: #1C1B3A; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; transition: border-color .15s, color .15s;
+}
+.azi-drop-browse:hover { border-color: #C65A1A; color: #C65A1A; }
+.azi-drop-file {
+  margin-top: 16px; display: inline-flex; align-items: center; gap: 9px;
+  padding: 9px 14px; border-radius: 12px; border: 1px solid #E5E7EB; background: #F8FAFC;
+  font-size: 12.5px; color: #1C1B3A;
+}
+.azi-drop-file .nm { font-weight: 600; }
+.azi-drop-file .sz { color: #8B8478; }
+
+/* Inline error — pale red (semantic, not beige). */
+.azi-modal .azi-err {
+  display: flex; align-items: flex-start; gap: 8px; padding: 11px 13px;
+  border-radius: 12px; background: #FEF2F2; border: 1px solid #FECACA;
+  color: #B91C1C; font-size: 12.5px; line-height: 1.5;
 }
 
-/* Step rail: make the "done" fills and the connector read terracotta even
-   though the opacity utilities don't all compile. Active = solid terracotta
-   (via --color-primary), done = soft terracotta tint, pending = cool grey. */
-.azi-modal .azi-step-done {
-  background: rgba(198, 90, 26, 0.12) !important;
-  color: #C65A1A !important;
-  border-color: rgba(198, 90, 26, 0.35) !important;
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+/* Disabled primary: a calm cool grey, never a faded-terracotta wash. */
+.azi-modal button:disabled,
+.azi-modal button[disabled] { opacity: 1 !important; }
+.azi-modal .azi-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px; border-radius: 10px; border: none; cursor: pointer;
+  background: #C65A1A; color: #FFFFFF; font-size: 13px; font-weight: 600;
+  transition: background .15s;
 }
-.azi-modal .azi-step-line-done {
-  background: rgba(198, 90, 26, 0.35) !important;
-}
+.azi-modal .azi-primary:hover { background: #B14E16; }
+.azi-modal .azi-primary:disabled { background: #F1F5F9; color: #AEB4C2; cursor: default; }
 
-/* Focus halo on fields = terracotta at low opacity, never a beige swatch. */
+/* ── Fields ──────────────────────────────────────────────────────────── */
 .azi-modal input:focus,
 .azi-modal select:focus,
 .azi-modal textarea:focus {
-  outline: none;
-  border-color: #C65A1A;
-  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
+  outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
 }
