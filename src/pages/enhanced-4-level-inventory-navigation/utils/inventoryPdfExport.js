@@ -510,11 +510,10 @@ export const exportInventoryToPDF = async ({
     const locCol = pageWidth - margin * 2 - 70 - 36 - 28;
     autoTable(doc, {
       startY: y,
-      // Two per-category totals: bottle count (total bottles) and unit count
-      // (number of distinct articles / products in the category).
-      head: [['Article type', 'Bottle count', 'Unit count', 'Location(s) on board']],
-      body: summary.rows.map((r) => [r.article, String(r.qty), String(r.lines), r.locations.join(', ') || '—']),
-      foot: [['TOTAL', String(summary.totalQty), String(summary.totalLines), '']],
+      // Two per-category totals: bottle count (total bottles) and total litres.
+      head: [['Article type', 'Bottle count', 'Litres', 'Location(s) on board']],
+      body: summary.rows.map((r) => [r.article, String(r.qty), `${(r.litres || 0).toFixed(1)} L`, r.locations.join(', ') || '—']),
+      foot: [['TOTAL', String(summary.totalQty), `${(summary.totalLitres || 0).toFixed(1)} L`, '']],
       margin: { left: margin, right: margin },
       styles: {
         fontSize: 9,

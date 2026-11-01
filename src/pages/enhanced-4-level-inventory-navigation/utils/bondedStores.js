@@ -39,6 +39,20 @@ export const bondedTotalQty = (item) => {
   return Number(item?.quantity ?? item?.totalQty ?? 0) || 0;
 };
 
+// Parse a bottle size string ("70 cl", "750 ml", "1 L", "75cl") into litres.
+// Returns 0 when there's no parseable size.
+export const sizeToLitres = (size) => {
+  if (!size) return 0;
+  const m = String(size).toLowerCase().match(/([\d.,]+)\s*(ml|cl|l|litre|liter)?/);
+  if (!m) return 0;
+  const n = parseFloat(m[1].replace(',', '.'));
+  if (!Number.isFinite(n)) return 0;
+  const unit = m[2] || 'l';
+  if (unit === 'ml') return n / 1000;
+  if (unit === 'cl') return n / 100;
+  return n; // l / litre / liter
+};
+
 const ALCOHOL_PATH_KW = ['alcohol', 'spirit', 'wine', 'beer', 'champagne', 'bar', 'liqueur', 'cellar', 'bonded', 'tobacco', 'cigar'];
 
 // Bonded / duty-free store item: a bonded profile, the alcohol flag, or a
@@ -121,9 +135,10 @@ export const buildBondedSummary = (items) => {
   for (const item of bonded) {
     const article = bondedArticle(item);
     const qty = bondedTotalQty(item);
-    const entry = byArticle.get(article) || { article, qty: 0, lines: 0, locations: new Set(), bottles: [] };
+    const entry = byArticle.get(article) || { article, qty: 0, lines: 0, litres: 0, locations: new Set(), bottles: [] };
     entry.qty += qty;
     entry.lines += 1;
+    entry.litres += sizeToLitres(item?.size) * qty;
     // Each individual bottle/article within the type, with its own unit count.
     entry.bottles.push({ name: String(item?.name || '').trim() || '—', qty });
     // Physical boat locations only — if an item has no stow location assigned it
@@ -134,11 +149,13 @@ export const buildBondedSummary = (items) => {
   const rows = Array.from(byArticle.values())
     .map((e) => ({
       article: e.article, qty: e.qty, lines: e.lines,
+      litres: Math.round(e.litres * 100) / 100,
       locations: Array.from(e.locations).sort(),
       bottles: e.bottles.slice().sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name)),
     }))
     .sort((a, b) => b.qty - a.qty || a.article.localeCompare(b.article));
   const totalQty = rows.reduce((s, r) => s + r.qty, 0);
   const totalLines = rows.reduce((s, r) => s + r.lines, 0);
-  return { rows, totalQty, totalLines, items: bonded };
+  const totalLitres = Math.round(rows.reduce((s, r) => s + r.litres, 0) * 100) / 100;
+  return { rows, totalQty, totalLines, totalLitres, items: bonded };
 };
