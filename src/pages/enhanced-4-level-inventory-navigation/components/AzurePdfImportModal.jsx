@@ -435,7 +435,7 @@ function UploadStep({ onFileUploaded, parseError, isLoading }) {
       <div className="azi-cta">
         <button className="azi-pill" disabled={!selectedFile || isLoading} onClick={() => selectedFile && onFileUploaded(selectedFile)}>
           {isLoading ? (
-            <><LogoSpinner size={16} />Reading your document&hellip;</>
+            <><Icon name="Loader2" size={16} className="azi-spin" />Reading&hellip;</>
           ) : (
             <>Read my inventory<Icon name="ArrowRight" size={17} /></>
           )}
