@@ -1128,3 +1128,54 @@ async function extractStructuredTableFallback(file) {
     reader.onerror = () => resolve({ headers: ['Text Content'], rows: [], meta: {} });
   });
 }
+
+/**
+ * Extract plain reading-order text from a (digital) PDF in the browser with
+ * pdfjs — no server round-trip, tiny payload. Returns '' for scanned PDFs
+ * that carry no text layer (caller should fall back to vision OCR).
+ *
+ * @param {File} file
+ * @returns {Promise<string>}
+ */
+export async function extractPdfPlainText(file) {
+  let pdfjsLib;
+  try {
+    pdfjsLib = await import('pdfjs-dist');
+    if (pdfjsLib?.GlobalWorkerOptions) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+        'pdfjs-dist/build/pdf.worker.min.mjs',
+        import.meta.url,
+      )?.toString();
+    }
+  } catch {
+    return '';
+  }
+
+  try {
+    const arrayBuffer = await file?.arrayBuffer();
+    const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer })?.promise;
+    const pages = [];
+    for (let p = 1; p <= (pdfDoc?.numPages || 0); p += 1) {
+      const page = await pdfDoc.getPage(p);
+      const content = await page.getTextContent();
+      // Group text items into lines by their y-position, then order each line
+      // left-to-right, so the LLM sees readable rows rather than a token soup.
+      const lines = {};
+      (content?.items || []).forEach((it) => {
+        if (typeof it?.str !== 'string' || !it.str) return;
+        const y = Math.round(it?.transform?.[5] ?? 0);
+        const x = it?.transform?.[4] ?? 0;
+        (lines[y] = lines[y] || []).push({ x, s: it.str });
+      });
+      const ordered = Object.keys(lines)
+        .map(Number)
+        .sort((a, b) => b - a)
+        .map((y) => lines[y].sort((a, b) => a.x - b.x).map((o) => o.s).join(' ').replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+      pages.push(ordered.join('\n'));
+    }
+    return pages.join('\n\n').trim();
+  } catch {
+    return '';
+  }
+}
