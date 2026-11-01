@@ -221,6 +221,16 @@
 .azi-link { font-size: 13px; font-weight: 600; color: #C65A1A; background: none; border: none; cursor: pointer; padding: 6px 4px; }
 .azi-link:hover { text-decoration: underline; text-decoration-color: rgba(198,90,26,0.4); }
 
+/* Smart confirm — nothing recognised */
+.azi-empty { text-align: center; padding: 34px 20px 10px; }
+.azi-empty-icn {
+  width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: center; background: #EEF2F7; color: #C65A1A;
+}
+.azi-empty-t { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #1C1B3A; }
+.azi-empty-s { max-width: 380px; margin: 8px auto 20px; font-size: 13px; line-height: 1.6; color: #8B8478; }
+.azi-empty-s b { color: #1C1B3A; font-weight: 600; }
+
 /* ── Fields ──────────────────────────────────────────────────────────── */
 .azi-modal input:focus,
 .azi-modal select:focus,
