@@ -308,12 +308,26 @@ function StepIndicator({ currentStep }) {
 function UploadStep({ onFileUploaded, parseError, isLoading }) {
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [fileError, setFileError] = useState(null);
   const fileInputRef = useRef(null);
+
+  // Azure Document Intelligence (prebuilt-layout, v4.0) reads PDFs, Excel
+  // workbooks (.xlsx) and image scans — but not .csv. Reject anything else
+  // with a visible message instead of silently doing nothing (which read as
+  // "the upload is broken").
+  const SUPPORTED_EXTS = ['pdf', 'xlsx', 'png', 'jpg', 'jpeg', 'tiff', 'bmp'];
 
   const handleFile = (file) => {
     if (!file) return;
     const ext = file?.name?.split('.')?.pop()?.toLowerCase();
-    if (!['pdf', 'png', 'jpg', 'jpeg', 'tiff', 'bmp']?.includes(ext)) return;
+    if (!SUPPORTED_EXTS.includes(ext)) {
+      setSelectedFile(null);
+      setFileError(
+        `Sorry, we can’t read .${ext || 'that'} files here. Upload a PDF, an Excel spreadsheet (.xlsx), or a photo/scan (PNG, JPG, TIFF or BMP).`,
+      );
+      return;
+    }
+    setFileError(null);
     setSelectedFile(file);
   };
 
@@ -328,7 +342,7 @@ function UploadStep({ onFileUploaded, parseError, isLoading }) {
         onDrop={(e) => { e?.preventDefault(); setDragOver(false); handleFile(e?.dataTransfer?.files?.[0]); }}
         onClick={() => fileInputRef?.current?.click()}
       >
-        <input ref={fileInputRef} type="file" accept=".pdf,.xlsx,.csv,.png,.jpg,.jpeg,.tiff,.bmp" className="hidden"
+        <input ref={fileInputRef} type="file" accept=".pdf,.xlsx,.png,.jpg,.jpeg,.tiff,.bmp" className="hidden"
           onChange={(e) => handleFile(e?.target?.files?.[0])} />
         <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -339,16 +353,16 @@ function UploadStep({ onFileUploaded, parseError, isLoading }) {
               {selectedFile ? selectedFile?.name : 'Drop your document here'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-{selectedFile ? `${(selectedFile?.size / 1024)?.toFixed(1)} KB — click to change` : 'Upload Excel, PDF, or other documents to import inventory'}
+{selectedFile ? `${(selectedFile?.size / 1024)?.toFixed(1)} KB — click to change` : 'Upload a PDF, Excel (.xlsx), or a photo / scan to import inventory'}
             </p>
           </div>
           {!selectedFile && <Button variant="outline" size="sm">Browse Files</Button>}
         </div>
       </div>
-      {parseError && (
+      {(fileError || parseError) && (
         <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive">
           <Icon name="AlertCircle" size={16} className="flex-shrink-0 mt-0.5" />
-          <span>{parseError}</span>
+          <span>{fileError || parseError}</span>
         </div>
       )}
       <div className="flex justify-end">
@@ -1857,7 +1871,7 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
   const isStep3 = step === 3;
 
   return (
-    <ModalShell onClose={onClose} panelClassName="`bg-card border border-border rounded-2xl shadow-2xl w-full flex flex-col ${isStep3 ? 'max-w-4xl max-h-[92vh]' : 'max-w-3xl max-h-[90vh]'}`">
+    <ModalShell onClose={onClose} panelClassName={`bg-card border border-border rounded-2xl shadow-2xl w-full flex flex-col ${isStep3 ? 'max-w-4xl max-h-[92vh]' : 'max-w-3xl max-h-[90vh]'}`}>
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
