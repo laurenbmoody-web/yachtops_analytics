@@ -4,6 +4,7 @@ import LogoSpinner from '../../../components/LogoSpinner';
 
 import ModalShell from '../../../components/ui/ModalShell';
 import { exportInventoryTemplate } from '../utils/inventoryTemplateExport';
+import { isBondedStore } from '../utils/bondedStores';
 import { showToast } from '../../../utils/toast';
 // ─── Build a nested tree structure from the flat folderTree map ───────────────
 function buildNestedTree(folderTree, allItems) {
@@ -347,6 +348,8 @@ const ExportInventoryModal = ({
     });
   };
 
+  const bondedCount = useMemo(() => (allItems || []).filter(isBondedStore).length, [allItems]);
+
   const scopeOptions = [
     ...(hasView ? [{
       value: 'view',
@@ -359,6 +362,12 @@ const ExportInventoryModal = ({
       label: 'Entire Inventory',
       description: 'All items across all folders you have access to',
       icon: 'Database',
+    },
+    {
+      value: 'bonded',
+      label: 'Bonded / duty-free only',
+      description: `${bondedCount} alcohol & tobacco item${bondedCount !== 1 ? 's' : ''} across all folders — with the FAL 3 summary`,
+      icon: 'Wine',
     },
     {
       value: 'folder',
