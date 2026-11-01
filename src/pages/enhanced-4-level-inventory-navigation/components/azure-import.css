@@ -25,6 +25,17 @@
   overflow: hidden;
 }
 
+/* Kill the global `div.bg-card` 3D bottom-edge (heavy 1.5px + 5px dark
+   border from tailwind.css) for every card inside the modal — it's what made
+   the inner panels read as heavy boxes. Flatten to a hairline, no hover lift. */
+.azi-modal div.bg-card,
+.azi-modal div.bg-card:hover {
+  border: 1px solid #E5E7EB !important;
+  border-radius: 12px !important;
+  transform: none !important;
+  transition: border-color .15s !important;
+}
+
 /* ── Header ──────────────────────────────────────────────────────────── */
 .azi-modal .azi-head { border-bottom: 1px solid #F0F1F5; }
 .azi-modal .azi-title {
@@ -117,6 +128,62 @@
 }
 .azi-modal .azi-primary:hover { background: #B14E16; }
 .azi-modal .azi-primary:disabled { background: #F1F5F9; color: #AEB4C2; cursor: default; }
+
+/* ── Step 2: tables list (editorial, hairline rows) ──────────────────── */
+.azi-note {
+  display: flex; align-items: flex-start; gap: 10px; padding: 0 2px 16px;
+  border-bottom: 1px solid #F0F1F5;
+}
+.azi-note-icn { color: #C65A1A; flex: none; margin-top: 1px; }
+.azi-note-t { font-size: 14px; font-weight: 600; color: #1C1B3A; }
+.azi-note-s { font-size: 12.5px; color: #8B8478; margin-top: 2px; line-height: 1.5; }
+
+/* Tip — pale amber is semantic (a hint), kept soft and hairline, not boxed. */
+.azi-tip {
+  display: flex; align-items: flex-start; gap: 8px; margin-top: 14px;
+  padding: 10px 13px; border-radius: 12px;
+  background: #FEF8EC; border: 1px solid #FBEED9; color: #92610A;
+  font-size: 12.5px; line-height: 1.5;
+}
+.azi-tip .ic { color: #C98A0A; flex: none; margin-top: 1px; }
+
+.azi-rows { margin-top: 6px; max-height: 360px; overflow-y: auto; }
+.azi-row {
+  display: flex; align-items: center; gap: 14px; padding: 13px 2px;
+  border-bottom: 1px solid #F0F1F5;
+}
+.azi-row:last-child { border-bottom: none; }
+.azi-row.off { opacity: 0.5; }
+.azi-row-main { flex: 1; min-width: 0; }
+.azi-row-t { display: flex; align-items: center; gap: 8px; }
+.azi-row-t .nm { font-size: 14px; font-weight: 600; color: #1C1B3A; }
+.azi-row-t .pg { font-size: 12px; color: #AEB4C2; }
+.azi-row-s { font-size: 12px; color: #8B8478; margin-top: 2px; }
+.azi-row-icn { color: #C65A1A; flex: none; }
+
+/* Pill toggle */
+.azi-toggle {
+  width: 40px; height: 23px; border-radius: 999px; flex: none; border: none;
+  display: flex; align-items: center; cursor: pointer; padding: 0 3px; transition: background .15s;
+}
+.azi-toggle.on  { background: #C65A1A; justify-content: flex-end; }
+.azi-toggle.off { background: #E5E7EB; justify-content: flex-start; }
+.azi-toggle .knob { width: 17px; height: 17px; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+
+.azi-chip { font-size: 11px; font-weight: 700; letter-spacing: 0.02em; flex: none; }
+.azi-chip.inc { color: #C65A1A; }
+.azi-chip.exc { color: #AEB4C2; }
+
+/* Footer row shared across steps */
+.azi-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 18px; margin-top: 16px; border-top: 1px solid #F0F1F5; }
+.azi-ghost {
+  display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 10px;
+  border: 1px solid #E5E7EB; background: #fff; color: #1C1B3A; font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: border-color .15s;
+}
+.azi-ghost:hover { border-color: #C65A1A; color: #C65A1A; }
+.azi-foot-r { display: flex; align-items: center; gap: 14px; }
+.azi-foot-count { font-size: 12.5px; color: #8B8478; }
 
 /* ── Fields ──────────────────────────────────────────────────────────── */
 .azi-modal input:focus,

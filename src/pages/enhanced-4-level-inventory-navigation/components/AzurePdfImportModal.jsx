@@ -377,33 +377,33 @@ function TableSessionStep({ tables, tableStates, onToggleInclude, onNext, onBack
   const includedCount = Object.values(tableStates)?.filter((s) => s?.included)?.length;
 
   return (
-    <div className="space-y-4">
-      {/* Header banner */}
-      <div className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/20 rounded-xl">
-        <Icon name="Layers" size={18} className="text-primary flex-shrink-0 mt-0.5" />
+    <div>
+      {/* Intro note — hairline, not a boxed banner */}
+      <div className="azi-note">
+        <Icon name="Layers" size={18} className="azi-note-icn" />
         <div>
-          <p className="text-sm font-semibold text-foreground">
+          <p className="azi-note-t">
             We found {tables?.length} table{tables?.length !== 1 ? 's' : ''} in this document
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            All tables are included by default. Toggle any table off to exclude it from this import session.
+          <p className="azi-note-s">
+            Everything is included by default. Switch off anything you don’t want to bring in.
           </p>
         </div>
       </div>
       {/* Similarity hint */}
       {similarGroups?.length > 0 && (
-        <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-700">
-          <Icon name="Lightbulb" size={14} className="flex-shrink-0 mt-0.5" />
+        <div className="azi-tip">
+          <Icon name="Lightbulb" size={14} className="ic" />
           <span>
             {similarGroups?.map((g) => `Tables ${g?.map((id) => {
               const idx = tables?.findIndex((t) => t?.id === id);
               return idx + 1;
-            })?.join(', ')}`)?.join(' and ')} appear to share the same structure — you can apply one mapping to all of them in the next step.
+            })?.join(', ')}`)?.join(' and ')} look the same — we’ll set them up together in the next step.
           </span>
         </div>
       )}
       {/* Table list */}
-      <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+      <div className="azi-rows">
         {tables?.map((table, idx) => {
           const state = tableStates?.[table?.id];
           const pages = table?.pageNumbers?.length
@@ -412,55 +412,38 @@ function TableSessionStep({ tables, tableStates, onToggleInclude, onNext, onBack
           const isIncluded = state?.included;
 
           return (
-            <div key={table?.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${
-              isIncluded ? 'border-border bg-card' : 'border-border/40 bg-muted/20 opacity-60'
-            }`}>
-              {/* Toggle */}
+            <div key={table?.id} className={`azi-row${isIncluded ? '' : ' off'}`}>
               <button
                 onClick={() => onToggleInclude(table?.id)}
-                className={`w-10 h-6 rounded-full flex items-center transition-all flex-shrink-0 ${
-                  isIncluded ? 'bg-primary justify-end' : 'bg-muted justify-start'
-                }`}
+                className={`azi-toggle ${isIncluded ? 'on' : 'off'}`}
+                aria-label={isIncluded ? 'Exclude this table' : 'Include this table'}
               >
-                <span className={`w-4 h-4 rounded-full bg-white shadow mx-1 transition-all`} />
+                <span className="knob" />
               </button>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <Icon name="Table" size={13} className="text-primary flex-shrink-0" />
-                  <p className="text-sm font-medium text-foreground truncate">Table {idx + 1}</p>
-                  <span className="text-xs text-muted-foreground">— {pages}</span>
+              <div className="azi-row-main">
+                <div className="azi-row-t">
+                  <Icon name="Table" size={13} className="azi-row-icn" />
+                  <span className="nm">Table {idx + 1}</span>
+                  <span className="pg">— {pages}</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {table?.rowCount} rows × {table?.columnCount} columns
-                </p>
+                <p className="azi-row-s">{table?.rowCount} rows × {table?.columnCount} columns</p>
               </div>
-
-              {/* Status badge */}
-              {isIncluded ? (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium flex-shrink-0">
-                  Included
-                </span>
-              ) : (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground flex-shrink-0">
-                  Excluded
-                </span>
-              )}
+              <span className={`azi-chip ${isIncluded ? 'inc' : 'exc'}`}>
+                {isIncluded ? 'Included' : 'Excluded'}
+              </span>
             </div>
           );
         })}
       </div>
-      <div className="flex items-center justify-between pt-2">
-        <Button variant="outline" onClick={onBack} className="gap-2">
+      <div className="azi-foot">
+        <button className="azi-ghost" onClick={onBack}>
           <Icon name="ArrowLeft" size={16} />Back
-        </Button>
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">{includedCount} of {tables?.length} tables selected</span>
-          <Button onClick={onNext} disabled={includedCount === 0} className="gap-2">
-            Review &amp; Map Tables
-            <Icon name="ArrowRight" size={16} />
-          </Button>
+        </button>
+        <div className="azi-foot-r">
+          <span className="azi-foot-count">{includedCount} of {tables?.length} selected</span>
+          <button className="azi-primary" onClick={onNext} disabled={includedCount === 0}>
+            Continue<Icon name="ArrowRight" size={16} />
+          </button>
         </div>
       </div>
     </div>
