@@ -526,43 +526,91 @@ export const exportInventoryToPDF = async ({
     doc?.text('Articles grouped by type, ordered by quantity, highest first.', margin, y);
     y += 5;
 
-    const locCol = pageWidth - margin * 2 - 62 - 44 - 24;
-    autoTable(doc, {
-      startY: y,
-      // Descriptive quantity (with its unit — bottles / cigars / cigarettes) and
-      // litres (— for tobacco). TOTAL sums the drink bottles + litres.
-      head: [['Article type', 'Quantity', 'Litres', 'Location(s) on board']],
-      body: summary.rows.map((r) => [
-        r.article,
-        `${r.count} ${r.unit}`,
-        r.isTobacco ? '—' : `${(r.litres || 0).toFixed(1)} L`,
-        r.locations.join(', ') || '—',
-      ]),
-      foot: [['TOTAL', `${summary.totalBottles} bottles`, `${(summary.totalLitres || 0).toFixed(1)} L`, '']],
-      margin: { left: margin, right: margin },
-      styles: {
-        fontSize: 9,
-        cellPadding: { top: 2.4, right: 3, bottom: 2.4, left: 3 },
-        overflow: 'linebreak',
-        valign: 'middle',
-        textColor: [40, 40, 40],
-        lineColor: borderGray,
-        lineWidth: 0.1,
-      },
-      headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
-      footStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
-      columnStyles: {
-        0: { cellWidth: 62, fontStyle: 'bold' },
-        1: { cellWidth: 44, halign: 'right', fontStyle: 'bold' },
-        2: { cellWidth: 24, halign: 'right' },
-        3: { cellWidth: locCol },
-      },
-      didDrawPage: () => {
-        doc?.setFontSize(7);
-        doc?.setTextColor(160, 160, 160);
-        doc?.text('Cargo — Bonded Stores Summary', margin, pageHeight - 6);
-      },
-    });
+    // Alcohol and tobacco are different units (bottles / litres vs cigars &
+    // cigarettes), so they get separate tables — no "bottles" total hanging
+    // under a cigar row.
+    const alcoholRows = summary.rows.filter((r) => !r.isTobacco);
+    const tobaccoRows = summary.rows.filter((r) => r.isTobacco);
+
+    const baseStyles = {
+      fontSize: 9,
+      cellPadding: { top: 2.4, right: 3, bottom: 2.4, left: 3 },
+      overflow: 'linebreak',
+      valign: 'middle',
+      textColor: [40, 40, 40],
+      lineColor: borderGray,
+      lineWidth: 0.1,
+    };
+    const pageFooter = () => {
+      doc?.setFontSize(7);
+      doc?.setTextColor(160, 160, 160);
+      doc?.text('Cargo — Bonded Stores Summary', margin, pageHeight - 6);
+    };
+
+    // ── Alcohol table — descriptive bottle quantity + litres, bottle/litre totals.
+    if (alcoholRows.length) {
+      const locCol = pageWidth - margin * 2 - 62 - 44 - 24;
+      autoTable(doc, {
+        startY: y,
+        head: [['Article type', 'Quantity', 'Litres', 'Location(s) on board']],
+        body: alcoholRows.map((r) => [
+          r.article,
+          `${r.count} ${r.unit}`,
+          `${(r.litres || 0).toFixed(1)} L`,
+          r.locations.join(', ') || '—',
+        ]),
+        foot: [['TOTAL', `${summary.totalBottles} bottles`, `${(summary.totalLitres || 0).toFixed(1)} L`, '']],
+        margin: { left: margin, right: margin },
+        styles: baseStyles,
+        headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+        footStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+        columnStyles: {
+          0: { cellWidth: 62, fontStyle: 'bold' },
+          1: { cellWidth: 44, halign: 'right', fontStyle: 'bold' },
+          2: { cellWidth: 24, halign: 'right' },
+          3: { cellWidth: locCol },
+        },
+        didDrawPage: pageFooter,
+      });
+      y = (doc?.lastAutoTable?.finalY || y) + 12;
+    }
+
+    // ── Tobacco table — its own section, counted in cigars / cigarettes (no
+    // litres, no bottle total), with a per-unit total line.
+    if (tobaccoRows.length) {
+      doc?.setTextColor(...primaryColor);
+      doc?.setFontSize(11);
+      doc?.setFont('helvetica', 'bold');
+      doc?.text('Tobacco', margin, y);
+      y += 4;
+
+      // Separate totals per unit word so cigars and cigarettes aren't summed together.
+      const tobTotals = {};
+      tobaccoRows.forEach((r) => { tobTotals[r.unit] = (tobTotals[r.unit] || 0) + r.count; });
+      const tobTotalLabel = Object.entries(tobTotals).map(([unit, n]) => `${n} ${unit}`).join(' · ');
+
+      const tobLocCol = pageWidth - margin * 2 - 62 - 44;
+      autoTable(doc, {
+        startY: y,
+        head: [['Article type', 'Quantity', 'Location(s) on board']],
+        body: tobaccoRows.map((r) => [
+          r.article,
+          `${r.count} ${r.unit}`,
+          r.locations.join(', ') || '—',
+        ]),
+        foot: [['TOTAL', tobTotalLabel, '']],
+        margin: { left: margin, right: margin },
+        styles: baseStyles,
+        headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+        footStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
+        columnStyles: {
+          0: { cellWidth: 62, fontStyle: 'bold' },
+          1: { cellWidth: 44, halign: 'right', fontStyle: 'bold' },
+          2: { cellWidth: tobLocCol },
+        },
+        didDrawPage: pageFooter,
+      });
+    }
   };
 
   // ── Dispatch by scope ────────────────────────────────────────────────────
