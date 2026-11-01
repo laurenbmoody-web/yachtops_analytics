@@ -612,7 +612,7 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
         profile,
         images: allImages.length > 1 ? allImages : undefined,
         sku: sku || undefined,
-        bonded: profile === 'bonded' ? { kind: bKind, abv, perPack, perCarton } : undefined,
+        bonded: profile === 'bonded' ? { kind: bKind, abv, perPack, perCarton: bKind === 'cigar' ? '1' : perCarton } : undefined,
         eng: profile === 'eng' ? eng : undefined,
         ...(profile === 'uniform' ? {
           garmentType: garment, subType, fit, colour, styleCode: styleCode || undefined,
@@ -860,6 +860,11 @@ const ItemFormModal = ({ item, defaultLocation, defaultSubLocation, onClose, onS
                   <>
                     <div className="itf-g2"><div className="itf-f"><label className="itf-lab">ABV %</label><input className="itf-in" value={abv} onChange={(e) => setAbv(e.target.value)} placeholder="13.5" /></div><div className="itf-f"><label className="itf-lab">Vintage <span className="opt">(wine)</span></label><input className="itf-in" value={vintage} onChange={(e) => setVintage(e.target.value)} placeholder="2019" /></div></div>
                     <div className="itf-hint" style={{ marginBottom: 0, marginTop: 10 }}>Add each bottle size (e.g. <b>700ml</b>, <b>1L</b>) on the stock bar below — one row per size, each with its own count.</div>
+                  </>
+                ) : bKind === 'cigar' ? (
+                  <>
+                    <div className="itf-g2"><div className="itf-f"><label className="itf-lab">Cigars / carton</label><input className="itf-in" value={perPack} onChange={(e) => setPerPack(e.target.value)} inputMode="numeric" placeholder="e.g. 5" /></div></div>
+                    <div className="itf-hint" style={{ marginBottom: 0 }}>↺ 1 carton = <b>{Number(perPack) || 0}</b> cigars</div>
                   </>
                 ) : (
                   <>
