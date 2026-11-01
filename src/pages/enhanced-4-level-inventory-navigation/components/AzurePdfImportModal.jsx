@@ -14,6 +14,8 @@ import Icon from '../../../components/AppIcon';
 import LogoSpinner from '../../../components/LogoSpinner';
 import Button from '../../../components/ui/Button';
 import { parseDocumentWithAzure, isAzureParseError } from '../../../services/azureDocumentParser';
+import { parseInventoryDocument, parseInventoryItemsFromText } from '../../../services/documentParser';
+import * as XLSX from 'xlsx';
 import { saveItem, createFolder } from '../../inventory/utils/inventoryStorage';
 import { useTenant } from '../../../contexts/TenantContext';
 import { extractCellColors, getDominantColumnColor, isColourColumn } from '../utils/cellColorDetection';
@@ -1734,6 +1736,9 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
   const [mode, setMode] = useState('smart');
   // Per-row folder override from the Smart Confirm screen: rowKey -> segments[].
   const [rowOverrides, setRowOverrides] = useState({});
+  // Items read by the Claude document reader (primary path). When set, the
+  // smart confirm and import run off these instead of Azure's raw tables.
+  const [aiItems, setAiItems] = useState(null);
 
   // Combined normalized rows for bulk import
   const [allNormalizedRows, setAllNormalizedRows] = useState([]);
@@ -1758,6 +1763,16 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
   // Mirrors the import loop's logic (section tree + carry-forward / custom
   // split), so the Smart Confirm preview and the actual import agree exactly.
   const resolvedRows = useMemo(() => {
+    const base = (folderPath?.trim() || '')?.split('>')?.map((s) => s?.trim())?.filter(Boolean);
+    // Primary path: items the Claude reader returned. Folder = the item's
+    // category (under the folder we're importing into).
+    if (aiItems) {
+      return aiItems.map((it, i) => {
+        const cat = (it?.category || '').trim();
+        const seg = cat ? [...base, cat] : base;
+        return { rowKey: `ai${i}`, aiItem: it, autoSegments: seg, name: it?.name || '(unnamed item)', qty: it?.quantity ?? '' };
+      });
+    }
     const out = [];
     if (!azureResult?.tables) return out;
     azureResult.tables.forEach((table) => {
@@ -1790,7 +1805,7 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
       });
     });
     return out;
-  }, [azureResult, tableStates, colorMap, folderPath]);
+  }, [aiItems, azureResult, tableStates, colorMap, folderPath]);
 
   const segmentsFor = useCallback(
     (row) => (rowOverrides?.[row?.rowKey] ? rowOverrides[row.rowKey] : row?.autoSegments) || [],
@@ -1822,10 +1837,55 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
   }, []);
 
   // Step 1 → 2: Parse with Azure, then run color detection in background
+  const normalizeAiItems = (items) => (items || [])
+    .map((it) => ({
+      name: (it?.name ?? '').toString().trim(),
+      brand: (it?.brand ?? '').toString().trim(),
+      quantity: it?.quantity == null || it?.quantity === '' ? '' : (Number(it.quantity) || it.quantity),
+      unit: (it?.unit ?? '').toString().trim(),
+      size: (it?.size ?? '').toString().trim(),
+      code: (it?.code ?? '').toString().trim(),
+      category: (it?.category ?? '').toString().trim(),
+      supplier: (it?.supplier ?? '').toString().trim(),
+      notes: (it?.notes ?? '').toString().trim(),
+    }))
+    .filter((it) => it.name);
+
+  // Primary reader: Claude reads the document (PDF / image) or the sheet text
+  // and returns clean, structured items directly — no column mapping needed.
   const handleFileSelected = async (file) => {
     setIsLoading(true);
     setParseError(null);
     setUploadedFile(file);
+    setAiItems(null);
+    setAzureResult(null);
+    setRowOverrides({});
+    try {
+      const ext = file?.name?.split('.')?.pop()?.toLowerCase();
+      let items;
+      if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const text = XLSX.utils.sheet_to_csv(sheet);
+        items = await parseInventoryItemsFromText(text);
+      } else {
+        items = await parseInventoryDocument(file);
+      }
+      setAiItems(normalizeAiItems(items));
+      setMode('smart');
+      setStep(2);
+    } catch (err) {
+      setParseError(err?.message || 'We couldn’t read this document. Try a clearer file.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fallback / power path: the original Azure table extraction + manual mapping.
+  const runAzureImport = async (file) => {
+    setIsLoading(true);
+    setParseError(null);
     try {
       const result = await parseDocumentWithAzure(file);
       if (isAzureParseError(result)) {
@@ -1851,7 +1911,8 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
       });
       setTableStates(states);
       setRowOverrides({});
-      setMode('smart');
+      setAiItems(null);
+      setMode('advanced');
       setStep(2);
 
       // Run color detection in background (non-blocking)
@@ -1939,7 +2000,7 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
   const handleRunImport = async () => {
     // Resolve each row to its final folder, honouring any moves made on the
     // Smart Confirm screen. One resolver feeds both the preview and this import.
-    const rows = resolvedRows.map((r) => ({ ...r.normRow, _segments: segmentsFor(r) }));
+    const rows = resolvedRows.map((r) => ({ src: r.aiItem || r.normRow || {}, isAi: !!r.aiItem, _segments: segmentsFor(r) }));
     setAllNormalizedRows(rows);
 
     setStep(5);
@@ -1963,54 +2024,73 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
       let count = 0;
 
       for (let i = 0; i < rows?.length; i++) {
-        const row = rows?.[i];
-        const itemName = row?.item_name || row?.name || '';
-        if (!itemName?.trim()) { setImportProgress(i + 1); continue; }
+        const { src: row, isAi, _segments } = rows?.[i] || {};
+        const finalSegments = _segments || [];
 
-        const finalSegments = row?._segments || [];
+        let itemToSave;
+        if (isAi) {
+          // Items from the Claude reader are already clean.
+          const itemName = (row?.name || '').trim();
+          if (!itemName) { setImportProgress(i + 1); continue; }
+          itemToSave = {
+            name: itemName,
+            brand: row?.brand || '',
+            quantity: parseFloat(row?.quantity) || 0,
+            unit: row?.unit || '',
+            size: row?.size || '',
+            year: '',
+            expiryDate: null,
+            barcode: row?.code || '',
+            supplier: row?.supplier || '',
+            notes: row?.notes || '',
+            location: finalSegments?.[0] || null,
+            subLocation: finalSegments?.length > 1 ? finalSegments?.slice(1)?.join(' > ') : null,
+            tenant_id: activeTenantId,
+          };
+        } else {
+          const itemName = row?.item_name || row?.name || '';
+          if (!itemName?.trim()) { setImportProgress(i + 1); continue; }
 
-        // Build custom_fields
-        const customFields = {};
-
-        const colourVal = row?.colour?.trim?.() || '';
-        if (colourVal) customFields['colour'] = colourVal;
-
-        const batchVal = row?.batch_no?.trim?.() || '';
-        if (batchVal) customFields['batch_no'] = batchVal;
-
-        if (row?.source_fields && typeof row?.source_fields === 'object') {
-          const existingCustomKeys = Object.keys(customFields);
-          for (const [rawLabel, rawValue] of Object.entries(row?.source_fields)) {
-            if (!rawValue?.toString?.()?.trim()) continue;
-            const normalizedKey = normalizeFieldKey(rawLabel);
-            if (!normalizedKey) continue;
-            const isCoreKey = CARGO_CORE_FIELDS?.some((f) => f?.key === normalizedKey);
-            if (isCoreKey) continue;
-            const similar = findSimilarExistingField(normalizedKey, existingCustomKeys);
-            const finalKey = similar || normalizedKey;
-            if (!customFields?.[finalKey]) {
-              customFields[finalKey] = rawValue?.toString()?.trim();
-              if (!similar) existingCustomKeys?.push(finalKey);
+          // Build custom_fields
+          const customFields = {};
+          const colourVal = row?.colour?.trim?.() || '';
+          if (colourVal) customFields['colour'] = colourVal;
+          const batchVal = row?.batch_no?.trim?.() || '';
+          if (batchVal) customFields['batch_no'] = batchVal;
+          if (row?.source_fields && typeof row?.source_fields === 'object') {
+            const existingCustomKeys = Object.keys(customFields);
+            for (const [rawLabel, rawValue] of Object.entries(row?.source_fields)) {
+              if (!rawValue?.toString?.()?.trim()) continue;
+              const normalizedKey = normalizeFieldKey(rawLabel);
+              if (!normalizedKey) continue;
+              const isCoreKey = CARGO_CORE_FIELDS?.some((f) => f?.key === normalizedKey);
+              if (isCoreKey) continue;
+              const similar = findSimilarExistingField(normalizedKey, existingCustomKeys);
+              const finalKey = similar || normalizedKey;
+              if (!customFields?.[finalKey]) {
+                customFields[finalKey] = rawValue?.toString()?.trim();
+                if (!similar) existingCustomKeys?.push(finalKey);
+              }
             }
           }
-        }
 
-        const itemToSave = {
-          name: itemName,
-          brand: row?.brand || '',
-          quantity: parseFloat(row?.quantity) || 0,
-          unit: row?.unit || '',
-          size: row?.size || '',
-          year: row?.year || '',
-          expiryDate: row?.expiry_date || null,
-          barcode: row?.code || '',
-          supplier: row?.supplier || '',
-          notes: row?.notes?.trim?.() || '',
-          customFields: Object.keys(customFields)?.length > 0 ? customFields : undefined,
-          location: finalSegments?.[0] || null,
-          subLocation: finalSegments?.length > 1 ? finalSegments?.slice(1)?.join(' > ') : null,
-          tenant_id: activeTenantId,
-        };
+          itemToSave = {
+            name: itemName,
+            brand: row?.brand || '',
+            quantity: parseFloat(row?.quantity) || 0,
+            unit: row?.unit || '',
+            size: row?.size || '',
+            year: row?.year || '',
+            expiryDate: row?.expiry_date || null,
+            barcode: row?.code || '',
+            supplier: row?.supplier || '',
+            notes: row?.notes?.trim?.() || '',
+            customFields: Object.keys(customFields)?.length > 0 ? customFields : undefined,
+            location: finalSegments?.[0] || null,
+            subLocation: finalSegments?.length > 1 ? finalSegments?.slice(1)?.join(' > ') : null,
+            tenant_id: activeTenantId,
+          };
+        }
 
         const result = await saveItem(itemToSave);
         if (result) count++;
@@ -2072,7 +2152,7 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
             baseSegments={currentPathSegments || []}
             onMoveItem={handleMoveItem}
             onImport={handleRunImport}
-            onAdjust={() => setMode('advanced')}
+            onAdjust={() => runAzureImport(uploadedFile)}
             onBack={() => setStep(1)}
           />
         )}

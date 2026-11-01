@@ -119,32 +119,63 @@ export async function parseDocument(file, prompt, options = {}) {
  * @param {File} file - PDF or image of an inventory list / delivery note / packing list
  * @returns {Promise<Array<object>>} Array of parsed inventory items
  */
-export async function parseInventoryDocument(file) {
-  const prompt = `Extract all inventory items from this document and return them as a JSON array.
-Each item should have these fields (use null if not found):
-- name: string (item name / description)
-- brand: string (brand or manufacturer)
-- quantity: number (quantity / amount)
-- unit: string (unit of measure e.g. "bottles", "kg", "pcs")
-- category: string (product category if visible)
-- supplier: string (supplier or vendor name if visible)
-- notes: string (any additional notes, codes, or references)
+// The shared instruction for turning any inventory-ish document into clean
+// item rows. Works for orders, delivery notes, stock lists, spreadsheets and
+// photos in any language.
+const INVENTORY_EXTRACT_PROMPT = `You are reading an inventory, order, delivery note or stock list. Extract EVERY product line as a JSON array — one object per product.
 
-Return ONLY valid JSON array, no markdown, no explanation. Example:
-[{"name":"Champagne","brand":"Moët","quantity":12,"unit":"bottles","category":"Beverages","supplier":null,"notes":"Vintage 2019"}]`;
+Rules:
+- Merge a product that spans several lines into ONE object (join its description).
+- Skip anything that is not a product line: column headers, section titles (capture them as "category" instead), subtotals, totals, tax/VAT lines, addresses, page numbers, delivery/billing info.
+- The document may be in any language — translate field roles, not the values.
+- If products are grouped under section/category headings, put that heading in "category".
+- Quantity is the count of the item (not a price). Never put a monetary amount in quantity.
 
-  const rawText = await parseDocument(file, prompt);
+Each object has these fields (use null when absent):
+- name: product name / description (string)
+- brand: brand or manufacturer (string)
+- quantity: number ordered or counted (number)
+- unit: unit of measure, e.g. "bottles", "kg", "pcs", "L" (string)
+- size: pack size / volume, e.g. "5L", "500ml" (string)
+- code: product code / SKU / reference (string)
+- category: product category or the section it sits under (string)
+- supplier: supplier or vendor (string)
+- notes: anything else useful, e.g. country of origin (string)
 
-  // Strip markdown code fences if present
+Return ONLY a valid JSON array, no markdown and no commentary.`;
+
+function parseItemsJson(rawText) {
   const cleaned = extractJsonText(rawText);
-
   try {
     const parsed = JSON.parse(cleaned);
     if (!Array.isArray(parsed)) throw new Error('Expected JSON array');
     return parsed;
   } catch {
-    throw new Error(`Failed to parse AI response as JSON. Raw response: ${rawText.slice(0, 200)}`);
+    throw new Error(`Failed to parse AI response as JSON. Raw response: ${String(rawText).slice(0, 200)}`);
   }
+}
+
+export async function parseInventoryDocument(file) {
+  // Large output budget: a multi-page order can have a few hundred rows.
+  const rawText = await parseDocument(file, INVENTORY_EXTRACT_PROMPT, { max_completion_tokens: 8192 });
+  return parseItemsJson(rawText);
+}
+
+/**
+ * Same extraction, but from already-extracted text (e.g. a spreadsheet turned
+ * into CSV/TSV). Used for .xlsx / .csv, which the vision endpoint can't take.
+ * @param {string} text
+ * @returns {Promise<Array<object>>}
+ */
+export async function parseInventoryItemsFromText(text) {
+  const messages = [
+    { role: 'system', content: 'You are a precise document parsing assistant. Return only the requested JSON.' },
+    { role: 'user', content: `${INVENTORY_EXTRACT_PROMPT}\n\nDocument contents:\n\n${String(text || '').slice(0, 60000)}` },
+  ];
+  const response = await getChatCompletion(PROVIDER, MODEL, messages, { max_completion_tokens: 8192 });
+  const content = response?.choices?.[0]?.message?.content;
+  if (!content) throw new Error('No content returned from the AI');
+  return parseItemsJson(content);
 }
 
 /**
