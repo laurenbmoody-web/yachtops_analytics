@@ -354,17 +354,12 @@ function detectSimilarTables(tables, tableStates) {
 // ---------------------------------------------------------------------------
 function StepIndicator({ currentStep, steps = STEPS }) {
   return (
-    <div className="azi-steps">
+    <div className="azi-prog">
       {steps?.map((step, idx) => (
         <React.Fragment key={step?.id}>
-          <div className={`azi-step${currentStep === step?.id ? ' is-active' : currentStep > step?.id ? ' is-done' : ''}`}>
-            <div className="azi-step-dot">
-              {currentStep > step?.id ? <Icon name="Check" size={12} /> : step?.id}
-            </div>
-            <span className="azi-step-label">{step?.label}</span>
-          </div>
+          <span className={`w${currentStep === step?.id ? ' on' : currentStep > step?.id ? ' done' : ''}`}>{step?.label}</span>
           {idx < steps?.length - 1 && (
-            <div className={`azi-step-conn${currentStep > step?.id ? ' is-done' : ''}`} />
+            <span className={`ln${currentStep > step?.id ? ' done' : ''}`} />
           )}
         </React.Fragment>
       ))}
@@ -402,9 +397,12 @@ function UploadStep({ onFileUploaded, parseError, isLoading }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="azi-stage">
+      <h2 className="azi-hero">Let&rsquo;s read your <em>order</em>.</h2>
+      <p className="azi-lede">Drop a PDF, spreadsheet or photo and we&rsquo;ll pull out every item &mdash; sized, coded and sorted into folders for you.</p>
+
       <div
-        className={`azi-drop${dragOver ? ' is-drag' : ''}`}
+        className={`azi-well${dragOver ? ' is-drag' : ''}`}
         onDragOver={(e) => { e?.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => { e?.preventDefault(); setDragOver(false); handleFile(e?.dataTransfer?.files?.[0]); }}
@@ -412,31 +410,34 @@ function UploadStep({ onFileUploaded, parseError, isLoading }) {
       >
         <input ref={fileInputRef} type="file" accept=".pdf,.xlsx,.png,.jpg,.jpeg,.tiff,.bmp" className="hidden"
           onChange={(e) => handleFile(e?.target?.files?.[0])} />
-        <div className="azi-drop-icn">
-          <Icon name="FileText" size={24} />
-        </div>
-        <p className="azi-drop-title">{selectedFile ? selectedFile?.name : 'Drop your document here'}</p>
-        <p className="azi-drop-sub">
-          {selectedFile
-            ? `${(selectedFile?.size / 1024)?.toFixed(1)} KB — click to choose a different file`
-            : 'Upload a PDF, Excel (.xlsx), or a photo / scan to import inventory'}
-        </p>
-        {!selectedFile && (
-          <span className="azi-drop-browse"><Icon name="FolderOpen" size={14} />Browse files</span>
+        <div className="azi-well-ic"><Icon name="FileText" size={24} /></div>
+        {selectedFile ? (
+          <>
+            <div className="azi-well-name">{selectedFile?.name}</div>
+            <div className="azi-well-sub">{(selectedFile?.size / 1024)?.toFixed(0)} KB &mdash; tap to replace</div>
+          </>
+        ) : (
+          <>
+            <div className="azi-well-ph">Drop your document here</div>
+            <div className="azi-well-sub">PDF, Excel (.xlsx), or a photo / scan</div>
+            <span className="azi-well-browse"><Icon name="FolderOpen" size={14} />Browse files</span>
+          </>
         )}
       </div>
+
       {(fileError || parseError) && (
         <div className="azi-err">
           <Icon name="AlertCircle" size={16} className="flex-shrink-0 mt-0.5" />
           <span>{fileError || parseError}</span>
         </div>
       )}
-      <div className="flex justify-end">
-        <button className="azi-primary" disabled={!selectedFile || isLoading} onClick={() => selectedFile && onFileUploaded(selectedFile)}>
+
+      <div className="azi-cta">
+        <button className="azi-pill" disabled={!selectedFile || isLoading} onClick={() => selectedFile && onFileUploaded(selectedFile)}>
           {isLoading ? (
-            <><LogoSpinner size={16} />Reading your document…</>
+            <><LogoSpinner size={16} />Reading your document&hellip;</>
           ) : (
-            <><Icon name="ArrowRight" size={16} />Continue</>
+            <>Read my order<Icon name="ArrowRight" size={17} /></>
           )}
         </button>
       </div>
@@ -1545,46 +1546,28 @@ function getRowGroupValue(table, tableState, rowIndex) {
 function ImportingStep({ progress, total, done, importedCount, importError, onClose }) {
   const pct = total > 0 ? Math.round((progress / total) * 100) : 0;
   return (
-    <div className="space-y-6 py-4">
+    <div className="azi-result">
       {!done ? (
         <>
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <LogoSpinner size={28} />
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-semibold text-foreground">Importing items…</p>
-              <p className="text-xs text-muted-foreground mt-1">{progress} of {total}</p>
-            </div>
-          </div>
-          <div className="w-full bg-muted rounded-full h-2">
-            <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
-          </div>
+          <div className="azi-result-ic go"><LogoSpinner size={30} /></div>
+          <h2 className="azi-hero">Filing your items&hellip;</h2>
+          <p className="azi-lede">{progress} of {total} saved</p>
+          <div className="azi-bar"><i style={{ width: `${pct}%` }} /></div>
         </>
       ) : importError ? (
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center">
-            <Icon name="XCircle" size={28} className="text-destructive" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">Import failed</p>
-            <p className="text-xs text-muted-foreground mt-1">{importError}</p>
-          </div>
-          <Button variant="outline" onClick={onClose}>Close</Button>
-        </div>
+        <>
+          <div className="azi-result-ic err"><Icon name="XCircle" size={30} /></div>
+          <h2 className="azi-hero">That didn&rsquo;t work.</h2>
+          <p className="azi-lede">{importError}</p>
+          <div className="azi-cta"><button className="azi-ghost" onClick={onClose}>Close</button></div>
+        </>
       ) : (
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center">
-            <Icon name="CheckCircle2" size={28} className="text-green-600" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">Import complete!</p>
-            <p className="text-xs text-muted-foreground mt-1">{importedCount} items imported successfully</p>
-          </div>
-          <Button onClick={onClose} className="gap-2">
-            <Icon name="Check" size={16} />Done
-          </Button>
-        </div>
+        <>
+          <div className="azi-result-ic ok"><Icon name="CheckCircle2" size={30} /></div>
+          <h2 className="azi-hero">All <em>aboard</em>.</h2>
+          <p className="azi-lede">{importedCount} item{importedCount !== 1 ? 's' : ''} imported and filed into your folders.</p>
+          <div className="azi-cta"><button className="azi-pill" onClick={onClose}>Done<Icon name="Check" size={16} /></button></div>
+        </>
       )}
     </div>
   );
@@ -1625,28 +1608,24 @@ function SmartConfirmStep({ fileName, groups, folderOptions, totalItems, baseSeg
   };
 
   return (
-    <div>
-      <div className="azi-note">
-        <Icon name="Sparkles" size={18} className="azi-note-icn" />
-        <div>
-          <p className="azi-note-t">We read {fileName || 'your document'} and sorted it for you</p>
-          <p className="azi-note-s">
-            {totalItems > 0
-              ? <>{totalItems} item{totalItems !== 1 ? 's' : ''} across {groups?.length} folder{groups?.length !== 1 ? 's' : ''}. Open a folder to move anything we filed in the wrong place, then import.</>
-              : <>We couldn’t pick out any items automatically from this document.</>}
+    <div className="azi-stage">
+      {totalItems > 0 ? (
+        <>
+          <h2 className="azi-hero">{totalItems} item{totalItems !== 1 ? 's' : ''}, <em>sorted</em>.</h2>
+          <p className="azi-lede">
+            From {fileName || 'your document'}, into {groups?.length} folder{groups?.length !== 1 ? 's' : ''}.
+            Open a folder to move anything we filed in the wrong place, then import.
           </p>
-        </div>
-      </div>
-
-      {totalItems === 0 && (
+        </>
+      ) : (
         <div className="azi-empty">
-          <div className="azi-empty-icn"><Icon name="FileSearch" size={26} /></div>
+          <div className="azi-empty-ic"><Icon name="FileSearch" size={26} /></div>
           <p className="azi-empty-t">Nothing recognised yet</p>
           <p className="azi-empty-s">
-            This can happen with an unusual layout or a scan we couldn’t read. Open
-            <b> Adjust details</b> to line up the columns yourself, or go back and try a clearer file.
+            This can happen with an unusual layout or a scan we couldn&rsquo;t read. Open
+            <b> the detailed importer</b> to line up the columns yourself, or go back and try a clearer file.
           </p>
-          <button className="azi-primary" onClick={onAdjust}><Icon name="SlidersHorizontal" size={16} />Adjust details</button>
+          <button className="azi-pill" onClick={onAdjust}><Icon name="SlidersHorizontal" size={16} />Detailed importer</button>
         </div>
       )}
 
@@ -1708,9 +1687,9 @@ function SmartConfirmStep({ fileName, groups, folderOptions, totalItems, baseSeg
           <Icon name="ArrowLeft" size={16} />Back
         </button>
         <div className="azi-foot-r">
-          <button className="azi-link" onClick={onAdjust}>Adjust details</button>
-          <button className="azi-primary" onClick={onImport} disabled={totalItems === 0}>
-            <Icon name="Check" size={16} />Import {totalItems} item{totalItems !== 1 ? 's' : ''}
+          <button className="azi-link" onClick={onAdjust}>Detailed importer</button>
+          <button className="azi-pill" onClick={onImport} disabled={totalItems === 0}>
+            Import {totalItems} item{totalItems !== 1 ? 's' : ''}<Icon name="ArrowRight" size={16} />
           </button>
         </div>
       </div>
@@ -2134,24 +2113,14 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
 
   return (
     <ModalShell onClose={onClose} panelClassName={`azi-modal bg-card w-full flex flex-col ${isStep3 ? 'max-w-4xl max-h-[92vh]' : 'max-w-3xl max-h-[90vh]'}`}>
-      {/* Header */}
-      <div className="azi-head flex items-center justify-between px-6 py-5 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="azi-badge w-9 h-9 rounded-xl flex items-center justify-center">
-            <Icon name="FileText" size={16} />
-          </div>
-          <div>
-            <h2 className="azi-title">Import from document</h2>
-            <p className="azi-sub">Upload a document to extract and organise your inventory automatically</p>
-          </div>
-        </div>
-        <button onClick={onClose} className="azi-x w-8 h-8 flex items-center justify-center">
-          <Icon name="X" size={16} />
-        </button>
+      {/* Top bar */}
+      <div className="azi-top">
+        <span className="azi-eyebrow"><span className="dot" />Cargo &middot; Import</span>
+        <button onClick={onClose} className="azi-x"><Icon name="X" size={18} /></button>
       </div>
 
       {/* Body */}
-      <div className={`flex-1 overflow-y-auto px-6 py-5 ${isStep3 ? 'relative pb-20' : ''}`}>
+      <div className={`flex-1 overflow-y-auto ${isStep3 ? 'relative pb-20' : ''}`}>
         {step < 5 && (
           mode === 'smart'
             ? <StepIndicator currentStep={step === 1 ? 1 : 2} steps={SMART_STEPS} />
@@ -2162,7 +2131,7 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
           <UploadStep onFileUploaded={handleFileSelected} parseError={parseError} isLoading={isLoading} />
         )}
 
-        {step === 2 && azureResult && mode === 'smart' && (
+        {step === 2 && mode === 'smart' && (
           <SmartConfirmStep
             fileName={uploadedFile?.name}
             groups={smartGroups}
@@ -2177,38 +2146,44 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
         )}
 
         {step === 2 && azureResult && mode === 'advanced' && (
-          <TableSessionStep
-            tables={azureResult?.tables}
-            tableStates={tableStates}
-            onToggleInclude={handleToggleInclude}
-            onNext={() => setStep(3)}
-            onBack={() => setStep(1)}
-            similarGroups={similarGroups}
-          />
+          <div className="azi-stage">
+            <TableSessionStep
+              tables={azureResult?.tables}
+              tableStates={tableStates}
+              onToggleInclude={handleToggleInclude}
+              onNext={() => setStep(3)}
+              onBack={() => setStep(1)}
+              similarGroups={similarGroups}
+            />
+          </div>
         )}
 
         {step === 3 && azureResult && (
-          <PerTableReviewStep
-            tables={azureResult?.tables}
-            tableStates={tableStates}
-            onTableStateChange={handleTableStateChange}
-            onNext={handleGoToSaveAndOrganise}
-            onBack={() => setStep(2)}
-            similarGroups={similarGroups}
-            colorMap={colorMap}
-            isColorDetecting={isColorDetecting}
-          />
+          <div className="azi-stage">
+            <PerTableReviewStep
+              tables={azureResult?.tables}
+              tableStates={tableStates}
+              onTableStateChange={handleTableStateChange}
+              onNext={handleGoToSaveAndOrganise}
+              onBack={() => setStep(2)}
+              similarGroups={similarGroups}
+              colorMap={colorMap}
+              isColorDetecting={isColorDetecting}
+            />
+          </div>
         )}
 
         {step === 4 && azureResult && (
-          <SaveAndOrganiseStep
-            tables={azureResult?.tables}
-            tableStates={tableStates}
-            onTableSaveToChange={handleTableSaveToChange}
-            onTableGroupingChange={handleTableGroupingChange}
-            onNext={handleRunImport}
-            onBack={() => setStep(3)}
-          />
+          <div className="azi-stage">
+            <SaveAndOrganiseStep
+              tables={azureResult?.tables}
+              tableStates={tableStates}
+              onTableSaveToChange={handleTableSaveToChange}
+              onTableGroupingChange={handleTableGroupingChange}
+              onNext={handleRunImport}
+              onBack={() => setStep(3)}
+            />
+          </div>
         )}
 
         {step === 5 && (
