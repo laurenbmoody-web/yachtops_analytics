@@ -25,8 +25,6 @@ import { DndContext, closestCenter, pointerWithin, MouseSensor, TouchSensor, use
 import {
   SortableContext,
   useSortable,
-  rectSortingStrategy,
-  arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import ExportInventoryModal from './components/ExportInventoryModal';
@@ -2080,7 +2078,7 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
       {...dragHandleProps}
       onClick={(e) => e?.stopPropagation()}
       className="inv-grip"
-      title="Drag to reorder or hold over a folder to move inside"
+      title="Drag onto another folder to move this inside it"
     >
       <Icon name="GripVertical" size={14} />
     </div>
@@ -2108,16 +2106,10 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
 
   const actions = (
     <div className="inv-folder-actions">
-      {isFolderDropTarget && isDropTargetReady && (
+      {isFolderDropTarget && (
         <span className="inv-moveinside">
           <Icon name="FolderInput" size={12} />
           <span>Move inside</span>
-        </span>
-      )}
-      {isFolderDropTarget && !isDropTargetReady && (
-        <span className="inv-moveinside hint">
-          <Icon name="FolderInput" size={12} />
-          <span>Hold to move inside</span>
         </span>
       )}
       {!isFolderDropTarget && (
@@ -2654,6 +2646,13 @@ const FilterPanel = ({ items, filters, onChange, onClose, vesselLocations = [], 
 };
 
 // ─── Main Component ────────────────────────────────────────────────────────────
+// Keep folder/item tiles still while dragging: the default sortable strategy
+// animates every sibling out of the way, which made the grid shuffle under the
+// cursor ("keeps moving and pushing it") and made it hard to tell when you were
+// over a folder. We don't reorder by drag — we nest and move into folders — so a
+// no-op strategy keeps tiles put and the drop target steady.
+const noReflowStrategy = () => null;
+
 const LocationFirstInventory = () => {
   const { '*': wildcard } = useParams();
   const navigate = useNavigate();
@@ -4095,9 +4094,12 @@ const LocationFirstInventory = () => {
 
   const handleDragOver = ({ active, over }) => {
     const overId = over?.id;
-    const overIsFolder = overId && subFolders?.includes(overId);
+    const overIsFolder = overId && overId !== active?.id && subFolders?.includes(overId);
 
-    if (!over || active?.id === over?.id || !overIsFolder) {
+    // Highlight whatever folder the cursor is over — for both an item drag
+    // (drop = move the item in) and a folder drag (drop = nest the folder).
+    // Tiles no longer reflow, so the target is steady and no hold is needed.
+    if (!overIsFolder) {
       if (folderHoverIdRef?.current !== null) {
         clearFolderHoverTimer();
         setFolderDropTargetId(null);
@@ -4108,23 +4110,10 @@ const LocationFirstInventory = () => {
     }
 
     if (folderHoverIdRef?.current === overId) return;
-
-    // Dragging an item onto a folder → highlight immediately (drop = move in).
-    // Dragging a folder onto a folder → require a 600ms hold to disambiguate
-    // from a reorder.
-    const draggingItem = isItemDragId(active?.id);
     clearFolderHoverTimer();
     setFolderDropTargetId(overId);
+    setFolderDropTargetReady(true);
     folderHoverIdRef.current = overId;
-
-    if (draggingItem) {
-      setFolderDropTargetReady(true);
-    } else {
-      setFolderDropTargetReady(false);
-      folderHoverTimerRef.current = setTimeout(() => {
-        setFolderDropTargetReady(true);
-      }, 450);
-    }
   };
 
   const handleDragEnd = async ({ active, over }) => {
@@ -4178,50 +4167,13 @@ const LocationFirstInventory = () => {
       return;
     }
 
-    if (active?.id === over?.id) return;
-
-    if (folderDropTargetReady && folderDropTargetId && folderDropTargetId !== active?.id) {
+    // Dropped a folder onto another folder → move (nest) it inside. Use the
+    // folder actually under the cursor at drop; no hold, no reorder gesture.
+    const overId = over?.id;
+    if (overId && overId !== active?.id && subFolders?.includes(overId)) {
       setIsMovingFolder(true);
-      await handleMoveFolder(pathSegments, [...pathSegments, folderDropTargetId], active?.id);
+      await handleMoveFolder(pathSegments, [...pathSegments, overId], active?.id);
       setIsMovingFolder(false);
-      return;
-    }
-
-    const oldIndex = subFolders?.indexOf(active?.id);
-    const newIndex = subFolders?.indexOf(over?.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const reordered = arrayMove(subFolders, oldIndex, newIndex);
-    setSubFolders(reordered);
-
-    let tenantId = localStorage.getItem('cargo_active_tenant_id') || ctxActiveTenantId || '';
-    if (!tenantId) return;
-
-    try {
-      for (let idx = 0; idx < reordered?.length; idx++) {
-        const folderName = reordered?.[idx];
-        const sort_order = idx;
-        if (isRoot) {
-          await supabase
-            ?.from('inventory_locations')
-            ?.update({ sort_order })
-            ?.eq('tenant_id', tenantId)
-            ?.eq('location', folderName)
-            ?.is('sub_location', null);
-        } else {
-          const location = pathSegments?.[0];
-          const parentSubPath = pathSegments?.slice(1)?.join(' > ');
-          const sub_location = parentSubPath ? `${parentSubPath} > ${folderName}` : folderName;
-          await supabase
-            ?.from('inventory_locations')
-            ?.update({ sort_order })
-            ?.eq('tenant_id', tenantId)
-            ?.eq('location', location)
-            ?.eq('sub_location', sub_location);
-        }
-      }
-    } catch (err) {
-      console.error('[LocationFirstInventory] handleDragEnd sort_order update error:', err?.message);
     }
   };
 
@@ -4588,10 +4540,11 @@ const LocationFirstInventory = () => {
 
         {/* Main content */}
           {/* One unified grid — folders and this folder's own items together,
-              same-size tiles, no section titles. Drag a folder to reorder or
-              hold it over another folder to move inside; drag an item onto a
-              folder to move it there. */}
-          <SortableContext items={unifiedSortableIds} strategy={rectSortingStrategy}>
+              same-size tiles, no section titles. Drag a folder onto another
+              folder to move it inside; drag an item onto a folder to move it
+              there. Tiles don't reflow (noReflowStrategy) so the drop target
+              stays steady. */}
+          <SortableContext items={unifiedSortableIds} strategy={noReflowStrategy}>
             {(visibleSubFolders?.length > 0 || directItems?.length > 0) && (
               <div
                 className={viewMode === 'list' ? 'inv-grid list' : 'inv-grid'}
