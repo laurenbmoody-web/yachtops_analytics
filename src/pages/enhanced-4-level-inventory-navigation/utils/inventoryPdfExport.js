@@ -55,12 +55,18 @@ const fetchImageAsBase64 = (url) => {
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth || img.width;
-        canvas.height = img.naturalHeight || img.height;
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext('2d');
+        // Flatten onto white so transparent PNGs don't render on black in the PDF.
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, w, h);
         ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
+        // Keep the natural size so the draw step can preserve aspect ratio.
+        resolve({ data: canvas.toDataURL('image/jpeg', 0.85), w, h });
       } catch {
         resolve(null);
       }
@@ -343,8 +349,8 @@ export const exportInventoryToPDF = async ({
         const imageUrl = rowImageUrls?.[rowIndex];
         if (!imageUrl) return;
 
-        const b64 = imageCache?.[imageUrl];
-        if (!b64) return;
+        const cached = imageCache?.[imageUrl];
+        if (!cached?.data) return;
 
         try {
           const cellX = data?.cell?.x;
@@ -352,12 +358,15 @@ export const exportInventoryToPDF = async ({
           const cellW = data?.cell?.width;
           const cellH = data?.cell?.height;
 
-          // 12x12mm thumbnail centred in cell
-          const thumbSize = 12;
-          const imgX = cellX + (cellW - thumbSize) / 2;
-          const imgY = cellY + (cellH - thumbSize) / 2;
+          // Fit within a 12mm box, preserving aspect ratio (no stretch), centred.
+          const box = 12;
+          const ratio = (cached.w && cached.h) ? cached.w / cached.h : 1;
+          const dw = ratio >= 1 ? box : box * ratio;
+          const dh = ratio >= 1 ? box / ratio : box;
+          const imgX = cellX + (cellW - dw) / 2;
+          const imgY = cellY + (cellH - dh) / 2;
 
-          doc?.addImage(b64, 'JPEG', imgX, imgY, thumbSize, thumbSize);
+          doc?.addImage(cached.data, 'JPEG', imgX, imgY, dw, dh);
         } catch {
           // silently skip
         }
@@ -495,14 +504,34 @@ export const exportInventoryToPDF = async ({
     doc?.setTextColor(...primaryColor);
     doc?.setFontSize(9);
     doc?.setFont('helvetica', 'normal');
-    doc?.text('Articles ordered by quantity, highest first.', margin, y);
+    doc?.text('Each bottle listed under its article type; types ordered by quantity, highest first.', margin, y);
     y += 5;
 
     const locCol = pageWidth - margin * 2 - 70 - 36 - 24;
+    const bandFill = [230, 233, 240];
+    const bondedBody = [];
+    summary.rows.forEach((r) => {
+      // Type band — the article group with its subtotal and stow locations.
+      bondedBody.push([
+        { content: r.article, styles: { fontStyle: 'bold', fillColor: bandFill, textColor: primaryColor } },
+        { content: String(r.qty), styles: { halign: 'right', fontStyle: 'bold', fillColor: bandFill, textColor: primaryColor } },
+        { content: String(r.lines), styles: { halign: 'right', fontStyle: 'bold', fillColor: bandFill, textColor: primaryColor } },
+        { content: r.locations.join(', ') || '—', styles: { fillColor: bandFill, textColor: primaryColor } },
+      ]);
+      // Each individual bottle within that type, indented, with its own unit count.
+      (r.bottles || []).forEach((b) => {
+        bondedBody.push([
+          { content: b.name, styles: { cellPadding: { top: 1.8, right: 3, bottom: 1.8, left: 8 } } },
+          { content: String(b.qty), styles: { halign: 'right' } },
+          '',
+          '',
+        ]);
+      });
+    });
     autoTable(doc, {
       startY: y,
-      head: [['Name of article', 'Quantity (units)', 'Lines', 'Location(s) on board']],
-      body: summary.rows.map((r) => [r.article, String(r.qty), String(r.lines), r.locations.join(', ') || '—']),
+      head: [['Article', 'Quantity (units)', 'Lines', 'Location(s) on board']],
+      body: bondedBody,
       foot: [['TOTAL', String(summary.totalQty), String(summary.totalLines), '']],
       margin: { left: margin, right: margin },
       styles: {
@@ -516,9 +545,8 @@ export const exportInventoryToPDF = async ({
       },
       headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
       footStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
-      alternateRowStyles: { fillColor: lightGray },
       columnStyles: {
-        0: { cellWidth: 70, fontStyle: 'bold' },
+        0: { cellWidth: 70 },
         1: { cellWidth: 36, halign: 'right', fontStyle: 'bold' },
         2: { cellWidth: 24, halign: 'right' },
         3: { cellWidth: locCol },
