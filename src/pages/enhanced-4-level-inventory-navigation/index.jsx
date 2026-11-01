@@ -3219,7 +3219,13 @@ const LocationFirstInventory = () => {
 
         let locationItems;
         if (!subLocation) {
-          locationItems = (allLocationItems || [])?.filter(item => !item?.subLocation);
+          // Department root: load the WHOLE department subtree (every sub-folder's
+          // items too), not just items filed directly at the root. This powers the
+          // collapsible "All Items" rollup at department level — matching sub-folders,
+          // which already show everything beneath them. Loose cards in the grid still
+          // show only the directly-filed items (directItems filters by exact path),
+          // so there's no duplication — the subtree shows only inside the rollup.
+          locationItems = (allLocationItems || []);
         } else {
           const subLocationLower = subLocation?.trim()?.toLowerCase();
           const subLocationPrefix = subLocationLower + ' > ';
