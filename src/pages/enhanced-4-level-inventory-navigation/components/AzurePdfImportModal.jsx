@@ -20,6 +20,7 @@ import { extractCellColors, getDominantColumnColor, isColourColumn } from '../ut
 import SaveAndOrganiseStep from './SaveAndOrganiseStep';
 
 import ModalShell from '../../../components/ui/ModalShell';
+import './azure-import.css';
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -285,7 +286,7 @@ function StepIndicator({ currentStep }) {
           <div className="flex flex-col items-center gap-1">
             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all ${
           currentStep === step?.id ? 'bg-primary text-primary-foreground border-primary'
-          : currentStep > step?.id ? 'bg-primary/20 text-primary border-primary/40' :'bg-muted text-muted-foreground border-border'
+          : currentStep > step?.id ? 'azi-step-done' :'bg-muted text-muted-foreground border-border'
         }`}>
               {currentStep > step?.id ? <Icon name="Check" size={12} /> : step?.id}
             </div>
@@ -294,7 +295,7 @@ function StepIndicator({ currentStep }) {
             </span>
           </div>
           {idx < STEPS?.length - 1 && (
-            <div className={`flex-1 h-0.5 mx-1 mb-4 transition-all ${currentStep > step?.id ? 'bg-primary/40' : 'bg-border'}`} />
+            <div className={`flex-1 h-0.5 mx-1 mb-4 transition-all ${currentStep > step?.id ? 'azi-step-line-done' : 'bg-border'}`} />
           )}
         </React.Fragment>
       ))}
@@ -1871,16 +1872,16 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
   const isStep3 = step === 3;
 
   return (
-    <ModalShell onClose={onClose} panelClassName={`bg-card border border-border rounded-2xl shadow-2xl w-full flex flex-col ${isStep3 ? 'max-w-4xl max-h-[92vh]' : 'max-w-3xl max-h-[90vh]'}`}>
+    <ModalShell onClose={onClose} panelClassName={`azi-modal bg-card border border-border rounded-2xl shadow-2xl w-full flex flex-col ${isStep3 ? 'max-w-4xl max-h-[92vh]' : 'max-w-3xl max-h-[90vh]'}`}>
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
+          <div className="azi-badge w-9 h-9 rounded-xl flex items-center justify-center">
             <Icon name="FileText" size={16} className="text-primary" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-foreground">Import from document</h2>
-            <p className="text-xs text-muted-foreground">Upload a document to extract and organise your inventory automatically</p>
+            <h2 className="azi-title">Import from document</h2>
+            <p className="azi-sub">Upload a document to extract and organise your inventory automatically</p>
           </div>
         </div>
         <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-muted flex items-center justify-center transition-colors">
