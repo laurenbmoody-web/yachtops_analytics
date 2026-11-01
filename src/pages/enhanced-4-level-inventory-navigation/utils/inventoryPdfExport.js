@@ -149,10 +149,7 @@ const buildDetails = (item) => {
     if (bonded.kind === 'cig' || bonded.kind === 'cigar') {
       const per = (Number(bonded.perPack) || 0) * (Number(bonded.perCarton) || 0);
       const word = bonded.kind === 'cigar' ? 'cigars' : 'cigarettes';
-      if (per) {
-        push('Pack', `${per} ${word}/carton`);
-        push('Total', `${getTotalQty(item) * per} ${word}`);
-      }
+      if (per) push('Pack', `${per} ${word}/carton`); // the total count goes in the Qty column
     }
   }
   // Standard optional attributes.
@@ -180,6 +177,18 @@ const sanitizeCell = (value) => {
 
 /** Build row data for an item, matching COLUMNS. Image placeholder is prepended
  *  when includeImages=true. */
+// The Qty cell: tobacco shows the real stick count (e.g. "24 cigars"); otherwise
+// the plain on-hand number.
+const qtyCell = (item) => {
+  const qty = getTotalQty(item);
+  const b = item?.customFields?.bonded || item?.custom_fields?.bonded;
+  if (b && (b.kind === 'cig' || b.kind === 'cigar')) {
+    const per = (Number(b.perPack) || 0) * (Number(b.perCarton) || 0);
+    if (per) return `${qty * per} ${b.kind === 'cigar' ? 'cigars' : 'cigarettes'}`;
+  }
+  return String(qty);
+};
+
 const buildRow = (item, includeImages) => {
   const dataRow = [
     sanitizeCell(item?.cargoItemId || item?.cargo_item_id || ''),
@@ -189,7 +198,7 @@ const buildRow = (item, includeImages) => {
     buildSizes(item),
     buildDetails(item),
     sanitizeCell(formatLocations(item)),
-    sanitizeCell(String(getTotalQty(item))),
+    sanitizeCell(qtyCell(item)),
   ];
 
   if (includeImages) return ['', ...dataRow]; // empty placeholder; image drawn via didDrawCell
@@ -517,13 +526,19 @@ export const exportInventoryToPDF = async ({
     doc?.text('Articles grouped by type, ordered by quantity, highest first.', margin, y);
     y += 5;
 
-    const locCol = pageWidth - margin * 2 - 70 - 36 - 28;
+    const locCol = pageWidth - margin * 2 - 62 - 44 - 24;
     autoTable(doc, {
       startY: y,
-      // Two per-category totals: bottle count (total bottles) and total litres.
-      head: [['Article type', 'Bottle count', 'Litres', 'Location(s) on board']],
-      body: summary.rows.map((r) => [r.article, String(r.qty), `${(r.litres || 0).toFixed(1)} L`, r.locations.join(', ') || '—']),
-      foot: [['TOTAL', String(summary.totalQty), `${(summary.totalLitres || 0).toFixed(1)} L`, '']],
+      // Descriptive quantity (with its unit — bottles / cigars / cigarettes) and
+      // litres (— for tobacco). TOTAL sums the drink bottles + litres.
+      head: [['Article type', 'Quantity', 'Litres', 'Location(s) on board']],
+      body: summary.rows.map((r) => [
+        r.article,
+        `${r.count} ${r.unit}`,
+        r.isTobacco ? '—' : `${(r.litres || 0).toFixed(1)} L`,
+        r.locations.join(', ') || '—',
+      ]),
+      foot: [['TOTAL', `${summary.totalBottles} bottles`, `${(summary.totalLitres || 0).toFixed(1)} L`, '']],
       margin: { left: margin, right: margin },
       styles: {
         fontSize: 9,
@@ -537,9 +552,9 @@ export const exportInventoryToPDF = async ({
       headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
       footStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
       columnStyles: {
-        0: { cellWidth: 70, fontStyle: 'bold' },
-        1: { cellWidth: 36, halign: 'right', fontStyle: 'bold' },
-        2: { cellWidth: 28, halign: 'right' },
+        0: { cellWidth: 62, fontStyle: 'bold' },
+        1: { cellWidth: 44, halign: 'right', fontStyle: 'bold' },
+        2: { cellWidth: 24, halign: 'right' },
         3: { cellWidth: locCol },
       },
       didDrawPage: () => {
