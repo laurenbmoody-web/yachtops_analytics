@@ -1884,19 +1884,31 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
   }, []);
 
   // Step 1 → 2: Parse with Azure, then run color detection in background
-  const normalizeAiItems = (items) => (items || [])
-    .map((it) => ({
-      name: (it?.name ?? '').toString().trim(),
-      brand: (it?.brand ?? '').toString().trim(),
-      quantity: it?.quantity == null || it?.quantity === '' ? '' : (Number(it.quantity) || it.quantity),
-      unit: (it?.unit ?? '').toString().trim(),
-      size: (it?.size ?? '').toString().trim(),
-      code: (it?.code ?? '').toString().trim(),
-      category: (it?.category ?? '').toString().trim(),
-      supplier: (it?.supplier ?? '').toString().trim(),
-      notes: (it?.notes ?? '').toString().trim(),
-    }))
-    .filter((it) => it.name);
+  const normalizeAiItems = (items) => {
+    const mapped = (items || [])
+      .map((it) => ({
+        name: (it?.name ?? '').toString().trim(),
+        brand: (it?.brand ?? '').toString().trim(),
+        quantity: it?.quantity == null || it?.quantity === '' ? '' : (Number(it.quantity) || it.quantity),
+        unit: (it?.unit ?? '').toString().trim(),
+        size: (it?.size ?? '').toString().trim(),
+        code: (it?.code ?? '').toString().trim(),
+        category: (it?.category ?? '').toString().trim(),
+        supplier: (it?.supplier ?? '').toString().trim(),
+        notes: (it?.notes ?? '').toString().trim(),
+      }))
+      .filter((it) => it.name);
+    // Drop exact duplicates — guards against a header/row read twice across
+    // parallel batches producing the same item more than once.
+    const seen = new Set();
+    return mapped.filter((it) => {
+      const key = [it.name, it.code, it.size, it.unit, it.quantity, it.category]
+        .map((v) => String(v ?? '').trim().toLowerCase()).join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
 
   // Primary reader: Claude reads the document (PDF / image) or the sheet text
   // and returns clean, structured items directly — no column mapping needed.
@@ -1930,13 +1942,17 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
         if (rows.length <= 60) {
           items = await parseInventoryItemsFromText(toText(rows), folderNames);
         } else {
-          const header = rows[0];
+          const header = rows[0] || [];
+          // A labelled column hint for later batches — NOT a data row, so the
+          // header line is never re-read as an item.
+          const colsHint = header.some((c) => String(c ?? '').trim())
+            ? `Columns (for reference, not an item): ${header.map((c) => String(c ?? '')).join(' | ')}\n\n`
+            : '';
           const BATCH = 50; // rows per call — keeps each reply well within budget
           const batches = [];
           for (let i = 0; i < rows.length; i += BATCH) {
             const slice = rows.slice(i, i + BATCH);
-            // Keep the header row on later batches so the columns stay clear.
-            batches.push(toText(i === 0 ? slice : [header, ...slice]));
+            batches.push(i === 0 ? toText(slice) : colsHint + toText(slice));
           }
           const results = await Promise.all(batches.map((t) => parseInventoryItemsFromText(t, folderNames)));
           items = results.flat();
