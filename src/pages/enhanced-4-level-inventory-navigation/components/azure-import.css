@@ -1,239 +1,147 @@
-/* Azure import modal — editorial Cargo design, scoped to .azi-modal.
- *
- * The five steps are built from Tailwind utilities that resolve through the
- * app's colour tokens, so we first re-tone those tokens on the wrapper
- * (terracotta accent, navy ink, cool surfaces) to carry the palette through
- * every step. On top of that we restyle the shell, step rail and upload
- * affordance into proper editorial shapes: hairline rules, soft shadows,
- * generous whitespace — no heavy boxed look, no beige. */
+/* Import modal — EDITORIAL layout.
+ * Centered, airy, serif-led. No boxed chrome and no step dots: each step leads
+ * with a big DM Serif headline, a slim worded progress line sits under a quiet
+ * top bar, and actions are pill buttons. Scoped to .azi-modal. */
 .azi-modal {
-  --color-primary: #C65A1A;            /* terracotta accent */
-  --color-primary-foreground: #FFFFFF;
-  --color-foreground: #1C1B3A;         /* navy ink */
-  --color-card: #FFFFFF;
-  --color-background: #F8FAFC;         /* cool maritime white */
-  --color-border: #EEF0F4;             /* soft hairline */
-  --color-muted: #F1F5F9;
-  --color-muted-foreground: #6B7280;
-  --color-ring: #C65A1A;
+  --primary: #C65A1A; --primary-hi: #B14E16;
+  --ink: #1C1B3A; --muted: #6B7280; --faint: #AEB4C2;
+  --line: #E5E7EB; --soft: #F0F1F5; --inset: #F6F8FB;
+  --serif: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  --sans: 'Inter', system-ui, sans-serif;
 
-  /* Lighter frame: a hairline border and one soft shadow instead of the
-     heavy ring. The className no longer sets border/shadow. */
+  background: #FFFFFF !important;
   border: 1px solid #EEF0F4 !important;
-  border-radius: 16px !important;
-  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 30px 80px -24px rgba(28, 27, 58, 0.34) !important;
   overflow: hidden;
+  font-family: var(--sans);
 }
-
-/* Kill the global `div.bg-card` 3D bottom-edge (heavy 1.5px + 5px dark
-   border from tailwind.css) for every card inside the modal — it's what made
-   the inner panels read as heavy boxes. Flatten to a hairline, no hover lift. */
+/* Flatten the global div.bg-card 3D dark edge inside the modal. */
 .azi-modal div.bg-card,
 .azi-modal div.bg-card:hover {
-  border: 1px solid #E5E7EB !important;
-  border-radius: 12px !important;
-  transform: none !important;
-  transition: border-color .15s !important;
+  border: 1px solid var(--line) !important; border-radius: 14px !important; transform: none !important;
 }
 
-/* ── Header ──────────────────────────────────────────────────────────── */
-.azi-modal .azi-head { border-bottom: 1px solid #F0F1F5; }
-.azi-modal .azi-title {
-  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
-  font-weight: 400;
-  font-size: 19px;
-  line-height: 1.1;
-  letter-spacing: -0.01em;
-  color: #1C1B3A;
-}
-.azi-modal .azi-sub { color: #8B8478; font-size: 12px; margin-top: 1px; }
-.azi-modal .azi-badge {
-  background: #EEF2F7;
-  color: #C65A1A;
-}
-.azi-modal .azi-x {
-  color: #AEB4C2;
-  border-radius: 999px;
-  transition: background .15s, color .15s;
-}
-.azi-modal .azi-x:hover { background: #F1F5F9; color: #1C1B3A; }
+/* ── Top bar: eyebrow + close ─────────────────────────────────────────── */
+.azi-top { display: flex; align-items: center; justify-content: space-between; padding: 22px 30px 0; }
+.azi-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.azi-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+.azi-x { color: var(--faint); background: none; border: none; cursor: pointer; border-radius: 999px; padding: 5px; display: inline-flex; transition: background .15s, color .15s; }
+.azi-x:hover { color: var(--ink); background: var(--soft); }
 
-/* ── Step rail ───────────────────────────────────────────────────────── */
-.azi-steps { display: flex; align-items: flex-start; margin-bottom: 30px; }
-.azi-step { display: flex; flex-direction: column; align-items: center; gap: 7px; }
-.azi-step-dot {
-  width: 24px; height: 24px; border-radius: 999px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700;
-  background: #FFFFFF; border: 1px solid #E5E7EB; color: #AEB4C2;
-  transition: background .15s, border-color .15s, color .15s;
-}
-.azi-step.is-active .azi-step-dot { background: #C65A1A; border-color: #C65A1A; color: #FFFFFF; }
-.azi-step.is-done   .azi-step-dot { background: #FFFFFF; border-color: #C65A1A; color: #C65A1A; }
-.azi-step-label {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-  color: #AEB4C2; white-space: nowrap;
-}
-.azi-step.is-active .azi-step-label { color: #1C1B3A; }
-.azi-step.is-done   .azi-step-label { color: #8B8478; }
-.azi-step-conn { flex: 1; height: 1px; margin: 12px 8px 0; background: #EEF0F4; transition: background .15s; }
-.azi-step-conn.is-done { background: #C65A1A; }
+/* ── Worded progress line ─────────────────────────────────────────────── */
+.azi-prog { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 18px 0 2px; }
+.azi-prog .w { font-size: 10px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--faint); }
+.azi-prog .w.on { color: var(--primary); }
+.azi-prog .w.done { color: var(--ink); }
+.azi-prog .ln { width: 34px; height: 2px; border-radius: 2px; background: var(--soft); }
+.azi-prog .ln.done { background: var(--primary); }
 
-/* ── Upload drop area ────────────────────────────────────────────────── */
-.azi-drop {
-  border: 1.5px dashed #E5E7EB; border-radius: 16px;
-  padding: 54px 24px; text-align: center; cursor: pointer; background: #FFFFFF;
-  transition: border-color .15s, background .15s;
-}
-.azi-drop:hover { border-color: #C65A1A; background: #FCFDFE; }
-.azi-drop.is-drag { border-color: #C65A1A; background: #F8FAFC; }
-.azi-drop-icn {
-  width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 14px;
-  display: flex; align-items: center; justify-content: center;
-  background: #EEF2F7; color: #C65A1A;
-}
-.azi-drop-title { font-size: 15px; font-weight: 600; color: #1C1B3A; }
-.azi-drop-sub { font-size: 12.5px; color: #8B8478; margin-top: 4px; }
-.azi-drop-browse {
-  margin-top: 18px; display: inline-flex; align-items: center; gap: 7px;
-  padding: 9px 17px; border-radius: 999px; border: 1px solid #E5E7EB;
-  background: #FFFFFF; color: #1C1B3A; font-size: 12.5px; font-weight: 600;
-  cursor: pointer; transition: border-color .15s, color .15s;
-}
-.azi-drop-browse:hover { border-color: #C65A1A; color: #C65A1A; }
-.azi-drop-file {
-  margin-top: 16px; display: inline-flex; align-items: center; gap: 9px;
-  padding: 9px 14px; border-radius: 12px; border: 1px solid #E5E7EB; background: #F8FAFC;
-  font-size: 12.5px; color: #1C1B3A;
-}
-.azi-drop-file .nm { font-weight: 600; }
-.azi-drop-file .sz { color: #8B8478; }
+/* ── Stage + editorial hero ───────────────────────────────────────────── */
+.azi-stage { padding: 18px 40px 36px; }
+.azi-hero { font-family: var(--serif); font-weight: 400; font-size: clamp(26px, 4vw, 38px); line-height: 1.1; letter-spacing: -0.01em; color: var(--ink); text-align: center; text-wrap: balance; margin: 6px auto 0; max-width: 18ch; }
+.azi-hero em { font-style: italic; color: var(--primary); }
+.azi-lede { text-align: center; color: var(--muted); font-size: 14.5px; line-height: 1.55; margin: 12px auto 0; max-width: 46ch; }
 
-/* Inline error — pale red (semantic, not beige). */
-.azi-modal .azi-err {
-  display: flex; align-items: flex-start; gap: 8px; padding: 11px 13px;
-  border-radius: 12px; background: #FEF2F2; border: 1px solid #FECACA;
-  color: #B91C1C; font-size: 12.5px; line-height: 1.5;
-}
+/* ── Upload well ──────────────────────────────────────────────────────── */
+.azi-well { margin: 28px auto 0; max-width: 440px; background: var(--inset); border: 1px solid var(--line); border-radius: 18px; padding: 32px 28px; display: flex; flex-direction: column; align-items: center; gap: 9px; cursor: pointer; transition: border-color .15s, background .15s; text-align: center; }
+.azi-well:hover { border-color: var(--primary); }
+.azi-well.is-drag { border-color: var(--primary); background: #fff; }
+.azi-well-ic { width: 56px; height: 56px; border-radius: 50%; background: #fff; border: 1px solid var(--line); color: var(--primary); display: flex; align-items: center; justify-content: center; }
+.azi-well-name { font-family: var(--serif); font-size: 19px; color: var(--ink); }
+.azi-well-ph { font-size: 15px; font-weight: 600; color: var(--ink); }
+.azi-well-sub { font-size: 12.5px; color: var(--muted); }
+.azi-well-browse { margin-top: 5px; font-size: 13px; font-weight: 600; color: var(--primary); display: inline-flex; align-items: center; gap: 6px; }
 
-/* ── Buttons ─────────────────────────────────────────────────────────── */
-/* Disabled primary: a calm cool grey, never a faded-terracotta wash. */
-.azi-modal button:disabled,
-.azi-modal button[disabled] { opacity: 1 !important; }
-.azi-modal .azi-primary {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 18px; border-radius: 10px; border: none; cursor: pointer;
-  background: #C65A1A; color: #FFFFFF; font-size: 13px; font-weight: 600;
-  transition: background .15s;
-}
-.azi-modal .azi-primary:hover { background: #B14E16; }
-.azi-modal .azi-primary:disabled { background: #F1F5F9; color: #AEB4C2; cursor: default; }
+/* ── Actions ──────────────────────────────────────────────────────────── */
+.azi-cta { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 30px; }
+.azi-pill { background: var(--primary); color: #fff; border: none; border-radius: 999px; font-family: var(--sans); font-size: 14px; font-weight: 600; padding: 13px 30px; display: inline-flex; align-items: center; gap: 9px; cursor: pointer; transition: background .15s; }
+.azi-pill:hover { background: var(--primary-hi); }
+.azi-pill:disabled { background: var(--soft); color: var(--faint); cursor: default; }
+.azi-cap { font-size: 12.5px; color: var(--muted); }
+.azi-cap em { font-style: normal; color: var(--ink); font-weight: 600; }
 
-/* ── Step 2: tables list (editorial, hairline rows) ──────────────────── */
-.azi-note {
-  display: flex; align-items: flex-start; gap: 10px; padding: 0 2px 16px;
-  border-bottom: 1px solid #F0F1F5;
-}
-.azi-note-icn { color: #C65A1A; flex: none; margin-top: 1px; }
-.azi-note-t { font-size: 14px; font-weight: 600; color: #1C1B3A; }
-.azi-note-s { font-size: 12.5px; color: #8B8478; margin-top: 2px; line-height: 1.5; }
+.azi-err { max-width: 460px; margin: 18px auto 0; display: flex; align-items: flex-start; gap: 8px; padding: 11px 14px; border-radius: 12px; background: #FEF2F2; border: 1px solid #FECACA; color: #B91C1C; font-size: 12.5px; line-height: 1.5; }
 
-/* Tip — pale amber is semantic (a hint), kept soft and hairline, not boxed. */
-.azi-tip {
-  display: flex; align-items: flex-start; gap: 8px; margin-top: 14px;
-  padding: 10px 13px; border-radius: 12px;
-  background: #FEF8EC; border: 1px solid #FBEED9; color: #92610A;
-  font-size: 12.5px; line-height: 1.5;
+/* ── Smart confirm: airy receipt ──────────────────────────────────────── */
+.azi-rows { margin: 26px auto 0; max-width: 540px; }
+.azi-fgroup { border-bottom: 1px solid var(--soft); }
+.azi-fgroup:last-child { border-bottom: none; }
+.azi-frow { width: 100%; display: flex; align-items: center; gap: 13px; padding: 14px 2px; background: none; border: none; cursor: pointer; text-align: left; }
+.azi-fi { width: 30px; height: 30px; border-radius: 9px; background: var(--inset); color: var(--primary); flex: none; display: flex; align-items: center; justify-content: center; }
+.azi-fmain { flex: 1; min-width: 0; }
+.azi-fname { font-family: var(--serif); font-size: 16px; color: var(--ink); }
+.azi-fsub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.azi-fchev { color: var(--faint); flex: none; }
+.azi-items { padding: 2px 0 12px 43px; }
+.azi-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid #F6F7F9; }
+.azi-item:first-child { border-top: none; }
+.azi-item-nm { flex: 1; min-width: 0; font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.azi-item-qty { font-size: 12px; color: var(--muted); flex: none; font-variant-numeric: tabular-nums; }
+.azi-move { flex: none; font-family: var(--sans); font-size: 12px; color: var(--muted); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; cursor: pointer; max-width: 150px; }
+.azi-move:hover { border-color: var(--primary); color: var(--ink); }
+.azi-newf { display: inline-flex; align-items: center; gap: 6px; }
+.azi-newf input { font-family: var(--sans); font-size: 12px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; width: 140px; }
+.azi-newf-ok { font-size: 12px; font-weight: 600; color: #fff; background: var(--primary); border: none; border-radius: 8px; padding: 6px 11px; cursor: pointer; }
+.azi-newf-x { font-size: 12px; color: var(--muted); background: none; border: none; cursor: pointer; }
+
+/* ── Footer ───────────────────────────────────────────────────────────── */
+.azi-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; max-width: 540px; margin: 22px auto 0; padding-top: 18px; border-top: 1px solid var(--soft); }
+.azi-ghost { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 13px; font-weight: 600; cursor: pointer; }
+.azi-ghost:hover { border-color: var(--primary); color: var(--primary); }
+.azi-foot-r { display: flex; align-items: center; gap: 16px; }
+.azi-link { font-size: 13px; font-weight: 600; color: var(--muted); background: none; border: none; cursor: pointer; }
+.azi-link:hover { color: var(--primary); text-decoration: underline; }
+.azi-foot-count { font-size: 12.5px; color: var(--muted); }
+
+/* ── Empty state ──────────────────────────────────────────────────────── */
+.azi-empty { text-align: center; padding: 28px 20px 6px; max-width: 420px; margin: 0 auto; }
+.azi-empty-ic { width: 54px; height: 54px; border-radius: 50%; margin: 0 auto 14px; display: flex; align-items: center; justify-content: center; background: var(--inset); color: var(--primary); }
+.azi-empty-t { font-family: var(--serif); font-size: 20px; color: var(--ink); }
+.azi-empty-s { max-width: 380px; margin: 8px auto 20px; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.azi-empty-s b { color: var(--ink); font-weight: 600; }
+
+/* ── Importing / done ─────────────────────────────────────────────────── */
+.azi-result { text-align: center; padding: 26px 24px 16px; }
+.azi-result-ic { width: 66px; height: 66px; border-radius: 50%; margin: 6px auto 8px; display: flex; align-items: center; justify-content: center; }
+.azi-result-ic.ok { background: #ECFDF5; color: #059669; }
+.azi-result-ic.go { background: var(--inset); color: var(--primary); }
+.azi-result-ic.err { background: #FEF2F2; color: #DC2626; }
+.azi-bar { max-width: 320px; height: 6px; border-radius: 999px; background: var(--soft); margin: 20px auto 0; overflow: hidden; }
+.azi-bar i { display: block; height: 100%; background: var(--primary); border-radius: 999px; transition: width .3s ease; }
+
+.azi-modal input:focus, .azi-modal select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
+
+/* ── Advanced ("detailed importer") fallback — kept tidy in the editorial key ── */
+.azi-primary {
+  display: inline-flex; align-items: center; gap: 8px; padding: 11px 20px; border-radius: 999px;
+  border: none; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
 }
+.azi-primary:hover { background: var(--primary-hi); }
+.azi-primary:disabled { background: var(--soft); color: var(--faint); cursor: default; }
+
+.azi-note { display: flex; align-items: flex-start; gap: 10px; padding: 0 2px 16px; border-bottom: 1px solid var(--soft); }
+.azi-note-icn { color: var(--primary); flex: none; margin-top: 1px; }
+.azi-note-t { font-size: 15px; font-weight: 600; color: var(--ink); }
+.azi-note-s { font-size: 12.5px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+
+.azi-tip { display: flex; align-items: flex-start; gap: 8px; margin-top: 14px; padding: 10px 13px; border-radius: 12px;
+  background: #FEF8EC; border: 1px solid #FBEED9; color: #92610A; font-size: 12.5px; line-height: 1.5; }
 .azi-tip .ic { color: #C98A0A; flex: none; margin-top: 1px; }
 
-.azi-rows { margin-top: 6px; max-height: 360px; overflow-y: auto; }
-.azi-row {
-  display: flex; align-items: center; gap: 14px; padding: 13px 2px;
-  border-bottom: 1px solid #F0F1F5;
-}
+.azi-row { display: flex; align-items: center; gap: 14px; padding: 13px 2px; border-bottom: 1px solid var(--soft); }
 .azi-row:last-child { border-bottom: none; }
 .azi-row.off { opacity: 0.5; }
 .azi-row-main { flex: 1; min-width: 0; }
 .azi-row-t { display: flex; align-items: center; gap: 8px; }
-.azi-row-t .nm { font-size: 14px; font-weight: 600; color: #1C1B3A; }
-.azi-row-t .pg { font-size: 12px; color: #AEB4C2; }
-.azi-row-s { font-size: 12px; color: #8B8478; margin-top: 2px; }
-.azi-row-icn { color: #C65A1A; flex: none; }
-
-/* Pill toggle */
-.azi-toggle {
-  width: 40px; height: 23px; border-radius: 999px; flex: none; border: none;
-  display: flex; align-items: center; cursor: pointer; padding: 0 3px; transition: background .15s;
-}
-.azi-toggle.on  { background: #C65A1A; justify-content: flex-end; }
-.azi-toggle.off { background: #E5E7EB; justify-content: flex-start; }
+.azi-row-t .nm { font-size: 14px; font-weight: 600; color: var(--ink); }
+.azi-row-t .pg { font-size: 12px; color: var(--faint); }
+.azi-row-s { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.azi-row-icn { color: var(--primary); flex: none; }
+.azi-toggle { width: 40px; height: 23px; border-radius: 999px; flex: none; border: none; display: flex; align-items: center; cursor: pointer; padding: 0 3px; transition: background .15s; }
+.azi-toggle.on { background: var(--primary); justify-content: flex-end; }
+.azi-toggle.off { background: var(--line); justify-content: flex-start; }
 .azi-toggle .knob { width: 17px; height: 17px; border-radius: 999px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
-
 .azi-chip { font-size: 11px; font-weight: 700; letter-spacing: 0.02em; flex: none; }
-.azi-chip.inc { color: #C65A1A; }
-.azi-chip.exc { color: #AEB4C2; }
-
-/* Footer row shared across steps */
-.azi-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 18px; margin-top: 16px; border-top: 1px solid #F0F1F5; }
-.azi-ghost {
-  display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 10px;
-  border: 1px solid #E5E7EB; background: #fff; color: #1C1B3A; font-size: 13px; font-weight: 600; cursor: pointer;
-  transition: border-color .15s;
-}
-.azi-ghost:hover { border-color: #C65A1A; color: #C65A1A; }
-.azi-foot-r { display: flex; align-items: center; gap: 14px; }
-.azi-foot-count { font-size: 12.5px; color: #8B8478; }
-
-/* ── Smart Confirm: folder accordion + move ─────────────────────────── */
-.azi-fgroup { border-bottom: 1px solid #F0F1F5; }
-.azi-fgroup:last-child { border-bottom: none; }
-.azi-frow {
-  width: 100%; display: flex; align-items: center; gap: 13px; padding: 14px 2px;
-  background: none; border: none; cursor: pointer; text-align: left;
-}
-.azi-fi { width: 34px; height: 34px; border-radius: 10px; background: #EEF2F7; color: #C65A1A; flex: none;
-  display: flex; align-items: center; justify-content: center; }
-.azi-fmain { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.azi-fname { font-size: 14px; font-weight: 600; color: #1C1B3A; }
-.azi-fsub { font-size: 12px; color: #8B8478; margin-top: 1px; }
-.azi-fchev { color: #AEB4C2; flex: none; }
-
-.azi-items { padding: 2px 0 12px 47px; }
-.azi-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid #F6F7F9; }
-.azi-item:first-child { border-top: none; }
-.azi-item-nm { flex: 1; min-width: 0; font-size: 13px; color: #1C1B3A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.azi-item-qty { font-size: 12px; color: #8B8478; font-variant-numeric: tabular-nums; flex: none; }
-.azi-move {
-  flex: none; font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: #6B7280;
-  background: #F8FAFC; border: 1px solid #E5E7EB; border-radius: 8px; padding: 5px 8px; cursor: pointer; max-width: 160px;
-}
-.azi-move:hover { border-color: #C65A1A; color: #1C1B3A; }
-
-.azi-newf { display: inline-flex; align-items: center; gap: 6px; flex: none; }
-.azi-newf input {
-  font-family: 'Inter', system-ui, sans-serif; font-size: 12px; color: #1C1B3A;
-  background: #fff; border: 1px solid #E5E7EB; border-radius: 8px; padding: 5px 9px; width: 150px;
-}
-.azi-newf-ok { font-size: 12px; font-weight: 600; color: #fff; background: #C65A1A; border: none; border-radius: 8px; padding: 6px 11px; cursor: pointer; }
-.azi-newf-x { font-size: 12px; color: #8B8478; background: none; border: none; cursor: pointer; }
-
-.azi-link { font-size: 13px; font-weight: 600; color: #C65A1A; background: none; border: none; cursor: pointer; padding: 6px 4px; }
-.azi-link:hover { text-decoration: underline; text-decoration-color: rgba(198,90,26,0.4); }
-
-/* Smart confirm — nothing recognised */
-.azi-empty { text-align: center; padding: 34px 20px 10px; }
-.azi-empty-icn {
-  width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 14px;
-  display: flex; align-items: center; justify-content: center; background: #EEF2F7; color: #C65A1A;
-}
-.azi-empty-t { font-family: 'DM Serif Display', Georgia, serif; font-size: 20px; color: #1C1B3A; }
-.azi-empty-s { max-width: 380px; margin: 8px auto 20px; font-size: 13px; line-height: 1.6; color: #8B8478; }
-.azi-empty-s b { color: #1C1B3A; font-weight: 600; }
-
-/* ── Fields ──────────────────────────────────────────────────────────── */
-.azi-modal input:focus,
-.azi-modal select:focus,
-.azi-modal textarea:focus {
-  outline: none; border-color: #C65A1A; box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
-}
+.azi-chip.inc { color: var(--primary); }
+.azi-chip.exc { color: var(--faint); }
