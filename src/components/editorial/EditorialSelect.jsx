@@ -19,6 +19,24 @@ import Icon from '../AppIcon';
 import { placeMenu } from './selectPlacement';
 import './editorial-select.css';
 
+// What actually confines the list. Usually the window — but a select inside a
+// scrolling panel (the add-guest modal is max-height:90vh, overflow-y:auto) is
+// clipped by that panel, and an absolutely positioned list cannot extend its
+// scroll height any more than it can the page's. Measuring the window there
+// would call a list "fits" while the panel cut it off.
+function confiningBounds(el) {
+  for (let n = el?.parentElement; n && n !== document.body; n = n.parentElement) {
+    const oy = getComputedStyle(n).overflowY;
+    if ((oy === 'auto' || oy === 'scroll' || oy === 'overlay') && n.scrollHeight > n.clientHeight) {
+      const r = n.getBoundingClientRect();
+      // Never report a box bigger than the window: a tall panel is still
+      // cut off by the bottom of the screen.
+      return { top: Math.max(0, r.top), bottom: Math.min(window.innerHeight, r.bottom) };
+    }
+  }
+  return { top: 0, bottom: window.innerHeight };
+}
+
 export default function EditorialSelect({
   value, onChange, options = [], placeholder = 'Not set',
   disabled = false, ariaLabel, id, className = '',
@@ -50,10 +68,12 @@ export default function EditorialSelect({
     const box = wrap.current?.getBoundingClientRect();
     const list = listRef.current;
     if (!box || !list) return;
+    const bounds = confiningBounds(wrap.current);
     setPlace(placeMenu({
       triggerTop: box.top,
       triggerBottom: box.bottom,
-      viewportHeight: window.innerHeight,
+      boundsTop: bounds.top,
+      boundsBottom: bounds.bottom,
       // scrollHeight is the full content height even once max-height clamps it.
       contentHeight: list.scrollHeight,
     }));
