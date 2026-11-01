@@ -1861,6 +1861,9 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
     setAzureResult(null);
     setRowOverrides({});
     try {
+      // The vessel's existing folder names, so the AI files items into folders
+      // the user already uses (matching wording) instead of inventing new ones.
+      const folderNames = [...new Set((existingFolders || []).flatMap((f) => f?.segments || []).map((s) => String(s || '').trim()).filter(Boolean))];
       const ext = file?.name?.split('.')?.pop()?.toLowerCase();
       const isPdf = ext === 'pdf' || file?.type === 'application/pdf';
       let items;
@@ -1870,7 +1873,7 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
         const wb = XLSX.read(buf, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const text = XLSX.utils.sheet_to_csv(sheet);
-        items = await parseInventoryItemsFromText(text);
+        items = await parseInventoryItemsFromText(text, folderNames);
       } else if (isPdf) {
         // Digital PDF → pull the text out here with pdfjs and send only that
         // to Claude. Read in small page batches so a long order never truncates
@@ -1881,14 +1884,14 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
           const BATCH = 3; // ~3 pages per call keeps each reply well within budget
           const batches = [];
           for (let i = 0; i < pages.length; i += BATCH) batches.push(pages.slice(i, i + BATCH).join('\n\n'));
-          const results = await Promise.all(batches.map((t) => parseInventoryItemsFromText(t)));
+          const results = await Promise.all(batches.map((t) => parseInventoryItemsFromText(t, folderNames)));
           items = results.flat();
         } else {
-          items = await parseInventoryDocument(file);
+          items = await parseInventoryDocument(file, folderNames);
         }
       } else {
         // Image / photo → Claude vision.
-        items = await parseInventoryDocument(file);
+        items = await parseInventoryDocument(file, folderNames);
       }
       setAiItems(normalizeAiItems(items));
       setMode('smart');
