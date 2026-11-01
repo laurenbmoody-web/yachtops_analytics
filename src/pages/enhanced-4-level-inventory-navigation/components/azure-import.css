@@ -80,8 +80,35 @@
 .azi-item:first-child { border-top: none; }
 .azi-item-nm { flex: 1; min-width: 0; font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .azi-item-qty { font-size: 12px; color: var(--muted); flex: none; font-variant-numeric: tabular-nums; }
-.azi-move { flex: none; font-family: var(--sans); font-size: 12px; color: var(--muted); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; cursor: pointer; max-width: 150px; }
-.azi-move:hover { border-color: var(--primary); color: var(--ink); }
+.azi-move { flex: none; display: inline-flex; align-items: center; gap: 2px; font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--muted); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px 5px 12px; cursor: pointer; transition: border-color .15s, color .15s; }
+.azi-move:hover { border-color: var(--primary); color: var(--primary); }
+
+/* Folder picker sheet (drill-down) */
+.azi-sheet-back { position: fixed; inset: 0; z-index: 70; background: rgba(28, 27, 58, 0.28); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.azi-sheet { width: 100%; max-width: 380px; background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.4); overflow: hidden; }
+.azi-sheet-h { font-size: 13px; color: var(--muted); padding: 16px 18px 0; margin: 0; }
+.azi-sheet-h b { color: var(--ink); font-weight: 600; }
+.azi-drill { padding: 8px 10px 12px; }
+.azi-drill-head { display: flex; align-items: center; gap: 8px; padding: 6px 6px 10px; border-bottom: 1px solid var(--soft); }
+.azi-drill-back { color: var(--ink); background: none; border: none; cursor: pointer; display: inline-flex; padding: 2px; border-radius: 8px; }
+.azi-drill-back:hover { background: var(--soft); }
+.azi-drill-crumb { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.azi-drill-x { color: var(--faint); background: none; border: none; cursor: pointer; display: inline-flex; padding: 2px; }
+.azi-drill-x:hover { color: var(--ink); }
+.azi-drill-use { width: 100%; display: flex; align-items: center; gap: 7px; margin: 8px 0 2px; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(198, 90, 26, 0.3); background: #fff; color: var(--primary); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.azi-drill-use:hover { background: #FFF6F0; }
+.azi-drill-list { max-height: 300px; overflow-y: auto; margin-top: 4px; }
+.azi-drill-row { display: flex; align-items: center; }
+.azi-drill-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; padding: 9px 10px; background: none; border: none; cursor: pointer; text-align: left; font-size: 13px; color: var(--ink); border-radius: 8px; }
+.azi-drill-name:hover { background: var(--inset); }
+.azi-drill-ic { color: var(--primary); flex: none; }
+.azi-drill-into { color: var(--faint); background: none; border: none; cursor: pointer; padding: 8px; display: inline-flex; border-radius: 8px; flex: none; }
+.azi-drill-into:hover { background: var(--soft); color: var(--ink); }
+.azi-drill-empty { font-size: 12px; color: var(--faint); padding: 10px; }
+.azi-drill-new { width: 100%; display: flex; align-items: center; gap: 7px; margin-top: 4px; padding: 9px 10px; background: none; border: none; border-top: 1px solid var(--soft); color: var(--primary); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.azi-drill-new:hover { background: var(--inset); }
+.azi-drill-newrow { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--soft); }
+.azi-drill-newrow input { flex: 1; min-width: 0; font-family: var(--sans); font-size: 12.5px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; }
 .azi-newf { display: inline-flex; align-items: center; gap: 6px; }
 .azi-newf input { font-family: var(--sans); font-size: 12px; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; width: 140px; }
 .azi-newf-ok { font-size: 12px; font-weight: 600; color: #fff; background: var(--primary); border: none; border-radius: 8px; padding: 6px 11px; cursor: pointer; }

@@ -1582,19 +1582,99 @@ function ImportingStep({ progress, total, done, importedCount, importError, onCl
 // to a different folder, and imports. The old table/column mapping lives
 // behind "Adjust details" for the rare wrong guess.
 // ---------------------------------------------------------------------------
+// A drill-down folder picker (like the inventory location picker). Browse the
+// real folder tree level by level; click a folder's name to drop the item
+// there (parents included), its chevron to go deeper, or add a new folder.
+function FolderDrill({ folders, onPick, onClose }) {
+  const [browse, setBrowse] = useState([]);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+
+  const childrenOf = (base) => {
+    const map = new Map();
+    (folders || []).forEach((segs) => {
+      if (!segs || segs.length <= base.length) return;
+      if (!base.every((b, i) => segs[i] === b)) return;
+      const name = segs[base.length];
+      if (!name || map.has(name)) return;
+      const path = [...base, name];
+      const hasKids = folders.some((s) => s.length > path.length && path.every((p, i) => s[i] === p));
+      map.set(name, { name, path, hasKids });
+    });
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  };
+  const kids = childrenOf(browse);
+  const addHere = () => { const n = newName.trim(); if (n) onPick([...browse, n]); else setAdding(false); };
+
+  return (
+    <div className="azi-drill">
+      <div className="azi-drill-head">
+        {browse.length > 0
+          ? <button className="azi-drill-back" onClick={() => setBrowse(browse.slice(0, -1))}><Icon name="ArrowLeft" size={15} /></button>
+          : <span style={{ width: 24 }} />}
+        <span className="azi-drill-crumb">{browse.length ? browse.join(' › ') : 'All folders'}</span>
+        <button className="azi-drill-x" onClick={onClose}><Icon name="X" size={16} /></button>
+      </div>
+      {browse.length > 0 && (
+        <button className="azi-drill-use" onClick={() => onPick(browse)}>
+          <Icon name="Check" size={14} />Put here &mdash; {browse[browse.length - 1]}
+        </button>
+      )}
+      <div className="azi-drill-list">
+        {kids.map((k) => (
+          <div className="azi-drill-row" key={k.name}>
+            <button className="azi-drill-name" onClick={() => onPick(k.path)}>
+              <Icon name="Folder" size={15} className="azi-drill-ic" />{k.name}
+            </button>
+            {k.hasKids && (
+              <button className="azi-drill-into" onClick={() => setBrowse(k.path)} title="Open">
+                <Icon name="ChevronRight" size={16} />
+              </button>
+            )}
+          </div>
+        ))}
+        {kids.length === 0 && <div className="azi-drill-empty">No sub-folders here.</div>}
+        {adding ? (
+          <div className="azi-drill-newrow">
+            <input autoFocus value={newName} placeholder="New folder name"
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') addHere(); if (e.key === 'Escape') setAdding(false); }} />
+            <button className="azi-newf-ok" onClick={addHere}>Add</button>
+            <button className="azi-newf-x" onClick={() => setAdding(false)}>Cancel</button>
+          </div>
+        ) : (
+          <button className="azi-drill-new" onClick={() => { setAdding(true); setNewName(''); }}>
+            <Icon name="Plus" size={15} />New folder{browse.length ? ` in ${browse[browse.length - 1]}` : ''}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FolderPickerSheet({ folders, itemName, onPick, onClose }) {
+  return (
+    <div className="azi-sheet-back" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="azi-sheet">
+        <p className="azi-sheet-h">Move <b>{itemName}</b> to&hellip;</p>
+        <FolderDrill folders={folders} onPick={onPick} onClose={onClose} />
+      </div>
+    </div>
+  );
+}
+
 function SmartConfirmStep({ fileName, groups, folderOptions, existingFolders = [], totalItems, baseSegments, onMoveItem, onImport, onAdjust, onBack }) {
   const [expanded, setExpanded] = useState(() => new Set());
-  const [newFolderFor, setNewFolderFor] = useState(null); // rowKey awaiting a new folder name
-  const [newFolderName, setNewFolderName] = useState('');
+  const [movingRow, setMovingRow] = useState(null); // { rowKey, name } being moved
 
-  // Move targets: the folders from this import, plus the vessel's real folder
-  // tree (so you can send an item into an existing folder), plus "New folder".
-  const importTargets = folderOptions || [];
-  const importKeys = new Set(importTargets.map((o) => o.key));
-  const existingTargets = (existingFolders || [])
-    .map((f) => ({ key: (f.segments || []).join(' > '), label: f.label, segments: f.segments }))
-    .filter((o) => o.key && !importKeys.has(o.key));
-  const allTargets = [...importTargets, ...existingTargets];
+  // Every folder the item could go to, as absolute segment paths: this import's
+  // folders plus the vessel's real folder tree.
+  const importSegs = (folderOptions || []).map((o) => o.segments).filter((s) => s && s.length);
+  const existingSegs = (existingFolders || []).map((f) => f.segments).filter((s) => s && s.length);
+  const seen = new Set();
+  const allFolderPaths = [...importSegs, ...existingSegs].filter((s) => {
+    const k = s.join(' > '); if (seen.has(k)) return false; seen.add(k); return true;
+  });
 
   const toggle = (key) => setExpanded((prev) => {
     const next = new Set(prev);
@@ -1602,18 +1682,9 @@ function SmartConfirmStep({ fileName, groups, folderOptions, existingFolders = [
     return next;
   });
 
-  const handleSelect = (rowKey, value) => {
-    if (value === '__new__') { setNewFolderFor(rowKey); setNewFolderName(''); return; }
-    const opt = allTargets?.find((o) => o?.key === value);
-    if (opt) onMoveItem(rowKey, opt.segments);
-  };
-
-  const confirmNewFolder = (rowKey) => {
-    const name = newFolderName?.trim();
-    if (!name) { setNewFolderFor(null); return; }
-    onMoveItem(rowKey, [...(baseSegments || []), name]);
-    setNewFolderFor(null);
-    setNewFolderName('');
+  const pickFolder = (segments) => {
+    if (movingRow) onMoveItem(movingRow.rowKey, segments);
+    setMovingRow(null);
   };
 
   return (
@@ -1657,42 +1728,9 @@ function SmartConfirmStep({ fileName, groups, folderOptions, existingFolders = [
                     <div key={it.rowKey} className="azi-item">
                       <span className="azi-item-nm">{it.name}</span>
                       {it.qty !== '' && it.qty != null && <span className="azi-item-qty">×{it.qty}</span>}
-                      {newFolderFor === it.rowKey ? (
-                        <span className="azi-newf">
-                          <input
-                            autoFocus value={newFolderName}
-                            onChange={(e) => setNewFolderName(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') confirmNewFolder(it.rowKey); if (e.key === 'Escape') setNewFolderFor(null); }}
-                            placeholder="New folder name"
-                          />
-                          <button className="azi-newf-ok" onClick={() => confirmNewFolder(it.rowKey)}>Add</button>
-                          <button className="azi-newf-x" onClick={() => setNewFolderFor(null)}>Cancel</button>
-                        </span>
-                      ) : (
-                        <select
-                          className="azi-move"
-                          value={g.key}
-                          onChange={(e) => handleSelect(it.rowKey, e.target.value)}
-                          title="Move to a different folder"
-                        >
-                          <option value={g.key} disabled>Move to…</option>
-                          {importTargets.filter((o) => o?.key !== g.key).length > 0 && (
-                            <optgroup label="In this import">
-                              {importTargets.filter((o) => o?.key !== g.key).map((o) => (
-                                <option key={o.key} value={o.key}>{o.label}</option>
-                              ))}
-                            </optgroup>
-                          )}
-                          {existingTargets.length > 0 && (
-                            <optgroup label="Your folders">
-                              {existingTargets.map((o) => (
-                                <option key={o.key} value={o.key}>{o.label}</option>
-                              ))}
-                            </optgroup>
-                          )}
-                          <option value="__new__">＋ New folder…</option>
-                        </select>
-                      )}
+                      <button className="azi-move" onClick={() => setMovingRow({ rowKey: it.rowKey, name: it.name })} title="Move to a different folder">
+                        Move<Icon name="ChevronRight" size={13} />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1713,6 +1751,15 @@ function SmartConfirmStep({ fileName, groups, folderOptions, existingFolders = [
           </button>
         </div>
       </div>
+
+      {movingRow && (
+        <FolderPickerSheet
+          folders={allFolderPaths}
+          itemName={movingRow.name}
+          onPick={pickFolder}
+          onClose={() => setMovingRow(null)}
+        />
+      )}
     </div>
   );
 }
