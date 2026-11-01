@@ -15,7 +15,7 @@ import LogoSpinner from '../../../components/LogoSpinner';
 import Button from '../../../components/ui/Button';
 import { parseDocumentWithAzure, isAzureParseError } from '../../../services/azureDocumentParser';
 import { parseInventoryDocument, parseInventoryItemsFromText } from '../../../services/documentParser';
-import { extractPdfPlainText } from '../../../services/inventoryImportParser';
+import { extractPdfPages } from '../../../services/inventoryImportParser';
 import * as XLSX from 'xlsx';
 import { saveItem, createFolder } from '../../inventory/utils/inventoryStorage';
 import { useTenant } from '../../../contexts/TenantContext';
@@ -1874,12 +1874,19 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
         items = await parseInventoryItemsFromText(text);
       } else if (isPdf) {
         // Digital PDF → pull the text out here with pdfjs and send only that
-        // (a few KB) to Claude. Avoids posting the whole file and the slow
-        // vision path. Scanned PDFs have no text layer → fall back to vision.
-        const text = await extractPdfPlainText(file);
-        items = text && text.length > 40
-          ? await parseInventoryItemsFromText(text)
-          : await parseInventoryDocument(file);
+        // to Claude. Read in small page batches so a long order never truncates
+        // the reply. Scanned PDFs have no text layer → fall back to vision.
+        const pages = await extractPdfPages(file);
+        const totalLen = pages.reduce((n, p) => n + p.length, 0);
+        if (pages.length && totalLen > 40) {
+          const BATCH = 3; // ~3 pages per call keeps each reply well within budget
+          const batches = [];
+          for (let i = 0; i < pages.length; i += BATCH) batches.push(pages.slice(i, i + BATCH).join('\n\n'));
+          const results = await Promise.all(batches.map((t) => parseInventoryItemsFromText(t)));
+          items = results.flat();
+        } else {
+          items = await parseInventoryDocument(file);
+        }
       } else {
         // Image / photo → Claude vision.
         items = await parseInventoryDocument(file);
