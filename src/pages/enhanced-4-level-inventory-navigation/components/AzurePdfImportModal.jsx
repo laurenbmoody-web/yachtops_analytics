@@ -1915,12 +1915,32 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
       const isPdf = ext === 'pdf' || file?.type === 'application/pdf';
       let items;
       if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
-        // Spreadsheet → read to text in the browser, send the text to Claude.
+        // Spreadsheet → read to rows in the browser, send to Claude. Read EVERY
+        // sheet (not just the first tab) and batch the rows, so a long sheet
+        // (hundreds of lines, section headers and all) never overflows and
+        // truncates the reply.
         const buf = await file.arrayBuffer();
         const wb = XLSX.read(buf, { type: 'array' });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        const text = XLSX.utils.sheet_to_csv(sheet);
-        items = await parseInventoryItemsFromText(text, folderNames);
+        let rows = [];
+        (wb.SheetNames || []).forEach((n) => {
+          const r = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, blankrows: false, defval: '' });
+          rows = rows.concat(r);
+        });
+        const toText = (rr) => rr.map((r) => (Array.isArray(r) ? r : [r]).map((c) => String(c ?? '')).join('\t')).join('\n');
+        if (rows.length <= 60) {
+          items = await parseInventoryItemsFromText(toText(rows), folderNames);
+        } else {
+          const header = rows[0];
+          const BATCH = 50; // rows per call — keeps each reply well within budget
+          const batches = [];
+          for (let i = 0; i < rows.length; i += BATCH) {
+            const slice = rows.slice(i, i + BATCH);
+            // Keep the header row on later batches so the columns stay clear.
+            batches.push(toText(i === 0 ? slice : [header, ...slice]));
+          }
+          const results = await Promise.all(batches.map((t) => parseInventoryItemsFromText(t, folderNames)));
+          items = results.flat();
+        }
       } else if (isPdf) {
         // Digital PDF → pull the text out here with pdfjs and send only that
         // to Claude. Read in small page batches so a long order never truncates
