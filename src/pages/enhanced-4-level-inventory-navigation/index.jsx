@@ -21,7 +21,7 @@ import SetLocationModal from './components/SetLocationModal';
 import { showToast } from '../../utils/toast';
 import { supabase } from '../../lib/supabaseClient';
 import { markTutorialStep } from '../../utils/tutorialState';
-import { DndContext, closestCenter, MouseSensor, TouchSensor, useSensor, useSensors, useDroppable, DragOverlay } from '@dnd-kit/core';
+import { DndContext, closestCenter, pointerWithin, MouseSensor, TouchSensor, useSensor, useSensors, useDroppable, DragOverlay } from '@dnd-kit/core';
 import {
   SortableContext,
   useSortable,
@@ -2113,6 +2113,12 @@ const FolderCard = ({ name, icon, color, itemCount, subFolderCount, depth, onCli
           <span>Move inside</span>
         </span>
       )}
+      {isFolderDropTarget && !isDropTargetReady && (
+        <span className="inv-moveinside hint">
+          <Icon name="FolderInput" size={12} />
+          <span>Hold to move inside</span>
+        </span>
+      )}
       {!isFolderDropTarget && (
         <FolderActionsMenu
           canEdit={canEdit}
@@ -4043,6 +4049,16 @@ const LocationFirstInventory = () => {
     );
   };
 
+  // Pointer-first collision: the drop target is whatever tile the cursor is
+  // actually over, not the one closest to the dragged tile's centre. This keeps
+  // the target stable while you hover a folder (closestCenter jitters as the
+  // sortable grid reflows, which kept resetting the hold-to-nest timer), and
+  // falls back to closestCenter when the pointer sits in a gap.
+  const collisionDetection = useCallback((args) => {
+    const pointerHits = pointerWithin(args);
+    return pointerHits?.length ? pointerHits : closestCenter(args);
+  }, []);
+
   const handleDragStart = ({ active }) => {
     setActiveDragId(active?.id);
     setFolderDropTargetId(null);
@@ -4080,7 +4096,7 @@ const LocationFirstInventory = () => {
       setFolderDropTargetReady(false);
       folderHoverTimerRef.current = setTimeout(() => {
         setFolderDropTargetReady(true);
-      }, 600);
+      }, 450);
     }
   };
 
@@ -4207,7 +4223,7 @@ const LocationFirstInventory = () => {
             target while dragging) and the grid below (the draggable tiles). */}
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={collisionDetection}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
