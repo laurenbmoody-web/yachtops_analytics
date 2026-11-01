@@ -137,18 +137,22 @@ function autoDetectHeaderRow(table) {
 }
 
 const KEYWORD_MAP = {
-  item_name: ['name', 'item', 'product', 'description', 'desc', 'wine', 'spirit', 'beverage'],
-  brand: ['brand', 'producer', 'maker', 'winery', 'distillery', 'manufacturer'],
-  quantity: ['qty', 'quantity', 'stock', 'count', 'amount', 'bottles', 'units'],
-  unit: ['unit', 'uom', 'measure'],
-  size: ['size', 'volume', 'ml', 'cl', 'litre', 'liter', 'format'],
-  year: ['year', 'vintage', 'yr'],
-  expiry_date: ['expiry', 'expiration', 'best before', 'use by', 'exp'],
+  item_name: ['name', 'item', 'product', 'description', 'desc', 'wine', 'spirit', 'beverage',
+    'désignation', 'designation', 'libellé', 'libelle', 'produit', 'descrizione', 'descripción',
+    'descripcion', 'bezeichnung', 'artikel'],
+  brand: ['brand', 'producer', 'maker', 'winery', 'distillery', 'manufacturer', 'marque', 'marca'],
+  quantity: ['qty', 'quantity', 'stock', 'count', 'amount', 'bottles', 'units',
+    'qte', 'qté', 'quantité', 'quantite', 'nbre', 'nombre', 'menge', 'anzahl', 'aantal',
+    'cantidad', 'cant', 'pcs', 'pce'],
+  unit: ['unit', 'uom', 'measure', 'unité', 'unite'],
+  size: ['size', 'volume', 'ml', 'cl', 'litre', 'liter', 'format', 'taille', 'contenance'],
+  year: ['year', 'vintage', 'yr', 'année', 'annee', 'millésime', 'millesime'],
+  expiry_date: ['expiry', 'expiration', 'best before', 'use by', 'exp', 'péremption', 'peremption', 'dlc', 'ddm'],
   batch_no: ['batch', 'lot', 'batch no', 'lot no'],
-  code: ['code', 'sku', 'barcode', 'ref', 'reference', 'article'],
-  supplier: ['supplier', 'vendor', 'source', 'distributor'],
-  colour: ['colour', 'color', 'fill', 'highlight'],
-  notes: ['notes', 'note', 'comment', 'remarks', 'remark'],
+  code: ['code', 'sku', 'barcode', 'reference', 'référence', 'code-barres', 'ean'],
+  supplier: ['supplier', 'vendor', 'source', 'distributor', 'fournisseur', 'proveedor', 'lieferant'],
+  colour: ['colour', 'color', 'fill', 'highlight', 'couleur'],
+  notes: ['notes', 'note', 'comment', 'remarks', 'remark', 'remarque', 'commentaire'],
 };
 
 function autoDetectColumnMappings(headerRow) {
@@ -176,6 +180,65 @@ function autoDetectColumnMappings(headerRow) {
   return mappings;
 }
 
+// When the headers don't give us a name/quantity (foreign or abbreviated
+// headers like "DÉSIGNATION" / "QTE"), infer them from the data itself: the
+// most text-heavy column is the name, a column of small whole numbers is the
+// quantity. Without a name column, every row is dropped and nothing imports —
+// so this fallback is what makes the smart import actually recognise items.
+function inferColumnRolesFromData(table, headerRowIndex, columnMappings) {
+  const rows = table?.rows || [];
+  const colCount = rows.reduce((m, r) => Math.max(m, r?.length || 0), 0);
+  const isInt = (v) => /^\d{1,5}$/.test((v || '').trim());
+  const hasLetters = (v) => /[A-Za-zÀ-ÿ]/.test(v || '');
+
+  const stats = [];
+  for (let c = 0; c < colCount; c++) {
+    let cells = 0, textCells = 0, intCells = 0, textLen = 0;
+    rows.forEach((row, rIdx) => {
+      if (rIdx === headerRowIndex) return;
+      const v = (row?.[c] || '').trim();
+      if (!v) return;
+      cells++;
+      if (hasLetters(v)) { textCells++; textLen += v.length; }
+      if (isInt(v)) intCells++;
+    });
+    stats.push({ c, cells, textCells, intCells, avgLen: textCells ? textLen / textCells : 0 });
+  }
+
+  const has = (key) => Object.values(columnMappings).some((m) => m?.saveAs === key);
+  const ensure = (c, saveAs) => {
+    const base = columnMappings[c] || { customFieldName: '', sourceHeader: '', displayHeader: `Column ${c + 1}` };
+    columnMappings[c] = { ...base, saveAs, autoSuggested: true };
+  };
+
+  // 1) Name — the most text-heavy column.
+  if (!has('item_name')) {
+    let best = null;
+    stats.forEach((s) => {
+      if (!s.cells) return;
+      const textRatio = s.textCells / s.cells;
+      const score = textRatio * s.avgLen;
+      if (textRatio >= 0.5 && (!best || score > best.score)) best = { c: s.c, score };
+    });
+    if (best) ensure(best.c, 'item_name');
+  }
+
+  // 2) Quantity — a column of mostly small whole numbers (not the name col).
+  if (!has('quantity')) {
+    const nameCol = Object.entries(columnMappings).find(([, m]) => m?.saveAs === 'item_name')?.[0];
+    let best = null;
+    stats.forEach((s) => {
+      if (!s.cells || String(s.c) === String(nameCol)) return;
+      const intRatio = s.intCells / s.cells;
+      const textRatio = s.textCells / s.cells;
+      if (intRatio >= 0.6 && textRatio < 0.3 && (!best || intRatio > best.ratio)) best = { c: s.c, ratio: intRatio };
+    });
+    if (best) ensure(best.c, 'quantity');
+  }
+
+  return columnMappings;
+}
+
 function buildInitialTableState(table, index) {
   const headerRowIndex = autoDetectHeaderRow(table);
   const rowTypes = {};
@@ -184,6 +247,7 @@ function buildInitialTableState(table, index) {
   });
   const headerRow = headerRowIndex !== null ? table?.rows?.[headerRowIndex] || [] : [];
   const columnMappings = autoDetectColumnMappings(headerRow);
+  inferColumnRolesFromData(table, headerRowIndex, columnMappings);
   return {
     tableId: table?.id,
     pageNumber: table?.pageNumbers?.[0] || index + 1,
@@ -1564,11 +1628,24 @@ function SmartConfirmStep({ fileName, groups, folderOptions, totalItems, baseSeg
         <div>
           <p className="azi-note-t">We read {fileName || 'your document'} and sorted it for you</p>
           <p className="azi-note-s">
-            {totalItems} item{totalItems !== 1 ? 's' : ''} across {groups?.length} folder{groups?.length !== 1 ? 's' : ''}.
-            Open a folder to move anything we filed in the wrong place, then import.
+            {totalItems > 0
+              ? <>{totalItems} item{totalItems !== 1 ? 's' : ''} across {groups?.length} folder{groups?.length !== 1 ? 's' : ''}. Open a folder to move anything we filed in the wrong place, then import.</>
+              : <>We couldn’t pick out any items automatically from this document.</>}
           </p>
         </div>
       </div>
+
+      {totalItems === 0 && (
+        <div className="azi-empty">
+          <div className="azi-empty-icn"><Icon name="FileSearch" size={26} /></div>
+          <p className="azi-empty-t">Nothing recognised yet</p>
+          <p className="azi-empty-s">
+            This can happen with an unusual layout or a scan we couldn’t read. Open
+            <b> Adjust details</b> to line up the columns yourself, or go back and try a clearer file.
+          </p>
+          <button className="azi-primary" onClick={onAdjust}><Icon name="SlidersHorizontal" size={16} />Adjust details</button>
+        </div>
+      )}
 
       <div className="azi-rows">
         {groups?.map((g) => {
