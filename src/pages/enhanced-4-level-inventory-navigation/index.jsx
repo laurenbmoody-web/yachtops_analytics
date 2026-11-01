@@ -34,6 +34,7 @@ import AzurePdfImportModal from './components/AzurePdfImportModal';
 import BulkPhotoScanModal from './components/BulkPhotoScanModal';
 import { exportInventoryToPDF } from './utils/inventoryPdfExport';
 import { exportInventoryToXLSX } from './utils/inventoryXlsxExport';
+import { isBondedStore } from './utils/bondedStores';
 
 import ModalShell from '../../components/ui/ModalShell';
 import '../../styles/editorial.css';
@@ -3901,7 +3902,12 @@ const LocationFirstInventory = () => {
     try {
       let exportItems = [];
       let viewPathLabel = null;
-      if (scope === 'view') {
+      if (scope === 'bonded') {
+        // Every bonded / duty-free item across all folders, in one export — no
+        // need to open each alcohol/tobacco folder separately.
+        exportItems = (allItems || []).filter(isBondedStore);
+        viewPathLabel = 'Bonded / duty-free stores';
+      } else if (scope === 'view') {
         // Current filtered view — e.g. a physical location/room or search filter.
         exportItems = viewItems || [];
         viewPathLabel = viewLabel || 'Filtered items';
@@ -3925,23 +3931,25 @@ const LocationFirstInventory = () => {
 
       const folderPath = viewPathLabel || pathSegments?.join(' › ') || 'Entire Inventory';
       const exportedBy = currentUser?.full_name || currentUser?.name || currentUser?.email || 'Unknown';
+      // Bonded export is a flat, cross-folder list — render it like a filtered view.
+      const utilScope = scope === 'bonded' ? 'view' : scope;
 
       if (format === 'pdf') {
         await exportInventoryToPDF({
           items: exportItems,
-          scope,
+          scope: utilScope,
           folderPath,
           includeImages,
-          allFoldersMeta,
+          allFoldersMeta: utilScope === 'view' ? undefined : allFoldersMeta,
         });
       } else {
         await exportInventoryToXLSX({
           items: exportItems,
-          scope,
+          scope: utilScope,
           folderPath,
           includeImages,
           exportedBy,
-          allFoldersMeta,
+          allFoldersMeta: utilScope === 'view' ? undefined : allFoldersMeta,
         });
       }
       setShowExportModal(false);

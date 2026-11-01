@@ -171,7 +171,11 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, onDe
   const bondedCf = item?.customFields?.bonded || {};
   const tobaccoWord = bondedCf.kind === 'cigar' ? 'cigars' : bondedCf.kind === 'cig' ? 'cigarettes' : null;
   const perContainer = tobaccoWord ? (Number(bondedCf.perPack) || 0) * (Number(bondedCf.perCarton) || 0) : 0;
-  const tobaccoTotal = (q) => (perContainer && q ? ` · ${q * perContainer} ${tobaccoWord}` : '');
+  const containerWord = item?.purchaseUnit || 'carton';
+  // e.g. "1 carton · 12 cigars", "2 cartons · 24 cigars" — qualifies the count.
+  const tobaccoLabel = (q) => (perContainer && q != null
+    ? `${q} ${containerWord}${q === 1 ? '' : 's'} · ${q * perContainer} ${tobaccoWord}`
+    : null);
   const locLabel = (l) => l?.locationName || l?.location_name || l?.subLocation || l?.name || '';
   const locId = (l) => l?.vesselLocationId || l?.locationId || '';
   // Fall back to the vessel map to name a location stored by id only.
@@ -209,7 +213,7 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, onDe
     return (
       <div className={`uv-loc${(place || pid) ? ' uv-loc-link' : ''}`} key={key} {...linkProps}>
         <span className="uv-loc-k"><Icon name="MapPin" size={13} /> <LocPath label={nameFor(l)} fallback={fallback} /></span>
-        <span className="uv-loc-v">{qty}{tobaccoTotal(qty)}</span>
+        <span className="uv-loc-v">{tobaccoLabel(qty) || qty}</span>
       </div>
     );
   };
@@ -274,7 +278,7 @@ const ItemQuickViewPanel = ({ item, onClose, onEdit, canEdit, onDuplicated, onDe
           <div className="uv-sec">
             <div className="uv-sec-h">
               <span className="uv-sec-hl">Stock{isLow && <span className="uv-lowchip" title={`On hand ${total}${item?.unit ? ` ${item.unit}` : ''}, restock at ${item?.restockLevel}`}>Low stock</span>}</span>
-              <span className="uv-total">{total}{item?.unit ? ` ${item.unit}` : ''}{tobaccoTotal(total)}</span>
+              <span className="uv-total">{tobaccoLabel(total) || `${total}${item?.unit ? ` ${item.unit}` : ''}`}</span>
             </div>
             {multiLoc ? (
               placed.map((l, i) => renderLoc(l, l?.qty ?? l?.quantity ?? 0, i, `Location ${i + 1}`))
