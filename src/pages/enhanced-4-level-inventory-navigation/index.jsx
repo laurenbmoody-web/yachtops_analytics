@@ -32,6 +32,7 @@ import { CSS } from '@dnd-kit/utilities';
 import ExportInventoryModal from './components/ExportInventoryModal';
 import AzurePdfImportModal from './components/AzurePdfImportModal';
 import BulkPhotoScanModal from './components/BulkPhotoScanModal';
+import FindImagesModal from './components/FindImagesModal';
 import { exportInventoryToPDF } from './utils/inventoryPdfExport';
 import { exportInventoryToXLSX } from './utils/inventoryXlsxExport';
 import { isBondedStore } from './utils/bondedStores';
@@ -2730,6 +2731,7 @@ const LocationFirstInventory = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [showAzureImportModal, setShowAzureImportModal] = useState(false);
   const [showBulkScanModal, setShowBulkScanModal] = useState(false);
+  const [showFindImages, setShowFindImages] = useState(false);
   const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
@@ -4205,6 +4207,24 @@ const LocationFirstInventory = () => {
     setFolderDropTargetReady(false);
   };
 
+  // Items in the current department/folder subtree that have no photo yet —
+  // the candidates for the "Find images" bulk helper.
+  const findImageItems = useMemo(() => {
+    const loc = pathSegments?.[0];
+    if (!loc) return [];
+    const subPath = pathSegments?.slice(1)?.join(' > ');
+    const hasPhoto = (it) => {
+      const u = it?.imageUrl || it?.image_url || '';
+      return u && !String(u).startsWith('blob:');
+    };
+    return (allItems || []).filter((it) => {
+      if (it?.location !== loc) return false;
+      const s = it?.subLocation || '';
+      const inSubtree = !subPath || s === subPath || s.startsWith(subPath + ' > ');
+      return inSubtree && !hasPhoto(it);
+    });
+  }, [allItems, pathSegments]);
+
   const isFolderReadOnly = (folderName) => {
     if (isCommand) return false;
     if (isRoot) {
@@ -4323,6 +4343,16 @@ const LocationFirstInventory = () => {
               >
                 <Icon name="Camera" size={15} />
                 <span className="hidden sm:inline">Photo scan</span>
+              </button>
+            )}
+            {!isRoot && canEdit && findImageItems.length > 0 && (
+              <button
+                onClick={() => setShowFindImages(true)}
+                className="inv-btn ghost"
+                title="Find a product photo for every item here that has no picture"
+              >
+                <Icon name="ImagePlus" size={15} />
+                <span className="hidden sm:inline">Find images</span>
               </button>
             )}
             {!isRoot && (
@@ -4771,6 +4801,14 @@ const LocationFirstInventory = () => {
           currentPath={currentStorageFields?.subLocation || ''}
           onClose={() => setShowBulkScanModal(false)}
           onDone={() => loadData()}
+        />
+      )}
+      {showFindImages && (
+        <FindImagesModal
+          items={findImageItems}
+          scopeLabel={pathSegments?.[pathSegments.length - 1] || 'Inventory'}
+          onClose={() => setShowFindImages(false)}
+          onApplied={() => loadData()}
         />
       )}
       {showAddFolderModal && (
