@@ -398,7 +398,7 @@ function UploadStep({ onFileUploaded, parseError, isLoading }) {
 
   return (
     <div className="azi-stage">
-      <h2 className="azi-hero">Let&rsquo;s read your <em>order</em>.</h2>
+      <h2 className="azi-hero">Let&rsquo;s read your <em>inventory</em>.</h2>
       <p className="azi-lede">Drop a PDF, spreadsheet or photo and we&rsquo;ll pull out every item &mdash; sized, coded and sorted into folders for you.</p>
 
       <div
@@ -437,7 +437,7 @@ function UploadStep({ onFileUploaded, parseError, isLoading }) {
           {isLoading ? (
             <><LogoSpinner size={16} />Reading your document&hellip;</>
           ) : (
-            <>Read my order<Icon name="ArrowRight" size={17} /></>
+            <>Read my inventory<Icon name="ArrowRight" size={17} /></>
           )}
         </button>
       </div>
@@ -1582,10 +1582,19 @@ function ImportingStep({ progress, total, done, importedCount, importError, onCl
 // to a different folder, and imports. The old table/column mapping lives
 // behind "Adjust details" for the rare wrong guess.
 // ---------------------------------------------------------------------------
-function SmartConfirmStep({ fileName, groups, folderOptions, totalItems, baseSegments, onMoveItem, onImport, onAdjust, onBack }) {
+function SmartConfirmStep({ fileName, groups, folderOptions, existingFolders = [], totalItems, baseSegments, onMoveItem, onImport, onAdjust, onBack }) {
   const [expanded, setExpanded] = useState(() => new Set());
   const [newFolderFor, setNewFolderFor] = useState(null); // rowKey awaiting a new folder name
   const [newFolderName, setNewFolderName] = useState('');
+
+  // Move targets: the folders from this import, plus the vessel's real folder
+  // tree (so you can send an item into an existing folder), plus "New folder".
+  const importTargets = folderOptions || [];
+  const importKeys = new Set(importTargets.map((o) => o.key));
+  const existingTargets = (existingFolders || [])
+    .map((f) => ({ key: (f.segments || []).join(' > '), label: f.label, segments: f.segments }))
+    .filter((o) => o.key && !importKeys.has(o.key));
+  const allTargets = [...importTargets, ...existingTargets];
 
   const toggle = (key) => setExpanded((prev) => {
     const next = new Set(prev);
@@ -1595,7 +1604,7 @@ function SmartConfirmStep({ fileName, groups, folderOptions, totalItems, baseSeg
 
   const handleSelect = (rowKey, value) => {
     if (value === '__new__') { setNewFolderFor(rowKey); setNewFolderName(''); return; }
-    const opt = folderOptions?.find((o) => o?.key === value);
+    const opt = allTargets?.find((o) => o?.key === value);
     if (opt) onMoveItem(rowKey, opt.segments);
   };
 
@@ -1667,9 +1676,20 @@ function SmartConfirmStep({ fileName, groups, folderOptions, totalItems, baseSeg
                           title="Move to a different folder"
                         >
                           <option value={g.key} disabled>Move to…</option>
-                          {folderOptions?.filter((o) => o?.key !== g.key)?.map((o) => (
-                            <option key={o.key} value={o.key}>{o.label}</option>
-                          ))}
+                          {importTargets.filter((o) => o?.key !== g.key).length > 0 && (
+                            <optgroup label="In this import">
+                              {importTargets.filter((o) => o?.key !== g.key).map((o) => (
+                                <option key={o.key} value={o.key}>{o.label}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                          {existingTargets.length > 0 && (
+                            <optgroup label="Your folders">
+                              {existingTargets.map((o) => (
+                                <option key={o.key} value={o.key}>{o.label}</option>
+                              ))}
+                            </optgroup>
+                          )}
                           <option value="__new__">＋ New folder…</option>
                         </select>
                       )}
@@ -1697,7 +1717,7 @@ function SmartConfirmStep({ fileName, groups, folderOptions, totalItems, baseSeg
   );
 }
 
-export default function AzurePdfImportModal({ onClose, onImportComplete, currentPathSegments }) {
+export default function AzurePdfImportModal({ onClose, onImportComplete, currentPathSegments, existingFolders = [] }) {
   const [step, setStep] = useState(1);
   const [parseError, setParseError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -2115,7 +2135,7 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
     <ModalShell onClose={onClose} panelClassName={`azi-modal bg-card w-full flex flex-col ${isStep3 ? 'max-w-4xl max-h-[92vh]' : 'max-w-3xl max-h-[90vh]'}`}>
       {/* Top bar */}
       <div className="azi-top">
-        <span className="azi-eyebrow"><span className="dot" />Cargo &middot; Import</span>
+        <span />
         <button onClick={onClose} className="azi-x"><Icon name="X" size={18} /></button>
       </div>
 
@@ -2136,6 +2156,7 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
             fileName={uploadedFile?.name}
             groups={smartGroups}
             folderOptions={folderOptions}
+            existingFolders={existingFolders}
             totalItems={smartTotalItems}
             baseSegments={currentPathSegments || []}
             onMoveItem={handleMoveItem}

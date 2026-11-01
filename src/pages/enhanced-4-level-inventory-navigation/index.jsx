@@ -624,6 +624,22 @@ const FolderSettingsModal = ({ folderName, parentSegments, currentVisibility, on
 // unusable with many folders or duplicate names (you couldn't tell two
 // "General" folders apart). `onPick` reports the currently-browsed segments
 // (or null at the root) so the parent can enable/disable "Move here".
+// Flatten the folder tree into [{ label, segments }] for simple pickers (e.g.
+// the import "move to" menu), deepest-first grouped by root.
+function flattenFolderTree(tree) {
+  const out = [];
+  const walk = (segs) => {
+    const children = tree?.[segs?.join('|||')]?.subFolders || [];
+    children.forEach((name) => {
+      const s = [...segs, name];
+      out.push({ label: s.join(' › '), segments: s });
+      walk(s);
+    });
+  };
+  walk([]);
+  return out;
+}
+
 const FolderTreePicker = ({ folderTree, onPick, disablePath, blockPath, isCommand, userDepartment, currentRoot, initialBrowse }) => {
   // Open where the thing currently lives so its ancestor breadcrumb is right
   // there — moving it UP/OUT is then a click on a parent crumb, not a re-drill
@@ -4278,10 +4294,10 @@ const LocationFirstInventory = () => {
             <button
               onClick={() => setShowAzureImportModal(true)}
               className="inv-btn accent"
-              title="Import inventory from PDF / spreadsheet"
+              title="Upload inventory from a PDF, spreadsheet or photo"
             >
               <Icon name="FileText" size={15} />
-              <span className="hidden sm:inline">Import inventory</span>
+              <span className="hidden sm:inline">Upload inventory</span>
             </button>
             {!isRoot && canEdit && (
               <button
@@ -4866,6 +4882,7 @@ const LocationFirstInventory = () => {
           isOpen={showAzureImportModal}
           onClose={() => { setShowAzureImportModal(false); loadData(); }}
           currentPathSegments={pathSegments}
+          existingFolders={flattenFolderTree(folderTree)}
           onImportComplete={() => { markTutorialStep(session?.user?.id, 'import_done').catch(() => {}); setShowAzureImportModal(false); loadData(); }}
         />
       )}
