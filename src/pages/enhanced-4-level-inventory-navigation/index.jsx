@@ -3984,6 +3984,25 @@ const LocationFirstInventory = () => {
     }
   };
 
+  // Items in the current department/folder subtree that have no photo yet —
+  // the candidates for the "Find images" bulk helper. Kept above the early
+  // loading return so hook order stays stable across renders.
+  const findImageItems = useMemo(() => {
+    const loc = pathSegments?.[0];
+    if (!loc) return [];
+    const subPath = pathSegments?.slice(1)?.join(' > ');
+    const hasPhoto = (it) => {
+      const u = it?.imageUrl || it?.image_url || '';
+      return u && !String(u).startsWith('blob:');
+    };
+    return (allItems || []).filter((it) => {
+      if (it?.location !== loc) return false;
+      const s = it?.subLocation || '';
+      const inSubtree = !subPath || s === subPath || s.startsWith(subPath + ' > ');
+      return inSubtree && !hasPhoto(it);
+    });
+  }, [allItems, pathSegments]);
+
   if (authLoading || !bootstrapComplete || pageLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -4056,10 +4075,10 @@ const LocationFirstInventory = () => {
   // the target stable while you hover a folder (closestCenter jitters as the
   // sortable grid reflows, which kept resetting the hold-to-nest timer), and
   // falls back to closestCenter when the pointer sits in a gap.
-  const collisionDetection = useCallback((args) => {
+  const collisionDetection = (args) => {
     const pointerHits = pointerWithin(args);
     return pointerHits?.length ? pointerHits : closestCenter(args);
-  }, []);
+  };
 
   const handleDragStart = ({ active }) => {
     setActiveDragId(active?.id);
@@ -4206,24 +4225,6 @@ const LocationFirstInventory = () => {
     setFolderDropTargetId(null);
     setFolderDropTargetReady(false);
   };
-
-  // Items in the current department/folder subtree that have no photo yet —
-  // the candidates for the "Find images" bulk helper.
-  const findImageItems = useMemo(() => {
-    const loc = pathSegments?.[0];
-    if (!loc) return [];
-    const subPath = pathSegments?.slice(1)?.join(' > ');
-    const hasPhoto = (it) => {
-      const u = it?.imageUrl || it?.image_url || '';
-      return u && !String(u).startsWith('blob:');
-    };
-    return (allItems || []).filter((it) => {
-      if (it?.location !== loc) return false;
-      const s = it?.subLocation || '';
-      const inSubtree = !subPath || s === subPath || s.startsWith(subPath + ' > ');
-      return inSubtree && !hasPhoto(it);
-    });
-  }, [allItems, pathSegments]);
 
   const isFolderReadOnly = (folderName) => {
     if (isCommand) return false;
