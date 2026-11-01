@@ -128,7 +128,7 @@ Rules:
 - Merge a product that spans several lines into ONE object (join its description).
 - Skip anything that is not a product line: column headers, section titles (capture them as "category" instead), subtotals, totals, tax/VAT lines, addresses, page numbers, delivery/billing info.
 - The document may be in any language — translate field roles, not the values.
-- If products are grouped under section/category headings, put that heading in "category".
+- ALWAYS set "category" so the items can be filed into folders: if the document has section/sub-total headings use those; otherwise infer a sensible grouping from the product itself (e.g. "Laundry", "Cleaning", "Stain Removers", "Galley", "Toiletries", "Beverages"). Never leave category empty or null. Group similar products under the same category wording.
 - Quantity is the count of the item (not a price). Never put a monetary amount in quantity.
 
 Each object has these fields (use null when absent):
