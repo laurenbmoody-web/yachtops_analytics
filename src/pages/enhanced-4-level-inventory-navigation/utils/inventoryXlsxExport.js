@@ -435,9 +435,9 @@ const buildSummarySheet = (worksheet, folderGroups, allItems) => {
 // the shape a UK NMSW FAL 3 Ship's Stores Declaration expects.
 const buildBondedSheet = (worksheet, summary) => {
   worksheet.columns = [
-    { header: 'Name of article', key: 'a', width: 28 },
-    { header: 'Quantity (units)', key: 'q', width: 16 },
-    { header: 'Lines', key: 'l', width: 10 },
+    { header: 'Article type', key: 'a', width: 28 },
+    { header: 'Bottle count', key: 'q', width: 14 },
+    { header: 'Litres', key: 'l', width: 12 },
     { header: 'Location(s) on board', key: 'loc', width: 46 },
   ];
 
@@ -447,7 +447,7 @@ const buildBondedSheet = (worksheet, summary) => {
 
   summary.rows.forEach((r, rowIdx) => {
     const isAltRow = rowIdx % 2 === 1;
-    const excelRow = worksheet?.addRow({ a: r.article, q: Number(r.qty), l: Number(r.lines), loc: r.locations.join(', ') || '—' });
+    const excelRow = worksheet?.addRow({ a: r.article, q: Number(r.qty), l: Number(r.litres || 0), loc: r.locations.join(', ') || '—' });
     excelRow.height = 16;
     applyDataCell(excelRow?.getCell(1), { bold: true, fill: isAltRow ? 'FFF8FAFC' : 'FFFFFFFF', align: 'left' });
     applyDataCell(excelRow?.getCell(2), { bold: true, fill: isAltRow ? 'FFE8EEF4' : 'FFF1F5F9', align: 'center' });
@@ -455,7 +455,7 @@ const buildBondedSheet = (worksheet, summary) => {
     applyDataCell(excelRow?.getCell(4), { fill: isAltRow ? 'FFF8FAFC' : 'FFFFFFFF', align: 'left' });
   });
 
-  const totalsRow = worksheet?.addRow({ a: 'TOTAL', q: Number(summary.totalQty), l: Number(summary.totalLines), loc: '' });
+  const totalsRow = worksheet?.addRow({ a: 'TOTAL', q: Number(summary.totalQty), l: Number(summary.totalLitres || 0), loc: '' });
   totalsRow.height = 16;
   [1, 2, 3, 4].forEach((c) => applyDataCell(totalsRow?.getCell(c), { bold: true, fill: 'FFE2E8F0', align: c === 1 ? 'left' : 'center' }));
 };
