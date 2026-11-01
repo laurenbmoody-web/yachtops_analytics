@@ -144,15 +144,43 @@ Each object has these fields (use null when absent):
 
 Return ONLY a valid JSON array, no markdown and no commentary.`;
 
+// Pull every complete {...} object out of a string, ignoring braces inside
+// strings. Lets us recover items from a response the model truncated (hit the
+// output limit) mid-array — we keep the whole objects and drop the cut-off one.
+function salvageObjects(text) {
+  const out = [];
+  let depth = 0, start = -1, inStr = false, esc = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') { inStr = true; continue; }
+    if (ch === '{') { if (depth === 0) start = i; depth += 1; }
+    else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        try { out.push(JSON.parse(text.slice(start, i + 1))); } catch { /* skip */ }
+        start = -1;
+      }
+    }
+  }
+  return out;
+}
+
 function parseItemsJson(rawText) {
   const cleaned = extractJsonText(rawText);
   try {
     const parsed = JSON.parse(cleaned);
-    if (!Array.isArray(parsed)) throw new Error('Expected JSON array');
-    return parsed;
-  } catch {
-    throw new Error(`Failed to parse AI response as JSON. Raw response: ${String(rawText).slice(0, 200)}`);
-  }
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && typeof parsed === 'object') return [parsed];
+  } catch { /* fall through to salvage */ }
+  const salvaged = salvageObjects(cleaned);
+  if (salvaged.length) return salvaged;
+  throw new Error(`Failed to parse AI response as JSON. Raw response: ${String(rawText).slice(0, 200)}`);
 }
 
 export async function parseInventoryDocument(file) {

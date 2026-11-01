@@ -1179,3 +1179,52 @@ export async function extractPdfPlainText(file) {
     return '';
   }
 }
+
+/**
+ * Like extractPdfPlainText but returns one string per page, so a large PDF can
+ * be read in small batches (each AI call stays well under the output limit
+ * instead of truncating). '' entries are dropped.
+ *
+ * @param {File} file
+ * @returns {Promise<string[]>}
+ */
+export async function extractPdfPages(file) {
+  let pdfjsLib;
+  try {
+    pdfjsLib = await import('pdfjs-dist');
+    if (pdfjsLib?.GlobalWorkerOptions) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+        'pdfjs-dist/build/pdf.worker.min.mjs',
+        import.meta.url,
+      )?.toString();
+    }
+  } catch {
+    return [];
+  }
+  try {
+    const arrayBuffer = await file?.arrayBuffer();
+    const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer })?.promise;
+    const pages = [];
+    for (let p = 1; p <= (pdfDoc?.numPages || 0); p += 1) {
+      const page = await pdfDoc.getPage(p);
+      const content = await page.getTextContent();
+      const lines = {};
+      (content?.items || []).forEach((it) => {
+        if (typeof it?.str !== 'string' || !it.str) return;
+        const y = Math.round(it?.transform?.[5] ?? 0);
+        const x = it?.transform?.[4] ?? 0;
+        (lines[y] = lines[y] || []).push({ x, s: it.str });
+      });
+      const ordered = Object.keys(lines)
+        .map(Number)
+        .sort((a, b) => b - a)
+        .map((y) => lines[y].sort((a, b) => a.x - b.x).map((o) => o.s).join(' ').replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+      const text = ordered.join('\n').trim();
+      if (text) pages.push(text);
+    }
+    return pages;
+  } catch {
+    return [];
+  }
+}
