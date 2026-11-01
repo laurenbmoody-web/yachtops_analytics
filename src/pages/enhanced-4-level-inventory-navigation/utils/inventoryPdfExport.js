@@ -504,34 +504,16 @@ export const exportInventoryToPDF = async ({
     doc?.setTextColor(...primaryColor);
     doc?.setFontSize(9);
     doc?.setFont('helvetica', 'normal');
-    doc?.text('Each bottle listed under its article type; types ordered by quantity, highest first.', margin, y);
+    doc?.text('Articles grouped by type, ordered by quantity, highest first.', margin, y);
     y += 5;
 
-    const locCol = pageWidth - margin * 2 - 70 - 36 - 24;
-    const bandFill = [230, 233, 240];
-    const bondedBody = [];
-    summary.rows.forEach((r) => {
-      // Type band — the article group with its subtotal and stow locations.
-      bondedBody.push([
-        { content: r.article, styles: { fontStyle: 'bold', fillColor: bandFill, textColor: primaryColor } },
-        { content: String(r.qty), styles: { halign: 'right', fontStyle: 'bold', fillColor: bandFill, textColor: primaryColor } },
-        { content: String(r.lines), styles: { halign: 'right', fontStyle: 'bold', fillColor: bandFill, textColor: primaryColor } },
-        { content: r.locations.join(', ') || '—', styles: { fillColor: bandFill, textColor: primaryColor } },
-      ]);
-      // Each individual bottle within that type, indented, with its own unit count.
-      (r.bottles || []).forEach((b) => {
-        bondedBody.push([
-          { content: b.name, styles: { cellPadding: { top: 1.8, right: 3, bottom: 1.8, left: 8 } } },
-          { content: String(b.qty), styles: { halign: 'right' } },
-          '',
-          '',
-        ]);
-      });
-    });
+    const locCol = pageWidth - margin * 2 - 70 - 36 - 28;
     autoTable(doc, {
       startY: y,
-      head: [['Article', 'Quantity (units)', 'Lines', 'Location(s) on board']],
-      body: bondedBody,
+      // Two per-category totals: bottle count (total bottles) and unit count
+      // (number of distinct articles / products in the category).
+      head: [['Article type', 'Bottle count', 'Unit count', 'Location(s) on board']],
+      body: summary.rows.map((r) => [r.article, String(r.qty), String(r.lines), r.locations.join(', ') || '—']),
       foot: [['TOTAL', String(summary.totalQty), String(summary.totalLines), '']],
       margin: { left: margin, right: margin },
       styles: {
@@ -546,9 +528,9 @@ export const exportInventoryToPDF = async ({
       headStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
       footStyles: { fillColor: primaryColor, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 9 },
       columnStyles: {
-        0: { cellWidth: 70 },
+        0: { cellWidth: 70, fontStyle: 'bold' },
         1: { cellWidth: 36, halign: 'right', fontStyle: 'bold' },
-        2: { cellWidth: 24, halign: 'right' },
+        2: { cellWidth: 28, halign: 'right' },
         3: { cellWidth: locCol },
       },
       didDrawPage: () => {
