@@ -1,0 +1,60 @@
+/* Azure import modal — editorial Cargo retone, scoped to .azi-modal.
+ *
+ * The modal is built from Tailwind utilities that resolve through the app's
+ * CSS colour tokens (bg-primary → var(--color-primary), text-foreground →
+ * var(--color-foreground), …). Rather than rewrite every element across the
+ * five steps, we redefine those tokens on the modal wrapper so the whole
+ * subtree picks up the editorial palette in one place: terracotta accent,
+ * navy ink, cool white/grey surfaces, hairline borders. NO BEIGE. */
+.azi-modal {
+  --color-primary: #C65A1A;            /* terracotta accent */
+  --color-primary-foreground: #FFFFFF;
+  --color-foreground: #1C1B3A;         /* navy ink */
+  --color-card: #FFFFFF;               /* pure white cards */
+  --color-background: #F8FAFC;         /* cool maritime white */
+  --color-border: #E5E7EB;             /* soft hairline */
+  --color-muted: #F1F5F9;              /* cool inset / hover */
+  --color-muted-foreground: #6B7280;   /* muted text */
+  --color-ring: #C65A1A;
+}
+
+/* Header: serif title in navy, the way every editorial surface leads. */
+.azi-modal .azi-title {
+  font-family: 'DM Serif Display', 'DM Serif Text', Georgia, serif;
+  font-weight: 400;
+  font-size: 18px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: #1C1B3A;
+}
+.azi-modal .azi-sub {
+  color: #8B8478;
+  font-size: 12px;
+}
+
+/* Icon badge: cool tint with a terracotta glyph (editorial badge), not the
+   old pale-primary wash. */
+.azi-modal .azi-badge {
+  background: #EEF2F7;
+}
+
+/* Step rail: make the "done" fills and the connector read terracotta even
+   though the opacity utilities don't all compile. Active = solid terracotta
+   (via --color-primary), done = soft terracotta tint, pending = cool grey. */
+.azi-modal .azi-step-done {
+  background: rgba(198, 90, 26, 0.12) !important;
+  color: #C65A1A !important;
+  border-color: rgba(198, 90, 26, 0.35) !important;
+}
+.azi-modal .azi-step-line-done {
+  background: rgba(198, 90, 26, 0.35) !important;
+}
+
+/* Focus halo on fields = terracotta at low opacity, never a beige swatch. */
+.azi-modal input:focus,
+.azi-modal select:focus,
+.azi-modal textarea:focus {
+  outline: none;
+  border-color: #C65A1A;
+  box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14);
+}
