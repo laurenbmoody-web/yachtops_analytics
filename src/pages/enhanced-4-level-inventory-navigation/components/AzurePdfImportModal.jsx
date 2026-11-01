@@ -15,6 +15,7 @@ import LogoSpinner from '../../../components/LogoSpinner';
 import Button from '../../../components/ui/Button';
 import { parseDocumentWithAzure, isAzureParseError } from '../../../services/azureDocumentParser';
 import { parseInventoryDocument, parseInventoryItemsFromText } from '../../../services/documentParser';
+import { extractPdfPlainText } from '../../../services/inventoryImportParser';
 import * as XLSX from 'xlsx';
 import { saveItem, createFolder } from '../../inventory/utils/inventoryStorage';
 import { useTenant } from '../../../contexts/TenantContext';
@@ -1862,14 +1863,25 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
     setRowOverrides({});
     try {
       const ext = file?.name?.split('.')?.pop()?.toLowerCase();
+      const isPdf = ext === 'pdf' || file?.type === 'application/pdf';
       let items;
       if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
+        // Spreadsheet → read to text in the browser, send the text to Claude.
         const buf = await file.arrayBuffer();
         const wb = XLSX.read(buf, { type: 'array' });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const text = XLSX.utils.sheet_to_csv(sheet);
         items = await parseInventoryItemsFromText(text);
+      } else if (isPdf) {
+        // Digital PDF → pull the text out here with pdfjs and send only that
+        // (a few KB) to Claude. Avoids posting the whole file and the slow
+        // vision path. Scanned PDFs have no text layer → fall back to vision.
+        const text = await extractPdfPlainText(file);
+        items = text && text.length > 40
+          ? await parseInventoryItemsFromText(text)
+          : await parseInventoryDocument(file);
       } else {
+        // Image / photo → Claude vision.
         items = await parseInventoryDocument(file);
       }
       setAiItems(normalizeAiItems(items));
