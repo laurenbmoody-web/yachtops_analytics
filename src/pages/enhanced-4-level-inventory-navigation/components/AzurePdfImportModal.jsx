@@ -1663,7 +1663,7 @@ function FolderPickerSheet({ folders, itemName, onPick, onClose }) {
   );
 }
 
-function SmartConfirmStep({ fileName, groups, folderOptions, existingFolders = [], totalItems, baseSegments, onMoveItem, onImport, onAdjust, onBack }) {
+function SmartConfirmStep({ fileName, groups, folderOptions, existingFolders = [], totalItems, baseSegments, excluded = new Set(), onToggleExclude, onMoveItem, onImport, onBack }) {
   const [expanded, setExpanded] = useState(() => new Set());
   const [movingRow, setMovingRow] = useState(null); // { rowKey, name } being moved
 
@@ -1687,14 +1687,17 @@ function SmartConfirmStep({ fileName, groups, folderOptions, existingFolders = [
     setMovingRow(null);
   };
 
+  const activeCountOf = (g) => (g.items || []).filter((it) => !excluded.has(it.rowKey)).length;
+  const activeFolderCount = (groups || []).filter((g) => activeCountOf(g) > 0).length;
+
   return (
     <div className="azi-stage">
       {totalItems > 0 ? (
         <>
           <h2 className="azi-hero">{totalItems} item{totalItems !== 1 ? 's' : ''}, <em>sorted</em>.</h2>
           <p className="azi-lede">
-            From {fileName || 'your document'}, into {groups?.length} folder{groups?.length !== 1 ? 's' : ''}.
-            Open a folder to move anything we filed in the wrong place, then import.
+            From {fileName || 'your document'}, into {activeFolderCount} folder{activeFolderCount !== 1 ? 's' : ''}.
+            Open a folder to move or leave out anything we got wrong, then import.
           </p>
         </>
       ) : (
@@ -1712,27 +1715,42 @@ function SmartConfirmStep({ fileName, groups, folderOptions, existingFolders = [
       <div className="azi-rows">
         {groups?.map((g) => {
           const isOpen = expanded.has(g.key);
+          const activeCount = activeCountOf(g);
           return (
             <div key={g.key} className="azi-fgroup">
               <button className="azi-frow" onClick={() => toggle(g.key)} aria-expanded={isOpen}>
                 <span className="azi-fi"><Icon name="Folder" size={16} /></span>
                 <span className="azi-fmain">
                   <span className="azi-fname">{g.label}</span>
-                  <span className="azi-fsub">{g.items?.length} item{g.items?.length !== 1 ? 's' : ''}</span>
+                  <span className="azi-fsub">{activeCount} item{activeCount !== 1 ? 's' : ''}</span>
                 </span>
                 <Icon name={isOpen ? 'ChevronDown' : 'ChevronRight'} size={16} className="azi-fchev" />
               </button>
               {isOpen && (
                 <div className="azi-items">
-                  {g.items?.map((it) => (
-                    <div key={it.rowKey} className="azi-item">
-                      <span className="azi-item-nm">{it.name}</span>
-                      {it.qty !== '' && it.qty != null && <span className="azi-item-qty">×{it.qty}</span>}
-                      <button className="azi-move" onClick={() => setMovingRow({ rowKey: it.rowKey, name: it.name })} title="Move to a different folder">
-                        Move<Icon name="ChevronRight" size={13} />
-                      </button>
-                    </div>
-                  ))}
+                  {g.items?.map((it) => {
+                    const isExcl = excluded.has(it.rowKey);
+                    return (
+                      <div key={it.rowKey} className={`azi-item${isExcl ? ' is-excluded' : ''}`}>
+                        <span className="azi-item-nm">{it.name}</span>
+                        {it.qty !== '' && it.qty != null && <span className="azi-item-qty">×{it.qty}</span>}
+                        {isExcl ? (
+                          <button className="azi-include" onClick={() => onToggleExclude(it.rowKey)} title="Add this item back to the import">
+                            <Icon name="Plus" size={13} />Include
+                          </button>
+                        ) : (
+                          <>
+                            <button className="azi-move" onClick={() => setMovingRow({ rowKey: it.rowKey, name: it.name })} title="Move to a different folder">
+                              Move<Icon name="ChevronRight" size={13} />
+                            </button>
+                            <button className="azi-drop" onClick={() => onToggleExclude(it.rowKey)} title="Leave this item out of the import" aria-label={`Leave out ${it.name}`}>
+                              <Icon name="X" size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1782,6 +1800,8 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
   const [mode, setMode] = useState('smart');
   // Per-row folder override from the Smart Confirm screen: rowKey -> segments[].
   const [rowOverrides, setRowOverrides] = useState({});
+  // Rows the user has chosen to leave out of this import (rowKey set).
+  const [excludedRows, setExcludedRows] = useState(() => new Set());
   // Items read by the Claude document reader (primary path). When set, the
   // smart confirm and import run off these instead of Azure's raw tables.
   const [aiItems, setAiItems] = useState(null);
@@ -1876,10 +1896,18 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
     [smartGroups],
   );
 
-  const smartTotalItems = resolvedRows.length;
+  const smartTotalItems = resolvedRows.filter((r) => !excludedRows.has(r.rowKey)).length;
 
   const handleMoveItem = useCallback((rowKey, segments) => {
     setRowOverrides((prev) => ({ ...prev, [rowKey]: segments }));
+  }, []);
+
+  const handleToggleExclude = useCallback((rowKey) => {
+    setExcludedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowKey)) next.delete(rowKey); else next.add(rowKey);
+      return next;
+    });
   }, []);
 
   // Step 1 → 2: Parse with Azure, then run color detection in background
@@ -1918,6 +1946,7 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
     setAiItems(null);
     setAzureResult(null);
     setRowOverrides({});
+    setExcludedRows(new Set());
     try {
       // The vessel's existing folder names, so the AI files items into folders
       // the user already uses (matching wording) instead of inventing new ones.
@@ -2103,7 +2132,9 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
   const handleRunImport = async () => {
     // Resolve each row to its final folder, honouring any moves made on the
     // Smart Confirm screen. One resolver feeds both the preview and this import.
-    const rows = resolvedRows.map((r) => ({ src: r.aiItem || r.normRow || {}, isAi: !!r.aiItem, _segments: segmentsFor(r) }));
+    const rows = resolvedRows
+      .filter((r) => !excludedRows.has(r.rowKey))
+      .map((r) => ({ src: r.aiItem || r.normRow || {}, isAi: !!r.aiItem, _segments: segmentsFor(r) }));
     setAllNormalizedRows(rows);
 
     setStep(5);
@@ -2244,9 +2275,10 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
             existingFolders={existingFolders}
             totalItems={smartTotalItems}
             baseSegments={currentPathSegments || []}
+            excluded={excludedRows}
+            onToggleExclude={handleToggleExclude}
             onMoveItem={handleMoveItem}
             onImport={handleRunImport}
-            onAdjust={() => runAzureImport(uploadedFile)}
             onBack={() => setStep(1)}
           />
         )}

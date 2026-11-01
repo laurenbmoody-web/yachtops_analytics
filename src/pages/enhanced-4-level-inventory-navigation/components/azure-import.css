@@ -23,14 +23,14 @@
 }
 
 /* ── Top bar: eyebrow + close ─────────────────────────────────────────── */
-.azi-top { display: flex; align-items: center; justify-content: space-between; padding: 22px 30px 0; }
+.azi-top { display: flex; align-items: center; justify-content: space-between; padding: 15px 26px 0; }
 .azi-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 .azi-eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
 .azi-x { color: var(--faint); background: none; border: none; cursor: pointer; border-radius: 999px; padding: 5px; display: inline-flex; transition: background .15s, color .15s; }
 .azi-x:hover { color: var(--ink); background: var(--soft); }
 
 /* ── Worded progress line ─────────────────────────────────────────────── */
-.azi-prog { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 0 0; }
+.azi-prog { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 2px 0 0; }
 .azi-prog .w { font-size: 10px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--faint); }
 .azi-prog .w.on { color: var(--primary); }
 .azi-prog .w.done { color: var(--ink); }
@@ -38,7 +38,7 @@
 .azi-prog .ln.done { background: var(--primary); }
 
 /* ── Stage + editorial hero ───────────────────────────────────────────── */
-.azi-stage { padding: 6px 40px 28px; }
+.azi-stage { padding: 26px 40px 28px; }
 .azi-hero { font-family: var(--serif); font-weight: 400; font-size: clamp(24px, 3.2vw, 31px); line-height: 1.08; letter-spacing: -0.01em; color: var(--ink); text-align: center; text-wrap: balance; margin: 2px auto 0; max-width: 22ch; }
 .azi-hero em { font-style: italic; color: var(--primary); }
 .azi-lede { text-align: center; color: var(--muted); font-size: 14px; line-height: 1.5; margin: 9px auto 0; max-width: 46ch; }
@@ -72,9 +72,9 @@
 .azi-fgroup:last-child { border-bottom: none; }
 .azi-frow { width: 100%; display: flex; align-items: center; gap: 13px; padding: 14px 2px; background: none; border: none; cursor: pointer; text-align: left; }
 .azi-fi { width: 30px; height: 30px; border-radius: 9px; background: var(--inset); color: var(--primary); flex: none; display: flex; align-items: center; justify-content: center; }
-.azi-fmain { flex: 1; min-width: 0; }
-.azi-fname { font-family: var(--serif); font-size: 16px; color: var(--ink); }
-.azi-fsub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.azi-fmain { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.azi-fname { font-family: var(--serif); font-size: 16px; color: var(--ink); line-height: 1.2; }
+.azi-fsub { font-size: 12px; color: var(--muted); margin-top: 3px; }
 .azi-fchev { color: var(--faint); flex: none; }
 .azi-items { padding: 2px 0 12px 43px; }
 .azi-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid #F6F7F9; }
@@ -83,6 +83,12 @@
 .azi-item-qty { font-size: 12px; color: var(--muted); flex: none; font-variant-numeric: tabular-nums; }
 .azi-move { flex: none; display: inline-flex; align-items: center; gap: 2px; font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--muted); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px 5px 12px; cursor: pointer; transition: border-color .15s, color .15s; }
 .azi-move:hover { border-color: var(--primary); color: var(--primary); }
+.azi-drop { flex: none; width: 27px; height: 27px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: var(--faint); background: #fff; border: 1px solid var(--line); cursor: pointer; transition: color .15s, border-color .15s, background .15s; }
+.azi-drop:hover { color: #DC2626; border-color: #FECACA; background: #FEF2F2; }
+.azi-include { flex: none; display: inline-flex; align-items: center; gap: 4px; font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--primary); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px 5px 9px; cursor: pointer; transition: border-color .15s; }
+.azi-include:hover { border-color: var(--primary); }
+.azi-item.is-excluded .azi-item-nm { text-decoration: line-through; color: var(--faint); }
+.azi-item.is-excluded .azi-item-qty { color: var(--faint); }
 
 /* Folder picker sheet (drill-down) */
 .azi-sheet-back { position: fixed; inset: 0; z-index: 70; background: rgba(28, 27, 58, 0.28); display: flex; align-items: center; justify-content: center; padding: 20px; }
@@ -132,12 +138,14 @@
 .azi-empty-s b { color: var(--ink); font-weight: 600; }
 
 /* ── Importing / done ─────────────────────────────────────────────────── */
-.azi-result { text-align: center; padding: 26px 24px 16px; }
-.azi-result-ic { width: 66px; height: 66px; border-radius: 50%; margin: 6px auto 8px; display: flex; align-items: center; justify-content: center; }
+.azi-result { text-align: center; padding: 38px 24px 40px; max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; }
+.azi-result-ic { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; }
 .azi-result-ic.ok { background: #ECFDF5; color: #059669; }
 .azi-result-ic.go { background: var(--inset); color: var(--primary); }
 .azi-result-ic.err { background: #FEF2F2; color: #DC2626; }
-.azi-bar { max-width: 320px; height: 6px; border-radius: 999px; background: var(--soft); margin: 20px auto 0; overflow: hidden; }
+.azi-result .azi-hero { margin-top: 0; }
+.azi-result .azi-lede { margin-top: 7px; }
+.azi-bar { width: 100%; max-width: 260px; height: 6px; border-radius: 999px; background: var(--soft); margin: 16px auto 0; overflow: hidden; }
 .azi-bar i { display: block; height: 100%; background: var(--primary); border-radius: 999px; transition: width .3s ease; }
 
 .azi-modal input:focus, .azi-modal select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(198, 90, 26, 0.14); }
