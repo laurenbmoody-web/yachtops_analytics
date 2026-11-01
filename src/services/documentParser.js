@@ -144,6 +144,19 @@ Each object has these fields (use null when absent):
 
 Return ONLY a valid JSON array, no markdown and no commentary.`;
 
+// Append the user's existing folder names so the model files items into the
+// folders they already use (matching the exact wording) rather than inventing
+// new ones. Only falls back to a new category when nothing fits.
+function inventoryPrompt(folderNames = []) {
+  const names = [...new Set((folderNames || []).map((n) => String(n || '').trim()).filter(Boolean))];
+  if (!names.length) return INVENTORY_EXTRACT_PROMPT;
+  return `${INVENTORY_EXTRACT_PROMPT}
+
+The user already organises their inventory into these folders:
+${names.map((n) => `- ${n}`).join('\n')}
+When an item clearly belongs in one of these, set its "category" to that folder's EXACT name (same spelling and case). Only invent a new short category when none of these fit.`;
+}
+
 // Pull every complete {...} object out of a string, ignoring braces inside
 // strings. Lets us recover items from a response the model truncated (hit the
 // output limit) mid-array — we keep the whole objects and drop the cut-off one.
@@ -183,9 +196,9 @@ function parseItemsJson(rawText) {
   throw new Error(`Failed to parse AI response as JSON. Raw response: ${String(rawText).slice(0, 200)}`);
 }
 
-export async function parseInventoryDocument(file) {
+export async function parseInventoryDocument(file, folderNames = []) {
   // Large output budget: a multi-page order can have a few hundred rows.
-  const rawText = await parseDocument(file, INVENTORY_EXTRACT_PROMPT, { max_completion_tokens: 8192 });
+  const rawText = await parseDocument(file, inventoryPrompt(folderNames), { max_completion_tokens: 8192 });
   return parseItemsJson(rawText);
 }
 
@@ -195,10 +208,10 @@ export async function parseInventoryDocument(file) {
  * @param {string} text
  * @returns {Promise<Array<object>>}
  */
-export async function parseInventoryItemsFromText(text) {
+export async function parseInventoryItemsFromText(text, folderNames = []) {
   const messages = [
     { role: 'system', content: 'You are a precise document parsing assistant. Return only the requested JSON.' },
-    { role: 'user', content: `${INVENTORY_EXTRACT_PROMPT}\n\nDocument contents:\n\n${String(text || '').slice(0, 60000)}` },
+    { role: 'user', content: `${inventoryPrompt(folderNames)}\n\nDocument contents:\n\n${String(text || '').slice(0, 60000)}` },
   ];
   const response = await getChatCompletion(PROVIDER, MODEL, messages, { max_completion_tokens: 8192 });
   const content = response?.choices?.[0]?.message?.content;
