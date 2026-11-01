@@ -115,6 +115,13 @@ const STEPS = [
   { id: 5, label: 'Import' },
 ];
 
+// The simple default path: upload, check what we found, done.
+const SMART_STEPS = [
+  { id: 1, label: 'Upload' },
+  { id: 2, label: 'Check' },
+  { id: 3, label: 'Done' },
+];
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -278,10 +285,10 @@ function detectSimilarTables(tables, tableStates) {
 // ---------------------------------------------------------------------------
 // Step Indicator
 // ---------------------------------------------------------------------------
-function StepIndicator({ currentStep }) {
+function StepIndicator({ currentStep, steps = STEPS }) {
   return (
     <div className="azi-steps">
-      {STEPS?.map((step, idx) => (
+      {steps?.map((step, idx) => (
         <React.Fragment key={step?.id}>
           <div className={`azi-step${currentStep === step?.id ? ' is-active' : currentStep > step?.id ? ' is-done' : ''}`}>
             <div className="azi-step-dot">
@@ -289,7 +296,7 @@ function StepIndicator({ currentStep }) {
             </div>
             <span className="azi-step-label">{step?.label}</span>
           </div>
-          {idx < STEPS?.length - 1 && (
+          {idx < steps?.length - 1 && (
             <div className={`azi-step-conn${currentStep > step?.id ? ' is-done' : ''}`} />
           )}
         </React.Fragment>
@@ -1519,6 +1526,118 @@ function ImportingStep({ progress, total, done, importedCount, importError, onCl
 // ---------------------------------------------------------------------------
 // Main Modal
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Smart Confirm — the simple default: "here's what we found, import it".
+// Shows the items grouped into the folders we picked, lets you move any item
+// to a different folder, and imports. The old table/column mapping lives
+// behind "Adjust details" for the rare wrong guess.
+// ---------------------------------------------------------------------------
+function SmartConfirmStep({ fileName, groups, folderOptions, totalItems, baseSegments, onMoveItem, onImport, onAdjust, onBack }) {
+  const [expanded, setExpanded] = useState(() => new Set());
+  const [newFolderFor, setNewFolderFor] = useState(null); // rowKey awaiting a new folder name
+  const [newFolderName, setNewFolderName] = useState('');
+
+  const toggle = (key) => setExpanded((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  const handleSelect = (rowKey, value) => {
+    if (value === '__new__') { setNewFolderFor(rowKey); setNewFolderName(''); return; }
+    const opt = folderOptions?.find((o) => o?.key === value);
+    if (opt) onMoveItem(rowKey, opt.segments);
+  };
+
+  const confirmNewFolder = (rowKey) => {
+    const name = newFolderName?.trim();
+    if (!name) { setNewFolderFor(null); return; }
+    onMoveItem(rowKey, [...(baseSegments || []), name]);
+    setNewFolderFor(null);
+    setNewFolderName('');
+  };
+
+  return (
+    <div>
+      <div className="azi-note">
+        <Icon name="Sparkles" size={18} className="azi-note-icn" />
+        <div>
+          <p className="azi-note-t">We read {fileName || 'your document'} and sorted it for you</p>
+          <p className="azi-note-s">
+            {totalItems} item{totalItems !== 1 ? 's' : ''} across {groups?.length} folder{groups?.length !== 1 ? 's' : ''}.
+            Open a folder to move anything we filed in the wrong place, then import.
+          </p>
+        </div>
+      </div>
+
+      <div className="azi-rows">
+        {groups?.map((g) => {
+          const isOpen = expanded.has(g.key);
+          return (
+            <div key={g.key} className="azi-fgroup">
+              <button className="azi-frow" onClick={() => toggle(g.key)} aria-expanded={isOpen}>
+                <span className="azi-fi"><Icon name="Folder" size={16} /></span>
+                <span className="azi-fmain">
+                  <span className="azi-fname">{g.label}</span>
+                  <span className="azi-fsub">{g.items?.length} item{g.items?.length !== 1 ? 's' : ''}</span>
+                </span>
+                <Icon name={isOpen ? 'ChevronDown' : 'ChevronRight'} size={16} className="azi-fchev" />
+              </button>
+              {isOpen && (
+                <div className="azi-items">
+                  {g.items?.map((it) => (
+                    <div key={it.rowKey} className="azi-item">
+                      <span className="azi-item-nm">{it.name}</span>
+                      {it.qty !== '' && it.qty != null && <span className="azi-item-qty">×{it.qty}</span>}
+                      {newFolderFor === it.rowKey ? (
+                        <span className="azi-newf">
+                          <input
+                            autoFocus value={newFolderName}
+                            onChange={(e) => setNewFolderName(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') confirmNewFolder(it.rowKey); if (e.key === 'Escape') setNewFolderFor(null); }}
+                            placeholder="New folder name"
+                          />
+                          <button className="azi-newf-ok" onClick={() => confirmNewFolder(it.rowKey)}>Add</button>
+                          <button className="azi-newf-x" onClick={() => setNewFolderFor(null)}>Cancel</button>
+                        </span>
+                      ) : (
+                        <select
+                          className="azi-move"
+                          value={g.key}
+                          onChange={(e) => handleSelect(it.rowKey, e.target.value)}
+                          title="Move to a different folder"
+                        >
+                          <option value={g.key} disabled>Move to…</option>
+                          {folderOptions?.filter((o) => o?.key !== g.key)?.map((o) => (
+                            <option key={o.key} value={o.key}>{o.label}</option>
+                          ))}
+                          <option value="__new__">＋ New folder…</option>
+                        </select>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="azi-foot">
+        <button className="azi-ghost" onClick={onBack}>
+          <Icon name="ArrowLeft" size={16} />Back
+        </button>
+        <div className="azi-foot-r">
+          <button className="azi-link" onClick={onAdjust}>Adjust details</button>
+          <button className="azi-primary" onClick={onImport} disabled={totalItems === 0}>
+            <Icon name="Check" size={16} />Import {totalItems} item{totalItems !== 1 ? 's' : ''}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AzurePdfImportModal({ onClose, onImportComplete, currentPathSegments }) {
   const [step, setStep] = useState(1);
   const [parseError, setParseError] = useState(null);
@@ -1532,6 +1651,12 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
 
   // tableStates: { [tableId]: { tableId, pageNumber, included, reviewStatus, headerRowIndex, rowTypes, columnMappings, applyMappingTemplateId, saveTo, topMode, subMode, splitByColumn } }
   const [tableStates, setTableStates] = useState({});
+
+  // 'smart' = the simple one-screen confirm (default); 'advanced' = the full
+  // table/column mapping flow, reached via "Adjust details".
+  const [mode, setMode] = useState('smart');
+  // Per-row folder override from the Smart Confirm screen: rowKey -> segments[].
+  const [rowOverrides, setRowOverrides] = useState({});
 
   // Combined normalized rows for bulk import
   const [allNormalizedRows, setAllNormalizedRows] = useState([]);
@@ -1551,6 +1676,73 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
     if (!azureResult?.tables) return [];
     return detectSimilarTables(azureResult?.tables, tableStates);
   }, [azureResult, tableStates]);
+
+  // ── Shared resolver: every data row → the folder path we'd file it in ──────
+  // Mirrors the import loop's logic (section tree + carry-forward / custom
+  // split), so the Smart Confirm preview and the actual import agree exactly.
+  const resolvedRows = useMemo(() => {
+    const out = [];
+    if (!azureResult?.tables) return out;
+    azureResult.tables.forEach((table) => {
+      const state = tableStates?.[table?.id];
+      if (!state?.included || state?.reviewStatus === 'skipped') return;
+      const baseSegs = (state?.saveTo?.trim() || folderPath?.trim() || '')
+        ?.split('>')?.map((s) => s?.trim())?.filter(Boolean);
+      const normRows = buildNormalizedRowsForTable(table, state, colorMap) || [];
+      let carry = null;
+      normRows.forEach((nr) => {
+        const sourceRowIndex = nr?._source_row_index;
+        let seg = baseSegs;
+        if (state?.topMode === 'organise' && state?.subMode !== 'none') {
+          if (state?.subMode === 'sections') {
+            const sp = getDocumentSectionPathForRow(table, state, sourceRowIndex);
+            if (sp?.length > 0) { carry = sp; seg = [...baseSegs, ...sp]; }
+            else if (carry?.length > 0) { seg = [...baseSegs, ...carry]; }
+          } else {
+            const gv = getRowGroupValue(table, state, sourceRowIndex);
+            if (gv) seg = [...baseSegs, gv];
+          }
+        }
+        out.push({
+          rowKey: `${table?.id}:${sourceRowIndex}`,
+          normRow: nr,
+          autoSegments: seg || [],
+          name: nr?.item_name || nr?.name || '(unnamed item)',
+          qty: nr?.quantity ?? '',
+        });
+      });
+    });
+    return out;
+  }, [azureResult, tableStates, colorMap, folderPath]);
+
+  const segmentsFor = useCallback(
+    (row) => (rowOverrides?.[row?.rowKey] ? rowOverrides[row.rowKey] : row?.autoSegments) || [],
+    [rowOverrides],
+  );
+
+  // Group the resolved rows by their effective folder, for the receipt view.
+  const smartGroups = useMemo(() => {
+    const map = new Map();
+    resolvedRows.forEach((row) => {
+      const segs = segmentsFor(row);
+      const key = segs.length ? segs.join(' > ') : '__root__';
+      const label = segs.length ? segs.join(' › ') : 'Current folder';
+      if (!map.has(key)) map.set(key, { key, label, segments: segs, items: [] });
+      map.get(key).items.push({ rowKey: row.rowKey, name: row.name, qty: row.qty });
+    });
+    return [...map.values()].sort((a, b) => b.items.length - a.items.length);
+  }, [resolvedRows, segmentsFor]);
+
+  const folderOptions = useMemo(
+    () => smartGroups.map((g) => ({ key: g.key, label: g.label, segments: g.segments })),
+    [smartGroups],
+  );
+
+  const smartTotalItems = resolvedRows.length;
+
+  const handleMoveItem = useCallback((rowKey, segments) => {
+    setRowOverrides((prev) => ({ ...prev, [rowKey]: segments }));
+  }, []);
 
   // Step 1 → 2: Parse with Azure, then run color detection in background
   const handleFileSelected = async (file) => {
@@ -1572,12 +1764,17 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
         states[table?.id] = {
           ...buildInitialTableState(table, idx),
           saveTo: defaultSaveTo,
-          topMode: 'quick', // default to quick import
+          // Smart default: fold rows into folders by the document's own
+          // sections. If the doc has none, every row falls back to the base
+          // folder (one group) — handled by the resolver.
+          topMode: 'organise',
           subMode: 'sections',
           splitByColumn: '',
         };
       });
       setTableStates(states);
+      setRowOverrides({});
+      setMode('smart');
       setStep(2);
 
       // Run color detection in background (non-blocking)
@@ -1663,14 +1860,9 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
 
   // Step 4 → 5: Build combined normalized rows then run import
   const handleRunImport = async () => {
-    // Build all normalized rows first
-    const rows = [];
-    azureResult?.tables?.forEach((table) => {
-      const state = tableStates?.[table?.id];
-      if (!state?.included || state?.reviewStatus === 'skipped') return;
-      const tableRows = buildNormalizedRowsForTable(table, state, colorMap);
-      rows?.push(...tableRows);
-    });
+    // Resolve each row to its final folder, honouring any moves made on the
+    // Smart Confirm screen. One resolver feeds both the preview and this import.
+    const rows = resolvedRows.map((r) => ({ ...r.normRow, _segments: segmentsFor(r) }));
     setAllNormalizedRows(rows);
 
     setStep(5);
@@ -1679,107 +1871,26 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
     setImportError(null);
 
     try {
-      // ── Pre-create all folder paths needed across all tables ──────────────
-      const tableBasePaths = {};
-      azureResult?.tables?.forEach((table) => {
-        const state = tableStates?.[table?.id];
-        if (!state?.included || state?.reviewStatus === 'skipped') return;
-        const saveTo = state?.saveTo?.trim() || folderPath?.trim() || '';
-        const baseSegs = saveTo?.split('>')?.map(s => s?.trim())?.filter(Boolean);
-        tableBasePaths[table?.id] = baseSegs;
-      });
-
-      // Pre-create base folders for each table
-      for (const [tableId, baseSegs] of Object.entries(tableBasePaths)) {
-        if (baseSegs?.length >= 1) {
-          for (let i = 0; i < baseSegs?.length; i++) {
-            const parentSegments = baseSegs?.slice(0, i);
-            const name = baseSegs?.[i];
-            try { await createFolder(parentSegments, name); } catch (_) {}
-          }
-        }
-      }
-
-      // Pre-create grouping subfolders per table
-      for (const [tableId, baseSegs] of Object.entries(tableBasePaths)) {
-        const table = azureResult?.tables?.find((t) => t?.id === tableId);
-        const state = tableStates?.[tableId];
-        if (!table || !state) continue;
-
-        // Skip if quick import or don't split
-        if (state?.topMode === 'quick' || !state?.topMode) continue;
-        if (state?.subMode === 'none') continue;
-
-        if (state?.subMode === 'sections') {
-          // Use nested section tree to pre-create all folder paths
-          const allPaths = collectAllSectionPaths(table, state);
-          for (const sectionPath of allPaths) {
-            const fullPath = [...baseSegs, ...sectionPath];
-            for (let i = 0; i < fullPath?.length; i++) {
-              const parentSegments = fullPath?.slice(0, i);
-              const name = fullPath?.[i];
-              try { await createFolder(parentSegments, name); } catch (_) {}
-            }
-          }
-        } else {
-          // Custom split — flat subfolders
-          const groupValues = collectGroupValuesForImport(table, state);
-          for (const val of groupValues) {
-            const subSegs = [...baseSegs, val];
-            for (let i = 0; i < subSegs?.length; i++) {
-              const parentSegments = subSegs?.slice(0, i);
-              const name = subSegs?.[i];
-              try { await createFolder(parentSegments, name); } catch (_) {}
-            }
-          }
+      // ── Pre-create every distinct destination folder path ────────────────
+      const seen = new Set();
+      for (const row of rows) {
+        const segs = row?._segments || [];
+        const key = segs.join(' > ');
+        if (seen.has(key)) continue;
+        seen.add(key);
+        for (let i = 0; i < segs.length; i++) {
+          try { await createFolder(segs.slice(0, i), segs[i]); } catch (_) {}
         }
       }
 
       let count = 0;
-      // Per-table carry-forward: remember the last section path used for each table
-      // so rows with blank grouping column values inherit the correct folder path.
-      const lastSectionPathByTable = {};
 
       for (let i = 0; i < rows?.length; i++) {
         const row = rows?.[i];
         const itemName = row?.item_name || row?.name || '';
         if (!itemName?.trim()) { setImportProgress(i + 1); continue; }
 
-        const tableId = row?._source_table_id;
-        const sourceRowIndex = row?._source_row_index;
-        const baseSegs = tableBasePaths?.[tableId] || [];
-
-        // Determine grouping subfolder for this row
-        const table = azureResult?.tables?.find((t) => t?.id === tableId);
-        const state = tableStates?.[tableId];
-
-        let finalSegments = baseSegs;
-
-        if (table && state && state?.topMode === 'organise' && state?.subMode !== 'none') {
-          if (state?.subMode === 'sections') {
-            // Use nested section tree to get full path for this row
-            const sectionPath = getDocumentSectionPathForRow(table, state, sourceRowIndex);
-            if (sectionPath?.length > 0) {
-              // Update carry-forward for this table
-              lastSectionPathByTable[tableId] = sectionPath;
-              finalSegments = [...baseSegs, ...sectionPath];
-            } else {
-              // No section path detected for this row — carry forward the last known
-              // section path for this table (handles blank grouping column values in
-              // continuation rows where the bag/category is only shown in the first row).
-              const carriedPath = lastSectionPathByTable?.[tableId];
-              if (carriedPath?.length > 0) {
-                finalSegments = [...baseSegs, ...carriedPath];
-              }
-            }
-          } else {
-            // Custom split — single level
-            const groupValue = getRowGroupValue(table, state, sourceRowIndex);
-            if (groupValue) {
-              finalSegments = [...baseSegs, groupValue];
-            }
-          }
-        }
+        const finalSegments = row?._segments || [];
 
         // Build custom_fields
         const customFields = {};
@@ -1865,13 +1976,31 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
 
       {/* Body */}
       <div className={`flex-1 overflow-y-auto px-6 py-5 ${isStep3 ? 'relative pb-20' : ''}`}>
-        {step < 5 && <StepIndicator currentStep={step} />}
+        {step < 5 && (
+          mode === 'smart'
+            ? <StepIndicator currentStep={step === 1 ? 1 : 2} steps={SMART_STEPS} />
+            : <StepIndicator currentStep={step} />
+        )}
 
         {step === 1 && (
           <UploadStep onFileUploaded={handleFileSelected} parseError={parseError} isLoading={isLoading} />
         )}
 
-        {step === 2 && azureResult && (
+        {step === 2 && azureResult && mode === 'smart' && (
+          <SmartConfirmStep
+            fileName={uploadedFile?.name}
+            groups={smartGroups}
+            folderOptions={folderOptions}
+            totalItems={smartTotalItems}
+            baseSegments={currentPathSegments || []}
+            onMoveItem={handleMoveItem}
+            onImport={handleRunImport}
+            onAdjust={() => setMode('advanced')}
+            onBack={() => setStep(1)}
+          />
+        )}
+
+        {step === 2 && azureResult && mode === 'advanced' && (
           <TableSessionStep
             tables={azureResult?.tables}
             tableStates={tableStates}
