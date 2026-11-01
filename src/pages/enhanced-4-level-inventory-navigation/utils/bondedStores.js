@@ -121,16 +121,22 @@ export const buildBondedSummary = (items) => {
   for (const item of bonded) {
     const article = bondedArticle(item);
     const qty = bondedTotalQty(item);
-    const entry = byArticle.get(article) || { article, qty: 0, lines: 0, locations: new Set() };
+    const entry = byArticle.get(article) || { article, qty: 0, lines: 0, locations: new Set(), bottles: [] };
     entry.qty += qty;
     entry.lines += 1;
+    // Each individual bottle/article within the type, with its own unit count.
+    entry.bottles.push({ name: String(item?.name || '').trim() || '—', qty });
     // Physical boat locations only — if an item has no stow location assigned it
     // contributes none (the group shows "—" rather than a folder name).
     locNames(item).forEach((n) => entry.locations.add(n));
     byArticle.set(article, entry);
   }
   const rows = Array.from(byArticle.values())
-    .map((e) => ({ article: e.article, qty: e.qty, lines: e.lines, locations: Array.from(e.locations).sort() }))
+    .map((e) => ({
+      article: e.article, qty: e.qty, lines: e.lines,
+      locations: Array.from(e.locations).sort(),
+      bottles: e.bottles.slice().sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name)),
+    }))
     .sort((a, b) => b.qty - a.qty || a.article.localeCompare(b.article));
   const totalQty = rows.reduce((s, r) => s + r.qty, 0);
   const totalLines = rows.reduce((s, r) => s + r.lines, 0);
