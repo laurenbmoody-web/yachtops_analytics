@@ -44,19 +44,26 @@
 .inv-metastrip { margin: 2px 0 4px; font-variant-numeric: tabular-nums; flex-wrap: wrap; }
 @media (max-width: 700px) { .inv-metastrip { white-space: normal; row-gap: 6px; } }
 
-/* ── breadcrumb ─────────────────────────────────────────────── */
-.inv-crumbs {
-  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
-  font: 500 12.5px 'Plus Jakarta Sans', system-ui, sans-serif;
-  color: #8B8478; margin-bottom: 14px;
+/* ── breadcrumb — editorial meta-strip (terracotta dot, tracked caps,
+   hairline bar dividers) rather than the old arrow chain ─────────── */
+.inv-crumbrow {
+  display: flex; align-items: center; flex-wrap: wrap;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase;
+  color: #1C1B3A; margin: 10px 0 0; row-gap: 6px;
 }
-.inv-crumb {
+.inv-crumbrow .dot { color: #C65A1A; margin-right: 8px; }
+.inv-crumbrow .bar {
+  display: inline-block; width: 1px; height: 10px;
+  background: #D0D5DB; margin: 0 10px; flex-shrink: 0;
+}
+.inv-crumbrow .inv-crumb {
   background: none; border: none; padding: 0; cursor: pointer;
-  color: #8B8478; font: inherit; transition: color 0.14s;
+  font: inherit; letter-spacing: inherit; text-transform: inherit;
+  color: #8B8478; transition: color 0.14s;
 }
-.inv-crumb:hover { color: #C65A1A; }
-.inv-crumbs svg { color: #AEB4C2; flex-shrink: 0; }
-.inv-crumb-current { color: #1C1B3A; font-weight: 600; }
+.inv-crumbrow button.inv-crumb:hover { color: #C65A1A; text-decoration: none; }
+.inv-crumbrow .inv-crumb.cur { color: #1C1B3A; cursor: default; }
 
 /* ── header ─────────────────────────────────────────────────── */
 .inv-header {
@@ -76,12 +83,6 @@
 .inv-subtitle {
   font-size: 13px; color: #8B8478; margin: 7px 0 0;
 }
-/* Clickable path — click any ancestor segment to jump straight there. */
-.inv-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.inv-crumb-sep { color: #BABEC3; }
-.inv-crumb { border: 0; background: none; padding: 0; font: inherit; color: #8B8478; cursor: pointer; border-radius: 4px; }
-button.inv-crumb:hover { color: #C65A1A; text-decoration: underline; }
-.inv-crumb.cur { color: #1C1B3A; font-weight: 600; }
 .inv-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 /* ── Mobile (≤640px): tighten the oversized top ───────────────────────────

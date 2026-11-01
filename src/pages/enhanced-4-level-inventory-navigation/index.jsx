@@ -4250,10 +4250,11 @@ const LocationFirstInventory = () => {
             </h1>
             {pageSubtitle && (
               pathSegments?.length > 1 ? (
-                <p className="inv-subtitle inv-crumbs">
+                <p className="inv-crumbrow">
+                  <span className="dot">●</span>
                   {pathSegments.map((seg, i) => (
                     <React.Fragment key={i}>
-                      {i > 0 && <span className="inv-crumb-sep">→</span>}
+                      {i > 0 && <span className="bar" />}
                       {i === pathSegments.length - 1 ? (
                         <span className="inv-crumb cur">{seg}</span>
                       ) : (
