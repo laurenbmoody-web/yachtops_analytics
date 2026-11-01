@@ -280,22 +280,17 @@ function detectSimilarTables(tables, tableStates) {
 // ---------------------------------------------------------------------------
 function StepIndicator({ currentStep }) {
   return (
-    <div className="flex items-center gap-0 mb-6">
+    <div className="azi-steps">
       {STEPS?.map((step, idx) => (
         <React.Fragment key={step?.id}>
-          <div className="flex flex-col items-center gap-1">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all ${
-          currentStep === step?.id ? 'bg-primary text-primary-foreground border-primary'
-          : currentStep > step?.id ? 'azi-step-done' :'bg-muted text-muted-foreground border-border'
-        }`}>
+          <div className={`azi-step${currentStep === step?.id ? ' is-active' : currentStep > step?.id ? ' is-done' : ''}`}>
+            <div className="azi-step-dot">
               {currentStep > step?.id ? <Icon name="Check" size={12} /> : step?.id}
             </div>
-            <span className={`text-xs whitespace-nowrap ${currentStep === step?.id ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
-              {step?.label}
-            </span>
+            <span className="azi-step-label">{step?.label}</span>
           </div>
           {idx < STEPS?.length - 1 && (
-            <div className={`flex-1 h-0.5 mx-1 mb-4 transition-all ${currentStep > step?.id ? 'azi-step-line-done' : 'bg-border'}`} />
+            <div className={`azi-step-conn${currentStep > step?.id ? ' is-done' : ''}`} />
           )}
         </React.Fragment>
       ))}
@@ -335,9 +330,7 @@ function UploadStep({ onFileUploaded, parseError, isLoading }) {
   return (
     <div className="space-y-4">
       <div
-        className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer ${
-          dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/30'
-        }`}
+        className={`azi-drop${dragOver ? ' is-drag' : ''}`}
         onDragOver={(e) => { e?.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => { e?.preventDefault(); setDragOver(false); handleFile(e?.dataTransfer?.files?.[0]); }}
@@ -345,35 +338,33 @@ function UploadStep({ onFileUploaded, parseError, isLoading }) {
       >
         <input ref={fileInputRef} type="file" accept=".pdf,.xlsx,.png,.jpg,.jpeg,.tiff,.bmp" className="hidden"
           onChange={(e) => handleFile(e?.target?.files?.[0])} />
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-            <Icon name="FileText" size={24} className="text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground">
-              {selectedFile ? selectedFile?.name : 'Drop your document here'}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-{selectedFile ? `${(selectedFile?.size / 1024)?.toFixed(1)} KB — click to change` : 'Upload a PDF, Excel (.xlsx), or a photo / scan to import inventory'}
-            </p>
-          </div>
-          {!selectedFile && <Button variant="outline" size="sm">Browse Files</Button>}
+        <div className="azi-drop-icn">
+          <Icon name="FileText" size={24} />
         </div>
+        <p className="azi-drop-title">{selectedFile ? selectedFile?.name : 'Drop your document here'}</p>
+        <p className="azi-drop-sub">
+          {selectedFile
+            ? `${(selectedFile?.size / 1024)?.toFixed(1)} KB — click to choose a different file`
+            : 'Upload a PDF, Excel (.xlsx), or a photo / scan to import inventory'}
+        </p>
+        {!selectedFile && (
+          <span className="azi-drop-browse"><Icon name="FolderOpen" size={14} />Browse files</span>
+        )}
       </div>
       {(fileError || parseError) && (
-        <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl text-sm text-destructive">
+        <div className="azi-err">
           <Icon name="AlertCircle" size={16} className="flex-shrink-0 mt-0.5" />
           <span>{fileError || parseError}</span>
         </div>
       )}
       <div className="flex justify-end">
-        <Button disabled={!selectedFile || isLoading} onClick={() => selectedFile && onFileUploaded(selectedFile)} className="gap-2">
+        <button className="azi-primary" disabled={!selectedFile || isLoading} onClick={() => selectedFile && onFileUploaded(selectedFile)}>
           {isLoading ? (
-<><LogoSpinner size={16} />Importing…</>
+            <><LogoSpinner size={16} />Reading your document…</>
           ) : (
-<><Icon name="Upload" size={16} />Import items</>
+            <><Icon name="ArrowRight" size={16} />Continue</>
           )}
-        </Button>
+        </button>
       </div>
     </div>
   );
@@ -1872,20 +1863,20 @@ export default function AzurePdfImportModal({ onClose, onImportComplete, current
   const isStep3 = step === 3;
 
   return (
-    <ModalShell onClose={onClose} panelClassName={`azi-modal bg-card border border-border rounded-2xl shadow-2xl w-full flex flex-col ${isStep3 ? 'max-w-4xl max-h-[92vh]' : 'max-w-3xl max-h-[90vh]'}`}>
+    <ModalShell onClose={onClose} panelClassName={`azi-modal bg-card w-full flex flex-col ${isStep3 ? 'max-w-4xl max-h-[92vh]' : 'max-w-3xl max-h-[90vh]'}`}>
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
+      <div className="azi-head flex items-center justify-between px-6 py-5 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="azi-badge w-9 h-9 rounded-xl flex items-center justify-center">
-            <Icon name="FileText" size={16} className="text-primary" />
+            <Icon name="FileText" size={16} />
           </div>
           <div>
             <h2 className="azi-title">Import from document</h2>
             <p className="azi-sub">Upload a document to extract and organise your inventory automatically</p>
           </div>
         </div>
-        <button onClick={onClose} className="w-8 h-8 rounded-xl hover:bg-muted flex items-center justify-center transition-colors">
-          <Icon name="X" size={16} className="text-muted-foreground" />
+        <button onClick={onClose} className="azi-x w-8 h-8 flex items-center justify-center">
+          <Icon name="X" size={16} />
         </button>
       </div>
 
