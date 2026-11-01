@@ -445,7 +445,12 @@ const buildBondedSheet = (worksheet, summary) => {
   applyHeaderRow(headerRow, 4);
   worksheet.views = [{ state: 'frozen', xSplit: 0, ySplit: 1, topLeftCell: 'A2', activeCell: 'A2' }];
 
-  summary.rows.forEach((r, rowIdx) => {
+  // Alcohol and tobacco are different units (bottles / litres vs cigars &
+  // cigarettes), so they're listed separately — no "bottles" total under a cigar.
+  const alcoholRows = summary.rows.filter((r) => !r.isTobacco);
+  const tobaccoRows = summary.rows.filter((r) => r.isTobacco);
+
+  const addDataRow = (r, rowIdx) => {
     const isAltRow = rowIdx % 2 === 1;
     const excelRow = worksheet?.addRow({ a: r.article, q: `${r.count} ${r.unit}`, l: r.isTobacco ? '—' : Number(r.litres || 0), loc: r.locations.join(', ') || '—' });
     excelRow.height = 16;
@@ -453,11 +458,33 @@ const buildBondedSheet = (worksheet, summary) => {
     applyDataCell(excelRow?.getCell(2), { bold: true, fill: isAltRow ? 'FFE8EEF4' : 'FFF1F5F9', align: 'center' });
     applyDataCell(excelRow?.getCell(3), { fill: isAltRow ? 'FFF8FAFC' : 'FFFFFFFF', align: 'center' });
     applyDataCell(excelRow?.getCell(4), { fill: isAltRow ? 'FFF8FAFC' : 'FFFFFFFF', align: 'left' });
-  });
+  };
 
-  const totalsRow = worksheet?.addRow({ a: 'TOTAL', q: `${summary.totalBottles} bottles`, l: Number(summary.totalLitres || 0), loc: '' });
-  totalsRow.height = 16;
-  [1, 2, 3, 4].forEach((c) => applyDataCell(totalsRow?.getCell(c), { bold: true, fill: 'FFE2E8F0', align: c === 1 ? 'left' : 'center' }));
+  // ── Alcohol block — bottle quantity + litres, with bottle/litre totals.
+  alcoholRows.forEach(addDataRow);
+  if (alcoholRows.length) {
+    const totalsRow = worksheet?.addRow({ a: 'TOTAL', q: `${summary.totalBottles} bottles`, l: Number(summary.totalLitres || 0), loc: '' });
+    totalsRow.height = 16;
+    [1, 2, 3, 4].forEach((c) => applyDataCell(totalsRow?.getCell(c), { bold: true, fill: 'FFE2E8F0', align: c === 1 ? 'left' : 'center' }));
+  }
+
+  // ── Tobacco block — separate section, counted in cigars / cigarettes (no
+  // litres, no bottle total), with a per-unit total.
+  if (tobaccoRows.length) {
+    worksheet?.addRow({}); // spacer
+    const subHeadRow = worksheet?.addRow({ a: 'TOBACCO', q: '', l: '', loc: '' });
+    subHeadRow.height = 16;
+    [1, 2, 3, 4].forEach((c) => applyDataCell(subHeadRow?.getCell(c), { bold: true, fill: 'FF1C1B3A', align: 'left', fontColor: 'FFFFFFFF' }));
+
+    tobaccoRows.forEach(addDataRow);
+
+    const tobTotals = {};
+    tobaccoRows.forEach((r) => { tobTotals[r.unit] = (tobTotals[r.unit] || 0) + r.count; });
+    const tobTotalLabel = Object.entries(tobTotals).map(([unit, n]) => `${n} ${unit}`).join(' · ');
+    const tobTotalsRow = worksheet?.addRow({ a: 'TOTAL', q: tobTotalLabel, l: '—', loc: '' });
+    tobTotalsRow.height = 16;
+    [1, 2, 3, 4].forEach((c) => applyDataCell(tobTotalsRow?.getCell(c), { bold: true, fill: 'FFE2E8F0', align: c === 1 ? 'left' : 'center' }));
+  }
 };
 
 // ─── Build export info sheet ──────────────────────────────────────────────────
