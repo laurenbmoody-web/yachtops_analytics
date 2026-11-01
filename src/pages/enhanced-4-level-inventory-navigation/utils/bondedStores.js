@@ -135,10 +135,17 @@ export const buildBondedSummary = (items) => {
   for (const item of bonded) {
     const article = bondedArticle(item);
     const qty = bondedTotalQty(item);
-    const entry = byArticle.get(article) || { article, qty: 0, lines: 0, litres: 0, locations: new Set(), bottles: [] };
+    const bondedObj = item?.customFields?.bonded || item?.custom_fields?.bonded || {};
+    const isTob = bondedObj.kind === 'cig' || bondedObj.kind === 'cigar';
+    const per = isTob ? (Number(bondedObj.perPack) || 0) * (Number(bondedObj.perCarton) || 0) : 0;
+    const entry = byArticle.get(article) || { article, qty: 0, lines: 0, litres: 0, sticks: 0, tobaccoWord: null, locations: new Set(), bottles: [] };
     entry.qty += qty;
     entry.lines += 1;
     entry.litres += sizeToLitres(item?.size) * qty;
+    if (isTob) {
+      entry.sticks += qty * per;
+      entry.tobaccoWord = bondedObj.kind === 'cigar' ? 'cigars' : 'cigarettes';
+    }
     // Each individual bottle/article within the type, with its own unit count.
     entry.bottles.push({ name: String(item?.name || '').trim() || '—', qty });
     // Physical boat locations only — if an item has no stow location assigned it
@@ -147,15 +154,25 @@ export const buildBondedSummary = (items) => {
     byArticle.set(article, entry);
   }
   const rows = Array.from(byArticle.values())
-    .map((e) => ({
-      article: e.article, qty: e.qty, lines: e.lines,
-      litres: Math.round(e.litres * 100) / 100,
-      locations: Array.from(e.locations).sort(),
-      bottles: e.bottles.slice().sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name)),
-    }))
+    .map((e) => {
+      const isTobacco = !!e.tobaccoWord;
+      return {
+        article: e.article, qty: e.qty, lines: e.lines,
+        isTobacco,
+        // The descriptive quantity + its unit word: bottles for drink, sticks
+        // (cigars/cigarettes) for tobacco — so "3" reads as "36 cigars".
+        count: isTobacco ? e.sticks : e.qty,
+        unit: isTobacco ? e.tobaccoWord : 'bottles',
+        // Litres only make sense for liquid stores.
+        litres: isTobacco ? null : Math.round(e.litres * 100) / 100,
+        locations: Array.from(e.locations).sort(),
+        bottles: e.bottles.slice().sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name)),
+      };
+    })
     .sort((a, b) => b.qty - a.qty || a.article.localeCompare(b.article));
   const totalQty = rows.reduce((s, r) => s + r.qty, 0);
   const totalLines = rows.reduce((s, r) => s + r.lines, 0);
-  const totalLitres = Math.round(rows.reduce((s, r) => s + r.litres, 0) * 100) / 100;
-  return { rows, totalQty, totalLines, totalLitres, items: bonded };
+  const totalLitres = Math.round(rows.reduce((s, r) => s + (r.litres || 0), 0) * 100) / 100;
+  const totalBottles = rows.filter((r) => !r.isTobacco).reduce((s, r) => s + r.count, 0);
+  return { rows, totalQty, totalLines, totalLitres, totalBottles, items: bonded };
 };

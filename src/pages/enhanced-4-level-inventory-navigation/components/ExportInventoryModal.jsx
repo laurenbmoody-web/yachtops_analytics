@@ -406,33 +406,33 @@ const ExportInventoryModal = ({
 
   const totalFolderCount = allTreeKeys?.length;
 
+  const capLabel = 'text-[9px] font-bold tracking-[1px] uppercase text-[#8B8478]';
+  const scopeChip = (selected) => selected
+    ? 'border-[#C65A1A] bg-[#EEF2F7]'
+    : 'border-[#E5E7EB] bg-white hover:border-[#C65A1A]/50 hover:bg-[#F8FAFC]';
+
   return (
-    <ModalShell onClose={onClose} panelClassName="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+    <ModalShell onClose={onClose} panelClassName="bg-white rounded-2xl border border-[#E5E7EB] shadow-[0_24px_60px_-16px_rgba(28,27,58,0.32)] w-full max-w-md flex flex-col max-h-[88vh]">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#EEF0F4] flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#EEF2F7] flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(198,90,26,0.12)' }}>
             <Icon name="Download" size={18} className="text-[#C65A1A]" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-[#1C1B3A]">Export Inventory</h2>
-            <p className="text-xs text-muted-foreground">Choose scope, format and options</p>
+            <h2 className="text-[20px] text-[#1C1B3A] leading-none" style={{ fontFamily: "'DM Serif Display', Georgia, serif" }}>Export inventory</h2>
+            <p className="text-[11px] text-[#8B8478] mt-1">Choose scope, format and options</p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
-        >
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[#F1F5F9] text-[#8B8478] transition-colors">
           <Icon name="X" size={18} />
         </button>
       </div>
 
-      <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
+      <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
         {/* Scope */}
         <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2.5">
-            Export Scope
-          </p>
+          <p className={`${capLabel} mb-2`}>Export scope</p>
           <div className="grid grid-cols-2 gap-2">
             {scopeOptions?.map(opt => (
               <button
@@ -441,21 +441,14 @@ const ExportInventoryModal = ({
                 disabled={opt?.disabled}
                 title={opt?.description}
                 className={`relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${
-                  opt?.disabled
-                    ? 'opacity-40 cursor-not-allowed border-[#E5E7EB] bg-[#F8FAFC]'
-                    : scope === opt?.value
-                    ? 'border-[#C65A1A] bg-[#EEF2F7]'
-                    : 'border-[#E5E7EB] bg-white hover:border-[#C65A1A]/50 hover:bg-[#F8FAFC]'
+                  opt?.disabled ? 'opacity-40 cursor-not-allowed border-[#E5E7EB] bg-[#F8FAFC]' : scopeChip(scope === opt?.value)
                 }`}
               >
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  scope === opt?.value && !opt?.disabled ? 'bg-[#F7E4DA]' : 'bg-[#F1F5F9]'
-                }`}>
-                  <Icon
-                    name={opt?.icon}
-                    size={15}
-                    className={scope === opt?.value && !opt?.disabled ? 'text-[#C65A1A]' : 'text-[#8B8478]'}
-                  />
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: scope === opt?.value && !opt?.disabled ? 'rgba(198,90,26,0.12)' : '#F1F5F9' }}
+                >
+                  <Icon name={opt?.icon} size={15} className={scope === opt?.value && !opt?.disabled ? 'text-[#C65A1A]' : 'text-[#8B8478]'} />
                 </div>
                 <p className={`text-[13px] font-semibold leading-tight min-w-0 ${scope === opt?.value && !opt?.disabled ? 'text-[#C65A1A]' : 'text-[#1C1B3A]'}`}>
                   {opt?.label}
@@ -468,53 +461,43 @@ const ExportInventoryModal = ({
               </button>
             ))}
           </div>
-          {activeScopeDescription && (
-            <p className="text-xs text-[#8B8478] mt-2">{activeScopeDescription}</p>
-          )}
+          {activeScopeDescription && <p className="text-[11px] text-[#8B8478] mt-2">{activeScopeDescription}</p>}
         </div>
 
         {/* Folder tree — shown when scope === 'selected' */}
         {scope === 'selected' && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Select Folders
-              </p>
-              <div className="flex items-center gap-2">
+              <p className={capLabel}>Select folders</p>
+              <div className="flex items-center gap-2.5">
                 {selectedKeys?.size > 0 && (
-                  <span className="text-xs text-primary font-medium">
+                  <span className="text-[11px] text-[#8B8478] font-medium">
                     {selectedItemCount} item{selectedItemCount !== 1 ? 's' : ''}
                   </span>
                 )}
-                <button
-                  onClick={toggleAllFolders}
-                  className="text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                >
-                  {selectedKeys?.size === totalFolderCount && totalFolderCount > 0 ? 'Deselect All' : 'Select All'}
+                <button onClick={toggleAllFolders} className="text-[11px] text-[#C65A1A] hover:text-[#B14E16] font-semibold transition-colors">
+                  {selectedKeys?.size === totalFolderCount && totalFolderCount > 0 ? 'Deselect all' : 'Select all'}
                 </button>
               </div>
             </div>
 
-            {/* Search */}
             {totalFolderCount > 6 && (
               <div className="relative mb-2">
-                <Icon name="Search" size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Icon name="Search" size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8B8478]" />
                 <input
                   type="text"
                   placeholder="Search folders…"
                   value={folderSearch}
                   onChange={e => setFolderSearch(e?.target?.value)}
-                  className="w-full pl-8 pr-3 py-2 text-xs bg-muted/40 border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary/40 text-foreground placeholder:text-muted-foreground"
+                  className="w-full pl-8 pr-3 py-2 text-xs bg-[#F8FAFC] border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-[#C65A1A] text-[#1C1B3A] placeholder:text-[#8B8478]"
                 />
               </div>
             )}
 
-            {/* Collapsible folder tree */}
-            <div className="border border-border rounded-xl overflow-hidden max-h-64 overflow-y-auto">
+            <div className="border border-[#E5E7EB] rounded-xl overflow-hidden max-h-56 overflow-y-auto">
               {filteredTree?.length === 0 ? (
-                <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-                  {nestedTree?.length === 0
-                    ? 'No folders found — inventory may still be loading' :'No folders match your search'}
+                <div className="px-4 py-6 text-center text-xs text-[#8B8478]">
+                  {nestedTree?.length === 0 ? 'No folders found — inventory may still be loading' : 'No folders match your search'}
                 </div>
               ) : (
                 filteredTree?.map(node => (
@@ -532,129 +515,91 @@ const ExportInventoryModal = ({
             </div>
 
             {selectedKeys?.size === 0 && selectedCount > 0 && (
-              <p className="text-xs text-muted-foreground mt-2 px-1">
+              <p className="text-[11px] text-[#8B8478] mt-2 px-1">
                 No folders selected — will export {selectedCount} checkbox-selected item{selectedCount !== 1 ? 's' : ''} instead
               </p>
             )}
             {selectedKeys?.size === 0 && selectedCount === 0 && (
-              <p className="text-xs text-amber-600 mt-2 px-1">
-                Select at least one folder to export
-              </p>
+              <p className="text-[11px] text-[#B42318] mt-2 px-1">Select at least one folder to export</p>
             )}
           </div>
         )}
 
         {/* Format */}
         <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2.5">
-            Export Format
-          </p>
+          <p className={`${capLabel} mb-2`}>Export format</p>
           <div className="grid grid-cols-2 gap-2">
             {formatOptions?.map(opt => (
               <button
                 key={opt?.value}
                 onClick={() => setFormat(opt?.value)}
-                className={`flex flex-col items-center gap-2 px-3 py-3.5 rounded-xl border text-center transition-all ${
-                  format === opt?.value
-                    ? 'border-[#C65A1A] bg-[#EEF2F7]'
-                    : 'border-[#E5E7EB] bg-white hover:border-[#C65A1A]/50 hover:bg-[#F8FAFC]'
-                }`}
+                title={opt?.description}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all ${scopeChip(format === opt?.value)}`}
               >
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                  format === opt?.value ? 'bg-[#F7E4DA]' : 'bg-[#F1F5F9]'
-                }`}>
-                  <Icon
-                    name={opt?.icon}
-                    size={18}
-                    className={format === opt?.value ? 'text-[#C65A1A]' : 'text-[#8B8478]'}
-                  />
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: format === opt?.value ? 'rgba(198,90,26,0.12)' : '#F1F5F9' }}
+                >
+                  <Icon name={opt?.icon} size={16} className={format === opt?.value ? 'text-[#C65A1A]' : 'text-[#8B8478]'} />
                 </div>
-                <div>
-                  <p className={`text-sm font-semibold ${format === opt?.value ? 'text-[#C65A1A]' : 'text-[#1C1B3A]'}`}>
-                    {opt?.label}
-                  </p>
-                  <p className="text-xs text-[#8B8478] leading-tight mt-0.5">{opt?.description}</p>
+                <div className="min-w-0">
+                  <p className={`text-[13px] font-semibold leading-tight ${format === opt?.value ? 'text-[#C65A1A]' : 'text-[#1C1B3A]'}`}>{opt?.label}</p>
+                  <p className="text-[10.5px] text-[#8B8478] leading-tight mt-0.5 truncate">{opt?.description}</p>
                 </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Include Images toggle */}
-        <div className="flex items-center justify-between px-4 py-3 bg-[#F8FAFC] rounded-xl border border-[#E5E7EB]">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-[#F1F5F9] flex items-center justify-center">
-              <Icon name="Image" size={16} className="text-[#8B8478]" />
+        {/* Options — grouped hairline list */}
+        <div className="border border-[#EEF0F4] rounded-xl divide-y divide-[#F0F1F5]">
+          <div className="flex items-center justify-between px-3.5 py-2.5">
+            <div className="min-w-0 pr-3">
+              <p className="text-[13px] font-semibold text-[#1C1B3A]">Include images</p>
+              <p className="text-[10.5px] text-[#8B8478]">{format === 'pdf' ? 'Thumbnails next to items' : 'Image URL column in spreadsheet'}</p>
             </div>
-            <div>
-              <p className="text-sm font-medium text-[#1C1B3A]">Include Images</p>
-              <p className="text-xs text-[#8B8478]">
-                {format === 'pdf' ? 'Thumbnails next to items' : 'Image URL column in spreadsheet'}
-              </p>
-            </div>
+            <button
+              role="switch"
+              aria-checked={includeImages}
+              aria-label="Include images"
+              onClick={() => setIncludeImages(v => !v)}
+              className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${includeImages ? 'bg-[#C65A1A]' : 'bg-[#D6DBE4]'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${includeImages ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
           </div>
-          <button
-            role="switch"
-            aria-checked={includeImages}
-            aria-label="Include images"
-            onClick={() => setIncludeImages(v => !v)}
-            className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 border ${
-              includeImages ? 'bg-[#C65A1A] border-[#C65A1A]' : 'bg-[#CBD5E1] border-[#94A3B8]'
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform ${
-                includeImages ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
-        </div>
-
-        {/* Blank template — start a list from scratch */}
-        <div className="flex items-center justify-between px-4 py-3 bg-[#F8FAFC] rounded-xl border border-dashed border-[#E5E7EB]">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-[#F1F5F9] flex items-center justify-center flex-shrink-0">
-              <Icon name="FileSpreadsheet" size={16} className="text-[#8B8478]" />
+          <div className="flex items-center justify-between px-3.5 py-2.5">
+            <div className="min-w-0 pr-3">
+              <p className="text-[13px] font-semibold text-[#1C1B3A]">Blank template</p>
+              <p className="text-[10.5px] text-[#8B8478]">Your folders &amp; locations to fill in offline, then import</p>
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-[#1C1B3A]">Blank template</p>
-              <p className="text-xs text-[#8B8478]">Empty sheet with your folders &amp; locations — fill in offline, then import</p>
-            </div>
+            <button
+              onClick={handleDownloadTemplate}
+              disabled={templateBusy}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12.5px] font-semibold text-[#C65A1A] bg-white border border-[#E5E7EB] rounded-lg hover:border-[#C65A1A] transition-colors disabled:opacity-60 flex-shrink-0"
+            >
+              {templateBusy ? <LogoSpinner size={14} /> : <Icon name="Download" size={14} />}
+              {templateBusy ? 'Building…' : 'Download'}
+            </button>
           </div>
-          <button
-            onClick={handleDownloadTemplate}
-            disabled={templateBusy}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[#C65A1A] bg-white border border-[#E5E7EB] rounded-xl hover:border-[#C65A1A] transition-colors disabled:opacity-60 flex-shrink-0"
-          >
-            {templateBusy ? <LogoSpinner size={14} /> : <Icon name="Download" size={14} />}
-            {templateBusy ? 'Building…' : 'Download'}
-          </button>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border flex-shrink-0">
+      <div className="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-[#EEF0F4] flex-shrink-0">
         <button
           onClick={onClose}
-          className="px-4 py-2 text-sm font-medium text-[#6B7280] bg-white border border-[#E5E7EB] rounded-xl hover:border-[#C65A1A] hover:text-[#C65A1A] transition-colors"
+          className="px-4 py-2 text-[13px] font-semibold text-[#1C1B3A] bg-white border border-[#E5E7EB] rounded-[10px] hover:border-[#C65A1A] hover:text-[#C65A1A] transition-colors"
         >
           Cancel
         </button>
         <button
           onClick={handleExport}
           disabled={isExporting || (scope === 'selected' && selectedKeys?.size === 0 && selectedCount === 0) || (scope === 'view' && (!filteredItems || filteredItems.length === 0))}
-          className="inline-flex items-center gap-2 px-5 py-2 text-sm font-medium bg-[#C65A1A] text-white rounded-xl hover:bg-[#B14E16] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-5 py-2 text-[13px] font-semibold bg-[#C65A1A] text-white rounded-[10px] hover:bg-[#B14E16] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          {isExporting ? (
-            <>
-              <LogoSpinner size={15} />
-              Exporting…
-            </>
-          ) : (
-            <>
-              <Icon name="Download" size={15} />
-              Export{scope === 'view' ? ` (${filteredItems?.length || 0})` : scope === 'selected' && selectedItemCount > 0 ? ` (${selectedItemCount})` : ''}
-            </>
+          {isExporting ? (<><LogoSpinner size={15} />Exporting…</>) : (
+            <><Icon name="Download" size={15} />Export{scope === 'view' ? ` (${filteredItems?.length || 0})` : scope === 'selected' && selectedItemCount > 0 ? ` (${selectedItemCount})` : ''}</>
           )}
         </button>
       </div>
