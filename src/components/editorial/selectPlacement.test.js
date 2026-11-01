@@ -90,3 +90,48 @@ test('respects a caller-supplied cap', () => {
   const { maxHeight } = placeMenu({ ...roomy, contentHeight: 900, maxHeight: 200 });
   assert.equal(maxHeight, 200);
 });
+
+// ── confined by a scrolling panel, not the window ───────────────────────────
+// The add-guest modal is max-height:90vh, overflow-y:auto. A list inside it is
+// clipped by the modal, and cannot extend the modal's scroll height — so the
+// modal's edges are the bounds, not the window's.
+
+test('a field low in a modal flips up even though the window has room below', () => {
+  // Window is 900 tall, so viewport math would say 600px of room below.
+  // The modal ends at 320, leaving 48 — not enough for a 240px list.
+  const { up } = placeMenu({
+    triggerTop: 236, triggerBottom: 272,
+    boundsTop: 40, boundsBottom: 320,
+    contentHeight: 240,
+  });
+  assert.equal(up, true);
+});
+
+test('bounds cap the height, not just the direction', () => {
+  const { up, maxHeight } = placeMenu({
+    triggerTop: 236, triggerBottom: 272,
+    boundsTop: 40, boundsBottom: 320,
+    contentHeight: 240,
+  });
+  assert.equal(up, true);
+  assert.equal(maxHeight, 236 - 40 - GUTTER); // room above, inside the modal
+});
+
+test('a field high in a modal still opens downward', () => {
+  const { up, maxHeight } = placeMenu({
+    triggerTop: 80, triggerBottom: 116,
+    boundsTop: 40, boundsBottom: 800,
+    contentHeight: 200,
+  });
+  assert.equal(up, false);
+  assert.equal(maxHeight, 200);
+});
+
+test('viewportHeight is still accepted as shorthand for 0..height', () => {
+  const a = placeMenu({ ...roomy, contentHeight: 300 });
+  const b = placeMenu({
+    triggerTop: roomy.triggerTop, triggerBottom: roomy.triggerBottom,
+    boundsTop: 0, boundsBottom: roomy.viewportHeight, contentHeight: 300,
+  });
+  assert.deepEqual(a, b);
+});
