@@ -355,8 +355,6 @@ button.inv-crumb:hover { color: #C65A1A; text-decoration: underline; }
   padding: 5px 9px; border-radius: 999px;
   background: #C65A1A; color: #FFFFFF; font-size: 11.5px; font-weight: 600;
 }
-/* Pre-ready hint while hovering a folder with another folder: keep holding. */
-.inv-moveinside.hint { background: #FFFFFF; color: #C65A1A; border: 1px solid #C65A1A; }
 
 /* ── item list rows ─────────────────────────────────────────── */
 .inv-items { display: flex; flex-direction: column; gap: 8px; }
