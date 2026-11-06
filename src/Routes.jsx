@@ -31,6 +31,7 @@ import CrewManagement from './pages/crew-management';
 import RoleManagement from './pages/crew-management/components/RoleManagement';
 import MonthEnd from './pages/month-end';
 import VesselDocuments from './pages/vessel-documents';
+import VesselVoyages from './pages/vessel-voyages';
 import GuestManagementDashboard from './pages/guest-management-dashboard';
 import InventoryCategorySettings from './pages/inventory-category-settings';
 import Enhanced4LevelInventoryNavigation from './pages/enhanced-4-level-inventory-navigation';
@@ -1230,6 +1231,7 @@ const Routes = () => {
         <Route path="/month-end" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><MonthEnd /></ProtectedRoute>} />
         <Route path="/vessel-documents" element={<ProtectedRoute requiredRoles={['COMMAND', 'CHIEF']}><VesselDocuments /></ProtectedRoute>} />
         <Route path="/vessel/map" element={<ProtectedRoute><VesselMapPage /></ProtectedRoute>} />
+        <Route path="/voyages" element={<ProtectedRoute><VesselVoyages /></ProtectedRoute>} />
         <Route path="/fridge-temps" element={<ProtectedRoute><FridgeTempsPage /></ProtectedRoute>} />
         {/* Scan management now lives on the Location Management surface; keep the
             old URL working by redirecting it there. */}
