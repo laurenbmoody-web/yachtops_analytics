@@ -3,7 +3,8 @@
 // per source; see the ais-sync edge function), so reading them back in date
 // order gives the breadcrumb trail. We roll runs of near-identical daily points
 // into "stops" (a port/anchorage the boat sat at) so the timeline reads like a
-// voyage, not a list of dots.
+// voyage, compute the leg between each stop, and attach any trip whose dates
+// cover the stop so the map can link out to the trip's crew/guests/papers.
 import { supabase } from '../../../lib/supabaseClient';
 
 const getTenantId = async () => {
@@ -25,6 +26,12 @@ export function distanceM(a, b) {
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
+const dayDiff = (from, to) => {
+  const a = new Date(`${from}T00:00:00`).getTime();
+  const b = new Date(`${to}T00:00:00`).getTime();
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0;
+  return Math.round((b - a) / 86400000);
+};
 
 // A position's note is "<navStatus> · <place>" (e.g. "Moored · Perama Greece")
 // or just a status ("Underway using Engine"). Pull out a human place label and
@@ -54,12 +61,13 @@ export function motionOf(point) {
 }
 
 // Fetch the whole track for the current tenant's vessel.
-// Returns { vessel, points, stops, latest } — points oldest→newest.
+// Returns { vessel, points, stops, latest, totalNm } — points oldest→newest,
+// each stop carrying its inbound leg (km/nm/days) and any covering trip.
 export async function fetchVoyageTrack() {
   const tenantId = await getTenantId();
-  if (!tenantId) return { vessel: null, points: [], stops: [], latest: null };
+  if (!tenantId) return { vessel: null, points: [], stops: [], latest: null, totalNm: 0 };
 
-  const [vesRes, posRes] = await Promise.all([
+  const [vesRes, posRes, tripRes] = await Promise.all([
     supabase.from('vessels').select('name, mmsi').eq('tenant_id', tenantId).order('mmsi', { ascending: false, nullsFirst: false }).limit(1),
     supabase.from('vessel_positions')
       .select('observed_on, observed_at, latitude, longitude, country_code, maritime_zone, schengen, note, source')
@@ -67,9 +75,13 @@ export async function fetchVoyageTrack() {
       .not('latitude', 'is', null)
       .not('longitude', 'is', null)
       .order('observed_on', { ascending: true }),
+    supabase.from('trips')
+      .select('id, name, trip_type, start_date, end_date, itinerary_summary')
+      .eq('tenant_id', tenantId).eq('is_deleted', false),
   ]);
 
   const vessel = vesRes.data?.[0] || null;
+  const trips = tripRes.data || [];
   const rows = posRes.data || [];
   const points = rows.map((r) => {
     const { status, place } = readNote(r.note);
@@ -96,7 +108,6 @@ export async function fetchVoyageTrack() {
     if (cur && distanceM(cur, p) < STOP_M) {
       cur.to = p.date;
       cur.nights = (cur.nights || 0) + 1;
-      // keep the most descriptive place/motion we've seen for this stop
       if (!cur.place && p.place) cur.place = p.place;
       cur.lastMotion = motionOf(p);
       cur.lastPoint = p;
@@ -107,12 +118,31 @@ export async function fetchVoyageTrack() {
         place: p.place || null,
         country: p.country || null,
         zone: p.zone || null,
+        schengen: p.schengen,
+        source: p.source || null,
         lastMotion: motionOf(p),
         firstPoint: p, lastPoint: p,
       });
     }
   }
 
+  // Inbound leg for each stop, and the trip (if any) covering its dates.
+  const tripFor = (stop) => trips.find((t) => t.start_date && t.end_date
+    && stop.from <= t.end_date && stop.to >= t.start_date) || null;
+  let totalM = 0;
+  stops.forEach((s, i) => {
+    if (i > 0) {
+      const m = distanceM(stops[i - 1], s);
+      totalM += m;
+      s.legKm = Math.round(m / 1000);
+      s.legNm = Math.round(m / 1852);
+      s.legDays = Math.max(1, dayDiff(stops[i - 1].to, s.from));
+    } else {
+      s.legKm = 0; s.legNm = 0; s.legDays = 0;
+    }
+    s.trip = tripFor(s);
+  });
+
   const latest = points[points.length - 1] || null;
-  return { vessel, points, stops, latest };
+  return { vessel, points, stops, latest, totalNm: Math.round(totalM / 1852) };
 }
