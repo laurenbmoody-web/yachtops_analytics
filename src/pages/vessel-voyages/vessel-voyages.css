@@ -1,0 +1,157 @@
+/* ============================================================
+   Voyages — vessel journey map (vv-*)
+   Full-width editorial page, cool maritime palette (no beige).
+   Navy ink + terracotta accent, hairline-separated timeline.
+   ============================================================ */
+
+.vv-page {
+  background: #F8FAFC;
+  min-height: calc(100vh - 64px);
+  padding: 92px 40px 80px;
+  box-sizing: border-box;
+  font-family: 'Inter', system-ui, sans-serif;
+  color: #1C1B3A;
+}
+.vv-wrap { max-width: none; width: 100%; }
+
+/* ── Layout: map + timeline rail ───────────────────────────── */
+.vv-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 28px;
+  margin-top: 20px;
+  align-items: start;
+}
+
+.vv-mapwrap { position: relative; min-width: 0; }
+.vv-map {
+  width: 100%;
+  height: 560px;
+  border-radius: 14px;
+  border: 1px solid #E5E7EB;
+  overflow: hidden;
+  background: #CDDFE3;
+}
+.vv-map-placeholder {
+  width: 100%;
+  height: 560px;
+  border-radius: 14px;
+  border: 1px dashed #E5E7EB;
+  background: #F1F5F9;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; text-align: center; padding: 0 40px;
+  color: #6B7280;
+}
+.vv-map-placeholder p { max-width: 420px; font-size: 13.5px; line-height: 1.5; margin: 0; }
+.vv-map-placeholder code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12px; background: #EEF2F7; padding: 1px 6px; border-radius: 5px; color: #1C1B3A;
+}
+
+/* Latest position card, floating over the map's lower-left. */
+.vv-latest {
+  position: absolute;
+  left: 16px; bottom: 16px;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  box-shadow: 0 24px 60px -16px rgba(28, 27, 58, 0.32);
+  padding: 13px 16px;
+  max-width: 320px;
+}
+.vv-latest-eyebrow {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #C65A1A; margin-bottom: 6px;
+}
+.vv-latest-place {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 21px; line-height: 1.1; color: #1C1B3A; margin: 0 0 5px;
+}
+.vv-latest-meta { font-size: 12.5px; color: #6B7280; margin: 0; text-transform: capitalize; }
+
+.vv-sep { margin: 0 7px; color: #AEB4C2; }
+
+/* ── Timeline rail ─────────────────────────────────────────── */
+.vv-rail {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+.vv-rail-h {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 20px; color: #1C1B3A; margin: 0 0 14px;
+}
+.vv-stops { list-style: none; margin: 0; padding: 0; }
+.vv-stop {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid #F0F1F5;
+  position: relative;
+}
+.vv-stop:last-child { border-bottom: none; }
+.vv-stop-dot {
+  flex: none;
+  width: 26px; height: 26px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #F1F5F9; color: #8B8478;
+}
+.vv-stop.is-current .vv-stop-dot { background: #C65A1A; color: #FFFFFF; }
+.vv-stop-body { min-width: 0; }
+.vv-stop-place {
+  font-size: 14.5px; font-weight: 600; color: #1C1B3A; margin: 0 0 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.vv-stop-meta { font-size: 12px; color: #6B7280; margin: 0; }
+.vv-now {
+  display: inline-block; margin-left: 8px;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: #FFFFFF; background: #C65A1A; border-radius: 999px; padding: 1px 7px;
+  vertical-align: middle;
+}
+
+/* ── Empty / loading states ────────────────────────────────── */
+.vv-empty { color: #6B7280; font-size: 14px; margin-top: 24px; }
+.vv-blank {
+  margin-top: 40px;
+  max-width: 460px;
+  color: #6B7280;
+}
+.vv-blank svg { color: #C65A1A; margin-bottom: 14px; }
+.vv-blank h2 {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 26px; color: #1C1B3A; margin: 0 0 10px;
+}
+.vv-blank p { font-size: 14px; line-height: 1.6; margin: 0; }
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .vv-page { padding: 88px 18px 64px; }
+  .vv-main { grid-template-columns: 1fr; gap: 20px; }
+  .vv-map, .vv-map-placeholder { height: 400px; }
+}
+
+/* ── Dark (night) ──────────────────────────────────────────── */
+:root[data-theme="night"] .vv-page,
+.dark .vv-page { background: #12131F; color: #ECEAF4; }
+:root[data-theme="night"] .vv-map,
+.dark .vv-map { border-color: #2A2C40; background: #0F1720; }
+:root[data-theme="night"] .vv-rail,
+.dark .vv-rail,
+:root[data-theme="night"] .vv-latest,
+.dark .vv-latest { background: #171826; border-color: #2A2C40; }
+:root[data-theme="night"] .vv-rail-h,
+.dark .vv-rail-h,
+:root[data-theme="night"] .vv-stop-place,
+.dark .vv-stop-place,
+:root[data-theme="night"] .vv-latest-place,
+.dark .vv-latest-place,
+:root[data-theme="night"] .vv-blank h2,
+.dark .vv-blank h2 { color: #ECEAF4; }
+:root[data-theme="night"] .vv-stop,
+.dark .vv-stop { border-bottom-color: #242639; }
+:root[data-theme="night"] .vv-stop-dot,
+.dark .vv-stop-dot { background: #20222E; color: #9A93A8; }
+:root[data-theme="night"] .vv-map-placeholder,
+.dark .vv-map-placeholder { background: #171826; border-color: #2A2C40; }
