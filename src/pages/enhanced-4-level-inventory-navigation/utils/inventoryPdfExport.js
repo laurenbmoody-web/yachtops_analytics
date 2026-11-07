@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { isInternalCfKey, cfDisplayValue, buildBondedSummary, bondedArticle } from './bondedStores';
+import { fetchImageInline } from '../../inventory/utils/productImageSearch';
 
 /** Extract last path segment from a location string */
 const lastSegment = (str) => {
@@ -45,35 +46,81 @@ const getFolderLabel = (item) => {
   return parts?.map(p => lastSegment(p))?.join(' › ') || '';
 };
 
+// Thumbnails are drawn in a 12mm box; 320px on the long side is ~680dpi there —
+// plenty sharp, and keeps both memory (iOS caps total canvas memory) and the PDF
+// size small even for hundreds of photos.
+const THUMB_MAX_PX = 320;
+const IMAGE_TIMEOUT_MS = 20000;
+const IMAGE_CONCURRENCY = 6;
+
+/** Load an <img>, resolving null on error or timeout. */
+const loadImage = (src, { crossOrigin } = {}) => new Promise((resolve) => {
+  const img = new Image();
+  if (crossOrigin) img.crossOrigin = crossOrigin;
+  let done = false;
+  const finish = (v) => { if (!done) { done = true; clearTimeout(timer); resolve(v); } };
+  const timer = setTimeout(() => finish(null), IMAGE_TIMEOUT_MS);
+  img.onload = () => finish(img);
+  img.onerror = () => finish(null);
+  img.src = src;
+});
+
+/** Downscale a loaded image onto white and return { data, w, h } (JPEG), or
+ *  null if the canvas can't be read (e.g. tainted by a cross-origin image). */
+const toThumb = (img) => {
+  let canvas = null;
+  try {
+    const nw = img.naturalWidth || img.width;
+    const nh = img.naturalHeight || img.height;
+    if (!nw || !nh) return null;
+    const scale = Math.min(1, THUMB_MAX_PX / Math.max(nw, nh));
+    const w = Math.max(1, Math.round(nw * scale));
+    const h = Math.max(1, Math.round(nh * scale));
+    canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    // Flatten onto white so transparent PNGs don't render on black in the PDF.
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    // Keep the size so the draw step can preserve aspect ratio.
+    return { data: canvas.toDataURL('image/jpeg', 0.85), w, h };
+  } catch {
+    return null;
+  } finally {
+    // Release the backing store straight away (matters on iOS).
+    if (canvas) { canvas.width = 0; canvas.height = 0; }
+  }
+};
+
 /**
- * Fetch an image URL and return a base64 data URL via an off-screen canvas.
+ * Fetch an image URL and return a downscaled JPEG data URL.
+ *
+ * Tries the browser first (works for our own storage, which sends CORS
+ * headers). Photos linked from third-party sites usually don't allow the browser
+ * to read their pixels, so those fall back to fetching via the
+ * product-image-search edge function, which returns the bytes inline.
  */
-const fetchImageAsBase64 = (url) => {
-  if (!url) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const w = img.naturalWidth || img.width;
-        const h = img.naturalHeight || img.height;
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        // Flatten onto white so transparent PNGs don't render on black in the PDF.
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0);
-        // Keep the natural size so the draw step can preserve aspect ratio.
-        resolve({ data: canvas.toDataURL('image/jpeg', 0.85), w, h });
-      } catch {
-        resolve(null);
-      }
-    };
-    img.onerror = () => resolve(null);
-    img.src = url.includes('?') ? url : `${url}?_cb=${Date.now()}`;
-  });
+const fetchImageAsBase64 = async (url) => {
+  if (!url) return null;
+  const direct = await loadImage(url.includes('?') ? url : `${url}?_cb=${Date.now()}`, { crossOrigin: 'anonymous' });
+  const fromDirect = direct ? toThumb(direct) : null;
+  if (fromDirect) return fromDirect;
+
+  if (url.startsWith('data:')) return null;
+  const inline = await fetchImageInline(url);
+  if (!inline) return null;
+  const viaServer = await loadImage(inline);
+  return viaServer ? toThumb(viaServer) : null;
+};
+
+/** Run `fn` over `list` with at most `limit` in flight. */
+const runPool = async (list, limit, fn) => {
+  const queue = [...list];
+  const worker = async () => { while (queue.length) await fn(queue.shift()); };
+  await Promise.all(Array.from({ length: Math.min(limit, queue.length) }, worker));
 };
 
 
@@ -243,12 +290,11 @@ export const exportInventoryToPDF = async ({
   const imageCache = {};
   if (includeImages) {
     const uniqueUrls = [...new Set(allExportItems?.map(i => i?.imageUrl)?.filter(Boolean))];
-    await Promise.all(
-      uniqueUrls?.map(async (url) => {
-        const b64 = await fetchImageAsBase64(url);
-        if (b64) imageCache[url] = b64;
-      })
-    );
+    await runPool(uniqueUrls, IMAGE_CONCURRENCY, async (url) => {
+      const b64 = await fetchImageAsBase64(url);
+      if (b64) imageCache[url] = b64;
+      else console.warn('[inventoryPdfExport] could not load image', url);
+    });
   }
 
   // Scope label

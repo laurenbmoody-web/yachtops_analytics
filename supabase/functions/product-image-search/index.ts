@@ -10,6 +10,9 @@
 //     the first working candidate, same as before).
 //   • the "Find images" review flow: { query } → { candidates, configured } to
 //     show thumbnails, then { url } → { image } to re-host the one picked.
+//   • the PDF export: { inline: url } → { dataUrl } — fetches a photo the browser
+//     can't read itself (third-party hosts without CORS headers) and hands the
+//     bytes back as a data URL so it can be embedded. Nothing is stored.
 //
 // Fails soft: on any error, or if no provider is configured, it returns 200 with
 // empty results and `configured: false`, so callers can show a clear setup note
@@ -90,6 +93,32 @@ async function rehost(remoteUrl: string): Promise<string> {
   }
 }
 
+// Download a remote image and return it as a base64 data URL (no storage).
+// Returns '' on any failure.
+async function inline(remoteUrl: string): Promise<string> {
+  try {
+    if (!/^https?:\/\//i.test(remoteUrl)) return '';
+    const img = await fetch(remoteUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'image/*' },
+      redirect: 'follow',
+    });
+    if (!img.ok) return '';
+    const type = (img.headers.get('content-type') || 'image/jpeg').split(';')[0].trim();
+    if (!type.startsWith('image/')) return '';
+    const bytes = new Uint8Array(await img.arrayBuffer());
+    if (!bytes.length || bytes.length > 8 * 1024 * 1024) return '';
+    let bin = '';
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+    }
+    return `data:${type};base64,${btoa(bin)}`;
+  } catch (err) {
+    console.error('[product-image-search] inline error', err);
+    return '';
+  }
+}
+
 // Provider: SerpApi Google Images.
 async function searchSerpApi(query: string, count: number): Promise<Candidate[]> {
   const url = new URL('https://serpapi.com/search.json');
@@ -152,14 +181,19 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-  let body: { query?: string; count?: number; url?: string } | null = null;
+  let body: { query?: string; count?: number; url?: string; inline?: string } | null = null;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON body' }, 400); }
+
+  // Mode 3: fetch an image and return its bytes inline (PDF export fallback).
+  const inlineUrl = typeof body?.inline === 'string' ? body.inline.trim() : '';
+  if (inlineUrl) return json({ dataUrl: await inline(inlineUrl) });
 
   // Mode 2: re-host a specific chosen image URL into the bucket.
   const rehostUrl = typeof body?.url === 'string' ? body.url.trim() : '';
   if (rehostUrl) {
     const image = await rehost(rehostUrl);
-    // Fall back to the raw URL so the caller can still save something.
+    // `image` stays the raw URL on failure for older clients; current clients
+    // check `rehosted` and refuse to save a third-party link.
     return json({ image: image || rehostUrl, rehosted: !!image });
   }
 
@@ -179,8 +213,9 @@ Deno.serve(async (req: Request) => {
   // is requested (the review flow passes count>=5 and rehosts on approval).
   let image = '';
   if (count <= 3) {
+    // Only a re-hosted copy counts: a raw third-party link can't be embedded in
+    // exports and breaks when the other site moves or blocks hotlinking.
     for (const c of images) { image = await rehost(c); if (image) break; }
-    if (!image) image = images[0] || '';
   }
 
   return json({ image, images, candidates, configured: true });
