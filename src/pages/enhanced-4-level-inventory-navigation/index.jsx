@@ -3531,6 +3531,14 @@ const LocationFirstInventory = () => {
     if (success) {
       setMovingFolderName(null);
       await loadData();
+    } else {
+      // Don't fail silently (a move that "refreshes and falls back"): tell the
+      // user it didn't move, and refresh so the view matches the real data.
+      setMovingFolderName(null);
+      await loadData();
+      if (typeof window !== 'undefined') {
+        window.alert(`Couldn't move "${draggedName}". Please check your connection and try again — if it keeps happening, let us know.`);
+      }
     }
   };
 

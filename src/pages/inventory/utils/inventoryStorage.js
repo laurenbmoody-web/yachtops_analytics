@@ -1939,6 +1939,29 @@ export const moveFolderInDB = async (draggedSegments, targetSegments, draggedNam
     const newParentSubPath = targetSegments?.slice(1)?.join(' > ');
     const newFullPath = newParentSubPath ? `${newParentSubPath} > ${draggedName}` : draggedName;
 
+    // Preferred path: one atomic, membership-checked RPC does the whole move
+    // server-side. The old client-side sequence of 6+ selects/updates could
+    // silently no-op in the field (a move would "refresh and fall back" with no
+    // error and no DB change); the RPC either applies fully or raises. Covers
+    // the only shape the UI can produce (a sub-folder moved under a department,
+    // into another folder, or up a level). The legacy block below stays as a
+    // fallback for the unreachable root/department-move case.
+    if (oldParentSegments?.length >= 1 && targetSegments?.length >= 1
+        && oldLocation && newLocation && oldFullPath && newFullPath) {
+      const { error } = await supabase.rpc('move_inventory_folder', {
+        p_tenant: tenantId,
+        p_old_location: oldLocation,
+        p_old_sub: oldFullPath,
+        p_new_location: newLocation,
+        p_new_sub: newFullPath,
+      });
+      if (error) {
+        console.error('[inventoryStorage] move_inventory_folder RPC error:', error?.message);
+        return false;
+      }
+      return true;
+    }
+
     // 1. Fetch all inventory_locations rows that are the dragged folder itself or its descendants
     let allRows = [];
     if (oldParentSegments?.length === 0) {
