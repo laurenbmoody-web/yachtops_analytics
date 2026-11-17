@@ -21,7 +21,9 @@ const getTenantId = async () => {
 };
 
 // Which world a wardrobe belongs to.
-export const WardrobeScope = { OWNER: 'owner', CHARTER: 'charter', CREW: 'crew' };
+// Defined in a module with no Supabase import so the rules that use them can
+// be unit-tested; re-exported here because this is where callers look.
+export { WardrobeScope, keepsWardrobeAboard, guestBelongsToWardrobeScope } from '../../../services/wardrobeWorld';
 export const WardrobeScopeLabels = { owner: 'Owner', charter: 'Charter', crew: 'Crew' };
 
 const mapWardrobe = (r) => ({
@@ -94,3 +96,4 @@ export const archiveWardrobe = async (id) => {
   if (error) { console.error('[laundry-wardrobes] archive failed', error); showToast('Could not remove wardrobe', 'error'); return false; }
   return true;
 };
+
