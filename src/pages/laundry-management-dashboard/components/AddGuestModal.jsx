@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
 import Icon from '../../../components/AppIcon';
-import { createGuest, GuestType } from '../../guest-management-dashboard/utils/guestStorage';
+import { createGuest } from '../../guest-management-dashboard/utils/guestStorage';
 import './ownerWardrobe.css';
 
 // Quick-add a person to a wardrobe world so they appear as a tile straight away
 // — just a name and cabin; the full record is editable later in Guest
-// management. Owner world adds an owner-type person; guest world a charter guest.
+// management.
+//
+// What this sets is whether they STOW things aboard, which is the question the
+// two wardrobe worlds actually divide on. It no longer guesses their camp: the
+// guest wardrobe holds the owner's friends as well as charter guests, and
+// stamping everyone there "Charter" asserted something about the owner's own
+// circle that nobody told us. Camp is set in Guest management, where it is
+// asked rather than inferred.
 const AddGuestModal = ({ scope = 'guest', onClose, onCreated }) => {
   const [first, setFirst] = useState('');
   const [last, setLast] = useState('');
@@ -20,7 +27,7 @@ const AddGuestModal = ({ scope = 'guest', onClose, onCreated }) => {
         firstName: first.trim(),
         lastName: last.trim(),
         cabinAllocated: cabin.trim(),
-        guestType: scope === 'owner' ? GuestType.OWNER : GuestType.CHARTER,
+        keepsWardrobeAboard: scope === 'owner',
       });
       if (g) { onCreated?.(g); onClose?.(); }
     } catch { window.showToast?.('Could not add the guest', 'error'); }

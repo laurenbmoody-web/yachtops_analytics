@@ -67,6 +67,28 @@ const V = ({ children, pre }) => {
   return <p className={cls}>{blank ? '—' : children}</p>;
 };
 
+
+// A switch. There were four of these hand-rolled with tailwind template
+// literals, which is why the sweep for old classes missed them: it matched
+// className="…" and these are className={`…`}. Read-only renders the same
+// shape so a viewer sees the state without a control that does nothing.
+const Switch = ({ on, onToggle, readOnly }) => {
+  const cls = on ? 'gdp-switch is-on' : 'gdp-switch';
+  if (readOnly) {
+    return (
+      <span className={`${cls} is-readonly`} role="img"
+        aria-label={on ? 'Yes' : 'No'}>
+        <span className="gdp-switch-knob" />
+      </span>
+    );
+  }
+  return (
+    <button type="button" className={cls} aria-pressed={!!on} onClick={onToggle}>
+      <span className="gdp-switch-knob" />
+    </button>
+  );
+};
+
 const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permissions }) => {
   const navigate = useNavigate();
   const [tab, setTab] = useState('overview');
@@ -1337,6 +1359,32 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             </div>
           )}
 
+          {/* What the laundry page divides on. Not the same question as
+              owner-vs-charter: the owner's friends are owner-side but usually
+              take everything home, and a standing kit list for someone who
+              never stows anything is just noise in the wardrobe. */}
+          <div className="gdp-field">
+            <label className="gdp-l">Keeps a wardrobe aboard</label>
+            <div className="gdp-tile">
+              <Switch
+                on={!!formData?.keepsWardrobeAboard}
+                readOnly={!(isEditing && !isDeleted)}
+                onToggle={() => handleChange('keepsWardrobeAboard', !formData?.keepsWardrobeAboard)}
+              />
+              <div>
+                <span className="gdp-switch-l">
+                  {formData?.keepsWardrobeAboard
+                    ? 'Stows clothing on board between trips'
+                    : 'Takes everything home'}
+                </span>
+                <p className="gdp-note">
+                  Decides whether they appear in the permanent wardrobe or only
+                  in trip laundry.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Free Text Cabin Fallback */}
           {isEditing && !isDeleted && (
             <div className="gdp-field">
@@ -1416,33 +1464,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
           </div>
           {/* APA Required Toggle */}
           <div className="gdp-tile">
-            {isEditing && !isDeleted ? (
-              <button
-                type="button"
-                onClick={() => handleChange('apaRequired', !formData?.apaRequired)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  formData?.apaRequired ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    formData?.apaRequired ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            ) : (
-              <div
-                className={`relative inline-flex h-6 w-11 items-center rounded-full ${
-                  formData?.apaRequired ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white ${
-                    formData?.apaRequired ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </div>
-            )}
+            <Switch
+                on={!!formData?.apaRequired}
+                readOnly={!(isEditing && !isDeleted)}
+                onToggle={() => handleChange('apaRequired', !formData?.apaRequired)}
+              />
             <span className="gdp-switch-l">APA Required?</span>
           </div>
           {/* APA Amount - only visible when APA Required = true */}
@@ -1499,33 +1525,11 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
           </h3>
           {/* NDA Signed Toggle */}
           <div className="gdp-tile">
-            {isEditing && !isDeleted ? (
-              <button
-                type="button"
-                onClick={() => handleChange('ndaSigned', !formData?.ndaSigned)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  formData?.ndaSigned ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    formData?.ndaSigned ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            ) : (
-              <div
-                className={`relative inline-flex h-6 w-11 items-center rounded-full ${
-                  formData?.ndaSigned ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white ${
-                    formData?.ndaSigned ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </div>
-            )}
+            <Switch
+                on={!!formData?.ndaSigned}
+                readOnly={!(isEditing && !isDeleted)}
+                onToggle={() => handleChange('ndaSigned', !formData?.ndaSigned)}
+              />
             <span className="gdp-switch-l">NDA Signed?</span>
           </div>
           {/* NDA Expiry Date - only visible when NDA Signed = true */}

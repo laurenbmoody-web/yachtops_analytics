@@ -94,6 +94,10 @@ const mapRowToGuest = (row) => {
     contactPhone: row?.contact_phone || '',
     guestType: row?.guest_type || GuestType?.UNKNOWN,
     partyRole: row?.party_role || '',
+    // Whether they stow clothes aboard between trips. NOT the same question
+    // as guestType: the owner's friends are owner-side but usually take
+    // everything home, and the laundry wardrobe cares about the stowing.
+    keepsWardrobeAboard: row?.keeps_wardrobe_aboard === true,
     maritalStatus: row?.marital_status || MaritalStatus?.UNKNOWN,
     spouseGuestId: row?.spouse_guest_id || null,
     dateOfBirth: row?.date_of_birth || null,
@@ -179,6 +183,7 @@ const mapGuestToRow = (guestData) => {
   // '' is a real answer here — "not recorded" — and the column's check
   // constraint only accepts the seven roles or null, never an empty string.
   if (guestData?.partyRole !== undefined) row.party_role = guestData?.partyRole || null;
+  if (guestData?.keepsWardrobeAboard !== undefined) row.keeps_wardrobe_aboard = !!guestData?.keepsWardrobeAboard;
   if (guestData?.maritalStatus !== undefined) row.marital_status = guestData?.maritalStatus;
   if (guestData?.spouseGuestId !== undefined) row.spouse_guest_id = guestData?.spouseGuestId || null;
   if (guestData?.dateOfBirth !== undefined) row.date_of_birth = guestData?.dateOfBirth;

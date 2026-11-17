@@ -21,7 +21,8 @@ import {
 } from '../utils/laundryStorage';
 import { resolveLaundryPhotos } from '../utils/laundryPhotos';
 import { money } from '../utils/laundryBilling';
-import { loadGuests, GuestType } from '../../guest-management-dashboard/utils/guestStorage';
+import { loadGuests } from '../../guest-management-dashboard/utils/guestStorage';
+import { guestBelongsToWardrobeScope } from '../../../services/wardrobeWorld';
 import './ownerWardrobe.css';
 
 const guestName = (g) => (g ? ([g.firstName, g.lastName].filter(Boolean).join(' ') || g.name || 'Guest') : '');
@@ -181,7 +182,10 @@ const OwnerWardrobeView = ({ onBack, scope = 'owner' }) => {
   const load = async () => {
     const [ws, gs, all, cs] = await Promise.all([loadWardrobes(cfg.wardrobeScope), loadGuests().catch(() => []), loadAllLaundryItems(), loadCases().catch(() => [])]);
     setCases(cs);
-    const scopeGuests = (gs || []).filter((g) => !g.isDeleted && (isGuest ? g.guestType !== GuestType.OWNER : g.guestType === GuestType.OWNER));
+    // Permanence, not camp. guestType === 'Owner' put the owner's friends in
+    // the permanent wardrobe, where a standing kit list builds up for someone
+    // who takes everything home.
+    const scopeGuests = (gs || []).filter((g) => guestBelongsToWardrobeScope(g, cfg.wardrobeScope));
     const wIds = new Set(ws.map((w) => w.id));
     const gIds = new Set(scopeGuests.map((g) => g.id));
     // Owner world: homed in an owner wardrobe, OR an owner-type guest, OR the
