@@ -319,7 +319,7 @@ const GuestManagementDashboard = () => {
                 <span className="gm-pick-txt">
                   <span className="gm-pick-name">{person.name}</span>
                   <span className="gm-pick-sub">
-                    {[person.types.join(' / '), person.cabins[0]].filter(Boolean).join(' · ') || 'No cabin'}
+                    {[...(person.party || []), person.cabins[0]].filter(Boolean).join(' · ') || 'No cabin'}
                   </span>
                 </span>
                 {/* An allergy is the one thing worth flagging before you open

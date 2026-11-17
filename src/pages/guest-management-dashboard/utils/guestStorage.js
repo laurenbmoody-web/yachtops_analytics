@@ -14,12 +14,41 @@ export const MaritalStatus = {
   UNKNOWN: 'Unknown'
 };
 
-// Guest Type enum
+// Which camp a person belongs to. NOT the type of a trip — trips.trip_type
+// carries that, and a guest on an owner trip and a charter would otherwise need
+// two rows (which is how Rafael Edry and Shiran Ezra each came to exist twice).
+// This says whose people they are, which on this vessel does not change: the
+// owner's family and friends do not charter.
 export const GuestType = {
   OWNER: 'Owner',
   CHARTER: 'Charter',
   UNKNOWN: 'Unknown'
 };
+
+// Who they are TO the principal of that camp. The third level of "who is this
+// person", under owner-vs-charter and under which charter.
+export const PartyRole = {
+  PRINCIPAL: 'Principal',
+  SPOUSE: 'Spouse',
+  FAMILY: 'Family',
+  CHILD: 'Child',
+  FRIEND: 'Friend',
+  STAFF: 'Staff',
+  OTHER: 'Other',
+};
+
+// Order matters: this is the order they are offered in, principal first,
+// because the one question always worth answering is who the trip is for.
+export const PARTY_ROLE_OPTIONS = [
+  { value: '', label: 'Not recorded' },
+  { value: PartyRole.PRINCIPAL, label: 'Principal' },
+  { value: PartyRole.SPOUSE, label: 'Spouse / partner' },
+  { value: PartyRole.FAMILY, label: 'Family' },
+  { value: PartyRole.CHILD, label: 'Child' },
+  { value: PartyRole.FRIEND, label: 'Friend' },
+  { value: PartyRole.STAFF, label: 'Staff' },
+  { value: PartyRole.OTHER, label: 'Other' },
+];
 
 // Guest Actions for activity feed
 export const GuestActions = {
@@ -64,6 +93,7 @@ const mapRowToGuest = (row) => {
     contactEmail: row?.contact_email || '',
     contactPhone: row?.contact_phone || '',
     guestType: row?.guest_type || GuestType?.UNKNOWN,
+    partyRole: row?.party_role || '',
     maritalStatus: row?.marital_status || MaritalStatus?.UNKNOWN,
     spouseGuestId: row?.spouse_guest_id || null,
     dateOfBirth: row?.date_of_birth || null,
@@ -128,6 +158,9 @@ const mapRowToGuest = (row) => {
       tripId: link?.trip_id,
       isActiveOnTrip: link?.is_active_on_trip ?? false,
       tripType: link?.trips?.trip_type || '',
+      // The charter's own name — "Milton charter" — which is the middle
+      // level of owner/charter > which charter > who they are to the party.
+      tripName: link?.trips?.name || '',
       startDate: link?.trips?.start_date || null,
       endDate: link?.trips?.end_date || null,
     })),
@@ -143,6 +176,9 @@ const mapGuestToRow = (guestData) => {
   if (guestData?.contactEmail !== undefined) row.contact_email = guestData?.contactEmail;
   if (guestData?.contactPhone !== undefined) row.contact_phone = guestData?.contactPhone;
   if (guestData?.guestType !== undefined) row.guest_type = guestData?.guestType;
+  // '' is a real answer here — "not recorded" — and the column's check
+  // constraint only accepts the seven roles or null, never an empty string.
+  if (guestData?.partyRole !== undefined) row.party_role = guestData?.partyRole || null;
   if (guestData?.maritalStatus !== undefined) row.marital_status = guestData?.maritalStatus;
   if (guestData?.spouseGuestId !== undefined) row.spouse_guest_id = guestData?.spouseGuestId || null;
   if (guestData?.dateOfBirth !== undefined) row.date_of_birth = guestData?.dateOfBirth;
@@ -223,7 +259,7 @@ const saveConfidential = async (guestId, tenantId, guestData) => {
 // guests.guest_type is only a fallback for a guest with no trips — storing the
 // distinction on the person is what led to Rafael Edry existing twice.
 const GUEST_SELECT =
-  '*, guest_confidential(*), trip_guests(trip_id, is_active_on_trip, trips(trip_type, start_date, end_date))';
+  '*, guest_confidential(*), trip_guests(trip_id, is_active_on_trip, trips(name, trip_type, start_date, end_date))';
 
 // The same read without the trip links. An embed is resolved by PostgREST from
 // the foreign keys at request time, so a relationship it cannot name fails the

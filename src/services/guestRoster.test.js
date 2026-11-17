@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   fullName, personKey, cabinOf, contactOf, guestTypeLabel, initialsOf,
   groupGuestsByPerson, searchPeople, sortPeople, rosterStats, SORT_COLUMNS,
+  partyRoleOf, describeParty, partyLabel,
 } from './guestRoster.js';
 
 // The real Horizon rows that prompted this: one person, two records, two
@@ -182,8 +183,9 @@ test('survives junk input without throwing', () => {
 // ── the role comes from the trip ────────────────────────────────────────────
 import { rolesOf, isAboard } from './guestRoster.js';
 
-const onTrip = (tripType, { from, to, active = true } = {}) => ({
-  tripId: `${tripType}-1`, tripType, isActiveOnTrip: active, startDate: from, endDate: to,
+const onTrip = (tripType, { from, to, active = true, name = '' } = {}) => ({
+  tripId: `${tripType}-1`, tripType, tripName: name,
+  isActiveOnTrip: active, startDate: from, endDate: to,
 });
 
 test('one person on two trips holds both roles without being cloned', () => {
@@ -314,4 +316,70 @@ test('initials fall back sensibly', () => {
   assert.equal(initialsOf('Cher'), 'CH');
   assert.equal(initialsOf(''), '?');
   assert.equal(initialsOf('  Mary  Jane  Watson '), 'MW');
+});
+
+// ── who is this person, in three levels ─────────────────────────────────────
+// The question a chief stew actually asks: owner or charter, which charter,
+// and who are they to the principal. Each level comes from the place that
+// knows it — the camp and the charter's name from the trip, the relationship
+// from the person.
+
+test('an owner-side guest reads camp then relationship', () => {
+  const g = { firstName: 'Dana', lastName: 'Edry', partyRole: 'Family', trips: [onTrip('Owner', { name: 'Summer Med' })] };
+  assert.deepEqual(describeParty([g]), ['Owner', 'Family']);
+  assert.equal(partyLabel([g]), 'Owner · Family');
+});
+
+test('a charter guest names the charter in the middle', () => {
+  const g = { firstName: 'Nina', lastName: 'Rossi', partyRole: 'Friend', trips: [onTrip('Charter', { name: 'Milton charter' })] };
+  assert.equal(partyLabel([g]), 'Charter · Milton charter · Friend');
+});
+
+test('an owner trip does not contribute its name', () => {
+  // Every owner trip is for the same party, so naming it is noise. Only a
+  // charter answers "which party is this?".
+  const g = { partyRole: 'Child', trips: [onTrip('Owner', { name: 'Caribbean Jan' })] };
+  assert.deepEqual(describeParty([g]), ['Owner', 'Child']);
+});
+
+test('a repeat charterer is counted, not arbitrarily named', () => {
+  const g = {
+    partyRole: 'Principal',
+    trips: [onTrip('Charter', { name: 'Milton charter' }), onTrip('Charter', { name: 'Milton II' })],
+  };
+  assert.equal(partyLabel([g]), 'Charter · 2 charters · Principal');
+});
+
+test('the same charter twice is still one charter', () => {
+  const g = {
+    partyRole: 'Friend',
+    trips: [onTrip('Charter', { name: 'Milton charter' }), onTrip('Charter', { name: 'Milton charter' })],
+  };
+  assert.equal(partyLabel([g]), 'Charter · Milton charter · Friend');
+});
+
+test('unknown levels are left out, never padded', () => {
+  // A roster line reading "Charter · Unknown · Unknown" tells nobody anything.
+  assert.deepEqual(describeParty([{ trips: [onTrip('Charter')] }]), ['Charter']);
+  assert.deepEqual(describeParty([{ partyRole: 'Staff' }]), ['Staff']);
+  assert.deepEqual(describeParty([{}]), []);
+  assert.equal(partyLabel([{}]), '');
+});
+
+test('with no trips yet the camp still comes from the person', () => {
+  // The add-guest case: recorded before any trip exists.
+  const g = { guestType: 'Charter', partyRole: 'Friend', trips: [] };
+  assert.equal(partyLabel([g]), 'Charter · Friend');
+});
+
+test('guestType Unknown contributes nothing', () => {
+  assert.deepEqual(describeParty([{ guestType: 'Unknown', partyRole: 'Family' }]), ['Family']);
+});
+
+test('the role is read across a person grouped from several records', () => {
+  const records = [{ partyRole: '' }, { partyRole: 'Spouse' }];
+  assert.equal(partyRoleOf(records), 'Spouse');
+  assert.equal(partyRoleOf([{}, {}]), '');
+  assert.equal(partyRoleOf([]), '');
+  assert.equal(partyRoleOf(null), '');
 });

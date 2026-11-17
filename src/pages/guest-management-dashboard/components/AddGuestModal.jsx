@@ -5,7 +5,7 @@ import { showToast } from '../../../utils/toast';
 import { getAllDecks, getZonesByDeck, getSpacesByZone } from '../../locations-management-settings/utils/locationsHierarchyStorage';
 import EditorialSelect from '../../../components/editorial/EditorialSelect';
 import EditorialDatePicker from '../../../components/editorial/EditorialDatePicker';
-import { MaritalStatus, GuestType, getAvailableSpouseOptions, getAvailableKidsOptions, getPassportDocumentSignedUrl } from '../utils/guestStorage';
+import { MaritalStatus, GuestType, PARTY_ROLE_OPTIONS, getAvailableSpouseOptions, getAvailableKidsOptions, getPassportDocumentSignedUrl } from '../utils/guestStorage';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { supabase } from '../../../lib/supabaseClient';
 
@@ -80,6 +80,7 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
     firstName: '',
     lastName: '',
     guestType: GuestType?.UNKNOWN,
+    partyRole: '',
     dateOfBirth: '',
     cakePreference: '',
     maritalStatus: '',
@@ -167,6 +168,7 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
           firstName: editingGuest?.firstName || '',
           lastName: editingGuest?.lastName || '',
           guestType: editingGuest?.guestType || GuestType?.UNKNOWN,
+          partyRole: editingGuest?.partyRole || '',
           dateOfBirth: editingGuest?.dateOfBirth || '',
           cakePreference: editingGuest?.cakePreference || '',
           maritalStatus: editingGuest?.maritalStatus || '',
@@ -467,6 +469,7 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
       firstName: '',
       lastName: '',
       guestType: GuestType?.UNKNOWN,
+      partyRole: '',
       dateOfBirth: '',
       cakePreference: '',
       maritalStatus: '',
@@ -638,18 +641,38 @@ const AddGuestModal = ({ isOpen, onClose, onSave, editingGuest }) => {
               </div>
             </div>
 
-            {/* Guest Type */}
-            <div className="ag-f">
-              <label className="ag-l">Guest Type</label>
-              <EditorialSelect
-                value={formData?.guestType}
-                onChange={(value) => handleChange('guestType', value)}
-                options={[
-                  { value: GuestType?.OWNER, label: 'Owner' },
-                  { value: GuestType?.CHARTER, label: 'Charter' },
-                  { value: GuestType?.UNKNOWN, label: 'Unknown' }
-                ]}
-              />
+            {/* Whose guest, and who they are to that party. Two questions, not
+                one: "Owner" alone never said whether someone is the owner, his
+                daughter or a friend aboard for a week. Which CHARTER they came
+                on is the third level and is not asked here — it comes from the
+                trip you add them to. */}
+            <div className="ag-row">
+              <div className="ag-f">
+                <label className="ag-l">Guest of</label>
+                <EditorialSelect
+                  value={formData?.guestType}
+                  onChange={(value) => handleChange('guestType', value)}
+                  options={[
+                    { value: GuestType?.OWNER, label: 'The owner' },
+                    { value: GuestType?.CHARTER, label: 'A charter' },
+                    { value: GuestType?.UNKNOWN, label: 'Not known yet' },
+                  ]}
+                />
+              </div>
+              <div className="ag-f">
+                <label className="ag-l">Relationship</label>
+                <EditorialSelect
+                  value={formData?.partyRole || ''}
+                  onChange={(value) => handleChange('partyRole', value)}
+                  options={PARTY_ROLE_OPTIONS}
+                  placeholder="Not recorded"
+                />
+                <p className="ag-note">
+                  {formData?.guestType === GuestType?.CHARTER
+                    ? 'To the lead charterer — which charter comes from the trip.'
+                    : 'To the owner.'}
+                </p>
+              </div>
             </div>
 
             {/* DOB & Cake */}

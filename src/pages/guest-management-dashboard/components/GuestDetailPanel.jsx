@@ -5,7 +5,7 @@ import EditorialDatePicker from '../../../components/editorial/EditorialDatePick
 import Icon from '../../../components/AppIcon';
 import '../guest-detail-panel.css';
 import { showToast } from '../../../utils/toast';
-import { MaritalStatus, getMaritalStatusDisplay, getAvailableSpouseOptions, updateGuest, deleteGuest, reinstateGuest, getAvailableKidsOptions, getLinkedKids, linkKid, unlinkKid, uploadPassportDocument, deletePassportDocument, getPassportDocumentSignedUrl } from '../utils/guestStorage';
+import { MaritalStatus, PARTY_ROLE_OPTIONS, getMaritalStatusDisplay, getAvailableSpouseOptions, updateGuest, deleteGuest, reinstateGuest, getAvailableKidsOptions, getLinkedKids, linkKid, unlinkKid, uploadPassportDocument, deletePassportDocument, getPassportDocumentSignedUrl } from '../utils/guestStorage';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { loadTrips, toggleGuestActiveStatus } from '../../trips-management-dashboard/utils/tripStorage';
 
@@ -15,7 +15,7 @@ import { getPreferencesByGuest } from '../../../utils/preferencesStorage';
 
 import ModalShell from '../../../components/ui/ModalShell';
 import {
-  fullName as guestFullName, initialsOf, cabinOf, rolesOf,
+  fullName as guestFullName, initialsOf, cabinOf, rolesOf, describeParty,
 } from '../../../services/guestRoster';
 // Helper function to format cabin display to show only Level 3 (final segment)
 const formatCabinLevel3 = (cabinValue) => {
@@ -125,6 +125,9 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
   const fullName = guestFullName(guest);
   const initials = initialsOf(fullName);
   const roleLabel = (rolesOf([guest])[0]) || '';
+  // Everything after the camp: the charter's name and who they are to the
+  // party. The camp itself is already the pill beside their name.
+  const partyRest = describeParty([guest]).slice(1).join(' · ');
   const cabinText = cabinOf(guest);
   const dietaryText = String(formData?.allergies || '').trim();
 
@@ -791,6 +794,7 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
             <p className="gdp-meta">
               <span className={cabinText ? '' : 'muted'}>{cabinText || 'No cabin'}</span>
               <span className="bar" />
+              {partyRest && <><span>{partyRest}</span><span className="bar" /></>}
               {dietaryText
                 ? <span className="alert">{dietaryText}</span>
                 : <span className="muted">No dietary needs</span>}
@@ -926,6 +930,25 @@ const GuestDetailPanel = ({ guest, onEdit, onDelete, onReinstate, onClose, permi
                 />
               ) : (
                 <V>{formData?.cakePreference || '-'}</V>
+              )}
+            </div>
+            {/* Who they are to the party. "Owner" on its own never said
+                whether this is the owner, his daughter or a friend aboard for
+                a week — and that is the difference the interior works to. */}
+            <div>
+              <label className="gdp-l">
+                Relationship
+                <em className="faint">{roleLabel === 'Charter' ? 'to the charterer' : 'to the owner'}</em>
+              </label>
+              {isEditing && !isDeleted ? (
+                <EditorialSelect
+                  value={formData?.partyRole || ''}
+                  onChange={(value) => handleChange('partyRole', value)}
+                  options={PARTY_ROLE_OPTIONS}
+                  placeholder="Not recorded"
+                />
+              ) : (
+                <V>{formData?.partyRole || '-'}</V>
               )}
             </div>
             <div>

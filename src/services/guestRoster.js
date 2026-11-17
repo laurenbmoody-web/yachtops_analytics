@@ -65,6 +65,50 @@ export const rolesOf = (records) => {
   return uniq(records.map((r) => guestTypeLabel(r?.guestType)));
 };
 
+// Who this person is to the party, independent of any trip. Stored on the
+// person because on this vessel the camp does not change — the owner's family
+// and friends do not charter — so re-asking it per trip would be re-typing the
+// same answer forever.
+export const partyRoleOf = (records) =>
+  squash((records || []).map((r) => r?.partyRole).find(Boolean) || '');
+
+// The full answer to "who is this?", most general first:
+//
+//   Owner · Family
+//   Charter · Milton charter · Friend
+//
+// Three levels, each from the place that actually knows it: the camp from the
+// trip (or, with no trip yet, from the person), the charter's own name from
+// the trip, and the relationship from the person. Segments that are not known
+// are left out rather than padded with "Unknown" — a roster line reading
+// "Charter · Unknown · Unknown" tells a chief stew nothing.
+//
+// Only named trips contribute the middle segment, and only for charters: every
+// owner trip on a vessel is for the same party, so "Owner · Summer Med · Family"
+// is noise where "Charter · Milton charter · Friend" is the point.
+export const describeParty = (records) => {
+  const list = Array.isArray(records) ? records : [];
+  const camp = rolesOf(list)[0] || '';
+  const role = partyRoleOf(list);
+
+  const charters = uniq(
+    list
+      .flatMap((r) => (Array.isArray(r?.trips) ? r.trips : []))
+      .filter((l) => norm(l?.tripType) === 'charter')
+      .map((l) => squash(l?.tripName)),
+  );
+
+  // Two charters for one person is real (a repeat charterer), and naming one
+  // of them would be a lie by omission. Say how many instead.
+  const charter = charters.length === 1
+    ? charters[0]
+    : (charters.length > 1 ? `${charters.length} charters` : '');
+
+  return [camp, charter, role].filter(Boolean);
+};
+
+export const partyLabel = (records) => describeParty(records).join(' · ');
+
 // Aboard means on a trip that is running, not a boolean somebody remembered to
 // set. Falls back to the stored flag for a guest with no trips, because that
 // is all there is to go on.
@@ -110,6 +154,9 @@ export const groupGuestsByPerson = (guests) => {
       recordCount: records.length,
       hasDuplicates: records.length > 1,
       types: rolesOf(shown),
+      // The full three-level answer, for the roster line. `types` stays as
+      // it was because filtering by role depends on it.
+      party: describeParty(shown),
       cabins: uniq(shown.map(cabinOf)),
       contact: contactOf(shown.find((r) => contactOf(r)) || {}),
       allergies: uniq(shown.map((r) => squash(r?.allergies))).join(', '),

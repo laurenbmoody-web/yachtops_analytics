@@ -14,10 +14,37 @@ cloud session. This is the note that stops the next person re-deriving all of it
 | `guest_preferences` | the preference tree | any active member |
 | `trip_guests` → `trips` | which trips a guest is on, and `trips.trip_type` | any active member |
 
-`guests.guest_type` is **legacy**. Owner-vs-charter belongs to the trip —
-`trips.trip_type` carries it and `trip_guests` joins the two. It is read only as
-a fallback for a guest with no trips. Storing it on the person is what caused
-people to be cloned (see below).
+### Who a guest is, in three levels
+
+A chief stew asks three things about a guest, and each is answered by the place
+that actually knows it:
+
+| level | question | lives in |
+|---|---|---|
+| 1 | owner's people, or a charter's? | `trips.trip_type`, falling back to `guests.guest_type` |
+| 2 | *which* charter? | `trips.name` — "Milton charter" |
+| 3 | who are they to the principal? | `guests.party_role` |
+
+`describeParty()` in `src/services/guestRoster.js` assembles them, most general
+first: `Owner · Family`, `Charter · Milton charter · Friend`. Levels that are
+not known are left out rather than padded — a line reading
+`Charter · Unknown · Unknown` tells nobody anything. An owner trip never
+contributes its name, because every owner trip is for the same party.
+
+`guests.guest_type` is **not legacy**, contrary to what this file said before
+#3419. What was legacy was *reading it as the trip's type*: that is
+`trips.trip_type`, and conflating them is what cloned people (below). Read as
+"whose people are these", it is a stable fact — on this vessel the owner's
+family and friends do not charter — and the laundry wardrobe split
+(`OwnerWardrobeView.jsx`) depends on it. It is still only a fallback for level
+1 when a guest has no trips.
+
+`guests.party_role` is one of `Principal, Spouse, Family, Child, Friend, Staff,
+Other`, or null for "not recorded" — enforced by a check constraint. It is on
+the person, not on `trip_guests`, for the same reason: the relationship does not
+vary by trip, so asking per trip would be re-typing one answer forever. If that
+ever stops being true, this column becomes the default and an override goes on
+`trip_guests`; nothing has to be undone.
 
 Reads go through `loadGuests()` in
 `src/pages/guest-management-dashboard/utils/guestStorage.js`, which embeds both
