@@ -14,12 +14,17 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 
 import ModalShell from '../../components/ui/ModalShell';
-const DEV_MODE = true;
+// PERMISSIONS
+// A hardcoded `DEV_MODE = true` used to sit here. It forced canAdd / canEdit /
+// canDelete to true and skipped the access check in production, so any crew
+// member could add, edit and delete trips. The tier now comes from the
+// authoritative vessel membership (TenantContext.currentTenantMember), the same
+// source the Guests page uses.
 
 const TripsManagementDashboard = () => {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
-  const { activeTenantId } = useTenant();
+  const { activeTenantId, currentTenantMember, loadingTenant } = useTenant();
   const [currentUser, setCurrentUser] = useState(null);
   const [trips, setTrips] = useState([]);
   const [guests, setGuests] = useState([]);
@@ -28,20 +33,11 @@ const TripsManagementDashboard = () => {
   const [editingTrip, setEditingTrip] = useState(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [isUploadingHero, setIsUploadingHero] = useState(false);
-  const [pageLoading, setPageLoading] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [loadTimeout, setLoadTimeout] = useState(false);
+  const [loadTimeout] = useState(false);
   const timeoutRef = useRef(null);
   
-  // Remove duplicate state declarations (lines 34-35)
-  // const [pageLoading, setPageLoading] = useState(true);
-  // const [loadTimeout, setLoadTimeout] = useState(false);
 
-  useEffect(() => {
-  if (DEV_MODE) {
-    setPageLoading(false);
-  }
-  },[]);
 
   // Add this block - missing state declarations
   const [timedOut, setTimedOut] = useState(false);
@@ -64,26 +60,30 @@ const TripsManagementDashboard = () => {
   const upcomingSectionRef = useRef(null);
   const completedSectionRef = useRef(null);
 
+  const tier = String(currentTenantMember?.permission_tier || '').toUpperCase().trim();
+  const tierUser = { permission_tier: tier };
   const permissions = {
-    canAdd: DEV_MODE ? true : canAddTrip(currentUser),
-    canEdit: DEV_MODE ? true : canEditTrip(currentUser),
-    canDelete: DEV_MODE ? true : canDeleteTrip(currentUser)
+    canAdd: canAddTrip(tierUser),
+    canEdit: canEditTrip(tierUser),
+    canDelete: canDeleteTrip(tierUser),
   };
 
-  // Check authentication and authorization
+  // Who is acting (for audit fields like heroImageUpdatedBy).
   useEffect(() => {
-    const user = getCurrentUser();
-    if (!user) {
-      // DO NOT redirect here - ProtectedRoute handles this
-      return;
-    }
-    if (!canAccessTrips(user) && !DEV_MODE) {
+    const stored = getCurrentUser();
+    const id = session?.user?.id || stored?.id || null;
+    setCurrentUser(id ? { ...(stored || {}), id } : stored);
+  }, [session?.user?.id]);
+
+  // Access check — only once the membership has loaded, so we never bounce a
+  // real Command/Chief/HOD user while their tier is still arriving.
+  useEffect(() => {
+    if (!currentTenantMember) return;
+    if (!canAccessTrips(tierUser)) {
       showToast('Access restricted', 'error');
       navigate('/dashboard');
-      return;
     }
-    setCurrentUser(user);
-  }, [navigate]);
+  }, [currentTenantMember, tier, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load trips and guests
   useEffect(() => {
@@ -118,17 +118,11 @@ const TripsManagementDashboard = () => {
     }, 8000);
     
     try {
-      if (!activeTenantId && !DEV_MODE) {
+      if (!activeTenantId) {
         setError('No tenant context (currentTenantId missing)');
         setTrips([]);
         setGuests([]);
         return;
-      }
-
-      if (!activeTenantId && DEV_MODE) {
-        console.log("DEV MODE - skipping tenant requirement")
-        setTrips ([]);
-        setGuests ([]);
       }
       
       const data = await loadTrips();
@@ -165,14 +159,14 @@ const TripsManagementDashboard = () => {
   };
 
   const loadTripsData = async () => {
-    setPageLoading(true);
+    setLoading(true);
     try {
       const data = await loadTrips();
       setTrips(data);
     } catch (err) {
       console.warn('[trips-dashboard] loadTrips failed:', err);
     } finally {
-      setPageLoading(false);
+      setLoading(false);
     }
   };
 
@@ -456,12 +450,8 @@ const TripsManagementDashboard = () => {
 
   const { active, upcoming, completed } = categorizeTrips();
 
-  if (!currentUser && !DEV_MODE) {
-    return null;
-  }
-
-  // Show loading state while auth or page data is loading
-  if (!DEV_MODE && (authLoading || (pageLoading && !loadTimeout))) {
+  // Show loading state while auth or the membership tier is loading
+  if (authLoading || loadingTenant) {
     return (
       <div className="min-h-screen bg-background">
         <Header />

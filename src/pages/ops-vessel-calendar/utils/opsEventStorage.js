@@ -1,271 +1,278 @@
-// Ops/Vessel Event data model and localStorage persistence
+// Ops / vessel calendar events — Supabase `ops_events`, written through the
+// offline outbox.
+//
+// These used to live only in localStorage ('cargo.ops-events.v1'), so nothing a
+// crew member put on the calendar was seen by anyone else on board. They are now
+// shared per vessel. Reads are cached for offline automatically
+// (src/lib/offline); writes queue at sea and sync later.
+//
+// Private events are the creator's alone (enforced by RLS). The finer audience
+// rules (All Hands / Chiefs / HODs / Crew / a department) are applied below, as
+// before.
+//
+// Event shape handed to the UI (unchanged from the localStorage era):
+// { id, title, description, startDate, endDate, location, category, isPrivate,
+//   visibility[], attachments[], createdBy, createdByName, createdAt,
+//   editedBy, editedByName, editedAt, activity[] }
 
-const STORAGE_KEY = 'cargo.ops-events.v1';
-
-/**
- * Ops Event Type Definition:
- * {
- *   id: string (unique),
- *   title: string,
- *   description: string,
- *   startDate: ISO string,
- *   endDate: ISO string,
- *   location: string,
- *   category: string,
- *   isPrivate: boolean,
- *   visibility: string[] (roles/departments),
- *   attachments: Array<{id, name, url, type, size}>,
- *   createdBy: string (user ID),
- *   createdByName: string,
- *   createdAt: ISO string,
- *   editedBy: string (user ID),
- *   editedByName: string,
- *   editedAt: ISO string,
- *   activity: Array<{id, action, userId, userName, timestamp, details}>
- * }
- */
-
+import { supabase } from '../../../lib/supabaseClient';
+import { outbox } from '../../../lib/offline/queue';
+import { newId } from '../../../lib/offline/ids';
 import { getCurrentUser } from '../../../utils/authStorage';
 import { enforceDepartmentScope } from '../../../utils/departmentScopeEnforcement';
 import { getDepartmentScope } from '../../../utils/departmentScopeStorage';
 import { logActivity } from '../../../utils/activityStorage';
 
-// Ops Event Actions for activity feed
+const TABLE = 'ops_events';
+const LEGACY_KEY = 'cargo.ops-events.v1';
+const rowKey = (id) => `${TABLE}|${id}`;
+
 export const OpsEventActions = {
   EVENT_CREATED: 'EVENT_CREATED',
   EVENT_UPDATED: 'EVENT_UPDATED',
-  EVENT_DELETED: 'EVENT_DELETED'
+  EVENT_DELETED: 'EVENT_DELETED',
+};
+
+const fromRow = (r) => ({
+  id: r.id,
+  title: r.title,
+  description: r.description || '',
+  startDate: r.start_date,
+  endDate: r.end_date || null,
+  location: r.location || '',
+  category: r.category || '',
+  isPrivate: !!r.is_private,
+  visibility: r.visibility || [],
+  attachments: r.attachments || [],
+  createdBy: r.created_by,
+  createdByName: r.created_by_name,
+  createdAt: r.created_at,
+  editedBy: r.edited_by || null,
+  editedByName: r.edited_by_name || null,
+  editedAt: r.edited_at || null,
+  activity: r.activity || [],
+});
+
+const toRow = (e, tenantId) => ({
+  id: e.id,
+  tenant_id: tenantId,
+  title: e.title,
+  description: e.description || '',
+  start_date: e.startDate,
+  end_date: e.endDate || null,
+  location: e.location || '',
+  category: e.category || '',
+  is_private: !!e.isPrivate,
+  visibility: e.isPrivate ? [] : (e.visibility || []),
+  attachments: e.attachments || [],
+  activity: e.activity || [],
+  created_by: e.createdBy,
+  created_by_name: e.createdByName || null,
+  edited_by: e.editedBy || null,
+  edited_by_name: e.editedByName || null,
+  edited_at: e.editedAt || null,
+  created_at: e.createdAt || new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+});
+
+const activityEntry = (action, userId, userName, details = {}) => ({
+  id: newId(),
+  action,
+  userId,
+  userName,
+  timestamp: new Date().toISOString(),
+  details,
+});
+
+// Audience filter — same rules the localStorage version applied.
+const isVisibleTo = (event, user) => {
+  if (event?.createdBy && event.createdBy === user?.id) return true;
+  if (event?.isPrivate) return false;
+  const v = event?.visibility || [];
+  if (v.length === 0) return false;
+  if (v.includes('All Hands')) return true;
+  if (v.includes('Chiefs') && user?.tier === 'CHIEF') return true;
+  if (v.includes('HODs') && user?.tier === 'HOD') return true;
+  if (v.includes('Crew') && user?.tier === 'CREW') return true;
+  if (v.includes('HODs + Crew') && (user?.tier === 'HOD' || user?.tier === 'CREW')) return true;
+  if (user?.department && v.includes(user.department)) return true;
+  return false;
 };
 
 /**
- * Load ops events from localStorage
- * @param {Object} currentUser - Current user object
- * @returns {Array} Array of event objects visible to user
+ * One-time lift of this device's old localStorage events into the shared
+ * table. Only events this user created are moved (RLS only lets you insert as
+ * yourself); anyone else's stay on the device until they sign in here.
+ * Upsert on id, so a re-run (e.g. after an offline queue) is harmless.
  */
-export const loadOpsEvents = (currentUser) => {
+const migrateLegacyEvents = async (tenantId, userId) => {
+  let legacy;
+  try { legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]'); } catch { return; }
+  if (!Array.isArray(legacy) || legacy.length === 0 || !tenantId || !userId) return;
+
+  const mine = legacy.filter(e => e?.id && e?.createdBy === userId && e?.title && e?.startDate);
+  if (mine.length === 0) return;
+
+  const moved = new Set();
+  for (const e of mine) {
+    try {
+      await outbox.submit({
+        key: rowKey(e.id), table: TABLE, type: 'upsert', onConflict: 'id',
+        row: toRow(e, tenantId), label: 'Moving a calendar event to the vessel calendar',
+      });
+      moved.add(e.id);
+    } catch (err) {
+      console.warn('[ops-events] could not move a local event:', err);
+    }
+  }
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return [];
+    const rest = legacy.filter(e => !moved.has(e?.id));
+    if (rest.length) localStorage.setItem(LEGACY_KEY, JSON.stringify(rest));
+    else localStorage.removeItem(LEGACY_KEY);
+  } catch { /* ignore */ }
+};
 
-    const allEvents = JSON.parse(stored);
-    
-    // Get current user and requested scope
-    const user = currentUser || getCurrentUser();
-    const requestedScope = getDepartmentScope();
+/**
+ * Load the vessel's ops events visible to this user.
+ * @returns {Promise<Array>}
+ */
+export const loadOpsEvents = async (tenantId, currentUser) => {
+  const user = currentUser || getCurrentUser();
+  if (!tenantId) return [];
 
-    // Filter events based on visibility (existing logic)
-    const visibleEvents = allEvents?.filter(event => {
-      // Private events only visible to creator
-      if (event?.isPrivate) {
-        return event?.createdBy === user?.id;
-      }
-      
-      // Non-private events with visibility rules
-      if (!event?.visibility || event?.visibility?.length === 0) {
-        return event?.createdBy === user?.id;
-      }
-      
-      // Check visibility permissions
-      let isVisible = false;
-      if (event?.visibility?.includes('All Hands')) isVisible = true;
-      if (event?.visibility?.includes('Chiefs') && user?.tier === 'CHIEF') isVisible = true;
-      if (event?.visibility?.includes('HODs') && user?.tier === 'HOD') isVisible = true;
-      if (event?.visibility?.includes('Crew') && user?.tier === 'CREW') isVisible = true;
-      if (event?.visibility?.includes('HODs + Crew') && (user?.tier === 'HOD' || user?.tier === 'CREW')) isVisible = true;
-      if (event?.visibility?.includes(user?.department)) isVisible = true;
-      
-      // Creator can always see their own events
-      if (event?.createdBy === user?.id) isVisible = true;
-      
-      return isVisible;
-    });
-    
-    // Apply department scope enforcement at data level
-    // This ensures non-Command users can only see their department's events
-    return enforceDepartmentScope(visibleEvents, user, requestedScope);
-  } catch (error) {
+  await migrateLegacyEvents(tenantId, user?.id);
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .order('start_date', { ascending: true });
+  if (error) {
     console.error('Error loading ops events:', error);
     return [];
   }
+  const visible = (data || []).map(fromRow).filter(e => isVisibleTo(e, user));
+  return enforceDepartmentScope(visible, user, getDepartmentScope());
 };
 
 /**
- * Save ops events to localStorage
- * @param {Array} events - Array of event objects
+ * Create an ops event. Throws on a real (online) failure.
  */
-const saveOpsEvents = (events) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-  } catch (error) {
-    console.error('Error saving ops events:', error);
-  }
-};
-
-/**
- * Create activity log entry
- * @param {string} action - Action description
- * @param {string} userId - User ID
- * @param {string} userName - User name
- * @param {Object} details - Additional details
- * @returns {Object} Activity entry
- */
-const createActivityEntry = (action, userId, userName, details = {}) => {
-  return {
-    id: crypto.randomUUID(),
-    action,
-    userId,
-    userName,
-    timestamp: new Date()?.toISOString(),
-    details
-  };
-};
-
-/**
- * Create a new ops event
- * @param {Object} eventData - Event data
- * @param {string} userId - Creator user ID
- * @param {string} userName - Creator user name
- * @returns {Object} New event object
- */
-export const createOpsEvent = (eventData, userId, userName) => {
-  const newEvent = {
-    id: crypto.randomUUID(),
+export const createOpsEvent = async (tenantId, eventData, userId, userName) => {
+  const event = {
+    id: newId(),
     title: eventData?.title,
     description: eventData?.description || '',
     startDate: eventData?.startDate,
     endDate: eventData?.endDate || null,
     location: eventData?.location || '',
     category: eventData?.category || '',
-    isPrivate: eventData?.isPrivate || false,
+    isPrivate: !!eventData?.isPrivate,
     visibility: eventData?.visibility || [],
     attachments: eventData?.attachments || [],
     createdBy: userId,
     createdByName: userName,
-    createdAt: new Date()?.toISOString(),
+    createdAt: new Date().toISOString(),
     editedBy: null,
     editedByName: null,
     editedAt: null,
-    activity: [
-      createActivityEntry('created event', userId, userName)
-    ]
+    activity: [activityEntry('created event', userId, userName)],
   };
-  
-  // Add All Hands confirmation to activity if applicable
-  if (newEvent?.visibility?.includes('All Hands')) {
-    newEvent?.activity?.push(
-      createActivityEntry('confirmed All Hands visibility', userId, userName)
-    );
+  if (!event.isPrivate && event.visibility.includes('All Hands')) {
+    event.activity.push(activityEntry('confirmed All Hands visibility', userId, userName));
   }
-  
-  const allEvents = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  allEvents?.push(newEvent);
-  saveOpsEvents(allEvents);
 
-  // Log to Supabase activity feed
+  await outbox.submit({
+    key: rowKey(event.id), table: TABLE, type: 'insert',
+    row: toRow(event, tenantId), match: { id: event.id }, label: 'Adding a calendar event',
+  });
+
   logActivity({
     module: 'calendar',
-    action: OpsEventActions?.EVENT_CREATED,
+    action: OpsEventActions.EVENT_CREATED,
     entityType: 'ops_event',
-    entityId: newEvent?.id,
-    summary: `Calendar event created: ${newEvent?.title}`,
-    meta: { title: newEvent?.title, category: newEvent?.category, startDate: newEvent?.startDate }
+    entityId: event.id,
+    summary: `Calendar event created: ${event.title}`,
+    meta: { title: event.title, category: event.category, startDate: event.startDate },
   });
-  
-  return newEvent;
+  return event;
 };
 
 /**
- * Update an existing ops event
- * @param {string} eventId - Event ID
- * @param {Object} updates - Updated fields
- * @param {string} userId - Editor user ID
- * @param {string} userName - Editor user name
- * @returns {Object} Updated event
+ * Update an ops event. `oldEvent` is the event as the UI holds it (used for
+ * the change log). Throws on a real (online) failure.
  */
-export const updateOpsEvent = (eventId, updates, userId, userName) => {
-  const allEvents = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  const eventIndex = allEvents?.findIndex(e => e?.id === eventId);
-  
-  if (eventIndex === -1) return null;
-  
-  const oldEvent = allEvents?.[eventIndex];
-  const updatedEvent = {
-    ...oldEvent,
-    ...updates,
-    editedBy: userId,
-    editedByName: userName,
-    editedAt: new Date()?.toISOString()
-  };
-  
-  // Track changes in activity log
+export const updateOpsEvent = async (oldEvent, updates, userId, userName) => {
+  if (!oldEvent?.id) return null;
+
   const changes = [];
-  if (oldEvent?.title !== updates?.title) changes?.push('title');
-  if (oldEvent?.description !== updates?.description) changes?.push('description');
-  if (oldEvent?.startDate !== updates?.startDate) changes?.push('start date');
-  if (oldEvent?.endDate !== updates?.endDate) changes?.push('end date');
-  if (oldEvent?.location !== updates?.location) changes?.push('location');
-  if (oldEvent?.category !== updates?.category) changes?.push('category');
-  if (oldEvent?.isPrivate !== updates?.isPrivate) changes?.push('privacy');
-  if (JSON.stringify(oldEvent?.visibility) !== JSON.stringify(updates?.visibility)) changes?.push('visibility');
-  
-  if (changes?.length > 0) {
-    updatedEvent?.activity?.push(
-      createActivityEntry(`edited ${changes?.join(', ')}`, userId, userName, { changes })
-    );
-  }
-  
-  // Add All Hands confirmation if newly added
-  const hadAllHands = oldEvent?.visibility?.includes('All Hands');
-  const hasAllHands = updates?.visibility?.includes('All Hands');
-  if (hasAllHands && !hadAllHands) {
-    updatedEvent?.activity?.push(
-      createActivityEntry('confirmed All Hands visibility', userId, userName)
-    );
-  }
-  
-  allEvents[eventIndex] = updatedEvent;
-  saveOpsEvents(allEvents);
+  if (oldEvent.title !== updates?.title) changes.push('title');
+  if (oldEvent.description !== updates?.description) changes.push('description');
+  if (oldEvent.startDate !== updates?.startDate) changes.push('start date');
+  if (oldEvent.endDate !== updates?.endDate) changes.push('end date');
+  if (oldEvent.location !== updates?.location) changes.push('location');
+  if (oldEvent.category !== updates?.category) changes.push('category');
+  if (oldEvent.isPrivate !== updates?.isPrivate) changes.push('privacy');
+  if (JSON.stringify(oldEvent.visibility) !== JSON.stringify(updates?.visibility)) changes.push('visibility');
 
-  // Log to Supabase activity feed
+  const activity = [...(oldEvent.activity || [])];
+  if (changes.length) activity.push(activityEntry(`edited ${changes.join(', ')}`, userId, userName, { changes }));
+  if (updates?.visibility?.includes('All Hands') && !oldEvent.visibility?.includes('All Hands')) {
+    activity.push(activityEntry('confirmed All Hands visibility', userId, userName));
+  }
+
+  const editedAt = new Date().toISOString();
+  const updated = { ...oldEvent, ...updates, activity, editedBy: userId, editedByName: userName, editedAt };
+
+  await outbox.submit({
+    key: rowKey(oldEvent.id), table: TABLE, type: 'update',
+    patch: {
+      title: updated.title,
+      description: updated.description || '',
+      start_date: updated.startDate,
+      end_date: updated.endDate || null,
+      location: updated.location || '',
+      category: updated.category || '',
+      is_private: !!updated.isPrivate,
+      visibility: updated.isPrivate ? [] : (updated.visibility || []),
+      attachments: updated.attachments || [],
+      activity,
+      edited_by: userId,
+      edited_by_name: userName,
+      edited_at: editedAt,
+      updated_at: editedAt,
+    },
+    match: { id: oldEvent.id },
+    label: 'Editing a calendar event',
+  });
+
   logActivity({
     module: 'calendar',
-    action: OpsEventActions?.EVENT_UPDATED,
+    action: OpsEventActions.EVENT_UPDATED,
     entityType: 'ops_event',
-    entityId: eventId,
-    summary: `Calendar event updated: ${updatedEvent?.title}`,
-    meta: { title: updatedEvent?.title, changes }
+    entityId: oldEvent.id,
+    summary: `Calendar event updated: ${updated.title}`,
+    meta: { title: updated.title, changes },
   });
-  
-  return updatedEvent;
+  return updated;
 };
 
 /**
- * Delete an ops event
- * @param {string} eventId - Event ID
- * @returns {boolean} Success status
+ * Delete an ops event. Throws on a real (online) failure.
  */
-export const deleteOpsEvent = (eventId) => {
-  try {
-    const allEvents = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    const eventToDelete = allEvents?.find(e => e?.id === eventId);
-    const filtered = allEvents?.filter(e => e?.id !== eventId);
-    saveOpsEvents(filtered);
-
-    // Log to Supabase activity feed
-    if (eventToDelete) {
-      logActivity({
-        module: 'calendar',
-        action: OpsEventActions?.EVENT_DELETED,
-        entityType: 'ops_event',
-        entityId: eventId,
-        summary: `Calendar event deleted: ${eventToDelete?.title}`,
-        meta: { title: eventToDelete?.title }
-      });
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error deleting ops event:', error);
-    return false;
-  }
+export const deleteOpsEvent = async (event) => {
+  if (!event?.id) return false;
+  await outbox.submit({
+    key: rowKey(event.id), table: TABLE, type: 'delete',
+    match: { id: event.id }, label: 'Deleting a calendar event',
+  });
+  logActivity({
+    module: 'calendar',
+    action: OpsEventActions.EVENT_DELETED,
+    entityType: 'ops_event',
+    entityId: event.id,
+    summary: `Calendar event deleted: ${event.title}`,
+    meta: { title: event.title },
+  });
+  return true;
 };

@@ -83,6 +83,23 @@ const hasChiefAccessLocal = (user) => hasChiefAccess(user);
 // Daily refresh: returns today's date string
 const getTodayKey = () => new Date()?.toISOString()?.split('T')?.[0];
 
+// Supabase ids of the cards we're rolling over (local-only `card-…` drafts have none).
+const supabaseIdsOf = (jobs) => (jobs || [])
+  .map(j => j?.supabase_id || (j?.id && !String(j.id).startsWith('card-') ? j.id : null))
+  .filter(Boolean);
+
+// Move completed jobs into job_history and off team_jobs atomically (RPC).
+// Returns { error } — null on success, including when there is nothing to move.
+const archiveCompletedJobs = async (activeTenantId, jobs) => {
+  const ids = supabaseIdsOf(jobs);
+  if (!activeTenantId || ids.length === 0) return { error: null };
+  const { error } = await supabase.rpc('archive_completed_jobs', {
+    p_tenant_id: activeTenantId,
+    p_job_ids: ids,
+  });
+  return { error: error || null };
+};
+
 // Move completed jobs from yesterday into history and remove from cards
 const runDailyRefresh = async (cards, activeTenantId, boards) => {
   const todayKey = getTodayKey();
@@ -98,48 +115,14 @@ const runDailyRefresh = async (cards, activeTenantId, boards) => {
     c?.completedAt?.split('T')?.[0] < todayKey
   );
 
-  if (completedYesterday?.length > 0 && activeTenantId) {
-    try {
-      // Archive each completed job to job_history
-      const historyRows = completedYesterday?.map(job => {
-        const board = boards?.find(b => b?.id === job?.board);
-        return {
-          tenant_id: activeTenantId,
-          original_job_id: job?.supabase_id || null,
-          title: job?.title || job?.name || 'Untitled',
-          description: job?.description || null,
-          priority: job?.priority || null,
-          department: job?.department || job?.assignedDepartment || null,
-          board_id: job?.board || null,
-          board_name: board?.name || null,
-          assigned_to: job?.assigned_to || null,
-          created_by: job?.created_by || job?.createdBy || null,
-          completed_by: job?.completedBy || null,
-          completed_at: job?.completedAt || new Date()?.toISOString(),
-          completion_date: job?.completedAt ? job?.completedAt?.split('T')?.[0] : getTodayKey(),
-          metadata: job?.metadata || [],
-        };
-      });
-
-      await supabase?.from('job_history')?.insert(historyRows);
-    } catch (err) {
-      console.warn('Failed to archive completed jobs:', err);
-    }
-  }
-
-  // Delete completed jobs from team_jobs in Supabase so they don't re-appear on refresh
-  const supabaseIdsToDelete = completedYesterday
-    ?.map(j => j?.supabase_id || (j?.id && !j?.id?.startsWith('card-') ? j?.id : null))
-    ?.filter(Boolean);
-  if (supabaseIdsToDelete?.length > 0 && activeTenantId) {
-    try {
-      await supabase?.from('team_jobs')
-        ?.delete()
-        ?.in('id', supabaseIdsToDelete)
-        ?.eq('tenant_id', activeTenantId);
-    } catch (deleteErr) {
-      console.warn('Failed to delete completed jobs from team_jobs:', deleteErr);
-    }
+  // Archive + delete in one server-side transaction (archive_completed_jobs),
+  // so a failed archive can never be followed by a delete that loses the jobs.
+  // If it fails (offline, RLS, anything) we keep the cards and don't mark the
+  // day as refreshed — the rollover simply retries on the next load.
+  const { error: archiveError } = await archiveCompletedJobs(activeTenantId, completedYesterday);
+  if (archiveError) {
+    console.warn('Daily refresh: archiving completed jobs failed, will retry:', archiveError);
+    return cards;
   }
 
   // Remove completed-before-today jobs from cards
@@ -322,43 +305,11 @@ const TeamJobsManagement = () => {
 
       // Archive ALL completed jobs (today + previous days) to history
       if (completedJobs?.length > 0) {
-        try {
-          const historyRows = completedJobs?.map(job => {
-            const board = boards?.find(b => b?.id === job?.board);
-            return {
-              tenant_id: activeTenantId,
-              original_job_id: job?.supabase_id || null,
-              title: job?.title || job?.name || 'Untitled',
-              description: job?.description || null,
-              priority: job?.priority || null,
-              department: job?.department || job?.assignedDepartment || null,
-              board_id: job?.board || null,
-              board_name: board?.name || null,
-              assigned_to: job?.assigned_to || null,
-              created_by: job?.created_by || job?.createdBy || null,
-              completed_by: job?.completedBy || null,
-              completed_at: job?.completedAt || new Date()?.toISOString(),
-              completion_date: job?.completedAt ? job?.completedAt?.split('T')?.[0] : todayKey,
-              metadata: job?.metadata || [],
-            };
-          });
-          await supabase?.from('job_history')?.insert(historyRows);
-        } catch (archiveErr) {
-          console.warn('Failed to archive completed jobs to history:', archiveErr);
-        }
-        // Delete completed jobs from team_jobs in Supabase so they don't re-appear on refresh
-        const supabaseIdsToDelete = completedJobs
-          ?.map(j => j?.supabase_id || (j?.id && !j?.id?.startsWith('card-') ? j?.id : null))
-          ?.filter(Boolean);
-        if (supabaseIdsToDelete?.length > 0 && activeTenantId) {
-          try {
-            await supabase?.from('team_jobs')
-              ?.delete()
-              ?.in('id', supabaseIdsToDelete)
-              ?.eq('tenant_id', activeTenantId);
-          } catch (deleteErr) {
-            console.warn('Failed to delete completed jobs from team_jobs:', deleteErr);
-          }
+        const { error: archiveError } = await archiveCompletedJobs(activeTenantId, completedJobs);
+        if (archiveError) {
+          console.warn('Refresh: archiving completed jobs failed:', archiveError);
+          showToast('Couldn\'t archive completed jobs — check your connection and try again.', 'error');
+          return;
         }
         // Remove all completed jobs from local cards state
         const refreshedCards = cards?.filter(c => c?.status !== 'completed' && c?.completed !== true);

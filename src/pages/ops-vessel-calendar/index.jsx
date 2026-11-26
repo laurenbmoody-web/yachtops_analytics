@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Header from '../../components/navigation/Header';
 import Icon from '../../components/AppIcon';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTenant } from '../../contexts/TenantContext';
 import MonthView from './components/MonthView';
 import DayDetailPanel from './components/DayDetailPanel';
 import AddEventModal from './components/AddEventModal';
@@ -15,6 +16,7 @@ const OpsVesselCalendar = () => {
   const navigate = useNavigate();
   const { currentUser: authUser } = useAuth();
   const currentUser = getCurrentUser();
+  const { activeTenantId } = useTenant();
   const [selectedDate, setSelectedDate] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [events, setEvents] = useState([]);
@@ -30,20 +32,16 @@ const OpsVesselCalendar = () => {
     setDepartmentScopeState(newScope);
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = () => {
-    // Department filtering now happens at data level in loadOpsEvents
-    const filteredEvents = loadOpsEvents(currentUser || authUser);
+  const loadData = async () => {
+    // Shared vessel calendar (ops_events). Department filtering happens in loadOpsEvents.
+    const filteredEvents = await loadOpsEvents(activeTenantId, currentUser || authUser);
     setEvents(filteredEvents);
   };
-  
-  // Reload events when department scope changes
+
+  // Load on mount, when the vessel changes, and when department scope changes
   useEffect(() => {
     loadData();
-  }, [departmentScope]);
+  }, [activeTenantId, departmentScope]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDateSelect = (date) => {
     setSelectedDate(date);
@@ -116,6 +114,7 @@ const OpsVesselCalendar = () => {
               selectedDate={selectedDate}
               onDateSelect={handleDateSelect}
               events={events}
+              onEventChange={handleEventChange}
             />
           </div>
 

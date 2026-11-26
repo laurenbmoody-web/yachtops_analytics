@@ -5,7 +5,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameM
 import { weekStartsOn, weekdayLabelsShort } from '../../../utils/dateFormat';
 import EditEventModal from './EditEventModal';
 
-const MonthView = ({ currentMonth, onMonthChange, selectedDate, onDateSelect, events }) => {
+const MonthView = ({ currentMonth, onMonthChange, selectedDate, onDateSelect, events, onEventChange }) => {
   const [hoveredEventId, setHoveredEventId] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
   const [barPositions, setBarPositions] = useState([]);
@@ -689,8 +689,8 @@ const MonthView = ({ currentMonth, onMonthChange, selectedDate, onDateSelect, ev
           onClose={() => setEditingEvent(null)}
           onSuccess={() => {
             setEditingEvent(null);
-            // Trigger parent refresh
-            window.location?.reload();
+            // Refetch the shared calendar (no full page reload)
+            onEventChange?.();
           }}
         />
       )}
