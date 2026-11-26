@@ -6,7 +6,14 @@ Running log of things we've deliberately parked. Newest first.
 
 ## `get_my_context()` over-filters on `tenant_members.status = 'ACTIVE'` — inconsistent with the rest of the auth stack
 
-**Logged:** 2026-06-12 · **Status:** parked, needs whole-app review
+**Logged:** 2026-06-12 · **Status:** RESOLVED 2026-11-26 — option (a)
+
+> **Resolution:** `20261126120100_get_my_context_leave_statuses.sql` drops the
+> status gate (keeping `active = true`, and excluding only `'invited'`). Crew
+> marked `on_leave`, `rotational_leave`, `medical_leave`, `training` or
+> `travelling` now resolve their real tier instead of NULL → least-privileged.
+> `tenant_members.status` is a crew lifecycle label, not an access gate;
+> `active` + `permission_tier` is the source of truth across the stack.
 
 **Symptom that surfaced it:** A COMMAND user was locked to view-only on `/vessel-settings` (could not edit the vessel profile) even though they are COMMAND.
 

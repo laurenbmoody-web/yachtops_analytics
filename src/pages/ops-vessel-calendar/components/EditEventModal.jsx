@@ -6,12 +6,16 @@ import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useTenant } from '../../../contexts/TenantContext';
+import { showToast } from '../../../utils/toast';
 import { updateOpsEvent, deleteOpsEvent } from '../utils/opsEventStorage';
 import { DEPARTMENTS } from '../../../utils/authStorage';
 
 import ModalShell from '../../../components/ui/ModalShell';
 const EditEventModal = ({ event, onClose, onSuccess }) => {
   const { currentUser, isCommand, isChief, isHOD } = useAuth();
+  const { activeTenantId } = useTenant();
+  const [saving, setSaving] = useState(false);
   const [showAllHandsConfirm, setShowAllHandsConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const endTimeManuallyEdited = useRef(false);
@@ -67,7 +71,7 @@ const EditEventModal = ({ event, onClose, onSuccess }) => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e?.preventDefault();
     if (!formData?.title?.trim()) return;
 
@@ -85,7 +89,10 @@ const EditEventModal = ({ event, onClose, onSuccess }) => {
       ? new Date(`${formData?.endDate}T${formData?.endTime}`)
       : null;
 
-    updateOpsEvent(event?.id, {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await updateOpsEvent(event, {
       title: formData?.title,
       description: formData?.description,
       startDate: startDateTime?.toISOString(),
@@ -96,12 +103,29 @@ const EditEventModal = ({ event, onClose, onSuccess }) => {
       visibility: formData?.isPrivate ? [] : formData?.visibility,
       attachments: formData?.attachments
     }, currentUser?.id, currentUser?.name);
+    } catch (err) {
+      console.error('Edit calendar event failed:', err);
+      showToast('That change did not save. Check your connection and try again.', 'error');
+      setSaving(false);
+      return;
+    }
 
+    setSaving(false);
     onSuccess();
   };
 
-  const handleDelete = () => {
-    deleteOpsEvent(event?.id);
+  const handleDelete = async () => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      await deleteOpsEvent(event);
+    } catch (err) {
+      console.error('Delete calendar event failed:', err);
+      showToast('That event was not deleted. Check your connection and try again.', 'error');
+      setSaving(false);
+      return;
+    }
+    setSaving(false);
     onSuccess();
   };
 

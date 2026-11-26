@@ -6,12 +6,16 @@ import Input from '../../../components/ui/Input';
 import Select from '../../../components/ui/Select';
 import { Checkbox } from '../../../components/ui/Checkbox';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useTenant } from '../../../contexts/TenantContext';
+import { showToast } from '../../../utils/toast';
 import { createOpsEvent } from '../utils/opsEventStorage';
 import { DEPARTMENTS } from '../../../utils/authStorage';
 
 import ModalShell from '../../../components/ui/ModalShell';
 const AddEventModal = ({ onClose, onSuccess, selectedDate }) => {
   const { currentUser, isCommand, isChief, isHOD } = useAuth();
+  const { activeTenantId } = useTenant();
+  const [saving, setSaving] = useState(false);
   const [showAllHandsConfirm, setShowAllHandsConfirm] = useState(false);
   const endTimeManuallyEdited = useRef(false);
   const [formData, setFormData] = useState({
@@ -66,7 +70,7 @@ const AddEventModal = ({ onClose, onSuccess, selectedDate }) => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e?.preventDefault();
     if (!formData?.title?.trim()) return;
 
@@ -82,7 +86,10 @@ const AddEventModal = ({ onClose, onSuccess, selectedDate }) => {
       ? new Date(`${formData?.endDate}T${formData?.endTime}`)
       : null;
 
-    const newEvent = createOpsEvent({
+    if (saving) return;
+    setSaving(true);
+    try {
+      await createOpsEvent(activeTenantId, {
       title: formData?.title,
       description: formData?.description,
       startDate: startDateTime?.toISOString(),
@@ -93,7 +100,14 @@ const AddEventModal = ({ onClose, onSuccess, selectedDate }) => {
       visibility: formData?.isPrivate ? [] : formData?.visibility,
       attachments: formData?.attachments
     }, currentUser?.id, currentUser?.name);
+    } catch (err) {
+      console.error('Add calendar event failed:', err);
+      showToast('That event did not save. Check your connection and try again.', 'error');
+      setSaving(false);
+      return;
+    }
 
+    setSaving(false);
     onSuccess();
     onClose();
   };
