@@ -14,6 +14,17 @@ Running log of things we've deliberately parked. Newest first.
 > `travelling` now resolve their real tier instead of NULL → least-privileged.
 > `tenant_members.status` is a crew lifecycle label, not an access gate;
 > `active` + `permission_tier` is the source of truth across the stack.
+> Follow-up `20261126130000_leave_statuses_keep_access.sql` removed the same
+> `upper(tm.status) = 'ACTIVE'` gate from 24 RLS policies (job steps / checklist
+> items / links / reminders, duty-set templates, duty task progress) and from
+> `get_tenant_members_for_jobs`. Still present but harmless: a few policies and
+> helpers (`tm_is_member`, `tm_my_role`, `get_my_active_memberships`, and one
+> policy each on `profiles`, `rotation_assignments`, `tenants`) compare
+> `status = 'ACTIVE'` case-sensitively, which matches no row — they are dead and
+> other policies grant the access. Clean them up rather than "fix" them, since
+> making them live would widen rotation_assignments writes to HODs.
+> Intentional: the sign-in board (`crewPresence.js`) lists only `status =
+> 'active'` crew — that is "who is serving", not access.
 
 **Symptom that surfaced it:** A COMMAND user was locked to view-only on `/vessel-settings` (could not edit the vessel profile) even though they are COMMAND.
 
