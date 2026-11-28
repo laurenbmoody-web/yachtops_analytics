@@ -3,6 +3,15 @@
 // `fridge_temp_logs` (each reading: a typed temp and/or a photo, flagged
 // in/out of range). See migration 20260922100000_fridge_temp_logs.sql.
 import { supabase } from '../lib/supabaseClient';
+import { outbox, pendingUpload } from '../lib/offline/queue';
+import { newId } from '../lib/offline/ids';
+import { compressImage } from '../utils/compressImage';
+
+// Offline: a reading and its photo are recorded at sea, so both go through the
+// outbox (lib/offline). The photo's Storage path is chosen on the device and
+// queued ahead of the reading; the reading row is an outbox insert with a
+// device id. Online both run straight away and real errors still throw.
+const PHOTO_BUCKET = 'item-images';
 
 // Monday 00:00 (local) of the current week — the weekly cadence boundary.
 export function startOfWeek(d = new Date()) {
@@ -63,17 +72,34 @@ export async function fetchWeekStatus(tenantId) {
 }
 
 // Upload a thermometer photo. Reuses the public `item-images` bucket under a
-// fridge-temps/ path (same pattern as inventory photos).
+// fridge-temps/ path (same pattern as inventory photos). The photo is
+// compressed and queued through the outbox, so with no signal it waits on the
+// device; the public URL is known up front and stored on the reading.
 export async function uploadFridgePhoto(file, tenantId) {
   if (!file) return '';
-  const ext = (file.type?.split('/')?.[1] || 'jpg').replace('jpeg', 'jpg');
-  const path = `fridge-temps/${tenantId || 'shared'}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
-  const { error } = await supabase.storage.from('item-images').upload(path, file, {
-    upsert: true, contentType: file.type || 'image/jpeg',
+  const dataUrl = await compressImage(file);
+  if (!dataUrl) throw new Error('That photo could not be read');
+  const path = `fridge-temps/${tenantId || 'shared'}/${Date.now()}-${newId().slice(0, 8)}.jpg`;
+  await outbox.submit({
+    key: `storage:${PHOTO_BUCKET}|${path}`,
+    table: `storage:${PHOTO_BUCKET}`,
+    type: 'upload',
+    bucket: PHOTO_BUCKET,
+    path,
+    dataUrl,
+    contentType: (dataUrl.match(/^data:(.*?);/) || [])[1] || 'image/jpeg',
+    label: 'A fridge temperature photo',
   });
-  if (error) throw error;
-  const { data: pub } = supabase.storage.from('item-images').getPublicUrl(path);
+  const { data: pub } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path);
   return pub?.publicUrl || '';
+}
+
+// A stored photo URL → something displayable now: the copy kept on the device
+// while its upload is still queued, else the URL itself.
+export function fridgePhotoSrc(url) {
+  if (!url || typeof url !== 'string') return url;
+  const m = url.match(/\/object\/public\/item-images\/([^?]+)/);
+  return (m && pendingUpload(PHOTO_BUCKET, decodeURIComponent(m[1]))) || url;
 }
 
 export async function logReading(tenantId, fridge, { tempC, photoUrl, note, loggedBy }) {
@@ -81,22 +107,23 @@ export async function logReading(tenantId, fridge, { tempC, photoUrl, note, logg
   const temp = tempC === '' || tempC == null ? null : Number(tempC);
   if (temp == null && !photoUrl) throw new Error('Enter a temperature or add a photo');
   const in_range = computeInRange(temp, fridge.safe_min, fridge.safe_max);
-  const { data, error } = await supabase
-    ?.from('fridge_temp_logs')
-    ?.insert({
-      tenant_id: tenantId,
-      fridge_id: fridge.id,
-      temp_c: temp,
-      photo_url: photoUrl || null,
-      in_range,
-      note: note?.trim() || null,
-      logged_by: loggedBy || null,
-      logged_at: new Date().toISOString(),
-    })
-    ?.select()
-    ?.single();
-  if (error) throw error;
-  return data;
+  const row = {
+    id: newId(),
+    tenant_id: tenantId,
+    fridge_id: fridge.id,
+    temp_c: temp,
+    photo_url: photoUrl || null,
+    in_range,
+    note: note?.trim() || null,
+    logged_by: loggedBy || null,
+    logged_at: new Date().toISOString(),
+  };
+  const res = await outbox.submit({
+    key: `fridge_temp_logs|${row.id}`, table: 'fridge_temp_logs', type: 'insert',
+    row, match: { id: row.id }, returning: true,
+    label: `${fridge.name || 'Fridge'} temperature reading`,
+  });
+  return (Array.isArray(res?.data) ? res.data[0] : res?.data) || row;
 }
 
 // History across all fridges, newest first, with fridge name + logger name.

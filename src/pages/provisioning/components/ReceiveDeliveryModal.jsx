@@ -1681,9 +1681,7 @@ const ReceiveDeliveryModal = ({ list, items, tenantId, onClose, onComplete, mult
           const url = await uploadInvoiceFile(deliveryNoteFile, firstBatchId);
           if (url) {
             uploadedNoteUrl = url;
-            await supabase?.from('provisioning_deliveries')
-              ?.update({ invoice_file_url: url, parsed_data: parsedNote })
-              ?.eq('id', firstBatchId);
+            await updateRow('provisioning_deliveries', firstBatchId, { invoice_file_url: url, parsed_data: parsedNote }, 'Delivery note on a delivery');
           }
         } catch { /* non-fatal */ }
       }

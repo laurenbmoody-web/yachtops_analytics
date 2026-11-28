@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Icon from '../../../components/AppIcon';
-import { supabase } from '../../../lib/supabaseClient';
 import { groupDutyTasks, MONTHLY_DUE_AFTER_DAYS } from '../utils/dutyTasks';
 import {
+  saveDutyProgressRows,
   loadDutySetForJob,
   tickAllDutyTasks,
   dutyDailyTasks,
@@ -78,9 +78,7 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
     const next = { ...(progress?.[taskId] || { done: false, note: '' }), ...patch };
     setProgress(prev => ({ ...prev, [taskId]: next }));
     try {
-      const { error: upErr } = await supabase
-        ?.from('duty_task_progress')
-        ?.upsert({
+      await saveDutyProgressRows([{
           tenant_id: activeTenantId,
           job_id: jobId,
           template_id: template?.id || null,
@@ -93,8 +91,7 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
           auto_completed: false,
           note: next?.note || null,
           updated_at: new Date()?.toISOString(),
-        }, { onConflict: 'job_id,task_id' });
-      if (upErr) throw upErr;
+        }]);
     } catch (err) {
       console.warn('[DutySetChecklist] save failed:', err);
       setError('That change did not save. Check your connection and try again.');
@@ -139,9 +136,7 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
     setBulkSaving(true);
     try {
       const now = new Date()?.toISOString();
-      const { error: upErr } = await supabase
-        ?.from('duty_task_progress')
-        ?.upsert(
+      await saveDutyProgressRows(
           ids?.map(id => ({
             tenant_id: activeTenantId,
             job_id: jobId,
@@ -154,9 +149,8 @@ const DutySetChecklist = ({ job, activeTenantId, currentUserId, canInteract = tr
             note: progress?.[id]?.note || null,
             updated_at: now,
           })),
-          { onConflict: 'job_id,task_id' },
+          'Clearing the daily round',
         );
-      if (upErr) throw upErr;
       setProgress(prev => {
         const next = { ...prev };
         ids?.forEach(id => { next[id] = { ...(next?.[id] || { note: '' }), done: false, auto: false }; });

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
+import { insertRow } from '../../../lib/offline/rowWrites';
 import { useAuth } from '../../../contexts/AuthContext';
 import { vesselLocalDate } from '../../../utils/vesselLocalTime';
 
@@ -43,15 +44,15 @@ export function useGuestDayNotes(guestId) {
       .eq('active', true)
       .single();
 
-    const { error: err } = await supabase
-      .from('guest_day_notes')
-      .insert({
+    // Through the outbox: queues on the device with no signal (lib/offline).
+    const { error: err } = await insertRow('guest_day_notes', {
+        created_at: new Date().toISOString(),
         tenant_id: member.tenant_id,
         guest_id:  guestId,
         content,
         author_id: user.id,
         note_date: today,
-      });
+      }, 'A guest day note', { timestamps: false });
 
     if (err) throw err;
     fetch();
