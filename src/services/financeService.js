@@ -10,6 +10,9 @@
 // The active tenant is resolved by the caller (useTenant().activeTenantId) and passed in.
 
 import { supabase } from '../lib/supabaseClient';
+import { outbox, pendingUpload } from '../lib/offline/queue';
+import { insertRow } from '../lib/offline/rowWrites';
+import { compressImage } from '../utils/compressImage';
 import {
   computeAccountBalance,
   computeAccountBaseBalance,
@@ -36,6 +39,9 @@ const RECEIPT_BUCKET = 'ledger-receipts';
 
 export const currentUserId = async () => {
   try {
+    // Stored session first (no network — works at sea), then a live check.
+    const { data: sess } = await supabase.auth.getSession();
+    if (sess?.session?.user?.id) return sess.session.user.id;
     const { data } = await supabase.auth.getUser();
     return data?.user?.id || null;
   } catch {
@@ -457,27 +463,51 @@ export const clearMerchantRule = async (tenantId, payee) => {
 
 // Upload a receipt file for a ledger row into the private ledger-receipts bucket
 // (path: <tenant>/<txn>/<ts>.<ext>) and record it in ledger_transaction_attachments.
+// Offline: receipts are snapped on the spot, often with no signal. The file is
+// queued through the outbox (type 'upload', path decided on the device) ahead
+// of its attachment row, so both sync in order when the link returns; until
+// then the receipt shows from the copy kept on the device.
+const readAsDataUrl = (file) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res(r.result);
+  r.onerror = () => rej(new Error('That file could not be read'));
+  r.readAsDataURL(file);
+});
+
 export const uploadReceipt = async (txnId, file, { tenantId }) => {
   if (!txnId || !file || !tenantId) return { data: null, error: new Error('Missing receipt, transaction, or tenant') };
   const uploaded_by = await currentUserId();
-  const ext = (file.name || '').split('.').pop() || 'bin';
+  const isImage = /^image\//.test(file.type || '') && !/svg/.test(file.type || '');
+  let dataUrl;
+  try {
+    dataUrl = isImage ? await compressImage(file, 2200, 0.86) : await readAsDataUrl(file);
+  } catch (e) { return { data: null, error: e }; }
+  if (!dataUrl) return { data: null, error: new Error('That file could not be read') };
+  const mime = (String(dataUrl).match(/^data:(.*?);/) || [])[1] || file.type || 'application/octet-stream';
+  const ext = mime === 'image/jpeg' ? 'jpg' : ((file.name || '').split('.').pop() || 'bin');
   const storage_path = `${tenantId}/${txnId}/${Date.now()}.${ext}`;
-  const { error: upErr } = await supabase.storage.from(RECEIPT_BUCKET).upload(storage_path, file, { upsert: false });
-  if (upErr) return { data: null, error: upErr };
-  const { data, error } = await supabase
-    .from('ledger_transaction_attachments')
-    .insert({
-      tenant_id: tenantId,
-      ledger_transaction_id: txnId,
-      storage_path,
-      file_name: file.name || null,
-      mime_type: file.type || null,
-      size_bytes: file.size ?? null,
-      uploaded_by,
-    })
-    .select(ATTACHMENT_SELECT)
-    .single();
-  return { data, error };
+  try {
+    await outbox.submit({
+      key: `storage:${RECEIPT_BUCKET}|${storage_path}`,
+      table: `storage:${RECEIPT_BUCKET}`,
+      type: 'upload',
+      bucket: RECEIPT_BUCKET,
+      path: storage_path,
+      dataUrl,
+      contentType: mime,
+      label: 'A receipt',
+    });
+  } catch (upErr) { return { data: null, error: upErr }; }
+  return insertRow('ledger_transaction_attachments', {
+    created_at: new Date().toISOString(),
+    tenant_id: tenantId,
+    ledger_transaction_id: txnId,
+    storage_path,
+    file_name: file.name || null,
+    mime_type: mime,
+    size_bytes: file.size ?? null,
+    uploaded_by,
+  }, 'A receipt record', { timestamps: false });
 };
 
 // Attachments for one (or many) ledger rows, each with a short-lived signed URL.
@@ -491,6 +521,8 @@ export const listAttachments = async (txnIds) => {
     .order('created_at', { ascending: true });
   if (error) return { data: null, error };
   const withUrls = await Promise.all((data || []).map(async (a) => {
+    const local = pendingUpload(RECEIPT_BUCKET, a.storage_path); // still queued on this device
+    if (local) return { ...a, url: local };
     const { data: signed } = await supabase.storage.from(RECEIPT_BUCKET).createSignedUrl(a.storage_path, 3600);
     return { ...a, url: signed?.signedUrl || null };
   }));

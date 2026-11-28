@@ -35,29 +35,8 @@ export const FlagField = ({ flag, note, onFlag, onNote }) => (
 // Downscale + JPEG-compress a captured photo before upload. Phone photos are
 // several MB; sending them raw was failing silently for all but one — this keeps
 // each around ~200KB so every photo saves reliably.
-export const compressImage = (file, maxDim = 1600, quality = 0.82) => new Promise((res) => {
-  const reader = new FileReader();
-  reader.onload = () => {
-    const img = new Image();
-    img.onload = () => {
-      let { width, height } = img;
-      if (width > maxDim || height > maxDim) {
-        if (width >= height) { height = Math.round((height * maxDim) / width); width = maxDim; }
-        else { width = Math.round((width * maxDim) / height); height = maxDim; }
-      }
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        res(canvas.toDataURL('image/jpeg', quality));
-      } catch { res(reader.result); }
-    };
-    img.onerror = () => res(reader.result);
-    img.src = reader.result;
-  };
-  reader.onerror = () => res('');
-  reader.readAsDataURL(file);
-});
+import { compressImage } from '../../../utils/compressImage';
+export { compressImage };
 
 // Add a resident garment straight into a wardrobe — a rich, catalogue-grade
 // record (multiple photos first, then the full descriptive detail a high-value

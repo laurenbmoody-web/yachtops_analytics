@@ -7,7 +7,29 @@
 // the component's copy.
 
 import { supabase } from '../../../lib/supabaseClient';
+import { outbox } from '../../../lib/offline/queue';
 import { groupDutyTasks } from './dutyTasks';
+
+/**
+ * Save tick rows (duty_task_progress, one per job + task) through the offline
+ * outbox. Duty rounds are ticked off at sea: online each row is written at
+ * once and a real rejection still throws; with no signal the ticks queue on
+ * the device, show on every read, and sync later. Edits of the same box fold
+ * together while they wait.
+ */
+export const saveDutyProgressRows = async (rows, label = 'A duty checklist tick') => {
+  for (const row of rows || []) {
+    await outbox.submit({
+      key: `duty_task_progress|${row.job_id}:${row.task_id}`,
+      table: 'duty_task_progress',
+      type: 'upsert',
+      onConflict: 'job_id,task_id',
+      row,
+      match: { job_id: row.job_id, task_id: row.task_id },
+      label,
+    });
+  }
+};
 
 export const rotationAssignmentIdOf = (job) =>
   job?.rotation_assignment_id || job?.rotationAssignmentId || null;
@@ -126,24 +148,21 @@ export const tickAllDutyTasks = async ({ job, tenantId, userId, auto = false }) 
   if (!outstanding?.length) return [];
 
   const now = new Date()?.toISOString();
-  const { error } = await supabase
-    ?.from('duty_task_progress')
-    ?.upsert(
-      outstanding?.map(t => ({
-        tenant_id: tenantId,
-        job_id: jobId,
-        template_id: template?.id || null,
-        task_id: t?.id,
-        done: true,
-        done_at: now,
-        done_by: userId || null,
-        auto_completed: auto,
-        note: progress?.[t?.id]?.note || null,
-        updated_at: now,
-      })),
-      { onConflict: 'job_id,task_id' },
-    );
-  if (error) throw error;
+  await saveDutyProgressRows(
+    outstanding?.map(t => ({
+      tenant_id: tenantId,
+      job_id: jobId,
+      template_id: template?.id || null,
+      task_id: t?.id,
+      done: true,
+      done_at: now,
+      done_by: userId || null,
+      auto_completed: auto,
+      note: progress?.[t?.id]?.note || null,
+      updated_at: now,
+    })),
+    'Ticking the daily round',
+  );
 
   return outstanding?.map(t => t?.id);
 };
@@ -161,19 +180,26 @@ export const clearAutoDutyTasks = async ({ job }) => {
   const jobId = jobIdOf(job);
   if (!jobId) return [];
 
+  // Which ticks were automatic — read (works offline from the saved copy, with
+  // any queued ticks laid over it), then clear exactly those rows.
   const { data, error } = await supabase
     ?.from('duty_task_progress')
-    ?.update({
-      done: false,
-      done_at: null,
-      done_by: null,
-      auto_completed: false,
-      updated_at: new Date()?.toISOString(),
-    })
+    ?.select('task_id')
     ?.eq('job_id', jobId)
-    ?.eq('auto_completed', true)
-    ?.select('task_id');
+    ?.eq('auto_completed', true);
   if (error) throw error;
+  const ids = (data || [])?.map(r => r?.task_id)?.filter(Boolean);
 
-  return (data || [])?.map(r => r?.task_id);
+  const now = new Date()?.toISOString();
+  for (const taskId of ids) {
+    await outbox.submit({
+      key: `duty_task_progress|${jobId}:${taskId}`,
+      table: 'duty_task_progress',
+      type: 'update',
+      patch: { done: false, done_at: null, done_by: null, auto_completed: false, updated_at: now },
+      match: { job_id: jobId, task_id: taskId, auto_completed: true },
+      label: 'Reopening a duty round',
+    });
+  }
+  return ids;
 };

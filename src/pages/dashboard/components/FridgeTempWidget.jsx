@@ -7,7 +7,7 @@ import { showToast } from '../../../utils/toast';
 import BarcodeScanModal from '../../inventory/components/BarcodeScanModal';
 import { printItemQr } from '../../inventory/utils/itemQr';
 import {
-  fetchWeekStatus, fetchFridges, logReading, uploadFridgePhoto, computeInRange,
+  fetchWeekStatus, fetchFridges, logReading, uploadFridgePhoto, computeInRange, fridgePhotoSrc,
   fetchHistory, updateFridge, addFridge, deactivateFridge,
 } from '../../../services/fridgeTemps';
 import { exportFridgeTempsPdf } from '../utils/fridgeTempsExport';
@@ -82,7 +82,7 @@ const LogModal = ({ fridge, tenantId, userId, onClose, onSaved }) => {
         <label className="ft-label">Or photograph the thermometer</label>
         {photoUrl ? (
           <div className="ft-photo">
-            <img src={photoUrl} alt="thermometer" />
+            <img src={fridgePhotoSrc(photoUrl)} alt="thermometer" />
             <button className="ft-photo-x" onClick={() => setPhotoUrl('')} aria-label="Remove photo"><Icon name="X" size={14} /></button>
           </div>
         ) : (
@@ -151,7 +151,7 @@ const HistoryModal = ({ tenantId, onClose }) => {
                   <span className="ft-hmeta">{ddmm(r.logged_at)} {new Date(r.logged_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}{r.loggedByName ? ` · ${r.loggedByName}` : ''}{r.note ? ` · ${r.note}` : ''}</span>
                 </div>
                 {r.photo_url && (
-                  <a className="ft-hphoto" href={r.photo_url} target="_blank" rel="noreferrer"><img src={r.photo_url} alt="" /></a>
+                  <a className="ft-hphoto" href={fridgePhotoSrc(r.photo_url)} target="_blank" rel="noreferrer"><img src={fridgePhotoSrc(r.photo_url)} alt="" /></a>
                 )}
                 <span className={`ft-htemp ${r.in_range === false ? 'out' : r.in_range ? 'in' : 'na'}`}>
                   {r.temp_c == null ? (r.photo_url ? 'photo' : '—') : `${r.temp_c}°`}

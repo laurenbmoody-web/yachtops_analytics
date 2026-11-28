@@ -14,11 +14,20 @@
 //
 // Optimistic state is applied for fast in-widget actions (complete,
 // uncomplete, edit) — the UI flips on tap and rolls back on the rare
-// error path. addNote stays non-optimistic; the row only appears once
-// it's persisted, so we don't need to invent a temp id.
+// error path.
+//
+// Offline: stew notes are written mid-service, often below decks with no
+// signal, so every write goes through the outbox (lib/offline/rowWrites). New
+// notes get a device id; with no network they queue, show on every read, and
+// sync later. Online, real errors still come back exactly as before.
+
+// stew_notes / guest_day_notes have created_at but no updated_at.
+const NO_UPDATED_AT = { timestamps: false };
+const writeNote = (id, patch, label = 'A stew note') => updateRow('stew_notes', id, patch, label);
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
+import { insertRow, updateRow } from '../../../lib/offline/rowWrites';
 import { useAuth } from '../../../contexts/AuthContext';
 import { appendGuestHistory } from '../../../utils/guestHistoryLog';
 import { vesselLocalDate } from '../../../utils/vesselLocalTime';
@@ -134,9 +143,8 @@ export function useStewNotes(opts = {}) {
       .eq('active', true)
       .single();
 
-    const { data, error: err } = await supabase
-      .from('stew_notes')
-      .insert({
+    const { data, error: err } = await insertRow('stew_notes', {
+        created_at:        new Date().toISOString(),
         tenant_id:         member.tenant_id,
         content:           content.trim(),
         author_id:         user.id,
@@ -148,9 +156,7 @@ export function useStewNotes(opts = {}) {
         // array is the canonical surface going forward.
         related_guest_ids: guestIds,
         related_guest_id:  guestIds[0] ?? null,
-      })
-      .select('*')
-      .single();
+      }, 'A new stew note', NO_UPDATED_AT);
 
     if (err) throw err;
     fetchNotes();
@@ -167,10 +173,7 @@ export function useStewNotes(opts = {}) {
     setNotes(curr => curr.map(n => n.id === id
       ? { ...n, completed_at: nowIso, completed_by: user.id }
       : n));
-    const { error: err } = await supabase
-      .from('stew_notes')
-      .update({ completed_at: nowIso, completed_by: user.id })
-      .eq('id', id);
+    const { error: err } = await writeNote(id, { completed_at: nowIso, completed_by: user.id }, 'Completing a stew note');
     if (err) {
       setNotes(prev);
       setError(err.message);
@@ -183,10 +186,7 @@ export function useStewNotes(opts = {}) {
     setNotes(curr => curr.map(n => n.id === id
       ? { ...n, completed_at: null, completed_by: null }
       : n));
-    const { error: err } = await supabase
-      .from('stew_notes')
-      .update({ completed_at: null, completed_by: null })
-      .eq('id', id);
+    const { error: err } = await writeNote(id, { completed_at: null, completed_by: null }, 'Reopening a stew note');
     if (err) {
       setNotes(prev);
       setError(err.message);
@@ -223,10 +223,7 @@ export function useStewNotes(opts = {}) {
     const prev = notes;
     setNotes(curr => curr.map(n => (n.id === id ? { ...n, ...update } : n)));
 
-    const { error: err } = await supabase
-      .from('stew_notes')
-      .update(update)
-      .eq('id', id);
+    const { error: err } = await writeNote(id, update, 'Editing a stew note');
     if (err) {
       setNotes(prev);
       setError(err.message);
@@ -241,19 +238,13 @@ export function useStewNotes(opts = {}) {
 
   const updateStatus = useCallback(async (id, status) => {
     setNotes(curr => curr.map(n => n.id === id ? { ...n, status } : n));
-    const { error: err } = await supabase
-      .from('stew_notes')
-      .update({ status })
-      .eq('id', id);
+    const { error: err } = await writeNote(id, { status });
     if (err) { setError(err.message); fetchNotes(); }
   }, [fetchNotes]);
 
   const deleteNote = useCallback(async (id) => {
     setNotes(curr => curr.filter(n => n.id !== id));
-    const { error: err } = await supabase
-      .from('stew_notes')
-      .update({ is_deleted: true, deleted_at: new Date().toISOString(), deleted_by_user_id: user?.id ?? null })
-      .eq('id', id);
+    const { error: err } = await writeNote(id, { is_deleted: true, deleted_at: new Date().toISOString(), deleted_by_user_id: user?.id ?? null }, 'Deleting a stew note');
     if (err) { setError(err.message); fetchNotes(); }
   }, [user, fetchNotes]);
 
@@ -285,10 +276,7 @@ export function useStewNotes(opts = {}) {
       });
     } catch (e) { setError(e.message); return; }
 
-    const { error: updNoteErr } = await supabase
-      .from('stew_notes')
-      .update({ saved_to_preferences: true, related_guest_id: guestIdArg })
-      .eq('id', id);
+    const { error: updNoteErr } = await writeNote(id, { saved_to_preferences: true, related_guest_id: guestIdArg }, 'Saving a stew note to preferences');
     if (updNoteErr) { setError(updNoteErr.message); return; }
 
     fetchNotes();
@@ -308,21 +296,17 @@ export function useStewNotes(opts = {}) {
 
     const today = vesselLocalDate();
 
-    const { error: insertErr } = await supabase
-      .from('guest_day_notes')
-      .insert({
+    const { error: insertErr } = await insertRow('guest_day_notes', {
+        created_at: new Date().toISOString(),
         tenant_id: member.tenant_id,
         guest_id:  guestIdArg,
         content:   note.content,
         author_id: user.id,
         note_date: today,
-      });
+      }, 'A guest day note', NO_UPDATED_AT);
     if (insertErr) { setError(insertErr.message); return; }
 
-    const { error: updNoteErr } = await supabase
-      .from('stew_notes')
-      .update({ status: 'done', related_guest_id: guestIdArg })
-      .eq('id', id);
+    const { error: updNoteErr } = await writeNote(id, { status: 'done', related_guest_id: guestIdArg }, 'Moving a stew note to the day notes');
     if (updNoteErr) { setError(updNoteErr.message); return; }
 
     fetchNotes();

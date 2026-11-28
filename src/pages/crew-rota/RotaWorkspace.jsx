@@ -581,9 +581,18 @@ export default function RotaWorkspace({
   const restoreSnapshot = useCallback(async (snap) => {
     if (!snap?.rotaId) return;
     if (snap.memberIds?.length) {
-      await supabase.from('rota_shifts').delete()
-        .eq('rota_id', snap.rotaId).in('member_id', snap.memberIds);
-      if (snap.rows.length) await supabase.from('rota_shifts').insert(snap.rows);
+      // One transaction (restore_rota_snapshot): the old delete-then-insert
+      // could wipe the scope's shifts if the insert failed. On failure nothing
+      // changes and the caller's refetch shows the edits still in place.
+      const { error: restoreErr } = await supabase.rpc('restore_rota_snapshot', {
+        p_rota_id: snap.rotaId,
+        p_member_ids: snap.memberIds,
+        p_rows: snap.rows || [],
+      });
+      if (restoreErr) {
+        console.warn('[RotaWorkspace] discard/restore failed:', restoreErr.message || restoreErr);
+        return false;
+      }
     }
     for (const dId of (snap.deptIds || [])) {
       if (!dId) continue;
@@ -591,6 +600,7 @@ export default function RotaWorkspace({
         p_rota_id: snap.rotaId, p_department_id: dId, p_changed: false,
       }).then(() => {}).catch(() => {});
     }
+    return true;
   }, []);
 
   const beginEditMode = useCallback(async () => {
@@ -652,7 +662,14 @@ export default function RotaWorkspace({
   const handleDiscardExit = useCallback(async () => {
     const snap = snapshotRef.current;
     setReverting(true);
-    await restoreSnapshot(snap);
+    const restored = await restoreSnapshot(snap);
+    if (restored === false) {
+      // Nothing was changed — keep the baseline so Discard can be tried again.
+      setReverting(false);
+      setCancelOpen(false);
+      showToast('Could not discard — check your connection and try again. Your edits are still saved as a draft.');
+      return;
+    }
     snapshotRef.current = null;
     setReverting(false);
     setCancelOpen(false);

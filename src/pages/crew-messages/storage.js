@@ -1,3 +1,4 @@
+import { insertRow } from '../../lib/offline/rowWrites';
 import { supabase } from '../../lib/supabaseClient';
 
 // Crew (vessel) side of supplier↔yacht messaging. Tenant members read their
@@ -97,12 +98,20 @@ export const fetchThreadMessages = async (threadId) => {
 // Send a message from the vessel side. Pass replyToId to quote another message,
 // and attachments (array of {url,name,type,size}) for photos / dockets.
 export const sendVesselMessage = async (threadId, body, replyToId = null, attachments = []) => {
-  const { data: auth } = await supabase.auth.getUser();
-  const { data, error } = await supabase
-    .from('supplier_messages')
-    .insert({ thread_id: threadId, sender_type: 'vessel', sender_user_id: auth?.user?.id ?? null, body, reply_to_id: replyToId, attachments })
-    .select()
-    .single();
+  // getSession reads the stored session (no network), so this works at sea.
+  // The message goes through the offline outbox: online it is sent at once
+  // (real errors still throw); with no signal it queues, shows in the thread,
+  // and is delivered when the link returns.
+  const { data: auth } = await supabase.auth.getSession();
+  const { data, error } = await insertRow('supplier_messages', {
+    created_at: new Date().toISOString(),
+    thread_id: threadId,
+    sender_type: 'vessel',
+    sender_user_id: auth?.session?.user?.id ?? null,
+    body,
+    reply_to_id: replyToId,
+    attachments,
+  }, 'A message to a supplier', { timestamps: false });
   if (error) throw error;
   return data;
 };

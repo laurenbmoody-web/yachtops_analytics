@@ -1,5 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabaseClient';
+import { outbox } from '../../../lib/offline/queue';
+
+// Guest state / mood / ashore taps happen on the move around the boat, so they
+// go through the offline outbox: online they run at once (a real rejection
+// still comes back as { error }); with no signal they queue on the device,
+// show on every read of `guests`, and sync later.
+async function writeGuest(guestId, patch, label) {
+  try {
+    await outbox.submit({ key: `guests|${guestId}`, table: 'guests', type: 'update', patch, match: { id: guestId }, label });
+    return { error: null };
+  } catch (error) {
+    return { error };
+  }
+}
 import { useAuth } from '../../../contexts/AuthContext';
 import { buildHistoryEntry, appendToLog } from '../../../utils/guestHistoryLog';
 
@@ -70,10 +84,7 @@ export function useGuests() {
         : g
     ));
 
-    const { error: err } = await supabase
-      .from('guests')
-      .update({ current_state: nextState, ashore_context: ashoreContext, history_log: nextLog })
-      .eq('id', guestId);
+    const { error: err } = await writeGuest(guestId, { current_state: nextState, ashore_context: ashoreContext, history_log: nextLog }, 'A guest status change');
     if (err) {
       setError(err.message);
       fetch();
@@ -103,10 +114,7 @@ export function useGuests() {
         : g
     ));
 
-    const { error: err } = await supabase
-      .from('guests')
-      .update({ current_mood: nextMood, history_log: nextLog })
-      .eq('id', guestId);
+    const { error: err } = await writeGuest(guestId, { current_mood: nextMood, history_log: nextLog }, 'A guest mood change');
     if (err) {
       setError(err.message);
       fetch();
@@ -140,10 +148,7 @@ export function useGuests() {
         : g
     ));
 
-    const { error: err } = await supabase
-      .from('guests')
-      .update({ ashore_context: nextCtx, history_log: nextLog })
-      .eq('id', guestId);
+    const { error: err } = await writeGuest(guestId, { ashore_context: nextCtx, history_log: nextLog }, 'A guest ashore plan');
     if (err) {
       setError(err.message);
       fetch();

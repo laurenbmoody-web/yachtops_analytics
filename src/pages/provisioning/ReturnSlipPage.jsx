@@ -19,6 +19,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { dateLocale } from '../../utils/dateFormat';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
+import { outbox } from '../../lib/offline/queue';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTenant } from '../../contexts/TenantContext';
 import {
@@ -510,11 +511,13 @@ export default function ReturnSlipPage() {
   }
 
   const markComplete = async () => {
-    const { error } = await supabase
-      ?.from('delivery_inbox')
-      ?.update({ status: 'archived' })
-      ?.in('id', items.map(i => i.id));
-    if (!error) navigate('/provisioning/inbox');
+    // Outbox: archiving the slip's items queues with no signal (lib/offline).
+    try {
+      for (const i of items) {
+        await outbox.submit({ key: `delivery_inbox|${i.id}`, table: 'delivery_inbox', type: 'update', patch: { status: 'archived' }, match: { id: i.id }, label: 'Completing a return slip' });
+      }
+      navigate('/provisioning/inbox');
+    } catch (err) { console.error('[ReturnSlip] mark complete failed', err); }
   };
 
   const total = items.reduce((sum, i) => sum + (parseFloat(i.line_total) || 0), 0);

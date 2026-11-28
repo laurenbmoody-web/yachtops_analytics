@@ -8,7 +8,7 @@ import { showToast } from '../../utils/toast';
 import BarcodeScanModal from '../inventory/components/BarcodeScanModal';
 import { printItemQr } from '../inventory/utils/itemQr';
 import {
-  fetchFridges, fetchHistory, logReading, uploadFridgePhoto, computeInRange, startOfWeek,
+  fetchFridges, fetchHistory, logReading, uploadFridgePhoto, computeInRange, fridgePhotoSrc, startOfWeek,
   updateFridge, addFridge, deactivateFridge, updateReading, deleteReading,
 } from '../../services/fridgeTemps';
 import { exportFridgeTempsPdf } from '../dashboard/utils/fridgeTempsExport';
@@ -138,7 +138,7 @@ const LogModal = ({ fridge, tenantId, userId, onClose, onSaved }) => {
         <label className="ft-label">Or photograph the thermometer</label>
         {photoUrl ? (
           <div className="ft-photo">
-            <img src={photoUrl} alt="thermometer" />
+            <img src={fridgePhotoSrc(photoUrl)} alt="thermometer" />
             <button className="ft-photo-x" onClick={() => setPhotoUrl('')} aria-label="Remove photo"><Icon name="X" size={14} /></button>
           </div>
         ) : (
@@ -621,7 +621,7 @@ const FridgeTempsPage = () => {
                     <span className="ftp-lby">{r.loggedByName || '—'}</span>
                     <span className="ftp-lnote" title={r.note || ''}>{r.note || ''}</span>
                     <span className="ftp-lact">
-                      {r.photo_url && <a className="ftp-iconbtn" href={r.photo_url} target="_blank" rel="noreferrer" title="View photo"><Icon name="Image" size={14} /></a>}
+                      {r.photo_url && <a className="ftp-iconbtn" href={fridgePhotoSrc(r.photo_url)} target="_blank" rel="noreferrer" title="View photo"><Icon name="Image" size={14} /></a>}
                       {canManage && <button className="ftp-iconbtn" onClick={() => setEditReading(r)} title="Edit reading"><Icon name="Pencil" size={14} /></button>}
                     </span>
                   </div>

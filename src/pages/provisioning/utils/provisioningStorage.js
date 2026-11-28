@@ -42,6 +42,13 @@ import { normalizeUnit, isBulkUnit } from '../../../data/unitGroups';
 import { sendNotification, NOTIFICATION_TYPES, SEVERITY } from '../../team-jobs-management/utils/notifications';
 import { loadTrips, findTripByAnyId } from '../../trips-management-dashboard/utils/tripStorage';
 
+// Queue a plain status/field update on one row through the offline outbox
+// (no row handed back). Online it runs at once and a real rejection throws;
+// with no signal it waits on the device and shows on reads of that table.
+const queueRowUpdate = (table, id, patch, label) => outbox.submit({
+  key: `${table}|${id}`, table, type: 'update', patch, match: { id }, label,
+});
+
 // ── Offline-capable writes ──────────────────────────────────────────────────
 // Board and line edits, ticking items off, receiving a delivery and pushing it
 // into inventory go through the app-wide outbox (lib/offline): online they run
@@ -811,12 +818,11 @@ export const markSupplierOrderReceived = async (orderId) => {
     if (updates.length) await receiveItems(updates);
   }
 
-  const { data: updated, error: uErr } = await supabase
-    ?.from('supplier_orders')
-    ?.update({ status: 'received', delivered_at: new Date().toISOString() })
-    ?.eq('id', orderId)
-    ?.select()
-    ?.single();
+  const { data: updated, error: uErr } = await updateRow(
+    'supplier_orders', orderId,
+    { status: 'received', delivered_at: new Date().toISOString() },
+    'Marking an order received',
+  );
   if (uErr) throw uErr;
   return updated;
 };
@@ -1257,20 +1263,14 @@ export const cascadeListAndOrderStatusAfterReceive = async (listIds) => {
       // Board (provisioning_lists) cascade
       const newListStatus = computeListStatusAfterDelivery(items);
       if (newListStatus) {
-        await supabase
-          ?.from('provisioning_lists')
-          ?.update({ status: newListStatus })
-          ?.eq('id', listId);
+        await queueRowUpdate('provisioning_lists', listId, { status: newListStatus }, 'Board status after a delivery');
       }
 
       // Per-order cascade
       await Promise.allSettled((orders || []).map(async (order) => {
         const newOrderStatus = computeOrderStatusAfterReceive(order, items);
         if (newOrderStatus && newOrderStatus !== order.status) {
-          await supabase
-            ?.from('supplier_orders')
-            ?.update({ status: newOrderStatus })
-            ?.eq('id', order.id);
+          await queueRowUpdate('supplier_orders', order.id, { status: newOrderStatus }, 'Order status after a delivery');
         }
       }));
     } catch (err) {
@@ -1932,11 +1932,9 @@ export const repairUnbatchedReceivedItems = async (listId, tenantId, userId) => 
     if (!batch?.id) return false;
 
     // Stamp all unbatched received items with the new batch ID
-    const { error: updateErr } = await supabase
-      ?.from('provisioning_items')
-      ?.update({ receive_batch_id: batch.id })
-      ?.in('id', unbatched.map(r => r.id));
-    if (updateErr) throw updateErr;
+    for (const r of unbatched) {
+      await queueRowUpdate('provisioning_items', r.id, { receive_batch_id: batch.id }, 'Linking received lines to a delivery');
+    }
     return true;
   } catch (err) {
     console.error('[provisioningStorage] repairUnbatchedReceivedItems error:', err);
@@ -2649,14 +2647,12 @@ export const dismissInboxItem = async (itemId, userId) => {
 /** Mark delivery_inbox item as "returned to supplier" — moves to pending_return queue. */
 export const returnInboxItem = async (itemId, requestedBy = null) => {
   try {
-    const { error } = await supabase?.from('delivery_inbox')
-      ?.update({
-        status: 'pending_return',
-        archive_reason: 'returned',
-        return_requested_by: requestedBy,
-        return_requested_at: new Date().toISOString(),
-      })?.eq('id', itemId);
-    if (error) throw error;
+    await queueRowUpdate('delivery_inbox', itemId, {
+      status: 'pending_return',
+      archive_reason: 'returned',
+      return_requested_by: requestedBy,
+      return_requested_at: new Date().toISOString(),
+    }, 'Sending an item back to the supplier');
     return true;
   } catch (err) { console.error('[returnInboxItem]', err); return false; }
 };
@@ -2683,14 +2679,13 @@ export const fetchPendingReturns = async (tenantId, includeArchived = false) => 
 export const confirmReturned = async (itemIds, confirmedBy = null) => {
   if (!itemIds?.length) return false;
   try {
-    const { error } = await supabase?.from('delivery_inbox')
-      ?.update({
-        status: 'archived',
-        archive_reason: 'returned',
-        return_confirmed_by: confirmedBy,
-        return_confirmed_at: new Date().toISOString(),
-      })?.in('id', itemIds);
-    if (error) throw error;
+    const patch = {
+      status: 'archived',
+      archive_reason: 'returned',
+      return_confirmed_by: confirmedBy,
+      return_confirmed_at: new Date().toISOString(),
+    };
+    for (const id of itemIds) await queueRowUpdate('delivery_inbox', id, patch, 'Confirming a return');
     return true;
   } catch (err) { console.error('[confirmReturned]', err); return false; }
 };
@@ -2699,10 +2694,8 @@ export const confirmReturned = async (itemIds, confirmedBy = null) => {
 export const cancelReturns = async (itemIds) => {
   if (!itemIds?.length) return false;
   try {
-    const { error } = await supabase?.from('delivery_inbox')
-      ?.update({ status: 'pending', archive_reason: null, return_requested_by: null, return_requested_at: null })
-      ?.in('id', itemIds);
-    if (error) throw error;
+    const patch = { status: 'pending', archive_reason: null, return_requested_by: null, return_requested_at: null };
+    for (const id of itemIds) await queueRowUpdate('delivery_inbox', id, patch, 'Cancelling a return');
     return true;
   } catch (err) { console.error('[cancelReturns]', err); return false; }
 };
@@ -2816,9 +2809,11 @@ export const createLedgerEntry = async ({
       return sum + (lt || 0);
     }, 0) || null;
 
-    const { data: ledger, error: ledgerErr } = await supabase
-      ?.from('delivery_ledger')
-      ?.insert({
+    // Outbox: a delivery received at sea is recorded on the device (device ids,
+    // so the line items can point at their ledger row) and synced later.
+    const nowIso = new Date().toISOString();
+    const { data: ledger, error: ledgerErr } = await insertRow('delivery_ledger', {
+        created_at:       nowIso,
         tenant_id:        tenantId,
         source_type:      sourceType || 'delivery',
         source_board_id:  sourceBoardId  || null,
@@ -2836,14 +2831,14 @@ export const createLedgerEntry = async ({
         total_amount:     calculatedTotal  || null,
         currency:         currency        || null,
         received_by:      receivedBy      || null,
-      })
-      ?.select()
-      ?.single();
+      }, `Delivery record ${supplierName || ''}`.trim(), { timestamps: false });
 
     if (ledgerErr) throw ledgerErr;
 
     if (items?.length && ledger?.id) {
       const rows = items.map(item => ({
+        id:               newId(),
+        created_at:       nowIso,
         ledger_id:        ledger.id,
         name:             item.raw_name || item.name || 'Unknown item',
         original_name:    item.original_name   || null,
@@ -2858,8 +2853,12 @@ export const createLedgerEntry = async ({
         claim_status:     item.claimed_board_id ? 'claimed' : 'unclaimed',
         match_confidence: item.match_confidence || 'none',
       }));
-      const { error: itemsErr } = await supabase?.from('delivery_ledger_items')?.insert(rows);
-      if (itemsErr) throw itemsErr;
+      for (const row of rows) {
+        await outbox.submit({
+          key: `delivery_ledger_items|${row.id}`, table: 'delivery_ledger_items', type: 'insert',
+          row, match: { id: row.id }, label: 'A delivery record line',
+        });
+      }
     }
 
     console.log('[createLedgerEntry] Success — ledger id:', ledger?.id);
